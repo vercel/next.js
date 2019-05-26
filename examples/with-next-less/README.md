@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-next-less)
-
 # Example App with next-less
 
 ## How to use
@@ -41,5 +39,5 @@ now
 
 ## The idea behind the example
 
-This example demonstrates how to use the [next-less plugin](https://github.com/zeit/next-plugins/tree/master/packages/next-less).  
+This example demonstrates how to use the [next-less plugin](https://github.com/zeit/next-plugins/tree/master/packages/next-less).<br>
 It includes patterns for with and without CSS Modules, with PostCSS and with additional webpack configurations on top of the next-less plugin.

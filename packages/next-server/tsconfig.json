@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
     "strict": true,
-    "allowJs": true,
-    "noEmit": true,
     "module": "esnext",
     "target": "ES2017",
     "esModuleInterop": true,
     "moduleResolution": "node",
     "jsx": "react"
-  }
+  },
+  "exclude": [
+    "./dist/**",
+    "./*.d.ts",
+    "./constants.d.ts"
+  ]
 }

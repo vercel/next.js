@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-firebase-authentication)
-
 # With Firebase Authentication example
 
 ## How to use
@@ -48,4 +46,4 @@ now
 ```
 
 ## The idea behind the example
-The goal is to authenticate users with firebase and store their auth token in sessions. A logged in user will see their messages on page load and then be able to post new messages. 
+The goal is to authenticate users with firebase and store their auth token in sessions. A logged in user will see their messages on page load and then be able to post new messages.

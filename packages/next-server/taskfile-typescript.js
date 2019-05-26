@@ -15,6 +15,10 @@ try {
       }
 
       const ext = extname(file.base)
+
+      // Include declaration files as they are
+      if (file.base.endsWith('.d.ts')) return
+
       // For example files without an extension don't have to be rewritten
       if (ext) {
         // Replace `.ts` with `.js`

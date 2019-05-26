@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   nextServer,
@@ -8,7 +9,6 @@ import {
   stopApp,
   runNextCommand
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -41,27 +41,21 @@ describe('Production Config Usage', () => {
 
   describe('env', () => {
     it('should fail with __ in env key', async () => {
-      const result = await runNextCommand(['build', appDir], { spawnOptions: {
-        env: {
-          ...process.env,
-          ENABLE_ENV_FAIL_UNDERSCORE: true
-        }
-      },
-      stdout: true,
-      stderr: true })
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_FAIL_UNDERSCORE: true },
+        stdout: true,
+        stderr: true
+      })
 
       expect(result.stderr).toMatch(/The key "__NEXT_MY_VAR" under/)
     })
 
     it('should fail with NODE_ in env key', async () => {
-      const result = await runNextCommand(['build', appDir], { spawnOptions: {
-        env: {
-          ...process.env,
-          ENABLE_ENV_FAIL_NODE: true
-        }
-      },
-      stdout: true,
-      stderr: true })
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_FAIL_NODE: true },
+        stdout: true,
+        stderr: true
+      })
 
       expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
     })
@@ -75,7 +69,7 @@ describe('Production Config Usage', () => {
 
       const html = await browser.elementByCss('html').getAttribute('innerHTML')
       expect(html).toMatch('custom-buildid')
-      return browser.close()
+      await browser.close()
     })
   })
 })
@@ -87,5 +81,5 @@ async function testBrowser () {
   expect(text).toMatch(/ComponentDidMount executed on client\./)
   expect(await element.getComputedCss('font-size')).toBe('40px')
   expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
-  return browser.close()
+  await browser.close()
 }

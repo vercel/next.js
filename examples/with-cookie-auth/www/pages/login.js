@@ -28,6 +28,7 @@ class Login extends Component {
 
   async handleSubmit (event) {
     event.preventDefault()
+    this.setState({ error: '' })
     const username = this.state.username
     const url = this.props.apiUrl
 
@@ -45,14 +46,14 @@ class Login extends Component {
         // https://github.com/developit/unfetch#caveats
         let error = new Error(response.statusText)
         error.response = response
-        return Promise.reject(error)
+        throw error
       }
     } catch (error) {
       console.error(
         'You have an error in your code or there are Network issues.',
         error
       )
-      throw new Error(error)
+      this.setState({ error: error.message })
     }
   }
 

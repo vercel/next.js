@@ -24,6 +24,14 @@ app.prepare().then(() => {
       app.setAssetPrefix('')
     }
 
+    if (/test-index-hmr/.test(req.url)) {
+      return app.render(req, res, '/index')
+    }
+
+    if (/dashboard/.test(req.url)) {
+      return app.render(req, res, '/dashboard/index')
+    }
+
     handleNextRequests(req, res)
   })
 

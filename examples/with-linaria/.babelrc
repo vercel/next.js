@@ -1,0 +1,6 @@
+{
+  "presets": [
+    "next/babel",
+    "linaria/babel"
+  ]
+}

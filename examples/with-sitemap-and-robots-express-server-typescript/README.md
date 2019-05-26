@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-sitemap-and-robots-typescript)
-
 # Example with sitemap.xml and robots.txt using Express server and typescript
 
 ## How to use
@@ -56,7 +54,7 @@ When you start this example locally:
 - robots.txt will be located at http://localhost:8000/robots.txt
 
 In case you want to deploy this example, replace the URL in the following locations with your own domain:
-- `hostname` in `src/server/sitemapAndRobots.ts`
+- `hostname` in `src/server/sitemap.ts`
 - `ROOT_URL` in `src/server/app.ts`
 - `Sitemap` at the bottom of `src/server/robots.txt`
 - `alias` in `now.json`

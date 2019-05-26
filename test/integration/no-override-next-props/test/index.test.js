@@ -22,6 +22,6 @@ describe('Dynamic require', () => {
 
   it('should show error when a Next prop is returned in _app.getInitialProps', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/https:\/\/err\.sh\/zeit\/next\.js\/cant-override-next-props\.md/)
+    expect(html).toMatch(/https:\/\/err\.sh\/zeit\/next\.js\/cant-override-next-props/)
   })
 })

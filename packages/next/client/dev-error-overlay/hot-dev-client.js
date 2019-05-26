@@ -100,6 +100,9 @@ export default function connect (options) {
     addMessageListenerToEventSourceWrapper (fn) {
       eventSourceWrapper.addMessageListener(fn)
     },
+    reportRuntimeError (err) {
+      ErrorOverlay.reportRuntimeError(err)
+    },
     prepareError (err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
       // Should be removed once the fix lands
@@ -267,6 +270,7 @@ async function tryApplyUpdates (onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    ErrorOverlay.dismissBuildError()
     return
   }
 

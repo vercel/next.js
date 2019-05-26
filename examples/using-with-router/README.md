@@ -1,4 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/using-with-router)
 # Example app utilizing `withRouter` utility for routing
 
 ## How to use
@@ -40,6 +39,6 @@ now
 
 ## The idea behind the example
 
-Sometimes, we want to use the `router` inside component of our app without using the singleton `next/router` API. 
+Sometimes, we want to use the `router` inside component of our app without using the singleton `next/router` API.
 
 You can do that by creating a React Higher Order Component with the help of the `withRouter` utility.

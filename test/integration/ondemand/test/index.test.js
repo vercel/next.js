@@ -1,8 +1,8 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
-import webdriver from 'next-webdriver'
 import AbortController from 'abort-controller'
 import {
   renderViaHTTP,
@@ -20,7 +20,7 @@ const context = {}
 const doPing = page => {
   const controller = new AbortController()
   const signal = controller.signal
-  return fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping', { page }, { signal })
+  return fetchViaHTTP(context.appPort, '/_next/webpack-hmr', { page }, { signal })
     .then(res => {
       res.body.on('data', chunk => {
         try {
@@ -99,7 +99,7 @@ describe('On Demand Entries', () => {
       }, /Hello/)
     } finally {
       if (browser) {
-        browser.close()
+        await browser.close()
       }
     }
   })

@@ -1,11 +1,23 @@
 import React from "react";
 import withSideEffect from "./side-effect";
+import {AmpModeContext} from './amphtml-context';
 import { HeadManagerContext } from "./head-manager-context";
+import { isAmp } from './amp'
 
-export function defaultHead(className = 'next-head') {
-  return [
+type WithIsAmp = {
+  isAmp?: boolean;
+}
+
+export function defaultHead(className = 'next-head', isAmp = false) {
+  const head = [
     <meta key="charSet" charSet="utf-8" className={className} />,
   ];
+  if (!isAmp) {
+    head.push(
+      <meta key="viewport" name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" className={className} />,
+    );
+  }
+  return head;
 }
 
 function onlyReactElement(
@@ -37,7 +49,7 @@ function onlyReactElement(
   return list.concat(child);
 }
 
-const METATYPES = ["name", "httpEquiv", "charSet", "itemProp"];
+const METATYPES = ["name", "httpEquiv", "charSet", "viewport", "itemProp"];
 
 /*
  returns a function for filtering head child elements
@@ -67,7 +79,7 @@ function unique() {
           const metatype = METATYPES[i];
           if (!h.props.hasOwnProperty(metatype)) continue;
 
-          if (metatype === "charSet") {
+          if (metatype === "charSet" || metatype === "viewport") {
             if (metaTypes.has(metatype)) return false;
             metaTypes.add(metatype);
           } else {
@@ -88,7 +100,7 @@ function unique() {
  *
  * @param headElement List of multiple <Head> instances
  */
-function reduceComponents(headElements: Array<React.ReactElement<any>>) {
+function reduceComponents(headElements: Array<React.ReactElement<any>>, props: WithIsAmp) {
   return headElements
     .reduce(
       (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
@@ -101,13 +113,17 @@ function reduceComponents(headElements: Array<React.ReactElement<any>>) {
     )
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(''))
+    .concat(defaultHead('', props.isAmp))
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
-      const className =
+      let className: string | undefined =
         (c.props && c.props.className ? c.props.className + " " : "") +
-        "next-head";
+        'next-head';
+
+      if (c.type === 'title' && !c.props.className) {
+        className = undefined
+      }
       const key = c.key || i;
       return React.cloneElement(c, { key, className });
     });
@@ -115,21 +131,30 @@ function reduceComponents(headElements: Array<React.ReactElement<any>>) {
 
 const Effect = withSideEffect();
 
+/**
+ * This component injects elements to `<head>` of your page.
+ * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
+ */
 function Head({ children }: { children: React.ReactNode }) {
   return (
-    <HeadManagerContext.Consumer>
-      {(updateHead) => (
-        <Effect
-          reduceComponentsToState={reduceComponents}
-          handleStateChange={updateHead}
-        >
-          {children}
-        </Effect>
+    <AmpModeContext.Consumer>
+      {(ampMode) => (
+        <HeadManagerContext.Consumer>
+          {(updateHead) => (
+            <Effect
+              reduceComponentsToState={reduceComponents}
+              handleStateChange={updateHead}
+              isAmp={isAmp(ampMode)}
+            >
+              {children}
+            </Effect>
+          )}
+        </HeadManagerContext.Consumer>
       )}
-    </HeadManagerContext.Consumer>
+    </AmpModeContext.Consumer>
   );
 }
 
 Head.rewind = Effect.rewind;
 
-export default Head;
+export default Head

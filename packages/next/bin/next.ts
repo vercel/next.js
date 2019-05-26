@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import arg from 'arg'
+import arg from 'next/dist/compiled/arg/index.js'
 
 ['react', 'react-dom'].forEach((dependency) => {
   try {
@@ -77,6 +77,14 @@ if (args['--help']) {
 
 const defaultEnv = command === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
+
+// this needs to come after we set the correct NODE_ENV or
+// else it might cause SSR to break
+const React = require('react')
+
+if (typeof React.Suspense === 'undefined') {
+  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
+}
 
 commands[command]().then((exec) => exec(forwardedArgs))
 

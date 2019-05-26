@@ -1,20 +1,25 @@
-import { join, normalize } from 'path'
+import { relative as relativePath, join, normalize, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
-import rimrafModule from 'rimraf'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_RUNTIME_AMP } from 'next-server/constants'
 import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { route } from 'next-server/dist/server/router'
-import { promisify } from 'util'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { promisify } from 'util'
+import * as ForkTsCheckerWatcherHook from '../build/webpack/plugins/fork-ts-checker-watcher-hook'
+import fs from 'fs'
 
-const rimraf = promisify(rimrafModule)
+const access = promisify(fs.access)
+const readFile = promisify(fs.readFile)
+// eslint-disable-next-line
+const fileExists = promisify(fs.exists)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -66,6 +71,10 @@ function findEntryModule (issuer) {
 function erroredPages (compilation, options = { enhanceName: (name) => name }) {
   const failedPages = {}
   for (const error of compilation.errors) {
+    if (!error.origin) {
+      continue
+    }
+
     const entryModule = findEntryModule(error.origin)
     const { name } = entryModule
     if (!name) {
@@ -137,6 +146,23 @@ export default class HotReloader {
           return { finished: true }
         }
 
+        const bundlePath = join(
+          this.dir,
+          this.config.distDir,
+          'static/development/pages', page + '.js'
+        )
+
+        // make sure to 404 for AMP bundles in case they weren't removed
+        try {
+          await access(bundlePath)
+          const data = await readFile(bundlePath, 'utf8')
+          if (data.includes('__NEXT_DROP_CLIENT_FILE__')) {
+            res.statusCode = 404
+            res.end()
+            return { finished: true }
+          }
+        } catch (_) {}
+
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
           await renderScriptError(res, errors[0])
@@ -162,7 +188,7 @@ export default class HotReloader {
   }
 
   async clean () {
-    return rimraf(join(this.dir, this.config.distDir), { force: true })
+    return recursiveDelete(join(this.dir, this.config.distDir))
   }
 
   async getWebpackConfig () {
@@ -173,17 +199,15 @@ export default class HotReloader {
     ])
 
     const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
-    const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
+    const entrypoints = createEntrypoints(pages, 'server', this.buildId, false, this.config)
 
     let additionalClientEntrypoints = {}
-    if (this.config.experimental.amp) {
-      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev')
-    }
+    additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
 
-    return [
+    return Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
-    ]
+    ])
   }
 
   async start () {
@@ -234,9 +258,10 @@ export default class HotReloader {
     this.onDemandEntries = onDemandEntries
     this.middlewares = [
       webpackDevMiddleware,
+      // must come before hotMiddleware
+      onDemandEntries.middleware(),
       webpackHotMiddleware,
-      errorOverlayMiddleware({ dir: this.dir }),
-      onDemandEntries.middleware()
+      errorOverlayMiddleware({ dir: this.dir })
     ]
   }
 
@@ -245,6 +270,12 @@ export default class HotReloader {
       multiCompiler.compilers[0],
       multiCompiler.compilers[1]
     )
+
+    const tsConfigPath = join(this.dir, 'tsconfig.json')
+    const useTypeScript = await fileExists(tsConfigPath)
+    if (useTypeScript) {
+      ForkTsCheckerWatcherHook.Apply(multiCompiler.compilers[0])
+    }
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
@@ -346,8 +377,11 @@ export default class HotReloader {
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
+      distDir: this.config.distDir,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
+      publicRuntimeConfig: this.config.publicRuntimeConfig,
+      serverRuntimeConfig: this.config.serverRuntimeConfig,
       ...this.config.onDemandEntries
     })
 
@@ -399,7 +433,7 @@ export default class HotReloader {
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    await this.onDemandEntries.ensurePage(page)
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 

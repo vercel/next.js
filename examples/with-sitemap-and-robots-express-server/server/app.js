@@ -1,6 +1,6 @@
 const express = require('express')
 const next = require('next')
-const sitemapAndRobots = require('./sitemapAndRobots')
+const sitemap = require('./sitemap')
 
 const dev = process.env.NODE_ENV !== 'production'
 
@@ -16,7 +16,7 @@ const handle = app.getRequestHandler()
 app.prepare().then(() => {
   const server = express()
 
-  sitemapAndRobots({ server })
+  sitemap({ server })
 
   server.get('*', (req, res) => handle(req, res))
 

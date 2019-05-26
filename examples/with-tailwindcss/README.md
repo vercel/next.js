@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-tailwindcss)
-
 # Tailwind CSS example
 
 This is an example of how you can include a global stylesheet in a next.js webapp.
@@ -44,19 +42,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-### Extras
-
-In the `package.json` you'll see some extra commands.
-
-* `yarn dev:css`
-  * used by `yarn dev` generate css bundle and watch css files for changes
-  * includes css imported into `index.css`
-  * will **not** autoreload browser when css changes
-* `yarn build:css`
-  * used by `yarn build` to generate css bundle
-
-These can be used manually but using the usual commands will run them anyways.
 
 ## The idea behind the example
 

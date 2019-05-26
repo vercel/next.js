@@ -25,7 +25,7 @@ const HelloBundle = dynamic({
 
 export default class Bundle extends React.Component {
   static childContextTypes = {
-    data: PropTypes.object 
+    data: PropTypes.object
   }
 
   static getInitialProps ({ query }) {

@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-dotenv)
-
 # With Dotenv example
 
 ## How to use
@@ -41,7 +39,7 @@ now
 
 ## The idea behind the example
 
-This example shows how to inline env vars. 
+This example shows how to inline env vars.
 
 **Please note**:
 

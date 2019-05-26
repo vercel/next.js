@@ -1,14 +1,19 @@
-import {IncomingMessage, ServerResponse} from 'http'
-import {UrlWithParsedQuery} from 'url'
+import { IncomingMessage, ServerResponse } from 'http'
+import { UrlWithParsedQuery } from 'url'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
 
-type Params = {[param: string]: any}
+type Params = { [param: string]: any }
 
 export type Route = {
-  match: (pathname: string|undefined) => false|Params,
-  fn: (req: IncomingMessage, res: ServerResponse, params: Params, parsedUrl: UrlWithParsedQuery) => void,
+  match: (pathname: string | undefined) => false | Params
+  fn: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    params: Params,
+    parsedUrl: UrlWithParsedQuery,
+  ) => void,
 }
 
 export default class Router {
@@ -21,11 +26,11 @@ export default class Router {
     this.routes.unshift(route)
   }
 
-  match(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlWithParsedQuery) {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      return
-    }
-
+  match(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl: UrlWithParsedQuery,
+  ) {
     const { pathname } = parsedUrl
     for (const route of this.routes) {
       const params = route.match(pathname)

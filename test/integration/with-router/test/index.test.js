@@ -1,20 +1,25 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
+  getReactErrorOverlayContent,
   nextServer,
+  launchApp,
+  findPort,
+  killApp,
   nextBuild,
   startApp,
   stopApp
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('withRouter', () => {
   const appDir = join(__dirname, '../')
   let appPort
   let server
   let app
-  jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
   beforeAll(async () => {
     await nextBuild(appDir)
@@ -43,7 +48,7 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active').text()
     expect(activePage).toBe('Bar')
 
-    browser.close()
+    await browser.close()
   })
 
   it('allows observation of navigation events using top level Router', async () => {
@@ -59,7 +64,7 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active-top-level-router').text()
     expect(activePage).toBe('Bar')
 
-    browser.close()
+    await browser.close()
   })
 
   it('allows observation of navigation events using top level Router deprecated behavior', async () => {
@@ -75,6 +80,25 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
     expect(activePage).toBe('Bar')
 
-    browser.close()
+    await browser.close()
+  })
+})
+
+describe('withRouter SSR', () => {
+  let server
+  let port
+
+  beforeAll(async () => {
+    port = await findPort()
+    server = await launchApp(join(__dirname, '..'), port)
+  })
+  afterAll(async () => {
+    await killApp(server)
+  })
+
+  it('should show an error when trying to use router methods during SSR', async () => {
+    const browser = await webdriver(port, '/router-method-ssr')
+    expect(await getReactErrorOverlayContent(browser)).toMatch(`No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`)
+    await browser.close()
   })
 })

@@ -10,9 +10,10 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string,
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
-  buildId: string,
   assetPrefix: string,
+  ampBindInitData: boolean | string,
   generateEtags: string
+  dynamicBuildId?: string | boolean
 }
 
 const nextServerlessLoader: loader.Loader = function () {
@@ -20,12 +21,13 @@ const nextServerlessLoader: loader.Loader = function () {
     distDir,
     absolutePagePath,
     page,
-    buildId,
     assetPrefix,
+    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
-    generateEtags
+    generateEtags,
+    dynamicBuildId
   }: ServerlessLoaderQuery = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(/\\/g, '/')
@@ -39,21 +41,32 @@ const nextServerlessLoader: loader.Loader = function () {
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
-    async function renderReqToHTML(req, res) {
+    export default Component
+    export const _app = App
+    export async function renderReqToHTML(req, res, fromExport) {
       const options = {
         App,
         Document,
         buildManifest,
         reactLoadableManifest,
-        buildId: "${buildId}",
-        assetPrefix: "${assetPrefix}"
+        buildId: "__NEXT_REPLACE__BUILD_ID__",
+        dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
+        assetPrefix: "${assetPrefix}",
+        ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
+      const renderOpts = Object.assign(
+        {
+          Component,
+          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
+        },
+        options,
+      )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign({}, options, {
-          Component
-        }))
+        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, renderOpts)
+
+        if (fromExport) return { html: result, renderOpts }
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {

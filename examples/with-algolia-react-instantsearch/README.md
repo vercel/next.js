@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-algolia-react-instantsearch)
-
 # With Algolia React InstantSearch example
 
 ## How to use
@@ -45,5 +43,5 @@ now
 
 ## The idea behind the example
 The goal of this example is to illustrate how you can use [Algolia React InstantSearch](https://community.algolia.com/react-instantsearch/) to perform
-your search with a Server-rendered application developed with Next.js. It also illustrates how you 
-can keep in sync the Url with the search. 
+your search with a Server-rendered application developed with Next.js. It also illustrates how you
+can keep in sync the Url with the search.

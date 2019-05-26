@@ -1,5 +1,4 @@
 /* eslint-env jest */
-
 import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
@@ -35,7 +34,7 @@ export default (context, render) => {
       } finally {
         writeFileSync(appPath, originalContent, 'utf8')
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -70,7 +69,7 @@ export default (context, render) => {
       } finally {
         writeFileSync(appPath, originalContent, 'utf8')
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -86,7 +85,7 @@ export default (context, render) => {
         .elementByCss('#random-number').text()
 
       expect(switchedRandomNumer).toBe(randomNumber)
-      browser.close()
+      await browser.close()
     })
 
     it('It should share module state with pages', async () => {
@@ -94,7 +93,7 @@ export default (context, render) => {
 
       const text = await browser.elementByCss('#currentstate').text()
       expect(text).toBe('UPDATED CLIENT')
-      browser.close()
+      await browser.close()
     })
   })
 }

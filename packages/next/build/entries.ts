@@ -9,7 +9,9 @@ type PagesMapping = {
 
 export function createPagesMapping(pagePaths: string[], extensions: string[]): PagesMapping {
   const pages: PagesMapping = pagePaths.reduce((result: PagesMapping, pagePath): PagesMapping => {
-    const page = `${pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+    let page = `${pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+    page = page === '/index' ? '/' : page
+
     result[page === '' ? '/' : page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
     return result
   }, {})
@@ -30,7 +32,7 @@ type Entrypoints = {
   server: WebpackEntrypoints
 }
 
-export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverless', buildId: string, config: any): Entrypoints {
+export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverless', buildId: string, dynamicBuildId: boolean, config: any): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
 
@@ -39,25 +41,32 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     distDir: DOT_NEXT_ALIAS,
-    buildId,
     assetPrefix: config.assetPrefix,
-    generateEtags: config.generateEtags
+    generateEtags: config.generateEtags,
+    ampBindInitData: config.experimental.ampBindInitData,
+    dynamicBuildId
   }
 
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
+    const isApiRoute = bundleFile.startsWith('/api')
+
     const bundlePath = join('static', buildId, 'pages', bundleFile)
-    if(target === 'serverless' && page !== '/_app' && page !== '/_document') {
+    if(isApiRoute || target === 'server') {
+      server[bundlePath] = [absolutePagePath]
+    } else if(target === 'serverless' && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultServerlessOptions}
       server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
-    } else if(target === 'server') {
-      server[bundlePath] = [absolutePagePath]
     }
+
     if (page === '/_document') {
       return
     }
-    client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+
+    if(!isApiRoute) {
+      client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+    }
   })
 
   return {

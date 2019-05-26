@@ -32,18 +32,17 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should have installed the react-overlay-editor editor handler', async () => {
       let browser
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('</div>', 'div')
-
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about1.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/about')
+        aboutPage.replace('</div>', 'div')
+        browser = await webdriver(context.appPort, '/hmr/about1')
 
         // react-error-overlay uses the following inline style if an editorHandler is installed
         expect(await getReactErrorOverlayContent(browser)).toMatch(/style="cursor: pointer;"/)
@@ -66,18 +65,20 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should detect syntax errors and recover', async () => {
       let browser
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about2.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        browser = await webdriver(context.appPort, '/hmr/about2')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('</div>', 'div')
 
@@ -101,16 +102,16 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should show the error on all pages', async () => {
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about2.js'))
       let browser
       try {
-        await renderViaHTTP('/hmr/about')
+        await renderViaHTTP('/hmr/about2')
 
         aboutPage.replace('</div>', 'div')
 
@@ -137,19 +138,20 @@ export default (context, renderViaHTTP) => {
       } finally {
         aboutPage.restore()
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should detect runtime errors on the module scope', async () => {
       let browser
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about3.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser
-          .elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        browser = await webdriver(context.appPort, '/hmr/about3')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export', 'aa=20;\nexport')
 
@@ -164,19 +166,20 @@ export default (context, renderViaHTTP) => {
       } finally {
         aboutPage.restore()
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should recover from errors in the render function', async () => {
       let browser
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about4.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-
-        expect(text).toBe('This is the about page.')
+        browser = await webdriver(context.appPort, '/hmr/about4')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
 
@@ -200,18 +203,20 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should recover after exporting an invalid page', async () => {
       let browser
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about5.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        browser = await webdriver(context.appPort, '/hmr/about5')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default {};\nexport const fn =')
 
@@ -239,18 +244,20 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
 
     it('should recover after a bad return from the render function', async () => {
       let browser
-      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about6.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        browser = await webdriver(context.appPort, '/hmr/about6')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default () => /search/;\nexport const fn =')
 
@@ -278,7 +285,52 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
+        }
+      }
+    })
+
+    it('should recover after undefined exported as default', async () => {
+      let browser
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about7.js'))
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about7')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
+
+        aboutPage.replace('export default', 'export default undefined;\nexport const fn =')
+
+        await check(
+          async () => {
+            const txt = await getBrowserBodyText(browser)
+            console.log(txt)
+            return txt
+          },
+          /The default export is not a React Component/
+        )
+
+        aboutPage.restore()
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
+      } catch (err) {
+        aboutPage.restore()
+
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          await browser.close()
         }
       }
     })
@@ -319,7 +371,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -360,7 +412,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })

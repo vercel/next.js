@@ -9,19 +9,24 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import Router, { route, Route } from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
-import loadConfig from 'next-server/next-config'
+import loadConfig from './config'
+import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
+  CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-} from 'next-server/constants'
+  SERVER_DIRECTORY,
+  PAGES_MANIFEST,
+} from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
-import { loadComponents } from './load-components'
+import { loadComponents, interopDefault } from './load-components'
+import { getPagePath } from './require';
 
 type NextConfig = any
 
-type ServerConstructor = {
+export type ServerConstructor = {
   dir?: string
   staticMarkup?: boolean
   quiet?: boolean
@@ -33,15 +38,19 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
+  publicDir: string
   buildId: string
   renderOpts: {
-    ampEnabled: boolean
+    poweredByHeader: boolean
+    ampBindInitData: boolean
     buildWatcherStyle: string
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
+    autoExport: boolean,
+    dev?: boolean,
   }
   router: Router
 
@@ -56,6 +65,8 @@ export default class Server {
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    // this.pagesDir = join(this.dir, 'pages')
+    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -64,17 +75,13 @@ export default class Server {
       publicRuntimeConfig,
       assetPrefix,
       generateEtags,
-      target,
     } = this.nextConfig
-
-    if (process.env.NODE_ENV === 'production' && target !== 'server')
-      throw new Error(
-        'Cannot start server when target is not server. https://err.sh/zeit/next.js/next-start-serverless',
-      )
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
-      ampEnabled: this.nextConfig.experimental.amp,
+      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
+      poweredByHeader: this.nextConfig.poweredByHeader,
+      autoExport: this.nextConfig.experimental.autoExport,
       buildWatcherStyle: this.nextConfig.buildWatcherStyle,
       staticMarkup,
       buildId: this.buildId,
@@ -95,6 +102,7 @@ export default class Server {
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
+
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -191,7 +199,18 @@ export default class Server {
           await this.serveStatic(req, res, p, parsedUrl)
         },
       },
+      {
+        match: route('/api/:path*'),
+        fn: async (req, res, params, parsedUrl) => {
+          const { pathname } = parsedUrl
+          await this.handleApiRequest(req, res, pathname!)
+        },
+      },
     ]
+
+    if (fs.existsSync(this.publicDir)) {
+      routes.push(...this.generatePublicRoutes())
+    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       // It's very important to keep this route's param optional.
@@ -210,6 +229,55 @@ export default class Server {
         },
       })
     }
+
+    return routes
+  }
+
+  /**
+   * Resolves `API` request, in development builds on demand
+   * @param req http request
+   * @param res http response
+   * @param pathname path of request
+   */
+  private async handleApiRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const resolverFunction = await this.resolveApiRequest(pathname)
+    if (resolverFunction === null) {
+      res.statusCode = 404
+      res.end('Not Found')
+      return
+    }
+
+    const resolver = interopDefault(require(resolverFunction))
+    resolver(req, res)
+  }
+
+  /**
+   * Resolves path to resolver function
+   * @param pathname path of request
+   */
+  private resolveApiRequest(pathname: string) {
+    return getPagePath(pathname, this.distDir, this.nextConfig.target === 'serverless')
+  }
+
+  private generatePublicRoutes(): Route[] {
+    const routes: Route[] = []
+    const publicFiles = recursiveReadDirSync(this.publicDir)
+    const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
+    const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
+
+    publicFiles.forEach((path) => {
+      const unixPath = path.replace(/\\/g, '/')
+      // Only include public files that will not replace a page path
+      if (!pagesManifest[unixPath]) {
+        routes.push({
+          match: route(unixPath),
+          fn: async (req, res, _params, parsedUrl) => {
+            const p = join(this.publicDir, unixPath)
+            await this.serveStatic(req, res, p, parsedUrl)
+          },
+        })
+      }
+    })
 
     return routes
   }
@@ -246,8 +314,8 @@ export default class Server {
     res: ServerResponse,
     html: string,
   ) {
-    const { generateEtags } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags })
+    const { generateEtags, poweredByHeader } = this.renderOpts
+    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
 
   public async render(
@@ -267,16 +335,13 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
-      amphtml: query.amp && this.nextConfig.experimental.amp,
+      dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
     })
     // Request was ended by the user
     if (html === null) {
       return
     }
 
-    if (this.nextConfig.poweredByHeader) {
-      res.setHeader('X-Powered-By', 'Next.js ' + process.env.__NEXT_VERSION)
-    }
     return this.sendHTML(req, res, html)
   }
 
@@ -287,7 +352,25 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname)
+    const serverless = !this.renderOpts.dev && this.nextConfig.target === 'serverless'
+    // try serving a static AMP version first
+    if (query.amp) {
+      try {
+        const result = await loadComponents(this.distDir, this.buildId, (pathname === '/' ? '/index' : pathname) + '.amp', serverless)
+        if (typeof result.Component === 'string') return result.Component
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err
+      }
+    }
+    const result = await loadComponents(this.distDir, this.buildId, pathname, serverless)
+    // handle static page
+    if (typeof result.Component === 'string') return result.Component
+    // handle serverless
+    if (typeof result.Component === 'object' &&
+      typeof result.Component.renderReqToHTML === 'function'
+    ) {
+      return result.Component.renderReqToHTML(req, res)
+    }
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
@@ -296,7 +379,11 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml }: { amphtml?: boolean } = {},
+    { amphtml, dataOnly, hasAmp }: {
+      amphtml?: boolean,
+      hasAmp?: boolean,
+      dataOnly?: boolean,
+    } = {},
   ): Promise<string | null> {
     try {
       // To make sure the try/catch is executed
@@ -305,11 +392,11 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml },
+        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
       )
       return html
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (err && err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
@@ -390,7 +477,8 @@ export default class Server {
     const resolved = resolve(path)
     if (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0
+      resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
+      resolved.indexOf(join(this.dir, 'public') + sep) !== 0
     ) {
       // Seems like the user is trying to traverse the filesystem.
       return false

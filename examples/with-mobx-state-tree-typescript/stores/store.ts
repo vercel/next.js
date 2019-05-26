@@ -1,6 +1,6 @@
 import { applySnapshot, Instance, SnapshotIn, SnapshotOut, types } from "mobx-state-tree";
 
-let store:IStore = null as any;
+let store: IStore = null as any;
 
 const Store = types
   .model({
@@ -29,21 +29,19 @@ const Store = types
     return { start, stop, update };
   });
 
-type IStore = Instance<typeof Store>;
-type IStoreSnapshotIn = SnapshotIn<typeof Store>;
-type IStoreSnapshotOut = SnapshotOut<typeof Store>;
+export type IStore = Instance<typeof Store>;
+export type IStoreSnapshotIn = SnapshotIn<typeof Store>;
+export type IStoreSnapshotOut = SnapshotOut<typeof Store>;
 
-const initializeStore = (isServer, snapshot = null) => {
+export const initializeStore = (isServer, snapshot = null) => {
   if (isServer) {
-    store = Store.create({ foo:6, lastUpdate: Date.now() });
+    store = Store.create({ foo: 6, lastUpdate: Date.now() });
   }
   if (store as any === null) {
-    store = Store.create({ foo:6, lastUpdate: Date.now() });
+    store = Store.create({ foo: 6, lastUpdate: Date.now() });
   }
   if (snapshot) {
     applySnapshot(store, snapshot);
   }
   return store;
 };
-
-export { initializeStore, IStore, IStoreSnapshotIn, IStoreSnapshotOut };

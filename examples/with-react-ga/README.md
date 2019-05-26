@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-ga)
-
 # React-GA example
 
 ## How to use
@@ -41,5 +39,5 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app) 
+This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app)
 component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.

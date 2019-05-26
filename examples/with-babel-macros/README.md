@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-babel-macros)
-
 # Example app with [babel-macros](https://github.com/kentcdodds/babel-macros)
 
 ## How to use
