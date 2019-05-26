@@ -11,6 +11,30 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
+function getRouteRegex(
+  route: string,
+): { re: RegExp; groups: { [groupName: string]: number } } {
+  const escapedRoute = route.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+
+  const groups: { [groupName: string]: number } = {}
+  let groupIndex = 1
+
+  const parameterizedRoute = escapedRoute.replace(
+    /\/\\\$([^\/]+?)(?=\/|$)/g,
+    (_, $1) => (
+      (groups[
+        $1.replace(/\\\$$/, '').replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
+      ] = groupIndex++),
+      $1.lastIndexOf('$') === $1.length - 1 ? '(?:/([^/]+?))?' : '/([^/]+?)'
+    ),
+  )
+
+  return {
+    re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+    groups,
+  }
+}
+
 export type BaseRouter = {
   route: string
   pathname: string
@@ -224,6 +248,23 @@ export default class Router implements BaseRouter {
       // @ts-ignore pathname is always a string
       const route = toRoute(pathname)
       const { shallow = false } = options
+
+      // detect dynamic routing
+      if (route.indexOf('/$') !== -1) {
+        const { re: routeRegex, groups } = getRouteRegex(route)
+        const routeMatch = routeRegex.exec(as)
+        if (!routeMatch) {
+          console.error('TODO: ...')
+          return resolve(false)
+        }
+
+        Object.keys(groups).forEach((slugName) => {
+          const m = routeMatch[groups[slugName]]
+          if (m !== undefined) {
+            query[slugName] = m
+          }
+        })
+      }
 
       Router.events.emit('routeChangeStart', as)
 
