@@ -35,7 +35,7 @@ const defaultConfig: {[key: string]: any} = {
     flyingShuttle: false,
     asyncToPromises: false,
   },
-  buildWatcherStyle: 'default'
+  buildWatcherStyle: 'default',
 }
 
 function assignDefaults(userConfig: {[key: string]: any}) {

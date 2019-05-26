@@ -177,7 +177,7 @@ function renderDocument(
     dynamicImports: ManifestItem[]
     files: string[]
     devFiles: string[],
-    buildWatcherStyle: string
+    buildWatcherStyle: string,
   },
 ): string {
   return (

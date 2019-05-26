@@ -355,10 +355,10 @@ export class Main extends Component {
   }
 
   context!: DocumentComponentContext
-  
+
   getBuildWatcher() {
     const { buildWatcherStyle } = this.context._documentProps
-    
+
     if (
       buildWatcherStyle &&
       buildWatcherStyle !== 'none' &&
@@ -366,14 +366,13 @@ export class Main extends Component {
     ) {
       return <div id="__next-build-watcher" buildwatcherstyle={buildWatcherStyle} />
     }
-    
+
     return null
   }
 
   render() {
     const { amphtml, html } = this.context._documentProps
     if (amphtml) return '__NEXT_AMP_RENDER_TARGET__'
-
     return (
       <>
         <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
