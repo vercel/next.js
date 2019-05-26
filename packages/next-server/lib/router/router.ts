@@ -241,7 +241,7 @@ export default class Router implements BaseRouter {
         Object.keys(groups).forEach((slugName) => {
           const m = routeMatch[groups[slugName]]
           if (m !== undefined) {
-            query[slugName] = m
+            query[slugName] = decodeURIComponent(m)
           }
         })
       }

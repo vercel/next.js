@@ -19,10 +19,12 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   SERVER_DIRECTORY,
   PAGES_MANIFEST,
+  BUILD_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents, interopDefault } from './load-components'
 import { getPagePath } from './require';
+import { getRouteMatch } from '../lib/router/utils';
 
 type NextConfig = any
 
@@ -39,6 +41,7 @@ export default class Server {
   nextConfig: NextConfig
   distDir: string
   publicDir: string
+  buildManifest: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -66,6 +69,7 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    this.buildManifest = join(this.distDir, BUILD_MANIFEST)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -211,6 +215,8 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      routes.push(...this.generateDynamicRoutes())
+
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
@@ -276,6 +282,28 @@ export default class Server {
         })
       }
     })
+
+    return routes
+  }
+
+  private generateDynamicRoutes(): Route[] {
+    const routes: Route[] = []
+
+    const manifest = require(this.buildManifest)
+    const dynamicRoutedPages = Object.keys(manifest.pages).filter((p) => p.includes('/$'))
+
+    for (const page of dynamicRoutedPages) {
+      routes.push({
+        match: getRouteMatch(page),
+        fn: async (req, res, params, parsedUrl) => {
+          const { pathname, query } = parsedUrl
+          if (!pathname) {
+            throw new Error('pathname is undefined')
+          }
+          await this.render(req, res, page, { ...query, ...params }, parsedUrl)
+        },
+      })
+    }
 
     return routes
   }
