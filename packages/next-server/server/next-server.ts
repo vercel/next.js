@@ -355,7 +355,10 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async findPageComponents(pathname: string, query: ParsedUrlQuery = {}) {
+  private async findPageComponents(
+    pathname: string,
+    query: ParsedUrlQuery = {},
+  ) {
     const serverless =
       !this.renderOpts.dev && this.nextConfig.target === 'serverless'
     // try serving a static AMP version first
@@ -387,8 +390,12 @@ export default class Server {
     opts: any,
   ) {
     const result = await this.findPageComponents(pathname, query)
+
     // handle static page
-    if (typeof result.Component === 'string') return result.Component
+    if (typeof result.Component === 'string') {
+      return result.Component
+    }
+
     // handle serverless
     if (
       typeof result.Component === 'object' &&
@@ -396,6 +403,7 @@ export default class Server {
     ) {
       return result.Component.renderReqToHTML(req, res)
     }
+
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
