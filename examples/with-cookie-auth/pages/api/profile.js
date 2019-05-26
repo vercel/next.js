@@ -1,9 +1,9 @@
-const { send, createError, run } = require('micro')
-const fetch = require('isomorphic-unfetch')
+import micro from 'micro'
+import fetch from 'isomorphic-unfetch'
 
-const profile = async (req, res) => {
+export default micro(async (req, res) => {
   if (!('authorization' in req.headers)) {
-    throw createError(401, 'Authorization header missing')
+    throw micro.createError(401, 'Authorization header mising')
   }
 
   const auth = await req.headers.authorization
@@ -17,13 +17,11 @@ const profile = async (req, res) => {
       const js = await response.json()
       // Need camelcase in the frontend
       const data = Object.assign({}, { avatarUrl: js.avatar_url }, js)
-      send(res, 200, { data })
+      micro.send(res, 200, { data })
     } else {
-      send(res, response.status, response.statusText)
+      micro.send(res, response.status, response.statusText)
     }
   } catch (error) {
-    throw createError(error.statusCode, error.statusText)
+    throw micro.createError(error.statusCode, error.statusText)
   }
-}
-
-module.exports = (req, res) => run(req, res, profile)
+})
