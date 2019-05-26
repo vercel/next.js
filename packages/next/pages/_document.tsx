@@ -364,7 +364,7 @@ export class Main extends Component {
       buildWatcherStyle !== 'none' &&
       process.env.NODE_ENV === 'development'
     ) {
-      return <div id="__next-build-watcher" buildwatcherstyle={buildWatcherStyle} />
+      return <div id="__next-build-watcher" data-buildwatcherstyle={buildWatcherStyle} />
     }
 
     return null

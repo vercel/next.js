@@ -15,7 +15,7 @@ export default function initializeBuildWatcher (webpackHMR) {
   }
 
   // Get the current style
-  const style = shadowHost.getAttribute('buildwatcherstyle')
+  const style = shadowHost.getAttribute('data-buildwatcherstyle')
 
   // Container
   const container = createContainer(prefix)
