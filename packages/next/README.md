@@ -1649,14 +1649,15 @@ Here's an example `.babelrc` file:
 }
 ```
 
-The `next/babel` preset includes everything needed to transpile React applications. This includes:
+The [`next/babel` preset](packages/next/build/babel/preset.ts) includes everything needed to transpile React applications, including:
 
-- preset-env
-- preset-react
-- plugin-proposal-class-properties
-- plugin-proposal-object-rest-spread
-- plugin-transform-runtime
-- styled-jsx
+- [preset-env](https://babeljs.io/docs/en/babel-preset-env)
+- [preset-react](https://babeljs.io/docs/en/babel-preset-react)
+- [preset-typescript](https://babeljs.io/docs/en/babel-preset-typescript)
+- [plugin-proposal-class-properties](https://babeljs.io/docs/en/babel-plugin-proposal-class-properties)
+- [plugin-proposal-object-rest-spread](https://babeljs.io/docs/en/babel-plugin-proposal-object-rest-spread)
+- [plugin-transform-runtime](https://babeljs.io/docs/en/babel-plugin-transform-runtime)
+- [styled-jsx](https://github.com/zeit/styled-jsx)
 
 These presets / plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset:
 
@@ -1667,9 +1668,12 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
       "next/babel",
       {
         "preset-env": {},
+        "preset-react": {},
+        "preset-typescript": {},
+        "class-properties": {},
+        "object-rest-spread": {},
         "transform-runtime": {},
-        "styled-jsx": {},
-        "class-properties": {}
+        "styled-jsx": {}
       }
     ]
   ],

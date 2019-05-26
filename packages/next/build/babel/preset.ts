@@ -35,10 +35,12 @@ function styledJsxOptions (options: StyledJsxBabelOptions) {
 }
 
 type NextBabelPresetOptions = {
-  'preset-env'?: any,
-  'preset-react'?: any,
-  'class-properties'?: any,
-  'transform-runtime'?: any,
+  'preset-env'?: object,
+  'preset-react'?: object,
+  'preset-typescript'?: object,
+  'class-properties'?: object,
+  'object-rest-spread'?: object,
+  'transform-runtime'?: object,
   'styled-jsx'?: StyledJsxBabelOptions
 }
 
@@ -55,23 +57,31 @@ function supportsStaticESM(caller: any) {
 
 module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
+
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
-    exclude: ['transform-typeof-symbol'],
+    exclude: [
+      // used to improve react's performance. see: https://github.com/zeit/next.js/pull/6812
+      'transform-typeof-symbol'
+    ],
     ...options['preset-env']
   }
+
+  const isCjs = ['commonjs', 'cjs'].includes(presetEnvConfig.modules)
+
   return {
     presets: [
       [require('@babel/preset-env').default, presetEnvConfig],
       [require('@babel/preset-react'), {
-        // This adds @babel/plugin-transform-react-jsx-source and
-        // @babel/plugin-transform-react-jsx-self automatically in development
+        // adds the following in development:
+        // * @babel/plugin-transform-react-jsx-source
+        // * @babel/plugin-transform-react-jsx-self
         development: isDevelopment || isTest,
         ...options['preset-react']
       }],
-      require('@babel/preset-typescript')
+      [require('@babel/preset-typescript'), options['preset-typescript'] || {}]
     ],
     plugins: [
       require('babel-plugin-react-require'),
@@ -79,13 +89,14 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
       require('./plugins/react-loadable-plugin'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       [require('@babel/plugin-proposal-object-rest-spread'), {
-        useBuiltIns: true
+        useBuiltIns: true,
+        ...options['object-rest-spread']
       }],
       [require('@babel/plugin-transform-runtime'), {
         corejs: 2,
         helpers: true,
         regenerator: true,
-        useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
+        useESModules: supportsESM && !isCjs,
         ...options['transform-runtime']
       }],
       [require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
