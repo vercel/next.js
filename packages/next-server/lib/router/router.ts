@@ -1,38 +1,18 @@
 /* global __NEXT_DATA__ */
 // tslint:disable:no-console
+import { ParsedUrlQuery } from 'querystring';
 import { ComponentType } from 'react';
 import { parse } from 'url';
-import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps, NextPageContext, AppContextType } from '../utils';
-import {rewriteUrlForNextExport} from './rewrite-url-for-export'
-import { ParsedUrlQuery } from 'querystring';
+
+import mitt, { MittEmitter } from '../mitt';
+import {
+    AppContextType, formatWithValidation, getURL, loadGetInitialProps, NextPageContext,
+} from '../utils';
+import { rewriteUrlForNextExport } from './rewrite-url-for-export';
+import { getRouteRegex } from './utils';
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
-}
-
-function getRouteRegex(
-  route: string,
-): { re: RegExp; groups: { [groupName: string]: number } } {
-  const escapedRoute = route.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
-
-  const groups: { [groupName: string]: number } = {}
-  let groupIndex = 1
-
-  const parameterizedRoute = escapedRoute.replace(
-    /\/\\\$([^\/]+?)(?=\/|$)/g,
-    (_, $1) => (
-      (groups[
-        $1.replace(/\\\$$/, '').replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
-      ] = groupIndex++),
-      $1.lastIndexOf('$') === $1.length - 1 ? '(?:/([^/]+?))?' : '/([^/]+?)'
-    ),
-  )
-
-  return {
-    re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
-    groups,
-  }
 }
 
 export type BaseRouter = {

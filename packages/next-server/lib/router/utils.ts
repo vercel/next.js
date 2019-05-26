@@ -1,4 +1,4 @@
-function getRouteRegex(
+export function getRouteRegex(
   route: string,
 ): { re: RegExp; groups: { [groupName: string]: number } } {
   const escapedRoute = (route.replace(/\/$/, '') || '/').replace(
