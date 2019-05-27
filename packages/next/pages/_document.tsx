@@ -374,7 +374,6 @@ export class Main extends Component {
     return (
       <>
         <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
-        {process.env.NODE_ENV === 'development' && <div id="__next-build-watcher" />}
       </>
     )
   }

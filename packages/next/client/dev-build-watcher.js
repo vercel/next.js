@@ -1,6 +1,10 @@
 import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
 
 export default function initializeBuildWatcher () {
+  const host = document.createElement('div')
+  host.id = '__next-build-watcher'
+  document.body.appendChild(host)
+
   const shadowHost = document.getElementById('__next-build-watcher')
   if (!shadowHost) return
   let shadowRoot
