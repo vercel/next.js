@@ -1,12 +1,27 @@
-import { styled } from 'styletron-react'
+// DOCUMENTATION: http://styletron.org
 
-const Title = styled('div', {
+import { styled, useStyletron } from 'styletron-react'
+
+// statically styled component
+const Title = styled('h1', {
   color: 'red',
-  fontSize: '50px'
+  fontSize: '82px'
 })
 
-export default () => (
-  <div>
-    <Title>My page</Title>
-  </div>
-)
+// dynamically styled component
+const SubTitle = styled('h2', ({ $size }) => ({
+  color: 'blue',
+  fontSize: `${$size}px`
+}))
+
+export default () => {
+  // an alternative hook based API
+  const [css] = useStyletron()
+  return (
+    <div>
+      <Title>Title</Title>
+      <SubTitle $size={50}>Subtitle</SubTitle>
+      <p className={css({ fontSize: '32px' })}>Styled by hook</p>
+    </div>
+  )
+}

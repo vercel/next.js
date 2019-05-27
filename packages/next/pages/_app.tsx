@@ -1,23 +1,29 @@
-import React, {ErrorInfo} from 'react'
+import React, { ErrorInfo } from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps, NextComponentType, IContext, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
+import { execOnce, loadGetInitialProps, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
 import { Router, makePublicRouterInstance } from '../client/router'
 
-export { NextComponentType, IContext, AppInitialProps }
+export { AppInitialProps }
 
 export type AppContext = AppContextType<Router>
 
 export type AppProps<P = {}> = AppPropsType<Router, P>
 
+/**
+ * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
+ * This allows for keeping state between navigation, custom error handling, injecting additional data.
+ */
+async function appGetInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
+  const pageProps = await loadGetInitialProps(Component, ctx)
+  return { pageProps }
+}
+
 export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP>> {
   static childContextTypes = {
     router: PropTypes.object,
   }
-
-  static async getInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
-    const pageProps = await loadGetInitialProps(Component, ctx)
-    return { pageProps }
-  }
+  static origGetInitialProps = appGetInitialProps
+  static getInitialProps = appGetInitialProps
 
   getChildContext() {
     return {
@@ -72,7 +78,9 @@ export class Container extends React.Component {
 
 const warnUrl = execOnce(() => {
   if (process.env.NODE_ENV !== 'production') {
-    console.error(`Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`)
+    console.error(
+      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`,
+    )
   }
 })
 

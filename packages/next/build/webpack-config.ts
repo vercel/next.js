@@ -1,3 +1,4 @@
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -23,13 +24,13 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
+import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 
 const fileExists = promisify(fs.exists)
@@ -66,6 +67,7 @@ export default async function getBaseWebpackConfig(
         isServer,
         distDir,
         cwd: dir,
+        cache: !selectivePageBuilding,
         asyncToPromises: config.experimental.asyncToPromises,
       },
     },
@@ -99,7 +101,14 @@ export default async function getBaseWebpackConfig(
       }
     : undefined
 
-  const useTypeScript = await fileExists(path.join(dir, 'tsconfig.json'))
+  let typeScriptPath
+  try {
+    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+  } catch (_) {}
+  const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const useTypeScript = Boolean(
+    typeScriptPath && (await fileExists(tsConfigPath))
+  )
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -375,7 +384,11 @@ export default async function getBaseWebpackConfig(
             /next[\\/]dist[\\/]pages/,
           ],
           exclude: (path: string) => {
-            if (/next-server[\\/]dist[\\/]lib/.test(path) || /next[\\/]dist[\\/]client/.test(path) || /next[\\/]dist[\\/]pages/.test(path)) {
+            if (
+              /next-server[\\/]dist[\\/]lib/.test(path) ||
+              /next[\\/]dist[\\/]client/.test(path) ||
+              /next[\\/]dist[\\/]pages/.test(path)
+            ) {
               return false
             }
 
@@ -488,7 +501,7 @@ export default async function getBaseWebpackConfig(
       target === 'serverless' &&
         (isServer || selectivePageBuilding) &&
         new ServerlessPlugin(buildId, { isServer }),
-      target !== 'serverless' && isServer && new PagesManifestPlugin(),
+      isServer && new PagesManifestPlugin(target === 'serverless'),
       target !== 'serverless' &&
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
@@ -500,6 +513,19 @@ export default async function getBaseWebpackConfig(
             distDir,
             `profile-events-${isServer ? 'server' : 'client'}.json`
           ),
+        }),
+      !isServer &&
+        useTypeScript &&
+        new ForkTsCheckerWebpackPlugin({
+          typescript: typeScriptPath,
+          async: false,
+          useTypescriptIncrementalApi: true,
+          checkSyntacticErrors: true,
+          tsconfig: tsConfigPath,
+          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+          compilerOptions: { isolatedModules: true, noEmit: true },
+          silent: true,
+          formatter: 'codeframe',
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }

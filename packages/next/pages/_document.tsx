@@ -22,12 +22,34 @@ export type DocumentComponentContext = {
   readonly _devOnlyInvalidateCacheQueryString: string,
 }
 
+export async function middleware({req, res}: DocumentContext) {}
+
+function dedupe(bundles: any[]): any[] {
+  const files = new Set()
+  const kept = []
+
+  for (const bundle of bundles) {
+    if (files.has(bundle.file)) continue
+    files.add(bundle.file)
+    kept.push(bundle)
+  }
+  return kept
+}
+
+/**
+ * `Document` component handles the initial `document` markup and renders only on the server side.
+ * Commonly used for implementing server side rendering for `css-in-js` libraries.
+ */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
+  /**
+   * `getInitialProps` hook returns the context object with the addition of `renderPage`. `
+   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
+   */
   static async getInitialProps({ renderPage }: DocumentContext): Promise<DocumentInitialProps> {
     const { html, head, dataOnly } = await renderPage()
     const styles = flush()
@@ -120,7 +142,7 @@ export class Head extends Component<OriginProps> {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dynamicImports.map((bundle: any) => {
+    return dedupe(dynamicImports).map((bundle: any) => {
       return (
         <link
           rel="preload"
@@ -371,7 +393,7 @@ export class NextScript extends Component<OriginProps> {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dynamicImports.map((bundle: any) => {
+    return dedupe(dynamicImports).map((bundle: any) => {
       return (
         <script
           async

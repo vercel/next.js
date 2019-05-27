@@ -1,5 +1,8 @@
 import chalk from 'chalk'
 import {
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+  PAGES_MANIFEST,
   CHUNK_GRAPH_MANIFEST,
   PHASE_PRODUCTION_BUILD,
 } from 'next-server/constants'
@@ -7,9 +10,10 @@ import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import fs from 'fs'
-
+import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { FlyingShuttle } from './flying-shuttle'
@@ -19,18 +23,28 @@ import {
   collectPages,
   getCacheIdentifier,
   getFileForPage,
+  getPageSizeInKb,
   getSpecifiedPages,
   printTreeView,
-  getPageInfo,
+  PageInfo,
+  isPageStatic,
+  hasCustomAppGetInitialProps,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
+import {
+  exportManifest,
+  getPageChunks,
+} from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { usedBabelCacheFiles } from './webpack/loaders/next-babel-loader/cache'
-import { promisify } from  'util'
+import { recursiveReadDir } from '../lib/recursive-readdir';
+import mkdirpOrig from 'mkdirp'
 
-const unlink = promisify(fs.unlink)
+const fsUnlink = promisify(fs.unlink)
+const fsRmdir = promisify(fs.rmdir)
+const fsMove = promisify(fs.rename)
+const fsReadFile = promisify(fs.readFile)
+const fsWriteFile = promisify(fs.writeFile)
+const mkdirp = promisify(mkdirpOrig)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -38,6 +52,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
+
+  await verifyTypeScriptSetup(dir)
 
   const debug =
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
@@ -88,6 +104,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
     await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
+    await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
 
     flyingShuttle = new FlyingShuttle({
       buildId,
@@ -107,20 +124,36 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
+  // needed for static exporting since we want to replace with HTML
+  // files even when flying shuttle doesn't rebuild the files
+  const allPagePaths = [...pagePaths]
+  const allStaticPages = new Set<string>()
+  let allPageInfos = new Map<string, PageInfo>()
 
   if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
+    allPageInfos = await flyingShuttle.getPageInfos()
     const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
     for (const unchangedPage of _unchangedPages) {
-      const recalled = await flyingShuttle.restorePage(unchangedPage)
+      const info = allPageInfos.get(unchangedPage) || {} as PageInfo
+      if (info.static) allStaticPages.add(unchangedPage)
+
+      const recalled = await flyingShuttle.restorePage(
+        unchangedPage, info
+      )
       if (recalled) {
         continue
       }
-
       _unchangedPages.delete(unchangedPage)
     }
 
-    const unchangedPages = await Promise.all(
+    const unchangedPages = (await Promise.all(
       [..._unchangedPages].map(async page => {
+        if (
+          page.endsWith('.amp') &&
+          (allPageInfos.get(page.split('.amp')[0]) || {} as PageInfo).isAmp
+        ) {
+          return ''
+        }
         const file = await getFileForPage({
           page,
           pagesDirectory: pagesDir,
@@ -136,8 +169,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
               `Did pageExtensions change? We can't recover from this yet.`
           )
         )
-      })
-    )
+      }))
+    ).filter(Boolean)
 
     const pageSet = new Set(pagePaths)
     for (const unchangedPage of unchangedPages) {
@@ -146,6 +179,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     pagePaths = [...pageSet]
   }
 
+  const allMappedPages = createPagesMapping(allPagePaths, config.pageExtensions)
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
@@ -238,65 +272,144 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const pageInfos = new Map()
   const distPath = path.join(dir, config.distDir)
-  let pageKeys = Object.keys(mappedPages)
+  const pageKeys = Object.keys(mappedPages)
+  const manifestPath = path.join(distDir, target === 'serverless'
+    ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
+
+  const { autoExport } = config.experimental
+  const staticPages = new Set<string>()
+  const pageInfos = new Map<string, PageInfo>()
+  let pagesManifest: any = {}
+  let customAppGetInitialProps: boolean | undefined
+
+  if (autoExport) {
+    pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+  }
+
+  process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
-    const actualPage = page === '/' ? 'index' : page
-    const info = await getPageInfo(
-      actualPage,
+
+    const actualPage = page === '/' ? '/index' : page
+    const size = await getPageSizeInKb(actualPage, distPath, buildId)
+    const bundleRelative = path.join(
+      target === 'serverless'
+      ? 'pages'
+      : `static/${buildId}/pages`,
+      actualPage + '.js'
+    )
+    const serverBundle = path.join(
       distPath,
-      buildId,
-      false,
-      config.target === 'serverless'
+      target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+      bundleRelative
     )
 
-    pageInfos.set(page, {
-      ...(info || {}),
-      chunks
-    })
+    if (autoExport) {
+      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-    if (!(typeof info.serverSize === 'number')) {
-      pageKeys = pageKeys.filter(pg => pg !== page)
+      const runtimeEnvConfig = {
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig
+      }
+      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+
+      if (nonReservedPage && customAppGetInitialProps === undefined) {
+        customAppGetInitialProps = hasCustomAppGetInitialProps(
+          target === 'serverless'
+            ? serverBundle
+            : path.join(distPath, SERVER_DIRECTORY, `/static/${buildId}/pages/_app.js`),
+          runtimeEnvConfig
+        )
+
+        if (customAppGetInitialProps) {
+          console.warn('Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n')
+        }
+      }
+
+      if (customAppGetInitialProps === false && nonReservedPage) {
+        const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
+        if (isStatic) staticPages.add(page)
+      }
     }
+
+    pageInfos.set(page, { size, chunks, serverBundle })
   }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) {
-        plugin.ampPages.forEach((pg: any) => {
-          const info = pageInfos.get(pg)
-          if (info) {
-            info.ampOnly = true
-            pageInfos.set(pg, info)
-          }
-        })
+      if (!plugin.ampPages) {
+        return false
       }
-      return Boolean(plugin.ampPages)
+
+      plugin.ampPages.forEach((pg: any) => {
+        pageInfos.get(pg)!.isAmp = true
+      })
+      return true
     })
   }
 
-  printTreeView(pageKeys, pageInfos)
+  await writeBuildId(distDir, buildId, selectivePageBuilding)
 
-  if (flyingShuttle) {
-    await flyingShuttle.save()
+  if (autoExport && staticPages.size > 0) {
+    const exportApp = require('../export').default
+    const exportOptions = {
+      silent: true,
+      buildExport: true,
+      pages: Array.from(staticPages),
+      outdir: path.join(distDir, 'export'),
+    }
+    const exportConfig = {
+      ...config,
+      exportPathMap: (defaultMap: any) => defaultMap,
+      experimental: {
+        ...config.experimental,
+        exportTrailingSlash: false,
+      }
+    }
+    await exportApp(dir, exportOptions, exportConfig)
+    const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
+
+    let serverDir: string = ''
+    // remove server bundles that were exported
+    for (const page of staticPages) {
+      const { serverBundle } = pageInfos.get(page)!
+      if (!serverDir) serverDir = path.dirname(serverBundle)
+      await fsUnlink(serverBundle)
+    }
+
+    for (const file of toMove) {
+      const orig = path.join(exportOptions.outdir, file)
+      const dest = path.join(serverDir, file)
+      const relativeDest = (target === 'serverless'
+        ? path.join('pages', file)
+        : path.join('static', buildId, 'pages', file)
+      ).replace(/\\/g, '/')
+
+      let page = file.split('.html')[0].replace(/\\/g, '/')
+      pagesManifest[page] = relativeDest
+      page = page === '/index' ? '/' : page
+      pagesManifest[page] = relativeDest
+      staticPages.add(page)
+      await mkdirp(path.dirname(dest))
+      await fsMove(orig, dest)
+    }
+    // remove temporary export folder
+    await recursiveDelete(exportOptions.outdir)
+    await fsRmdir(exportOptions.outdir)
+
+    await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
-
-  // to prevent persisted caches from growing massively
-  // we clear un-used files
-  const babelCacheDir = path.join(distDir, 'cache/next-babel-loader')
-  let babelCacheToClear = (await recursiveReadDir(babelCacheDir, /.*\.js/))
-    .map(file => path.join(babelCacheDir, file))
-
-  babelCacheToClear = babelCacheToClear.filter((file: string) => {
-    return !usedBabelCacheFiles.has(file)
+  staticPages.forEach(pg => allStaticPages.add(pg))
+  pageInfos.forEach((info: PageInfo, key: string) => {
+    allPageInfos.set(key, info)
   })
 
-  for (const file of babelCacheToClear) {
-    await unlink(file)
+  if (flyingShuttle) {
+    if (autoExport) await flyingShuttle.mergePagesManifest()
+    await flyingShuttle.save(allStaticPages, pageInfos)
   }
 
-  await writeBuildId(distDir, buildId, selectivePageBuilding)
+  printTreeView(Object.keys(allMappedPages), allPageInfos)
 }

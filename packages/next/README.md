@@ -75,6 +75,8 @@
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
+- [Typescript](#typescript)
+  - [Exported types](#exported-types)
 - [AMP Support](#amp-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
@@ -235,6 +237,13 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/public-file-serving">Public file serving</a></li>
+  </ul>
+</details>
+
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
@@ -245,7 +254,9 @@ function MyImage() {
 export default MyImage
 ```
 
-_Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
+To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`
+
+_Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets_
 
 ### Populating `<head>`
 
@@ -1471,12 +1482,12 @@ This is development-only feature. If you want to cache SSR pages in production, 
 
 #### Configuring extensions looked for when resolving pages in `pages`
 
-Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+Aimed at modules like [`@next/mdx`](https://github.com/zeit/next.js/tree/canary/packages/next-mdx), that add support for pages ending with `.mdx`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
 
 ```js
 // next.config.js
 module.exports = {
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['mdx', 'jsx', 'js']
 }
 ```
 
@@ -1535,17 +1546,17 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+- [@next/mdx](https://github.com/zeit/next.js/tree/canary/packages/next-mdx)
 
 > **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
 
 Multiple configurations can be combined together with function composition. For example:
 
 ```js
-const withTypescript = require('@zeit/next-typescript')
+const withMDX = require('@next/mdx')
 const withSass = require('@zeit/next-sass')
 
-module.exports = withTypescript(
+module.exports = withMDX(
   withSass({
     webpack(config, options) {
       // Further custom configuration here
@@ -1593,8 +1604,8 @@ Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source:
-// https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
+// This source was taken from the @next/mdx plugin source:
+// https://github.com/zeit/next.js/tree/canary/packages/next-mdx
 module.exports = {
   webpack: (config, options) => {
     config.module.rules.push({
@@ -1778,7 +1789,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static` or `/public`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
 
 If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
 
@@ -1879,12 +1890,70 @@ Next.js supports IE11 and all modern browsers out of the box using [`@babel/pres
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
+## TypeScript
+
+TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
+
+```js
+{
+  "compilerOptions": {
+    "allowJs": true, /* Allow JavaScript files to be type checked. */
+    "alwaysStrict": true, /* Parse in strict mode. */
+    "esModuleInterop": true, /* matches compilation setting */
+    "isolatedModules": true, /* to match webpack loader */
+    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
+    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
+    "module": "esnext", /* Specifies the type of module to type check. */
+    "moduleResolution": "node", /* Determine how modules get resolved. */
+    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
+
+    /* Strict Type-Checking Options, optional, but recommended. */
+    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+    "noUnusedLocals": true, /* Report errors on unused locals. */
+    "noUnusedParameters": true, /* Report errors on unused parameters. */
+    "strict": true /* Enable all strict type-checking options. */,
+    "target": "esnext" /* The type checking input. */
+  }
+}
+```
+
+After adding the `tsconfig.json` you need to install `@types` to get proper TypeScript typing.
+
+```bash
+npm install --save-dev @types/react @types/react-dom @types/node
+```
+
+Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout out its [documentation](https://www.typescriptlang.org/).
+
+### Exported types
+
+Next.js provides `NextPage` type that can be used for pages in the `pages` directory. `NextPage` adds definitions for [`getInitialProps`](#fetching-data-and-component-lifecycle) so that it can be used without any extra typing needed.
+
+```tsx
+import { NextPage } from 'next'
+
+interface Props {
+  pathname: string
+}
+
+const Page: NextPage<Props> = ({ pathname }) => (
+  <main>Your request pathname: {pathname}</main>
+)
+
+Page.getInitialProps = async ({ pathname }) => {
+  return { pathname }
+}
+
+export default Page
+```
+
 ## AMP Support
 
 ### Enabling AMP Support
 
 To enable AMP support for a page, first enable experimental AMP support in your `next.config.js` and then import `withAmp` from `next/amp` and wrap your page's component in it.
 
+### AMP First Page
 ```js
 // pages/about.js
 import { withAmp } from 'next/amp'
@@ -1894,6 +1963,36 @@ export default withAmp(function AboutPage(props) {
     <h3>My AMP About Page!</h3>
   )
 })
+```
+
+### Hybrid AMP Page
+```js
+// pages/hybrid-about.js
+import { withAmp, useAmp } from 'next/amp'
+
+export default withAmp(function AboutPage(props) {
+  return (
+    <div>
+      <h3>My AMP Page</h3>
+      {useAmp() ? (
+        <amp-img
+          width='300'
+          height='300'
+          src='/my-img.jpg'
+          alt='a cool image'
+          layout='responsive'
+        />
+      ) : (
+        <img
+          width='300'
+          height='300'
+          src='/my-img.jpg'
+          alt='a cool image'
+        />
+      )}
+    </div>
+  )
+}, { hybrid: true })
 ```
 
 ### AMP Page Modes
@@ -1907,8 +2006,9 @@ AMP pages can specify two modes:
     - Opt-in via `withAmp(Component)`
 - Hybrid
     - Pages are able to be rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
-    - The AMP version of the page is not optimized with AMP Optimizer so that it is indexable by search-engines
+    - The AMP version of the page only has valid optimizations applied with AMP Optimizer so that it is indexable by search-engines
     - Opt-in via `withAmp(Component, { hybrid: true })`
+    - Able to differentiate between modes using `useAmp` from `next/amp`
 
 Both of these page modes provide a consistently fast experience for users accessing pages through search engines.
 
@@ -1926,7 +2026,7 @@ AMP-only (`pages/about.js`) would output:
 - `out/about/index.html` - Optimized AMP page
 - `out/about.amp/index.html` - AMP page
 
-During export Next.js automatically detects if a page is AMP-only and apply dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you. 
+During export Next.js automatically detects if a page is AMP-only and apply dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
 
 ### Adding AMP Components
 

@@ -48,8 +48,12 @@ type LinkProps = {
   replace?: boolean,
   scroll?: boolean,
   shallow?: boolean,
-  passHref?: boolean
+  passHref?: boolean,
   onError?: (error: Error) => void,
+  /**
+   * @deprecated since version 8.1.1-canary.20
+   */
+  prefetch?: boolean,
 }
 
 let observer: IntersectionObserver
@@ -113,8 +117,8 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
-  handleRef(ref: any) {
-    if (IntersectionObserver && ref) {
+  handleRef(ref: Element) {
+    if (IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })
@@ -193,11 +197,15 @@ class Link extends Component<LinkProps> {
     // This will return the first child, if multiple are provided it will throw an error
     const child: any = Children.only(children)
     const props: {
+      onMouseEnter: React.MouseEventHandler,
       onClick: React.MouseEventHandler,
       href?: string,
       ref?: any,
     } = {
       ref: (el: any) => this.handleRef(el),
+      onMouseEnter: () => {
+        this.prefetch()
+      },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
