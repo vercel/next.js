@@ -45,7 +45,6 @@ Because the Next.js server is just a node.js module you can combine it with any 
 
 The example shows a server that serves the component living in `pages/a.js` when the route `/b` is requested and `pages/b.js` when the route `/a` is accessed. This is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.js`.
 
-
 ## Side note: Enabling gzip compression
 
 The most common Koa middleware for handling the gzip compression is [compress](https://github.com/koajs/compress), but unfortunately it is currently not compatible with Next.<br>
@@ -54,10 +53,8 @@ The most common Koa middleware for handling the gzip compression is [compress](h
 If you need to enable the gzip compression, the most simple way to do so is by wrapping the express-middleware [compression](https://github.com/expressjs/compression) with [koa-connect](https://github.com/vkurchatkin/koa-connect):
 
 ```javascript
-const compression = require('compression');
-const koaConnect = require('koa-connect');
-
+const compression = require("compression");
+const koaConnect = require("koa-connect");
 
 server.use(koaConnect(compression()));
-
 ```

@@ -11,7 +11,8 @@ export class DropClientPage implements Plugin {
         const asset = compilation.assets[assetKey]
 
         if (asset && asset._value && asset._value.includes('__NEXT_DROP_CLIENT_FILE__')) {
-          const page = '/' + assetKey.split('pages/')[1]
+          const cleanAssetKey = assetKey.replace(/\\/g, '/')
+          const page = '/' + cleanAssetKey.split('pages/')[1]
           const pageNoExt = page.split(extname(page))[0]
 
           this.ampPages.add(pageNoExt.replace(/\/index$/, '') || '/')

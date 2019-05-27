@@ -1,10 +1,15 @@
 /* global __NEXT_DATA__ */
 // tslint:disable:no-console
+import { ParsedUrlQuery } from 'querystring';
 import { ComponentType } from 'react';
 import { parse } from 'url';
-import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps, NextPageContext, AppContextType } from '../utils';
-import {rewriteUrlForNextExport} from './rewrite-url-for-export'
+
+import mitt, { MittEmitter } from '../mitt';
+import {
+    AppContextType, formatWithValidation, getURL, loadGetInitialProps, NextPageContext,
+} from '../utils';
+import { rewriteUrlForNextExport } from './rewrite-url-for-export';
+import { getRouteRegex } from './utils';
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -13,7 +18,7 @@ function toRoute(path: string): string {
 export type BaseRouter = {
   route: string
   pathname: string
-  query: string
+  query: ParsedUrlQuery
   asPath: string,
 }
 
@@ -31,8 +36,11 @@ type BeforePopStateCallback = (state: any) => boolean
 export default class Router implements BaseRouter {
   route: string
   pathname: string
-  query: string
+  query: ParsedUrlQuery
   asPath: string
+  /**
+   * Map of all components loaded in `Router`
+   */
   components: {[pathname: string]: RouteInfo}
   subscriptions: Set<Subscription>
   componentLoadCancel: (() => void) | null
@@ -41,7 +49,7 @@ export default class Router implements BaseRouter {
 
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: any, as: string, { initialProps, pageLoader, App, Component, err }: {initialProps: any, pageLoader: any, Component: ComponentType, App: ComponentType, err?: Error}) {
+  constructor(pathname: string, query: ParsedUrlQuery, as: string, { initialProps, pageLoader, App, Component, err }: {initialProps: any, pageLoader: any, Component: ComponentType, App: ComponentType, err?: Error}) {
     // represents the current component key
     this.route = toRoute(pathname)
 
@@ -150,14 +158,29 @@ export default class Router implements BaseRouter {
     window.location.reload()
   }
 
+  /**
+   * Go back in history
+   */
   back() {
     window.history.back()
   }
 
+  /**
+   * Performs a `pushState` with arguments
+   * @param url of the route
+   * @param as masks `url` for the browser
+   * @param options object you can define `shallow` and other options
+   */
   push(url: string, as: string = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
+  /**
+   * Performs a `replaceState` with arguments
+   * @param url of the route
+   * @param as masks `url` for the browser
+   * @param options object you can define `shallow` and other options
+   */
   replace(url: string, as: string = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
@@ -205,6 +228,23 @@ export default class Router implements BaseRouter {
       // @ts-ignore pathname is always a string
       const route = toRoute(pathname)
       const { shallow = false } = options
+
+      // detect dynamic routing
+      if (route.indexOf('/$') !== -1) {
+        const { re: routeRegex, groups } = getRouteRegex(route)
+        const routeMatch = routeRegex.exec(as)
+        if (!routeMatch) {
+          console.error("Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid.")
+          return resolve(false)
+        }
+
+        Object.keys(groups).forEach((slugName) => {
+          const m = routeMatch[groups[slugName]]
+          if (m !== undefined) {
+            query[slugName] = decodeURIComponent(m)
+          }
+        })
+      }
 
       Router.events.emit('routeChangeStart', as)
 
@@ -338,6 +378,10 @@ export default class Router implements BaseRouter {
     this.notify(data)
   }
 
+  /**
+   * Callback to execute before replacing router state
+   * @param cb callback to be executed
+   */
   beforePopState(cb: BeforePopStateCallback) {
     this._bps = cb
   }
@@ -390,6 +434,11 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
+  /**
+   * Prefetch `page` code, you may wait for the data during `page` rendering.
+   * This feature only works in production!
+   * @param url of prefetched `page`
+   */
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries

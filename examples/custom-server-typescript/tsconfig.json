@@ -1,30 +1,23 @@
 {
-  "compileOnSave": false,
   "compilerOptions": {
-    "noEmit": true,
-    "strict": true,
     "target": "esnext",
     "module": "esnext",
     "jsx": "preserve",
-    "allowJs": true,
+    "lib": ["dom", "es2017"],
+    "baseUrl": ".",
     "moduleResolution": "node",
+    "strict": true,
+    "allowJs": true,
+    "noEmit": true,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "isolatedModules": true,
     "removeComments": false,
     "preserveConstEnums": true,
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "lib": [
-      "dom",
-      "es2015",
-      "es2016"
-    ],
-    "outDir": ".next"
+    "sourceMap": true
   },
-  "exclude": [".next", "server/**/*.*"]
+  "exclude": ["dist", ".next", "out", "next.config.js"]
 }

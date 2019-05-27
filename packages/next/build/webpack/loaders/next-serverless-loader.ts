@@ -35,13 +35,20 @@ const nextServerlessLoader: loader.Loader = function () {
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';
     import {sendHTML} from 'next-server/dist/server/send-html';
+    ${
+      page.includes('/$')
+        ? `import {getRouteMatch} from 'next-server/dist/lib/router/utils';`
+        : ''
+    }
     import buildManifest from '${buildManifest}';
     import reactLoadableManifest from '${reactLoadableManifest}';
     import Document from '${absoluteDocumentPath}';
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
-    async function renderReqToHTML(req, res) {
+    export default Component
+    export const _app = App
+    export async function renderReqToHTML(req, res, fromExport) {
       const options = {
         App,
         Document,
@@ -53,15 +60,23 @@ const nextServerlessLoader: loader.Loader = function () {
         ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
+      const renderOpts = Object.assign(
+        {
+          Component,
+          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
+        },
+        options,
+      )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
-          {
-            Component,
-            dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
-          },
-          options,
-        ))
+        ${
+          page.includes('/$')
+            ? `const params = getRouteMatch("${page}")(parsedUrl.pathname) || {};`
+            : `const params = {};`
+        }
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
+
+        if (fromExport) return { html: result, renderOpts }
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {

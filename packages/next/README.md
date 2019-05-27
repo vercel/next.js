@@ -1398,7 +1398,9 @@ class Page extends React.Component {
 export default Page
 ```
 
-> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`.
+
+The Error module also takes `title` as a property if you want to pass in message text along with a `statusCode`.
 
 ### Custom configuration
 
@@ -1953,6 +1955,7 @@ export default Page
 
 To enable AMP support for a page, first enable experimental AMP support in your `next.config.js` and then import `withAmp` from `next/amp` and wrap your page's component in it.
 
+### AMP First Page
 ```js
 // pages/about.js
 import { withAmp } from 'next/amp'
@@ -1962,6 +1965,36 @@ export default withAmp(function AboutPage(props) {
     <h3>My AMP About Page!</h3>
   )
 })
+```
+
+### Hybrid AMP Page
+```js
+// pages/hybrid-about.js
+import { withAmp, useAmp } from 'next/amp'
+
+export default withAmp(function AboutPage(props) {
+  return (
+    <div>
+      <h3>My AMP Page</h3>
+      {useAmp() ? (
+        <amp-img
+          width='300'
+          height='300'
+          src='/my-img.jpg'
+          alt='a cool image'
+          layout='responsive'
+        />
+      ) : (
+        <img
+          width='300'
+          height='300'
+          src='/my-img.jpg'
+          alt='a cool image'
+        />
+      )}
+    </div>
+  )
+}, { hybrid: true })
 ```
 
 ### AMP Page Modes
@@ -1975,8 +2008,9 @@ AMP pages can specify two modes:
     - Opt-in via `withAmp(Component)`
 - Hybrid
     - Pages are able to be rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
-    - The AMP version of the page is not optimized with AMP Optimizer so that it is indexable by search-engines
+    - The AMP version of the page only has valid optimizations applied with AMP Optimizer so that it is indexable by search-engines
     - Opt-in via `withAmp(Component, { hybrid: true })`
+    - Able to differentiate between modes using `useAmp` from `next/amp`
 
 Both of these page modes provide a consistently fast experience for users accessing pages through search engines.
 
