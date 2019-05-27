@@ -1,5 +1,5 @@
 import Server from 'next-server/dist/server/next-server'
-import { join, posix } from 'path'
+import { join, relative, extname } from 'path'
 import HotReloader from './hot-reloader'
 import { route } from 'next-server/dist/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
@@ -96,7 +96,7 @@ export default class DevServer extends Server {
     }
 
     return new Promise(resolve => {
-      const pagesDir = posix.join(this.dir, 'pages')
+      const pagesDir = join(this.dir, 'pages')
 
       let wp = (this.webpackWatcher = new Watchpack())
       wp.watch([], [pagesDir], 0)
@@ -110,12 +110,12 @@ export default class DevServer extends Server {
           }
 
           let pageName =
-            '/' + posix.relative(pagesDir, fileName).replace(/\\+/g, '/')
+            '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
           if (!pageName.includes('/$')) {
             continue
           }
 
-          const pageExt = posix.extname(pageName)
+          const pageExt = extname(pageName)
           pageName = pageName.slice(0, -pageExt.length)
 
           pageName = pageName.replace(/\/index$/, '')
