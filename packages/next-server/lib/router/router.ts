@@ -234,7 +234,7 @@ export default class Router implements BaseRouter {
         const { re: routeRegex, groups } = getRouteRegex(route)
         const routeMatch = routeRegex.exec(as)
         if (!routeMatch) {
-          console.error('TODO: ...')
+          console.error("Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid.")
           return resolve(false)
         }
 
