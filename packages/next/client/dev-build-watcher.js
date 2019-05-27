@@ -88,26 +88,20 @@ function createContainer (prefix) {
   container.setAttribute('id', `${prefix}container`)
   container.innerHTML = `
     <div id="${prefix}icon-wrapper">
-      <svg
-        width="114px"
-        height="100px"
-        viewBox="0 0 226 200"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-      >
+      <svg viewBox="0 0 226 200">
         <defs>
           <linearGradient
             x1="114.720775%"
             y1="181.283245%"
             x2="39.5399306%"
             y2="100%"
-            id="${prefix}linearGradient-1"
+            id="${prefix}linear-gradient"
           >
             <stop stop-color="#FFFFFF" offset="0%" />
             <stop stop-color="#000000" offset="100%" />
           </linearGradient>
         </defs>
-        <g id="${prefix}icon-group" fill="none" stroke="url(#${prefix}linearGradient-1)" stroke-width="18">
+        <g id="${prefix}icon-group" fill="none" stroke="url(#${prefix}linear-gradient)" stroke-width="18">
           <path d="M113,5.08219117 L4.28393801,197.5 L221.716062,197.5 L113,5.08219117 Z" />
         </g>
       </svg>
