@@ -85,7 +85,7 @@ export default class Server {
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
-      canonicalBase: this.nextConfig.canonicalBase,
+      canonicalBase: this.nextConfig.amp.canonicalBase,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,

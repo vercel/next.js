@@ -17,10 +17,12 @@ const defaultConfig: {[key: string]: any} = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: 'server',
   poweredByHeader: true,
-  canonicalBase: '',
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
+  },
+  amp: {
+    canonicalBase: '',
   },
   experimental: {
     cpus: Math.max(
@@ -80,9 +82,9 @@ export default function loadConfig(phase: string, dir: string, customConfig: any
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
     }
 
-    if (userConfig.canonicalBase) {
-      const { canonicalBase } = userConfig
-      userConfig.canonicalBase = canonicalBase.endsWith('/')
+    if (userConfig.amp.canonicalBase) {
+      const { canonicalBase } = userConfig.amp
+      userConfig.amp.canonicalBase = canonicalBase.endsWith('/')
         ? canonicalBase.slice(0, -1) : canonicalBase
     }
 
