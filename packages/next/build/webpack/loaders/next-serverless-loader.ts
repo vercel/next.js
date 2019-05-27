@@ -71,9 +71,7 @@ const nextServerlessLoader: loader.Loader = function () {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           page.includes('/$')
-            ? `
-              const params = getRouteMatch("${page}")(parsedUrl.pathname) || {};
-              `
+            ? `const params = getRouteMatch("${page}")(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
