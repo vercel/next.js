@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { promisify } from 'util'
-import Sema from 'async-sema'
+import { Sema } from 'async-sema'
 
 const mkdir = promisify(fs.mkdir)
 const stat = promisify(fs.stat)
@@ -22,7 +22,7 @@ export async function recursiveCopy(
   const from = path.resolve(cwdPath, source)
   const to = path.resolve(cwdPath, dest)
 
-  const sema = new Sema(concurrency)
+  const sema = new Sema(255)
 
   async function _copy(item: string) {
     const target = item.replace(from, to)
