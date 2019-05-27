@@ -33,7 +33,7 @@ export default function initializeBuildWatcher () {
   let timeoutId = null
 
   // Handle events
-  const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr', ondemand: 1 })
+  const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
   evtSource.addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
