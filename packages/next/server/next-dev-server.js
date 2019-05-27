@@ -1,5 +1,5 @@
 import Server from 'next-server/dist/server/next-server'
-import { join } from 'path'
+import { join, posix } from 'path'
 import HotReloader from './hot-reloader'
 import { route } from 'next-server/dist/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
@@ -8,6 +8,8 @@ import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import Watchpack from 'watchpack'
+import { getRouteMatch } from 'next-server/dist/lib/router/utils'
 
 const React = require('react')
 
@@ -88,6 +90,56 @@ export default class DevServer extends Server {
     }
   }
 
+  async startWatcher () {
+    if (this.webpackWatcher) {
+      return
+    }
+
+    return new Promise(resolve => {
+      const pagesDir = posix.join(this.dir, 'pages')
+
+      let wp = (this.webpackWatcher = new Watchpack())
+      wp.watch([], [pagesDir], 0)
+
+      wp.on('aggregated', () => {
+        const newDynamicRoutes = []
+        const knownFiles = wp.getTimeInfoEntries()
+        for (const [fileName, { accuracy }] of knownFiles) {
+          if (accuracy === undefined) {
+            continue
+          }
+
+          let pageName =
+            '/' + posix.relative(pagesDir, fileName).replace(/\\+/g, '/')
+          if (!pageName.includes('/$')) {
+            continue
+          }
+
+          const pageExt = posix.extname(pageName)
+          pageName = pageName.slice(0, -pageExt.length)
+
+          pageName = pageName.replace(/\/index$/, '')
+          newDynamicRoutes.push({
+            page: pageName,
+            match: getRouteMatch(pageName)
+          })
+        }
+
+        this.dynamicRoutes = newDynamicRoutes
+        resolve()
+      })
+    })
+  }
+
+  async stopWatcher () {
+    if (!this.webpackWatcher) {
+      return
+    }
+
+    this.webpackWatcher.close()
+    this.webpackWatcher = null
+  }
+
   async prepare () {
     await verifyTypeScriptSetup(this.dir)
 
@@ -98,10 +150,12 @@ export default class DevServer extends Server {
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
+    await this.startWatcher()
     this.setDevReady()
   }
 
   async close () {
+    await this.stopWatcher()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -190,7 +244,25 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname)
+      await this.hotReloader.ensurePage(pathname).catch(err => {
+        if (err.code !== 'ENOENT') {
+          return Promise.reject(err)
+        }
+
+        for (const dynamicRoute of this.dynamicRoutes) {
+          const params = dynamicRoute.match(pathname)
+          if (!params) {
+            continue
+          }
+
+          return this.hotReloader.ensurePage(dynamicRoute.page).then(() => {
+            pathname = dynamicRoute.page
+            query = Object.assign({}, query, params)
+          })
+        }
+
+        return Promise.reject(err)
+      })
     } catch (err) {
       if (err.code === 'ENOENT') {
         // Try to send a public file and let servePublic handle the request from here
