@@ -1398,7 +1398,9 @@ class Page extends React.Component {
 export default Page
 ```
 
-> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`.
+
+The Error module also takes `title` as a property if you want to pass in message text along with a `statusCode`.
 
 ### Custom configuration
 
