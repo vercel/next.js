@@ -47,7 +47,6 @@ export default class Server {
   renderOpts: {
     poweredByHeader: boolean
     ampBindInitData: boolean
-    buildWatcherStyle: string
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -86,7 +85,6 @@ export default class Server {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       autoExport: this.nextConfig.experimental.autoExport,
-      buildWatcherStyle: this.nextConfig.buildWatcherStyle,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,

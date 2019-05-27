@@ -369,16 +369,9 @@ export class Main extends Component {
   context!: DocumentComponentContext
 
   getBuildWatcher() {
-    const { buildWatcherStyle } = this.context._documentProps
-
-    if (
-      buildWatcherStyle &&
-      buildWatcherStyle !== 'none' &&
-      process.env.NODE_ENV === 'development'
-    ) {
-      return <div id="__next-build-watcher" data-buildwatcherstyle={buildWatcherStyle} />
+    if (process.env.NODE_ENV === 'development') {
+      return <div id="__next-build-watcher" />
     }
-
     return null
   }
 

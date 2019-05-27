@@ -111,7 +111,6 @@ function render(
 type RenderOpts = {
   autoExport: boolean
   ampBindInitData: boolean
-  buildWatcherStyle: string
   staticMarkup: boolean
   buildId: string
   dynamicBuildId?: boolean
@@ -161,7 +160,6 @@ function renderDocument(
     devFiles,
     files,
     dynamicImports,
-    buildWatcherStyle,
   }: RenderOpts & {
     dataManagerData: string,
     props: any
@@ -177,7 +175,6 @@ function renderDocument(
     dynamicImports: ManifestItem[]
     files: string[]
     devFiles: string[],
-    buildWatcherStyle: string,
   },
 ): string {
   return (
@@ -207,7 +204,6 @@ function renderDocument(
           files={files}
           dynamicImports={dynamicImports}
           assetPrefix={assetPrefix}
-          buildWatcherStyle={buildWatcherStyle}
           {...docProps}
         />
       </AmpModeContext.Provider>,

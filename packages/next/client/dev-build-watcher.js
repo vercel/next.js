@@ -16,15 +16,12 @@ export default function initializeBuildWatcher () {
     prefix = '__next-build-watcher-'
   }
 
-  // Get the current style
-  const style = shadowHost.getAttribute('data-buildwatcherstyle')
-
   // Container
   const container = createContainer(prefix)
   shadowRoot.appendChild(container)
 
   // CSS
-  const css = createCss(style, prefix)
+  const css = createCss(prefix)
   shadowRoot.appendChild(css)
 
   // State
@@ -111,14 +108,12 @@ function createContainer (prefix) {
         </g>
       </svg>
     </div>
-
-    <span id="${prefix}building-text"></span>
   `
 
   return container
 }
 
-function createCss (style, prefix) {
+function createCss (prefix) {
   const css = document.createElement('style')
   css.textContent = `
     #${prefix}container {
@@ -162,17 +157,6 @@ function createCss (style, prefix) {
     #${prefix}icon-wrapper > svg {
       width: 100%;
       height: 100%;
-    }
-
-    #${prefix}building-text {
-      font-family: monospace;
-      margin-top: 2px;
-      margin-left: 8px;
-      display: ${style === 'minimalist' ? 'none' : 'block'};
-    }
-
-    #${prefix}building-text::after {
-      content: 'Building...';
     }
 
     #${prefix}icon-group {

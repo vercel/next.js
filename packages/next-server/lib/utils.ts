@@ -134,7 +134,6 @@ export type DocumentProps = DocumentInitialProps & {
   files: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string,
-  buildWatcherStyle: string,
 }
 
 /**
