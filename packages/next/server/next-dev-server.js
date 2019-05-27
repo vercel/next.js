@@ -12,7 +12,9 @@ import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
-  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
+  throw new Error(
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
+  )
 }
 
 export default class DevServer extends Server {
@@ -50,7 +52,16 @@ export default class DevServer extends Server {
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
       console.log('Defining routes from exportPathMap')
-      const exportPathMap = await this.nextConfig.exportPathMap({}, { dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId }) // In development we can't give a default path mapping
+      const exportPathMap = await this.nextConfig.exportPathMap(
+        {},
+        {
+          dev: true,
+          dir: this.dir,
+          outDir: null,
+          distDir: this.distDir,
+          buildId: this.buildId
+        }
+      ) // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
@@ -62,7 +73,11 @@ export default class DevServer extends Server {
 
             Object.keys(urlQuery)
               .filter(key => query[key] === undefined)
-              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
+              .forEach(key =>
+                console.warn(
+                  `Url defines a query parameter '${key}' that is missing in exportPathMap`
+                )
+              )
 
             const mergedQuery = { ...urlQuery, ...query }
 
@@ -76,7 +91,10 @@ export default class DevServer extends Server {
   async prepare () {
     await verifyTypeScriptSetup(this.dir)
 
-    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
+    this.hotReloader = new HotReloader(this.dir, {
+      config: this.nextConfig,
+      buildId: this.buildId
+    })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
