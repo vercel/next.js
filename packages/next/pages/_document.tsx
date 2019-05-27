@@ -186,9 +186,8 @@ export class Head extends Component<OriginProps> {
     const { page, buildId, dynamicBuildId } = __NEXT_DATA__
     const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
-    let head = this.context._documentProps.head
+    let { head } = this.context._documentProps
     let children = this.props.children
-
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
