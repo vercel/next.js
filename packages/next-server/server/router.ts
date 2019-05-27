@@ -6,8 +6,10 @@ export const route = pathMatch()
 
 type Params = { [param: string]: any }
 
+export type RouteMatch = (pathname: string | undefined) => false | Params
+
 export type Route = {
-  match: (pathname: string | undefined) => false | Params
+  match: RouteMatch
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
