@@ -57,6 +57,5 @@ This project shows how you can set it up. Have a look at:
 
 * pages/\_document.js
 * styles/config/postcss.config.js
-* styles/config/tailwind.config.js
 * styles/index.css
 * styles/button.css
