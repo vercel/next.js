@@ -120,6 +120,11 @@ export default class DevServer extends Server {
     return []
   }
 
+  // In development dynamic routes cannot be known ahead of time
+  getDynamicRoutes () {
+    return []
+  }
+
   _filterAmpDevelopmentScript (html, event) {
     if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
       return true
