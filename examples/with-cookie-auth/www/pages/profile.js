@@ -3,6 +3,10 @@ import fetch from 'isomorphic-unfetch'
 import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
 import { withAuthSync } from '../utils/auth'
+import getConfig from 'next/config'
+
+const { publicRuntimeConfig } = getConfig()
+const { API_URL } = publicRuntimeConfig
 
 const Profile = props => {
   const { name, login, bio, avatarUrl } = props.data
@@ -41,11 +45,7 @@ const Profile = props => {
 
 Profile.getInitialProps = async ctx => {
   const { token } = nextCookie(ctx)
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-
-  const apiUrl = process.browser
-    ? `${protocol}://${window.location.host}/api/profile.js`
-    : `${protocol}://${ctx.req.headers.host}/api/profile.js`
+  const apiUrl = `${API_URL}/api/profile.js`
 
   const redirectOnError = () =>
     process.browser
@@ -63,10 +63,10 @@ Profile.getInitialProps = async ctx => {
 
     if (response.ok) {
       return await response.json()
-    } else {
-      // https://github.com/developit/unfetch#caveats
-      return redirectOnError()
     }
+
+    // https://github.com/developit/unfetch#caveats
+    return redirectOnError()
   } catch (error) {
     // Implementation or Network error
     return redirectOnError()

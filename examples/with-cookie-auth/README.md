@@ -45,6 +45,12 @@ npm install
 npm run dev
 ```
 
+You can configure the API URL using the `API_URL` environment variables (defaults to `http://localhost:3000`):
+
+```bash
+API_URL=http://example.com npm run dev
+```
+
 ### Deploy
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -61,6 +67,6 @@ This example is backend agnostic and uses [isomorphic-unfetch](https://www.npmjs
 
 The repo includes a minimal passwordless backend built with [Micro](https://www.npmjs.com/package/micro) that logs the user in with a GitHub username and saves the user id from the API call as token.
 
-Session is syncronized across tabs. If you logout your session gets logged out on all the windows as well. We use the HOC `withAuthSync` for this.
+Session is synchronized across tabs. If you logout your session gets logged out on all the windows as well. We use the HOC `withAuthSync` for this.
 
 The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
