@@ -1,6 +1,6 @@
 @import "./button.css";
 
-@tailwind preflight;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
