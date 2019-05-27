@@ -3,7 +3,7 @@ import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile, access } from 'fs'
-import Sema from 'async-sema'
+import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
 
@@ -27,7 +27,8 @@ process.on(
     renderOpts,
     serverRuntimeConfig,
     concurrency,
-    subFolders
+    subFolders,
+    serverless
   }) => {
     const sema = new Sema(concurrency, { capacity: exportPaths.length })
     try {
@@ -40,8 +41,23 @@ process.on(
         delete query.ampPath
         delete query.amphtml
 
-        const req = { url: path }
-        const res = {}
+        const headerMocks = {
+          headers: {},
+          getHeader: () => ({}),
+          setHeader: () => {},
+          hasHeader: () => false,
+          removeHeader: () => {},
+          getHeaderNames: () => []
+        }
+
+        const req = {
+          url: path,
+          ...headerMocks
+        }
+        const res = {
+          ...headerMocks
+        }
+
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
@@ -65,9 +81,34 @@ process.on(
         const htmlFilepath = join(outDir, htmlFilename)
 
         await mkdirp(baseDir)
-        const components = await loadComponents(distDir, buildId, page)
-        const curRenderOpts = { ...components, ...renderOpts, ampPath }
-        const html = await renderToHTML(req, res, page, query, curRenderOpts)
+        let html
+        let curRenderOpts = {}
+        let renderMethod = renderToHTML
+
+        if (serverless) {
+          renderMethod = require(join(
+            distDir,
+            'serverless/pages',
+            (page === '/' ? 'index' : page) + '.js'
+          )).renderReqToHTML
+          const result = await renderMethod(req, res, true)
+          curRenderOpts = result.renderOpts
+          html = result.html
+        } else {
+          const components = await loadComponents(
+            distDir,
+            buildId,
+            page,
+            serverless
+          )
+
+          if (typeof components.Component === 'string') {
+            html = components.Component
+          } else {
+            curRenderOpts = { ...components, ...renderOpts, ampPath }
+            html = await renderMethod(req, res, page, query, curRenderOpts)
+          }
+        }
 
         const validateAmp = async (html, page) => {
           const validator = await AmpHtmlValidator.getInstance()
@@ -92,11 +133,12 @@ process.on(
         if (curRenderOpts.amphtml && query.amp) {
           await validateAmp(html, path)
         }
-        if (
-          (curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp
-        ) {
+        if ((curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp) {
           // we need to render a clean AMP version
-          const ampHtmlFilename = `${ampPath}${sep}index.html`
+          let ampHtmlFilename = `${ampPath}${sep}index.html`
+          if (!subFolders) {
+            ampHtmlFilename = `${ampPath}.html`
+          }
           const ampBaseDir = join(outDir, dirname(ampHtmlFilename))
           const ampHtmlFilepath = join(outDir, ampHtmlFilename)
 
@@ -104,23 +146,27 @@ process.on(
             await accessP(ampHtmlFilepath)
           } catch (_) {
             // make sure it doesn't exist from manual mapping
-            const ampHtml = await renderToHTML(req, res, page, { ...query, amp: 1 }, curRenderOpts)
+            let ampHtml
+            if (serverless) {
+              req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
+              ampHtml = (await renderMethod(req, res, true)).html
+            } else {
+              ampHtml = await renderMethod(
+                req,
+                res,
+                page,
+                { ...query, amp: 1 },
+                curRenderOpts
+              )
+            }
 
             await validateAmp(ampHtml, page + '?amp=1')
             await mkdirp(ampBaseDir)
-            await writeFileP(
-              ampHtmlFilepath,
-              ampHtml,
-              'utf8'
-            )
+            await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
           }
         }
 
-        await writeFileP(
-          htmlFilepath,
-          html,
-          'utf8'
-        )
+        await writeFileP(htmlFilepath, html, 'utf8')
         process.send({ type: 'progress' })
         sema.release()
       }

@@ -160,6 +160,10 @@ export function nextExport (dir, { outdir }) {
   return runNextCommand(['export', dir, '--outdir', outdir])
 }
 
+export function nextStart (dir, port) {
+  return runNextCommandDev(['start', '-p', port, dir])
+}
+
 // Kill a launched app
 export async function killApp (instance) {
   await new Promise((resolve, reject) => {
