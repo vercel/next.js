@@ -14,9 +14,7 @@ export default class Error extends React.Component {
   static getInitialProps ({ res, err }) {
     const statusCode =
       res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
-    
-    const title = ''
-    return { statusCode, title }
+    return { statusCode }
   }
 
   render () {
