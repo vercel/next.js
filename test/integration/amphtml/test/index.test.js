@@ -163,7 +163,7 @@ describe('AMP Usage', () => {
         $('link[rel=amphtml]')
           .first()
           .attr('href')
-      ).toBe('/use-amp-hook?amp=1')
+      ).toBe('http://localhost:1234/use-amp-hook?amp=1')
     })
 
     it('should render link rel amphtml with existing query', async () => {
@@ -179,7 +179,7 @@ describe('AMP Usage', () => {
         $('link[rel=canonical]')
           .first()
           .attr('href')
-      ).toBe('/use-amp-hook')
+      ).toBe('http://localhost:1234/use-amp-hook')
     })
 
     it('should render a canonical regardless of amp-only status (implicit)', async () => {
@@ -189,7 +189,7 @@ describe('AMP Usage', () => {
         $('link[rel=canonical]')
           .first()
           .attr('href')
-      ).toBe('/only-amp')
+      ).toBe('http://localhost:1234/only-amp')
     })
 
     it('should render a canonical regardless of amp-only status (explicit)', async () => {
@@ -200,7 +200,7 @@ describe('AMP Usage', () => {
         $('link[rel=canonical]')
           .first()
           .attr('href')
-      ).toBe('/only-amp')
+      ).toBe('http://localhost:1234/only-amp')
     })
 
     it('should not render amphtml link tag with no AMP page', async () => {
@@ -220,7 +220,7 @@ describe('AMP Usage', () => {
         $('link[rel=amphtml]')
           .first()
           .attr('href')
-      ).toBe('/only-amp?amp=1')
+      ).toBe('http://localhost:1234/only-amp?amp=1')
     })
 
     it('should remove conflicting amp tags', async () => {
