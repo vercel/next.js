@@ -66,7 +66,7 @@ describe('AMP Usage', () => {
           () => accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
         ).toThrow()
         expect(
-          () => accessSync(join(appDir, '.next/server/static', buildId, 'pages', pg + '.html'))
+          () => accessSync(join(appDir, '.next/server/static', buildId, 'pages', pg + '.js'))
         ).not.toThrow()
       }
     })
@@ -163,7 +163,7 @@ describe('AMP Usage', () => {
         $('link[rel=amphtml]')
           .first()
           .attr('href')
-      ).toBe('http://localhost:1234/use-amp-hook.amp=1')
+      ).toBe('http://localhost:1234/use-amp-hook?amp=1')
     })
 
     it('should render link rel amphtml with existing query', async () => {
@@ -220,7 +220,7 @@ describe('AMP Usage', () => {
         $('link[rel=amphtml]')
           .first()
           .attr('href')
-      ).toBe('http://localhost:1234/only-amp.amp')
+      ).toBe('http://localhost:1234/only-amp?amp=1')
     })
 
     it('should remove conflicting amp tags', async () => {
