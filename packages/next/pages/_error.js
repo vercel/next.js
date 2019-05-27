@@ -15,12 +15,13 @@ export default class Error extends React.Component {
     const statusCode =
       res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
     
-    const title = statusCodes[statusCode] || 'An unexpected error has occurred'
+    const title = ''
     return { statusCode, title }
   }
 
   render () {
-    const { statusCode, title } = this.props
+    const { statusCode } = this.props
+    const title = this.props.title || statusCodes[statusCode] || 'An unexpected error has occurred'
 
     return (
       <div style={styles.error}>
