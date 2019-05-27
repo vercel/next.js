@@ -10,6 +10,12 @@ export default function initializeBuildWatcher () {
   let shadowRoot
   let prefix = ''
 
+  // Make sure container is fixed and on a high zIndex so it shows
+  shadowHost.style.position = 'fixed'
+  shadowHost.style.bottom = '10px'
+  shadowHost.style.right = '10px'
+  shadowHost.style.zIndex = 99999
+
   if (shadowHost.attachShadow) {
     shadowRoot = shadowHost.attachShadow({ mode: 'open' })
   } else {
