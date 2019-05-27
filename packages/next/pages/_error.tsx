@@ -27,7 +27,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
   render() {
     const { statusCode } = this.props
-    const title = statusCodes[statusCode] || 'An unexpected error has occurred'
+    const title = this.props.title || statusCodes[statusCode] || 'An unexpected error has occurred'
 
     return (
       <div style={styles.error}>

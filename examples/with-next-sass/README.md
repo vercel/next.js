@@ -45,7 +45,7 @@ yarn start
 
 This example features:
 
-* An app with next-sass
+- An app with next-sass
 
 This example uses next-sass without css-modules. The config can be found in `next.config.js`, change `withSass()` to `withSass({cssModules: true})` if you use css-modules. Then in the code, you import the stylesheet as `import style from '../styles/style.scss'` and use it like `<div className={style.example}>`.
 

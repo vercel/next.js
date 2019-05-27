@@ -49,9 +49,9 @@ Declarative CerebralJS:
   getUser,
   {
     success: setUser,
-    error: setError,
+    error: setError
   },
-  setLoading(false),
+  setLoading(false)
 ];
 ```
 
