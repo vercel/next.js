@@ -19,12 +19,14 @@ Download the example:
 Install it and run:
 
 **npm**
+
 ```bash
 npm install
 npm run dev
 ```
 
 **yarn**
+
 ```bash
 yarn
 yarn dev

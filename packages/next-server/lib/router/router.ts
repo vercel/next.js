@@ -1,11 +1,15 @@
 /* global __NEXT_DATA__ */
 // tslint:disable:no-console
+import { ParsedUrlQuery } from 'querystring';
 import { ComponentType } from 'react';
 import { parse } from 'url';
-import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps, NextPageContext, AppContextType } from '../utils';
-import {rewriteUrlForNextExport} from './rewrite-url-for-export'
-import { ParsedUrlQuery } from 'querystring';
+
+import mitt, { MittEmitter } from '../mitt';
+import {
+    AppContextType, formatWithValidation, getURL, loadGetInitialProps, NextPageContext,
+} from '../utils';
+import { rewriteUrlForNextExport } from './rewrite-url-for-export';
+import { getRouteRegex } from './utils';
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -224,6 +228,23 @@ export default class Router implements BaseRouter {
       // @ts-ignore pathname is always a string
       const route = toRoute(pathname)
       const { shallow = false } = options
+
+      // detect dynamic routing
+      if (route.indexOf('/$') !== -1) {
+        const { re: routeRegex, groups } = getRouteRegex(route)
+        const routeMatch = routeRegex.exec(as)
+        if (!routeMatch) {
+          console.error("Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid.")
+          return resolve(false)
+        }
+
+        Object.keys(groups).forEach((slugName) => {
+          const m = routeMatch[groups[slugName]]
+          if (m !== undefined) {
+            query[slugName] = decodeURIComponent(m)
+          }
+        })
+      }
 
       Router.events.emit('routeChangeStart', as)
 
