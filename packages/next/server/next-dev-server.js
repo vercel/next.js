@@ -91,7 +91,7 @@ export default class DevServer extends Server {
   }
 
   async startWatcher () {
-    if (this.webpackWatcher) {
+    if (this.webpackWatcher || !this.nextConfig.experimental.dynamicRouting) {
       return
     }
 
