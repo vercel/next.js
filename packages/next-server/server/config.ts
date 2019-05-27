@@ -84,8 +84,8 @@ export default function loadConfig(phase: string, dir: string, customConfig: any
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
     }
 
-    if (userConfig.amp.canonicalBase) {
-      const { canonicalBase } = userConfig.amp
+    if (userConfig.amp && userConfig.amp.canonicalBase) {
+      const { canonicalBase } = userConfig.amp || {} as any
       userConfig.amp.canonicalBase = canonicalBase.endsWith('/')
         ? canonicalBase.slice(0, -1) : canonicalBase
     }
