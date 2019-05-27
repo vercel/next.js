@@ -125,7 +125,9 @@ export default class DevServer extends Server {
           })
         }
 
-        this.dynamicRoutes = newDynamicRoutes
+        this.dynamicRoutes = newDynamicRoutes.sort((a, b) =>
+          Math.sign(a.page.match(/\/\$/g).length - b.page.match(/\/\$/g).length)
+        )
         resolve()
       })
     })
