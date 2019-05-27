@@ -41,5 +41,5 @@ now
 
 This example features:
 
-* An app linking pages using `next/router` instead of `<Link>` component.
-* Access the pathname using `next/router` and render it in a component
+- An app linking pages using `next/router` instead of `<Link>` component.
+- Access the pathname using `next/router` and render it in a component

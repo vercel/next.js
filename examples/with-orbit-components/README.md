@@ -38,9 +38,9 @@ now
 ```
 
 ## The idea behind the example
+
 [Orbit-components](https://orbit.kiwi) is a React component library which provides developers with the easiest possible way of building Kiwi.com’s products.
 
 For this purpose we are extending `<App />` of injected `<ThemeProvider/>`, and also adding `@kiwicom/babel-plugin-orbit-components`
 
 This fork comes from [styled-components-example](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)
-

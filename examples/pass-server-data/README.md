@@ -57,7 +57,7 @@ The server knows whether or not to use next.js to render the route based on the 
 
 Take a look at the following files:
 
-* server.js
-* routes/item.js
-* pages/item.js
-* operations/get-item.js
+- server.js
+- routes/item.js
+- pages/item.js
+- operations/get-item.js
