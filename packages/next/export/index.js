@@ -92,7 +92,7 @@ export default async function (dir, options, configuration) {
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    canonicalBase: nextConfig.canonicalBase
+    canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || ''
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

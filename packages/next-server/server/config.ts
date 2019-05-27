@@ -86,8 +86,9 @@ export default function loadConfig(phase: string, dir: string, customConfig: any
 
     if (userConfig.amp && userConfig.amp.canonicalBase) {
       const { canonicalBase } = userConfig.amp || {} as any
-      userConfig.amp.canonicalBase = canonicalBase.endsWith('/')
-        ? canonicalBase.slice(0, -1) : canonicalBase
+      userConfig.amp = userConfig.amp || {}
+      userConfig.amp.canonicalBase = (canonicalBase.endsWith('/')
+        ? canonicalBase.slice(0, -1) : canonicalBase) || ''
     }
 
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
