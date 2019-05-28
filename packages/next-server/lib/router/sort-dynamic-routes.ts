@@ -22,10 +22,10 @@ export default function sortDynamicRoutes(
     for (let i = 0; (i < aParts.length && i < bParts.length); i++) {
       const aPart = aParts[i]
       const bPart = bParts[i]
-      const aPartIsDynamic = !!(aPart.match(/^\$/))
-      const bPartIsDynamic = !!(bPart.match(/^\$/))
-      const aPartIsOptional = !!(aPartIsDynamic && aPart.match(/\$$/))
-      const bPartIsOptional = !!(bPartIsDynamic && bPart.match(/\$$/))
+      const aPartIsDynamic = aPart.startsWith('$')
+      const bPartIsDynamic = bPart.startsWith('$')
+      const aPartIsOptional = aPartIsDynamic && aPart.endsWith('$')
+      const bPartIsOptional = bPartIsDynamic && bPart.endsWith('$')
 
       if (aPartIsDynamic !== bPartIsDynamic) {
         return aPartIsDynamic ? 1 : -1
@@ -34,7 +34,6 @@ export default function sortDynamicRoutes(
         return aPartIsOptional ? 1 : -1
       }
     }
-    if (aParts.length === bParts.length) return 0
-    return aParts.length < bParts.length ? 1 : -1
+    return a.localeCompare(b);
   })
 }
