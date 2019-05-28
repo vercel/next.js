@@ -30,6 +30,7 @@ import Router, { route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
+import sortDynamicRoutes from '../lib/router/sort-dynamic-routes';
 
 type NextConfig = any
 
@@ -307,14 +308,12 @@ export default class Server {
     const dynamicRoutedPages = Object.keys(manifest.pages).filter((p) =>
       p.includes('/$'),
     )
-    return dynamicRoutedPages
-      .map((page) => ({
+    return sortDynamicRoutes(
+      dynamicRoutedPages.map((page) => ({
         page,
         match: getRouteMatch(page),
-      }))
-      .sort((a, b) =>
-        Math.sign(a.page.match(/\/\$/g)!.length - b.page.match(/\/\$/g)!.length),
-      )
+      })),
+    )
   }
 
   private async run(

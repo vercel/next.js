@@ -10,6 +10,7 @@ import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
 import { getRouteMatch } from 'next-server/dist/lib/router/utils'
+import sortDynamicRoutes from 'next-server/dist/lib/router/sort-dynamic-routes'
 
 const React = require('react')
 
@@ -125,9 +126,7 @@ export default class DevServer extends Server {
           })
         }
 
-        this.dynamicRoutes = newDynamicRoutes.sort((a, b) =>
-          Math.sign(a.page.match(/\/\$/g).length - b.page.match(/\/\$/g).length)
-        )
+        this.dynamicRoutes = sortDynamicRoutes(newDynamicRoutes)
         resolve()
       })
     })
