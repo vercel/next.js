@@ -1,4 +1,4 @@
-let hotDevCallback
+const eventCallbacks = []
 
 function EventSourceWrapper (options) {
   var source
@@ -33,8 +33,8 @@ function EventSourceWrapper (options) {
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](event)
     }
-    if (hotDevCallback && event.data.indexOf('action') !== -1) {
-      hotDevCallback(event)
+    if (event.data.indexOf('action') !== -1) {
+      eventCallbacks.forEach(cb => cb(event))
     }
   }
 
@@ -59,7 +59,7 @@ export function getEventSourceWrapper (options) {
   if (!options.ondemand) {
     return {
       addMessageListener: cb => {
-        hotDevCallback = cb
+        eventCallbacks.push(cb)
       }
     }
   }

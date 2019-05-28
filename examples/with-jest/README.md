@@ -43,4 +43,4 @@ yarn test
 
 This example features:
 
-* An app with jest tests
+- An app with jest tests

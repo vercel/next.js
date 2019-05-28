@@ -52,6 +52,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       invalidator.startBuilding()
 
       const allEntries = Object.keys(entries).map(async (page) => {
+        if (compiler.name === 'client' && page.startsWith('/api')) {
+          return
+        }
         const { name, absolutePagePath } = entries[page]
         const pageExists = await isWriteable(absolutePagePath)
         if (!pageExists) {
@@ -69,31 +72,30 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     })
   }
 
-  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
-    const clientStats = multiStats.stats[0]
-    const { compilation } = clientStats
-    const hardFailedPages = compilation.errors
-      .filter(e => {
-        // Make sure to only pick errors which marked with missing modules
-        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-        if (!hasNoModuleFoundError) return false
+  function findHardFailedPages (errors) {
+    return errors.filter(e => {
+      // Make sure to only pick errors which marked with missing modules
+      const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+      if (!hasNoModuleFoundError) return false
 
-        // The page itself is missing. So this is a failed page.
-        if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
+      // The page itself is missing. So this is a failed page.
+      if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
 
-        // No dependencies means this is a top level page.
-        // So this is a failed page.
-        return e.module.dependencies.length === 0
-      })
+      // No dependencies means this is a top level page.
+      // So this is a failed page.
+      return e.module.dependencies.length === 0
+    })
       .map(e => e.module.chunks)
       .reduce((a, b) => [...a, ...b], [])
       .map(c => {
         const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
         return normalizePage(`/${pageName}`)
       })
+  }
 
-    // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
-    for (const [, entrypoint] of compilation.entrypoints.entries()) {
+  function getPagePathsFromEntrypoints (entrypoints) {
+    const pagePaths = []
+    for (const [, entrypoint] of entrypoints.entries()) {
       const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
       if (!result) {
         continue
@@ -105,6 +107,19 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         continue
       }
 
+      pagePaths.push(pagePath)
+    }
+
+    return pagePaths
+  }
+
+  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+    const [clientStats, serverStats] = multiStats.stats
+    const hardFailedPages = [...new Set([...findHardFailedPages(clientStats.compilation.errors), ...findHardFailedPages(serverStats.compilation.errors)])]
+    const pagePaths = new Set([...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints), ...(getPagePathsFromEntrypoints(serverStats.compilation.entrypoints))])
+
+    // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
+    for (const pagePath of pagePaths) {
       const page = normalizePage('/' + pagePath)
 
       const entry = entries[page]

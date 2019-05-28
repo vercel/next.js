@@ -43,4 +43,4 @@ This example uses [Nerv](https://nerv.aotu.io/) instead of React. It's a "blazin
 
 Here's how we did it:
 
-* Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)
+- Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)

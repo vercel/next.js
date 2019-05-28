@@ -35,6 +35,11 @@ const nextServerlessLoader: loader.Loader = function () {
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';
     import {sendHTML} from 'next-server/dist/server/send-html';
+    ${
+      page.includes('/$')
+        ? `import {getRouteMatch} from 'next-server/dist/lib/router/utils';`
+        : ''
+    }
     import buildManifest from '${buildManifest}';
     import reactLoadableManifest from '${reactLoadableManifest}';
     import Document from '${absoluteDocumentPath}';
@@ -64,7 +69,12 @@ const nextServerlessLoader: loader.Loader = function () {
       )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, renderOpts)
+        ${
+          page.includes('/$')
+            ? `const params = getRouteMatch("${page}")(parsedUrl.pathname) || {};`
+            : `const params = {};`
+        }
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result

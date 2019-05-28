@@ -46,6 +46,6 @@ Besides the `pages` directory, there is a directory called shared which holds al
 
 Some features of this example are :
 
-* Pages are connected to rematch using `withRematch` util. These pages are capable of accessing values from the store and dispatching changes
-* Components are inside the `shared/components` folder. The `counter-display` component is connected to the store using the `connect` function to show how components which are not pages, can connect with Rematch.
-* The file `shared/store` exports an initStore function which is used by `withRematch` to create store universally on the server and on the client.
+- Pages are connected to rematch using `withRematch` util. These pages are capable of accessing values from the store and dispatching changes
+- Components are inside the `shared/components` folder. The `counter-display` component is connected to the store using the `connect` function to show how components which are not pages, can connect with Rematch.
+- The file `shared/store` exports an initStore function which is used by `withRematch` to create store universally on the server and on the client.
