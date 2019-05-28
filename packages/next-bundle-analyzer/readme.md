@@ -22,7 +22,9 @@ Create a next.config.js (and make sure you have next-bundle-analyzer set up)
 const withBundleAnalyzer = require("@next/bundle-analyzer")({ enabled: process.env.ANALYZE === "true" });
 module.exports = withBundleAnalyzer({});
 ```
+
 `webpack-bundle-analyzer` options can also be passed as below
+
 ```js
 const withBundleAnalyzer = require("@next/bundle-analyzer")({ 
   enabled: process.env.ANALYZE === "true",
@@ -31,6 +33,7 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
   } 
 });
 ```
+
 Then you can run the command below:
 
 ```bash
