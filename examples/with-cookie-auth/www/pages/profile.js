@@ -3,10 +3,8 @@ import fetch from 'isomorphic-unfetch'
 import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
 import { withAuthSync } from '../utils/auth'
-import getConfig from 'next/config'
 
-const { publicRuntimeConfig } = getConfig()
-const { API_URL } = publicRuntimeConfig
+const { API_URL } = process.env
 
 const Profile = props => {
   const { name, login, bio, avatarUrl } = props.data

@@ -2,10 +2,8 @@ import { Component } from 'react'
 import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
-import getConfig from 'next/config'
 
-const { publicRuntimeConfig } = getConfig()
-const { API_URL } = publicRuntimeConfig
+const { API_URL } = process.env
 
 class Login extends Component {
   static getInitialProps ({ req }) {
