@@ -15,7 +15,7 @@ class MyMobxApp extends App {
 
     return {
       ...appProps,
-      initialMobxState: mobxStore
+      initialMobxState: mobxStore,
     }
   }
 

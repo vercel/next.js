@@ -31,7 +31,7 @@ const mapStateToProps = state => ({ count: state.get('count') })
 
 const mapDispatchToProps = dispatch => {
   return {
-    addCount: bindActionCreators(addCount, dispatch)
+    addCount: bindActionCreators(addCount, dispatch),
   }
 }
 
