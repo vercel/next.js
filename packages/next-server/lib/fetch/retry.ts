@@ -8,23 +8,30 @@ export type RetryOptions = {
 export class FetchError extends Error {
   readonly statusCode: number
   readonly status: number
-  readonly code: number
   readonly url: string
 
-  constructor(message: string, { status, url }: { status: number, url: string }) {
+  constructor(
+    message: string,
+    { status, url }: { status: number; url: string },
+  ) {
     super(message)
 
-    this.code = this.status = this.statusCode = status
+    this.name = 'FetchError'
+    this.status = this.statusCode = status
     this.url = url
   }
 }
 
 async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export async function retry<R = void>(
-  cb: (bail: (err?: Error) => never, attempt: number, options: RetryOptions) => Promise<R>,
+  cb: (
+    bail: (err?: Error) => never,
+    attempt: number,
+    options: RetryOptions,
+  ) => Promise<R>,
   options: RetryOptions,
   attempt: number = 0,
 ): Promise<R> {
@@ -56,9 +63,12 @@ export async function retry<R = void>(
 }
 
 export default function fetchRetry(fetch: GlobalFetch['fetch']) {
-  const fn = (url: RequestInfo, opts: RequestInit & { retry?: RetryOptions } = {}) => {
+  const fn = (
+    url: RequestInfo,
+    opts: RequestInit & { retry?: RetryOptions } = {},
+  ) => {
     return retry(async (_bail, attempt, retryOpts) => {
-      const res = await fetch(url, opts);
+      const res = await fetch(url, opts)
       const isRetry = attempt < (retryOpts.retries || 0)
 
       // only retry if the request is GET or HEAD
