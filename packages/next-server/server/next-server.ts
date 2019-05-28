@@ -308,13 +308,12 @@ export default class Server {
       p.includes('/$'),
     )
     return dynamicRoutedPages
+      .sort()
+      .reverse()
       .map((page) => ({
         page,
         match: getRouteMatch(page),
       }))
-      .sort((a, b) =>
-        Math.sign(a.page.match(/\/\$/g)!.length - b.page.match(/\/\$/g)!.length),
-      )
   }
 
   private async run(

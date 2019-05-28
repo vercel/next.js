@@ -109,8 +109,7 @@ export default class DevServer extends Server {
             continue
           }
 
-          let pageName =
-            '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
+          let pageName = '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
           if (!pageName.includes('/$')) {
             continue
           }
@@ -125,9 +124,7 @@ export default class DevServer extends Server {
           })
         }
 
-        this.dynamicRoutes = newDynamicRoutes.sort((a, b) =>
-          Math.sign(a.page.match(/\/\$/g).length - b.page.match(/\/\$/g).length)
-        )
+        this.dynamicRoutes = newDynamicRoutes.sort().reverse()
         resolve()
       })
     })
