@@ -88,7 +88,7 @@ export function sendData(res: NextApiResponse, statusCode: number, body: any) {
 
   let str = body
 
-  // Stringyfy json body
+  // Stringify JSON body
   if (typeof body === 'object' || typeof body === 'number') {
     str = JSON.stringify(body)
     res.setHeader('Content-Type', 'application/json; charset=utf-8')

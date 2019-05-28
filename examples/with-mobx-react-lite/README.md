@@ -59,49 +59,52 @@ The initial store data is returned from the `initializeData` function that recyc
 
 ```jsx
 function initializeData(initialData = store || {}) {
-  const { lastUpdate = Date.now(), light } = initialData
+  const { lastUpdate = Date.now(), light } = initialData;
   return {
     lastUpdate,
-    light: Boolean(light),
-  }
+    light: Boolean(light)
+  };
 }
 ```
 
 The observable store is created in a function component by passing a plain JavaScript object to the `useObservable` hook. Actions on the observable store (`start` and `stop`) are created in the same scope as the `store` in `store.js` and exported as named exports.
 
 ```js
-store = useObservable(initializeData(props.initialData))
+store = useObservable(initializeData(props.initialData));
 
-start = useCallback(action(() => {
-  // Async operation that mutates the store
-}))
+start = useCallback(
+  action(() => {
+    // Async operation that mutates the store
+  })
+);
 
 stop = () => {
   // Does not mutate the store
-}
+};
 ```
 
 The component creates and exports a new React context provider that will make the store accessible to all of its descendents.
 
 ```jsx
-return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 ```
 
 The store is accessible at any depth by using the `StoreContext`.
 
 ```js
-const store = useContext(StoreContext)
+const store = useContext(StoreContext);
 ```
 
 The clock, under `components/Clock.js`, reacts to changes in the observable `store` by means of the `useObserver` hook.
 
 ```jsx
-return <div>
-  // ...
-  {useObserver(() => <Clock
-    lastUpdate={store.lastUpdate}
-    light={store.light}
-  />)}
-  // ...
-</div>
+return (
+  <div>
+    // ...
+    {useObserver(() => (
+      <Clock lastUpdate={store.lastUpdate} light={store.light} />
+    ))}
+    // ...
+  </div>
+);
 ```

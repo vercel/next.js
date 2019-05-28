@@ -16,6 +16,6 @@
     "autoprefixer": "^7.1.6",
     "cssnano": "^3.10.0",
     "postcss-easy-import": "^3.0.0",
-    "tailwindcss": "^0.6.6"
+    "tailwindcss": "^1.0.1"
   }
 }

@@ -1,28 +1,22 @@
 /* eslint-disable import/first */
-import { IncomingMessage, ServerResponse } from 'http'
-import { resolve, join, sep } from 'path'
-import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import fs from 'fs'
-import { renderToHTML } from './render'
-import { sendHTML } from './send-html'
-import { serveStatic } from './serve-static'
-import Router, { route, Route } from './router'
-import { isInternalUrl, isBlockedPage } from './utils'
-import loadConfig from './config'
-import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
+import { IncomingMessage, ServerResponse } from 'http'
+import { join, resolve, sep } from 'path'
+import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+
 import {
-  PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
+  BUILD_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-  SERVER_DIRECTORY,
   PAGES_MANIFEST,
+  PHASE_PRODUCTION_SERVER,
+  SERVER_DIRECTORY,
 } from '../lib/constants'
+import { getRouteMatch } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { loadComponents, interopDefault } from './load-components'
-import { getPagePath } from './require'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { parse as parseCookies } from 'cookie'
 import {
@@ -33,6 +27,19 @@ import {
   sendError,
   ApiError,
 } from './api-utils'
+import loadConfig from './config'
+import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
+import {
+  interopDefault,
+  loadComponents,
+  LoadComponentsReturnType,
+} from './load-components'
+import { renderToHTML } from './render'
+import { getPagePath } from './require'
+import Router, { route, Route, RouteMatch } from './router'
+import { sendHTML } from './send-html'
+import { serveStatic } from './serve-static'
+import { isBlockedPage, isInternalUrl } from './utils'
 
 type NextConfig = any
 
@@ -49,6 +56,7 @@ export default class Server {
   nextConfig: NextConfig
   distDir: string
   publicDir: string
+  buildManifest: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -57,11 +65,12 @@ export default class Server {
     buildId: string
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
-    assetPrefix?: string,
-    autoExport: boolean,
+    assetPrefix?: string
+    autoExport: boolean
     dev?: boolean,
   }
   router: Router
+  private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
   public constructor({
     dir = '.',
@@ -76,6 +85,7 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    this.buildManifest = join(this.distDir, BUILD_MANIFEST)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -225,6 +235,10 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      this.dynamicRoutes = this.nextConfig.experimental.dynamicRouting
+        ? this.getDynamicRoutes()
+        : []
+
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
@@ -289,7 +303,11 @@ export default class Server {
    * @param pathname path of request
    */
   private resolveApiRequest(pathname: string) {
-    return getPagePath(pathname, this.distDir, this.nextConfig.target === 'serverless')
+    return getPagePath(
+      pathname,
+      this.distDir,
+      this.nextConfig.target === 'serverless',
+    )
   }
 
   private generatePublicRoutes(): Route[] {
@@ -313,6 +331,21 @@ export default class Server {
     })
 
     return routes
+  }
+
+  private getDynamicRoutes() {
+    const manifest = require(this.buildManifest)
+    const dynamicRoutedPages = Object.keys(manifest.pages).filter((p) =>
+      p.includes('/$'),
+    )
+    return dynamicRoutedPages
+      .map((page) => ({
+        page,
+        match: getRouteMatch(page),
+      }))
+      .sort((a, b) =>
+        Math.sign(a.page.match(/\/\$/g)!.length - b.page.match(/\/\$/g)!.length),
+      )
   }
 
   private async run(
@@ -382,36 +415,58 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
+  private async findPageComponents(
+    pathname: string,
+    query: ParsedUrlQuery = {},
+  ) {
+    const serverless =
+      !this.renderOpts.dev && this.nextConfig.target === 'serverless'
+    // try serving a static AMP version first
+    if (query.amp) {
+      try {
+        return await loadComponents(
+          this.distDir,
+          this.buildId,
+          (pathname === '/' ? '/index' : pathname) + '.amp',
+          serverless,
+        )
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err
+      }
+    }
+    return await loadComponents(
+      this.distDir,
+      this.buildId,
+      pathname,
+      serverless,
+    )
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
+    result: LoadComponentsReturnType,
     opts: any,
   ) {
-    const serverless = !this.renderOpts.dev && this.nextConfig.target === 'serverless'
-    // try serving a static AMP version first
-    if (query.amp) {
-      try {
-        const result = await loadComponents(this.distDir, this.buildId, (pathname === '/' ? '/index' : pathname) + '.amp', serverless)
-        if (typeof result.Component === 'string') return result.Component
-      } catch (err) {
-        if (err.code !== 'ENOENT') throw err
-      }
-    }
-    const result = await loadComponents(this.distDir, this.buildId, pathname, serverless)
     // handle static page
-    if (typeof result.Component === 'string') return result.Component
+    if (typeof result.Component === 'string') {
+      return result.Component
+    }
+
     // handle serverless
-    if (typeof result.Component === 'object' &&
+    if (
+      typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
     ) {
       return result.Component.renderReqToHTML(req, res)
     }
+
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
-  public async renderToHTML(
+  public renderToHTML(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
@@ -426,26 +481,55 @@ export default class Server {
       dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {
-    try {
-      // To make sure the try/catch is executed
-      const html = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        pathname,
-        query,
-        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+    return this.findPageComponents(pathname, query)
+      .then(
+        (result) => {
+          return this.renderToHTMLWithComponents(
+            req,
+            res,
+            pathname,
+            query,
+            result,
+            { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+          )
+        },
+        (err) => {
+          if (err.code !== 'ENOENT' || !this.dynamicRoutes) {
+            return Promise.reject(err)
+          }
+
+          for (const dynamicRoute of this.dynamicRoutes) {
+            const params = dynamicRoute.match(pathname)
+            if (!params) {
+              continue
+            }
+
+            return this.findPageComponents(dynamicRoute.page, query).then(
+              (result) =>
+                this.renderToHTMLWithComponents(
+                  req,
+                  res,
+                  dynamicRoute.page,
+                  { ...query, ...params },
+                  result,
+                  { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+                ),
+            )
+          }
+
+          return Promise.reject(err)
+        },
       )
-      return html
-    } catch (err) {
-      if (err && err.code === 'ENOENT') {
-        res.statusCode = 404
-        return this.renderErrorToHTML(null, req, res, pathname, query)
-      } else {
-        this.logError(err)
-        res.statusCode = 500
-        return this.renderErrorToHTML(err, req, res, pathname, query)
-      }
-    }
+      .catch((err) => {
+        if (err && err.code === 'ENOENT') {
+          res.statusCode = 404
+          return this.renderErrorToHTML(null, req, res, pathname, query)
+        } else {
+          this.logError(err)
+          res.statusCode = 500
+          return this.renderErrorToHTML(err, req, res, pathname, query)
+        }
+      })
   }
 
   public async renderError(
@@ -473,7 +557,8 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {},
   ) {
-    return this.renderToHTMLWithComponents(req, res, '/_error', query, {
+    const result = await this.findPageComponents('/_error', query)
+    return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
       ...this.renderOpts,
       err,
     })
