@@ -9,7 +9,7 @@ function create (initialState = {}) {
     ssrMode: !process.browser,
     url: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn',
     cache: memCache({ initialState }),
-    fetch: process.browser ? fetch.bind() : unfetch // eslint-disable-line
+    fetch: process.browser ? fetch.bind() : unfetch, // eslint-disable-line
   })
 }
 
