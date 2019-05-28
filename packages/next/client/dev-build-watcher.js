@@ -91,7 +91,7 @@ export default function initializeBuildWatcher () {
 
 function createContainer (prefix) {
   const container = document.createElement('div')
-  container.setAttribute('id', `${prefix}container`)
+  container.id = `${prefix}container`
   container.innerHTML = `
     <div id="${prefix}icon-wrapper">
       <svg viewBox="0 0 226 200">
