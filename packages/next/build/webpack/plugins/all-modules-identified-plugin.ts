@@ -8,7 +8,7 @@ import path from 'path'
  * MIT License
  * Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
  */
-const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g
+const matchOperatorsRe = /[|\\{}()[\]^$+*?.-]/g
 const escapeRegex = (str: string) => {
   if (typeof str !== 'string') {
     throw new TypeError('Expected a string')

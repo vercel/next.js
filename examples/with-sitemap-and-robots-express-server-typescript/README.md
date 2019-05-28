@@ -45,10 +45,12 @@ The app is deployed at: https://sitemap-robots.now.sh. Open the page and click t
 ![sitemap-robots](https://user-images.githubusercontent.com/26158226/38786210-4d0c3f70-40db-11e8-8e44-b2c90cfd1b74.png)
 
 Notes:
+
 - routes `/a` and `/b` are added to sitemap manually
 - routes that start with `/posts` are added automatically to sitemap; in a real application, you will get post slugs from a database
 
 When you start this example locally:
+
 - your app with run at https://localhost:8000
 - sitemap.xml will be located at http://localhost:8000/sitemap.xml
 - robots.txt will be located at http://localhost:8000/robots.txt
@@ -63,10 +65,10 @@ Deploy with `now` or with `yarn now` if you specified `alias` in `now.json`
 
 ## Typescript notes
 
-express.js and next.js require slighty different forms of javascript (es5 vs. es6, es6 modules vs commonjs modules, that sort of thing) so there are two tsconfig files that are used to generate the appropriate *.js and *.jsx files in dist from the *.ts and *.tsx files in src (`tsconfig.next.json` and `tsconfig.server.json`). Any files under /src/server are assumed to be for express, any other files under /src are assumed to be for next. To keep things simple the two typescript transpiles using these two config files are run directly from npm commands in package.json so all you need to run the example are simple commands like
+express.js and next.js require slighty different forms of javascript (es5 vs. es6, es6 modules vs commonjs modules, that sort of thing) so there are two tsconfig files that are used to generate the appropriate _.js and _.jsx files in dist from the _.ts and _.tsx files in src (`tsconfig.next.json` and `tsconfig.server.json`). Any files under /src/server are assumed to be for express, any other files under /src are assumed to be for next. To keep things simple the two typescript transpiles using these two config files are run directly from npm commands in package.json so all you need to run the example are simple commands like
 
 `npm run start`
 or
 `npm run dev`
 
-This example has most of the hot module reload plumbing setup for both express- and next-related source files when you use `npm run dev` but it's currently only watching the *.js and *.jsx files in /dist for changes. You will need to manually `npm run build-ts` in another window to transpile your modified typescript files in `src` into the watched javascript files in `dist` (it should be possible to have tsc watch the src folder and auto compile on save but that isn't wired up yet in this example). This example does also have tslint support though `npm run tslint`.
+This example has most of the hot module reload plumbing setup for both express- and next-related source files when you use `npm run dev` but it's currently only watching the _.js and _.jsx files in /dist for changes. You will need to manually `npm run build-ts` in another window to transpile your modified typescript files in `src` into the watched javascript files in `dist` (it should be possible to have tsc watch the src folder and auto compile on save but that isn't wired up yet in this example). This example does also have tslint support though `npm run tslint`.

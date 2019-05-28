@@ -76,7 +76,7 @@ export const emitter = mitt()
 export default async ({
   webpackHMR: passedWebpackHMR
 } = {}) => {
-  // This makes sure this specific line is removed in production
+  // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }

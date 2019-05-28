@@ -2,6 +2,7 @@ import initNext, * as next from './'
 import EventSourcePolyfill from './event-source-polyfill'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
+import initializeBuildWatcher from './dev-build-watcher'
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
@@ -27,6 +28,7 @@ window.next = next
 initNext({ webpackHMR })
   .then((emitter) => {
     initOnDemandEntries({ assetPrefix: prefix })
+    initializeBuildWatcher()
 
     let lastScroll
 
