@@ -20,7 +20,7 @@ export default (Component, defaultLang = 'en') =>
     }
 
     render () {
-      const { language, catalogs, ...restProps } = this.props;
+      const { language, catalogs, ...restProps } = this.props
 
       return (
         <I18nProvider
