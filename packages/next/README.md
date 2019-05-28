@@ -1398,7 +1398,9 @@ class Page extends React.Component {
 export default Page
 ```
 
-> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`.
+
+The Error module also takes `title` as a property if you want to pass in message text along with a `statusCode`.
 
 ### Custom configuration
 
@@ -1595,7 +1597,7 @@ The second argument to `webpack` is an object containing properties useful when 
 
 - `buildId` - `String` the build id used as a unique identifier between builds
 - `dev` - `Boolean` shows if the compilation is done in development mode
-- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client size compilation (`false`).
+- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client side compilation (`false`).
 - `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
   - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.

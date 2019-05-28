@@ -329,7 +329,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       if (customAppGetInitialProps === false && nonReservedPage) {
-        const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
+        const isStatic =
+          !/[\\\/]\$/.test(path.relative(distPath, serverBundle)) &&
+          isPageStatic(serverBundle, runtimeEnvConfig)
         if (isStatic) staticPages.add(page)
       }
     }

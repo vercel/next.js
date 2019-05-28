@@ -37,7 +37,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-
 ## The idea behind the example
 
 This example, just like `with-redux` and `with-mobx` examples, shows how to manage a global state in your web-application.
@@ -48,11 +47,10 @@ We have two very similar pages (page1.js, page2.js). They both
 - show the current application state, including a simple counter value
 - have a link to jump from one page to the other
 - have an 'increment' button to increment the state of the counter
-(it triggers the `counterIncrement` action)
+  (it triggers the `counterIncrement` action)
 
 When running the example, please, increment the counter and note how moving from page 1 to page 2 and back the state is persisted.
 Reloading any of the pages will restore the initial state coming from the server.
-
 
 ### Implementation details
 
