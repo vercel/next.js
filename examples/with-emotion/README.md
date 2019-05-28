@@ -43,5 +43,4 @@ This example features how to use [emotion](https://github.com/tkh44/emotion) as 
 
 We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseedo-selector and CSS animations.
 
-
 This is based off the with-glamorous example.

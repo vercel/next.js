@@ -17,9 +17,11 @@ yarn create next-app --example with-noscript with-noscript-app
 Download the example:
 
 ## Development
+
 Install it and run:
 
 **npm**
+
 ```bash
 npm install
 npm run dev
@@ -29,13 +31,16 @@ yarn dev
 ```
 
 **yarn**
+
 ```bash
 yarn install
 yarn run dev
 ```
 
 ## Production
+
 **npm**
+
 ```bash
 npm install
 npm run build
@@ -43,6 +48,7 @@ npm start
 ```
 
 **yarn**
+
 ```bash
 yarn install
 yarn run build

@@ -1,5 +1,5 @@
 import Server from 'next-server/dist/server/next-server'
-import { join } from 'path'
+import { join, relative, extname } from 'path'
 import HotReloader from './hot-reloader'
 import { route } from 'next-server/dist/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
@@ -8,11 +8,15 @@ import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import Watchpack from 'watchpack'
+import { getRouteMatch } from 'next-server/dist/lib/router/utils'
 
 const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
-  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
+  throw new Error(
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
+  )
 }
 
 export default class DevServer extends Server {
@@ -50,7 +54,16 @@ export default class DevServer extends Server {
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
       console.log('Defining routes from exportPathMap')
-      const exportPathMap = await this.nextConfig.exportPathMap({}, { dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId }) // In development we can't give a default path mapping
+      const exportPathMap = await this.nextConfig.exportPathMap(
+        {},
+        {
+          dev: true,
+          dir: this.dir,
+          outDir: null,
+          distDir: this.distDir,
+          buildId: this.buildId
+        }
+      ) // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
@@ -62,7 +75,11 @@ export default class DevServer extends Server {
 
             Object.keys(urlQuery)
               .filter(key => query[key] === undefined)
-              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
+              .forEach(key =>
+                console.warn(
+                  `Url defines a query parameter '${key}' that is missing in exportPathMap`
+                )
+              )
 
             const mergedQuery = { ...urlQuery, ...query }
 
@@ -73,17 +90,74 @@ export default class DevServer extends Server {
     }
   }
 
+  async startWatcher () {
+    if (this.webpackWatcher || !this.nextConfig.experimental.dynamicRouting) {
+      return
+    }
+
+    return new Promise(resolve => {
+      const pagesDir = join(this.dir, 'pages')
+
+      let wp = (this.webpackWatcher = new Watchpack())
+      wp.watch([], [pagesDir], 0)
+
+      wp.on('aggregated', () => {
+        const newDynamicRoutes = []
+        const knownFiles = wp.getTimeInfoEntries()
+        for (const [fileName, { accuracy }] of knownFiles) {
+          if (accuracy === undefined) {
+            continue
+          }
+
+          let pageName =
+            '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
+          if (!pageName.includes('/$')) {
+            continue
+          }
+
+          const pageExt = extname(pageName)
+          pageName = pageName.slice(0, -pageExt.length)
+
+          pageName = pageName.replace(/\/index$/, '')
+          newDynamicRoutes.push({
+            page: pageName,
+            match: getRouteMatch(pageName)
+          })
+        }
+
+        this.dynamicRoutes = newDynamicRoutes.sort((a, b) =>
+          Math.sign(a.page.match(/\/\$/g).length - b.page.match(/\/\$/g).length)
+        )
+        resolve()
+      })
+    })
+  }
+
+  async stopWatcher () {
+    if (!this.webpackWatcher) {
+      return
+    }
+
+    this.webpackWatcher.close()
+    this.webpackWatcher = null
+  }
+
   async prepare () {
     await verifyTypeScriptSetup(this.dir)
 
-    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
+    this.hotReloader = new HotReloader(this.dir, {
+      config: this.nextConfig,
+      buildId: this.buildId
+    })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
+    await this.startWatcher()
     this.setDevReady()
   }
 
   async close () {
+    await this.stopWatcher()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
@@ -117,6 +191,11 @@ export default class DevServer extends Server {
 
   // In development public files are not added to the router but handled as a fallback instead
   generatePublicRoutes () {
+    return []
+  }
+
+  // In development dynamic routes cannot be known ahead of time
+  getDynamicRoutes () {
     return []
   }
 
@@ -167,7 +246,25 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname)
+      await this.hotReloader.ensurePage(pathname).catch(err => {
+        if (err.code !== 'ENOENT') {
+          return Promise.reject(err)
+        }
+
+        for (const dynamicRoute of this.dynamicRoutes) {
+          const params = dynamicRoute.match(pathname)
+          if (!params) {
+            continue
+          }
+
+          return this.hotReloader.ensurePage(dynamicRoute.page).then(() => {
+            pathname = dynamicRoute.page
+            query = Object.assign({}, query, params)
+          })
+        }
+
+        return Promise.reject(err)
+      })
     } catch (err) {
       if (err.code === 'ENOENT') {
         // Try to send a public file and let servePublic handle the request from here

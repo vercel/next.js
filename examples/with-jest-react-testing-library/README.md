@@ -45,5 +45,4 @@ This library encourages your applications to be more accessible and allows you t
 
 This example features:
 
-* An app with [react testing library](https://github.com/kentcdodds/react-testing-library) by [Kent Dodds](https://github.com/kentcdodds/)
-
+- An app with [react testing library](https://github.com/kentcdodds/react-testing-library) by [Kent Dodds](https://github.com/kentcdodds/)
