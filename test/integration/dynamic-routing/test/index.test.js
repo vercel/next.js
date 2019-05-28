@@ -41,6 +41,11 @@ function runTests () {
     expect(html).toMatch(/show comments for.*post-1.*here/i)
   })
 
+  it('should prioritize a non-dynamic folder', async () => {
+    const html = await renderViaHTTP(appPort, '/quotes')
+    expect(html).toMatch(/all quotes here/i)
+  })
+
   it('should render nested dynamic page', async () => {
     const html = await renderViaHTTP(appPort, '/post-1/comment-1')
     expect(html).toMatch(/i am.*comment-1.*on.*post-1/i)
