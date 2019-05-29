@@ -45,15 +45,15 @@ Note that you can access the redux store like you normally would using `react-re
 
 ```js
 const mapStateToProps = state => ({
-  location: state.form.location
-});
+  location: state.form.location,
+})
 
 export default withReduxSaga(
   connect(
     mapStateToProps,
     null
   )(Index)
-);
+)
 ```
 
 `connect` must go inside `withReduxSaga` otherwise `connect` will not be able to find the store.

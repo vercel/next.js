@@ -1,4 +1,4 @@
-# Invalid webpack resolve alias 
+# Invalid webpack resolve alias
 
 #### Why This Error Occurred
 

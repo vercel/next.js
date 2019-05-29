@@ -30,13 +30,9 @@ Optionally you can provide [MDX options](https://github.com/mdx-js/mdx#options):
 // next.config.js
 const withMDX = require('@next/mdx')({
   options: {
-    mdPlugins: [
-
-    ],
-    hastPlugins: [
-
-    ]
-  }
+    mdPlugins: [],
+    hastPlugins: [],
+  },
 })
 module.exports = withMDX()
 ```
@@ -49,7 +45,7 @@ const withMDX = require('@next/mdx')()
 module.exports = withMDX({
   webpack(config, options) {
     return config
-  }
+  },
 })
 ```
 
@@ -58,7 +54,7 @@ Optionally you can match other file extensions for MDX compilation, by default o
 ```js
 // next.config.js
 const withMDX = require('@next/mdx')({
-  extension: /\.(md|mdx)$/
+  extension: /\.(md|mdx)$/,
 })
 module.exports = withMDX()
 ```
@@ -70,9 +66,9 @@ Define the `pagesExtensions` option to have Next.js handle `.mdx` files in the `
 ```js
 // next.config.js
 const withMDX = require('@next/mdx')({
-  extension: /\.mdx?$/
+  extension: /\.mdx?$/,
 })
 module.exports = withMDX({
-  pageExtensions: ['js', 'jsx', 'mdx']
+  pageExtensions: ['js', 'jsx', 'mdx'],
 })
 ```

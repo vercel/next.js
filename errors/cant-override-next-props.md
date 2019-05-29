@@ -6,7 +6,7 @@ In your `pages/_app.js` you returned an object from `getInitialProps` that conta
 
 #### Possible Ways to Fix It
 
-Look in your _app.js component's `getInitialProps` function and make sure neither of these property names are present in the object returned.
+Look in your \_app.js component's `getInitialProps` function and make sure neither of these property names are present in the object returned.
 
 ### Useful Links
 
