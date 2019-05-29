@@ -45,7 +45,6 @@
     "path-to-regexp": "2.1.0",
     "prop-types": "15.7.2",
     "react-is": "16.8.6",
-    "react-ssr-prepass": "1.0.5",
     "send": "0.16.1",
     "url": "0.11.0"
   },
