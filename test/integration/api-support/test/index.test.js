@@ -1,7 +1,14 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { killApp, findPort, launchApp, fetchViaHTTP } from 'next-test-utils'
+import { existsSync } from 'fs'
+import {
+  killApp,
+  findPort,
+  launchApp,
+  fetchViaHTTP,
+  renderViaHTTP
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -18,6 +25,11 @@ describe('API support', () => {
   it('should return 404 for undefined path', async () => {
     const { status } = await fetchViaHTTP(appPort, '/api/unexisting', null, {})
     expect(status).toEqual(404)
+  })
+
+  it('should render page', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(html).toMatch(/API - support/)
   })
 
   it('should return JSON of unfiltered users', async () => {
@@ -135,5 +147,29 @@ describe('API support', () => {
       }
     }).then(res => res.ok && res.json())
     expect(data).toEqual({ nextjs: 'cool' })
+  })
+
+  it('should compile only server code in development', async () => {
+    await fetchViaHTTP(appPort, '/')
+    await fetchViaHTTP(appPort, '/api/posts')
+
+    // Normal page
+    expect(
+      existsSync(join(appDir, `/.next/static/development/pages/index.js`))
+    ).toBeTruthy()
+    expect(
+      existsSync(
+        join(appDir, `/.next/server/static/development/pages/index.js`)
+      )
+    ).toBeTruthy()
+    // API page
+    expect(
+      existsSync(join(appDir, `/.next/static/development/pages/api/posts.js`))
+    ).toBeFalsy()
+    expect(
+      existsSync(
+        join(appDir, `/.next/server/static/development/pages/api/posts.js`)
+      )
+    ).toBeTruthy()
   })
 })
