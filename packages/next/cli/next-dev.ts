@@ -7,18 +7,21 @@ import { printAndExit } from '../server/lib/utils'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
-const nextDev: cliCommand = (argv) => {
-  const args = arg({
-    // Types
-    '--help': Boolean,
-    '--port': Number,
-    '--hostname': String,
+const nextDev: cliCommand = argv => {
+  const args = arg(
+    {
+      // Types
+      '--help': Boolean,
+      '--port': Number,
+      '--hostname': String,
 
-    // Aliases
-    '-h': '--help',
-    '-p': '--port',
-    '-H': '--hostname',
-  }, { argv })
+      // Aliases
+      '-h': '--help',
+      '-p': '--port',
+      '-H': '--hostname',
+    },
+    { argv }
+  )
 
   if (args['--help']) {
     // tslint:disable-next-line
@@ -51,10 +54,14 @@ const nextDev: cliCommand = (argv) => {
 
   if (!existsSync(join(dir, 'pages'))) {
     if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+      printAndExit(
+        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
+      )
     }
 
-    printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+    printAndExit(
+      "> Couldn't find a `pages` directory. Please create one under the project root"
+    )
   }
 
   const port = args['--port'] || 3000
@@ -62,11 +69,11 @@ const nextDev: cliCommand = (argv) => {
 
   startedDevelopmentServer(appUrl)
 
-  startServer({dir, dev: true}, port, args['--hostname'])
-    .then(async (app) => {
+  startServer({ dir, dev: true }, port, args['--hostname'])
+    .then(async app => {
       await app.prepare()
     })
-    .catch((err) => {
+    .catch(err => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`
         const pkgAppPath = require('find-up').sync('package.json', {
@@ -74,9 +81,13 @@ const nextDev: cliCommand = (argv) => {
         })
         const appPackage = require(pkgAppPath)
         if (appPackage.scripts) {
-          const nextScript = Object.entries(appPackage.scripts).find((scriptLine) => scriptLine[1] === 'next')
+          const nextScript = Object.entries(appPackage.scripts).find(
+            scriptLine => scriptLine[1] === 'next'
+          )
           if (nextScript) {
-            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+            errorMessage += `\nUse \`npm run ${
+              nextScript[0]
+            } -- -p <some other port>\`.`
           }
         }
         // tslint:disable-next-line

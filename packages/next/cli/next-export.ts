@@ -6,20 +6,23 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextExport: cliCommand = (argv) => {
-  const args = arg({
-    // Types
-    '--help': Boolean,
-    '--silent': Boolean,
-    '--outdir': String,
-    '--threads': Number,
-    '--concurrency': Number,
+const nextExport: cliCommand = argv => {
+  const args = arg(
+    {
+      // Types
+      '--help': Boolean,
+      '--silent': Boolean,
+      '--outdir': String,
+      '--threads': Number,
+      '--concurrency': Number,
 
-    // Aliases
-    '-h': '--help',
-    '-s': '--silent',
-    '-o': '--outdir',
-  }, { argv })
+      // Aliases
+      '-h': '--help',
+      '-s': '--silent',
+      '-o': '--outdir',
+    },
+    { argv }
+  )
 
   if (args['--help']) {
     // tslint:disable-next-line
@@ -50,10 +53,14 @@ const nextExport: cliCommand = (argv) => {
 
   if (!existsSync(join(dir, 'pages'))) {
     if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+      printAndExit(
+        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
+      )
     }
 
-    printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+    printAndExit(
+      "> Couldn't find a `pages` directory. Please create one under the project root"
+    )
   }
 
   const options = {
@@ -67,7 +74,7 @@ const nextExport: cliCommand = (argv) => {
     .then(() => {
       printAndExit('Export successful', 0)
     })
-    .catch((err) => {
+    .catch(err => {
       printAndExit(err)
     })
 }

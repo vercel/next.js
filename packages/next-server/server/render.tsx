@@ -113,6 +113,7 @@ type RenderOpts = {
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
+  canonicalBase: string
   dynamicBuildId?: boolean
   runtimeConfig?: { [key: string]: any }
   dangerousAsPath: string
@@ -144,6 +145,7 @@ function renderDocument(
     pathname,
     query,
     buildId,
+    canonicalBase,
     dynamicBuildId = false,
     assetPrefix,
     runtimeConfig,
@@ -196,6 +198,7 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           dangerousAsPath={dangerousAsPath}
+          canonicalBase={canonicalBase}
           ampPath={ampPath}
           amphtml={amphtml}
           hasAmp={hasAmp}

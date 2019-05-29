@@ -10,7 +10,7 @@ class Index extends React.Component {
   state = {
     raiseErrorInRender: false,
     raiseErrorInUpdate: false
-  };
+  }
 
   componentDidUpdate () {
     if (this.state.raiseErrorInUpdate) {
@@ -18,8 +18,8 @@ class Index extends React.Component {
     }
   }
 
-  raiseErrorInUpdate = () => this.setState({ raiseErrorInUpdate: '1' });
-  raiseErrorInRender = () => this.setState({ raiseErrorInRender: '1' });
+  raiseErrorInUpdate = () => this.setState({ raiseErrorInUpdate: '1' })
+  raiseErrorInRender = () => this.setState({ raiseErrorInRender: '1' })
 
   render () {
     if (this.state.raiseErrorInRender) {

@@ -1,13 +1,11 @@
 {
-    "version": 2,
-    "name": "with-zones-blog",
-    "alias": "with-zones-blog.nextjs.org",
-    "build": {
-        "env": {
-            "DEPLOY": "true"
-        }
-    },
-    "builds": [
-        { "src": "package.json", "use": "@now/next" }
-    ]
+  "version": 2,
+  "name": "with-zones-blog",
+  "alias": "with-zones-blog.nextjs.org",
+  "build": {
+    "env": {
+      "DEPLOY": "true"
+    }
+  },
+  "builds": [{ "src": "package.json", "use": "@now/next" }]
 }

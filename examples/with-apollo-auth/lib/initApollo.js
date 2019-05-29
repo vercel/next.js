@@ -48,11 +48,10 @@ export default function initApollo (initialState, options) {
         agent: new (require('https-proxy-agent'))(process.env.https_proxy)
       }
     }
-    return create(initialState,
-      {
-        ...options,
-        fetchOptions
-      })
+    return create(initialState, {
+      ...options,
+      fetchOptions
+    })
   }
 
   // Reuse client on the client-side

@@ -11,7 +11,8 @@ export type OutputState =
           loading: false
           errors: string[] | null
           warnings: string[] | null
-        }))
+        }
+    ))
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 

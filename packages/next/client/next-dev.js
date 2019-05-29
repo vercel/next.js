@@ -16,9 +16,7 @@ if (!window.EventSource) {
 }
 
 const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
+  __NEXT_DATA__: { assetPrefix }
 } = window
 
 const prefix = assetPrefix || ''
@@ -26,7 +24,7 @@ const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
-  .then((emitter) => {
+  .then(emitter => {
     initOnDemandEntries({ assetPrefix: prefix })
     initializeBuildWatcher()
 
@@ -51,6 +49,7 @@ initNext({ webpackHMR })
         lastScroll = null
       }
     })
-  }).catch((err) => {
+  })
+  .catch(err => {
     console.error('Error was not caught', err)
   })

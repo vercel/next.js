@@ -4,7 +4,6 @@ Source code is hosted on the [react-multi-carorusel](https://github.com/YIZHUANG
 
 [![Demo](https://react-multi-carousel.now.sh/)
 
-
 ### Usage
 
 Install and run:
@@ -22,7 +21,7 @@ The reason for that is i needed to implement a Carousel component for my own pro
 
 ## How does it work with ssr?
 
-* On the server-side, we detect the user's device to decide how many items we are showing and then using flex-basis to assign * width to the carousel item.
-* On the client-side, old fashion getting width of the container and assign the average of it to each carousel item.
+- On the server-side, we detect the user's device to decide how many items we are showing and then using flex-basis to assign \* width to the carousel item.
+- On the client-side, old fashion getting width of the container and assign the average of it to each carousel item.
 
 The UI part of this example is copy paste from for the sake of simplicity. [with-material-ui](https://github.com/zeit/next.js/tree/canary/examples/with-material-ui)

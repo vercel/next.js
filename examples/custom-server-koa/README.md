@@ -53,8 +53,8 @@ The most common Koa middleware for handling the gzip compression is [compress](h
 If you need to enable the gzip compression, the most simple way to do so is by wrapping the express-middleware [compression](https://github.com/expressjs/compression) with [koa-connect](https://github.com/vkurchatkin/koa-connect):
 
 ```javascript
-const compression = require("compression");
-const koaConnect = require("koa-connect");
+const compression = require('compression')
+const koaConnect = require('koa-connect')
 
-server.use(koaConnect(compression()));
+server.use(koaConnect(compression()))
 ```

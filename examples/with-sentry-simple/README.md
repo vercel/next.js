@@ -63,8 +63,8 @@ The Sentry DSN should then be updated in `_app.js`.
 
 ```js
 Sentry.init({
-  dsn: 'PUT_YOUR_SENTRY_DSN_HERE'
-});
+  dsn: 'PUT_YOUR_SENTRY_DSN_HERE',
+})
 ```
 
 _Note: Committing environment variables is not secure and is done here only for demonstration purposes. See the [`with-dotenv`](../with-dotenv) or [`with-now-env`](../with-now-env) for examples of how to set environment variables safely._

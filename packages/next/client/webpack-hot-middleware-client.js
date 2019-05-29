@@ -7,7 +7,7 @@ export default ({ assetPrefix }) => {
 
   const devClient = connect(options)
 
-  devClient.subscribeToHmrEvent((obj) => {
+  devClient.subscribeToHmrEvent(obj => {
     if (obj.action === 'reloadPage') {
       return window.location.reload()
     }
@@ -20,7 +20,10 @@ export default ({ assetPrefix }) => {
     }
     if (obj.action === 'addedPage') {
       const [page] = obj.data
-      if (page === window.next.router.pathname && typeof window.next.router.components[page] === 'undefined') {
+      if (
+        page === window.next.router.pathname &&
+        typeof window.next.router.components[page] === 'undefined'
+      ) {
         return window.location.reload()
       }
       return

@@ -1,9 +1,9 @@
 export function getRouteRegex(
-  route: string,
+  route: string
 ): { re: RegExp; groups: { [groupName: string]: number } } {
   const escapedRoute = (route.replace(/\/$/, '') || '/').replace(
     /[|\\{}()[\]^$+*?.-]/g,
-    '\\$&',
+    '\\$&'
   )
 
   const groups: { [groupName: string]: number } = {}
@@ -16,7 +16,7 @@ export function getRouteRegex(
         $1.replace(/\\\$$/, '').replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
       ] = groupIndex++),
       $1.lastIndexOf('$') === $1.length - 1 ? '(?:/([^/]+?))?' : '/([^/]+?)'
-    ),
+    )
   )
 
   return {
