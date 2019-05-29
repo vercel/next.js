@@ -57,6 +57,7 @@ When you start this example locally:
 - robots.txt will be located at http://localhost:8000/robots.txt
 
 In case you want to deploy this example, replace the URL in the following locations with your own domain:
+
 - `hostname` in `server/sitemap.js`
 - `ROOT_URL` in `server/app.js`
 - `Sitemap` at the bottom of `robots.txt`

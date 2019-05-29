@@ -227,7 +227,7 @@ export async function getPageSizeInKb(
 
 export function isPageStatic(
   serverBundle: string,
-  runtimeEnvConfig: any,
+  runtimeEnvConfig: any
 ): boolean {
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
@@ -250,7 +250,7 @@ export function isPageStatic(
 
 export function hasCustomAppGetInitialProps(
   _appBundle: string,
-  runtimeEnvConfig: any,
+  runtimeEnvConfig: any
 ): boolean {
   nextEnvConfig.setConfig(runtimeEnvConfig)
   let mod = require(_appBundle)

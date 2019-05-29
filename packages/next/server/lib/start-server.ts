@@ -1,7 +1,11 @@
 import http from 'http'
 import next from '../next'
 
-export default async function start(serverOptions: any, port?: number, hostname?: string) {
+export default async function start(
+  serverOptions: any,
+  port?: number,
+  hostname?: string
+) {
   const app = next(serverOptions)
   const srv = http.createServer(app.getRequestHandler())
   await new Promise((resolve, reject) => {

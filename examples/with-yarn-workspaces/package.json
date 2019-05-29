@@ -1,6 +1,8 @@
 {
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "yarn --cwd packages/web-app dev",
     "build": "yarn --cwd packages/web-app build",

@@ -17,7 +17,7 @@
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
-    "prettier": "prettier --write \"examples/**/*.js\" && yarn lint-fix",
+    "prettier": "prettier --write \"**/*.{ts,md}\" \"{packages,examples}/**/*.{js,json}\" && yarn lint-fix",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
@@ -33,15 +33,13 @@
       "git add"
     ],
     "*.js": [
+      "prettier --write",
       "standard --fix",
       "git add"
     ],
     "*.{ts,tsx}": [
-      "tslint -c tslint.json --fix",
-      "git add"
-    ],
-    "packages/**/bin/*": [
-      "standard --fix",
+      "prettier --write",
+      "standard --fix --parser typescript-eslint-parser --plugin typescript",
       "git add"
     ]
   },
@@ -103,7 +101,6 @@
     "standard": "12.0.1",
     "taskr": "1.1.0",
     "tree-kill": "1.2.1",
-    "tslint": "5.16.0",
     "typescript": "3.4.5",
     "typescript-eslint-parser": "22.0.0",
     "wait-port": "0.2.2",

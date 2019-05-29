@@ -1,23 +1,23 @@
-import {loader} from 'webpack'
-import {join} from 'path'
-import {parse} from 'querystring'
+import { loader } from 'webpack'
+import { join } from 'path'
+import { parse } from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 
 export type ServerlessLoaderQuery = {
-  page: string,
-  distDir: string,
-  absolutePagePath: string,
-  absoluteAppPath: string,
-  absoluteDocumentPath: string,
-  absoluteErrorPath: string,
-  assetPrefix: string,
-  ampBindInitData: boolean | string,
+  page: string
+  distDir: string
+  absolutePagePath: string
+  absoluteAppPath: string
+  absoluteDocumentPath: string
+  absoluteErrorPath: string
+  assetPrefix: string
+  ampBindInitData: boolean | string
   generateEtags: string
-  dynamicBuildId?: string | boolean,
+  dynamicBuildId?: string | boolean
   canonicalBase: string
 }
 
-const nextServerlessLoader: loader.Loader = function () {
+const nextServerlessLoader: loader.Loader = function() {
   const {
     distDir,
     absolutePagePath,
@@ -29,10 +29,14 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
-    dynamicBuildId
-  }: ServerlessLoaderQuery = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+    dynamicBuildId,
+  }: ServerlessLoaderQuery =
+    typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
-  const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(/\\/g, '/')
+  const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
+    /\\/g,
+    '/'
+  )
   return `
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';
@@ -60,7 +64,8 @@ const nextServerlessLoader: loader.Loader = function () {
         buildId: "__NEXT_REPLACE__BUILD_ID__",
         dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
         assetPrefix: "${assetPrefix}",
-        ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
+        ampBindInitData: ${ampBindInitData === true ||
+          ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
       const renderOpts = Object.assign(

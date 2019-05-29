@@ -1,9 +1,6 @@
 import { BLOCKED_PAGES } from '../lib/constants'
 
-const internalPrefixes = [
-  /^\/_next\//,
-  /^\/static\//,
-]
+const internalPrefixes = [/^\/_next\//, /^\/static\//]
 
 export function isInternalUrl(url: string): boolean {
   for (const prefix of internalPrefixes) {
@@ -16,7 +13,7 @@ export function isInternalUrl(url: string): boolean {
 }
 
 export function isBlockedPage(pathname: string): boolean {
-  return (BLOCKED_PAGES.indexOf(pathname) !== -1)
+  return BLOCKED_PAGES.indexOf(pathname) !== -1
 }
 
 export function cleanAmpPath(pathname: string): string {

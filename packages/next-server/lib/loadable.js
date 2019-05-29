@@ -136,9 +136,13 @@ function createLoadableComponent (loadFn, options) {
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined' && typeof opts.webpack === 'function') {
+  if (
+    !initialized &&
+    typeof window !== 'undefined' &&
+    typeof opts.webpack === 'function'
+  ) {
     const moduleIds = opts.webpack()
-    READY_INITIALIZERS.push((ids) => {
+    READY_INITIALIZERS.push(ids => {
       for (const moduleId of moduleIds) {
         if (ids.indexOf(moduleId) !== -1) {
           return init()
@@ -237,7 +241,7 @@ function createLoadableComponent (loadFn, options) {
       this.setState({ error: null, loading: true, timedOut: false })
       res = loadFn(opts.loader)
       this._loadModule()
-    };
+    }
 
     render () {
       if (this.state.loading || this.state.error) {
@@ -292,8 +296,8 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = (ids) => {
-  return new Promise((resolve) => {
+Loadable.preloadReady = ids => {
+  return new Promise(resolve => {
     const res = () => {
       initialized = true
       return resolve()

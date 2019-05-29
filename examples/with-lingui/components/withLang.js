@@ -23,10 +23,7 @@ export default (Component, defaultLang = 'en') =>
       const { language, catalogs, ...restProps } = this.props
 
       return (
-        <I18nProvider
-          language={language}
-          catalogs={catalogs}
-        >
+        <I18nProvider language={language} catalogs={catalogs}>
           <Component {...restProps} />
         </I18nProvider>
       )

@@ -1,4 +1,4 @@
-import { User } from "../interfaces";
+import { User } from '../interfaces'
 
 /** Dummy user data. */
 export const dataArray: User[] = [
@@ -6,7 +6,7 @@ export const dataArray: User[] = [
   { id: 102, name: 'Bob' },
   { id: 103, name: 'Caroline' },
   { id: 104, name: 'Dave' },
-];
+]
 
 /**
  * Calls a mock API which finds a user by ID from the list above.
@@ -14,7 +14,7 @@ export const dataArray: User[] = [
  * Throws an error if not found.
  */
 export async function findData(id: number | string) {
-  const selected = dataArray.find((data) => data.id === Number(id))
+  const selected = dataArray.find(data => data.id === Number(id))
 
   if (!selected) {
     throw new Error('Cannot find user')

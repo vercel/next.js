@@ -14,7 +14,8 @@ assetPrefix = assetPrefix || ''
 let mostRecentHash = null
 /* eslint-disable-next-line */
 let curHash = __webpack_hash__
-const hotUpdatePath = assetPrefix + (assetPrefix.endsWith('/') ? '' : '/') + '_next/static/webpack/'
+const hotUpdatePath =
+  assetPrefix + (assetPrefix.endsWith('/') ? '' : '/') + '_next/static/webpack/'
 
 // Is there a newer version of this code available?
 function isUpdateAvailable () {
@@ -39,13 +40,18 @@ async function tryApplyUpdates () {
     const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
     const data = await res.json()
     const curPage = page === '/' ? 'index' : page
-    const pageUpdated = Object.keys(data.c)
-      .some(mod => {
-        return (
-          mod.indexOf(`pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`) !== -1 ||
-          mod.indexOf(`pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`.replace(/\//g, '\\')) !== -1
-        )
-      })
+    const pageUpdated = Object.keys(data.c).some(mod => {
+      return (
+        mod.indexOf(
+          `pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`
+        ) !== -1 ||
+        mod.indexOf(
+          `pages${
+            curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`
+          }`.replace(/\//g, '\\')
+        ) !== -1
+      )
+    })
 
     if (pageUpdated) {
       document.location.reload(true)

@@ -24,7 +24,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import url from 'url'
 import { Compiler, compilation } from 'webpack'
 
-function buildManifest (compiler: Compiler, compilation: compilation.Compilation) {
+function buildManifest(
+  compiler: Compiler,
+  compilation: compilation.Compilation
+) {
   let context = compiler.options.context
   let manifest: { [k: string]: any[] } = {}
 
@@ -67,7 +70,7 @@ function buildManifest (compiler: Compiler, compilation: compilation.Compilation
               id,
               name,
               file,
-              publicPath
+              publicPath,
             })
           }
         })
@@ -85,23 +88,23 @@ function buildManifest (compiler: Compiler, compilation: compilation.Compilation
 export class ReactLoadablePlugin {
   private filename: string
 
-  constructor (opts: { filename: string }) {
+  constructor(opts: { filename: string }) {
     this.filename = opts.filename
   }
 
-  apply (compiler: Compiler) {
+  apply(compiler: Compiler) {
     compiler.hooks.emit.tapAsync(
       'ReactLoadableManifest',
       (compilation, callback) => {
         const manifest = buildManifest(compiler, compilation)
         var json = JSON.stringify(manifest, null, 2)
         compilation.assets[this.filename] = {
-          source () {
+          source() {
             return json
           },
-          size () {
+          size() {
             return json.length
-          }
+          },
         }
         callback()
       }
