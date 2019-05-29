@@ -48,7 +48,6 @@
     "prop-types": "15.7.2",
     "raw-body": "2.4.0",
     "react-is": "16.8.6",
-    "react-ssr-prepass": "1.0.5",
     "send": "0.16.1",
     "url": "0.11.0"
   },
