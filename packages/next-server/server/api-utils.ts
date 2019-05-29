@@ -48,7 +48,7 @@ function parseJson(str: string) {
 export function parseQuery({ url }: IncomingMessage) {
   if (url) {
     // This is just for parsing search params, base it's not important
-    const params = new URL(`${url}`, 'https://n').searchParams
+    const params = new URL(url, 'https://n').searchParams
 
     return reduceParams(params.entries())
   } else {
