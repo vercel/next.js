@@ -13,9 +13,18 @@ export function getRouteRegex(
     /\/\\\$([^\/]+?)(?=\/|$)/g,
     (_, $1) => (
       (groups[
-        $1.replace(/\\\$$/, '').replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
+        $1
+          // // Remove optional parameter marker
+          // .replace(/\\\$$/, '')
+          // Un-escape key
+          .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
       ] = groupIndex++),
-      $1.lastIndexOf('$') === $1.length - 1 ? '(?:/([^/]+?))?' : '/([^/]+?)'
+      // // Test the route for an optional parameter
+      // $1.lastIndexOf('$') === $1.length - 1
+      //   ? // Optional: match a param
+      //     '(?:/([^/]+?))?'
+      //   : // Required: match a param
+      '/([^/]+?)'
     )
   )
 
