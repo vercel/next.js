@@ -90,7 +90,9 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
         chalk.cyan.bold(toInstallStr),
         'by running',
         chalk.cyan.bold(
-          (isYarn ? 'yarn add --dev' : 'npm install --save-dev') + ' ' + toInstallStr,
+          (isYarn ? 'yarn add --dev' : 'npm install --save-dev') +
+            ' ' +
+            toInstallStr,
         ) + '.',
       ),
     )
@@ -119,6 +121,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     skipLibCheck: { suggested: true },
     strict: { suggested: true },
     forceConsistentCasingInFileNames: { suggested: true },
+    noEmit: { suggested: true },
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
@@ -141,7 +144,6 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
       value: true,
       reason: 'requirement for babel',
     },
-    noEmit: { value: true },
     jsx: { parsedValue: ts.JsxEmit.Preserve, value: 'preserve' },
   }
 
@@ -267,6 +269,16 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   }
 
   if (toInstall.length > 0) {
-    console.warn(chalk.red(`\n${toInstall.join(' ')} ${toInstall.length === 1 ? 'is' : 'are'} needed when using TypeScript with Next.js. Please install ${toInstall.length === 1 ? 'it' : 'them'} with ${isYarn ? 'yarn add --dev' : 'npm install --save-dev'} ${toInstall.join(' ')}\n`))
+    console.warn(
+      chalk.red(
+        `\n${toInstall.join(' ')} ${
+          toInstall.length === 1 ? 'is' : 'are'
+        } needed when using TypeScript with Next.js. Please install ${
+          toInstall.length === 1 ? 'it' : 'them'
+        } with ${
+          isYarn ? 'yarn add --dev' : 'npm install --save-dev'
+        } ${toInstall.join(' ')}\n`,
+      ),
+    )
   }
 }
