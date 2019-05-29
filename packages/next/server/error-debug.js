@@ -16,12 +16,8 @@ export default function ErrorDebug ({ error, info }) {
 const StackTrace = ({ error: { name, message, stack }, info }) => (
   <div>
     <div style={styles.heading}>{message || name}</div>
-    <pre style={styles.stack}>
-      {stack}
-    </pre>
-    {info && <pre style={styles.stack}>
-      {info.componentStack}
-    </pre>}
+    <pre style={styles.stack}>{stack}</pre>
+    {info && <pre style={styles.stack}>{info.componentStack}</pre>}
   </div>
 )
 
@@ -41,7 +37,8 @@ export const styles = {
   },
 
   stack: {
-    fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", consolas, menlo-regular, monospace',
+    fontFamily:
+      '"SF Mono", "Roboto Mono", "Fira Mono", consolas, menlo-regular, monospace',
     fontSize: '13px',
     lineHeight: '18px',
     color: '#777',
@@ -52,7 +49,8 @@ export const styles = {
   },
 
   heading: {
-    fontFamily: '-apple-system, system-ui, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+    fontFamily:
+      '-apple-system, system-ui, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     fontSize: '20px',
     fontWeight: '400',
     lineHeight: '28px',

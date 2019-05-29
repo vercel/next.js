@@ -6,7 +6,9 @@ module.exports = ({ enabled = true } = {}) => (nextConfig = {}) => {
         config.plugins.push(
           new BundleAnalyzerPlugin({
             analyzerMode: 'static',
-            reportFilename: options.isServer ? '../analyze/server.html' : './analyze/client.html'
+            reportFilename: options.isServer
+              ? '../analyze/server.html'
+              : './analyze/client.html'
           })
         )
       }

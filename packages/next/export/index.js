@@ -5,7 +5,15 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_PUBLIC_FILES_PATH, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+import {
+  PHASE_EXPORT,
+  SERVER_DIRECTORY,
+  PAGES_MANIFEST,
+  CONFIG_FILE,
+  BUILD_ID_FILE,
+  CLIENT_PUBLIC_FILES_PATH,
+  CLIENT_STATIC_FILES_PATH
+} from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -26,16 +34,23 @@ export default async function (dir, options, configuration) {
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.experimental.exportTrailingSlash
 
-  if (!options.buildExport && nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
+  if (!options.buildExport && nextConfig.target !== 'server') {
+    throw new Error(
+      'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
+    )
+  }
 
   log(`> using build directory: ${distDir}`)
 
   if (!existsSync(distDir)) {
-    throw new Error(`Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
+    throw new Error(
+      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest = !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+  const pagesManifest =
+    !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap = {}
@@ -58,11 +73,7 @@ export default async function (dir, options, configuration) {
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')
-    await cp(
-      join(dir, 'static'),
-      join(outDir, 'static'),
-      { expand: true }
-    )
+    await cp(join(dir, 'static'), join(outDir, 'static'), { expand: true })
   }
 
   // Copy .next/static directory
@@ -76,8 +87,10 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log(`> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`)
-    nextConfig.exportPathMap = async (defaultMap) => {
+    console.log(
+      `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+    )
+    nextConfig.exportPathMap = async defaultMap => {
       return defaultMap
     }
   }
@@ -106,8 +119,16 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
-  log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, { dev: false, dir, outDir, distDir, buildId })
+  log(
+    `  launching ${threads} threads with concurrency of ${concurrency} per thread`
+  )
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {
+    dev: false,
+    dir,
+    outDir,
+    distDir,
+    buildId
+  })
   exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
 
@@ -130,17 +151,13 @@ export default async function (dir, options, configuration) {
   // Copy public directory
   if (existsSync(publicDir)) {
     log('  copying "public" directory')
-    await cp(
-      publicDir,
-      outDir,
-      {
-        expand: true,
-        filter (path) {
-          // Exclude paths used by pages
-          return !exportPathMap['/' + path]
-        }
+    await cp(publicDir, outDir, {
+      expand: true,
+      filter (path) {
+        // Exclude paths used by pages
+        return !exportPathMap['/' + path]
       }
-    )
+    })
   }
   const workers = new Set()
 
@@ -173,7 +190,8 @@ export default async function (dir, options, configuration) {
               resolve()
             } else if (type === 'amp-validation') {
               ampValidations[payload.page] = payload.result
-              hadValidationError = hadValidationError || payload.result.errors.length
+              hadValidationError =
+                hadValidationError || payload.result.errors.length
             }
           })
         })
@@ -186,7 +204,9 @@ export default async function (dir, options, configuration) {
     console.log(formatAmpMessages(ampValidations))
   }
   if (hadValidationError) {
-    throw new Error(`AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`)
+    throw new Error(
+      `AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`
+    )
   }
 
   // Add an empty line to the console for the better readability.
