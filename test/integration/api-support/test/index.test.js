@@ -102,7 +102,7 @@ describe('API support', () => {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-Form-urlencoded'
       },
       body: formBody
     }).then(res => res.ok && res.json())

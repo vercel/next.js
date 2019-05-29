@@ -3,22 +3,24 @@ import { NextApiResponse, NextApiRequest } from '../lib/utils'
 import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { URL } from 'url'
+import { parse } from 'content-type'
 
 /**
  * Parse incoming message like `json` or `urlencoded`
  * @param req
  */
 export async function parseBody(req: NextApiRequest) {
-  const type = req.headers['content-type'] || 'text/plain'
-  const encoding = getCharset(type)
+  const contentType = parse(req.headers['content-type'] || 'text/plain')
+  const { type, parameters } = contentType
+  const encoding = parameters.charset || 'utf-8'
 
   const buffer = await getRawBody(req, { encoding })
 
   const body = buffer.toString()
 
-  if (type.startsWith('application/json')) {
+  if (type === 'application/json' || type === 'application/ld+json') {
     return parseJson(body)
-  } else if (type.startsWith('application/x-www-form-urlencoded')) {
+  } else if (type === 'application/x-www-form-urlencoded') {
     const qs = require('querystring')
     return qs.decode(body)
   } else {
@@ -43,11 +45,12 @@ function parseJson(str: string) {
  * @param url of request
  * @returns Object with key name of query argument and its value
  */
-export function parseQuery({ url, headers }: IncomingMessage) {
+export function parseQuery({ url }: IncomingMessage) {
   if (url) {
-      const params = new URL(`${headers.host}${url}`).searchParams
+    // This is just for parsing search params, base it's not important
+    const params = new URL(`${url}`, 'https://n').searchParams
 
-      return reduceParams(params.entries())
+    return reduceParams(params.entries())
   } else {
     return {}
   }
@@ -122,22 +125,6 @@ function reduceParams(params: IterableIterator<[string, string]>) {
     obj[key] = value
   }
   return obj
-}
-
-/**
- * Parse `charset` from `content-type`
- * @param contentType string
- */
-function getCharset(contentType: string) {
-  const arr = contentType.split(';')
-  const index = arr.findIndex((value) => value.startsWith('charset'))
-
-  if (index > -1) {
-    // Removes `charset=`
-    return arr[index].slice(7)
-  } else {
-    return 'utf-8'
-  }
 }
 
 /**
