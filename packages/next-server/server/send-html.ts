@@ -1,9 +1,17 @@
-import {IncomingMessage, ServerResponse} from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import generateETag from 'etag'
 import fresh from 'fresh'
 import { isResSent } from '../lib/utils'
 
-export function sendHTML(req: IncomingMessage, res: ServerResponse, html: string, { generateEtags, poweredByHeader }: {generateEtags: boolean, poweredByHeader: boolean}) {
+export function sendHTML(
+  req: IncomingMessage,
+  res: ServerResponse,
+  html: string,
+  {
+    generateEtags,
+    poweredByHeader,
+  }: { generateEtags: boolean; poweredByHeader: boolean }
+) {
   if (isResSent(res)) return
   const etag = generateEtags ? generateETag(html) : undefined
 

@@ -1,9 +1,9 @@
-import { ParsedUrlQuery } from "querystring"
+import { ParsedUrlQuery } from 'querystring'
 
 interface IOptimizerConfig {
-  transforms?: string[],
-  validAmp?: boolean,
-  verbose?: boolean,
+  transforms?: string[]
+  validAmp?: boolean
+  verbose?: boolean
 }
 
 interface IOptimizer {
@@ -16,7 +16,10 @@ interface IOptimizeOptions {
   query?: ParsedUrlQuery
 }
 
-export default async function optimize(html: string, { amphtml, query }: IOptimizeOptions): Promise<string> {
+export default async function optimize(
+  html: string,
+  { amphtml, query }: IOptimizeOptions
+): Promise<string> {
   let ampOptimizer: IOptimizer
   try {
     ampOptimizer = require('amp-toolbox-optimizer')

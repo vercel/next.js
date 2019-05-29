@@ -43,7 +43,7 @@ export async function recursiveDelete(
   dir: string,
   filter?: RegExp,
   previousPath: string = '',
-  ensure?: boolean,
+  ensure?: boolean
 ): Promise<void> {
   let result
   try {
@@ -58,7 +58,7 @@ export async function recursiveDelete(
   await Promise.all(
     result.map(async (part: string) => {
       const absolutePath = join(dir, part)
-      const pathStat = await stat(absolutePath).catch((e) => {
+      const pathStat = await stat(absolutePath).catch(e => {
         if (e.code !== 'ENOENT') throw e
       })
       if (!pathStat) {
@@ -78,6 +78,6 @@ export async function recursiveDelete(
       if (!filter || filter.test(join(previousPath, part))) {
         return unlinkFile(absolutePath)
       }
-    }),
+    })
   )
 }

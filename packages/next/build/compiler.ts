@@ -1,4 +1,4 @@
-import webpack, {Stats} from 'webpack'
+import webpack, { Stats } from 'webpack'
 
 export type CompilerResult = {
   errors: Error[]
@@ -33,7 +33,7 @@ export function runCompiler(
         return reject(err)
       }
 
-      if(statsOrMultiStats.stats) {
+      if (statsOrMultiStats.stats) {
         const result: CompilerResult = statsOrMultiStats.stats.reduce(
           generateStats,
           { errors: [], warnings: [] }
@@ -41,7 +41,10 @@ export function runCompiler(
         return resolve(result)
       }
 
-      const result = generateStats({ errors: [], warnings: [] }, statsOrMultiStats)
+      const result = generateStats(
+        { errors: [], warnings: [] },
+        statsOrMultiStats
+      )
       return resolve(result)
     })
   })

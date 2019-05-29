@@ -23,14 +23,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to put `webpack` and `modules` under `loadableGenerated` to be backwards compatible with next/dynamic which has a `modules` key
 // Modified to support `dynamic(import('something'))` and `dynamic(import('something'), options)
 
-import {PluginObj} from '@babel/core'
-import {NodePath} from '@babel/traverse'
+import { PluginObj } from '@babel/core'
+import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
 
-export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
+export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {
   return {
     visitor: {
-      ImportDeclaration (path: NodePath<BabelTypes.ImportDeclaration>) {
+      ImportDeclaration(path: NodePath<BabelTypes.ImportDeclaration>) {
         let source = path.node.source.value
         if (source !== 'next/dynamic') return
 
@@ -55,7 +55,10 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
             callExpression.node.computed === false
           ) {
             const property = callExpression.get('property')
-            if (!Array.isArray(property) && property.isIdentifier({ name: 'Map' })) {
+            if (
+              !Array.isArray(property) &&
+              property.isIdentifier({ name: 'Map' })
+            ) {
               callExpression = callExpression.parentPath
             }
           }
@@ -64,7 +67,9 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
 
           let args = callExpression.get('arguments')
           if (args.length > 2) {
-            throw callExpression.buildCodeFrameError('next/dynamic only accepts 2 arguments')
+            throw callExpression.buildCodeFrameError(
+              'next/dynamic only accepts 2 arguments'
+            )
           }
 
           if (!args[0]) {
@@ -91,7 +96,13 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
           if (!options.isObjectExpression()) return
 
           let properties = options.get('properties')
-          let propertiesMap: {[key: string]: NodePath<BabelTypes.ObjectProperty | BabelTypes.ObjectMethod | BabelTypes.SpreadProperty>} = {}
+          let propertiesMap: {
+            [key: string]: NodePath<
+              | BabelTypes.ObjectProperty
+              | BabelTypes.ObjectMethod
+              | BabelTypes.SpreadProperty
+            >
+          } = {}
 
           properties.forEach(property => {
             const key: any = property.get('key')
@@ -116,44 +127,44 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
           const dynamicImports: BabelTypes.StringLiteral[] = []
 
           loader.traverse({
-            Import (path) {
+            Import(path) {
               const args = path.parentPath.get('arguments')
               if (!Array.isArray(args)) return
               const node: any = args[0].node
               dynamicImports.push(node)
-            }
+            },
           })
 
           if (!dynamicImports.length) return
 
-          options.node.properties.push(t.objectProperty(
-            t.identifier('loadableGenerated'),
-            t.objectExpression([
-              t.objectProperty(
-                t.identifier('webpack'),
-                t.arrowFunctionExpression(
-                  [],
-                  t.arrayExpression(
-                    dynamicImports.map(dynamicImport => {
-                      return t.callExpression(
-                        t.memberExpression(
-                          t.identifier('require'),
-                          t.identifier('resolveWeak')
-                        ),
-                        [dynamicImport]
-                      )
-                    })
+          options.node.properties.push(
+            t.objectProperty(
+              t.identifier('loadableGenerated'),
+              t.objectExpression([
+                t.objectProperty(
+                  t.identifier('webpack'),
+                  t.arrowFunctionExpression(
+                    [],
+                    t.arrayExpression(
+                      dynamicImports.map(dynamicImport => {
+                        return t.callExpression(
+                          t.memberExpression(
+                            t.identifier('require'),
+                            t.identifier('resolveWeak')
+                          ),
+                          [dynamicImport]
+                        )
+                      })
+                    )
                   )
-                )
-              ),
-              t.objectProperty(
-                t.identifier('modules'),
-                t.arrayExpression(
-                  dynamicImports
-                )
-              )
-            ])
-          ))
+                ),
+                t.objectProperty(
+                  t.identifier('modules'),
+                  t.arrayExpression(dynamicImports)
+                ),
+              ])
+            )
+          )
 
           // Turns `dynamic(import('something'))` into `dynamic(() => import('something'))` for backwards compat.
           // This is the replicate the behavior in versions below Next.js 7 where we magically handled not executing the `import()` too.
@@ -163,7 +174,7 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
             loader.replaceWith(arrowFunction)
           }
         })
-      }
-    }
+      },
+    },
   }
 }
