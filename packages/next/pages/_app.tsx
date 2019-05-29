@@ -1,7 +1,17 @@
 import React, { ErrorInfo } from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
-import { Router, makePublicRouterInstance } from '../client/router'
+import {
+  execOnce,
+  loadGetInitialProps,
+  AppContextType,
+  AppInitialProps,
+  AppPropsType,
+} from 'next-server/dist/lib/utils'
+import {
+  default as singletonRouter,
+  Router,
+  makePublicRouterInstance,
+} from '../client/router'
 
 export { AppInitialProps }
 
@@ -13,12 +23,17 @@ export type AppProps<P = {}> = AppPropsType<Router, P>
  * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
  * This allows for keeping state between navigation, custom error handling, injecting additional data.
  */
-async function appGetInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
+async function appGetInitialProps({
+  Component,
+  ctx,
+}: AppContext): Promise<AppInitialProps> {
   const pageProps = await loadGetInitialProps(Component, ctx)
   return { pageProps }
 }
 
-export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP>> {
+export default class App<P = {}, CP = P> extends React.Component<
+  P & AppProps<CP>
+> {
   static childContextTypes = {
     router: PropTypes.object,
   }
@@ -52,6 +67,13 @@ export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP
 export class Container extends React.Component {
   componentDidMount() {
     this.scrollToHash()
+
+    // @ts-ignore __NEXT_DATA__ is global
+    if (__NEXT_DATA__.nextExport) {
+      // update query on mount for exported pages
+      const curUrl = singletonRouter.pathname + location.search
+      singletonRouter.replace(curUrl, curUrl)
+    }
   }
 
   componentDidUpdate() {
@@ -79,7 +101,7 @@ export class Container extends React.Component {
 const warnUrl = execOnce(() => {
   if (process.env.NODE_ENV !== 'production') {
     console.error(
-      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`,
+      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`
     )
   }
 })
