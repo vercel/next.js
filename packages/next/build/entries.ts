@@ -44,7 +44,8 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     ampBindInitData: config.experimental.ampBindInitData,
-    dynamicBuildId
+    canonicalBase: config.canonicalBase,
+    dynamicBuildId,
   }
 
   Object.keys(pages).forEach((page) => {

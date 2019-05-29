@@ -18,8 +18,8 @@ class MyApp extends App {
   }
 
   componentDidCatch (error, errorInfo) {
-    Sentry.withScope((scope) => {
-      Object.keys(errorInfo).forEach((key) => {
+    Sentry.withScope(scope => {
+      Object.keys(errorInfo).forEach(key => {
         scope.setExtra(key, errorInfo[key])
       })
 

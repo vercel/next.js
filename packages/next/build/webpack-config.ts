@@ -352,6 +352,7 @@ export default async function getBaseWebpackConfig(
     },
     // @ts-ignore this is filtered
     module: {
+      strictExportPresence: true,
       rules: [
         (selectivePageBuilding || config.experimental.terserLoader) &&
           !isServer &&

@@ -21,6 +21,9 @@ const defaultConfig: {[key: string]: any} = {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
   },
+  amp: {
+    canonicalBase: '',
+  },
   experimental: {
     cpus: Math.max(
       1,
@@ -80,6 +83,14 @@ export default function loadConfig(phase: string, dir: string, customConfig: any
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
     }
+
+    if (userConfig.amp && userConfig.amp.canonicalBase) {
+      const { canonicalBase } = userConfig.amp || {} as any
+      userConfig.amp = userConfig.amp || {}
+      userConfig.amp.canonicalBase = (canonicalBase.endsWith('/')
+        ? canonicalBase.slice(0, -1) : canonicalBase) || ''
+    }
+
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
   }
 

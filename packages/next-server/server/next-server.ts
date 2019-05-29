@@ -65,7 +65,8 @@ export default class Server {
     buildId: string
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
-    assetPrefix?: string
+    assetPrefix?: string,
+    canonicalBase: string,
     autoExport: boolean
     dev?: boolean,
   }
@@ -97,9 +98,11 @@ export default class Server {
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
+
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
+      canonicalBase: this.nextConfig.amp.canonicalBase,
       autoExport: this.nextConfig.experimental.autoExport,
       staticMarkup,
       buildId: this.buildId,
