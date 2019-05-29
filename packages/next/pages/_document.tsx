@@ -191,6 +191,7 @@ export class Head extends Component<OriginProps> {
       hasAmp,
       ampPath,
       assetPrefix,
+      canonicalBase,
       __NEXT_DATA__,
       dangerousAsPath,
     } = this.context._documentProps
@@ -280,8 +281,8 @@ export class Head extends Component<OriginProps> {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={cleanAmpPath(dangerousAsPath)} />
-            {isDirtyAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
+            <link rel="canonical" href={canonicalBase + cleanAmpPath(dangerousAsPath)} />
+            {isDirtyAmp && <link rel="amphtml" href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -320,7 +321,7 @@ export class Head extends Component<OriginProps> {
         )}
         {!amphtml && (
           <>
-            {hasAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
+            {hasAmp && <link rel="amphtml" href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)} />}
             {page !== '/_error' && (
               <link
                 rel="preload"

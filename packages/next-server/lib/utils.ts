@@ -134,6 +134,7 @@ export type DocumentProps = DocumentInitialProps & {
   files: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string,
+  canonicalBase: string,
 }
 
 /**
