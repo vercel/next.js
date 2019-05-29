@@ -4,42 +4,49 @@ const relative = require('path').relative
 const babelClientOpts = {
   presets: [
     '@babel/preset-typescript',
-    ['@babel/preset-env', {
-      modules: 'commonjs',
-      targets: {
-        'esmodules': true
-      },
-      loose: true,
-      exclude: ['transform-typeof-symbol']
-    }],
+    [
+      '@babel/preset-env',
+      {
+        modules: 'commonjs',
+        targets: {
+          esmodules: true
+        },
+        loose: true,
+        exclude: ['transform-typeof-symbol']
+      }
+    ],
     '@babel/preset-react'
   ],
   plugins: [
     ['@babel/plugin-proposal-class-properties', { loose: true }],
-    ['@babel/plugin-transform-runtime', {
-      corejs: 2,
-      helpers: true,
-      regenerator: false,
-      useESModules: false
-    }]
+    [
+      '@babel/plugin-transform-runtime',
+      {
+        corejs: 2,
+        helpers: true,
+        regenerator: false,
+        useESModules: false
+      }
+    ]
   ]
 }
 
 const babelServerOpts = {
   presets: [
     '@babel/preset-typescript',
-    ['@babel/preset-env', {
-      modules: 'commonjs',
-      targets: {
-        node: '8.3'
-      },
-      loose: true,
-      exclude: ['transform-typeof-symbol']
-    }]
+    [
+      '@babel/preset-env',
+      {
+        modules: 'commonjs',
+        targets: {
+          node: '8.3'
+        },
+        loose: true,
+        exclude: ['transform-typeof-symbol']
+      }
+    ]
   ],
-  plugins: [
-    ['@babel/plugin-proposal-class-properties', { loose: true }]
-  ]
+  plugins: [['@babel/plugin-proposal-class-properties', { loose: true }]]
 }
 
 // eslint-disable-next-line camelcase
@@ -83,29 +90,53 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
+  await task.parallel([
+    'ncc_unistore',
+    'ncc_resolve',
+    'ncc_arg',
+    'ncc_nanoid',
+    'ncc_text_table'
+  ])
 }
 
 export async function compile (task) {
-  await task.parallel(['cli', 'bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
+  await task.parallel([
+    'cli',
+    'bin',
+    'server',
+    'nextbuild',
+    'nextbuildstatic',
+    'pages',
+    'lib',
+    'client'
+  ])
 }
 
 export async function bin (task, opts) {
   const babelOpts = {
     ...babelServerOpts,
-    plugins: [ ...babelServerOpts.plugins, 'babel-plugin-dynamic-import-node' ]
+    plugins: [...babelServerOpts.plugins, 'babel-plugin-dynamic-import-node']
   }
-  await task.source(opts.src || 'bin/*').babel(babelOpts, { stripExtension: true }).target('dist/bin', { mode: '0755' })
+  await task
+    .source(opts.src || 'bin/*')
+    .babel(babelOpts, { stripExtension: true })
+    .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
 
 export async function cli (task, opts) {
-  await task.source(opts.src || 'cli/**/*.+(js|ts|tsx)').babel(babelServerOpts).target('dist/cli')
+  await task
+    .source(opts.src || 'cli/**/*.+(js|ts|tsx)')
+    .babel(babelServerOpts)
+    .target('dist/cli')
   notify('Compiled cli files')
 }
 
 export async function lib (task, opts) {
-  await task.source(opts.src || 'lib/**/*.+(js|ts|tsx)').babel(babelServerOpts).target('dist/lib')
+  await task
+    .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
+    .babel(babelServerOpts)
+    .target('dist/lib')
   notify('Compiled lib files')
 }
 
@@ -113,30 +144,45 @@ export async function server (task, opts) {
   const babelOpts = {
     ...babelServerOpts,
     // the /server files may use React
-    presets: [ ...babelServerOpts.presets, '@babel/preset-react' ]
+    presets: [...babelServerOpts.presets, '@babel/preset-react']
   }
-  await task.source(opts.src || 'server/**/*.+(js|ts|tsx)').babel(babelOpts).target('dist/server')
+  await task
+    .source(opts.src || 'server/**/*.+(js|ts|tsx)')
+    .babel(babelOpts)
+    .target('dist/server')
   notify('Compiled server files')
 }
 
 export async function nextbuild (task, opts) {
-  await task.source(opts.src || 'build/**/*.+(js|ts|tsx)').babel(babelServerOpts).target('dist/build')
+  await task
+    .source(opts.src || 'build/**/*.+(js|ts|tsx)')
+    .babel(babelServerOpts)
+    .target('dist/build')
   notify('Compiled build files')
 }
 
 export async function client (task, opts) {
-  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').babel(babelClientOpts).target('dist/client')
+  await task
+    .source(opts.src || 'client/**/*.+(js|ts|tsx)')
+    .babel(babelClientOpts)
+    .target('dist/client')
   notify('Compiled client files')
 }
 
 // export is a reserved keyword for functions
 export async function nextbuildstatic (task, opts) {
-  await task.source(opts.src || 'export/**/*.+(js|ts|tsx)').babel(babelServerOpts).target('dist/export')
+  await task
+    .source(opts.src || 'export/**/*.+(js|ts|tsx)')
+    .babel(babelServerOpts)
+    .target('dist/export')
   notify('Compiled export files')
 }
 
 export async function pages (task, opts) {
-  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').babel(babelClientOpts).target('dist/pages')
+  await task
+    .source(opts.src || 'pages/**/*.+(js|ts|tsx)')
+    .babel(babelClientOpts)
+    .target('dist/pages')
 }
 
 export async function build (task) {

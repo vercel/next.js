@@ -1,7 +1,7 @@
 /* eslint-disable
   arrow-body-style
 */
-import { minify as terser, MinifyOptions } from 'terser';
+import { minify as terser, MinifyOptions } from 'terser'
 
 const buildTerserOptions = ({
   ecma,
@@ -43,31 +43,32 @@ const buildTerserOptions = ({
   keep_classnames,
   keep_fnames,
   safari10,
-});
+})
 
-const minify = (options: { file: string, input: string, inputSourceMap?: string, terserOptions?: MinifyOptions }) => {
-  const {
-    file,
-    input,
-    inputSourceMap
-  } = options;
+const minify = (options: {
+  file: string
+  input: string
+  inputSourceMap?: string
+  terserOptions?: MinifyOptions
+}) => {
+  const { file, input, inputSourceMap } = options
 
   // Copy terser options
-  const terserOptions = buildTerserOptions(options.terserOptions) as any;
+  const terserOptions = buildTerserOptions(options.terserOptions) as any
 
   // Add source map data
   if (inputSourceMap) {
     terserOptions.sourceMap = {
       content: inputSourceMap,
-    };
+    }
   }
 
   const { error, map, code, warnings } = terser(
     { [file]: input },
     terserOptions
-  );
+  )
 
-  return { error, map, code, warnings };
-};
+  return { error, map, code, warnings }
+}
 
-export default minify;
+export default minify

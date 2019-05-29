@@ -109,8 +109,7 @@ export default class DevServer extends Server {
             continue
           }
 
-          let pageName =
-            '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
+          let pageName = '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
           if (!pageName.includes('/$')) {
             continue
           }

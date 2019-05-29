@@ -1,4 +1,5 @@
 import React from 'react'
+
 import { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest } from 'next-server/dist/lib/utils'
 
 /// <reference types="node" />
@@ -23,7 +24,6 @@ declare module 'react' {
     global?: boolean
   }
 }
-
 
 /**
  * `Page` type, use it as a guide to create `pages`.

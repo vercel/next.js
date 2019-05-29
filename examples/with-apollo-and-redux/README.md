@@ -47,15 +47,15 @@ Note that you can access the redux store like you normally would using `react-re
 
 ```js
 const mapStateToProps = state => ({
-  location: state.form.location
-});
+  location: state.form.location,
+})
 
 export default withRedux(
   connect(
     mapStateToProps,
     null
   )(Index)
-);
+)
 ```
 
 ### Note:
