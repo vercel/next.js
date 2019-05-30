@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`getSortedRoutes correctly sorts required slugs 1`] = `
+Array [
+  "/",
+  "/apples/$ab/$cd/ef",
+  "/blog/$id",
+  "/blog/$id/comments/$cid",
+  "/foo/$d/bar/baz/$f",
+  "/posts",
+  "/posts/$id",
+  "/$root-slug",
+]
+`;
