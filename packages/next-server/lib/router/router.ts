@@ -13,6 +13,7 @@ import {
   NextPageContext,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
+import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
 function toRoute(path: string): string {
@@ -250,7 +251,7 @@ export default class Router implements BaseRouter {
         this.changeState(method, url, as)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
-        return true
+        return resolve(true)
       }
 
       const { pathname, query } = parse(url, true)
@@ -270,8 +271,8 @@ export default class Router implements BaseRouter {
 
       // detect dynamic routing
       if (route.indexOf('/$') !== -1) {
-        const { re: routeRegex, groups } = getRouteRegex(route)
-        const routeMatch = routeRegex.exec(as)
+        const rr = getRouteRegex(route)
+        const routeMatch = getRouteMatcher(rr)(as)
         if (!routeMatch) {
           console.error(
             "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
@@ -279,12 +280,8 @@ export default class Router implements BaseRouter {
           return resolve(false)
         }
 
-        Object.keys(groups).forEach(slugName => {
-          const m = routeMatch[groups[slugName]]
-          if (m !== undefined) {
-            query[slugName] = decodeURIComponent(m)
-          }
-        })
+        // Merge params into `query`, overwriting any specified in search
+        Object.assign(query, routeMatch)
       }
 
       Router.events.emit('routeChangeStart', as)
