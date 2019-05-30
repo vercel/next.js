@@ -72,7 +72,7 @@ export class Container extends React.Component {
     // @ts-ignore __NEXT_DATA__ is global
     if (__NEXT_DATA__.nextExport) {
       const curQuery = '?' + stringifyQuery(singletonRouter.query)
-      if (curQuery !== location.search) {
+      if (location.search && curQuery !== location.search) {
         // update query on mount for exported pages
         const curUrl = singletonRouter.pathname + location.search
         singletonRouter.replace(curUrl, curUrl)
