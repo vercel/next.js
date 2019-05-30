@@ -252,6 +252,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
+  let isStaticPage = false
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -274,8 +275,7 @@ export async function renderToHTML(
     }
 
     if (autoExport) {
-      const isStaticPage =
-        typeof (Component as any).getInitialProps !== 'function'
+      isStaticPage = typeof (Component as any).getInitialProps !== 'function'
       const defaultAppGetInitialProps =
         App.getInitialProps === (App as any).origGetInitialProps
 
@@ -284,13 +284,21 @@ export async function renderToHTML(
         query = {
           amp: query.amp,
         }
+        renderOpts.nextExport = true
       }
     }
   }
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
-  const ctx = { err, req, res, pathname, query, asPath }
+  const ctx = {
+    err,
+    req: isStaticPage ? undefined : req,
+    res: isStaticPage ? undefined : res,
+    pathname,
+    query,
+    asPath,
+  }
   const router = new ServerRouter(pathname, query, asPath)
   let props: any
 

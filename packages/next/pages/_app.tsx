@@ -72,7 +72,9 @@ export class Container extends React.Component {
     // @ts-ignore __NEXT_DATA__ is global
     if (__NEXT_DATA__.nextExport) {
       const curQuery = '?' + stringifyQs(singletonRouter.query)
-      if (location.search && curQuery !== location.search) {
+      const hasDiffQuery = location.search && curQuery !== location.search
+      const isDynamic = singletonRouter.pathname.includes('/$')
+      if (isDynamic || hasDiffQuery) {
         const parsedQuery = parseQs(
           location.search.startsWith('?')
             ? location.search.substr(1)
@@ -88,6 +90,9 @@ export class Container extends React.Component {
           singletonRouter.pathname + qsString,
           location.pathname + qsString
         )
+        console.log('updated query', qsString)
+      } else {
+        console.log('not updating query')
       }
     }
   }
