@@ -38,7 +38,7 @@
     ]
   },
   "dependencies": {
-    "amp-toolbox-optimizer": "0.5.3",
+    "amp-toolbox-optimizer": "1.2.0-alpha.1",
     "etag": "1.8.1",
     "find-up": "4.0.0",
     "fresh": "0.5.2",

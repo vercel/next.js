@@ -47,7 +47,7 @@ describe('Serverless', () => {
   })
 
   it('should render an AMP page', async () => {
-    const html = await renderViaHTTP(appPort, '/some-amp')
+    const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
     expect(html).toMatch(/Hi Im an AMP page/)
     expect(html).toMatch(/ampproject\.org/)
   })

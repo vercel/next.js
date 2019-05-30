@@ -19,14 +19,12 @@ describe('AMP Validation on Export', () => {
     await nextExport(appDir, { outdir: outDir })
   })
 
-  it('should export both clean and dirty optimized pages', async () => {
-    const toCheck = ['first', 'second', 'third']
+  it('should export AMP pages', async () => {
+    const toCheck = ['first', 'second', 'third.amp']
     await Promise.all(
       toCheck.map(async page => {
-        const dirty = await readFile(join(outDir, `${page}/index.html`))
-        const clean = await readFile(join(outDir, `${page}.amp/index.html`))
-        await validateAMP(clean.toString())
-        if (page !== 'third') await validateAMP(dirty.toString(), true)
+        const content = await readFile(join(outDir, `${page}/index.html`))
+        await validateAMP(content.toString())
       })
     )
   })
