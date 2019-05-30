@@ -27,11 +27,6 @@
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "examples/**/*.js": [
-      "prettier --write",
-      "standard --fix",
-      "git add"
-    ],
     "*.js": [
       "prettier --write",
       "standard --fix",
