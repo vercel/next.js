@@ -5,5 +5,5 @@ export default ({ query }, res) => {
     ? users.filter(user => user.name === query.name)
     : users
 
-  res.json(200, response)
+  res.status(200).json(response)
 }

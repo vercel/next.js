@@ -67,14 +67,21 @@ export function parseQuery({ url }: IncomingMessage) {
 }
 
 /**
- * Send `any` body to response
+ *
  * @param res response object
  * @param statusCode `HTTP` status code of response
+ */
+export function sendStatusCode(res: NextApiResponse, statusCode: number) {
+  res.statusCode = statusCode
+  return res
+}
+
+/**
+ * Send `any` body to response
+ * @param res response object
  * @param body of response
  */
-export function sendData(res: NextApiResponse, statusCode: number, body: any) {
-  res.statusCode = statusCode
-
+export function sendData(res: NextApiResponse, body: any) {
   if (body === null) {
     res.end()
     return
@@ -114,19 +121,14 @@ export function sendData(res: NextApiResponse, statusCode: number, body: any) {
 /**
  * Send `JSON` object
  * @param res response object
- * @param statusCode `HTTP` status code of response
  * @param jsonBody of data
  */
-export function sendJson(
-  res: NextApiResponse,
-  statusCode: number,
-  jsonBody: any
-): void {
+export function sendJson(res: NextApiResponse, jsonBody: any): void {
   // Set header to application/json
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
 
   // Use send to handle request
-  res.send(statusCode, jsonBody)
+  res.send(jsonBody)
 }
 
 function reduceParams(params: IterableIterator<[string, string]>) {

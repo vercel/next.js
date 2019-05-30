@@ -1,3 +1,3 @@
 export default (req, res) => {
-  res.send(200, req.cookies)
+  res.status(200).send(req.cookies)
 }

@@ -1,7 +1,7 @@
 export default ({ query, method }, res) => {
   if (method === 'POST') {
-    res.json(200, [{ title: query.title }])
+    res.status(200).json([{ title: query.title }])
   } else {
-    res.json(200, [{ title: 'Cool Post!' }])
+    res.status(200).json([{ title: 'Cool Post!' }])
   }
 }

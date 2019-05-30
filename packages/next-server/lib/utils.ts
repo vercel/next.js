@@ -145,22 +145,22 @@ export type NextApiRequest = IncomingMessage & {
    * Object of `query` values from url
    */
   query: {
-    [key: string]: string | string[],
+    [key: string]: string | string[]
   }
   /**
    * Object of `cookies` from header
    */
   cookies: {
-    [key: string]: string,
-  },
+    [key: string]: string
+  }
 
-  body: any,
+  body: any
 }
 
 /**
  * Send body of response
  */
-type Send = (statusCode: number, body: any) => void
+type Send = (body: any) => void
 
 /**
  * Next `API` route response
@@ -169,11 +169,12 @@ export type NextApiResponse = ServerResponse & {
   /**
    * Send data `any` data in reponse
    */
-  send: Send,
+  send: Send
   /**
    * Send data `json` data in reponse
    */
-  json: Send,
+  json: Send
+  status: (statusCode: number) => void
 }
 
 /**

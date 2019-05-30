@@ -26,6 +26,7 @@ import {
   parseBody,
   sendError,
   ApiError,
+  sendStatusCode,
 } from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -227,7 +228,7 @@ export default class Server {
           await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
-            pathname!,
+            pathname!
           )
         },
       },
@@ -271,7 +272,7 @@ export default class Server {
   private async handleApiRequest(
     req: NextApiRequest,
     res: NextApiResponse,
-    pathname: string,
+    pathname: string
   ) {
     const resolverFunction = await this.resolveApiRequest(pathname)
     if (resolverFunction === null) {
@@ -287,8 +288,10 @@ export default class Server {
       req.query = parseQuery(req)
       // // Parsing of body
       req.body = await parseBody(req)
-      res.send = (statusCode, data) => sendData(res, statusCode, data)
-      res.json = (statusCode, data) => sendJson(res, statusCode, data)
+
+      res.status = statusCode => sendStatusCode(res, statusCode)
+      res.send = data => sendData(res, data)
+      res.json = data => sendJson(res, data)
 
       const resolver = interopDefault(require(resolverFunction))
       resolver(req, res)

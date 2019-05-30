@@ -1,3 +1,3 @@
 export default (req, res) => {
-  res.json(500, { error: 'Server error!' })
+  res.status(500).json({ error: 'Server error!' })
 }

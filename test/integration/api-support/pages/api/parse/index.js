@@ -1,3 +1,3 @@
 export default (req, res) => {
-  res.json(200, req.body)
+  res.status(200).json(req.body)
 }
