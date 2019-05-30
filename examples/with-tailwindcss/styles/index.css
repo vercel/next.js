@@ -1,4 +1,4 @@
-@import "./button.css";
+@import './button.css';
 
 @tailwind base;
 @tailwind components;
@@ -17,6 +17,7 @@
   font-size: 48px;
 }
 
-.title, .description {
+.title,
+.description {
   text-align: center;
 }

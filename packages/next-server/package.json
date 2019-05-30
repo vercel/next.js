@@ -38,7 +38,7 @@
     ]
   },
   "dependencies": {
-    "amp-toolbox-optimizer": "0.5.3",
+    "amp-toolbox-optimizer": "1.2.0-alpha.1",
     "content-type": "1.0.4",
     "cookie": "0.4.0",
     "etag": "1.8.1",

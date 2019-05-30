@@ -34,14 +34,16 @@ describe('Static Export', () => {
     const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
 
-    await mkdir(outdir).catch((e) => { if (e.code !== 'EEXIST') throw e })
+    await mkdir(outdir).catch(e => {
+      if (e.code !== 'EEXIST') throw e
+    })
     await writeFile(tempfile, 'Hello there')
 
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
     let doesNotExist = false
-    await access(tempfile).catch((e) => {
+    await access(tempfile).catch(e => {
       if (e.code === 'ENOENT') doesNotExist = true
     })
     expect(doesNotExist).toBe(true)
@@ -53,7 +55,10 @@ describe('Static Export', () => {
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
-    nextConfig.replace(`// exportTrailingSlash: false,`, `exportTrailingSlash: false,`)
+    nextConfig.replace(
+      `// exportTrailingSlash: false,`,
+      `exportTrailingSlash: false,`
+    )
     await nextBuild(appDir)
     await nextExport(appDir, { outdir: outNoTrailSlash })
     nextConfig.restore()
@@ -65,7 +70,11 @@ describe('Static Export', () => {
     context.portNoTrailSlash = context.serverNoTrailSlash.address().port
 
     devContext.port = await findPort()
-    devContext.server = await launchApp(join(__dirname, '../'), devContext.port, true)
+    devContext.server = await launchApp(
+      join(__dirname, '../'),
+      devContext.port,
+      true
+    )
 
     // pre-build all pages at the start
     await Promise.all([

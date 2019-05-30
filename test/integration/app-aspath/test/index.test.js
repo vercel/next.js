@@ -21,9 +21,7 @@ describe('App asPath', () => {
     server = await launchApp(join(__dirname, '../'), appPort)
 
     // pre-build all pages at the start
-    await Promise.all([
-      renderViaHTTP(appPort, '/')
-    ])
+    await Promise.all([renderViaHTTP(appPort, '/')])
   })
   afterAll(() => killApp(server))
 
@@ -33,9 +31,14 @@ describe('App asPath', () => {
     const originalContent = readFileSync(appPath, 'utf8')
 
     const text = await browser.elementByCss('body').text()
-    expect(text).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
+    expect(text).toBe(
+      '{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }'
+    )
 
-    const editedContent = originalContent.replace('find this', 'replace with this')
+    const editedContent = originalContent.replace(
+      'find this',
+      'replace with this'
+    )
 
     // Change the content to trigger a bundle rebuild
     await writeFileSync(appPath, editedContent, 'utf8')
@@ -44,7 +47,9 @@ describe('App asPath', () => {
     await waitFor(5000)
 
     const newContent = await browser.elementByCss('body').text()
-    expect(newContent).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
+    expect(newContent).toBe(
+      '{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }'
+    )
 
     // Change back to the original content
     writeFileSync(appPath, originalContent, 'utf8')
