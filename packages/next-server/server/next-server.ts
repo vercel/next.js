@@ -1,4 +1,3 @@
-/* eslint-disable import/first */
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
@@ -15,7 +14,9 @@ import {
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
 } from '../lib/constants'
-import { getRouteMatch } from '../lib/router/utils'
+import { getRouteMatcher } from '../lib/router/utils/route-matcher'
+import { getRouteRegex } from '../lib/router/utils/route-regex'
+import { getSortedRoutes } from '../lib/router/utils/sorted-routes'
 import * as envConfig from '../lib/runtime-config'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -310,14 +311,10 @@ export default class Server {
     const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
       p.includes('/$')
     )
-    return dynamicRoutedPages
-      .map(page => ({
-        page,
-        match: getRouteMatch(page),
-      }))
-      .sort((a, b) =>
-        Math.sign(a.page.match(/\/\$/g)!.length - b.page.match(/\/\$/g)!.length)
-      )
+    return getSortedRoutes(dynamicRoutedPages).map(page => ({
+      page,
+      match: getRouteMatcher(getRouteRegex(page)),
+    }))
   }
 
   private async run(
