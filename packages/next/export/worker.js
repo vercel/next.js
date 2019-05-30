@@ -133,8 +133,8 @@ process.on(
         if (curRenderOpts.amphtml && query.amp) {
           await validateAmp(html, path)
         }
-        if ((curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp) {
-          // we need to render a clean AMP version
+        if (curRenderOpts.hasAmp) {
+          // we need to render the AMP version
           let ampHtmlFilename = `${ampPath}${sep}index.html`
           if (!subFolders) {
             ampHtmlFilename = `${ampPath}.html`

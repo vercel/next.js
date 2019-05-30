@@ -20,13 +20,19 @@ class HeaderNav extends React.Component {
 
   componentDidMount () {
     Router.onRouteChangeComplete = this.handleRouteChangeTopLevelRouterDeprecatedBehavior
-    Router.events.on('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
+    Router.events.on(
+      'routeChangeComplete',
+      this.handleRouteChangeTopLevelRouter
+    )
     this.props.router.events.on('routeChangeComplete', this.handleRouteChange)
   }
 
   componentWillUnmount () {
     Router.onRouteChangeComplete = null
-    Router.events.off('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
+    Router.events.off(
+      'routeChangeComplete',
+      this.handleRouteChangeTopLevelRouter
+    )
     this.props.router.events.off('routeChangeComplete', this.handleRouteChange)
   }
 
@@ -34,32 +40,40 @@ class HeaderNav extends React.Component {
     this.setState({
       activeURL: url
     })
-  };
+  }
 
   handleRouteChangeTopLevelRouter = url => {
     this.setState({
       activeURLTopLevelRouter: url
     })
-  };
+  }
 
   handleRouteChangeTopLevelRouterDeprecatedBehavior = url => {
     this.setState({
       activeURLTopLevelRouterDeprecatedBehavior: url
     })
-  };
+  }
 
   render () {
     return (
       <nav>
-        {
-          Object.keys(pages).map(url => (
-            <Link href={url} key={url} prefetch>
-              <a className={`${this.state.activeURL === url ? 'active' : ''} ${this.state.activeURLTopLevelRouter === url ? 'active-top-level-router' : ''} ${this.state.activeURLTopLevelRouterDeprecatedBehavior === url ? 'active-top-level-router-deprecated-behavior' : ''}`}>
-                { pages[url] }
-              </a>
-            </Link>
-          ))
-        }
+        {Object.keys(pages).map(url => (
+          <Link href={url} key={url} prefetch>
+            <a
+              className={`${this.state.activeURL === url ? 'active' : ''} ${
+                this.state.activeURLTopLevelRouter === url
+                  ? 'active-top-level-router'
+                  : ''
+              } ${
+                this.state.activeURLTopLevelRouterDeprecatedBehavior === url
+                  ? 'active-top-level-router-deprecated-behavior'
+                  : ''
+              }`}
+            >
+              {pages[url]}
+            </a>
+          </Link>
+        ))}
       </nav>
     )
   }

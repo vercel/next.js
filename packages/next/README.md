@@ -2005,9 +2005,8 @@ Hybrid AMP (`pages/about.js`) would output:
 AMP-only (`pages/about.js`) would output:
 
 - `out/about/index.html` - Optimized AMP page
-- `out/about.amp/index.html` - AMP page
 
-During export Next.js automatically detects if a page is AMP-only and apply dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
 
 ### Adding AMP Components
 

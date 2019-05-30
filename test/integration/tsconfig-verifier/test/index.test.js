@@ -1,20 +1,9 @@
 /* eslint-env jest */
 /* global jasmine */
 import path from 'path'
-import {
-  exists,
-  remove,
-  readFile,
-  readJSON,
-  writeJSON
-} from 'fs-extra'
+import { exists, remove, readFile, readJSON, writeJSON } from 'fs-extra'
 
-import {
-  launchApp,
-  findPort,
-  killApp,
-  renderViaHTTP
-} from 'next-test-utils'
+import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
