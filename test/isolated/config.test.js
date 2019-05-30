@@ -30,7 +30,9 @@ describe('config', () => {
   })
 
   it('Should pass the customConfig correctly', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { customConfig: true })
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      customConfig: true
+    })
     expect(config.customConfig).toBe(true)
   })
 
@@ -40,25 +42,35 @@ describe('config', () => {
   })
 
   it('Should assign object defaults deeply to customConfig', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { customConfig: true, onDemandEntries: { custom: true } })
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      customConfig: true,
+      onDemandEntries: { custom: true }
+    })
     expect(config.customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
   it('Should allow setting objects which do not have defaults', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { bogusSetting: { custom: true } })
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      bogusSetting: { custom: true }
+    })
     expect(config.bogusSetting).toBeDefined()
     expect(config.bogusSetting.custom).toBe(true)
   })
 
   it('Should override defaults for arrays from user arrays', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { pageExtensions: ['.bogus'] })
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+      pageExtensions: ['.bogus']
+    })
     expect(config.pageExtensions).toEqual(['.bogus'])
   })
 
   it('Should throw when an invalid target is provided', () => {
     try {
-      loadConfig(PHASE_DEVELOPMENT_SERVER, join(__dirname, '_resolvedata', 'invalid-target'))
+      loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        join(__dirname, '_resolvedata', 'invalid-target')
+      )
       // makes sure we don't just pass if the loadConfig passes while it should fail
       throw new Error('failed')
     } catch (err) {
@@ -67,7 +79,10 @@ describe('config', () => {
   })
 
   it('Should pass when a valid target is provided', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, join(__dirname, '_resolvedata', 'valid-target'))
+    const config = loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      join(__dirname, '_resolvedata', 'valid-target')
+    )
     expect(config.target).toBe('serverless')
   })
 })

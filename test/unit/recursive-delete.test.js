@@ -9,11 +9,7 @@ const testResolveDataDir = join(__dirname, '..', 'isolated', 'test_resolvedata')
 
 describe('recursiveDelete', () => {
   it('should work', async () => {
-    await cp(
-      resolveDataDir,
-      testResolveDataDir,
-      { expand: true }
-    )
+    await cp(resolveDataDir, testResolveDataDir, { expand: true })
 
     await recursiveDelete(testResolveDataDir)
     const result = await recursiveReadDir(testResolveDataDir, /.*/)

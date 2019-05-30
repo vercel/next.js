@@ -14,12 +14,7 @@ export default withAmp(() => (
       />
     </Head>
 
-    <amp-timeago
-      width='160'
-      height='20'
-      datetime={date}
-      layout='responsive'
-    >
+    <amp-timeago width='160' height='20' datetime={date} layout='responsive'>
       {date}
     </amp-timeago>
   </>

@@ -24,7 +24,11 @@ export default function ({ app }, suiteName, render, fetch) {
 
       test('It injects custom head tags', async () => {
         const $ = await get$('/')
-        expect($('head').text().includes('body { margin: 0 }'))
+        expect(
+          $('head')
+            .text()
+            .includes('body { margin: 0 }')
+        )
       })
 
       test('It passes props from Document.getInitialProps to Document', async () => {
@@ -53,26 +57,46 @@ export default function ({ app }, suiteName, render, fetch) {
       test('It renders ctx.renderPage with enhancer correctly', async () => {
         const $ = await get$('/?withEnhancer=true')
         const nonce = 'RENDERED'
-        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
+        expect(
+          $('#render-page-enhance-component')
+            .text()
+            .includes(nonce)
+        ).toBe(true)
       })
 
       test('It renders ctx.renderPage with enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true')
         const nonce = 'RENDERED'
-        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
+        expect(
+          $('#render-page-enhance-component')
+            .text()
+            .includes(nonce)
+        ).toBe(true)
       })
 
       test('It renders ctx.renderPage with enhanceApp correctly', async () => {
         const $ = await get$('/?withEnhanceApp=true')
         const nonce = 'RENDERED'
-        expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
+        expect(
+          $('#render-page-enhance-app')
+            .text()
+            .includes(nonce)
+        ).toBe(true)
       })
 
       test('It renders ctx.renderPage with enhanceApp and enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true&withEnhanceApp=true')
         const nonce = 'RENDERED'
-        expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
-        expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
+        expect(
+          $('#render-page-enhance-app')
+            .text()
+            .includes(nonce)
+        ).toBe(true)
+        expect(
+          $('#render-page-enhance-component')
+            .text()
+            .includes(nonce)
+        ).toBe(true)
       })
 
       // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
@@ -111,7 +135,10 @@ export default function ({ app }, suiteName, render, fetch) {
 
         let foundErr = false
         expect(await render('/')).toMatch('page-index')
-        _app.replace('// throw _app GIP err here', `throw new Error("${errMsg}")`)
+        _app.replace(
+          '// throw _app GIP err here',
+          `throw new Error("${errMsg}")`
+        )
 
         try {
           let tries = 0
@@ -123,10 +150,7 @@ export default function ({ app }, suiteName, render, fetch) {
         } finally {
           _app.restore()
           // Make sure _app is restored
-          await check(
-            () => render('/'),
-            /page-index/
-          )
+          await check(() => render('/'), /page-index/)
           expect(foundErr).toBeTruthy()
         }
       })
