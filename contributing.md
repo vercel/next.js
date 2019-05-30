@@ -90,3 +90,9 @@ EXAMPLE=./test/integration/basic
    Note that Next will be copied from the locally compiled version as opposed to from being downloaded from the NPM registry.
 
 4. Run your application as you normally would.
+
+5. To update your app's dependencies, after you've made changes to your local `next` repository. In your app's root directory, run:
+
+   ```sh
+   yarn install --force
+   ```

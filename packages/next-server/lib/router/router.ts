@@ -13,7 +13,7 @@ import {
   NextPageContext,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
-import { getRouteRegex } from './utils'
+import { getRouteRegex } from './utils/route-regex'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
