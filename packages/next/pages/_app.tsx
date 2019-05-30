@@ -12,6 +12,7 @@ import {
   Router,
   makePublicRouterInstance,
 } from '../client/router'
+import { stringify as stringifyQuery } from 'querystring'
 
 export { AppInitialProps }
 
@@ -70,9 +71,12 @@ export class Container extends React.Component {
 
     // @ts-ignore __NEXT_DATA__ is global
     if (__NEXT_DATA__.nextExport) {
-      // update query on mount for exported pages
-      const curUrl = singletonRouter.pathname + location.search
-      singletonRouter.replace(curUrl, curUrl)
+      const curQuery = '?' + stringifyQuery(singletonRouter.query)
+      if (curQuery !== location.search) {
+        // update query on mount for exported pages
+        const curUrl = singletonRouter.pathname + location.search
+        singletonRouter.replace(curUrl, curUrl)
+      }
     }
   }
 
