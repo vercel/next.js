@@ -68,7 +68,7 @@ EXAMPLE=./test/integration/basic
    yarn link
    ```
 
-   to setup up the `next` for being linked in other projects.
+   to setup up `next` for being linked in other projects.
 
 2. In your app's root diectory, run:
 
