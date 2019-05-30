@@ -2,7 +2,11 @@
 import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { check, getBrowserBodyText, getReactErrorOverlayContent } from 'next-test-utils'
+import {
+  check,
+  getBrowserBodyText,
+  getReactErrorOverlayContent
+} from 'next-test-utils'
 
 export default (context, renderViaHTTP) => {
   describe('Hot Module Reloading', () => {
@@ -44,7 +48,10 @@ export default (context, renderViaHTTP) => {
         const errContent = origContent.replace('() =>', '(): boolean =>')
 
         writeFileSync(pagePath, errContent)
-        await check(() => getReactErrorOverlayContent(browser), /Type 'Element' is not assignable to type 'boolean'/)
+        await check(
+          () => getReactErrorOverlayContent(browser),
+          /Type 'Element' is not assignable to type 'boolean'/
+        )
 
         writeFileSync(pagePath, origContent)
         await check(async () => {

@@ -18,14 +18,14 @@ export type LoadComponentsReturnType = {
   reactLoadableManifest?: any
   Document?: any
   DocumentMiddleware?: any
-  App?: any,
+  App?: any
 }
 
 export async function loadComponents(
   distDir: string,
   buildId: string,
   pathname: string,
-  serverless: boolean,
+  serverless: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
@@ -37,7 +37,7 @@ export async function loadComponents(
     CLIENT_STATIC_FILES_PATH,
     buildId,
     'pages',
-    '_document',
+    '_document'
   )
   const appPath = join(
     distDir,
@@ -45,7 +45,7 @@ export async function loadComponents(
     CLIENT_STATIC_FILES_PATH,
     buildId,
     'pages',
-    '_app',
+    '_app'
   )
 
   const DocumentMod = require(documentPath)

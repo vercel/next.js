@@ -6,8 +6,8 @@ import { findData } from '../utils/sample-api'
 import ListDetail from '../components/ListDetail'
 
 type Props = {
-  item?: User,
-  errors?: string,
+  item?: User
+  errors?: string
 }
 
 class InitialPropsDetail extends React.Component<Props> {

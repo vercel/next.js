@@ -12,42 +12,25 @@ export default () => (
       <Link href='/about'>
         <a id='about-via-link'>About via Link</a>
       </Link>
-      <a
-        href='#'
-        onClick={routeToAbout}
-        id='about-via-router'
-      >
+      <a href='#' onClick={routeToAbout} id='about-via-router'>
         About via Router
       </a>
       <Link href='/counter'>
         <a id='counter'>Counter</a>
       </Link>
-      <Link
-        href='/dynamic?text=cool+dynamic+text'
-      >
+      <Link href='/dynamic?text=cool+dynamic+text'>
         <a id='get-initial-props'>getInitialProps</a>
       </Link>
-      <Link
-        href='/dynamic?text=next+export+is+nice'
-        as='/dynamic/one'
-      >
+      <Link href='/dynamic?text=next+export+is+nice' as='/dynamic/one'>
         <a id='dynamic-1'>Dynamic 1</a>
       </Link>
-      <Link
-        href='/dynamic?text=zeit+is+awesome'
-        as='/dynamic/two'
-      >
+      <Link href='/dynamic?text=zeit+is+awesome' as='/dynamic/two'>
         <a id='dynamic-2'>Dynamic 2</a>
       </Link>
-      <Link
-        href='/dynamic?text=zeit+is+awesome#cool'
-      >
+      <Link href='/dynamic?text=zeit+is+awesome#cool'>
         <a id='with-hash'>With Hash</a>
       </Link>
-      <Link
-        href='/dynamic?text=this+file+has+an+extension'
-        as='/file-name.md'
-      >
+      <Link href='/dynamic?text=this+file+has+an+extension' as='/file-name.md'>
         <a id='path-with-extension'>Path with extension</a>
       </Link>
       <Link href='/level1'>

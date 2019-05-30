@@ -1,20 +1,17 @@
 import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
 
 export default function initializeBuildWatcher () {
-  const host = document.createElement('div')
-  host.id = '__next-build-watcher'
-  document.body.appendChild(host)
-
-  const shadowHost = document.getElementById('__next-build-watcher')
-  if (!shadowHost) return
-  let shadowRoot
-  let prefix = ''
-
+  const shadowHost = document.createElement('div')
+  shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   shadowHost.style.bottom = '10px'
   shadowHost.style.right = '10px'
   shadowHost.style.zIndex = 99999
+  document.body.appendChild(shadowHost)
+
+  let shadowRoot
+  let prefix = ''
 
   if (shadowHost.attachShadow) {
     shadowRoot = shadowHost.attachShadow({ mode: 'open' })
@@ -41,7 +38,7 @@ export default function initializeBuildWatcher () {
 
   // Handle events
   const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
-  evtSource.addMessageListener((event) => {
+  evtSource.addMessageListener(event => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -49,7 +46,7 @@ export default function initializeBuildWatcher () {
 
     try {
       handleMessage(event)
-    } catch { }
+    } catch {}
   })
 
   function handleMessage (event) {
@@ -91,7 +88,7 @@ export default function initializeBuildWatcher () {
 
 function createContainer (prefix) {
   const container = document.createElement('div')
-  container.setAttribute('id', `${prefix}container`)
+  container.id = `${prefix}container`
   container.innerHTML = `
     <div id="${prefix}icon-wrapper">
       <svg viewBox="0 0 226 200">

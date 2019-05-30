@@ -9,6 +9,6 @@ declare namespace LoadableExport {
   }
 }
 
-declare const LoadableExport: LoadableExport.ILoadable;
+declare const LoadableExport: LoadableExport.ILoadable
 
 export = LoadableExport

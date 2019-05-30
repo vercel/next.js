@@ -9,7 +9,7 @@ export default () => {
     const keys: any[] = []
     const re = pathToRegexp(path, keys, {})
 
-    return (pathname: string|undefined, params?: any) => {
+    return (pathname: string | undefined, params?: any) => {
       const m = re.exec(pathname)
       if (!m) return false
 

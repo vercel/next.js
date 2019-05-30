@@ -3,42 +3,53 @@ import Loadable from './loadable'
 
 const isServerSide = typeof window === 'undefined'
 
-export type LoaderComponent<P = {}> = Promise<React.ComponentType<P> | { default: React.ComponentType<P> }>
+export type LoaderComponent<P = {}> = Promise<
+  React.ComponentType<P> | { default: React.ComponentType<P> }
+>
 
 export type Loader<P = {}> = (() => LoaderComponent<P>) | LoaderComponent<P>
 
 export type LoaderMap = { [mdule: string]: () => Loader<any> }
 
 export type LoadableGeneratedOptions = {
-  webpack?(): any,
-  modules?(): LoaderMap,
+  webpack?(): any
+  modules?(): LoaderMap
 }
 
 export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
-  loading?: ({ error, isLoading, pastDelay }: {
-    error?: Error | null;
-    isLoading?: boolean;
-    pastDelay?: boolean;
+  loading?: ({
+    error,
+    isLoading,
+    pastDelay,
+  }: {
+    error?: Error | null
+    isLoading?: boolean
+    pastDelay?: boolean
     timedOut?: boolean
-  }) => JSX.Element | null;
+  }) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
 }
 
 export type LoadableOptions<P = {}> = LoadableBaseOptions<P> & {
-  render?(loader: any, props: any): JSX.Element,
+  render?(loader: any, props: any): JSX.Element
 }
 
 export type DynamicOptions<P = {}> = LoadableBaseOptions<P> & {
-  render?(props: P, loaded: any): JSX.Element,
+  render?(props: P, loaded: any): JSX.Element
 }
 
-export type LoadableFn<P = {}> = (opts: LoadableOptions<P>) => React.ComponentType<P>
+export type LoadableFn<P = {}> = (
+  opts: LoadableOptions<P>
+) => React.ComponentType<P>
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
-export function noSSR<P = {}>(LoadableInitializer: LoadableFn<P>, loadableOptions: LoadableOptions<P>) {
+export function noSSR<P = {}>(
+  LoadableInitializer: LoadableFn<P>,
+  loadableOptions: LoadableOptions<P>
+) {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
@@ -50,7 +61,9 @@ export function noSSR<P = {}>(LoadableInitializer: LoadableFn<P>, loadableOption
 
   const Loading = loadableOptions.loading!
   // This will only be rendered on the server side
-  return () => <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+  return () => (
+    <Loading error={null} isLoading pastDelay={false} timedOut={false} />
+  )
 }
 
 function DefaultLoading() {
@@ -61,7 +74,7 @@ function DefaultLoading() {
 
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
-  options?: DynamicOptions<P>,
+  options?: DynamicOptions<P>
 ): React.ComponentType<P> {
   let loadableFn: LoadableFn<P> = Loadable
   let loadableOptions: LoadableOptions<P> = {
@@ -73,7 +86,13 @@ export default function dynamic<P = {}>(
           return <DefaultLoading />
         }
         if (error) {
-          return <p>{error.message}<br />{error.stack}</p>
+          return (
+            <p>
+              {error.message}
+              <br />
+              {error.stack}
+            </p>
+          )
         }
       }
 
@@ -87,10 +106,10 @@ export default function dynamic<P = {}>(
   // To make sure we don't execute the import without rendering first
   if (dynamicOptions instanceof Promise) {
     loadableOptions.loader = () => dynamicOptions
-  // Support for having import as a function, eg: dynamic(() => import('../hello-world'))
+    // Support for having import as a function, eg: dynamic(() => import('../hello-world'))
   } else if (typeof dynamicOptions === 'function') {
     loadableOptions.loader = dynamicOptions
-  // Support for having first argument being options, eg: dynamic({loader: import('../hello-world')})
+    // Support for having first argument being options, eg: dynamic({loader: import('../hello-world')})
   } else if (typeof dynamicOptions === 'object') {
     loadableOptions = { ...loadableOptions, ...dynamicOptions }
   }
@@ -98,17 +117,21 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  if (typeof dynamicOptions === 'object' && !(dynamicOptions instanceof Promise)) {
+  if (
+    typeof dynamicOptions === 'object' &&
+    !(dynamicOptions instanceof Promise)
+  ) {
     // Support for `render` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
     if (dynamicOptions.render) {
-      loadableOptions.render = (loaded, props) => dynamicOptions.render!(props, loaded)
+      loadableOptions.render = (loaded, props) =>
+        dynamicOptions.render!(props, loaded)
     }
     // Support for `modules` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
     if (dynamicOptions.modules) {
       loadableFn = Loadable.Map
       const loadModules: LoaderMap = {}
       const modules = dynamicOptions.modules()
-      Object.keys(modules).forEach((key) => {
+      Object.keys(modules).forEach(key => {
         const value: any = modules[key]
         if (typeof value.then === 'function') {
           loadModules[key] = () => value.then((mod: any) => mod.default || mod)
@@ -122,7 +145,10 @@ export default function dynamic<P = {}>(
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
-    loadableOptions = { ...loadableOptions, ...loadableOptions.loadableGenerated }
+    loadableOptions = {
+      ...loadableOptions,
+      ...loadableOptions.loadableGenerated,
+    }
     delete loadableOptions.loadableGenerated
   }
 

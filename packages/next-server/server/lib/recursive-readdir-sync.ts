@@ -7,7 +7,11 @@ import { join } from 'path'
  * @param  {string=dir`} rootDir Used to replace the initial path, only the relative path is left, it's faster than path.relative.
  * @returns Array holding all relative paths
  */
-export function recursiveReadDirSync(dir: string, arr: string[] = [], rootDir = dir): string[] {
+export function recursiveReadDirSync(
+  dir: string,
+  arr: string[] = [],
+  rootDir = dir
+): string[] {
   const result = fs.readdirSync(dir)
 
   result.forEach((part: string) => {

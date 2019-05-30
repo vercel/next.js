@@ -11,6 +11,10 @@ export default class MyApp extends App {
 
   render () {
     const { Component, url } = this.props
-    return <Container><Component url={url} /></Container>
+    return (
+      <Container>
+        <Component url={url} />
+      </Container>
+    )
   }
 }

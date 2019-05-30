@@ -228,6 +228,7 @@ export default async function getBaseWebpackConfig(
           // When the serverless target is used all node_modules will be compiled into the output bundles
           // So that the serverless bundles have 0 runtime dependencies
           'amp-toolbox-optimizer', // except this one
+          ...(config.experimental.ampBindInitData ? [] : ['react-ssr-prepass']),
         ],
     optimization: Object.assign(
       {
@@ -352,6 +353,7 @@ export default async function getBaseWebpackConfig(
     },
     // @ts-ignore this is filtered
     module: {
+      strictExportPresence: true,
       rules: [
         (selectivePageBuilding || config.experimental.terserLoader) &&
           !isServer &&

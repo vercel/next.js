@@ -15,7 +15,11 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
+import {
+  BUILD_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+  PAGES_MANIFEST
+} from 'next-server/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
@@ -97,7 +101,10 @@ describe('Production Usage', () => {
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
-      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const reactLoadableManifest = require(join(
+        '../.next',
+        REACT_LOADABLE_MANIFEST
+      ))
       const url = `http://localhost:${appPort}/_next/`
 
       const resources = []
@@ -106,18 +113,24 @@ describe('Production Usage', () => {
       resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      resources.push(
+        url + reactLoadableManifest['../../components/hello1'][0].publicPath
+      )
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
         resources.push(url + item)
       }
 
-      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+      const responses = await Promise.all(
+        resources.map(resource => fetch(resource))
+      )
 
-      responses.forEach((res) => {
+      responses.forEach(res => {
         try {
-          expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+          expect(res.headers.get('Cache-Control')).toBe(
+            'public, max-age=31536000, immutable'
+          )
         } catch (err) {
           err.message = res.url + ' ' + err.message
           throw err
@@ -127,10 +140,14 @@ describe('Production Usage', () => {
 
     it('should set correct Cache-Control header for static 404s', async () => {
       // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
-      const res = await fetch(`http://localhost:${appPort}/_next//static/common/bad-static.js`)
+      const res = await fetch(
+        `http://localhost:${appPort}/_next//static/common/bad-static.js`
+      )
 
       expect(res.status).toBe(404)
-      expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0, must-revalidate')
+      expect(res.headers.get('Cache-Control')).toBe(
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
     })
 
     it('should block special pages', async () => {
@@ -162,9 +179,11 @@ describe('Production Usage', () => {
     it('should navigate via client side', async () => {
       const browser = await webdriver(appPort, '/')
       const text = await browser
-        .elementByCss('a').click()
+        .elementByCss('a')
+        .click()
         .waitForElementByCss('.about-page')
-        .elementByCss('div').text()
+        .elementByCss('div')
+        .text()
 
       expect(text).toBe('About Page')
       await browser.close()
@@ -173,9 +192,11 @@ describe('Production Usage', () => {
     it('should navigate to nested index via client side', async () => {
       const browser = await webdriver(appPort, '/another')
       const text = await browser
-        .elementByCss('a').click()
+        .elementByCss('a')
+        .click()
         .waitForElementByCss('.index-page')
-        .elementByCss('p').text()
+        .elementByCss('p')
+        .text()
 
       expect(text).toBe('Hello World')
       await browser.close()
@@ -243,7 +264,10 @@ describe('Production Usage', () => {
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
-      const browser = await webdriver(appPort, '/error-in-browser-render-status-code')
+      const browser = await webdriver(
+        appPort,
+        '/error-in-browser-render-status-code'
+      )
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
@@ -288,8 +312,11 @@ describe('Production Usage', () => {
     it('should reload the page on page script error', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-        .elementByCss('#increase').click().click()
-        .elementByCss('#counter').text()
+        .elementByCss('#increase')
+        .click()
+        .click()
+        .elementByCss('#counter')
+        .text()
       expect(counter).toBe('Counter: 2')
 
       // When we go to the 404 page, it'll do a hard reload.
@@ -297,11 +324,13 @@ describe('Production Usage', () => {
       // Since the page is reloaded, when we go back to the counter page again,
       // previous counter value should be gone.
       const counterAfter404Page = await browser
-        .elementByCss('#no-such-page').click()
+        .elementByCss('#no-such-page')
+        .click()
         .waitForElementByCss('h1')
         .back()
         .waitForElementByCss('#counter-page')
-        .elementByCss('#counter').text()
+        .elementByCss('#counter')
+        .text()
       expect(counterAfter404Page).toBe('Counter: 0')
 
       await browser.close()
@@ -313,7 +342,7 @@ describe('Production Usage', () => {
         const elements = await browser.elementsByCss('link[rel=preload]')
         expect(elements.length).toBe(9)
         await Promise.all(
-          elements.map(async (element) => {
+          elements.map(async element => {
             const rel = await element.getAttribute('rel')
             const as = await element.getAttribute('as')
             expect(rel).toBe('preload')
@@ -329,14 +358,14 @@ describe('Production Usage', () => {
         const browser = await webdriver(appPort, '/prefetch')
         const links = await browser.elementsByCss('link[rel=preload]')
         await Promise.all(
-          links.map(async (element) => {
+          links.map(async element => {
             const href = await element.getAttribute('href')
             expect(href).not.toMatch(/\?ts=/)
           })
         )
         const scripts = await browser.elementsByCss('script[src]')
         await Promise.all(
-          scripts.map(async (element) => {
+          scripts.map(async element => {
             const src = await element.getAttribute('src')
             expect(src).not.toMatch(/\?ts=/)
           })
@@ -348,16 +377,21 @@ describe('Production Usage', () => {
         const browser = await webdriver(appPort, '/counter')
         if (!browser.log) return
         const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+          .elementByCss('#increase')
+          .click()
+          .click()
+          .elementByCss('#counter')
+          .text()
         expect(counter).toBe('Counter: 2')
 
         // Let the browser to prefetch the page and error it on the console.
         await waitFor(3000)
         const browserLogs = await browser.log('browser')
         let foundLog = false
-        browserLogs.forEach((log) => {
-          if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+        browserLogs.forEach(log => {
+          if (
+            log.message.match(/\/no-such-page\.js - Failed to load resource/)
+          ) {
             foundLog = true
           }
         })
@@ -369,11 +403,13 @@ describe('Production Usage', () => {
         // Since the page is reloaded, when we go back to the counter page again,
         // previous counter value should be gone.
         const counterAfter404Page = await browser
-          .elementByCss('#no-such-page-prefetch').click()
+          .elementByCss('#no-such-page-prefetch')
+          .click()
           .waitForElementByCss('h1')
           .back()
           .waitForElementByCss('#counter-page')
-          .elementByCss('#counter').text()
+          .elementByCss('#counter')
+          .text()
         expect(counterAfter404Page).toBe('Counter: 0')
 
         await browser.close()
@@ -384,12 +420,16 @@ describe('Production Usage', () => {
   it('should not expose the compiled page file in development', async () => {
     const url = `http://localhost:${appPort}`
     await fetch(`${url}/stateless`) // make sure the stateless page is built
-    const clientSideJsRes = await fetch(`${url}/_next/development/static/development/pages/stateless.js`)
+    const clientSideJsRes = await fetch(
+      `${url}/_next/development/static/development/pages/stateless.js`
+    )
     expect(clientSideJsRes.status).toBe(404)
     const clientSideJsBody = await clientSideJsRes.text()
     expect(clientSideJsBody).toMatch(/404/)
 
-    const serverSideJsRes = await fetch(`${url}/_next/development/server/static/development/pages/stateless.js`)
+    const serverSideJsRes = await fetch(
+      `${url}/_next/development/server/static/development/pages/stateless.js`
+    )
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
     expect(serverSideJsBody).toMatch(/404/)

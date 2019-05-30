@@ -6,7 +6,7 @@ import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextBuild: cliCommand = (argv) => {
+const nextBuild: cliCommand = argv => {
   const args = arg(
     {
       // Types
@@ -14,7 +14,7 @@ const nextBuild: cliCommand = (argv) => {
       // Aliases
       '-h': '--help',
     },
-    { argv },
+    { argv }
   )
 
   if (args['--help']) {
@@ -30,7 +30,7 @@ const nextBuild: cliCommand = (argv) => {
       If no directory is provided, the dist folder will be created in the current directory.
       You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
     `,
-      0,
+      0
     )
   }
 
@@ -46,16 +46,16 @@ const nextBuild: cliCommand = (argv) => {
     // Check one level down the tree to see if the pages directory might be there
     if (existsSync(join(dir, '..', 'pages'))) {
       printAndExit(
-        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?',
+        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
       )
     }
 
     printAndExit(
-      "> Couldn't find a `pages` directory. Please create one under the project root",
+      "> Couldn't find a `pages` directory. Please create one under the project root"
     )
   }
 
-  build(dir).catch((err) => {
+  build(dir).catch(err => {
     // tslint:disable-next-line
     console.error('> Build error occurred')
     printAndExit(err)

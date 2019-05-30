@@ -9,9 +9,11 @@ class MyDocument extends Document {
       styles: (
         <>
           {initialProps.styles}
-          <style dangerouslySetInnerHTML={{
-            __html: `html { background: hotpink; }`
-          }} />
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `html { background: hotpink; }`
+            }}
+          />
         </>
       )
     }

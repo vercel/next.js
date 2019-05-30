@@ -68,12 +68,12 @@ The digital clock is updated every second using the `runClockSaga` found in `sag
 All pages are also being wrapped by `next-redux-saga` using a helper function from `store.js`:
 
 ```js
-import withRedux from "next-redux-wrapper";
-import nextReduxSaga from "next-redux-saga";
-import configureStore from "./store";
+import withRedux from 'next-redux-wrapper'
+import nextReduxSaga from 'next-redux-saga'
+import configureStore from './store'
 
 export function withReduxSaga(BaseComponent) {
-  return withRedux(configureStore)(nextReduxSaga(BaseComponent));
+  return withRedux(configureStore)(nextReduxSaga(BaseComponent))
 }
 
 /**
@@ -90,13 +90,13 @@ export function withReduxSaga(BaseComponent) {
 If you need to pass `react-redux` connect args to your page, you could use the following helper instead:
 
 ```js
-import withRedux from "next-redux-wrapper";
-import nextReduxSaga from "next-redux-saga";
-import configureStore from "./store";
+import withRedux from 'next-redux-wrapper'
+import nextReduxSaga from 'next-redux-saga'
+import configureStore from './store'
 
 export function withReduxSaga(...connectArgs) {
   return BaseComponent =>
-    withRedux(configureStore, ...connectArgs)(nextReduxSaga(BaseComponent));
+    withRedux(configureStore, ...connectArgs)(nextReduxSaga(BaseComponent))
 }
 
 /**
