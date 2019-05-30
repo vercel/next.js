@@ -4,9 +4,9 @@ const BrowserLoaded = dynamic(async () => () => <div>Browser hydrated</div>, {
   ssr: false
 })
 
-export default () => <div>
+export default () => (
   <div>
-    Nested 2
+    <div>Nested 2</div>
+    <BrowserLoaded />
   </div>
-  <BrowserLoaded />
-</div>
+)

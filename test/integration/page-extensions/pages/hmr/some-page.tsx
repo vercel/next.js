@@ -1,7 +1,7 @@
 import React from 'react'
 
 if (typeof window !== 'undefined' && !(window as any).HMR_RANDOM_NUMBER) {
-  (window as any).HMR_RANDOM_NUMBER = Math.random()
+  ;(window as any).HMR_RANDOM_NUMBER = Math.random()
 }
 
 export default class Counter extends React.Component {

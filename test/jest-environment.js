@@ -23,29 +23,31 @@ const isIE = BROWSER_NAME === 'ie'
 const isSafari = BROWSER_NAME === 'safari'
 const isFirefox = BROWSER_NAME === 'firefox'
 // 30 seconds for BrowserStack 5 seconds for local
-const isBrowserStack = BROWSERSTACK && BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
+const isBrowserStack =
+  BROWSERSTACK && BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
 const browserTimeout = (isBrowserStack ? 30 : 5) * 1000
 
 if (isBrowserStack) {
   const safariOpts = {
-    'os': 'OS X',
-    'os_version': 'Mojave',
-    'browser': 'Safari'
+    os: 'OS X',
+    os_version: 'Mojave',
+    browser: 'Safari'
   }
   const ieOpts = {
-    'os': 'Windows',
-    'os_version': '10',
-    'browser': 'IE'
+    os: 'Windows',
+    os_version: '10',
+    browser: 'IE'
   }
   const firefoxOpts = {
-    'os': 'Windows',
-    'os_version': '10',
-    'browser': 'Firefox'
+    os: 'Windows',
+    os_version: '10',
+    browser: 'Firefox'
   }
   const sharedOpts = {
     'browserstack.local': true,
     'browserstack.video': false,
-    'browserstack.localIdentifier': global.browserStackLocal.localIdentifierFlag
+    'browserstack.localIdentifier':
+      global.browserStackLocal.localIdentifierFlag
   }
 
   browserOptions = {
@@ -73,7 +75,7 @@ const newTabPg = `
 class CustomEnvironment extends NodeEnvironment {
   async createBrowser () {
     // always create new browser session if not BrowserStack
-    if ((!browser && isBrowserStack)) {
+    if (!browser && isBrowserStack) {
       browser = wd.promiseChainRemote(
         'hub-cloud.browserstack.com', // seleniumHost
         80, // seleniumPort
@@ -99,7 +101,7 @@ class CustomEnvironment extends NodeEnvironment {
       })
       this.newTabPort = await getPort()
       await new Promise((resolve, reject) => {
-        this.server.listen(this.newTabPort, (err) => {
+        this.server.listen(this.newTabPort, err => {
           if (err) return reject(err)
           resolve()
         })
@@ -158,14 +160,16 @@ class CustomEnvironment extends NodeEnvironment {
       try {
         await browser.window(window)
         await browser.origClose()
-      } catch (_) { /* should already be closed */ }
+      } catch (_) {
+        /* should already be closed */
+      }
     }
     // focus initial window
     await browser.window(initialWindow)
     const newTabUrl = `http://${deviceIP}:${this.newTabPort}/`
 
     // load html to open new tab
-    if (await browser.url() !== newTabUrl) {
+    if ((await browser.url()) !== newTabUrl) {
       await browser.get(newTabUrl)
     }
     // click new tab link
@@ -176,10 +180,7 @@ class CustomEnvironment extends NodeEnvironment {
     try {
       await browser.window(
         newWindows.find(win => {
-          if (win &&
-            win !== initialWindow &&
-            startWindows.indexOf(win) < 0
-          ) {
+          if (win && win !== initialWindow && startWindows.indexOf(win) < 0) {
             return win
           }
         })
