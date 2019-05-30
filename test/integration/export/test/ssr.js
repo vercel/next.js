@@ -44,7 +44,10 @@ export default function (context) {
     })
 
     it('should give empty object for query if there is no query', async () => {
-      const html = await renderViaHTTP(context.port, '/get-initial-props-with-no-query')
+      const html = await renderViaHTTP(
+        context.port,
+        '/get-initial-props-with-no-query'
+      )
       expect(html).toMatch(/Query is: {}/)
     })
 

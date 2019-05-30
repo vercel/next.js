@@ -10,15 +10,25 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('recursiveReadDir', () => {
   it('should work', async () => {
     const result = await recursiveReadDir(dirWithPages, /\.js/)
-    const pages = [/^[\\/]index\.js/, /^[\\/]prefered\.js/, /^[\\/]nav[\\/]about\.js/, /^[\\/]nav[\\/]index\.js/, /^[\\/]nested[\\/]index\.js/, /^[\\/]prefered[\\/]index\.js/, /^[\\/]nav[\\/]products[\\/]product\.js/]
-    expect(result.filter((item) => {
-      for (const page of pages) {
-        if (page.test(item)) {
-          return false
+    const pages = [
+      /^[\\/]index\.js/,
+      /^[\\/]prefered\.js/,
+      /^[\\/]nav[\\/]about\.js/,
+      /^[\\/]nav[\\/]index\.js/,
+      /^[\\/]nested[\\/]index\.js/,
+      /^[\\/]prefered[\\/]index\.js/,
+      /^[\\/]nav[\\/]products[\\/]product\.js/
+    ]
+    expect(
+      result.filter(item => {
+        for (const page of pages) {
+          if (page.test(item)) {
+            return false
+          }
         }
-      }
 
-      return true
-    }).length).toBe(0)
+        return true
+      }).length
+    ).toBe(0)
   })
 })

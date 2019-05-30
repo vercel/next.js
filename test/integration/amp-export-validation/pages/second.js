@@ -1,5 +1,3 @@
 import { withAmp } from 'next/amp'
 
-export default withAmp(() => (
-  <p>Hello again AMP!</p>
-))
+export default withAmp(() => <p>Hello again AMP!</p>)

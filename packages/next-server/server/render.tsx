@@ -3,8 +3,19 @@ import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import { BaseRouter } from '../lib/router/router'
-import mitt, { MittEmitter } from '../lib/mitt';
-import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType, NextPageContext } from '../lib/utils'
+import mitt, { MittEmitter } from '../lib/mitt'
+import {
+  loadGetInitialProps,
+  isResSent,
+  getDisplayName,
+  ComponentsEnhancer,
+  RenderPage,
+  DocumentInitialProps,
+  NextComponentType,
+  DocumentType,
+  AppType,
+  NextPageContext,
+} from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
@@ -24,7 +35,8 @@ import optimizeAmp from './optimize-amp'
 import { isAmp } from '../lib/amp'
 
 function noRouter() {
-  const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
+  const message =
+    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
   throw new Error(message)
 }
 
@@ -70,10 +82,10 @@ class ServerRouter implements BaseRouter {
 function enhanceComponents(
   options: ComponentsEnhancer,
   App: AppType,
-  Component: NextComponentType,
+  Component: NextComponentType
 ): {
-  App: AppType,
-  Component: NextComponentType,
+  App: AppType
+  Component: NextComponentType
 } {
   // For backwards compatibility
   if (typeof options === 'function') {
@@ -94,7 +106,7 @@ function enhanceComponents(
 function render(
   renderElementToString: (element: React.ReactElement<any>) => string,
   element: React.ReactElement<any>,
-  ampMode: any,
+  ampMode: any
 ): { html: string; head: React.ReactElement[] } {
   let html
   let head
@@ -123,17 +135,17 @@ type RenderOpts = {
   dev?: boolean
   ampPath?: string
   amphtml?: boolean
-  hasAmp?: boolean,
-  ampMode?: any,
-  dataOnly?: boolean,
+  hasAmp?: boolean
+  ampMode?: any
+  dataOnly?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
   Document: DocumentType
   DocumentMiddleware: (ctx: NextPageContext) => void
   App: AppType
-  ErrorDebug?: React.ComponentType<{ error: Error }>,
-  ampValidator?: (html: string, pathname: string) => Promise<void>,
+  ErrorDebug?: React.ComponentType<{ error: Error }>
+  ampValidator?: (html: string, pathname: string) => Promise<void>
 }
 
 function renderDocument(
@@ -163,21 +175,21 @@ function renderDocument(
     files,
     dynamicImports,
   }: RenderOpts & {
-    dataManagerData: string,
+    dataManagerData: string
     props: any
     docProps: DocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
     dangerousAsPath: string
-    ampPath: string,
+    ampPath: string
     amphtml: boolean
-    hasAmp: boolean,
-    ampMode: any,
+    hasAmp: boolean
+    ampMode: any
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
-    devFiles: string[],
-  },
+    devFiles: string[]
+  }
 ): string {
   return (
     '<!DOCTYPE html>' +
@@ -194,7 +206,8 @@ function renderDocument(
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
-            dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            dynamicIds:
+              dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           dangerousAsPath={dangerousAsPath}
@@ -209,7 +222,7 @@ function renderDocument(
           assetPrefix={assetPrefix}
           {...docProps}
         />
-      </AmpModeContext.Provider>,
+      </AmpModeContext.Provider>
     )
   )
 }
@@ -219,7 +232,7 @@ export async function renderToHTML(
   res: ServerResponse,
   pathname: string,
   query: ParsedUrlQuery,
-  renderOpts: RenderOpts,
+  renderOpts: RenderOpts
 ): Promise<string | null> {
   pathname = pathname === '/index' ? '/' : pathname
   const {
@@ -244,25 +257,27 @@ export async function renderToHTML(
     const { isValidElementType } = require('react-is')
     if (!isValidElementType(Component)) {
       throw new Error(
-        `The default export is not a React Component in page: "${pathname}"`,
+        `The default export is not a React Component in page: "${pathname}"`
       )
     }
 
     if (!isValidElementType(App)) {
       throw new Error(
-        `The default export is not a React Component in page: "/_app"`,
+        `The default export is not a React Component in page: "/_app"`
       )
     }
 
     if (!isValidElementType(Document)) {
       throw new Error(
-        `The default export is not a React Component in page: "/_document"`,
+        `The default export is not a React Component in page: "/_document"`
       )
     }
 
     if (autoExport) {
-      const isStaticPage = typeof (Component as any).getInitialProps !== 'function'
-      const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
+      const isStaticPage =
+        typeof (Component as any).getInitialProps !== 'function'
+      const defaultAppGetInitialProps =
+        App.getInitialProps === (App as any).origGetInitialProps
 
       if (isStaticPage && defaultAppGetInitialProps) {
         // remove query values except ones that will be set during export
@@ -311,14 +326,18 @@ export async function renderToHTML(
     ? renderToStaticMarkup
     : renderToString
 
-  const renderPageError = (): {html: string, head: any} | void => {
+  const renderPageError = (): { html: string; head: any } | void => {
     if (ctx.err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={ctx.err} />, ampMode)
+      return render(
+        renderElementToString,
+        <ErrorDebug error={ctx.err} />,
+        ampMode
+      )
     }
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`,
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`
       )
     }
   }
@@ -334,8 +353,8 @@ export async function renderToHTML(
     const ssrPrepass = require('react-ssr-prepass')
 
     renderPage = async (
-      options: ComponentsEnhancer = {},
-    ): Promise<{ html: string; head: any, dataOnly?: true}> => {
+      options: ComponentsEnhancer = {}
+    ): Promise<{ html: string; head: any; dataOnly?: true }> => {
       const renderError = renderPageError()
       if (renderError) return renderError
 
@@ -344,32 +363,30 @@ export async function renderToHTML(
         Component: EnhancedComponent,
       } = enhanceComponents(options, App, Component)
 
-      const Application = () => <RequestContext.Provider value={req}>
-        <RouterContext.Provider value={router}>
-          <DataManagerContext.Provider value={dataManager}>
-            <AmpModeContext.Provider value={ampMode}>
-              <LoadableContext.Provider
-                value={(moduleName) => reactLoadableModules.push(moduleName)}
-              >
-                <EnhancedApp
-                  Component={EnhancedComponent}
-                  router={router}
-                  {...props}
-                />
-              </LoadableContext.Provider>
-            </AmpModeContext.Provider>
-          </DataManagerContext.Provider>
-        </RouterContext.Provider>
-      </RequestContext.Provider>
+      const Application = () => (
+        <RequestContext.Provider value={req}>
+          <RouterContext.Provider value={router}>
+            <DataManagerContext.Provider value={dataManager}>
+              <AmpModeContext.Provider value={ampMode}>
+                <LoadableContext.Provider
+                  value={moduleName => reactLoadableModules.push(moduleName)}
+                >
+                  <EnhancedApp
+                    Component={EnhancedComponent}
+                    router={router}
+                    {...props}
+                  />
+                </LoadableContext.Provider>
+              </AmpModeContext.Provider>
+            </DataManagerContext.Provider>
+          </RouterContext.Provider>
+        </RequestContext.Provider>
+      )
 
-      const element = <Application/>
+      const element = <Application />
 
       try {
-        return render(
-          renderElementToString,
-          element,
-          ampMode,
-        )
+        return render(renderElementToString, element, ampMode)
       } catch (err) {
         if (err && typeof err === 'object' && typeof err.then === 'function') {
           await ssrPrepass(element)
@@ -380,11 +397,7 @@ export async function renderToHTML(
               dataOnly: true,
             }
           } else {
-            return render(
-              renderElementToString,
-              element,
-              ampMode,
-            )
+            return render(renderElementToString, element, ampMode)
           }
         }
         throw err
@@ -392,7 +405,7 @@ export async function renderToHTML(
     }
   } else {
     renderPage = (
-      options: ComponentsEnhancer = {},
+      options: ComponentsEnhancer = {}
     ): { html: string; head: any } => {
       const renderError = renderPageError()
       if (renderError) return renderError
@@ -408,7 +421,7 @@ export async function renderToHTML(
           <RouterContext.Provider value={router}>
             <AmpModeContext.Provider value={ampMode}>
               <LoadableContext.Provider
-                value={(moduleName) => reactLoadableModules.push(moduleName)}
+                value={moduleName => reactLoadableModules.push(moduleName)}
               >
                 <EnhancedApp
                   Component={EnhancedComponent}
@@ -419,7 +432,7 @@ export async function renderToHTML(
             </AmpModeContext.Provider>
           </RouterContext.Provider>
         </RequestContext.Provider>,
-        ampMode,
+        ampMode
       )
     }
   }
@@ -434,7 +447,9 @@ export async function renderToHTML(
   }
 
   if (!docProps || typeof docProps.html !== 'string') {
-    const message = `"${getDisplayName(Document)}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+    const message = `"${getDisplayName(
+      Document
+    )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
     throw new Error(message)
   }
 
@@ -445,7 +460,7 @@ export async function renderToHTML(
   const dynamicImports = [
     ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
   ]
-  const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
+  const dynamicImportsIds: any = dynamicImports.map(bundle => bundle.id)
   const amphtml = isAmp(ampMode)
   const hasAmp = !amphtml && ampMode.enabled
   // update renderOpts so export knows it's AMP
@@ -501,7 +516,7 @@ function errorToJSON(err: Error): Error {
 
 function serializeError(
   dev: boolean | undefined,
-  err: Error,
+  err: Error
 ): Error & { statusCode?: number } {
   if (dev) {
     return errorToJSON(err)

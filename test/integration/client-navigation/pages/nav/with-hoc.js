@@ -1,7 +1,7 @@
 import { withRouter } from 'next/router'
 
 const Link = withRouter(({ router, children, href }) => {
-  const handleClick = (e) => {
+  const handleClick = e => {
     e.preventDefault()
     router.push(href)
   }
@@ -10,7 +10,9 @@ const Link = withRouter(({ router, children, href }) => {
     <div>
       <span id='pathname'>Current path: {router.pathname}</span>
       <span id='asPath'>Current asPath: {router.asPath}</span>
-      <a href='#' onClick={handleClick}>{children}</a>
+      <a href='#' onClick={handleClick}>
+        {children}
+      </a>
     </div>
   )
 })

@@ -58,32 +58,36 @@ function getBrowser (url, timeout) {
       reject(error)
     }, timeout)
 
-    browser.init({
-      browserName: 'chrome',
-      ...(doHeadless ? {
-        chromeOptions: { args: ['--headless'] }
-      } : {})
-    }).get(url, err => {
-      if (timeouted) {
-        try {
-          browser.close(() => {
-            // Ignore errors
-          })
-        } catch (err) {
-          // Ignore
+    browser
+      .init({
+        browserName: 'chrome',
+        ...(doHeadless
+          ? {
+            chromeOptions: { args: ['--headless'] }
+          }
+          : {})
+      })
+      .get(url, err => {
+        if (timeouted) {
+          try {
+            browser.close(() => {
+              // Ignore errors
+            })
+          } catch (err) {
+            // Ignore
+          }
+          return
         }
-        return
-      }
 
-      clearTimeout(timeoutHandler)
+        clearTimeout(timeoutHandler)
 
-      if (err) {
-        reject(err)
-        return
-      }
+        if (err) {
+          reject(err)
+          return
+        }
 
-      resolve(browser)
-    })
+        resolve(browser)
+      })
   })
 }
 

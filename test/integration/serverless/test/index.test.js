@@ -75,9 +75,11 @@ describe('Serverless', () => {
     const browser = await webdriver(appPort, '/')
     try {
       const text = await browser
-        .elementByCss('a').click()
+        .elementByCss('a')
+        .click()
         .waitForElementByCss('.fetch-page')
-        .elementByCss('#text').text()
+        .elementByCss('#text')
+        .text()
 
       expect(text).toMatch(/fetch page/)
     } finally {

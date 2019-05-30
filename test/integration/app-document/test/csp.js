@@ -7,7 +7,7 @@ export default (context, render) => {
       const browser = await webdriver(context.appPort, '/?withCSP=hash')
       if (browser.log) {
         const errLog = await browser.log('browser')
-        expect(errLog.filter((e) => e.source === 'security')).toEqual([])
+        expect(errLog.filter(e => e.source === 'security')).toEqual([])
       }
       await browser.close()
     })
@@ -16,7 +16,7 @@ export default (context, render) => {
       const browser = await webdriver(context.appPort, '/?withCSP=nonce')
       if (browser.log) {
         const errLog = await browser.log('browser')
-        expect(errLog.filter((e) => e.source === 'security')).toEqual([])
+        expect(errLog.filter(e => e.source === 'security')).toEqual([])
       }
       await browser.close()
     })
