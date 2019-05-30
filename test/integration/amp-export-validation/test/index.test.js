@@ -20,11 +20,11 @@ describe('AMP Validation on Export', () => {
   })
 
   it('should export AMP pages', async () => {
-    const toCheck = ['first', 'second', 'third']
+    const toCheck = ['first', 'second', 'third.amp']
     await Promise.all(
       toCheck.map(async page => {
         const content = await readFile(join(outDir, `${page}/index.html`))
-        await validateAMP(content.toString(), true)
+        await validateAMP(content.toString())
       })
     )
   })
