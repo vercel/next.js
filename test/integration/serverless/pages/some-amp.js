@@ -1,2 +1,2 @@
 import { withAmp } from 'next/amp'
-export default withAmp(() => `Hi Im an AMP page!`)
+export default withAmp(() => `Hi Im an AMP page!`, { hybrid: true })

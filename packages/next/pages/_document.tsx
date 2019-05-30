@@ -201,7 +201,6 @@ export class Head extends Component<OriginProps> {
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId, dynamicBuildId } = __NEXT_DATA__
-    const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
     let { head } = this.context._documentProps
     let children = this.props.children
@@ -303,12 +302,6 @@ export class Head extends Component<OriginProps> {
               rel="canonical"
               href={canonicalBase + cleanAmpPath(dangerousAsPath)}
             />
-            {isDirtyAmp && (
-              <link
-                rel="amphtml"
-                href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
-              />
-            )}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
