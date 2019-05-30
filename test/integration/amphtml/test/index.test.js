@@ -62,14 +62,18 @@ describe('AMP Usage', () => {
       const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
       const ampOnly = ['only-amp', 'root-hmr']
       for (const pg of ampOnly) {
-        expect(
-          () => accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
+        expect(() =>
+          accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
         ).toThrow()
-        expect(
-          () => accessSync(join(appDir, '.next/server/static', buildId, 'pages', pg + '.html'))
+        expect(() =>
+          accessSync(
+            join(appDir, '.next/server/static', buildId, 'pages', pg + '.html')
+          )
         ).not.toThrow()
-        expect(
-          () => accessSync(join(appDir, '.next/server/static', buildId, 'pages', pg + '.js'))
+        expect(() =>
+          accessSync(
+            join(appDir, '.next/server/static', buildId, 'pages', pg + '.js')
+          )
         ).toThrow()
       }
     })
@@ -185,18 +189,8 @@ describe('AMP Usage', () => {
       ).toBe('http://localhost:1234/use-amp-hook')
     })
 
-    it('should render a canonical regardless of amp-only status (implicit)', async () => {
-      const html = await renderViaHTTP(appPort, '/only-amp')
-      const $ = cheerio.load(html)
-      expect(
-        $('link[rel=canonical]')
-          .first()
-          .attr('href')
-      ).toBe('http://localhost:1234/only-amp')
-    })
-
     it('should render a canonical regardless of amp-only status (explicit)', async () => {
-      const html = await renderViaHTTP(appPort, '/only-amp?amp=1')
+      const html = await renderViaHTTP(appPort, '/only-amp')
       const $ = cheerio.load(html)
       await validateAMP(html)
       expect(
@@ -214,16 +208,6 @@ describe('AMP Usage', () => {
           .first()
           .attr('href')
       ).not.toBeTruthy()
-    })
-
-    it('should render amphtml link tag with dirty AMP page', async () => {
-      const html = await renderViaHTTP(appPort, '/only-amp')
-      const $ = cheerio.load(html)
-      expect(
-        $('link[rel=amphtml]')
-          .first()
-          .attr('href')
-      ).toBe('http://localhost:1234/only-amp.amp')
     })
 
     it('should remove conflicting amp tags', async () => {
@@ -325,13 +309,7 @@ describe('AMP Usage', () => {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe(`I'm an AMP page!`)
 
-        const hmrTestPagePath = join(
-          __dirname,
-          '../',
-          'pages',
-          'hmr',
-          'amp.js'
-        )
+        const hmrTestPagePath = join(__dirname, '../', 'pages', 'hmr', 'amp.js')
 
         const originalContent = readFileSync(hmrTestPagePath, 'utf8')
         const editedContent = originalContent.replace(
@@ -342,18 +320,12 @@ describe('AMP Usage', () => {
         // change the content
         writeFileSync(hmrTestPagePath, editedContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /replaced it!/
-        )
+        await check(() => getBrowserBodyText(browser), /replaced it!/)
 
         // add the original content
         writeFileSync(hmrTestPagePath, originalContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /I'm an AMP page!/
-        )
+        await check(() => getBrowserBodyText(browser), /I'm an AMP page!/)
       } finally {
         await browser.close()
       }
@@ -398,9 +370,7 @@ describe('AMP Usage', () => {
         // add the original content
         writeFileSync(hmrTestPagePath, originalContent, 'utf8')
 
-        const otherHmrTestPage = join(
-          __dirname, '../pages/hmr/amp.js'
-        )
+        const otherHmrTestPage = join(__dirname, '../pages/hmr/amp.js')
 
         const otherOrigContent = readFileSync(otherHmrTestPage, 'utf8')
         const otherEditedContent = otherOrigContent.replace(
@@ -411,18 +381,12 @@ describe('AMP Usage', () => {
         // change the content
         writeFileSync(otherHmrTestPage, otherEditedContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /replaced it!/
-        )
+        await check(() => getBrowserBodyText(browser), /replaced it!/)
 
         // restore original content
         writeFileSync(otherHmrTestPage, otherOrigContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /I'm an AMP page!/
-        )
+        await check(() => getBrowserBodyText(browser), /I'm an AMP page!/)
       } finally {
         await browser.close()
       }
@@ -452,18 +416,12 @@ describe('AMP Usage', () => {
         // change the content
         writeFileSync(hmrTestPagePath, editedContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /replaced it!/
-        )
+        await check(() => getBrowserBodyText(browser), /replaced it!/)
 
         // add the original content
         writeFileSync(hmrTestPagePath, originalContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /I'm a hybrid AMP page!/
-        )
+        await check(() => getBrowserBodyText(browser), /I'm a hybrid AMP page!/)
       } finally {
         await browser.close()
       }
@@ -476,12 +434,7 @@ describe('AMP Usage', () => {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe(`I'm an AMP page!`)
 
-        const hmrTestPagePath = join(
-          __dirname,
-          '../',
-          'pages',
-          'root-hmr.js'
-        )
+        const hmrTestPagePath = join(__dirname, '../', 'pages', 'root-hmr.js')
 
         const originalContent = readFileSync(hmrTestPagePath, 'utf8')
         const editedContent = originalContent.replace(
@@ -492,18 +445,12 @@ describe('AMP Usage', () => {
         // change the content
         writeFileSync(hmrTestPagePath, editedContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /replaced it!/
-        )
+        await check(() => getBrowserBodyText(browser), /replaced it!/)
 
         // add the original content
         writeFileSync(hmrTestPagePath, originalContent, 'utf8')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /I'm an AMP page!/
-        )
+        await check(() => getBrowserBodyText(browser), /I'm an AMP page!/)
       } finally {
         await browser.close()
       }
