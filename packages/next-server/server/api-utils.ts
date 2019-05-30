@@ -9,12 +9,22 @@ import { parse } from 'content-type'
  * Parse incoming message like `json` or `urlencoded`
  * @param req
  */
-export async function parseBody(req: NextApiRequest) {
+export async function parseBody(req: NextApiRequest, limit: string = '1mb') {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
 
-  const buffer = await getRawBody(req, { encoding })
+  let buffer
+
+  try {
+    buffer = await getRawBody(req, { encoding })
+  } catch (e) {
+    if (e.type === 'entity.too.large') {
+      throw new ApiError(413, `Body exceeded ${limit} limit`)
+    } else {
+      throw new ApiError(400, 'Invalid body')
+    }
+  }
 
   const body = buffer.toString()
 
@@ -110,7 +120,7 @@ export function sendData(res: NextApiResponse, statusCode: number, body: any) {
 export function sendJson(
   res: NextApiResponse,
   statusCode: number,
-  jsonBody: any,
+  jsonBody: any
 ): void {
   // Set header to application/json
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -148,7 +158,7 @@ export class ApiError extends Error {
 export function sendError(
   res: NextApiResponse,
   statusCode: number,
-  message: string,
+  message: string
 ) {
   res.statusCode = statusCode
   res.statusMessage = message
