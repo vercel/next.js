@@ -278,8 +278,9 @@ export async function renderToHTML(
       isStaticPage = typeof (Component as any).getInitialProps !== 'function'
       const defaultAppGetInitialProps =
         App.getInitialProps === (App as any).origGetInitialProps
+      isStaticPage = isStaticPage && defaultAppGetInitialProps
 
-      if (isStaticPage && defaultAppGetInitialProps) {
+      if (isStaticPage) {
         // remove query values except ones that will be set during export
         query = {
           amp: query.amp,
