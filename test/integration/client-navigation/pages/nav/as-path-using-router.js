@@ -13,10 +13,6 @@ export default class extends React.Component {
   }
 
   render () {
-    return (
-      <div className='as-path-content'>
-        {this.state.asPath}
-      </div>
-    )
+    return <div className='as-path-content'>{this.state.asPath}</div>
   }
 }

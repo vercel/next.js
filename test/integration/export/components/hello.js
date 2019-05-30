@@ -1,5 +1,1 @@
-export default () => (
-  <p>
-    Welcome to dynamic imports.
-  </p>
-)
+export default () => <p>Welcome to dynamic imports.</p>

@@ -7,7 +7,9 @@ describe('loadGetInitialProps', () => {
       getInitialProps () {}
     }
     const rejectPromise = loadGetInitialProps(TestComponent, {})
-    const error = new Error('"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.')
+    const error = new Error(
+      '"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+    )
     return expect(rejectPromise).rejects.toEqual(error)
   })
 
@@ -41,12 +43,14 @@ describe('loadGetInitialProps', () => {
     expect(result).toBe('invalidValue')
   })
 
-  it('should throw if getInitialProps won\'t return an object ', () => {
+  it("should throw if getInitialProps won't return an object ", () => {
     class TestComponent {
       static async getInitialProps () {}
     }
     const rejectPromise = loadGetInitialProps(TestComponent, {})
-    const error = new Error('"TestComponent.getInitialProps()" should resolve to an object. But found "undefined" instead.')
+    const error = new Error(
+      '"TestComponent.getInitialProps()" should resolve to an object. But found "undefined" instead.'
+    )
     return expect(rejectPromise).rejects.toEqual(error)
   })
 })
