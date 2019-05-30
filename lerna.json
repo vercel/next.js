@@ -1,16 +1,21 @@
 {
   "npmClient": "yarn",
   "useWorkspaces": true,
-  "packages": ["packages/*"],
+  "packages": [
+    "packages/*"
+  ],
   "command": {
     "version": {
       "exact": true
     },
     "publish": {
       "npmClient": "npm",
-      "allowBranch": ["master", "canary"],
+      "allowBranch": [
+        "master",
+        "canary"
+      ],
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "8.1.1-canary.40"
+  "version": "8.1.1-canary.41"
 }
