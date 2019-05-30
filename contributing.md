@@ -61,32 +61,25 @@ EXAMPLE=./test/integration/basic
 
 ## Running your own app with locally compiled version of Next.js
 
-1. In your app's `package.json`, replace:
-
-   ```json
-   "next": "<next-version>",
-   ```
-
-   with:
-
-   ```json
-   "next": "file:<local-path-to-cloned-nextjs-repo>/packages/next",
-   ```
-
-2. In your app's root directory, make sure to remove `next` from `node_modules` with:
+1. In the `next.js` project folder, run:
 
    ```sh
-   rm -rf ./node_modules/next
+   cd ./packages/next
+   yarn link
    ```
 
-3. In your app's root directory, run:
+   to setup up the `next` for being linked in other projects.
+
+2. In your app's root diectory, run:
 
    ```sh
-   yarn
+   yarn link next
    ```
 
-   to re-install all of the dependencies.
+   to link the package from step 1 into your project
 
-   Note that Next will be copied from the locally compiled version as opposed to from being downloaded from the NPM registry.
+3. In the `next.js` project folder, run:
 
-4. Run your application as you normally would.
+   ```sh
+   yarn dev
+   ```
