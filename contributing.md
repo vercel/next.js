@@ -76,10 +76,12 @@ EXAMPLE=./test/integration/basic
    yarn link next
    ```
 
-   to link the package from step 1 into your project
+   to link the package from step 1 into your project.
 
 3. In the `next.js` project folder, run:
 
    ```sh
    yarn dev
    ```
+
+   To start compiling the project.
