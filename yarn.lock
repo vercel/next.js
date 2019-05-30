@@ -2330,30 +2330,30 @@ amdefine@>=0.0.4:
   resolved "https://registry.yarnpkg.com/amdefine/-/amdefine-1.0.1.tgz#4a5282ac164729e93619bcfd3ad151f817ce91f5"
   integrity sha1-SlKCrBZHKek2Gbz9OtFR+BfOkfU=
 
-amp-toolbox-core@^0.1.6:
-  version "0.1.6"
-  resolved "https://registry.yarnpkg.com/amp-toolbox-core/-/amp-toolbox-core-0.1.6.tgz#4dda6c1658e1f26f011ca0f41cd4832af8476af7"
-  integrity sha512-diJOA8/+bnh/8OLjGjb/E+FCT7H0iKzelqZfOeujyCRxbNE2t5J13gWuGva106yS2QEiXttLHwy+nrAkBoAgiw==
+amp-toolbox-core@^1.2.0-alpha.1:
+  version "1.2.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/amp-toolbox-core/-/amp-toolbox-core-1.2.0-alpha.1.tgz#a327b55c14332a8c26e8d3e7dd576ef3c1cba2dc"
+  integrity sha512-b9hJSMwHO2N5o2rtgwxggx/vVtY3P+hygBicGnxREmQHVW+Li5AmUim7eaKYUxTZiYz8pn4ZcO5CiC9cQunBUg==
   dependencies:
-    node-fetch "2.3.0"
+    node-fetch "2.6.0"
 
-amp-toolbox-optimizer@0.5.3:
-  version "0.5.3"
-  resolved "https://registry.yarnpkg.com/amp-toolbox-optimizer/-/amp-toolbox-optimizer-0.5.3.tgz#b7ab4c7651a6144c3271c1c7c0719082acbf1048"
-  integrity sha512-kw1dpWepegGJ8bxJd+qg+PfNj8oIG1erThuSWsGuLzgfHt1jQMZO+01N7BE4KjT2N1dLbqRFhJv3GjgaUMG+Lw==
+amp-toolbox-optimizer@1.2.0-alpha.1:
+  version "1.2.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/amp-toolbox-optimizer/-/amp-toolbox-optimizer-1.2.0-alpha.1.tgz#20a1c2a28bfe2e46179f43084db727634eb0e68a"
+  integrity sha512-H8divkzDAsI9p5cAJF8TCMD75AnWnTfSPgT7N8SctUzxeCh4jquDS03kl8mjCwbRSvnMrogh0/twQjoSjjIjpg==
   dependencies:
-    amp-toolbox-core "^0.1.6"
-    amp-toolbox-runtime-version "^0.2.7"
+    amp-toolbox-core "^1.2.0-alpha.1"
+    amp-toolbox-runtime-version "^1.2.0-alpha.1"
     css "2.2.4"
     parse5 "5.1.0"
     parse5-htmlparser2-tree-adapter "5.1.0"
 
-amp-toolbox-runtime-version@^0.2.7:
-  version "0.2.7"
-  resolved "https://registry.yarnpkg.com/amp-toolbox-runtime-version/-/amp-toolbox-runtime-version-0.2.7.tgz#09cbe73a8929cfbae702348bbf7537b180783e9e"
-  integrity sha512-5hUIKtFOrhb5gM1fDlqJ2YDKqSDS8kCWtykt7a4Dvrjr9CPD7L/OK+cKk+u1QLvUKO24ADOE9j2PS28B/TMaiQ==
+amp-toolbox-runtime-version@^1.2.0-alpha.1:
+  version "1.2.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/amp-toolbox-runtime-version/-/amp-toolbox-runtime-version-1.2.0-alpha.1.tgz#8908762cfe72a1c233aa7c2eeab00f4656b32a8c"
+  integrity sha512-PFvsGgnpiSrObkGJyd5PFQjIdgPsVgnueruXOvsjz24BndMNy6xt9JZcx8iiKKjLHIQe/NXITiLtZhK80FQ6Xw==
   dependencies:
-    amp-toolbox-core "^0.1.6"
+    amp-toolbox-core "^1.2.0-alpha.1"
 
 amphtml-validator@1.0.23:
   version "1.0.23"
@@ -8835,11 +8835,6 @@ node-fetch-npm@^2.0.2:
     encoding "^0.1.11"
     json-parse-better-errors "^1.0.0"
     safe-buffer "^5.1.1"
-
-node-fetch@2.3.0:
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.3.0.tgz#1a1d940bbfb916a1d3e0219f037e89e71f8c5fa5"
-  integrity sha512-MOd8pV3fxENbryESLgVIeaGKrdl+uaYhCSSVkjeOb/31/njTpcis5aWfdqgNlHIrKOLRbMnfPINPOML2CIFeXA==
 
 node-fetch@2.6.0, node-fetch@^2.1.1, node-fetch@^2.2.0, node-fetch@^2.3.0:
   version "2.6.0"

@@ -254,7 +254,9 @@ export default (context, render) => {
             /Dynamic Bundle/.test(bodyText) &&
             /Hello World 1/.test(bodyText) &&
             !/Hello World 2/.test(bodyText)
-          ) { break }
+          ) {
+            break
+          }
           await waitFor(1000)
         }
 
@@ -287,7 +289,9 @@ export default (context, render) => {
             /Dynamic Bundle/.test(bodyText) &&
             /Hello World 1/.test(bodyText) &&
             /Hello World 2/.test(bodyText)
-          ) { break }
+          ) {
+            break
+          }
           await waitFor(1000)
         }
 
