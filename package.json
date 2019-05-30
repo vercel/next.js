@@ -37,7 +37,11 @@
       "standard --fix",
       "git add"
     ],
-    "*.{ts,tsx}": [
+    "*.tsx": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.ts": [
       "prettier --write",
       "standard --fix --parser typescript-eslint-parser --plugin typescript",
       "git add"
