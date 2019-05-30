@@ -271,6 +271,7 @@ export class Head extends Component<OriginProps> {
       styles &&
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props &&
+      // @ts-ignore Property 'props' does not exist on type ReactElement
       Array.isArray(styles.props.children)
     ) {
       const hasStyles = (el: React.ReactElement) =>
