@@ -251,7 +251,7 @@ export default class Router implements BaseRouter {
         this.changeState(method, url, as)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
-        return true
+        return resolve(true)
       }
 
       const { pathname, query } = parse(url, true)
