@@ -10,16 +10,6 @@ declare module 'unfetch' {
   export default fetch
 }
 
-declare module 'node-libs-browser' {
-  const nodeLibs: any
-
-  export = nodeLibs
-}
-
-declare module 'next/dist/compiled/webpack/lib/GraphHelpers' {
-  export const connectChunkAndModule: any
-}
-
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
 

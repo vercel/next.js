@@ -6,9 +6,17 @@ import babelLoader from 'babel-loader'
 const cacheKey = 'babel-cache-' + 'c' + '-'
 
 module.exports = babelLoader.custom(babel => {
-  const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
-  const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), { type: 'plugin' })
-  const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), { type: 'plugin' })
+  const presetItem = babel.createConfigItem(require('../../babel/preset'), {
+    type: 'preset'
+  })
+  const applyCommonJs = babel.createConfigItem(
+    require('../../babel/plugins/commonjs'),
+    { type: 'plugin' }
+  )
+  const commonJsItem = babel.createConfigItem(
+    require('@babel/plugin-transform-modules-commonjs'),
+    { type: 'plugin' }
+  )
 
   const configs = new Set()
 
@@ -19,19 +27,26 @@ module.exports = babelLoader.custom(babel => {
         asyncToPromises: opts.asyncToPromises
       }
       const filename = join(opts.cwd, 'noop.js')
-      const loader = Object.assign(opts.cache ? {
-        cacheCompression: false,
-        cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
-        cacheIdentifier: cacheKey + JSON.stringify(
-          babel.loadPartialConfig({
-            filename,
-            cwd: opts.cwd,
-            sourceFileName: filename
-          }).options
-        )
-      } : {
-        cacheDirectory: false
-      }, opts)
+      const loader = Object.assign(
+        opts.cache
+          ? {
+            cacheCompression: false,
+            cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
+            cacheIdentifier:
+                cacheKey +
+                JSON.stringify(
+                  babel.loadPartialConfig({
+                    filename,
+                    cwd: opts.cwd,
+                    sourceFileName: filename
+                  }).options
+                )
+          }
+          : {
+            cacheDirectory: false
+          },
+        opts
+      )
 
       delete loader.isServer
       delete loader.asyncToPromises
@@ -39,7 +54,13 @@ module.exports = babelLoader.custom(babel => {
       delete loader.distDir
       return { loader, custom }
     },
-    config (cfg, { source, customOptions: { isServer, asyncToPromises } }) {
+    config (
+      cfg,
+      {
+        source,
+        customOptions: { isServer, asyncToPromises }
+      }
+    ) {
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
@@ -57,21 +78,36 @@ module.exports = babelLoader.custom(babel => {
       }
 
       if (!isServer && source.indexOf('next/amp')) {
-        const dropClientPlugin = babel.createConfigItem([require('../../babel/plugins/next-drop-client-page'), {}], { type: 'plugin' })
+        const dropClientPlugin = babel.createConfigItem(
+          [require('../../babel/plugins/next-drop-client-page'), {}],
+          { type: 'plugin' }
+        )
         options.plugins = options.plugins || []
         options.plugins.push(dropClientPlugin)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {
-        const nextDataPlugin = babel.createConfigItem([require('../../babel/plugins/next-data'), { key: basename(filename) + '-' + hash(filename) }], { type: 'plugin' })
+        const nextDataPlugin = babel.createConfigItem(
+          [
+            require('../../babel/plugins/next-data'),
+            { key: basename(filename) + '-' + hash(filename) }
+          ],
+          { type: 'plugin' }
+        )
         options.plugins = options.plugins || []
         options.plugins.push(nextDataPlugin)
       }
 
       if (asyncToPromises) {
-        const asyncToPromisesPlugin = babel.createConfigItem(['babel-plugin-transform-async-to-promises', {
-          inlineHelpers: true
-        }], { type: 'plugin' })
+        const asyncToPromisesPlugin = babel.createConfigItem(
+          [
+            'babel-plugin-transform-async-to-promises',
+            {
+              inlineHelpers: true
+            }
+          ],
+          { type: 'plugin' }
+        )
         options.plugins = options.plugins || []
         options.plugins.push(asyncToPromisesPlugin)
 
@@ -86,11 +122,12 @@ module.exports = babelLoader.custom(babel => {
           return preset[0] === require('@babel/preset-env').default
         })
         if (babelPresetEnv) {
-          babelPresetEnv[1].exclude = (options.presets[0][1].exclude || []).concat([
-            'transform-typeof-symbol',
-            'transform-regenerator',
-            'transform-async-to-generator'
-          ])
+          babelPresetEnv[1].exclude = (options.presets[0][1].exclude || [])
+            .concat([
+              'transform-typeof-symbol',
+              'transform-regenerator',
+              'transform-async-to-generator'
+            ])
             .filter('transform-typeof-symbol')
         }
       }
@@ -111,9 +148,7 @@ module.exports = babelLoader.custom(babel => {
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/
           ],
-          plugins: [
-            commonJsItem
-          ]
+          plugins: [commonJsItem]
         }
       ]
 

@@ -1,10 +1,10 @@
 import { Compiler, Plugin } from 'webpack'
 import { realpathSync } from 'fs'
 
-function deleteCache (path: string) {
+function deleteCache(path: string) {
   try {
     delete require.cache[realpathSync(path)]
-  } catch(e) {
+  } catch (e) {
     if (e.code !== 'ENOENT') throw e
   } finally {
     delete require.cache[path]
@@ -15,23 +15,26 @@ function deleteCache (path: string) {
 export class NextJsRequireCacheHotReloader implements Plugin {
   prevAssets: any = null
 
-  apply (compiler: Compiler) {
-    compiler.hooks.afterEmit.tapAsync('NextJsRequireCacheHotReloader', (compilation, callback) => {
-      const { assets } = compilation
+  apply(compiler: Compiler) {
+    compiler.hooks.afterEmit.tapAsync(
+      'NextJsRequireCacheHotReloader',
+      (compilation, callback) => {
+        const { assets } = compilation
 
-      if (this.prevAssets) {
-        for (const f of Object.keys(assets)) {
-          deleteCache(assets[f].existsAt)
-        }
-        for (const f of Object.keys(this.prevAssets)) {
-          if (!assets[f]) {
-            deleteCache(this.prevAssets[f].existsAt)
+        if (this.prevAssets) {
+          for (const f of Object.keys(assets)) {
+            deleteCache(assets[f].existsAt)
+          }
+          for (const f of Object.keys(this.prevAssets)) {
+            if (!assets[f]) {
+              deleteCache(this.prevAssets[f].existsAt)
+            }
           }
         }
-      }
-      this.prevAssets = assets
+        this.prevAssets = assets
 
-      callback()
-    })
+        callback()
+      }
+    )
   }
 }

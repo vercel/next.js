@@ -1,13 +1,13 @@
-import {loader} from 'webpack'
+import { loader } from 'webpack'
 import loaderUtils from 'loader-utils'
 
 export type ClientPagesLoaderOptions = {
-  absolutePagePath: string,
+  absolutePagePath: string
   page: string
 }
 
-const nextClientPagesLoader: loader.Loader = function () {
-  const {absolutePagePath, page}: any = loaderUtils.getOptions(this)
+const nextClientPagesLoader: loader.Loader = function() {
+  const { absolutePagePath, page }: any = loaderUtils.getOptions(this)
   const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
   const stringifiedPage = JSON.stringify(page)
 

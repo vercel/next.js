@@ -24,17 +24,18 @@ export default class UrlPropChange extends React.Component {
 
   render () {
     const { previousUrl, url } = this.state
-    return <div>
-      Current:
-      <div id='url-result'>
-        {JSON.stringify(url)}
+    return (
+      <div>
+        Current:
+        <div id='url-result'>{JSON.stringify(url)}</div>
+        <br />
+        <br />
+        Previous:
+        <div id='previous-url-result'>{JSON.stringify(previousUrl)}</div>
+        <Link href='/nav/url-prop-change?added=yes'>
+          <a id='add-query'>Add querystring</a>
+        </Link>
       </div>
-      <br /><br />
-      Previous:
-      <div id='previous-url-result'>
-        {JSON.stringify(previousUrl)}
-      </div>
-      <Link href='/nav/url-prop-change?added=yes'><a id='add-query'>Add querystring</a></Link>
-    </div>
+    )
   }
 }

@@ -37,7 +37,7 @@ describe('Document middleware', () => {
 
   it('should set header and abort render on res.end()', async () => {
     const res = await fetchViaHTTP(appPort, '/another')
-    const html = await res.text() || ''
+    const html = (await res.text()) || ''
     const header = res.headers.get('next-middleware')
 
     expect(html.length).toBe(0)

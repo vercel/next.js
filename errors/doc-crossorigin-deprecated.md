@@ -11,7 +11,7 @@ Add the config option:
 ```js
 // next.config.js
 module.exports = {
-  crossOrigin: 'anonymous'
+  crossOrigin: 'anonymous',
 }
 ```
 

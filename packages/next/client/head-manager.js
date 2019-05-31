@@ -10,18 +10,18 @@ export default class HeadManager {
     this.updatePromise = null
   }
 
-  updateHead = (head) => {
-    const promise = this.updatePromise = Promise.resolve().then(() => {
+  updateHead = head => {
+    const promise = (this.updatePromise = Promise.resolve().then(() => {
       if (promise !== this.updatePromise) return
 
       this.updatePromise = null
       this.doUpdateHead(head)
-    })
+    }))
   }
 
   doUpdateHead (head) {
     const tags = {}
-    head.forEach((h) => {
+    head.forEach(h => {
       const components = tags[h.type] || []
       components.push(h)
       tags[h.type] = components
@@ -30,7 +30,7 @@ export default class HeadManager {
     this.updateTitle(tags.title ? tags.title[0] : null)
 
     const types = ['meta', 'base', 'link', 'style', 'script']
-    types.forEach((type) => {
+    types.forEach(type => {
       this.updateElements(type, tags[type] || [])
     })
   }
@@ -46,8 +46,10 @@ export default class HeadManager {
 
   updateElements (type, components) {
     const headEl = document.getElementsByTagName('head')[0]
-    const oldTags = Array.prototype.slice.call(headEl.querySelectorAll(type + '.next-head'))
-    const newTags = components.map(reactElementToDOM).filter((newTag) => {
+    const oldTags = Array.prototype.slice.call(
+      headEl.querySelectorAll(type + '.next-head')
+    )
+    const newTags = components.map(reactElementToDOM).filter(newTag => {
       for (let i = 0, len = oldTags.length; i < len; i++) {
         const oldTag = oldTags[i]
         if (oldTag.isEqualNode(newTag)) {
@@ -58,8 +60,8 @@ export default class HeadManager {
       return true
     })
 
-    oldTags.forEach((t) => t.parentNode.removeChild(t))
-    newTags.forEach((t) => headEl.appendChild(t))
+    oldTags.forEach(t => t.parentNode.removeChild(t))
+    newTags.forEach(t => headEl.appendChild(t))
   }
 }
 

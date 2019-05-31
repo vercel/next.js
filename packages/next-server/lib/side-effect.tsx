@@ -5,9 +5,12 @@ const isServer = typeof window === 'undefined'
 type State = Array<React.ReactElement<any>> | undefined
 
 type SideEffectProps = {
-  reduceComponentsToState: <T>(components: Array<React.ReactElement<any>>, props: T) => State,
-  handleStateChange?: (state: State) => void,
-  isAmp?: boolean,
+  reduceComponentsToState: <T>(
+    components: Array<React.ReactElement<any>>,
+    props: T
+  ) => State
+  handleStateChange?: (state: State) => void
+  isAmp?: boolean
 }
 
 export default () => {
@@ -15,7 +18,10 @@ export default () => {
   let state: State
 
   function emitChange(component: React.Component<SideEffectProps>) {
-    state = component.props.reduceComponentsToState([...mountedInstances], component.props)
+    state = component.props.reduceComponentsToState(
+      [...mountedInstances],
+      component.props
+    )
     if (component.props.handleStateChange) {
       component.props.handleStateChange(state)
     }

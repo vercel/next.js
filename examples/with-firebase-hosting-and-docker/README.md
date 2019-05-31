@@ -23,10 +23,10 @@ cd with-firebase-hosting-and-docker
 
 Set up firebase:
 
-* create a project through the [firebase web console](https://console.firebase.google.com/)
-* grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
-* update the `.env` with your FB_PROJECTID and FIREBASE_TOKEN ( see .env.example )
-* ADD `serviceAccountKey.json` to your project root
+- create a project through the [firebase web console](https://console.firebase.google.com/)
+- grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
+- update the `.env` with your FB_PROJECTID and FIREBASE_TOKEN ( see .env.example )
+- ADD `serviceAccountKey.json` to your project root
 
 ### Dev next
 
@@ -58,6 +58,6 @@ If you're having issues, feel free to tag @sampsonjoliver in the [issue you crea
 
 ## Important
 
-* The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
-* `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks defined in `firebase.json` will handle linting and compiling of the next app and the functions sourceswhen `firebase deploy` is invoked. The only scripts you should need are `docker:dev`, `docker:serve` and `docker:deploy`.
+- The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
+- `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
+- The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks defined in `firebase.json` will handle linting and compiling of the next app and the functions sourceswhen `firebase deploy` is invoked. The only scripts you should need are `docker:dev`, `docker:serve` and `docker:deploy`.

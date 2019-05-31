@@ -28,12 +28,20 @@ module.exports = function (task) {
     }
 
     // Workaround for noop.js loading
-    if (file.base === 'next-dev.js') output.code = output.code.replace('// REPLACE_NOOP_IMPORT', `import('./noop');`)
+    if (file.base === 'next-dev.js') {
+      output.code = output.code.replace(
+        '// REPLACE_NOOP_IMPORT',
+        `import('./noop');`
+      )
+    }
 
     file.data = Buffer.from(setNextVersion(output.code))
   })
 }
 
 function setNextVersion (code) {
-  return code.replace(/process\.env\.__NEXT_VERSION/, `"${require('./package.json').version}"`)
+  return code.replace(
+    /process\.env\.__NEXT_VERSION/,
+    `"${require('./package.json').version}"`
+  )
 }

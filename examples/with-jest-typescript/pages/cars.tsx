@@ -1,5 +1,5 @@
-import CarsOverview from './../src/modules/cars/Overview';
+import CarsOverview from './../src/modules/cars/Overview'
 
-const CarsPage = () => <CarsOverview/>;
+const CarsPage = () => <CarsOverview />
 
-export default CarsPage;
+export default CarsPage
