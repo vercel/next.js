@@ -90,9 +90,6 @@ export class Container extends React.Component {
           singletonRouter.pathname + qsString,
           location.pathname + qsString
         )
-        console.log('updated query', qsString)
-      } else {
-        console.log('not updating query')
       }
     }
   }
