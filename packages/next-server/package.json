@@ -39,6 +39,7 @@
     ]
   },
   "dependencies": {
+    "@types/react": "16.8.19",
     "agentkeepalive": "4.0.2",
     "amp-toolbox-optimizer": "1.2.0-alpha.1",
     "etag": "1.8.1",
