@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { check, getBrowserBodyText } from 'next-test-utils'
+import { check, waitFor, getBrowserBodyText } from 'next-test-utils'
 
 export default function (context) {
   describe('Render via browser', () => {
@@ -179,6 +179,15 @@ export default function (context) {
         .text()
 
       expect(text).toBe('This is the home page')
+      await browser.close()
+    })
+
+    it('should update query after mount', async () => {
+      const browser = await webdriver(context.port, '/query?hello=1')
+
+      await waitFor(1000)
+      const text = await browser.eval('document.body.innerHTML')
+      expect(text).toMatch(/hello/)
       await browser.close()
     })
 

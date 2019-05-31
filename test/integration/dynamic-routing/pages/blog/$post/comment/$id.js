@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router'
 
-export default () => {
+const Page = () => {
   const router = useRouter()
   const { post, id } = router.query
 
@@ -12,3 +12,7 @@ export default () => {
     </>
   )
 }
+
+Page.getInitialProps = () => ({})
+
+export default Page
