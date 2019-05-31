@@ -7,6 +7,7 @@ import {
   findPort,
   launchApp,
   killApp,
+  waitFor,
   runNextCommand,
   nextServer,
   startApp,
@@ -130,6 +131,13 @@ function runTests () {
     } finally {
       if (browser) await browser.close()
     }
+  })
+
+  it('should update dynamic values on mount', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1')
+    await waitFor(1000)
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/post:.*post-1/)
   })
 }
 

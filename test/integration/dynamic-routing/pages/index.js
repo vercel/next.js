@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Page = () => (
   <div>
     <h3>My blog</h3>
     <Link href='/$post' as='/post-1'>
@@ -24,3 +24,5 @@ export default () => (
     </Link>
   </div>
 )
+
+export default Page

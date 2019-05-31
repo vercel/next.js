@@ -172,8 +172,13 @@ export default function (render, fetch) {
       expect(html).not.toContain('"err"')
     })
 
-    it('should render the page without `nextExport` property', async () => {
+    it('should render the page with `nextExport` property', async () => {
       const html = await render('/')
+      expect(html).toContain('"nextExport"')
+    })
+
+    it('should render the page without `nextExport` property', async () => {
+      const html = await render('/url-prop')
       expect(html).not.toContain('"nextExport"')
     })
 
