@@ -39,7 +39,6 @@
     ]
   },
   "dependencies": {
-    "@types/react": "16.8.19",
     "agentkeepalive": "4.0.2",
     "amp-toolbox-optimizer": "1.2.0-alpha.1",
     "etag": "1.8.1",
@@ -60,7 +59,7 @@
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
     "@types/node-fetch": "2.3.4",
-    "@types/react": "16.8.18",
+    "@types/react": "16.8.19",
     "@types/react-dom": "16.8.4",
     "@types/react-is": "16.7.1",
     "@types/send": "0.14.4",
