@@ -227,7 +227,10 @@ export default class HotReloader {
     let additionalClientEntrypoints = {}
     additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] =
       `.${sep}` +
-      relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
+      relativePath(
+        this.dir,
+        join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
+      )
 
     return Promise.all([
       getBaseWebpackConfig(this.dir, {
