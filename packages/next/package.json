@@ -137,7 +137,7 @@
     "resolve": "1.11.0",
     "taskr": "1.1.0",
     "text-table": "0.2.0",
-    "typescript": "3.4.5",
+    "typescript": "3.5.1",
     "unistore": "3.4.1"
   },
   "engines": {
