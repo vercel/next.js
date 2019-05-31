@@ -471,7 +471,7 @@ export class FlyingShuttle {
       new Date().toISOString()
     )
 
-    const usedChunks = new Set()
+    const usedChunks = new Set<string>()
     const pages = Object.keys(storeManifest.pageChunks)
     pages.forEach(page => {
       const info = pageInfos.get(page) || ({} as PageInfo)
