@@ -69,6 +69,6 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(217) // Kilobytes
+    expect(responseSizeKilobytes).toBeLessThanOrEqual(218) // Kilobytes
   })
 })
