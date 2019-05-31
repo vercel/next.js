@@ -11,7 +11,6 @@ module.exports = phase => {
     },
     experimental: {
       // exportTrailingSlash: false,
-      autoExport: true
     },
     exportPathMap: function () {
       return {

@@ -7,7 +7,12 @@ import {
   AppInitialProps,
   AppPropsType,
 } from 'next-server/dist/lib/utils'
-import { Router, makePublicRouterInstance } from '../client/router'
+import {
+  default as singletonRouter,
+  Router,
+  makePublicRouterInstance,
+} from '../client/router'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 
 export { AppInitialProps }
 
@@ -63,6 +68,30 @@ export default class App<P = {}, CP = P> extends React.Component<
 export class Container extends React.Component {
   componentDidMount() {
     this.scrollToHash()
+
+    // @ts-ignore __NEXT_DATA__ is global
+    if (__NEXT_DATA__.nextExport) {
+      const curQuery = '?' + stringifyQs(singletonRouter.query)
+      const hasDiffQuery = location.search && curQuery !== location.search
+      const isDynamic = singletonRouter.pathname.includes('/$')
+      if (isDynamic || hasDiffQuery) {
+        const parsedQuery = parseQs(
+          location.search.startsWith('?')
+            ? location.search.substr(1)
+            : location.search
+        )
+        // update query on mount for exported pages
+        let qsString = stringifyQs({
+          ...singletonRouter.query,
+          ...parsedQuery,
+        })
+        qsString = qsString ? '?' + qsString : qsString
+        singletonRouter.replace(
+          singletonRouter.pathname + qsString,
+          location.pathname + qsString
+        )
+      }
+    }
   }
 
   componentDidUpdate() {

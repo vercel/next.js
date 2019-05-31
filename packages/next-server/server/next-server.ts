@@ -1,4 +1,3 @@
-/* eslint-disable import/first */
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
@@ -15,7 +14,11 @@ import {
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
 } from '../lib/constants'
-import { getRouteMatch } from '../lib/router/utils'
+import {
+  getRouteMatcher,
+  getRouteRegex,
+  getSortedRoutes,
+} from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { parse as parseCookies } from 'cookie'
@@ -344,14 +347,10 @@ export default class Server {
     const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
       p.includes('/$')
     )
-    return dynamicRoutedPages
-      .map(page => ({
-        page,
-        match: getRouteMatch(page),
-      }))
-      .sort((a, b) =>
-        Math.sign(a.page.match(/\/\$/g)!.length - b.page.match(/\/\$/g)!.length)
-      )
+    return getSortedRoutes(dynamicRoutedPages).map(page => ({
+      page,
+      match: getRouteMatcher(getRouteRegex(page)),
+    }))
   }
 
   private async run(
