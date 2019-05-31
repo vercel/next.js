@@ -6,12 +6,20 @@ import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
-import { ErrorBoundary } from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
+
+class ErrorBoundary extends React.Component {
+  componentDidCatch (err, info) {
+    this.props.fn(err, info)
+  }
+  render () {
+    return this.props.children
+  }
+}
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
