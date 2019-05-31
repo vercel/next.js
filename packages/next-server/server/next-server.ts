@@ -14,9 +14,11 @@ import {
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
 } from '../lib/constants'
-import { getRouteMatcher } from '../lib/router/utils/route-matcher'
-import { getRouteRegex } from '../lib/router/utils/route-regex'
-import { getSortedRoutes } from '../lib/router/utils/sorted-routes'
+import {
+  getRouteMatcher,
+  getRouteRegex,
+  getSortedRoutes,
+} from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
