@@ -1,5 +1,5 @@
 import initNext, * as next from './'
-import EventSourcePolyfill from './event-source-polyfill'
+import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'

@@ -1,6 +1,6 @@
 /* globals __webpack_hash__ */
 import fetch from 'unfetch'
-import EventSourcePolyfill from '../event-source-polyfill'
+import EventSourcePolyfill from './event-source-polyfill'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 import { setupPing } from './on-demand-entries-utils'
 
