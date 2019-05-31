@@ -9,6 +9,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP
 } from 'next-test-utils'
+import json from '../big.json'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -97,6 +98,19 @@ describe('API support', () => {
     })
     expect(data.status).toEqual(400)
     expect(data.statusText).toEqual('Invalid JSON')
+  })
+
+  it('should return error exceeded body limit', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify(json)
+    })
+
+    expect(data.status).toEqual(413)
+    expect(data.statusText).toEqual('Body exceeded 1mb limit')
   })
 
   it('should parse urlencoded body', async () => {

@@ -17,7 +17,7 @@ export async function parseBody(req: NextApiRequest, limit: string = '1mb') {
   let buffer
 
   try {
-    buffer = await getRawBody(req, { encoding })
+    buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
     if (e.type === 'entity.too.large') {
       throw new ApiError(413, `Body exceeded ${limit} limit`)
