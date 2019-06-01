@@ -9,9 +9,11 @@ import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
-import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher'
-import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex'
-import { getSortedRoutes } from 'next-server/dist/lib/router/utils/sorted-routes'
+import {
+  getRouteMatcher,
+  getRouteRegex,
+  getSortedRoutes
+} from 'next-server/dist/lib/router/utils'
 
 const React = require('react')
 
