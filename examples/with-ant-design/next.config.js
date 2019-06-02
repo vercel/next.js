@@ -1,9 +1,23 @@
 /* eslint-disable */
 const withCss = require('@zeit/next-css')
 
-// fix: prevents error when .css files are required by node
-if (typeof require !== 'undefined') {
-  require.extensions['.css'] = file => {}
-}
+module.exports = withCss({
+  webpack: (config, { isServer, webpack }) => {
+    if (isServer) {
+      const antStyles = /antd\/.*?\/style\/css.*?/
+      const origExternal = config.externals[0]
+      config.externals = [
+        (context, request, callback) => {
+          if (request.match(antStyles)) return callback()
+          origExternal(context, request, callback)
+        },
+      ]
 
-module.exports = withCss()
+      config.module.rules.unshift({
+        test: antStyles,
+        use: 'null-loader',
+      })
+    }
+    return config
+  },
+})
