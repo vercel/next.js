@@ -205,6 +205,7 @@ function renderDocument(
             dynamicBuildId, // Specifies if the buildId should by dynamically fetched
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+            nextAmp: amphtml,
             nextExport, // If this is a page exported by `next export`
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
