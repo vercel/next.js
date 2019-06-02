@@ -499,7 +499,7 @@ export async function renderToHTML(
     // also add __NEXT_JS_AMP__ for hybrid AMP pages and __NEXT_AMP__ for AMP first pages
     html = html.replace(
       '__NEXT_AMP_RENDER_TARGET__',
-      `<!-- __NEXT${query.amp ? '_JS' : ''}_AMP__ -->\n${docProps.html}`
+      `<!-- __NEXT_DATA__ -->\n${docProps.html}`
     )
     html = await optimizeAmp(html)
 
