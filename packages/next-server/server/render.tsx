@@ -205,7 +205,6 @@ function renderDocument(
             dynamicBuildId, // Specifies if the buildId should by dynamically fetched
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-            nextAmp: amphtml ? true : undefined,
             nextExport, // If this is a page exported by `next export`
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
@@ -497,7 +496,10 @@ export async function renderToHTML(
 
   if (amphtml && html) {
     // use replace to allow rendering directly to body in AMP mode
-    html = html.replace('__NEXT_AMP_RENDER_TARGET__', docProps.html)
+    html = html.replace(
+      '__NEXT_AMP_RENDER_TARGET__',
+      `<!-- __NEXT_JS_AMP__ -->\n${docProps.html}`
+    )
     html = await optimizeAmp(html)
 
     if (renderOpts.ampValidator) {
