@@ -496,7 +496,6 @@ export async function renderToHTML(
 
   if (amphtml && html) {
     // use replace to allow rendering directly to body in AMP mode
-    // also add __NEXT_JS_AMP__ for hybrid AMP pages and __NEXT_AMP__ for AMP first pages
     html = html.replace(
       '__NEXT_AMP_RENDER_TARGET__',
       `<!-- __NEXT_DATA__ -->${docProps.html}`
