@@ -61,6 +61,7 @@ export type NEXT_DATA = {
   dynamicBuildId: boolean
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
+  nextAmp?: boolean
   nextExport?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
