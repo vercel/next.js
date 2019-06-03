@@ -33,7 +33,7 @@ type RouteInfo = {
   error?: any
 }
 
-type Subscription = (data: { App?: ComponentType } & RouteInfo) => void
+type Subscription = (data: RouteInfo, App?: ComponentType) => void
 
 type BeforePopStateCallback = (state: any) => boolean
 
@@ -46,7 +46,7 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
-  subscription: Subscription
+  sub: Subscription
   componentLoadCancel: (() => void) | null
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
@@ -96,7 +96,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.subscription = subscription
+    this.sub = subscription
     this.componentLoadCancel = null
 
     if (typeof window !== 'undefined') {
@@ -587,6 +587,6 @@ export default class Router implements BaseRouter {
   }
 
   notify(data: RouteInfo): void {
-    this.subscription({ ...data, App: this.components['/_app'].Component })
+    this.sub(data, this.components['/_app'].Component)
   }
 }

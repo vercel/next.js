@@ -140,7 +140,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     App,
     Component,
     err: initialErr,
-    subscription: ({ App, Component, props, err }) => {
+    subscription: ({ Component, props, err }, App) => {
       render({ App, Component, props, err, emitter })
     }
   })
