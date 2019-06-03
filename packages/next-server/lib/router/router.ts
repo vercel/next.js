@@ -589,8 +589,7 @@ export default class Router implements BaseRouter {
     this.subscriptions.forEach(fn => fn({ ...data, App }))
   }
 
-  subscribe(fn: Subscription): () => void {
+  subscribe(fn: Subscription): void {
     this.subscriptions.add(fn)
-    return () => this.subscriptions.delete(fn)
   }
 }
