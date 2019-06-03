@@ -12,10 +12,32 @@ import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
 
-class ErrorBoundary extends React.Component {
+class Container extends React.Component {
   componentDidCatch (err, info) {
     this.props.fn(err, info)
   }
+
+  componentDidMount () {
+    this.scrollToHash()
+  }
+
+  componentDidUpdate () {
+    this.scrollToHash()
+  }
+
+  scrollToHash () {
+    let { hash } = window.location
+    hash = hash && hash.substring(1)
+    if (!hash) return
+
+    const el = document.getElementById(hash)
+    if (!el) return
+
+    // If we call scrollIntoView() in here without a setTimeout
+    // it won't scroll properly.
+    setTimeout(() => el.scrollIntoView(), 0)
+  }
+
   render () {
     return this.props.children
   }
@@ -229,7 +251,7 @@ async function doRender ({ App, Component, props, err }) {
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
     renderReactElement(
-      <ErrorBoundary
+      <Container
         fn={error =>
           renderError({ App, err: error }).catch(err =>
             console.error('Error rendering page: ', err)
@@ -245,7 +267,7 @@ async function doRender ({ App, Component, props, err }) {
             </DataManagerContext.Provider>
           </RouterContext.Provider>
         </Suspense>
-      </ErrorBoundary>,
+      </Container>,
       appContainer
     )
   }
