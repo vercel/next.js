@@ -193,10 +193,11 @@ export async function renderError (props) {
   await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
 }
 
-let isInitialRender = true
+// If hydrate does not exist, eg in preact.
+let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
   // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender && typeof ReactDOM.hydrate === 'function') {
+  if (isInitialRender) {
     ReactDOM.hydrate(reactEl, domEl)
     isInitialRender = false
   } else {
