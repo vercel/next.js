@@ -46,7 +46,7 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
-  subscriptions: Set<Subscription>
+  subscription: Subscription
   componentLoadCancel: (() => void) | null
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
@@ -63,7 +63,9 @@ export default class Router implements BaseRouter {
       App,
       Component,
       err,
+      subscription,
     }: {
+      subscription: Subscription
       initialProps: any
       pageLoader: any
       Component: ComponentType
@@ -94,7 +96,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.subscriptions = new Set()
+    this.subscription = subscription
     this.componentLoadCancel = null
 
     if (typeof window !== 'undefined') {
@@ -585,11 +587,6 @@ export default class Router implements BaseRouter {
   }
 
   notify(data: RouteInfo): void {
-    const { Component: App } = this.components['/_app']
-    this.subscriptions.forEach(fn => fn({ ...data, App }))
-  }
-
-  subscribe(fn: Subscription): void {
-    this.subscriptions.add(fn)
+    this.subscription({ ...data, App: this.components['/_app'].Component })
   }
 }

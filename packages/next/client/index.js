@@ -139,11 +139,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     pageLoader,
     App,
     Component,
-    err: initialErr
-  })
-
-  router.subscribe(({ App, Component, props, err }) => {
-    render({ App, Component, props, err, emitter })
+    err: initialErr,
+    subscription: ({ App, Component, props, err }) => {
+      render({ App, Component, props, err, emitter })
+    }
   })
 
   render({ App, Component, props, err: initialErr, emitter })
