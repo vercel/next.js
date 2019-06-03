@@ -496,7 +496,10 @@ export async function renderToHTML(
 
   if (amphtml && html) {
     // use replace to allow rendering directly to body in AMP mode
-    html = html.replace('__NEXT_AMP_RENDER_TARGET__', docProps.html)
+    html = html.replace(
+      '__NEXT_AMP_RENDER_TARGET__',
+      `<!-- __NEXT_DATA__ -->${docProps.html}`
+    )
     html = await optimizeAmp(html)
 
     if (renderOpts.ampValidator) {
