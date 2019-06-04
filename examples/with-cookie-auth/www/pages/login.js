@@ -3,13 +3,7 @@ import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
-const { API_URL } = process.env
-
 class Login extends Component {
-  static getInitialProps ({ req }) {
-    return { apiUrl: `${API_URL}/api/login.js` }
-  }
-
   constructor (props) {
     super(props)
 
@@ -26,7 +20,7 @@ class Login extends Component {
     event.preventDefault()
     this.setState({ error: '' })
     const username = this.state.username
-    const url = this.props.apiUrl
+    const url = `${process.env.API_URL}/api/login.js`
 
     try {
       const response = await fetch(url, {

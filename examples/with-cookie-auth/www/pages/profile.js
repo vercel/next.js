@@ -4,8 +4,6 @@ import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
 import { withAuthSync } from '../utils/auth'
 
-const { API_URL } = process.env
-
 const Profile = props => {
   const { name, login, bio, avatarUrl } = props.data
 
@@ -43,7 +41,7 @@ const Profile = props => {
 
 Profile.getInitialProps = async ctx => {
   const { token } = nextCookie(ctx)
-  const apiUrl = `${API_URL}/api/profile.js`
+  const url = `${process.env.API_URL}/api/profile.js`
 
   const redirectOnError = () =>
     process.browser
@@ -51,7 +49,7 @@ Profile.getInitialProps = async ctx => {
       : ctx.res.writeHead(302, { Location: '/login' }).end()
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch(url, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
