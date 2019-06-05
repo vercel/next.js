@@ -11,7 +11,7 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import fs from 'fs'
 import { promisify } from 'util'
-import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
@@ -382,7 +382,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
       if (!serverDir) {
-        serverDir = path.join(serverBundle.split(/\/pages/).shift()!, 'pages')
+        serverDir = path.join(
+          serverBundle.split(/(\/|\\)pages/).shift()!,
+          'pages'
+        )
       }
       await fsUnlink(serverBundle)
     }

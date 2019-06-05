@@ -3,7 +3,7 @@ import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'strip-ansi'
 
-import formatWebpackMessages from '../../client/dev-error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
 
 export function startedDevelopmentServer(appUrl: string) {

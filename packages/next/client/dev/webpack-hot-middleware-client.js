@@ -1,4 +1,4 @@
-import connect from './dev-error-overlay/hot-dev-client'
+import connect from './error-overlay/hot-dev-client'
 
 export default ({ assetPrefix }) => {
   const options = {
