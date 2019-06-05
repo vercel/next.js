@@ -1,5 +1,6 @@
 import React from 'react'
-import { NextPageContext, NextComponentType } from 'next-server/dist/lib/utils'
+
+import { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest } from 'next-server/dist/lib/utils'
 
 /// <reference types="node" />
 /// <reference types="react" />
@@ -37,4 +38,4 @@ export type NextPage<P = {}, IP = P> = {
   getInitialProps?(ctx: NextPageContext): Promise<IP>
 }
 
-export { NextPageContext, NextComponentType }
+export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
