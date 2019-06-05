@@ -262,15 +262,23 @@ async function doRender ({ App, Component, props, err }) {
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement(
-      <Suspense fallback={<div>Loading...</div>}>
-        <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <DataManagerContext.Provider value={dataManager}>
-            <HeadManagerContext.Provider value={headManager.updateHead}>
-              <App {...appProps} />
-            </HeadManagerContext.Provider>
-          </DataManagerContext.Provider>
-        </RouterContext.Provider>
-      </Suspense>,
+      <Container
+        fn={error =>
+          renderError({ App, err: error }).catch(err =>
+            console.error('Error rendering page: ', err)
+          )
+        }
+      >
+        <Suspense fallback={<div>Loading...</div>}>
+          <RouterContext.Provider value={makePublicRouterInstance(router)}>
+            <DataManagerContext.Provider value={dataManager}>
+              <HeadManagerContext.Provider value={headManager.updateHead}>
+                <App {...appProps} />
+              </HeadManagerContext.Provider>
+            </DataManagerContext.Provider>
+          </RouterContext.Provider>
+        </Suspense>
+      </Container>,
       appContainer
     )
   } else {
