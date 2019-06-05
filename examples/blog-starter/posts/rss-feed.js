@@ -29,14 +29,4 @@ const feed = {
   }))
 }
 
-// module.exports = (req, res) => {
-//   res.setHeader("content-type", "application/json");
-//   res.end(JSON.stringify(feed));
-// };
-
-fs.writeFileSync(
-  path.join(`${__dirname}/../static`, 'feed.json'),
-  JSON.stringify(feed)
-)
-
-// module.exports = generateRSSFeed;
+fs.writeFileSync(path.join('./.next/static', 'feed.json'), JSON.stringify(feed))

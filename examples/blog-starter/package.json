@@ -3,8 +3,8 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "test": "jest"
+    "build:rss": "node ./.next/serverless/posts/rss-feed.js",
+    "now-build": "next build && yarn build:rss"
   },
   "dependencies": {
     "@zeit/next-css": "^1.0.1",
