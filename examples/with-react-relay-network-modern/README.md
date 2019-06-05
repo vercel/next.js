@@ -7,9 +7,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-relay-modern with-relay-modern-app
+npx create-next-app --example with-react-relay-network-modern with-react-relay-network-modern-app
 # or
-yarn create next-app --example with-relay-modern with-relay-modern-app
+yarn create next-app --example with-react-relay-network-modern with-react-relay-network-modern-app
 ```
 
 ### Download manually

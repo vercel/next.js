@@ -73,7 +73,7 @@ export class Container extends React.Component {
     if (__NEXT_DATA__.nextExport) {
       const curQuery = '?' + stringifyQs(singletonRouter.query)
       const hasDiffQuery = location.search && curQuery !== location.search
-      const isDynamic = singletonRouter.pathname.includes('/$')
+      const isDynamic = singletonRouter.pathname.indexOf('/$') !== -1
       if (isDynamic || hasDiffQuery) {
         const parsedQuery = parseQs(
           location.search.startsWith('?')
