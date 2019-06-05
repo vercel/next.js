@@ -382,7 +382,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
       if (!serverDir) {
-        serverDir = path.join(serverBundle.split(/\/pages/).shift()!, 'pages')
+        serverDir = path.join(
+          serverBundle.split(/(\/|\\)pages/).shift()!,
+          'pages'
+        )
       }
       await fsUnlink(serverBundle)
     }
