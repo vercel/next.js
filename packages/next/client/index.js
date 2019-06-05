@@ -79,28 +79,22 @@ class Container extends React.Component {
   componentDidMount () {
     this.scrollToHash()
 
-    if (data.nextExport) {
-      const curQuery = '?' + stringifyQs(router.query)
-      const hasDiffQuery =
-        window.location.search && curQuery !== window.location.search
-      const isDynamic = router.pathname.indexOf('/$') !== -1
-      if (isDynamic || hasDiffQuery) {
-        const parsedQuery = parseQs(
-          window.search.startsWith('?')
-            ? window.location.search.substr(1)
-            : window.location.search
-        )
-        // update query on mount for exported pages
-        let qsString = stringifyQs({
-          ...router.query,
-          ...parsedQuery
-        })
-        qsString = qsString ? '?' + qsString : qsString
-        router.replace(
-          router.pathname + qsString,
-          window.location.pathname + qsString
-        )
-      }
+    // If page was exported and has a querystring
+    // If it's a dynamic route (/$ inside) or has a querystring
+    if (
+      data.nextExport &&
+      (router.pathname.indexOf('/$') !== -1 || window.location.search)
+    ) {
+      // update query on mount for exported pages
+      router.replace(
+        router.pathname +
+          '?' +
+          stringifyQs({
+            ...router.query,
+            ...parseQs(window.location.search.substr(1))
+          }),
+        asPath
+      )
     }
   }
 
