@@ -7,9 +7,5 @@
     "moduleResolution": "node",
     "jsx": "react"
   },
-  "exclude": [
-    "./dist/**",
-    "./*.d.ts",
-    "./constants.d.ts"
-  ]
+  "exclude": ["./dist/**", "./*.d.ts", "./constants.d.ts"]
 }

@@ -2,6 +2,7 @@ import initNext, * as next from './'
 import EventSourcePolyfill from './event-source-polyfill'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
+import initializeBuildWatcher from './dev-build-watcher'
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
@@ -15,9 +16,7 @@ if (!window.EventSource) {
 }
 
 const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
+  __NEXT_DATA__: { assetPrefix }
 } = window
 
 const prefix = assetPrefix || ''
@@ -25,8 +24,9 @@ const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
-  .then((emitter) => {
+  .then(emitter => {
     initOnDemandEntries({ assetPrefix: prefix })
+    initializeBuildWatcher()
 
     let lastScroll
 
@@ -49,6 +49,7 @@ initNext({ webpackHMR })
         lastScroll = null
       }
     })
-  }).catch((err) => {
+  })
+  .catch(err => {
     console.error('Error was not caught', err)
   })

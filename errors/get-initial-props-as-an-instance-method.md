@@ -10,11 +10,11 @@ Use the static keyword.
 
 ```js
 export default class YourEntryComponent extends React.Component {
-  static getInitialProps () {
+  static getInitialProps() {
     return {}
   }
 
-  render () {
+  render() {
     return 'foo'
   }
 }
@@ -23,7 +23,7 @@ export default class YourEntryComponent extends React.Component {
 or
 
 ```js
-const YourEntryComponent = function () {
+const YourEntryComponent = function() {
   return 'foo'
 }
 

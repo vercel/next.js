@@ -3,7 +3,7 @@ const RobotsLink = () => {
     <a href="/robots.txt" target="_blank">
       Robots
     </a>
-  );
-};
+  )
+}
 
-export { RobotsLink };
+export { RobotsLink }

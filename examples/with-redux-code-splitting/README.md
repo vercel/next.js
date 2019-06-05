@@ -1,4 +1,3 @@
-
 # Redux with code splitting example
 
 ## How to use

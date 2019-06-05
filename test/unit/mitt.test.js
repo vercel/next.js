@@ -3,7 +3,7 @@ import mitt from 'next-server/dist/lib/mitt'
 
 describe('mitt', () => {
   describe('With listeners', () => {
-    it('should listen to a event', (done) => {
+    it('should listen to a event', done => {
       const ev = mitt()
       ev.on('sample', done)
       ev.emit('sample')
@@ -13,8 +13,12 @@ describe('mitt', () => {
       const ev = mitt()
       let cnt = 0
 
-      ev.on('sample', () => { cnt += 1 })
-      ev.on('sample', () => { cnt += 1 })
+      ev.on('sample', () => {
+        cnt += 1
+      })
+      ev.on('sample', () => {
+        cnt += 1
+      })
 
       ev.emit('sample')
 
@@ -24,7 +28,9 @@ describe('mitt', () => {
     it('should listen to multiple events', () => {
       const ev = mitt()
       const data = []
-      const cb = (name) => { data.push(name) }
+      const cb = name => {
+        data.push(name)
+      }
 
       ev.on('sample1', cb)
       ev.on('sample2', cb)
@@ -39,7 +45,9 @@ describe('mitt', () => {
       const ev = mitt()
       let data
 
-      ev.on('sample', (...args) => { data = args })
+      ev.on('sample', (...args) => {
+        data = args
+      })
       ev.emit('sample', 'one', 'two')
 
       expect(data).toEqual(['one', 'two'])
@@ -48,7 +56,9 @@ describe('mitt', () => {
     it('should possible to stop listening an event', () => {
       const ev = mitt()
       let cnt = 0
-      const cb = () => { cnt += 1 }
+      const cb = () => {
+        cnt += 1
+      }
 
       ev.on('sample', cb)
 

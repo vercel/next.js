@@ -19,18 +19,12 @@ export default (context, render) => {
         const editedContent = originalContent.replace('Hello HMR', 'Hi HMR')
         writeFileSync(appPath, editedContent, 'utf8')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Hi HMR/
-        )
+        await check(() => browser.elementByCss('body').text(), /Hi HMR/)
 
         // add the original content
         writeFileSync(appPath, originalContent, 'utf8')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Hello HMR/
-        )
+        await check(() => browser.elementByCss('body').text(), /Hello HMR/)
       } finally {
         writeFileSync(appPath, originalContent, 'utf8')
         if (browser) {
@@ -45,11 +39,13 @@ export default (context, render) => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/')
-        const text = await browser
-          .elementByCss('#hello-hmr').text()
+        const text = await browser.elementByCss('#hello-hmr').text()
         expect(text).toBe('Hello HMR')
 
-        const editedContent = originalContent.replace('Hello Document HMR', 'Hi Document HMR')
+        const editedContent = originalContent.replace(
+          'Hello Document HMR',
+          'Hi Document HMR'
+        )
 
         // change the content
         writeFileSync(appPath, editedContent, 'utf8')
@@ -80,9 +76,11 @@ export default (context, render) => {
       const randomNumber = await browser.elementByCss('#random-number').text()
 
       const switchedRandomNumer = await browser
-        .elementByCss('#about-link').click()
+        .elementByCss('#about-link')
+        .click()
         .waitForElementByCss('.page-about')
-        .elementByCss('#random-number').text()
+        .elementByCss('#random-number')
+        .text()
 
       expect(switchedRandomNumer).toBe(randomNumber)
       await browser.close()

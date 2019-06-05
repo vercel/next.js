@@ -1,10 +1,10 @@
 import React from 'react'
-import {AmpModeContext} from './amphtml-context'
+import { AmpModeContext } from './amphtml-context'
 
 export function isAmp({
-  enabled= false,
-  hybrid= false,
-  hasQuery= false,
+  enabled = false,
+  hybrid = false,
+  hasQuery = false,
 } = {}) {
   return enabled && (!hybrid || (hybrid && hasQuery))
 }
@@ -15,11 +15,8 @@ export function useAmp() {
   return isAmp(ampMode) // && ampMode.hasQuery
 }
 
-export function withAmp(
-  Component: any,
-  { hybrid = false } = {},
-): any {
-  function WithAmpWrapper(props= {}) {
+export function withAmp(Component: any, { hybrid = false } = {}): any {
+  function WithAmpWrapper(props = {}) {
     const ampMode = React.useContext(AmpModeContext)
     ampMode.enabled = true
     ampMode.hybrid = hybrid

@@ -17,15 +17,9 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
+    "typeRoots": ["./node_modules/@types"],
     "outDir": "./dist",
-    "lib": [
-      "dom",
-      "es2015",
-      "es2016"
-    ]
+    "lib": ["dom", "es2015", "es2016"]
   },
   "include": ["./src/**/*"],
   "exclude": ["./src/server/**/*"]

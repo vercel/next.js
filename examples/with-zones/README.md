@@ -77,16 +77,16 @@ These rules are based on ZEIT now v1 [path alias](https://zeit.co/docs/features/
 
 ## Special Notes
 
-* All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviour in client side navigation.
-  * According to the above example, a page named `blog` should not be exist in the `home` zone.
+- All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviour in client side navigation.
+  - According to the above example, a page named `blog` should not be exist in the `home` zone.
 
 ## Production Deployment
 
 Here's how are going to deploy this application into production.
 
-* Open the `now.json` and `next.config.js` files in both `blog` and `home` directories and change the aliases as you wish.
-* Then update `routes` in `home/now.json` accordingly.
-* Now deploy both apps:
+- Open the `now.json` and `next.config.js` files in both `blog` and `home` directories and change the aliases as you wish.
+- Then update `routes` in `home/now.json` accordingly.
+- Now deploy both apps:
 
 ```bash
 cd home

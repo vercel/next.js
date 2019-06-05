@@ -1,4 +1,4 @@
-import minify from './minify';
+import minify from './minify'
 
 module.exports = (options, callback) => {
   try {
@@ -12,10 +12,10 @@ module.exports = (options, callback) => {
       '__filename',
       '__dirname',
       `'use strict'\nreturn ${options}`
-    )(exports, require, module, __filename, __dirname);
+    )(exports, require, module, __filename, __dirname)
 
-    callback(null, minify(options));
+    callback(null, minify(options))
   } catch (errors) {
-    callback(errors);
+    callback(errors)
   }
-};
+}

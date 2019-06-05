@@ -27,11 +27,11 @@ cd with-firebase-hosting
 <details>
 <summary><b>Set up firebase</b></summary>
 
-* install Firebase Tools: `npm i -g firebase-tools`
-* create a project through the [firebase web console](https://console.firebase.google.com/)
-* grab the projects ID from the web consoles URL: `https://console.firebase.google.com/project/<projectId>`
-* update the `.firebaserc` default project ID to the newly created project
-* login to the Firebase CLI tool with `firebase login`
+- install Firebase Tools: `npm i -g firebase-tools`
+- create a project through the [firebase web console](https://console.firebase.google.com/)
+- grab the projects ID from the web consoles URL: `https://console.firebase.google.com/project/<projectId>`
+- update the `.firebaserc` default project ID to the newly created project
+- login to the Firebase CLI tool with `firebase login`
 
 </details>
 
@@ -78,9 +78,9 @@ If you're having issues, feel free to tag @jthegedus in the [issue you create on
 
 ## Important
 
-* The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
-* `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-* Specifying [`"engines": {"node": "8"}`](package.json#L5-L7) in the `package.json` is required for firebase functions
+- The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
+- `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
+- Specifying [`"engines": {"node": "8"}`](package.json#L5-L7) in the `package.json` is required for firebase functions
   to be deployed on Node 8 rather than Node 6
   ([Firebase Blog Announcement](https://firebase.googleblog.com/2018/08/cloud-functions-for-firebase-config-node-8-timeout-memory-region.html))
   . This is matched in [`src/functions/.babelrc`](src/functions/.babelrc) so that babel output somewhat compacter and moderner code.
@@ -89,14 +89,14 @@ If you're having issues, feel free to tag @jthegedus in the [issue you create on
 
 Next App and Next Server development are separated into two different folders:
 
-* app - `src/app/`
-* server - `src/functions/`
+- app - `src/app/`
+- server - `src/functions/`
 
 If you wish to modify any configuration of the Next App, you should only modify the contents of `src/app`.
 
 For instance, the `.babelrc` in `src/functions` is used only to compile the Firebase Cloud Functions code, which is our the Next Server code. If you wish to customize the `.babelrc` for the Next App compilation, then you should create one at `src/app/.babelrc` and follow the [customization guide](https://github.com/zeit/next.js#customizing-babel-config).
 
-### _app.js
+### \_app.js
 
 If using `_app.js` you may receive the following error on your deployed Cloud Function:
 

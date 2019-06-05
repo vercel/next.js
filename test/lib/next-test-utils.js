@@ -17,7 +17,12 @@ import _pkg from 'next/package.json'
 export const nextServer = server
 export const pkg = _pkg
 
-export function initNextServerScript (scriptPath, successRegexp, env, failRegexp) {
+export function initNextServerScript (
+  scriptPath,
+  successRegexp,
+  env,
+  failRegexp
+) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
 
@@ -46,7 +51,7 @@ export function initNextServerScript (scriptPath, successRegexp, env, failRegexp
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', (err) => {
+    instance.on('error', err => {
       reject(err)
     })
   })
@@ -58,11 +63,13 @@ export function renderViaAPI (app, pathname, query) {
 }
 
 export function renderViaHTTP (appPort, pathname, query) {
-  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
+  return fetchViaHTTP(appPort, pathname, query).then(res => res.text())
 }
 
 export function fetchViaHTTP (appPort, pathname, query, opts) {
-  const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  const url = `http://localhost:${appPort}${pathname}${
+    query ? `?${qs.stringify(query)}` : ''
+  }`
   return fetch(url, opts)
 }
 
@@ -79,7 +86,12 @@ export function runNextCommand (argv, options = {}) {
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', [nextBin, ...argv], { ...options.spawnOptions, cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const instance = spawn('node', [nextBin, ...argv], {
+      ...options.spawnOptions,
+      cwd,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
 
     if (typeof options.instance === 'function') {
       options.instance(instance)
@@ -106,7 +118,7 @@ export function runNextCommand (argv, options = {}) {
       })
     })
 
-    instance.on('error', (err) => {
+    instance.on('error', err => {
       err.stdout = stdoutOutput
       err.stderr = stderrOutput
       reject(err)
@@ -141,7 +153,7 @@ export function runNextCommandDev (argv, stdOut) {
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', (err) => {
+    instance.on('error', err => {
       reject(err)
     })
   })
@@ -167,7 +179,7 @@ export function nextStart (dir, port) {
 // Kill a launched app
 export async function killApp (instance) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, (err) => {
+    treeKill(instance.pid, err => {
       if (err) return reject(err)
       resolve()
     })
@@ -206,7 +218,7 @@ function promiseCall (obj, method, ...args) {
 }
 
 export function waitFor (millis) {
-  return new Promise((resolve) => setTimeout(resolve, millis))
+  return new Promise(resolve => setTimeout(resolve, millis))
 }
 
 export async function startStaticServer (dir) {
@@ -249,7 +261,9 @@ export async function check (contentFn, regex) {
 export class File {
   constructor (path) {
     this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
+    this.originalContent = existsSync(this.path)
+      ? readFileSync(this.path, 'utf8')
+      : null
   }
 
   write (content) {
@@ -293,12 +307,16 @@ export async function getReactErrorOverlayContent (browser) {
       }
 
       found = true
-      return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+      return browser.eval(
+        `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+      )
     } catch (ex) {
       await waitFor(1000)
     }
   }
-  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+  return browser.eval(
+    `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+  )
 }
 
 export function getBrowserBodyText (browser) {

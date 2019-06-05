@@ -6,14 +6,16 @@ export const route = pathMatch()
 
 type Params = { [param: string]: any }
 
+export type RouteMatch = (pathname: string | undefined) => false | Params
+
 export type Route = {
-  match: (pathname: string | undefined) => false | Params
+  match: RouteMatch
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
     params: Params,
-    parsedUrl: UrlWithParsedQuery,
-  ) => void,
+    parsedUrl: UrlWithParsedQuery
+  ) => void
 }
 
 export default class Router {
@@ -29,7 +31,7 @@ export default class Router {
   match(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery,
+    parsedUrl: UrlWithParsedQuery
   ) {
     const { pathname } = parsedUrl
     for (const route of this.routes) {

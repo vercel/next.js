@@ -15,6 +15,6 @@
     "removeComments": false,
     "preserveConstEnums": true,
     "sourceMap": true,
-    "esModuleInterop": true,
+    "esModuleInterop": true
   }
 }

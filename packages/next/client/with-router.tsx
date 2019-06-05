@@ -1,16 +1,22 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { NextComponentType, NextPageContext } from 'next-server/dist/lib/utils'
-import { PublicRouterInstance } from './router';
+import { PublicRouterInstance } from './router'
 
 export type WithRouterProps = {
-  router: PublicRouterInstance,
+  router: PublicRouterInstance
 }
 
-export type ExcludeRouterProps<P> = Pick<P, Exclude<keyof P, keyof WithRouterProps>>
+export type ExcludeRouterProps<P> = Pick<
+  P,
+  Exclude<keyof P, keyof WithRouterProps>
+>
 
-export default function withRouter<P extends WithRouterProps, C = NextPageContext>(
-  ComposedComponent: NextComponentType<C, any, P>,
+export default function withRouter<
+  P extends WithRouterProps,
+  C = NextPageContext
+>(
+  ComposedComponent: NextComponentType<C, any, P>
 ): React.ComponentClass<ExcludeRouterProps<P>> {
   class WithRouteWrapper extends React.Component<ExcludeRouterProps<P>> {
     static displayName?: string
@@ -22,16 +28,19 @@ export default function withRouter<P extends WithRouterProps, C = NextPageContex
     context!: WithRouterProps
 
     render() {
-      return <ComposedComponent
-        router={this.context.router}
-        {...this.props as any}
-      />
+      return (
+        <ComposedComponent
+          router={this.context.router}
+          {...this.props as any}
+        />
+      )
     }
   }
 
   WithRouteWrapper.getInitialProps = ComposedComponent.getInitialProps
   if (process.env.NODE_ENV !== 'production') {
-    const name = ComposedComponent.displayName || ComposedComponent.name || 'Unknown'
+    const name =
+      ComposedComponent.displayName || ComposedComponent.name || 'Unknown'
     WithRouteWrapper.displayName = `withRouter(${name})`
   }
 

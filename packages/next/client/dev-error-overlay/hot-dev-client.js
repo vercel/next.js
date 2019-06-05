@@ -50,7 +50,11 @@ let hadRuntimeError = false
 let customHmrEventHandler
 export default function connect (options) {
   // Open stack traces in an editor.
-  ErrorOverlay.setEditorHandler(function editorHandler ({ fileName, lineNumber, colNumber }) {
+  ErrorOverlay.setEditorHandler(function editorHandler ({
+    fileName,
+    lineNumber,
+    colNumber
+  }) {
     // Resolve invalid paths coming from react-error-overlay
     const resolvedFilename = fileName.replace(/^webpack:\/\//, '')
     fetch(
@@ -80,7 +84,7 @@ export default function connect (options) {
     })
   }
 
-  getEventSourceWrapper(options).addMessageListener((event) => {
+  getEventSourceWrapper(options).addMessageListener(event => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -204,8 +208,7 @@ function processMessage (e) {
   switch (obj.action) {
     case 'building': {
       console.log(
-        '[HMR] bundle ' + (obj.name ? "'" + obj.name + "' " : '') +
-        'rebuilding'
+        '[HMR] bundle ' + (obj.name ? "'" + obj.name + "' " : '') + 'rebuilding'
       )
       break
     }
@@ -295,9 +298,11 @@ async function tryApplyUpdates (onHotUpdateSuccess) {
 
   // https://webpack.github.io/docs/hot-module-replacement.html#check
   try {
-    const updatedModules = await module.hot.check(/* autoApply */ {
-      ignoreUnaccepted: true
-    })
+    const updatedModules = await module.hot.check(
+      /* autoApply */ {
+        ignoreUnaccepted: true
+      }
+    )
     if (updatedModules) {
       handleApplyUpdates(null, updatedModules)
     }

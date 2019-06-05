@@ -1,65 +1,71 @@
-import * as React from 'react';
+import * as React from 'react'
 
-import * as T from './types';
+import * as T from './types'
 
 export interface CarsOverviewProps {
-    cars : T.CarList;
+  cars: T.CarList
 }
 
 export interface CarsOverviewState {
-    selectedCar : T.Car;
+  selectedCar: T.Car
 }
 
-export default class CarsOverview extends React.Component < CarsOverviewProps,
-CarsOverviewState > {
-    constructor(props : CarsOverviewProps) {
-        super(props);
+export default class CarsOverview extends React.Component<
+  CarsOverviewProps,
+  CarsOverviewState
+> {
+  constructor(props: CarsOverviewProps) {
+    super(props)
 
-        this.state = {
-            selectedCar: null
-        }
+    this.state = {
+      selectedCar: null,
+    }
+  }
+
+  handleSelectCar = (car: T.Car): void => {
+    this.setState({ selectedCar: car })
+  }
+
+  renderCarsList = (cars: T.CarList): JSX.Element => {
+    if (!cars || cars.length === 0) {
+      return <p>No cars</p>
     }
 
-    handleSelectCar = (car : T.Car) : void => {
-        this.setState({selectedCar: car});
+    return (
+      <ul>
+        {cars.map(
+          (car: T.Car, index: number): JSX.Element => (
+            <li key={index} onClick={() => this.handleSelectCar(car)}>
+              {car.make} {car.model}
+            </li>
+          )
+        )}
+      </ul>
+    )
+  }
+
+  renderCarInfo = (car: T.Car): JSX.Element => {
+    if (!car) {
+      return null
     }
 
-    renderCarsList = (cars : T.CarList) : JSX.Element => {
-        if (!cars || cars.length === 0) {
-            return (
-                <p>No cars</p>
-            );
-        }
+    return (
+      <div className="CarInfo">
+        <h2>{`${car.make} ${car.model}`}</h2>
+        <section>{car.engine}</section>
+      </div>
+    )
+  }
 
-        return (
-            <ul>{cars.map((car : T.Car, index : number) : JSX.Element => <li key={index} onClick={() => this.handleSelectCar(car)}>{car.make} {car.model}</li>)}</ul>
-        );
-    }
+  render() {
+    return (
+      <div>
+        <h1>Cars Overview</h1>
 
-    renderCarInfo = (car : T.Car) : JSX.Element => {        
-        if (!car) {
-            return null;
-        }
+        <div className="Cars__List">{this.renderCarsList(this.props.cars)}</div>
 
-        return (
-            <div className="CarInfo">
-                <h2>{`${car.make} ${car.model}`}</h2>
-                <section>{car.engine}</section>
-            </div>
-        );
-    }
-
-    render() {
-        return (
-            <div>
-                <h1>Cars Overview</h1>
-
-                <div className="Cars__List">
-                    {this.renderCarsList(this.props.cars)}
-                </div>
-
-                {this.renderCarInfo(this.state.selectedCar)}
-            </div>
-        );
-    }
+        {this.renderCarInfo(this.state.selectedCar)}
+      </div>
+    )
+  }
 }
