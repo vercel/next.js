@@ -16,13 +16,13 @@ export async function recursiveCopy(
   {
     concurrency = 255,
     filter = () => true,
-  }: { concurrency?: number; filter?(path: string): boolean } = {},
+  }: { concurrency?: number; filter?(path: string): boolean } = {}
 ) {
   const cwdPath = process.cwd()
   const from = path.resolve(cwdPath, source)
   const to = path.resolve(cwdPath, dest)
 
-  const sema = new Sema(255)
+  const sema = new Sema(concurrency)
 
   async function _copy(item: string) {
     const target = item.replace(from, to)
@@ -40,7 +40,7 @@ export async function recursiveCopy(
         }
       }
       const files = await readdir(item)
-      await Promise.all(files.map((file) => _copy(path.join(item, file))))
+      await Promise.all(files.map(file => _copy(path.join(item, file))))
     } else if (
       stats.isFile() &&
       // before we send the path to filter
