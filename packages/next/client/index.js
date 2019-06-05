@@ -11,37 +11,7 @@ import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
-
-class Container extends React.Component {
-  componentDidCatch (err, info) {
-    this.props.fn(err, info)
-  }
-
-  componentDidMount () {
-    this.scrollToHash()
-  }
-
-  componentDidUpdate () {
-    this.scrollToHash()
-  }
-
-  scrollToHash () {
-    let { hash } = window.location
-    hash = hash && hash.substring(1)
-    if (!hash) return
-
-    const el = document.getElementById(hash)
-    if (!el) return
-
-    // If we call scrollIntoView() in here without a setTimeout
-    // it won't scroll properly.
-    setTimeout(() => el.scrollIntoView(), 0)
-  }
-
-  render () {
-    return this.props.children
-  }
-}
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -100,6 +70,61 @@ export let router
 export let ErrorComponent
 let Component
 let App
+
+class Container extends React.Component {
+  componentDidCatch (err, info) {
+    this.props.fn(err, info)
+  }
+
+  componentDidMount () {
+    this.scrollToHash()
+
+    if (data.nextExport) {
+      const curQuery = '?' + stringifyQs(router.query)
+      const hasDiffQuery =
+        window.location.search && curQuery !== window.location.search
+      const isDynamic = router.pathname.indexOf('/$') !== -1
+      if (isDynamic || hasDiffQuery) {
+        const parsedQuery = parseQs(
+          window.search.startsWith('?')
+            ? window.location.search.substr(1)
+            : window.location.search
+        )
+        // update query on mount for exported pages
+        let qsString = stringifyQs({
+          ...router.query,
+          ...parsedQuery
+        })
+        qsString = qsString ? '?' + qsString : qsString
+        router.replace(
+          router.pathname + qsString,
+          window.location.pathname + qsString
+        )
+      }
+    }
+  }
+
+  componentDidUpdate () {
+    this.scrollToHash()
+  }
+
+  scrollToHash () {
+    let { hash } = window.location
+    hash = hash && hash.substring(1)
+    if (!hash) return
+
+    const el = document.getElementById(hash)
+    if (!el) return
+
+    // If we call scrollIntoView() in here without a setTimeout
+    // it won't scroll properly.
+    setTimeout(() => el.scrollIntoView(), 0)
+  }
+
+  render () {
+    return this.props.children
+  }
+}
 
 export const emitter = mitt()
 

@@ -47,7 +47,7 @@ describe('Serverless', () => {
   })
 
   it('should render an AMP page', async () => {
-    const html = await renderViaHTTP(appPort, '/some-amp')
+    const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
     expect(html).toMatch(/Hi Im an AMP page/)
     expect(html).toMatch(/ampproject\.org/)
   })
@@ -75,9 +75,11 @@ describe('Serverless', () => {
     const browser = await webdriver(appPort, '/')
     try {
       const text = await browser
-        .elementByCss('a').click()
+        .elementByCss('a')
+        .click()
         .waitForElementByCss('.fetch-page')
-        .elementByCss('#text').text()
+        .elementByCss('#text')
+        .text()
 
       expect(text).toMatch(/fetch page/)
     } finally {

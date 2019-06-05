@@ -41,6 +41,11 @@ describe('Configuration', () => {
     killApp(context.server)
   })
 
-  rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q), (p, q) => fetchViaHTTP(context.appPort, p, q))
+  rendering(
+    context,
+    'Rendering via HTTP',
+    (p, q) => renderViaHTTP(context.appPort, p, q),
+    (p, q) => fetchViaHTTP(context.appPort, p, q)
+  )
   client(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })

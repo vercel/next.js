@@ -38,19 +38,18 @@ describe('Production response size', () => {
       .map(path => `${baseUrl}${path}`)
 
     // Measure the html document and all scripts
-    const resourceUrls = [
-      baseUrl,
-      ...scriptsUrls
-    ]
+    const resourceUrls = [baseUrl, ...scriptsUrls]
 
     // Fetch all resources and get their size (bytes)
-    responseSizes = await Promise.all(resourceUrls.map(async (url) => {
-      const context = await fetch(url).then(res => res.text())
-      return {
-        url,
-        bytes: context.length
-      }
-    }))
+    responseSizes = await Promise.all(
+      resourceUrls.map(async url => {
+        const context = await fetch(url).then(res => res.text())
+        return {
+          url,
+          bytes: context.length
+        }
+      })
+    )
 
     // Clean up
     await stopApp(server)
@@ -63,7 +62,11 @@ describe('Production response size', () => {
     )
     const responseSizeKilobytes = Math.ceil(responseSizeBytes / 1024)
 
-    console.log(`Response Sizes:\n${responseSizes.map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`).join('\n')} \nOverall: ${responseSizeKilobytes} KB`)
+    console.log(
+      `Response Sizes:\n${responseSizes
+        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+        .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
+    )
 
     // These numbers are without gzip compression!
     expect(responseSizeKilobytes).toBeLessThanOrEqual(216) // Kilobytes

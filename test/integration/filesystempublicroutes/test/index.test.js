@@ -2,11 +2,7 @@
 /* global jasmine */
 import { join } from 'path'
 import getPort from 'get-port'
-import {
-  fetchViaHTTP,
-  initNextServerScript,
-  killApp
-} from 'next-test-utils'
+import { fetchViaHTTP, initNextServerScript, killApp } from 'next-test-utils'
 import clone from 'clone'
 
 const appDir = join(__dirname, '../')
@@ -51,7 +47,9 @@ describe('FileSystemPublicRoutes', () => {
 
   it('should still handle /_next routes', async () => {
     await fetch('/exportpathmap-route') // make sure it's built
-    const res = await fetch('/_next/static/development/pages/exportpathmap-route.js')
+    const res = await fetch(
+      '/_next/static/development/pages/exportpathmap-route.js'
+    )
     expect(res.status).toBe(200)
     const body = await res.text()
     expect(body).toMatch(/exportpathmap was here/)

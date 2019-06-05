@@ -6,23 +6,28 @@ import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
 import Router from './router'
 import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url-for-export'
-import { execOnce, formatWithValidation, getLocationOrigin } from 'next-server/dist/lib/utils'
+import {
+  execOnce,
+  formatWithValidation,
+  getLocationOrigin,
+} from 'next-server/dist/lib/utils'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)
   const origin = parse(getLocationOrigin(), false, true)
 
-  return !url.host ||
-    (url.protocol === origin.protocol && url.host === origin.host)
+  return (
+    !url.host || (url.protocol === origin.protocol && url.host === origin.host)
+  )
 }
 
-type Url = string|UrlObject
-type FormatResult = {href: string, as?: string}
+type Url = string | UrlObject
+type FormatResult = { href: string; as?: string }
 
 function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
-  let lastHref: null|Url = null
-  let lastAs: undefined|null|Url = null
-  let lastResult: null|FormatResult = null
+  let lastHref: null | Url = null
+  let lastAs: undefined | null | Url = null
+  let lastResult: null | FormatResult = null
   return (href: Url, as?: Url) => {
     if (lastResult && href === lastHref && as === lastAs) {
       return lastResult
@@ -37,29 +42,27 @@ function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
 }
 
 function formatUrl(url: Url) {
-  return url && typeof url === 'object'
-    ? formatWithValidation(url)
-    : url
+  return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
 
 type LinkProps = {
-  href: Url,
-  as?: Url|undefined,
-  replace?: boolean,
-  scroll?: boolean,
-  shallow?: boolean,
-  passHref?: boolean,
-  onError?: (error: Error) => void,
+  href: Url
+  as?: Url | undefined
+  replace?: boolean
+  scroll?: boolean
+  shallow?: boolean
+  passHref?: boolean
+  onError?: (error: Error) => void
   /**
    * @deprecated since version 8.1.1-canary.20
    */
-  prefetch?: boolean,
+  prefetch?: boolean
 }
 
 let observer: IntersectionObserver
 const listeners = new Map()
-const IntersectionObserver = typeof window !== 'undefined'
-  ? (window as any).IntersectionObserver : null
+const IntersectionObserver =
+  typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -73,21 +76,21 @@ function getObserver() {
   }
 
   return (observer = new IntersectionObserver(
-      (entries: any) => {
-        entries.forEach((entry: any) => {
+    (entries: any) => {
+      entries.forEach((entry: any) => {
         if (!listeners.has(entry.target)) {
           return
         }
 
         const cb = listeners.get(entry.target)
         if (entry.isIntersecting || entry.intersectionRatio > 0) {
-              observer.unobserve(entry.target)
-              listeners.delete(entry.target)
-              cb()
-            }
-        })
-      },
-      { rootMargin: '200px' },
+          observer.unobserve(entry.target)
+          listeners.delete(entry.target)
+          cb()
+        }
+      })
+    },
+    { rootMargin: '200px' }
   ))
 }
 
@@ -137,8 +140,14 @@ class Link extends Component<LinkProps> {
   linkClicked = (e: React.MouseEvent) => {
     // @ts-ignore target exists on currentTarget
     const { nodeName, target } = e.currentTarget
-    if (nodeName === 'A' &&
-      ((target && target !== '_self') || e.metaKey || e.ctrlKey || e.shiftKey || (e.nativeEvent && e.nativeEvent.which === 2))) {
+    if (
+      nodeName === 'A' &&
+      ((target && target !== '_self') ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        (e.nativeEvent && e.nativeEvent.which === 2))
+    ) {
       // ignore click for new tab / new window behavior
       return
     }
@@ -163,7 +172,9 @@ class Link extends Component<LinkProps> {
     }
 
     // replace state instead of push if prop is present
-    Router[this.props.replace ? 'replace' : 'push'](href, as, { shallow: this.props.shallow })
+    Router[this.props.replace ? 'replace' : 'push'](href, as, {
+      shallow: this.props.shallow,
+    })
       .then((success: boolean) => {
         if (!success) return
         if (scroll) {
@@ -174,7 +185,7 @@ class Link extends Component<LinkProps> {
       .catch((err: any) => {
         if (this.props.onError) this.props.onError(err)
       })
-  };
+  }
 
   prefetch() {
     if (typeof window === 'undefined') return
@@ -197,10 +208,10 @@ class Link extends Component<LinkProps> {
     // This will return the first child, if multiple are provided it will throw an error
     const child: any = Children.only(children)
     const props: {
-      onMouseEnter: React.MouseEventHandler,
-      onClick: React.MouseEventHandler,
-      href?: string,
-      ref?: any,
+      onMouseEnter: React.MouseEventHandler
+      onClick: React.MouseEventHandler
+      href?: string
+      ref?: any
     } = {
       ref: (el: any) => this.handleRef(el),
       onMouseEnter: () => {
@@ -218,7 +229,10 @@ class Link extends Component<LinkProps> {
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
     // defined, we specify the current 'href', so that repetition is not needed by the user
-    if (this.props.passHref || (child.type === 'a' && !('href' in child.props))) {
+    if (
+      this.props.passHref ||
+      (child.type === 'a' && !('href' in child.props))
+    ) {
       props.href = as || href
     }
 
@@ -257,7 +271,9 @@ if (process.env.NODE_ENV === 'development') {
         const value = props[propName]
 
         if (typeof value === 'string') {
-          warn(`Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`)
+          warn(
+            `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
+          )
         }
 
         return null

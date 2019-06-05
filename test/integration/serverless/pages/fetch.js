@@ -18,12 +18,12 @@ export default class extends React.Component {
   }
   render () {
     const { failed, error, text } = this.props
-    return <div className='fetch-page'>
-      {failed ? 'failed' : ''}
-      {error}
-      <div id='text'>
-        {text}
+    return (
+      <div className='fetch-page'>
+        {failed ? 'failed' : ''}
+        {error}
+        <div id='text'>{text}</div>
       </div>
-    </div>
+    )
   }
 }
