@@ -31,7 +31,7 @@ module.exports = function (task) {
     if (file.base === 'next-dev.js') {
       output.code = output.code.replace(
         '// REPLACE_NOOP_IMPORT',
-        `import('./noop');`
+        `import('./dev/noop');`
       )
     }
 
