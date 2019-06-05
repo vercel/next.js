@@ -61,15 +61,7 @@
     "registered": "2014-07-30T10:07:08 -02:00",
     "latitude": -9.239109,
     "longitude": 123.085402,
-    "tags": [
-      "incididunt",
-      "laboris",
-      "culpa",
-      "non",
-      "sint",
-      "sunt",
-      "et"
-    ],
+    "tags": ["incididunt", "laboris", "culpa", "non", "sint", "sunt", "et"],
     "friends": [
       {
         "id": 0,
@@ -190,15 +182,7 @@
     "registered": "2017-03-03T08:55:12 -01:00",
     "latitude": -54.522447,
     "longitude": -80.499064,
-    "tags": [
-      "officia",
-      "non",
-      "culpa",
-      "non",
-      "deserunt",
-      "ex",
-      "velit"
-    ],
+    "tags": ["officia", "non", "culpa", "non", "deserunt", "ex", "velit"],
     "friends": [
       {
         "id": 0,

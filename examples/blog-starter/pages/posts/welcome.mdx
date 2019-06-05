@@ -1,0 +1,47 @@
+import { withRouter } from 'next/router'
+import BlogPost from '../../components/layouts/blog-post'
+
+export const meta = {
+  published: true,
+  publishedAt: '2018-05-20',
+  title: 'Welcome',
+  summary: 'Welcome to your new blog built with Next.js',
+  image: '/static/site-feature.png',
+}
+
+export default withRouter(({ children, router }) => (
+  <BlogPost path={router.pathname} meta={meta}>
+    {children}
+  </BlogPost>
+))
+
+Welcome to your new blog built with Next.js.
+
+After you cloned the repository make sure you have installed [Yarn](https://yarnpkg.com/en/) and [now-cli](https://github.com/zeit/now-cli).
+
+Then, `cd` into the repository folder and install the dependencies.
+
+```bash
+$ cd nextjs-blog-starter
+$ yarn install
+```
+
+Then, check your new blog in your local development environment.
+
+```bash
+$ now dev
+```
+
+If everything went well, you&rsquo;ll see your blog at http://localhost:300 (unless you specified a different port).
+
+You&rsquo;ll find this post in your `page/posts` directory. Go ahead and edit it and see the changes appear instantly in your screen.
+
+To add new posts, simply add a MDX file in the `page/posts` directory, press `ctrl + c` to stop the development server and run `now dev` again.
+
+After you personalize your blog you can deploy it to Now.
+
+```bash
+$ now
+```
+
+Then, you will see your blog online in a URL like https://nextjs-blog-starter.now.sh

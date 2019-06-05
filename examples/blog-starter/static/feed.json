@@ -1,0 +1,46 @@
+{
+  "version": "https://jsonfeed.org/version/1",
+  "title": "Next.js Starter Blog",
+  "home_page_url": "https://nextjs-blog-starter.now.sh",
+  "feed_url": "https://nextjs-blog-starter.now.sh/feed.json",
+  "description": "Opinions and thoughts on web development, readings, and personal experiences.",
+  "icon": "https://nextjs-blog-starter.now.sh/static/apple-touch-icon-152x152.png",
+  "favicon": "https://nextjs-blog-starter.now.sh/static/favicon.ico",
+  "author": {
+    "name": "Juan Olvera",
+    "url": "https://nextjs-blog-starter.now.sh",
+    "avatar": "https://nextjs-blog-starter.now.sh/static/_jolvera-avatar.jpg"
+  },
+  "items": [
+    {
+      "id": "https://nextjs-blog-starter.now.sh/posts/welcome",
+      "url": "https://nextjs-blog-starter.now.sh/posts/welcome",
+      "title": "Welcome",
+      "content_text": "Welcome to your new blog built with Next.js - https://nextjs-blog-starter.now.sh/posts/welcome",
+      "summary": "Welcome to your new blog built with Next.js",
+      "image": "https://nextjs-blog-starter.now.sh/static/site-feature.png",
+      "date_published": "2018-05-20",
+      "author": "Juan Olvera"
+    },
+    {
+      "id": "https://nextjs-blog-starter.now.sh/posts/syntax-highlighting",
+      "url": "https://nextjs-blog-starter.now.sh/posts/syntax-highlighting",
+      "title": "Sintax highlighting",
+      "content_text": "Here are some code snippets to show you how syntax highlighting works - https://nextjs-blog-starter.now.sh/posts/syntax-highlighting",
+      "summary": "Here are some code snippets to show you how syntax highlighting works",
+      "image": "https://nextjs-blog-starter.now.sh/static/site-feature.png",
+      "date_published": "2018-05-19",
+      "author": "Juan Olvera"
+    },
+    {
+      "id": "https://nextjs-blog-starter.now.sh/posts/deploy-to-now",
+      "url": "https://nextjs-blog-starter.now.sh/posts/deploy-to-now",
+      "title": "Deploy to Now",
+      "content_text": "One of the most amazing things about this project is that you can easily deploy it to Now - https://nextjs-blog-starter.now.sh/posts/deploy-to-now",
+      "summary": "One of the most amazing things about this project is that you can easily deploy it to Now",
+      "image": "https://nextjs-blog-starter.now.sh/static/site-feature.png",
+      "date_published": "2018-05-18",
+      "author": "Juan Olvera"
+    }
+  ]
+}
