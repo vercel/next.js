@@ -1,17 +1,17 @@
-import { withRouter } from "next/router";
-import BlogPost from "../components/layouts/blog-post";
-import Page from "../components/layouts/page";
+import { withRouter } from 'next/router'
+import BlogPost from '../components/layouts/blog-post'
+import Page from '../components/layouts/page'
 
 export const meta = {
-  title: "About Me",
-  summary: "Personal description and almost a CV"
-};
+  title: 'About Me',
+  summary: 'Personal description and almost a CV',
+}
 
 export default withRouter(({ children, router }) => (
   <Page path={router.pathname} meta={meta}>
     {children}
   </Page>
-));
+))
 
 Hi! This is a placeholder page.
 

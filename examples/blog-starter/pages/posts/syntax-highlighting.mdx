@@ -1,20 +1,20 @@
-import { withRouter } from "next/router";
-import BlogPost from "../../components/layouts/blog-post";
+import { withRouter } from 'next/router'
+import BlogPost from '../../components/layouts/blog-post'
 
 export const meta = {
   published: true,
-  publishedAt: "2018-05-19",
-  title: "Sintax highlighting",
+  publishedAt: '2018-05-19',
+  title: 'Sintax highlighting',
   summary:
-    "Here are some code snippets to show you how syntax highlighting works",
-  image: "/static/site-feature.png"
-};
+    'Here are some code snippets to show you how syntax highlighting works',
+  image: '/static/site-feature.png',
+}
 
 export default withRouter(({ children, router }) => (
   <BlogPost path={router.pathname} meta={meta}>
     {children}
   </BlogPost>
-));
+))
 
 Here are some code snippets to show you how syntax highlighting works.
 
@@ -25,11 +25,11 @@ function tick() {
       <h1>Hello, world!</h1>
       <h2>It is {new Date().toLocaleTimeString()}.</h2>
     </div>
-  );
-  ReactDOM.render(element, document.getElementById("root"));
+  )
+  ReactDOM.render(element, document.getElementById('root'))
 }
 
-setInterval(tick, 1000);
+setInterval(tick, 1000)
 ```
 
 ```bash
