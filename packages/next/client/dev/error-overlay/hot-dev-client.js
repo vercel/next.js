@@ -30,7 +30,7 @@ import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
 import * as ErrorOverlay from 'react-error-overlay'
 import stripAnsi from 'strip-ansi'
-import { rewriteStacktrace } from '../source-map-support'
+import { rewriteStacktrace } from './source-map-support'
 import fetch from 'unfetch'
 
 // This alternative WebpackDevServer combines the functionality of:

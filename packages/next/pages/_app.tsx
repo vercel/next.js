@@ -7,12 +7,7 @@ import {
   AppInitialProps,
   AppPropsType,
 } from 'next-server/dist/lib/utils'
-import {
-  default as singletonRouter,
-  Router,
-  makePublicRouterInstance,
-} from '../client/router'
-import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import { Router, makePublicRouterInstance } from '../client/router'
 
 export { AppInitialProps }
 
@@ -65,55 +60,9 @@ export default class App<P = {}, CP = P> extends React.Component<
   }
 }
 
-export class Container extends React.Component {
-  componentDidMount() {
-    this.scrollToHash()
-
-    // @ts-ignore __NEXT_DATA__ is global
-    if (__NEXT_DATA__.nextExport) {
-      const curQuery = '?' + stringifyQs(singletonRouter.query)
-      const hasDiffQuery = location.search && curQuery !== location.search
-      const isDynamic = singletonRouter.pathname.indexOf('/$') !== -1
-      if (isDynamic || hasDiffQuery) {
-        const parsedQuery = parseQs(
-          location.search.startsWith('?')
-            ? location.search.substr(1)
-            : location.search
-        )
-        // update query on mount for exported pages
-        let qsString = stringifyQs({
-          ...singletonRouter.query,
-          ...parsedQuery,
-        })
-        qsString = qsString ? '?' + qsString : qsString
-        singletonRouter.replace(
-          singletonRouter.pathname + qsString,
-          location.pathname + qsString
-        )
-      }
-    }
-  }
-
-  componentDidUpdate() {
-    this.scrollToHash()
-  }
-
-  private scrollToHash() {
-    let { hash } = window.location
-    hash = hash && hash.substring(1)
-    if (!hash) return
-
-    const el = document.getElementById(hash)
-    if (!el) return
-
-    // If we call scrollIntoView() in here without a setTimeout
-    // it won't scroll properly.
-    setTimeout(() => el.scrollIntoView(), 0)
-  }
-
-  render() {
-    return this.props.children
-  }
+// @deprecated noop for now until removal
+export function Container(p: any) {
+  return p.children
 }
 
 const warnUrl = execOnce(() => {

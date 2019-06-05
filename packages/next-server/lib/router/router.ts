@@ -34,9 +34,11 @@ type RouteInfo = {
   error?: any
 }
 
-type Subscription = (data: { App?: ComponentType } & RouteInfo) => void
+type Subscription = (data: RouteInfo, App?: ComponentType) => void
 
 type BeforePopStateCallback = (state: any) => boolean
+
+type ComponentLoadCancel = (() => void) | null
 
 export default class Router implements BaseRouter {
   route: string
@@ -47,8 +49,8 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
-  subscriptions: Set<Subscription>
-  componentLoadCancel: (() => void) | null
+  sub: Subscription
+  clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
 
@@ -64,7 +66,9 @@ export default class Router implements BaseRouter {
       App,
       Component,
       err,
+      subscription,
     }: {
+      subscription: Subscription
       initialProps: any
       pageLoader: any
       Component: ComponentType
@@ -95,8 +99,8 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.subscriptions = new Set()
-    this.componentLoadCancel = null
+    this.sub = subscription
+    this.clc = null
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -522,7 +526,7 @@ export default class Router implements BaseRouter {
 
   async fetchComponent(route: string): Promise<ComponentType> {
     let cancelled = false
-    const cancel = (this.componentLoadCancel = () => {
+    const cancel = (this.clc = () => {
       cancelled = true
     })
 
@@ -536,8 +540,8 @@ export default class Router implements BaseRouter {
       throw error
     }
 
-    if (cancel === this.componentLoadCancel) {
-      this.componentLoadCancel = null
+    if (cancel === this.clc) {
+      this.clc = null
     }
 
     return Component
@@ -551,7 +555,7 @@ export default class Router implements BaseRouter {
     const cancel = () => {
       cancelled = true
     }
-    this.componentLoadCancel = cancel
+    this.clc = cancel
     const { Component: App } = this.components['/_app']
 
     const props = await loadGetInitialProps<AppContextType<Router>>(App, {
@@ -560,8 +564,8 @@ export default class Router implements BaseRouter {
       ctx,
     })
 
-    if (cancel === this.componentLoadCancel) {
-      this.componentLoadCancel = null
+    if (cancel === this.clc) {
+      this.clc = null
     }
 
     if (cancelled) {
@@ -574,20 +578,14 @@ export default class Router implements BaseRouter {
   }
 
   abortComponentLoad(as: string): void {
-    if (this.componentLoadCancel) {
+    if (this.clc) {
       Router.events.emit('routeChangeError', new Error('Route Cancelled'), as)
-      this.componentLoadCancel()
-      this.componentLoadCancel = null
+      this.clc()
+      this.clc = null
     }
   }
 
   notify(data: RouteInfo): void {
-    const { Component: App } = this.components['/_app']
-    this.subscriptions.forEach(fn => fn({ ...data, App }))
-  }
-
-  subscribe(fn: Subscription): () => void {
-    this.subscriptions.add(fn)
-    return () => this.subscriptions.delete(fn)
+    this.sub(data, this.components['/_app'].Component)
   }
 }
