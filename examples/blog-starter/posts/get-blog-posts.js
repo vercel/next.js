@@ -17,7 +17,7 @@ module.exports = files
       throw new Error(`${name} needs to export const meta = {}`)
     }
 
-    // eslint-disable no-eval
+    // eslint-disable-next-line no-eval
     const meta = eval('(' + match[1] + ')')
 
     return {
