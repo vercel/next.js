@@ -1,7 +1,11 @@
 import fs from 'fs'
-import {join} from 'path'
-import {promisify} from 'util'
-import {PAGES_MANIFEST, SERVER_DIRECTORY, SERVERLESS_DIRECTORY} from '../lib/constants'
+import { join } from 'path'
+import { promisify } from 'util'
+import {
+  PAGES_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+} from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 const readFile = promisify(fs.readFile)
@@ -12,8 +16,15 @@ export function pageNotFoundError(page: string): Error {
   return err
 }
 
-export function getPagePath(page: string, distDir: string, serverless: boolean): string {
-  const serverBuildPath = join(distDir, serverless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY)
+export function getPagePath(
+  page: string,
+  distDir: string,
+  serverless: boolean
+): string {
+  const serverBuildPath = join(
+    distDir,
+    serverless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+  )
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
@@ -36,7 +47,11 @@ export function getPagePath(page: string, distDir: string, serverless: boolean):
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export function requirePage(page: string, distDir: string, serverless: boolean): any {
+export function requirePage(
+  page: string,
+  distDir: string,
+  serverless: boolean
+): any {
   const pagePath = getPagePath(page, distDir, serverless)
   if (pagePath.endsWith('.html')) {
     return readFile(pagePath, 'utf8')

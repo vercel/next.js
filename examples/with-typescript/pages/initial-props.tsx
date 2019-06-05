@@ -1,13 +1,13 @@
 import { NextPage } from 'next'
-import Link from 'next/link';
+import Link from 'next/link'
 import Layout from '../components/Layout'
 import List from '../components/List'
 import { User } from '../interfaces'
-import { findAll } from '../utils/sample-api';
+import { findAll } from '../utils/sample-api'
 
 type Props = {
-  items: User[],
-  pathname: string,
+  items: User[]
+  pathname: string
 }
 
 const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
@@ -15,7 +15,11 @@ const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
     <h1>List Example (as Function Component)</h1>
     <p>You are currently on: {pathname}</p>
     <List items={items} />
-    <p><Link href='/'><a>Go home</a></Link></p>
+    <p>
+      <Link href="/">
+        <a>Go home</a>
+      </Link>
+    </p>
   </Layout>
 )
 

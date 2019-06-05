@@ -31,7 +31,6 @@ yarn
 yarn dev
 ```
 
-
 ### The idea behind the example
 
 This example is a page that renders information about Star-Wars characters. It

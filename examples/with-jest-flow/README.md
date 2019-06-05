@@ -43,5 +43,5 @@ yarn test
 
 This example features:
 
-* An app with jest tests
-* The [Flow](https://flowtype.org/) static type checker, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.
+- An app with jest tests
+- The [Flow](https://flowtype.org/) static type checker, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.

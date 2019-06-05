@@ -3,6 +3,7 @@
 #### Why This Error Occurred
 
 In the `serverless` target environment `next.config.js` is not loaded, so we don't support `publicRuntimeConfig`.
+
 #### Possible Ways to Fix It
 
 Use config option `env` to set **build time** variables like such:
@@ -11,8 +12,8 @@ Use config option `env` to set **build time** variables like such:
 // next.config.js
 module.exports = {
   env: {
-    special: "value"
-  }
+    special: 'value',
+  },
 }
 ```
 

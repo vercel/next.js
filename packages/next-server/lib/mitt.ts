@@ -19,7 +19,7 @@ type Handler = (...evts: any[]) => void
 export type MittEmitter = {
   on(type: string, handler: Handler): void
   off(type: string, handler: Handler): void
-  emit(type: string, ...evts: any[]): void,
+  emit(type: string, ...evts: any[]): void
 }
 
 export default function mitt(): MittEmitter {
@@ -27,7 +27,7 @@ export default function mitt(): MittEmitter {
 
   return {
     on(type: string, handler: Handler) {
-      (all[type] || (all[type] = [])).push(handler)
+      ;(all[type] || (all[type] = [])).push(handler)
     },
 
     off(type: string, handler: Handler) {
@@ -38,7 +38,9 @@ export default function mitt(): MittEmitter {
     },
 
     emit(type: string, ...evts: any[]) {
-      (all[type] || []).slice().map((handler: Handler) => { handler(...evts) })
+      ;(all[type] || []).slice().map((handler: Handler) => {
+        handler(...evts)
+      })
     },
   }
 }

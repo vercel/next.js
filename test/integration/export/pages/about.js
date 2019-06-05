@@ -13,7 +13,7 @@ const About = ({ bar }) => (
   </div>
 )
 
-About.getInitialProps = async (ctx) => {
+About.getInitialProps = async ctx => {
   return { bar: serverRuntimeConfig.bar }
 }
 

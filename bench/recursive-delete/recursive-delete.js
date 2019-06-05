@@ -7,7 +7,7 @@ async function test () {
   await recursiveDelete(resolveDataDir)
 
   const hrtime = process.hrtime(time)
-  const nanoseconds = (hrtime[0] * 1e9) + hrtime[1]
+  const nanoseconds = hrtime[0] * 1e9 + hrtime[1]
   const milliseconds = nanoseconds / 1e6
   console.log(milliseconds)
 }

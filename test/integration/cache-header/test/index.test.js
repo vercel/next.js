@@ -25,6 +25,8 @@ describe('Cache Header', () => {
 
   it('Does not set cache header with custom getInitialProps in _app', async () => {
     const res = await fetchViaHTTP(appPort, '/')
-    expect(res.headers.get('Cache-Control')).not.toBe('s-maxage=86400, stale-while-revalidate')
+    expect(res.headers.get('Cache-Control')).not.toBe(
+      's-maxage=86400, stale-while-revalidate'
+    )
   })
 })

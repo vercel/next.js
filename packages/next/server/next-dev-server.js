@@ -9,7 +9,11 @@ import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
-import { getRouteMatch } from 'next-server/dist/lib/router/utils'
+import {
+  getRouteMatcher,
+  getRouteRegex,
+  getSortedRoutes
+} from 'next-server/dist/lib/router/utils'
 
 const React = require('react')
 
@@ -102,15 +106,14 @@ export default class DevServer extends Server {
       wp.watch([], [pagesDir], 0)
 
       wp.on('aggregated', () => {
-        const newDynamicRoutes = []
+        const dynamicRoutedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined) {
             continue
           }
 
-          let pageName =
-            '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
+          let pageName = '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
           if (!pageName.includes('/$')) {
             continue
           }
@@ -119,15 +122,14 @@ export default class DevServer extends Server {
           pageName = pageName.slice(0, -pageExt.length)
 
           pageName = pageName.replace(/\/index$/, '')
-          newDynamicRoutes.push({
-            page: pageName,
-            match: getRouteMatch(pageName)
-          })
+          dynamicRoutedPages.push(pageName)
         }
 
-        this.dynamicRoutes = newDynamicRoutes.sort((a, b) =>
-          Math.sign(a.page.match(/\/\$/g).length - b.page.match(/\/\$/g).length)
-        )
+        this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
+          page,
+          match: getRouteMatcher(getRouteRegex(page))
+        }))
+
         resolve()
       })
     })

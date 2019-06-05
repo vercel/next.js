@@ -32,7 +32,12 @@ const startServer = async (optEnv = {}) => {
     optEnv
   )
 
-  server = await initNextServerScript(scriptPath, /ready on/i, env, /ReferenceError: options is not defined/)
+  server = await initNextServerScript(
+    scriptPath,
+    /ready on/i,
+    env,
+    /ReferenceError: options is not defined/
+  )
 }
 
 describe('Custom Server', () => {
@@ -48,12 +53,18 @@ describe('Custom Server', () => {
       const normalUsage = await renderViaHTTP(appPort, '/asset')
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
 
-      const dynamicUsage = await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
+      const dynamicUsage = await renderViaHTTP(
+        appPort,
+        '/asset?setAssetPrefix=1'
+      )
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
     })
 
     it('should handle null assetPrefix accordingly', async () => {
-      const normalUsage = await renderViaHTTP(appPort, '/asset?setEmptyAssetPrefix=1')
+      const normalUsage = await renderViaHTTP(
+        appPort,
+        '/asset?setEmptyAssetPrefix=1'
+      )
       expect(normalUsage).toMatch(/"\/_next/)
     })
 
@@ -111,10 +122,7 @@ describe('Custom Server', () => {
 
         indexPg.replace('Asset', 'Asset!!')
 
-        await check(
-          () => browser.elementByCss('#go-asset').text(),
-          /Asset!!/
-        )
+        await check(() => browser.elementByCss('#go-asset').text(), /Asset!!/)
       } finally {
         if (browser) {
           await browser.close()

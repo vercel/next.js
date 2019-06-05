@@ -1,9 +1,5 @@
 {
-  "extends": [
-    "tslint-config-standard",
-    "tslint:latest",
-    "tslint-react"
-  ],
+  "extends": ["tslint-config-standard", "tslint:latest", "tslint-react"],
   "rules": {
     "indent": [true, "spaces"],
     "jsx-no-lambda": false,
@@ -11,10 +7,7 @@
     "max-line-length": false,
     "no-console": false,
     "no-object-literal-type-assertion": false,
-    "no-submodule-imports": [
-      true,
-      "next"
-    ],
+    "no-submodule-imports": [true, "next"],
     "no-unused-variable": false,
     "space-before-function-paren": false,
     "ter-indent": [true, 2],

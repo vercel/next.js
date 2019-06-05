@@ -1,2 +1,2 @@
-import Server, {ServerConstructor} from './dist/server/next-server'
+import Server, { ServerConstructor } from './dist/server/next-server'
 export default function(options: ServerConstructor): Server

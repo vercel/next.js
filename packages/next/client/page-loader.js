@@ -114,7 +114,9 @@ export default class PageLoader {
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const script = document.createElement('script')
-    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+      this.buildId
+    )}/pages${scriptRoute}`
     script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
@@ -143,9 +145,11 @@ export default class PageLoader {
       // Wait for webpack to become idle if it's not.
       // More info: https://github.com/zeit/next.js/pull/1511
       if (module.hot && module.hot.status() !== 'idle') {
-        console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
+        console.log(
+          `Waiting for webpack to become "idle" to initialize the page: "${route}"`
+        )
 
-        const check = (status) => {
+        const check = status => {
           if (status === 'idle') {
             module.hot.removeStatusHandler(check)
             register()
@@ -170,7 +174,10 @@ export default class PageLoader {
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
     // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
     if ('connection' in navigator) {
-      if ((navigator.connection.effectiveType || '').indexOf('2g') !== -1 || navigator.connection.saveData) {
+      if (
+        (navigator.connection.effectiveType || '').indexOf('2g') !== -1 ||
+        navigator.connection.saveData
+      ) {
         return
       }
     }
@@ -184,7 +191,9 @@ export default class PageLoader {
       const link = document.createElement('link')
       link.rel = 'preload'
       link.crossOrigin = process.crossOrigin
-      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+        this.buildId
+      )}/pages${scriptRoute}`
       link.as = 'script'
       document.head.appendChild(link)
       return
@@ -193,7 +202,7 @@ export default class PageLoader {
     if (document.readyState === 'complete') {
       return this.loadPage(route).catch(() => {})
     } else {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         window.addEventListener('load', () => {
           this.loadPage(route).then(() => resolve(), () => resolve())
         })

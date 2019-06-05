@@ -14,8 +14,8 @@ export type Route = {
     req: IncomingMessage,
     res: ServerResponse,
     params: Params,
-    parsedUrl: UrlWithParsedQuery,
-  ) => void,
+    parsedUrl: UrlWithParsedQuery
+  ) => void
 }
 
 export default class Router {
@@ -31,7 +31,7 @@ export default class Router {
   match(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery,
+    parsedUrl: UrlWithParsedQuery
   ) {
     const { pathname } = parsedUrl
     for (const route of this.routes) {
