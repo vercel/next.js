@@ -20,6 +20,17 @@ import {
   getSortedRoutes,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { parse as parseCookies } from 'cookie'
+import {
+  parseQuery,
+  sendJson,
+  sendData,
+  parseBody,
+  sendError,
+  ApiError,
+  sendStatusCode,
+} from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import {
@@ -217,7 +228,11 @@ export default class Server {
         match: route('/api/:path*'),
         fn: async (req, res, params, parsedUrl) => {
           const { pathname } = parsedUrl
-          await this.handleApiRequest(req, res, pathname!)
+          await this.handleApiRequest(
+            req as NextApiRequest,
+            res as NextApiResponse,
+            pathname!
+          )
         },
       },
     ]
@@ -258,8 +273,8 @@ export default class Server {
    * @param pathname path of request
    */
   private async handleApiRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: NextApiRequest,
+    res: NextApiResponse,
     pathname: string
   ) {
     const resolverFunction = await this.resolveApiRequest(pathname)
@@ -269,8 +284,27 @@ export default class Server {
       return
     }
 
-    const resolver = interopDefault(require(resolverFunction))
-    resolver(req, res)
+    try {
+      // Parsing of cookies
+      req.cookies = parseCookies(req.headers.cookie || '')
+      // Parsing query string
+      req.query = parseQuery(req)
+      // // Parsing of body
+      req.body = await parseBody(req)
+
+      res.status = statusCode => sendStatusCode(res, statusCode)
+      res.send = data => sendData(res, data)
+      res.json = data => sendJson(res, data)
+
+      const resolver = interopDefault(require(resolverFunction))
+      resolver(req, res)
+    } catch (e) {
+      if (e instanceof ApiError) {
+        sendError(res, e.statusCode, e.message)
+      } else {
+        sendError(res, 500, e.message)
+      }
+    }
   }
 
   /**

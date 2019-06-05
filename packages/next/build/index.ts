@@ -381,7 +381,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // remove server bundles that were exported
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
-      if (!serverDir) serverDir = path.dirname(serverBundle)
+      if (!serverDir) {
+        serverDir = path.join(serverBundle.split(/\/pages/).shift()!, 'pages')
+      }
       await fsUnlink(serverBundle)
     }
 
