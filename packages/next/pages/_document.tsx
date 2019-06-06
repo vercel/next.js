@@ -207,7 +207,8 @@ export class Head extends Component<OriginProps> {
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        const isReactHelmet = child && child.props && child.props['data-react-helmet']
+        const isReactHelmet =
+          child && child.props && child.props['data-react-helmet']
         if (child && child.type === 'title' && !isReactHelmet) {
           console.warn(
             "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"

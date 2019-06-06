@@ -1,4 +1,4 @@
-import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
+import { getEventSourceWrapper } from './error-overlay/eventsource'
 
 export default function initializeBuildWatcher () {
   const shadowHost = document.createElement('div')
