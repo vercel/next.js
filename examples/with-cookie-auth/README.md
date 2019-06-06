@@ -22,12 +22,27 @@ cd with-cookie-auth
 
 ### Run locally
 
-After you clone the repository you can install the dependencies, run `now dev` and start hacking! You'll be able to see the application running locally as if it were deployed.
+The repository is setup as a [monorepo](https://zeit.co/examples/monorepo/) so you can deploy it easily running `now` inside the project folder. However, you can't run it the same way locally (yet).
+
+These files make it easier to run the application locally and aren't needed for production:
+
+- `/api/index.js` runs the API server on port `3001` and imports the `login` and `profile` microservices.
+- `/www/server.js` runs the Next.js app with a custom server proxying the authentication requests to the API server. We use this so we don't modify the logic on the application and we don't have to deal with CORS if we use domains while testing.
+
+Install and run the API server:
 
 ```bash
-$ cd with-cookie-auth
-$ (with-cookie-auth/) yarn install
-$ (with-cookie-auth/) now dev
+cd api
+npm install
+npm run dev
+```
+
+Then run the Next.js app:
+
+```bash
+cd ../www
+npm install
+npm run dev
 ```
 
 ### Deploy
@@ -44,8 +59,8 @@ In this example, we authenticate users and store a token in a cookie. The exampl
 
 This example is backend agnostic and uses [isomorphic-unfetch](https://www.npmjs.com/package/isomorphic-unfetch) to do the API calls on the client and the server.
 
-The repo includes a minimal passwordless backend built with the new [experimental API support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro) and the [GitHub API](https://developer.github.com/v3/). The backend allows the user to log in with their GitHub username.
+The repo includes a minimal passwordless backend built with [Micro](https://www.npmjs.com/package/micro) that logs the user in with a GitHub username and saves the user id from the API call as token.
 
-Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
+Session is syncronized across tabs. If you logout your session gets logged out on all the windows as well. We use the HOC `withAuthSync` for this.
 
 The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
