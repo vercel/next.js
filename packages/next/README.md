@@ -1269,10 +1269,8 @@ class MyDocument extends Document {
   render() {
     return (
       <Html>
-        <Head>
-          <style>{`body { margin: 0 } /* custom! */`}</style>
-        </Head>
-        <body className="custom_class">
+        <Head />
+        <body>
           <Main />
           <NextScript />
         </body>
@@ -1284,7 +1282,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
+All of `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
 **Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.**
 
