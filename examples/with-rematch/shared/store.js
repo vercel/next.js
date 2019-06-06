@@ -5,12 +5,13 @@ const exampleInitialState = {
   counter: 5
 }
 
-export const initializeStore = (initialState = exampleInitialState) => init({
-  models: {
-    counter,
-    github
-  },
-  redux: {
-    initialState
-  }
-})
+export const initializeStore = (initialState = exampleInitialState) =>
+  init({
+    models: {
+      counter,
+      github
+    },
+    redux: {
+      initialState
+    }
+  })

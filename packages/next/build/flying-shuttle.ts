@@ -200,8 +200,6 @@ export class FlyingShuttle {
 
     if (found) {
       Log.info('flying shuttle is docked')
-    } else {
-      Log.info('could not locate flying shuttle')
     }
 
     return found
@@ -298,7 +296,9 @@ export class FlyingShuttle {
       const c = pageNames.length - u
       Log.info(`found ${c} changed and ${u} unchanged page${u > 1 ? 's' : ''}`)
     } else {
-      Log.warn(`flying shuttle had no pages we can reuse`)
+      Log.warn(
+        `flying shuttle is going to perform a full rebuild due to changes across all pages`
+      )
     }
 
     return unchangedPages
@@ -471,7 +471,7 @@ export class FlyingShuttle {
       new Date().toISOString()
     )
 
-    const usedChunks = new Set()
+    const usedChunks = new Set<string>()
     const pages = Object.keys(storeManifest.pageChunks)
     pages.forEach(page => {
       const info = pageInfos.get(page) || ({} as PageInfo)

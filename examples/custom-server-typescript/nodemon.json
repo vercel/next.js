@@ -2,4 +2,3 @@
   "watch": ["server", "static"],
   "exec": "ts-node --project tsconfig.server.json server/index.ts"
 }
-

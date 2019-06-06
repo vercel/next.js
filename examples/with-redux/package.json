@@ -1,18 +1,18 @@
 {
-    "name": "with-redux",
-    "version": "1.0.0",
-    "scripts": {
-      "dev": "next",
-      "build": "next build",
-      "start": "next start"
-    },
-    "dependencies": {
-      "next": "latest",
-      "react": "^16.7.0",
-      "redux-devtools-extension": "^2.13.2",
-      "react-dom": "^16.7.0",
-      "react-redux": "^5.0.1",
-      "redux": "^3.6.0"
-    },
-    "license": "ISC"
-  }
+  "name": "with-redux",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.7.0",
+    "redux-devtools-extension": "^2.13.2",
+    "react-dom": "^16.7.0",
+    "react-redux": "^5.0.1",
+    "redux": "^3.6.0"
+  },
+  "license": "ISC"
+}

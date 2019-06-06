@@ -1,30 +1,21 @@
 {
-  sudo: "required",
-  dist: "trusty",
-  addons: {
-    apt: {
-      sources: ["google-chrome"],
-      packages: ["google-chrome-stable"]
-    }
-  },
-  env: {
-    HEADLESS: 'false'
-  },
-  language: "node_js",
-  node_js: ["8", "10"],
-  cache: {
-    directories: ["node_modules"]
-  },
-  before_install: [
-    "curl -o- -L https://yarnpkg.com/install.sh | bash",
-    "export PATH=\"$HOME/.yarn/bin:$PATH\"",
-    "export DISPLAY=:99.0",
-    "sh -e /etc/init.d/xvfb start",
-    "sleep 3"
-  ],
-  before_cache: [
-    "rm -rf node_modules/.cache"
-  ],
+  sudo: 'required',
+  dist: 'trusty',
+  addons:
+    { apt: { sources: ['google-chrome'], packages: ['google-chrome-stable'] } },
+  env: { HEADLESS: 'false' },
+  language: 'node_js',
+  node_js: ['8', '10'],
+  cache: { directories: ['node_modules'] },
+  before_install:
+    [
+      'curl -o- -L https://yarnpkg.com/install.sh | bash',
+      'export PATH="$HOME/.yarn/bin:$PATH"',
+      'export DISPLAY=:99.0',
+      'sh -e /etc/init.d/xvfb start',
+      'sleep 3',
+    ],
+  before_cache: ['rm -rf node_modules/.cache'],
   before_script: [],
-  after_script: ["yarn run coveralls"]
+  after_script: ['yarn run coveralls'],
 }

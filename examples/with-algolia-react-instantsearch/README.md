@@ -22,6 +22,7 @@ cd with-algolia-react-instantsearch
 ```
 
 Set up Algolia:
+
 - create an [algolia](https://www.algolia.com/) account or use this already [configured index](https://community.algolia.com/react-instantsearch/Getting_started.html#before-we-start)
 - update the appId, apikey and indexName you want to search on in components/app.js
 
@@ -42,6 +43,7 @@ now
 ```
 
 ## The idea behind the example
+
 The goal of this example is to illustrate how you can use [Algolia React InstantSearch](https://community.algolia.com/react-instantsearch/) to perform
 your search with a Server-rendered application developed with Next.js. It also illustrates how you
 can keep in sync the Url with the search.

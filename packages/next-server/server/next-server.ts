@@ -1,4 +1,3 @@
-/* eslint-disable import/first */
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
@@ -15,8 +14,23 @@ import {
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
 } from '../lib/constants'
-import { getRouteMatch } from '../lib/router/utils'
+import {
+  getRouteMatcher,
+  getRouteRegex,
+  getSortedRoutes,
+} from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { parse as parseCookies } from 'cookie'
+import {
+  parseQuery,
+  sendJson,
+  sendData,
+  parseBody,
+  sendError,
+  ApiError,
+  sendStatusCode,
+} from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import {
@@ -37,7 +51,7 @@ export type ServerConstructor = {
   dir?: string
   staticMarkup?: boolean
   quiet?: boolean
-  conf?: NextConfig,
+  conf?: NextConfig
 }
 
 export default class Server {
@@ -56,8 +70,9 @@ export default class Server {
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
+    canonicalBase: string
     autoExport: boolean
-    dev?: boolean,
+    dev?: boolean
   }
   router: Router
   private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
@@ -87,9 +102,11 @@ export default class Server {
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
+
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
+      canonicalBase: this.nextConfig.amp.canonicalBase,
       autoExport: this.nextConfig.experimental.autoExport,
       staticMarkup,
       buildId: this.buildId,
@@ -127,7 +144,7 @@ export default class Server {
   private handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery,
+    parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -141,7 +158,7 @@ export default class Server {
     }
 
     res.statusCode = 200
-    return this.run(req, res, parsedUrl).catch((err) => {
+    return this.run(req, res, parsedUrl).catch(err => {
       this.logError(err)
       res.statusCode = 500
       res.end('Internal Server Error')
@@ -184,7 +201,7 @@ export default class Server {
           const p = join(
             this.distDir,
             CLIENT_STATIC_FILES_PATH,
-            ...(params.path || []),
+            ...(params.path || [])
           )
           await this.serveStatic(req, res, p, parsedUrl)
         },
@@ -211,7 +228,11 @@ export default class Server {
         match: route('/api/:path*'),
         fn: async (req, res, params, parsedUrl) => {
           const { pathname } = parsedUrl
-          await this.handleApiRequest(req, res, pathname!)
+          await this.handleApiRequest(
+            req as NextApiRequest,
+            res as NextApiResponse,
+            pathname!
+          )
         },
       },
     ]
@@ -252,9 +273,9 @@ export default class Server {
    * @param pathname path of request
    */
   private async handleApiRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
+    req: NextApiRequest,
+    res: NextApiResponse,
+    pathname: string
   ) {
     const resolverFunction = await this.resolveApiRequest(pathname)
     if (resolverFunction === null) {
@@ -263,8 +284,27 @@ export default class Server {
       return
     }
 
-    const resolver = interopDefault(require(resolverFunction))
-    resolver(req, res)
+    try {
+      // Parsing of cookies
+      req.cookies = parseCookies(req.headers.cookie || '')
+      // Parsing query string
+      req.query = parseQuery(req)
+      // // Parsing of body
+      req.body = await parseBody(req)
+
+      res.status = statusCode => sendStatusCode(res, statusCode)
+      res.send = data => sendData(res, data)
+      res.json = data => sendJson(res, data)
+
+      const resolver = interopDefault(require(resolverFunction))
+      resolver(req, res)
+    } catch (e) {
+      if (e instanceof ApiError) {
+        sendError(res, e.statusCode, e.message)
+      } else {
+        sendError(res, 500, e.message)
+      }
+    }
   }
 
   /**
@@ -275,7 +315,7 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless',
+      this.nextConfig.target === 'serverless'
     )
   }
 
@@ -285,7 +325,7 @@ export default class Server {
     const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
-    publicFiles.forEach((path) => {
+    publicFiles.forEach(path => {
       const unixPath = path.replace(/\\/g, '/')
       // Only include public files that will not replace a page path
       if (!pagesManifest[unixPath]) {
@@ -304,23 +344,19 @@ export default class Server {
 
   private getDynamicRoutes() {
     const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter((p) =>
-      p.includes('/$'),
+    const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
+      p.includes('/$')
     )
-    return dynamicRoutedPages
-      .map((page) => ({
-        page,
-        match: getRouteMatch(page),
-      }))
-      .sort((a, b) =>
-        Math.sign(a.page.match(/\/\$/g)!.length - b.page.match(/\/\$/g)!.length),
-      )
+    return getSortedRoutes(dynamicRoutedPages).map(page => ({
+      page,
+      match: getRouteMatcher(getRouteRegex(page)),
+    }))
   }
 
   private async run(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery,
+    parsedUrl: UrlWithParsedQuery
   ) {
     try {
       const fn = this.router.match(req, res, parsedUrl)
@@ -347,7 +383,7 @@ export default class Server {
   private async sendHTML(
     req: IncomingMessage,
     res: ServerResponse,
-    html: string,
+    html: string
   ) {
     const { generateEtags, poweredByHeader } = this.renderOpts
     return sendHTML(req, res, html, { generateEtags, poweredByHeader })
@@ -358,7 +394,7 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    parsedUrl?: UrlWithParsedQuery,
+    parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     const url: any = req.url
     if (isInternalUrl(url)) {
@@ -386,7 +422,7 @@ export default class Server {
 
   private async findPageComponents(
     pathname: string,
-    query: ParsedUrlQuery = {},
+    query: ParsedUrlQuery = {}
   ) {
     const serverless =
       !this.renderOpts.dev && this.nextConfig.target === 'serverless'
@@ -397,7 +433,7 @@ export default class Server {
           this.distDir,
           this.buildId,
           (pathname === '/' ? '/index' : pathname) + '.amp',
-          serverless,
+          serverless
         )
       } catch (err) {
         if (err.code !== 'ENOENT') throw err
@@ -407,7 +443,7 @@ export default class Server {
       this.distDir,
       this.buildId,
       pathname,
-      serverless,
+      serverless
     )
   }
 
@@ -417,7 +453,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {},
     result: LoadComponentsReturnType,
-    opts: any,
+    opts: any
   ) {
     // handle static page
     if (typeof result.Component === 'string') {
@@ -447,22 +483,22 @@ export default class Server {
     }: {
       amphtml?: boolean
       hasAmp?: boolean
-      dataOnly?: boolean,
-    } = {},
+      dataOnly?: boolean
+    } = {}
   ): Promise<string | null> {
     return this.findPageComponents(pathname, query)
       .then(
-        (result) => {
+        result => {
           return this.renderToHTMLWithComponents(
             req,
             res,
             pathname,
             query,
             result,
-            { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+            { ...this.renderOpts, amphtml, hasAmp, dataOnly }
           )
         },
-        (err) => {
+        err => {
           if (err.code !== 'ENOENT' || !this.dynamicRoutes) {
             return Promise.reject(err)
           }
@@ -474,22 +510,22 @@ export default class Server {
             }
 
             return this.findPageComponents(dynamicRoute.page, query).then(
-              (result) =>
+              result =>
                 this.renderToHTMLWithComponents(
                   req,
                   res,
                   dynamicRoute.page,
                   { ...query, ...params },
                   result,
-                  { ...this.renderOpts, amphtml, hasAmp, dataOnly },
-                ),
+                  { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+                )
             )
           }
 
           return Promise.reject(err)
-        },
+        }
       )
-      .catch((err) => {
+      .catch(err => {
         if (err && err.code === 'ENOENT') {
           res.statusCode = 404
           return this.renderErrorToHTML(null, req, res, pathname, query)
@@ -506,11 +542,11 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
+    query: ParsedUrlQuery = {}
   ): Promise<void> {
     res.setHeader(
       'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate',
+      'no-cache, no-store, max-age=0, must-revalidate'
     )
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
     if (html === null) {
@@ -524,7 +560,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     _pathname: string,
-    query: ParsedUrlQuery = {},
+    query: ParsedUrlQuery = {}
   ) {
     const result = await this.findPageComponents('/_error', query)
     return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
@@ -536,7 +572,7 @@ export default class Server {
   public async render404(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery,
+    parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
@@ -551,7 +587,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     path: string,
-    parsedUrl?: UrlWithParsedQuery,
+    parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     if (!this.isServeableUrl(path)) {
       return this.render404(req, res, parsedUrl)
@@ -591,7 +627,7 @@ export default class Server {
         throw new Error(
           `Could not find a valid build in the '${
             this.distDir
-          }' directory! Try building your app with 'next build' before starting the server.`,
+          }' directory! Try building your app with 'next build' before starting the server.`
         )
       }
 

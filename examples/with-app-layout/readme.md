@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-Shows how to use _app.js to implement a global layout for all pages.
+Shows how to use \_app.js to implement a global layout for all pages.

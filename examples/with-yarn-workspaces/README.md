@@ -40,13 +40,13 @@ Workspaces are a new way to setup your package architecture that’s available b
 
 In this example we have three workspaces:
 
-* **web-app**: A Next.js app
-* **foo**: A normal node module
-* **bar**: A react component, that gets compiled by Next.js (see [packages/web-app/next.config.js](./packages/web-app/next.config.js) for more info)
+- **web-app**: A Next.js app
+- **foo**: A normal node module
+- **bar**: A react component, that gets compiled by Next.js (see [packages/web-app/next.config.js](./packages/web-app/next.config.js) for more info)
 
 ## Useful Links
 
-* [Documentation](https://yarnpkg.com/en/docs/workspaces)
-* [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
-* [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
-* [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)
+- [Documentation](https://yarnpkg.com/en/docs/workspaces)
+- [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
+- [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
+- [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)

@@ -4,7 +4,5 @@ import dynamic from 'next/dynamic'
 const HmrDynamic = dynamic(import('../../components/hmr/dynamic'))
 
 export default () => {
-  return (
-    <HmrDynamic />
-  )
+  return <HmrDynamic />
 }

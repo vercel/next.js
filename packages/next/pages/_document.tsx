@@ -2,7 +2,11 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import { cleanAmpPath } from 'next-server/dist/server/utils'
-import { DocumentContext, DocumentInitialProps, DocumentProps } from 'next-server/dist/lib/utils'
+import {
+  DocumentContext,
+  DocumentInitialProps,
+  DocumentProps,
+} from 'next-server/dist/lib/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 import {
@@ -14,15 +18,15 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 
 export type OriginProps = {
   nonce?: string
-  crossOrigin?: string,
+  crossOrigin?: string
 }
 
 export type DocumentComponentContext = {
   readonly _documentProps: DocumentProps
-  readonly _devOnlyInvalidateCacheQueryString: string,
+  readonly _devOnlyInvalidateCacheQueryString: string
 }
 
-export async function middleware({req, res}: DocumentContext) {}
+export async function middleware({ req, res }: DocumentContext) {}
 
 function dedupe(bundles: any[]): any[] {
   const files = new Set()
@@ -50,7 +54,9 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
    * `getInitialProps` hook returns the context object with the addition of `renderPage`. `
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
-  static async getInitialProps({ renderPage }: DocumentContext): Promise<DocumentInitialProps> {
+  static async getInitialProps({
+    renderPage,
+  }: DocumentContext): Promise<DocumentInitialProps> {
     const { html, head, dataOnly } = await renderPage()
     const styles = flush()
     return { html, head, styles, dataOnly }
@@ -82,7 +88,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-export class Html extends Component {
+export class Html extends Component<
+  React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLHtmlElement>,
+    HTMLHtmlElement
+  >
+> {
   static contextTypes = {
     _documentProps: PropTypes.any,
   }
@@ -95,13 +106,17 @@ export class Html extends Component {
 
   render() {
     const { amphtml } = this.context._documentProps
-    return (
-      <html {...this.props} amp={amphtml ? '' : undefined}/>
-    )
+    return <html {...this.props} amp={amphtml ? '' : undefined} />
   }
 }
 
-export class Head extends Component<OriginProps> {
+export class Head extends Component<
+  OriginProps &
+    React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLHeadElement>,
+      HTMLHeadElement
+    >
+> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -191,63 +206,75 @@ export class Head extends Component<OriginProps> {
       hasAmp,
       ampPath,
       assetPrefix,
+      canonicalBase,
       __NEXT_DATA__,
       dangerousAsPath,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId, dynamicBuildId } = __NEXT_DATA__
-    const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
     let { head } = this.context._documentProps
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        if (child && child.type === 'title') {
+        const isReactHelmet =
+          child && child.props && child.props['data-react-helmet']
+        if (child && child.type === 'title' && !isReactHelmet) {
           console.warn(
-            "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title",
+            "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
           )
         }
         return child
       })
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated',
+          'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
         )
     }
 
     // show warning and remove conflicting amp head tags
-    head = !amphtml ? head : React.Children.map(head || [], (child) => {
-      if (!child) return child
-      const { type, props } = child
-      let badProp: string = ''
+    head = !amphtml
+      ? head
+      : React.Children.map(head || [], child => {
+          if (!child) return child
+          const { type, props } = child
+          let badProp: string = ''
 
-      if (type === 'meta' && props.name === 'viewport') {
-        badProp = 'name="viewport"'
-      } else if (type === 'link' && props.rel === 'canonical') {
-        badProp = 'rel="canonical"'
-      } else if (type === 'script') {
-        // only block if
-        // 1. it has a src and isn't pointing to ampproject's CDN
-        // 2. it is using dangerouslySetInnerHTML without a type or
-        // a type of text/javascript
-        if ((props.src && props.src.indexOf('ampproject') < -1) ||
-          (props.dangerouslySetInnerHTML && (!props.type || props.type === 'text/javascript'))
-        ) {
-          badProp = '<script'
-          Object.keys(props).forEach((prop) => {
-            badProp += ` ${prop}="${props[prop]}"`
-          })
-          badProp += '/>'
-        }
-      }
+          if (type === 'meta' && props.name === 'viewport') {
+            badProp = 'name="viewport"'
+          } else if (type === 'link' && props.rel === 'canonical') {
+            badProp = 'rel="canonical"'
+          } else if (type === 'script') {
+            // only block if
+            // 1. it has a src and isn't pointing to ampproject's CDN
+            // 2. it is using dangerouslySetInnerHTML without a type or
+            // a type of text/javascript
+            if (
+              (props.src && props.src.indexOf('ampproject') < -1) ||
+              (props.dangerouslySetInnerHTML &&
+                (!props.type || props.type === 'text/javascript'))
+            ) {
+              badProp = '<script'
+              Object.keys(props).forEach(prop => {
+                badProp += ` ${prop}="${props[prop]}"`
+              })
+              badProp += '/>'
+            }
+          }
 
-      if (badProp) {
-        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`)
-        return null
-      }
-      return child
-    })
+          if (badProp) {
+            console.warn(
+              `Found conflicting amp tag "${
+                child.type
+              }" with conflicting prop ${badProp} in ${
+                __NEXT_DATA__.page
+              }. https://err.sh/next.js/conflicting-amp-tag`
+            )
+            return null
+          }
+          return child
+        })
 
     const metaTypes = new Map();
     React.Children.toArray(head || []).forEach((child: any) => {
@@ -267,19 +294,23 @@ export class Head extends Component<OriginProps> {
 
     // try to parse styles from fragment for backwards compat
     const curStyles: React.ReactElement[] = Array.isArray(styles) ? styles : []
-    if (amphtml && styles &&
+    if (
+      amphtml &&
+      styles &&
       // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props && Array.isArray(styles.props.children)
+      styles.props &&
+      // @ts-ignore Property 'props' does not exist on type ReactElement
+      Array.isArray(styles.props.children)
     ) {
-      const hasStyles = (el: React.ReactElement) => (
-        el && el.props &&
+      const hasStyles = (el: React.ReactElement) =>
+        el &&
+        el.props &&
         el.props.dangerouslySetInnerHTML &&
         el.props.dangerouslySetInnerHTML.__html
-      )
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props.children.map((child: React.ReactElement) => {
         if (Array.isArray(child)) {
-          child.map((el) => hasStyles(el) && curStyles.push(el))
+          child.map(el => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
           curStyles.push(child)
         }
@@ -296,8 +327,10 @@ export class Head extends Component<OriginProps> {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={cleanAmpPath(dangerousAsPath)} />
-            {isDirtyAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
+            <link
+              rel="canonical"
+              href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+            />
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -310,7 +343,7 @@ export class Head extends Component<OriginProps> {
                 amp-custom=""
                 dangerouslySetInnerHTML={{
                   __html: curStyles
-                    .map((style) => style.props.dangerouslySetInnerHTML.__html)
+                    .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
                     .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
@@ -336,7 +369,12 @@ export class Head extends Component<OriginProps> {
         )}
         {!amphtml && (
           <>
-            {hasAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
+            {hasAmp && (
+              <link
+                rel="amphtml"
+                href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
+              />
+            )}
             {page !== '/_error' && (
               <link
                 rel="preload"
@@ -458,7 +496,7 @@ export class NextScript extends Component<OriginProps> {
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${
             __NEXT_DATA__.page
-          }". https://err.sh/zeit/next.js/circular-structure`,
+          }". https://err.sh/zeit/next.js/circular-structure`
         )
       }
       throw err
@@ -495,14 +533,14 @@ export class NextScript extends Component<OriginProps> {
               crossOrigin={this.props.crossOrigin || process.crossOrigin}
               dangerouslySetInnerHTML={{
                 __html: NextScript.getInlineScriptSource(
-                  this.context._documentProps,
+                  this.context._documentProps
                 ),
               }}
               data-amp-development-mode-only
             />
           )}
           {devFiles
-            ? devFiles.map((file) => (
+            ? devFiles.map(file => (
                 <script
                   key={file}
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
@@ -521,21 +559,24 @@ export class NextScript extends Component<OriginProps> {
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated',
+          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
         )
     }
 
     return (
       <>
         {devFiles
-          ? devFiles.map((file: string) => !file.match(/\.js\.map/) && (
-              <script
-                key={file}
-                src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-                nonce={this.props.nonce}
-                crossOrigin={this.props.crossOrigin || process.crossOrigin}
-              />
-            ))
+          ? devFiles.map(
+              (file: string) =>
+                !file.match(/\.js\.map/) && (
+                  <script
+                    key={file}
+                    src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+                    nonce={this.props.nonce}
+                    crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                  />
+                )
+            )
           : null}
         {staticMarkup ? null : (
           <script
@@ -545,7 +586,7 @@ export class NextScript extends Component<OriginProps> {
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
             dangerouslySetInnerHTML={{
               __html: NextScript.getInlineScriptSource(
-                this.context._documentProps,
+                this.context._documentProps
               ),
             }}
           />
@@ -586,8 +627,7 @@ export class NextScript extends Component<OriginProps> {
 }
 
 function getAmpPath(ampPath: string, asPath: string) {
-  return ampPath ? ampPath
-    : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+  return ampPath ? ampPath : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
 function getPageFile(page: string, buildId?: string) {

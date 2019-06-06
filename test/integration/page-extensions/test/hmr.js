@@ -24,7 +24,9 @@ export default (context, renderViaHTTP) => {
         // wait for 5 seconds
         await waitFor(5000)
 
-        const randomNumberAfterEdit = await browser.eval('window.HMR_RANDOM_NUMBER')
+        const randomNumberAfterEdit = await browser.eval(
+          'window.HMR_RANDOM_NUMBER'
+        )
         expect(randomNumberAfterEdit).toBe(randomNumber)
         const updatedButtonText = await browser.elementByCss('button').text()
         expect(updatedButtonText).toBe('INCREMENT')

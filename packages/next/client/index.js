@@ -6,12 +6,12 @@ import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
-import { ErrorBoundary } from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -71,12 +71,59 @@ export let ErrorComponent
 let Component
 let App
 
+class Container extends React.Component {
+  componentDidCatch (err, info) {
+    this.props.fn(err, info)
+  }
+
+  componentDidMount () {
+    this.scrollToHash()
+
+    // If page was exported and has a querystring
+    // If it's a dynamic route (/$ inside) or has a querystring
+    if (
+      data.nextExport &&
+      (router.pathname.indexOf('/$') !== -1 || window.location.search)
+    ) {
+      // update query on mount for exported pages
+      router.replace(
+        router.pathname +
+          '?' +
+          stringifyQs({
+            ...router.query,
+            ...parseQs(window.location.search.substr(1))
+          }),
+        asPath
+      )
+    }
+  }
+
+  componentDidUpdate () {
+    this.scrollToHash()
+  }
+
+  scrollToHash () {
+    let { hash } = window.location
+    hash = hash && hash.substring(1)
+    if (!hash) return
+
+    const el = document.getElementById(hash)
+    if (!el) return
+
+    // If we call scrollIntoView() in here without a setTimeout
+    // it won't scroll properly.
+    setTimeout(() => el.scrollIntoView(), 0)
+  }
+
+  render () {
+    return this.props.children
+  }
+}
+
 export const emitter = mitt()
 
-export default async ({
-  webpackHMR: passedWebpackHMR
-} = {}) => {
-  // This makes sure this specific line is removed in production
+export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
+  // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
@@ -90,7 +137,9 @@ export default async ({
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
       if (!isValidElementType(Component)) {
-        throw new Error(`The default export is not a React Component in page: "${page}"`)
+        throw new Error(
+          `The default export is not a React Component in page: "${page}"`
+        )
       }
     }
   } catch (error) {
@@ -109,11 +158,10 @@ export default async ({
     pageLoader,
     App,
     Component,
-    err: initialErr
-  })
-
-  router.subscribe(({ App, Component, props, err }) => {
-    render({ App, Component, props, err, emitter })
+    err: initialErr,
+    subscription: ({ Component, props, err }, App) => {
+      render({ App, Component, props, err, emitter })
+    }
   })
 
   render({ App, Component, props, err: initialErr, emitter })
@@ -141,9 +189,7 @@ export async function renderError (props) {
   const { App, err } = props
 
   if (process.env.NODE_ENV !== 'production') {
-    return webpackHMR.reportRuntimeError(
-      webpackHMR.prepareError(err)
-    )
+    return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
   }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
@@ -156,15 +202,20 @@ export async function renderError (props) {
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
   const initProps = props.props
     ? props.props
-    : await loadGetInitialProps(App, { Component: ErrorComponent, router, ctx: { err, pathname: page, query, asPath } })
+    : await loadGetInitialProps(App, {
+      Component: ErrorComponent,
+      router,
+      ctx: { err, pathname: page, query, asPath }
+    })
 
   await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
 }
 
-let isInitialRender = true
+// If hydrate does not exist, eg in preact.
+let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
   // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender && typeof ReactDOM.hydrate === 'function') {
+  if (isInitialRender) {
     ReactDOM.hydrate(reactEl, domEl)
     isInitialRender = false
   } else {
@@ -175,11 +226,18 @@ function renderReactElement (reactEl, domEl) {
 async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
-  if (!props && Component &&
+  if (
+    !props &&
+    Component &&
     Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent) {
+    lastAppProps.Component === ErrorComponent
+  ) {
     const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(App, { Component, router, ctx: { err, pathname, query, asPath } })
+    props = await loadGetInitialProps(App, {
+      Component,
+      router,
+      ctx: { err, pathname, query, asPath }
+    })
   }
 
   Component = Component || lastAppProps.Component
@@ -189,25 +247,22 @@ async function doRender ({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
+  emitter.emit('before-reactdom-render', {
+    Component,
+    ErrorComponent,
+    appProps
+  })
 
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
-    renderReactElement((
-      <Suspense fallback={<div>Loading...</div>}>
-        <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <DataManagerContext.Provider value={dataManager}>
-            <HeadManagerContext.Provider value={headManager.updateHead}>
-              <App {...appProps} />
-            </HeadManagerContext.Provider>
-          </DataManagerContext.Provider>
-        </RouterContext.Provider>
-      </Suspense>
-    ), appContainer)
-  } else {
-    // In production we catch runtime errors using componentDidCatch which will trigger renderError.
-    renderReactElement((
-      <ErrorBoundary fn={(error) => renderError({ App, err: error }).catch(err => console.error('Error rendering page: ', err))}>
+    renderReactElement(
+      <Container
+        fn={error =>
+          renderError({ App, err: error }).catch(err =>
+            console.error('Error rendering page: ', err)
+          )
+        }
+      >
         <Suspense fallback={<div>Loading...</div>}>
           <RouterContext.Provider value={makePublicRouterInstance(router)}>
             <DataManagerContext.Provider value={dataManager}>
@@ -217,8 +272,31 @@ async function doRender ({ App, Component, props, err }) {
             </DataManagerContext.Provider>
           </RouterContext.Provider>
         </Suspense>
-      </ErrorBoundary>
-    ), appContainer)
+      </Container>,
+      appContainer
+    )
+  } else {
+    // In production we catch runtime errors using componentDidCatch which will trigger renderError.
+    renderReactElement(
+      <Container
+        fn={error =>
+          renderError({ App, err: error }).catch(err =>
+            console.error('Error rendering page: ', err)
+          )
+        }
+      >
+        <Suspense fallback={<div>Loading...</div>}>
+          <RouterContext.Provider value={makePublicRouterInstance(router)}>
+            <DataManagerContext.Provider value={dataManager}>
+              <HeadManagerContext.Provider value={headManager.updateHead}>
+                <App {...appProps} />
+              </HeadManagerContext.Provider>
+            </DataManagerContext.Provider>
+          </RouterContext.Provider>
+        </Suspense>
+      </Container>,
+      appContainer
+    )
   }
 
   emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })

@@ -4,10 +4,7 @@ import fs from 'fs'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { promisify } from 'util'
-import {
-  nextBuild,
-  nextExport
-} from 'next-test-utils'
+import { nextBuild, nextExport } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 const readFile = promisify(fs.readFile)
@@ -27,7 +24,9 @@ describe('Export experimental.exportTrailingSlash set to false', () => {
     await expect(access(join(outdir, 'index.html'))).resolves.toBe(undefined)
     await expect(access(join(outdir, 'about.html'))).resolves.toBe(undefined)
     await expect(access(join(outdir, 'posts.html'))).resolves.toBe(undefined)
-    await expect(access(join(outdir, 'posts', 'single.html'))).resolves.toBe(undefined)
+    await expect(access(join(outdir, 'posts', 'single.html'))).resolves.toBe(
+      undefined
+    )
 
     const html = await readFile(join(outdir, 'index.html'))
     const $ = cheerio.load(html)

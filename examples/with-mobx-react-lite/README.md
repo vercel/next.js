@@ -72,9 +72,11 @@ The observable store is created in a function component by passing a plain JavaS
 ```js
 store = useObservable(initializeData(props.initialData))
 
-start = useCallback(action(() => {
-  // Async operation that mutates the store
-}))
+start = useCallback(
+  action(() => {
+    // Async operation that mutates the store
+  })
+)
 
 stop = () => {
   // Does not mutate the store
@@ -96,12 +98,13 @@ const store = useContext(StoreContext)
 The clock, under `components/Clock.js`, reacts to changes in the observable `store` by means of the `useObserver` hook.
 
 ```jsx
-return <div>
-  // ...
-  {useObserver(() => <Clock
-    lastUpdate={store.lastUpdate}
-    light={store.light}
-  />)}
-  // ...
-</div>
+return (
+  <div>
+    // ...
+    {useObserver(() => (
+      <Clock lastUpdate={store.lastUpdate} light={store.light} />
+    ))}
+    // ...
+  </div>
+)
 ```

@@ -14,6 +14,11 @@ export default class extends Component {
   }
 
   render () {
-    return <p>ComponentDidMount {this.state.mounted ? 'executed on client' : 'not executed'}.</p>
+    return (
+      <p>
+        ComponentDidMount{' '}
+        {this.state.mounted ? 'executed on client' : 'not executed'}.
+      </p>
+    )
   }
 }
