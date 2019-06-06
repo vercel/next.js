@@ -1,3 +1,3 @@
-export const config = { amp: true }
+export const config = { amp: 'hybrid' }
 
 export default () => `Hi Im an AMP page!`

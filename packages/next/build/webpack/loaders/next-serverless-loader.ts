@@ -52,8 +52,9 @@ const nextServerlessLoader: loader.Loader = function() {
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import * as ComponentInfo from '${absolutePagePath}';
-    export default ComponentInfo.default
-    export const PageConfig = ComponentInfo.config || {}
+    const Component = ComponentInfo.default
+    export default Component
+    export const PageConfig = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport) {
       const options = {
@@ -72,6 +73,7 @@ const nextServerlessLoader: loader.Loader = function() {
       const renderOpts = Object.assign(
         {
           Component,
+          PageConfig,
           dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },
@@ -84,7 +86,7 @@ const nextServerlessLoader: loader.Loader = function() {
             ? `const params = getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({ PageConfig }, parsedUrl.query, params), renderOpts)
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result
