@@ -1,6 +1,11 @@
 import React from 'react'
 
-import { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest } from 'next-server/dist/lib/utils'
+import {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+} from 'next-server/dist/lib/utils'
 
 /// <reference types="node" />
 /// <reference types="react" />

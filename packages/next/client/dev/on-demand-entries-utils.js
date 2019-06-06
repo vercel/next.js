@@ -1,7 +1,7 @@
 /* global window, location */
 
 import fetch from 'unfetch'
-import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
+import { getEventSourceWrapper } from './error-overlay/eventsource'
 
 let evtSource
 export let currentPage
