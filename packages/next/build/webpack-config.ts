@@ -377,10 +377,6 @@ export default async function getBaseWebpackConfig(
             include: [path.join(dir, 'data')],
             use: 'next-data-loader',
           },
-        !isServer && {
-          test: /pages.*\.(tsx|ts|js|mjs|jsx)$/,
-          use: 'next-page-config-loader',
-        },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [
