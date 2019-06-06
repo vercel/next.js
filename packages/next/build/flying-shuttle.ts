@@ -200,8 +200,6 @@ export class FlyingShuttle {
 
     if (found) {
       Log.info('flying shuttle is docked')
-    } else {
-      Log.info('could not locate flying shuttle')
     }
 
     return found
@@ -298,7 +296,9 @@ export class FlyingShuttle {
       const c = pageNames.length - u
       Log.info(`found ${c} changed and ${u} unchanged page${u > 1 ? 's' : ''}`)
     } else {
-      Log.warn(`flying shuttle had no pages we can reuse`)
+      Log.warn(
+        `the flying shuttle requires a full rebuild due to application changes`
+      )
     }
 
     return unchangedPages
