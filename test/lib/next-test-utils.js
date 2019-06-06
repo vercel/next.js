@@ -164,8 +164,8 @@ export function launchApp (dir, port) {
   return runNextCommandDev([dir, '-p', port])
 }
 
-export function nextBuild (dir, args = []) {
-  return runNextCommand(['build', dir, ...args])
+export function nextBuild (dir, args = [], opts = {}) {
+  return runNextCommand(['build', dir, ...args], opts)
 }
 
 export function nextExport (dir, { outdir }) {
