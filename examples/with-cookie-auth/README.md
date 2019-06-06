@@ -22,33 +22,31 @@ cd with-cookie-auth
 
 ### Run locally
 
-The repository is setup as a [monorepo](https://zeit.co/examples/monorepo/) so you can deploy it easily running `now` inside the project folder. However, you can't run it the same way locally (yet).
+The repository is setup as a [monorepo](https://zeit.co/examples/monorepo/) so you can run start the development server with `now dev` inside the project folder.
 
-These files make it easier to run the application locally and aren't needed for production:
-
-- `/api/index.js` runs the API server on port `3001` and imports the `login` and `profile` microservices.
-- `/www/server.js` runs the Next.js app with a custom server proxying the authentication requests to the API server. We use this so we don't modify the logic on the application and we don't have to deal with CORS if we use domains while testing.
-
-Install and run the API server:
+Install the packages of `/api` and `/www` using `npm` or `yarn`:
 
 ```bash
 cd api
 npm install
-npm run dev
-```
-
-Then run the Next.js app:
-
-```bash
 cd ../www
 npm install
-npm run dev
 ```
 
-You can configure the API URL using the `API_URL` environment variables (defaults to `http://localhost:3000`):
+Now you can start the development server in the root folder:
 
 ```bash
-API_URL=http://example.com npm run dev
+now dev
+```
+
+You can configure the `API_URL` environment variable (defaults to `http://localhost:3000`) with [Now env](https://zeit.co/docs/v2/development/environment-variables/#using-now.json) in the `now.json` file:
+
+```bash
+"build": {
+  "env": {
+    "API_URL": "https://example.com"
+  }
+},
 ```
 
 ### Deploy
