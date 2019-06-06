@@ -297,7 +297,7 @@ export class FlyingShuttle {
       Log.info(`found ${c} changed and ${u} unchanged page${u > 1 ? 's' : ''}`)
     } else {
       Log.warn(
-        `the flying shuttle requires a full rebuild due to application changes`
+        `flying shuttle is going to perform a full rebuild due to changes across all pages`
       )
     }
 
