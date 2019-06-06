@@ -21,7 +21,9 @@ describe('Serverless', () => {
       env: { __NEXT_BUILDER_EXPERIMENTAL_TARGET: 'serverless' }
     })
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, {
+      env: { __NEXT_BUILDER_EXPERIMENTAL_TARGET: 'serverless' }
+    })
   })
   afterAll(() => killApp(app))
 
