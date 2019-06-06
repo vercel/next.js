@@ -12,8 +12,13 @@ export function interopDefault(mod: any) {
   return mod.default || mod
 }
 
+export interface IPageConfig {
+  amp?: boolean | 'hybrid'
+}
+
 export type LoadComponentsReturnType = {
   Component: any
+  PageConfig: IPageConfig
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -29,7 +34,7 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    return { Component }
+    return { Component, PageConfig: Component.config || {} }
   }
   const documentPath = join(
     distDir,
@@ -51,6 +56,8 @@ export async function loadComponents(
   const DocumentMod = require(documentPath)
   const { middleware: DocumentMiddleware } = DocumentMod
 
+  const ComponentMod = requirePage(pathname, distDir, serverless)
+
   const [
     buildManifest,
     reactLoadableManifest,
@@ -60,17 +67,18 @@ export async function loadComponents(
   ] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    interopDefault(requirePage(pathname, distDir, serverless)),
+    interopDefault(ComponentMod),
     interopDefault(DocumentMod),
     interopDefault(require(appPath)),
   ])
 
   return {
-    buildManifest,
-    reactLoadableManifest,
-    Component,
-    Document,
-    DocumentMiddleware,
     App,
+    Document,
+    Component,
+    buildManifest,
+    DocumentMiddleware,
+    reactLoadableManifest,
+    PageConfig: ComponentMod.config || {},
   }
 }

@@ -77,15 +77,6 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...options.presets, presetItem]
       }
 
-      if (!isServer && source.indexOf('next/amp')) {
-        const dropClientPlugin = babel.createConfigItem(
-          [require('../../babel/plugins/next-drop-client-page'), {}],
-          { type: 'plugin' }
-        )
-        options.plugins = options.plugins || []
-        options.plugins.push(dropClientPlugin)
-      }
-
       if (isServer && source.indexOf('next/data') !== -1) {
         const nextDataPlugin = babel.createConfigItem(
           [
