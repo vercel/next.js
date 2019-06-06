@@ -88,7 +88,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-export class Html extends Component {
+export class Html extends Component<
+  React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLHtmlElement>,
+    HTMLHtmlElement
+  >
+> {
   static contextTypes = {
     _documentProps: PropTypes.any,
   }
@@ -105,7 +110,13 @@ export class Html extends Component {
   }
 }
 
-export class Head extends Component<OriginProps> {
+export class Head extends Component<
+  OriginProps &
+    React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLHeadElement>,
+      HTMLHeadElement
+    >
+> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
