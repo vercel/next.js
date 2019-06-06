@@ -1,6 +1,6 @@
 import { cpus } from 'os'
 import { fork } from 'child_process'
-import cp from 'recursive-copy'
+import { recursiveCopy } from '../lib/recursive-copy'
 import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
@@ -73,13 +73,13 @@ export default async function (dir, options, configuration) {
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')
-    await cp(join(dir, 'static'), join(outDir, 'static'), { expand: true })
+    await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
   }
 
   // Copy .next/static directory
   if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
     log('  copying "static build" directory')
-    await cp(
+    await recursiveCopy(
       join(distDir, CLIENT_STATIC_FILES_PATH),
       join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
     )
@@ -151,11 +151,10 @@ export default async function (dir, options, configuration) {
   // Copy public directory
   if (existsSync(publicDir)) {
     log('  copying "public" directory')
-    await cp(publicDir, outDir, {
-      expand: true,
+    await recursiveCopy(publicDir, outDir, {
       filter (path) {
         // Exclude paths used by pages
-        return !exportPathMap['/' + path]
+        return !exportPathMap[path]
       }
     })
   }
