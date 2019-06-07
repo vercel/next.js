@@ -66,6 +66,10 @@ module.exports = (
     exclude: ['transform-typeof-symbol'],
     ...options['preset-env'],
   }
+
+  const isEsmodulesTarget =
+    presetEnvConfig.targets && presetEnvConfig.targets.esmodules
+
   return {
     presets: [
       [require('@babel/preset-env').default, presetEnvConfig],
@@ -94,7 +98,7 @@ module.exports = (
           useBuiltIns: true,
         },
       ],
-      [
+      !isEsmodulesTarget && [
         require('@babel/plugin-transform-runtime'),
         {
           corejs: 2,
