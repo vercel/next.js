@@ -104,12 +104,12 @@ export default class PageLoader {
       // Load the script if not asked to load yet.
       if (!this.loadingRoutes[route]) {
         this.loadScript(route)
-        this.loadingRoutes[route] = true
       }
     })
   }
 
   async loadScript (route) {
+    this.loadingRoutes[route] = true
     if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
       await this.promisedBuildId
     }
