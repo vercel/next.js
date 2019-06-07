@@ -126,6 +126,7 @@ export default class Router implements BaseRouter {
     }
   }
 
+  // @deprecated backwards compatability even though it's a private method.
   static _rewriteUrlForNextExport(url: string): string {
     return rewriteUrlForNextExport(url)
   }
