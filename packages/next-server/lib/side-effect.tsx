@@ -1,4 +1,4 @@
-import React, { Component, ReactNode } from 'react'
+import React, { Component } from 'react'
 
 const isServer = typeof window === 'undefined'
 
