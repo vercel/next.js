@@ -24,9 +24,9 @@ export default class PageLoader {
     this.prefetchCache = new Set()
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
-    this.promisedBuildId = Promise.resolve()
 
     if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+      this.promisedBuildId = Promise.resolve()
       this.onDynamicBuildId = () => {
         this.promisedBuildId = new Promise(resolve => {
           const unfetch = require('unfetch')
@@ -110,7 +110,9 @@ export default class PageLoader {
   }
 
   async loadScript (route) {
-    await this.promisedBuildId
+    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+      await this.promisedBuildId
+    }
 
     route = this.normalizeRoute(route)
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
@@ -188,7 +190,9 @@ export default class PageLoader {
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
-      await this.promisedBuildId
+      if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+        await this.promisedBuildId
+      }
 
       const link = document.createElement('link')
       link.rel = 'preload'
