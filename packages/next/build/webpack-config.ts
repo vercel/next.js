@@ -425,6 +425,9 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
+        'process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING': JSON.stringify(
+          selectivePageBuilding
+        ),
         'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           !config.experimental.autoExport &&
