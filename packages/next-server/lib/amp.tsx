@@ -15,16 +15,18 @@ export function useAmp() {
   return isAmp(ampMode) // && ampMode.hasQuery
 }
 
-export function withAmp(Component: any, { hybrid = false } = {}): any {
+export function withAmp(
+  Component: React.ComponentType & { getInitialProps?: any },
+  { hybrid = false } = {}
+): any {
   function WithAmpWrapper(props = {}) {
     const ampMode = React.useContext(AmpModeContext)
     ampMode.enabled = true
     ampMode.hybrid = hybrid
 
-    return React.createElement(Component, props)
+    return <Component {...props} />
   }
 
-  WithAmpWrapper.__nextAmpOnly = !hybrid
   WithAmpWrapper.getInitialProps = Component.getInitialProps
   return WithAmpWrapper
 }
