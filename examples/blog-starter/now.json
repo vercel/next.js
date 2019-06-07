@@ -5,7 +5,6 @@
   "builds": [{ "src": "package.json", "use": "@now/next" }],
   "routes": [
     { "src": "/feed.json", "dest": "/_next/static/feed.json" },
-    { "src": "/blog/(?<page>[^/]+)$", "dest": "/blog?page=$page" },
-    { "src": "/(.*)", "dest": "/$1" }
+    { "src": "/blog/(?<page>[^/]+)$", "dest": "/blog?page=$page" }
   ]
 }
