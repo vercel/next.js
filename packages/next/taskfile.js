@@ -18,16 +18,16 @@ const babelClientOpts = {
     '@babel/preset-react'
   ],
   plugins: [
-    ['@babel/plugin-proposal-class-properties', { loose: true }],
-    [
-      '@babel/plugin-transform-runtime',
-      {
-        corejs: 2,
-        helpers: true,
-        regenerator: false,
-        useESModules: false
-      }
-    ]
+    ['@babel/plugin-proposal-class-properties', { loose: true }]
+    // [
+    //   '@babel/plugin-transform-runtime',
+    //   {
+    //     corejs: 2,
+    //     helpers: true,
+    //     regenerator: false,
+    //     useESModules: false
+    //   }
+    // ]
   ]
 }
 
