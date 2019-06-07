@@ -10,9 +10,8 @@ export function isAmp({
 }
 
 export function useAmp() {
-  const ampMode = React.useContext(AmpModeContext)
   // un-comment below to not be considered AMP in dirty mode
-  return isAmp(ampMode) // && ampMode.hasQuery
+  return isAmp(React.useContext(AmpModeContext)) // && ampMode.hasQuery
 }
 
 export function withAmp(
