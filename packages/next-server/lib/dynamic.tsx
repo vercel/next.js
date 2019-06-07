@@ -17,18 +17,16 @@ export type LoadableGeneratedOptions = {
 }
 
 export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
-  loading?: (
-    {
-      error,
-      isLoading,
-      pastDelay,
-    }: {
-      error?: Error | null
-      isLoading?: boolean
-      pastDelay?: boolean
-      timedOut?: boolean
-    }
-  ) => JSX.Element | null
+  loading?: ({
+    error,
+    isLoading,
+    pastDelay,
+  }: {
+    error?: Error | null
+    isLoading?: boolean
+    pastDelay?: boolean
+    timedOut?: boolean
+  }) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
