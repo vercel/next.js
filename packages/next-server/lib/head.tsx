@@ -1,8 +1,7 @@
 import React from 'react'
 import withSideEffect from './side-effect'
-import { AmpModeContext } from './amphtml-context'
 import { HeadManagerContext } from './head-manager-context'
-import { isAmp } from './amp'
+import { useAmp } from './amp'
 
 type WithIsAmp = {
   isAmp?: boolean
@@ -144,22 +143,16 @@ const Effect = withSideEffect()
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
+  const isAmp = useAmp()
+  const updateHead = React.useContext(HeadManagerContext)
   return (
-    <AmpModeContext.Consumer>
-      {ampMode => (
-        <HeadManagerContext.Consumer>
-          {updateHead => (
-            <Effect
-              reduceComponentsToState={reduceComponents}
-              handleStateChange={updateHead}
-              isAmp={isAmp(ampMode)}
-            >
-              {children}
-            </Effect>
-          )}
-        </HeadManagerContext.Consumer>
-      )}
-    </AmpModeContext.Consumer>
+    <Effect
+      reduceComponentsToState={reduceComponents}
+      handleStateChange={updateHead}
+      isAmp={isAmp}
+    >
+      {children}
+    </Effect>
   )
 }
 
