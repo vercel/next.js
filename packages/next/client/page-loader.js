@@ -73,6 +73,14 @@ export default class PageLoader {
     route = this.normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
+      // If there's a cached version of the page, let's use it.
+      const cachedPage = this.pageCache[route]
+      if (cachedPage) {
+        const { error, page } = cachedPage
+        error ? reject(error) : resolve(page)
+        return
+      }
+
       const fire = ({ error, page }) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
@@ -82,14 +90,6 @@ export default class PageLoader {
         } else {
           resolve(page)
         }
-      }
-
-      // If there's a cached version of the page, let's use it.
-      const cachedPage = this.pageCache[route]
-      if (cachedPage) {
-        const { error, page } = cachedPage
-        error ? reject(error) : resolve(page)
-        return
       }
 
       // Register a listener to get the page
