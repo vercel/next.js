@@ -214,7 +214,10 @@ class Link extends Component<LinkProps> {
       ref?: any
     } = {
       ref: (el: any) => this.handleRef(el),
-      onMouseEnter: () => {
+      onMouseEnter: (e: React.MouseEvent) => {
+        if (child.props && typeof child.props.onMouseEnter === 'function') {
+          child.props.onMouseEnter(e)
+        }
         this.prefetch()
       },
       onClick: (e: React.MouseEvent) => {
