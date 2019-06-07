@@ -67,7 +67,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const target = process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || config.target
+  const { target } = config
   const buildId = debug
     ? 'unoptimized-build'
     : await generateBuildId(config.generateBuildId, nanoid)
