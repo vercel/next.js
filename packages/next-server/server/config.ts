@@ -15,7 +15,7 @@ const defaultConfig: { [key: string]: any } = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
+  target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,

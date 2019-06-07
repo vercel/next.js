@@ -29,7 +29,7 @@ describe('Flying Shuttle', () => {
         stdout: true
       })
       const buildText = stripAnsi(stdout)
-      expect(buildText).toMatch(/could not locate flying shuttle/)
+      expect(buildText).not.toMatch(/flying shuttle is docked/)
       await fs.copy(
         path.join(appDir, '.next'),
         path.join(appDir, '.next-first')
