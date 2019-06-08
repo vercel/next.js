@@ -5,7 +5,7 @@ export const dataArray: User[] = [
   { id: 101, name: 'Alice' },
   { id: 102, name: 'Bob' },
   { id: 103, name: 'Caroline' },
-  { id: 104, name: 'Dave' },
+  { id: 104, name: 'Dave' }
 ]
 
 /**
@@ -13,7 +13,7 @@ export const dataArray: User[] = [
  *
  * Throws an error if not found.
  */
-export async function findData(id: number | string) {
+export async function findData (id: number | string) {
   const selected = dataArray.find(data => data.id === Number(id))
 
   if (!selected) {
@@ -24,7 +24,7 @@ export async function findData(id: number | string) {
 }
 
 /** Calls a mock API which returns the above array to simulate "get all". */
-export async function findAll() {
+export async function findAll () {
   // Throw an error, just for example.
   if (!Array.isArray(dataArray)) {
     throw new Error('Cannot find users')

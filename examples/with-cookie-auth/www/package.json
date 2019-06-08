@@ -1,19 +1,16 @@
 {
   "name": "with-cookie-auth",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "isomorphic-unfetch": "^3.0.0",
     "js-cookie": "^2.2.0",
-    "next": "^7.0.2",
+    "next": "^8.1.0",
     "next-cookies": "^1.0.4",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  },
-  "devDependencies": {
-    "http-proxy": "^1.17.0"
   }
 }

@@ -88,7 +88,12 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-export class Html extends Component {
+export class Html extends Component<
+  React.DetailedHTMLProps<
+    React.HtmlHTMLAttributes<HTMLHtmlElement>,
+    HTMLHtmlElement
+  >
+> {
   static contextTypes = {
     _documentProps: PropTypes.any,
   }
@@ -105,7 +110,13 @@ export class Html extends Component {
   }
 }
 
-export class Head extends Component<OriginProps> {
+export class Head extends Component<
+  OriginProps &
+    React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLHeadElement>,
+      HTMLHeadElement
+    >
+> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -207,7 +218,9 @@ export class Head extends Component<OriginProps> {
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        if (child && child.type === 'title') {
+        const isReactHelmet =
+          child && child.props && child.props['data-react-helmet']
+        if (child && child.type === 'title' && !isReactHelmet) {
           console.warn(
             "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
           )

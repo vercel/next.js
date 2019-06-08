@@ -11,7 +11,7 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import fs from 'fs'
 import { promisify } from 'util'
-import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
@@ -67,7 +67,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const target = process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || config.target
+  const { target } = config
   const buildId = debug
     ? 'unoptimized-build'
     : await generateBuildId(config.generateBuildId, nanoid)
@@ -381,7 +381,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // remove server bundles that were exported
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
-      if (!serverDir) serverDir = path.dirname(serverBundle)
+      if (!serverDir) {
+        serverDir = path.join(
+          serverBundle.split(/(\/|\\)pages/).shift()!,
+          'pages'
+        )
+      }
       await fsUnlink(serverBundle)
     }
 

@@ -1,6 +1,11 @@
 {
   "version": 2,
   "name": "with-cookie-auth",
+  "build": {
+    "env": {
+      "API_URL": "http://localhost:3000"
+    }
+  },
   "builds": [
     { "src": "www/package.json", "use": "@now/next" },
     { "src": "api/*.js", "use": "@now/node" }

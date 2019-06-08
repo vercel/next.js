@@ -4,7 +4,7 @@ import { posts } from './posts'
 
 const sitemap = sm.createSitemap({
   cacheTime: 600000, // 600 sec - cache purge period
-  hostname: 'https://sitemap-robots-typescript.now.sh',
+  hostname: 'https://sitemap-robots-typescript.now.sh'
 })
 
 const addSitemap = ({ server }) => {
@@ -13,20 +13,20 @@ const addSitemap = ({ server }) => {
     sitemap.add({
       changefreq: 'daily',
       priority: 0.9,
-      url: `/posts/${post.slug}`,
+      url: `/posts/${post.slug}`
     })
   }
 
   sitemap.add({
     changefreq: 'daily',
     priority: 1,
-    url: '/a',
+    url: '/a'
   })
 
   sitemap.add({
     changefreq: 'daily',
     priority: 1,
-    url: '/b',
+    url: '/b'
   })
   // Note {} in next line is a placeholder filling the spot where the req parameter
   // would normally be listed (but isn't listed here since we aren't using it)

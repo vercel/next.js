@@ -138,9 +138,48 @@ export type DocumentProps = DocumentInitialProps & {
 }
 
 /**
+ * Next `API` route request
+ */
+export type NextApiRequest = IncomingMessage & {
+  /**
+   * Object of `query` values from url
+   */
+  query: {
+    [key: string]: string | string[]
+  }
+  /**
+   * Object of `cookies` from header
+   */
+  cookies: {
+    [key: string]: string
+  }
+
+  body: any
+}
+
+/**
+ * Send body of response
+ */
+type Send = (body: any) => void
+
+/**
+ * Next `API` route response
+ */
+export type NextApiResponse = ServerResponse & {
+  /**
+   * Send data `any` data in reponse
+   */
+  send: Send
+  /**
+   * Send data `json` data in reponse
+   */
+  json: Send
+  status: (statusCode: number) => void
+}
+
+/**
  * Utils
  */
-
 export function execOnce(this: any, fn: () => any) {
   let used = false
   return (...args: any) => {

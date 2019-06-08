@@ -43,7 +43,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import {sendHTML} from 'next-server/dist/server/send-html';
     ${
       page.includes('/$')
-        ? `import {getRouteMatch} from 'next-server/dist/lib/router/utils';`
+        ? `import {getRouteMatcher, getRouteRegex} from 'next-server/dist/lib/router/utils';`
         : ''
     }
     import buildManifest from '${buildManifest}';
@@ -72,6 +72,7 @@ const nextServerlessLoader: loader.Loader = function() {
         {
           Component,
           dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
+          nextExport: fromExport
         },
         options,
       )
@@ -79,7 +80,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           page.includes('/$')
-            ? `const params = getRouteMatch("${page}")(parsedUrl.pathname) || {};`
+            ? `const params = getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)

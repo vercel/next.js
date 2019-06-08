@@ -126,9 +126,9 @@ export function runNextCommand (argv, options = {}) {
   })
 }
 
-export function runNextCommandDev (argv, stdOut) {
+export function runNextCommandDev (argv, stdOut, opts = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
-  const env = { ...process.env, NODE_ENV: undefined }
+  const env = { ...process.env, NODE_ENV: undefined, ...opts.env }
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
@@ -164,16 +164,16 @@ export function launchApp (dir, port) {
   return runNextCommandDev([dir, '-p', port])
 }
 
-export function nextBuild (dir, args = []) {
-  return runNextCommand(['build', dir, ...args])
+export function nextBuild (dir, args = [], opts = {}) {
+  return runNextCommand(['build', dir, ...args], opts)
 }
 
 export function nextExport (dir, { outdir }) {
   return runNextCommand(['export', dir, '--outdir', outdir])
 }
 
-export function nextStart (dir, port) {
-  return runNextCommandDev(['start', '-p', port, dir])
+export function nextStart (dir, port, opts = {}) {
+  return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
 }
 
 // Kill a launched app
