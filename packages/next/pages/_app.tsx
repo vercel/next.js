@@ -27,7 +27,7 @@ async function appGetInitialProps({
   return { pageProps }
 }
 
-export default class App<P = {}, CP = P> extends React.Component<
+export default class App<P = {}, CP = {}> extends React.Component<
   P & AppProps<CP>
 > {
   static childContextTypes = {
