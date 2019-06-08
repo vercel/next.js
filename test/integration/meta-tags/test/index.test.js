@@ -34,7 +34,7 @@ describe('No duplicate meta tags', () => {
       expect(duplicate).toBe(false)
     })
   })
-  describe('With key', () => {
+  /* describe('With key', () => {
     test('should render the right meta tag', async () => {
       const $ = await get$('/')
       let duplicate = false
@@ -45,5 +45,5 @@ describe('No duplicate meta tags', () => {
       })
       expect(duplicate).toBe(false)
     })
-  })
+  }) */
 })
