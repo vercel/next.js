@@ -4,16 +4,6 @@ import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
 class Login extends Component {
-  static getInitialProps ({ req }) {
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-
-    const apiUrl = process.browser
-      ? `${protocol}://${window.location.host}/api/login.js`
-      : `${protocol}://${req.headers.host}/api/login.js`
-
-    return { apiUrl }
-  }
-
   constructor (props) {
     super(props)
 
@@ -30,7 +20,7 @@ class Login extends Component {
     event.preventDefault()
     this.setState({ error: '' })
     const username = this.state.username
-    const url = this.props.apiUrl
+    const url = `${process.env.API_URL}/api/login.js`
 
     try {
       const response = await fetch(url, {
