@@ -1,3 +1,2 @@
-export const config = { amp: 'hybrid' }
-
-export default () => `Hi Im an AMP page!`
+import { withAmp } from 'next/amp'
+export default withAmp(() => `Hi Im an AMP page!`, { hybrid: true })
