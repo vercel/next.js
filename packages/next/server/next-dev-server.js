@@ -14,8 +14,7 @@ import {
   getRouteRegex,
   getSortedRoutes
 } from 'next-server/dist/lib/router/utils'
-
-const React = require('react')
+import React from 'react'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
