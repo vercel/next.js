@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'strip-ansi'
+import webpack from 'webpack'
 
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
@@ -13,8 +14,8 @@ export function startedDevelopmentServer(appUrl: string) {
   consoleStore.setState({ appUrl })
 }
 
-let previousClient: any = null
-let previousServer: any = null
+let previousClient: webpack.Compiler | null = null
+let previousServer: webpack.Compiler | null = null
 
 type CompilerDiagnostics = {
   errors: string[] | null
@@ -196,8 +197,8 @@ export function ampValidation(
 }
 
 export function watchCompilers(
-  client: any,
-  server: any,
+  client: webpack.Compiler,
+  server: webpack.Compiler,
   enableTypeCheckingOnClient: boolean,
   onTypeChecked: (diagnostics: CompilerDiagnostics) => void
 ) {
@@ -212,7 +213,7 @@ export function watchCompilers(
 
   function tapCompiler(
     key: string,
-    compiler: any,
+    compiler: webpack.Compiler,
     hasTypeChecking: boolean,
     onEvent: (status: WebpackStatus) => void
   ) {
@@ -257,7 +258,7 @@ export function watchCompilers(
         )
     }
 
-    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: any) => {
+    compiler.hooks.done.tap(`NextJsDone-${key}`, stats => {
       buildStore.setState({ amp: {} })
 
       const statsConfig = stats.compilation.compiler.options.stats
