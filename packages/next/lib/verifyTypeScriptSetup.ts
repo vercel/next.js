@@ -42,12 +42,13 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const hasTsConfig = await exists(tsConfigPath)
   const isYarn = await exists(yarnLockFile)
 
-  const firstTimeSetup = !hasTsConfig && (await hasTypeScript(dir))
+  let firstTimeSetup = !hasTsConfig && (await hasTypeScript(dir))
 
   // Ensure TypeScript is installed
   let typescriptPath = ''
   let ts: typeof import('typescript')
 
+  const toInstall: string[] = []
   try {
     await resolveP('@types/react/index.d.ts', { basedir: dir })
   } catch (_) {
