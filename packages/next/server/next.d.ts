@@ -1,10 +1,12 @@
-import Server from 'next-server/dist/server/next-server'
+import Server, { ServerConstructor } from 'next-server/dist/server/next-server'
 
-interface DevServer extends Server {
-  renderOpts: Server['renderOpts'] & { dev: true }
+type NextServerConstructor = Omit<ServerConstructor, 'staticMarkup'> & {
+  /**
+   * Whether to launch Next.js in dev mode - @default false
+   */
+  dev?: boolean
 }
 
-declare function next(options: any): Server
-declare function next(options: any & { dev: true }): DevServer
+declare function next(opts: NextServerConstructor): Server
 
 export default next
