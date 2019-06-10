@@ -1,9 +1,8 @@
-import { useAmp, withAmp } from 'next/amp'
+import { useAmp } from 'next/amp'
 
-export default withAmp(
-  () => {
-    const isAmp = useAmp()
-    return `Hello ${isAmp ? 'AMP' : 'others'}`
-  },
-  { hybrid: true }
-)
+export const config = { amp: 'hybrid' }
+
+export default () => {
+  const isAmp = useAmp()
+  return `Hello ${isAmp ? 'AMP' : 'others'}`
+}

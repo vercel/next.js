@@ -1,3 +1,3 @@
-import { withAmp } from 'next/amp'
+export const config = { amp: true }
 
-export default withAmp(() => <p>Hello again AMP!</p>)
+export default () => <p>Hello again AMP!</p>

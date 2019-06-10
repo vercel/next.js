@@ -31,6 +31,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/Hello World/)
   })
 
+  it('should serve file from public folder', async () => {
+    const content = await renderViaHTTP(appPort, '/hello.txt')
+    expect(content.trim()).toBe('hello world')
+  })
+
   it('should render the page with dynamic import', async () => {
     const html = await renderViaHTTP(appPort, '/dynamic')
     expect(html).toMatch(/Hello!/)
