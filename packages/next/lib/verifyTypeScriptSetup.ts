@@ -25,46 +25,35 @@ function writeJson(fileName: string, object: object): Promise<void> {
   )
 }
 
-async function verifyNoTypeScript(dir: string) {
+async function hasTypeScript(dir: string): Promise<boolean> {
   const typescriptFiles = await recursiveReadDir(
     dir,
     /.*\.(ts|tsx)$/,
     /(node_modules|.*\.d\.ts)/
   )
 
-  if (typescriptFiles.length > 0) {
-    console.warn(
-      chalk.yellow(
-        `We detected TypeScript in your project (${chalk.bold(
-          `.${typescriptFiles[0]}`
-        )}) and created a ${chalk.bold('tsconfig.json')} file for you.`
-      )
-    )
-    console.warn()
-    return false
-  }
-  return true
+  return typescriptFiles.length > 0
 }
 
 export async function verifyTypeScriptSetup(dir: string): Promise<void> {
-  let firstTimeSetup = false
-  const yarnLockFile = path.join(dir, 'yarn.lock')
   const tsConfigPath = path.join(dir, 'tsconfig.json')
-  const toInstall: string[] = []
+  const yarnLockFile = path.join(dir, 'yarn.lock')
 
-  if (!(await exists(tsConfigPath))) {
-    if (await verifyNoTypeScript(dir)) {
-      return
-    }
-    await writeJson(tsConfigPath, {})
-    firstTimeSetup = true
-  }
+  const hasTsConfig = await exists(tsConfigPath)
   const isYarn = await exists(yarnLockFile)
+  const hasTypeScriptFiles = await hasTypeScript(dir)
+
+  if (!(hasTsConfig || hasTypeScriptFiles)) {
+    return
+  }
+
+  let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
 
   // Ensure TypeScript is installed
   let typescriptPath = ''
   let ts: typeof import('typescript')
 
+  const toInstall: string[] = []
   try {
     await resolveP('@types/react/index.d.ts', { basedir: dir })
   } catch (_) {
@@ -151,6 +140,19 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     getCanonicalFileName: (fileName: string) => fileName,
     getCurrentDirectory: ts.sys.getCurrentDirectory,
     getNewLine: () => os.EOL,
+  }
+
+  if (firstTimeSetup) {
+    console.log(
+      chalk.yellow(
+        `We detected TypeScript in your project and created a ${chalk.bold(
+          'tsconfig.json'
+        )} file for you.`
+      )
+    )
+    console.log()
+
+    await writeJson(tsConfigPath, {})
   }
 
   const messages = []
