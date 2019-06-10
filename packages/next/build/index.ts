@@ -305,6 +305,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       bundleRelative
     )
 
+    let isStatic = false
+
     if (autoExport) {
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
@@ -336,11 +338,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (customAppGetInitialProps === false && nonReservedPage) {
         if (isPageStatic(serverBundle, runtimeEnvConfig)) {
           staticPages.add(page)
+          isStatic = true
         }
       }
     }
 
-    pageInfos.set(page, { size, chunks, serverBundle })
+    pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
   }
 
   if (Array.isArray(configs[0].plugins)) {
