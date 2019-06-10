@@ -1,8 +1,8 @@
 import webpack, { Stats } from 'webpack'
 
 export type CompilerResult = {
-  errors: Error[]
-  warnings: Error[]
+  errors: string[]
+  warnings: string[]
 }
 
 function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
