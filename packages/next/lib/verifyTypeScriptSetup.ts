@@ -41,8 +41,13 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
 
   const hasTsConfig = await exists(tsConfigPath)
   const isYarn = await exists(yarnLockFile)
+  const hasTypeScriptFiles = await hasTypeScript(dir)
 
-  let firstTimeSetup = !hasTsConfig && (await hasTypeScript(dir))
+  if (!(hasTsConfig || hasTypeScriptFiles)) {
+    return
+  }
+
+  let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
 
   // Ensure TypeScript is installed
   let typescriptPath = ''
