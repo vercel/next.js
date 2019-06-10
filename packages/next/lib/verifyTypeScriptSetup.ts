@@ -145,6 +145,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
         )} file for you.`
       )
     )
+    console.log()
 
     await writeJson(tsConfigPath, {})
   }
