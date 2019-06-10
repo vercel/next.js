@@ -10,4 +10,4 @@ interface DevServer extends Server {
 declare function next(options: any): Server
 declare function next(options: any & { dev: true }): DevServer
 
-export = next
+export default next
