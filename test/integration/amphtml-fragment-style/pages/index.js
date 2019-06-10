@@ -1,6 +1,6 @@
-import { withAmp } from 'next/amp'
+export const config = { amp: true }
 
-export default withAmp(() => (
+export default () => (
   <div>
     <p>Hello world!</p>
     <style jsx>{`
@@ -9,4 +9,4 @@ export default withAmp(() => (
       }
     `}</style>
   </div>
-))
+)
