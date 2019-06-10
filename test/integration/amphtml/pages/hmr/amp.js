@@ -1,8 +1,8 @@
-import { withAmp } from 'next/amp'
+export const config = { amp: true }
 
-export default withAmp(() => (
+export default () => (
   <>
     <p>I'm an AMP page!</p>
     <span>{new Date().getTime()}</span>
   </>
-))
+)

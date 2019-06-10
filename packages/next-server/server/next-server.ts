@@ -468,7 +468,11 @@ export default class Server {
       return result.Component.renderReqToHTML(req, res)
     }
 
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
+    return renderToHTML(req, res, pathname, query, {
+      ...result,
+      ...opts,
+      PageConfig: result.PageConfig,
+    })
   }
 
   public renderToHTML(

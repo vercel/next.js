@@ -1,9 +1,13 @@
 import Head from 'next/head'
-import { useAmp, withAmp } from 'next/amp'
+import { useAmp } from 'next/amp'
 import Layout from '../components/Layout'
 import Byline from '../components/Byline'
 
-export default withAmp(() => {
+export const config = {
+  amp: true
+}
+
+export default () => {
   const isAmp = useAmp()
 
   return (
@@ -214,4 +218,4 @@ export default withAmp(() => {
       `}</style>
     </Layout>
   )
-})
+}

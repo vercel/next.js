@@ -1932,46 +1932,45 @@ export default Page
 
 ### Enabling AMP Support
 
-To enable AMP support for a page, first enable experimental AMP support in your `next.config.js` and then import `withAmp` from `next/amp` and wrap your page's component in it.
+To enable AMP support for a page, add `export const config = { amp: true }` to your page.
 
 ### AMP First Page
 
 ```js
 // pages/about.js
-import { withAmp } from 'next/amp'
+export const config = { amp: true }
 
-export default withAmp(function AboutPage(props) {
+export default function AboutPage(props) {
   return <h3>My AMP About Page!</h3>
-})
+}
 ```
 
 ### Hybrid AMP Page
 
 ```js
 // pages/hybrid-about.js
-import { withAmp, useAmp } from 'next/amp'
+import { useAmp } from 'next/amp'
 
-export default withAmp(
-  function AboutPage(props) {
-    return (
-      <div>
-        <h3>My AMP Page</h3>
-        {useAmp() ? (
-          <amp-img
-            width="300"
-            height="300"
-            src="/my-img.jpg"
-            alt="a cool image"
-            layout="responsive"
-          />
-        ) : (
-          <img width="300" height="300" src="/my-img.jpg" alt="a cool image" />
-        )}
-      </div>
-    )
-  },
-  { hybrid: true }
-)
+export const config = { amp: true }
+
+export default function AboutPage(props) {
+  return (
+    <div>
+      <h3>My AMP Page</h3>
+      {useAmp() ? (
+        <amp-img
+          width="300"
+          height="300"
+          src="/my-img.jpg"
+          alt="a cool image"
+          layout="responsive"
+        />
+      ) : (
+        <img width="300" height="300" src="/my-img.jpg" alt="a cool image" />
+      )}
+    </div>
+  )
+}
 ```
 
 ### AMP Page Modes
@@ -1982,11 +1981,11 @@ AMP pages can specify two modes:
   - Pages have no Next.js or React client-side runtime
   - Pages are automatically optimized with [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer), an optimizer that applies the same transformations as AMP caches (improves performance by up to 42%)
   - Pages have a user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
-  - Opt-in via `withAmp(Component)`
+  - Opt-in via `export const config = { amp: true }`
 - Hybrid
   - Pages are able to be rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
   - The AMP version of the page only has valid optimizations applied with AMP Optimizer so that it is indexable by search-engines
-  - Opt-in via `withAmp(Component, { hybrid: true })`
+  - Opt-in via `export const config = { amp: 'hybrid' }`
   - Able to differentiate between modes using `useAmp` from `next/amp`
 
 Both of these page modes provide a consistently fast experience for users accessing pages through search engines.
@@ -2013,9 +2012,10 @@ The AMP community provides [many components](https://amp.dev/documentation/compo
 ```js
 // pages/hello.js
 import Head from 'next/head'
-import { withAmp } from 'next/amp'
 
-export default withAmp(function MyAmpPage() {
+export const config = { amp: true }
+
+export default function MyAmpPage() {
   return (
     <div>
       <Head>
@@ -2038,7 +2038,7 @@ export default withAmp(function MyAmpPage() {
       </amp-timeago>
     </div>
   )
-})
+}
 ```
 
 ### AMP Validation
