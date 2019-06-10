@@ -6,11 +6,16 @@ export type CompilerResult = {
 }
 
 function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
-  const { errors, warnings } = stat.toJson({
-    all: false,
-    warnings: true,
-    errors: true,
-  })
+  const statsConfig = stat.compilation.compiler.options.stats
+  const statsConfigOrDefault = statsConfig
+    ? statsConfig
+    : {
+        all: false,
+        warnings: true,
+        errors: true,
+      }
+
+  const { errors, warnings } = stat.toJson(statsConfigOrDefault)
   if (errors.length > 0) {
     result.errors.push(...errors)
   }
