@@ -268,6 +268,15 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     await writeJson(tsConfigPath, appTsConfig)
   }
 
+  // Reference `next` types
+  const appTypeDeclarations = path.join(dir, 'next-env.d.ts')
+  if (!fs.existsSync(appTypeDeclarations)) {
+    fs.writeFileSync(
+      appTypeDeclarations,
+      `/// <reference types="next" />${os.EOL}`
+    )
+  }
+
   if (toInstall.length > 0) {
     console.warn(
       chalk.red(
