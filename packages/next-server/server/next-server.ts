@@ -13,6 +13,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -322,7 +323,12 @@ export default class Server {
   private generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
-    const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
+    const serverBuildPath = join(
+      this.distDir,
+      this.nextConfig.target === 'serverless'
+        ? SERVERLESS_DIRECTORY
+        : SERVER_DIRECTORY
+    )
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
     publicFiles.forEach(path => {
