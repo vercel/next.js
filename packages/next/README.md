@@ -477,7 +477,9 @@ Example:
    <Link href="/post?slug=something" as="/post/something">
    ```
 
-**Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time**
+**Note: Dynamic pages are prefetched in the background for maximum performance**
+
+> A dynamic page is page that uses `getInitialProps`
 
 Client-side routing behaves exactly like the browser:
 
