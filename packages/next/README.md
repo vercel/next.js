@@ -331,7 +331,25 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
+When you need state, lifecycle hooks or **initial data population** you can export a [React.Component](https://reactjs.org/docs/react-component.html) or use a stateless function and [Hooks](https://reactjs.org/docs/hooks-intro.html).
+
+Using a stateless function:
+
+```jsx
+function Page({ stars }) {
+  return <div>Next stars: {stars}</div>
+}
+
+Page.getInitialProps = async ({ req }) => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const json = await res.json()
+  return { stars: json.stargazers_count }
+}
+
+export default Page
+```
+
+Using `React.Component`:
 
 ```jsx
 import React from 'react'
@@ -356,30 +374,12 @@ Data returned from `getInitialProps` is serialized when server rendering, simila
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
 
-_Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
-
 <br/>
 
-> If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules).
-> Otherwise, it'll slow down your app.
+> - `getInitialProps` can **not** be used in children components. Only in `pages`.
+> - If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise, it'll slow down your app.
 
 <br/>
-
-You can also define the `getInitialProps` lifecycle method for stateless components:
-
-```jsx
-function Page({ stars }) {
-  return <div>Next stars: {stars}</div>
-}
-
-Page.getInitialProps = async ({ req }) => {
-  const res = await fetch('https://api.github.com/repos/zeit/next.js')
-  const json = await res.json()
-  return { stars: json.stargazers_count }
-}
-
-export default Page
-```
 
 `getInitialProps` receives a context object with the following properties:
 
