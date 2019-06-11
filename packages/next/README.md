@@ -2226,7 +2226,7 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
 }
 ```
 
-For the production deployment, you can use the same configuration and just run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you also can configure a proxy server to route HTML pages using a set of routes like the ones above, e.g deploy the docs app to `https://my-docs.com` and the home app to `https://my-home.com` and then add a proxy server for both apps in `https://my-site.com`.
+For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
 
 ## Recipes
 
