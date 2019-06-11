@@ -156,6 +156,27 @@ export default async function getBaseWebpackConfig(
     cpus: config.experimental.cpus,
     distDir: distDir,
   }
+  const terserOptions = {
+    parse: {
+      ecma: 8,
+    },
+    compress: {
+      ecma: 5,
+      warnings: false,
+      // The following two options are known to break valid JavaScript code
+      comparisons: false,
+      inline: 2, // https://github.com/zeit/next.js/issues/7178#issuecomment-493048965
+    },
+    mangle: { safari10: true },
+    output: {
+      ecma: 5,
+      safari10: true,
+      comments: false,
+      // Fixes usage of Emoji and certain Regex
+      ascii_only: true,
+    },
+  }
+
   const devtool = dev || debug ? 'cheap-module-source-map' : false
 
   let webpackConfig: webpack.Configuration = {
@@ -288,10 +309,11 @@ export default async function getBaseWebpackConfig(
                   new TerserPlugin({
                     ...terserPluginConfig,
                     terserOptions: {
-                      safari10: true,
+                      ...terserOptions,
+                      // Disable compress when using terser loader
                       ...(selectivePageBuilding ||
                       config.experimental.terserLoader
-                        ? { compress: false, mangle: true }
+                        ? { compress: false }
                         : undefined),
                     },
                   }),
@@ -364,8 +386,7 @@ export default async function getBaseWebpackConfig(
               loader: 'next-minify-loader',
               options: {
                 terserOptions: {
-                  safari10: true,
-                  compress: true,
+                  ...terserOptions,
                   mangle: false,
                 },
               },
