@@ -10,7 +10,7 @@
 
 ---
 
-**The below readme is the documentation for the `canary` (prerelease) branch. To view the documentation for the latest stable Next.js version visit [nextjs.org/docs](https://nextjs.org/docs)**
+**The below readme is the documentation for the `canary` (prerelease) branch. To view the documentation for the latest stable Next.js version visit [nextjs.org/docs](https://nextjs.org/docs).**
 
 ---
 
@@ -129,10 +129,10 @@ and then just run `npm run dev` and go to `http://localhost:3000`. To use anothe
 
 So far, we get:
 
-- Automatic transpilation and bundling (with webpack and babel)
-- Hot code reloading
-- Server rendering and indexing of `./pages`
-- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
+- Automatic transpilation and bundling (with webpack and babel).
+- Hot code reloading.
+- Server rendering and indexing of `./pages`.
+- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project).
 
 ### Automatic code splitting
 
@@ -250,9 +250,9 @@ function MyImage() {
 export default MyImage
 ```
 
-To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`
+To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
 
-_Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets_
+_Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
 
 ### Populating `<head>`
 
@@ -382,12 +382,12 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 `getInitialProps` receives a context object with the following properties:
 
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
-- `asPath` - `String` of the actual path (including the query) shows in the browser
-- `req` - HTTP request object (server only)
-- `res` - HTTP response object (server only)
-- `err` - Error object if any error is encountered during the rendering
+- `pathname` - path section of URL.
+- `query` - query string section of URL parsed as an object.
+- `asPath` - `String` of the actual path (including the query) shows in the browser.
+- `req` - HTTP request object (server only).
+- `res` - HTTP response object (server only).
+- `err` - Error object if any error is encountered during the rendering.
 
 ### Routing
 
@@ -447,7 +447,7 @@ Example:
 
 1. Consider you have the URL `/post/:slug`.
 
-2. You created the `pages/post.js`
+2. You created the `pages/post.js`.
 
    ```jsx
    class Post extends React.Component {
@@ -478,13 +478,13 @@ Example:
 
 **Note: Dynamic pages are prefetched in the background for maximum performance**
 
-> A dynamic page is page that uses `getInitialProps`
+> A dynamic page is page that uses `getInitialProps`.
 
 Client-side routing behaves exactly like the browser:
 
-1. The component is fetched
-2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
-3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
+1. The component is fetched.
+2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered.
+3. After 1 and 2 complete, `pushState` is performed and the new component is rendered.
 
 To inject the `pathname`, `query` or `asPath` in your component, you can use [withRouter](#using-a-higher-order-component).
 
@@ -605,7 +605,7 @@ The default behaviour of `<Link>` is to scroll to the top of the page. When ther
   </ul>
 </details>
 
-You can also do client-side page transitions using the `next/router`
+You can also do client-side page transitions using `next/router`:
 
 ```jsx
 import Router from 'next/router'
@@ -648,12 +648,12 @@ See [Disabling File-System Routing](#disabling-file-system-routing).
 
 Above `Router` object comes with the following API:
 
-- `route` - `String` of the current route
-- `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
-- `asPath` - `String` of the actual path (including the query) shows in the browser
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `route` - `String` of the current route.
+- `pathname` - `String` of the current path excluding the query string.
+- `query` - `Object` with the parsed query string. Defaults to `{}`.
+- `asPath` - `String` of the actual path (including the query) shows in the browser.
+- `push(url, as=url)` - performs a `pushState` call with the given url.
+- `replace(url, as=url)` - performs a `replaceState` call with the given url.
 - `beforePopState(cb=function)` - intercept popstate before router processes the event.
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
@@ -970,12 +970,9 @@ module.exports = {
 }
 ```
 
-Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing
-may still access those paths. If using this option, you should guard against navigation to routes
-you do not want programmatically.
+Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing may still access those paths. If using this option, you should guard against navigation to routes you do not want programmatically.
 
-You may also wish to configure the client-side Router to disallow client-side redirects to filename
-routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
+You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
 
 #### Dynamic assetPrefix
 
@@ -1172,10 +1169,10 @@ export default DynamicBundle
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
 
-- Persisting layout between page changes
-- Keeping state when navigating pages
-- Custom error handling using `componentDidCatch`
-- Inject additional data into pages (for example by processing GraphQL queries)
+- Persisting layout between page changes.
+- Keeping state when navigating pages.
+- Custom error handling using `componentDidCatch`.
+- Inject additional data into pages (for example by processing GraphQL queries).
 
 To override, create the `./pages/_app.js` file and override the App class as shown below:
 
@@ -1259,14 +1256,14 @@ All of `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for pa
 
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
-- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
+- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering).
 
 #### Customizing `renderPage`
 
 🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with css-in-js libraries
 that need to wrap the application to properly work with server-rendering. 🚧
 
-- It takes as argument an options object for further customization
+- It takes as argument an options object for further customization.
 
 ```js
 import Document from 'next/document'
@@ -1503,7 +1500,7 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
 - [@next/mdx](https://github.com/zeit/next.js/tree/canary/packages/next-mdx)
 
-> **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
+> **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property.
 
 Multiple configurations can be combined together with function composition. For example:
 
@@ -1546,10 +1543,10 @@ module.exports = {
 
 The second argument to `webpack` is an object containing properties useful when customizing its configuration:
 
-- `buildId` - `String` the build id used as a unique identifier between builds
-- `dev` - `Boolean` shows if the compilation is done in development mode
+- `buildId` - `String` the build id used as a unique identifier between builds.
+- `dev` - `Boolean` shows if the compilation is done in development mode.
 - `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client side compilation (`false`).
-- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
+- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration.
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
 
 Example usage of `defaultLoaders.babel`:
@@ -1637,8 +1634,8 @@ There is a common need in applications to provide configuration values.
 
 Next.js supports 2 ways of providing configuration:
 
-- Build-time configuration
-- Runtime configuration
+- Build-time configuration.
+- Runtime configuration.
 
 #### Build time configuration
 
@@ -1666,7 +1663,7 @@ function Index() {
 export default Index
 ```
 
-> **Warning:** Note that it is not possible to destructure process.env variables due to the webpack `DefinePlugin` replacing process.env.XXXX inline at build time
+> **Warning:** Note that it is not possible to destructure process.env variables due to the webpack `DefinePlugin` replacing process.env.XXXX inline at build time.
 
 ```js
 // Will not work
@@ -2305,21 +2302,21 @@ Yes! Here's an example with [Apollo](/examples/with-apollo).
 <details>
 <summary>Can I use it with Redux and thunk?</summary>
 
-Yes! Here's an [example](/examples/with-redux-thunk)
+Yes! Here's an [example](/examples/with-redux-thunk).
 
 </details>
 
 <details>
 <summary>Can I use it with Redux?</summary>
 
-Yes! Here's an [example](/examples/with-redux)
+Yes! Here's an [example](/examples/with-redux).
 
 </details>
 
 <details>
 <summary>Can I use Next with my favorite Javascript library or toolkit?</summary>
 
-Since our first release we've had **many** example contributions, you can check them out in the [examples](/examples) directory
+Since our first release we've had **many** example contributions, you can check them out in the [examples](/examples) directory.
 
 </details>
 
@@ -2338,7 +2335,7 @@ As we were researching options for server-rendering React that didn’t involve 
 
 ## Contributing
 
-Please see our [contributing.md](/contributing.md)
+Please see our [contributing.md](/contributing.md).
 
 ## Authors
 
