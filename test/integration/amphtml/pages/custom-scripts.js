@@ -1,7 +1,8 @@
 import Head from 'next/head'
-import { withAmp } from 'next/amp'
 
-export default withAmp(() => (
+export const config = { amp: true }
+
+export default () => (
   <div>
     <Head>
       <script src='/im-not-allowed.js' type='text/javascript' />
@@ -13,4 +14,4 @@ export default withAmp(() => (
     </Head>
     <p>We only allow AMP scripts now</p>
   </div>
-))
+)

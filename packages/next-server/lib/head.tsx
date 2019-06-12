@@ -54,7 +54,7 @@ function onlyReactElement(
   return list.concat(child)
 }
 
-const METATYPES = ['name', 'httpEquiv', 'charSet', 'viewport', 'itemProp']
+const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
  returns a function for filtering head child elements
@@ -84,7 +84,7 @@ function unique() {
           const metatype = METATYPES[i]
           if (!h.props.hasOwnProperty(metatype)) continue
 
-          if (metatype === 'charSet' || metatype === 'viewport') {
+          if (metatype === 'charSet') {
             if (metaTypes.has(metatype)) return false
             metaTypes.add(metatype)
           } else {

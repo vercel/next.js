@@ -33,6 +33,7 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
 import { isAmp } from '../lib/amp'
+import { IPageConfig } from './load-components'
 
 function noRouter() {
   const message =
@@ -140,6 +141,7 @@ type RenderOpts = {
   dataOnly?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  PageConfig: IPageConfig
   Component: React.ComponentType
   Document: DocumentType
   DocumentMiddleware: (ctx: NextPageContext) => void
@@ -244,6 +246,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
+    PageConfig,
     DocumentMiddleware,
     Component,
     buildManifest,
@@ -354,8 +357,9 @@ export async function renderToHTML(
   let renderPage: RenderPage
 
   const ampMode = {
-    enabled: false,
+    enabled: Boolean(PageConfig.amp),
     hasQuery: Boolean(query.amp),
+    hybrid: PageConfig.amp === 'hybrid',
   }
 
   if (ampBindInitData) {

@@ -72,3 +72,7 @@ module.exports = withMDX({
   pageExtensions: ['js', 'jsx', 'mdx'],
 })
 ```
+
+## Typescript
+
+Follow [this guide](https://mdxjs.com/advanced/typescript) from the MDX docs.

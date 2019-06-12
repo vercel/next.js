@@ -77,13 +77,13 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...options.presets, presetItem]
       }
 
-      if (!isServer && source.indexOf('next/amp')) {
-        const dropClientPlugin = babel.createConfigItem(
-          [require('../../babel/plugins/next-drop-client-page'), {}],
+      if (!isServer && filename.indexOf('pages') !== -1) {
+        const pageConfigPlugin = babel.createConfigItem(
+          [require('../../babel/plugins/next-page-config')],
           { type: 'plugin' }
         )
         options.plugins = options.plugins || []
-        options.plugins.push(dropClientPlugin)
+        options.plugins.push(pageConfigPlugin)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {
