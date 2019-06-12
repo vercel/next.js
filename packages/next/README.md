@@ -1355,7 +1355,7 @@ export default Page
 
 > If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`.
 
-The Error module also takes `title` as a property if you want to pass in message text along with a `statusCode`.
+The Error component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.
 
 ### Custom configuration
 
@@ -1552,7 +1552,6 @@ The second argument to `webpack` is an object containing properties useful when 
 - `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client side compilation (`false`).
 - `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
-  - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
 
 Example usage of `defaultLoaders.babel`:
 
@@ -1606,6 +1605,7 @@ The `next/babel` preset includes everything needed to transpile React applicatio
 
 - preset-env
 - preset-react
+- preset-typescript
 - plugin-proposal-class-properties
 - plugin-proposal-object-rest-spread
 - plugin-transform-runtime
@@ -1900,7 +1900,35 @@ Page.getInitialProps = async ({ pathname }) => {
 export default Page
 ```
 
+For `React.Component` you can use `NextPageContext`:
+
+```tsx
+import React from 'react'
+import { NextPageContext } from 'next'
+
+interface Props {
+  pathname: string
+}
+
+export default class Page extends React.Component<Props> {
+  static async getInitialProps({ pathname }: NextPageContext) {
+    return { pathname }
+  }
+
+  render() {
+    return <main>Your request pathname: {pathname}</main>
+  }
+}
+```
+
 ## AMP Support
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">amp</a></li>
+  </ul>
+</details>
 
 ### Enabling AMP Support
 
@@ -1923,7 +1951,7 @@ export default function AboutPage(props) {
 // pages/hybrid-about.js
 import { useAmp } from 'next/amp'
 
-export const config = { amp: true }
+export const config = { amp: 'hybrid' }
 
 export default function AboutPage(props) {
   return (
