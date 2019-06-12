@@ -1213,7 +1213,6 @@ export default MyApp
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="/examples/with-styled-components">Styled components custom document</a></li>
-    <li><a href="/examples/with-amp">Google AMP</a></li>
   </ul>
 </details>
 
