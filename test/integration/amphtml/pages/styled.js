@@ -1,8 +1,9 @@
 import Foo from '../components/Foo'
 import Bar from '../components/Bar'
-import { withAmp } from 'next/amp'
 
-export default withAmp(() => (
+export const config = { amp: true }
+
+export default () => (
   <div>
     <Foo />
     <Bar />
@@ -12,4 +13,4 @@ export default withAmp(() => (
       }
     `}</style>
   </div>
-))
+)

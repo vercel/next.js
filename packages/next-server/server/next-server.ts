@@ -13,6 +13,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -48,9 +49,18 @@ import { isBlockedPage, isInternalUrl } from './utils'
 type NextConfig = any
 
 export type ServerConstructor = {
+  /**
+   * Where the Next project is located - @default '.'
+   */
   dir?: string
   staticMarkup?: boolean
+  /**
+   * Hide error messages containing server information - @default false
+   */
   quiet?: boolean
+  /**
+   * Object what you would use in next.config.js - @default {}
+   */
   conf?: NextConfig
 }
 
@@ -322,7 +332,12 @@ export default class Server {
   private generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
-    const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
+    const serverBuildPath = join(
+      this.distDir,
+      this.nextConfig.target === 'serverless'
+        ? SERVERLESS_DIRECTORY
+        : SERVER_DIRECTORY
+    )
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
     publicFiles.forEach(path => {
@@ -468,7 +483,11 @@ export default class Server {
       return result.Component.renderReqToHTML(req, res)
     }
 
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
+    return renderToHTML(req, res, pathname, query, {
+      ...result,
+      ...opts,
+      PageConfig: result.PageConfig,
+    })
   }
 
   public renderToHTML(
