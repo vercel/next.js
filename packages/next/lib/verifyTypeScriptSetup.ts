@@ -9,15 +9,6 @@ import resolve from 'next/dist/compiled/resolve/index.js'
 const exists = promisify(fs.exists)
 const writeFile = promisify(fs.writeFile)
 
-const resolveP = (req: string, opts: any): Promise<string> => {
-  return new Promise((_resolve, reject) => {
-    resolve(req, opts, (err, res) => {
-      if (err) return reject(err)
-      _resolve(res)
-    })
-  })
-}
-
 function writeJson(fileName: string, object: object): Promise<void> {
   return writeFile(
     fileName,
@@ -35,6 +26,71 @@ async function hasTypeScript(dir: string): Promise<boolean> {
   return typescriptFiles.length > 0
 }
 
+async function checkDependencies({
+  dir,
+  isYarn,
+}: {
+  dir: string
+  isYarn: boolean
+}) {
+  const requiredPackages = [
+    { file: 'typescript', pkg: 'typescript' },
+    { file: '@types/react/index.d.ts', pkg: '@types/react' },
+  ]
+
+  const missingPackages = requiredPackages.filter(p => {
+    try {
+      resolve.sync(p.file, { basedir: dir })
+    } catch (_) {
+      return true
+    }
+  })
+
+  if (missingPackages.length < 1) {
+    return
+  }
+
+  const packagesHuman = missingPackages
+    .map(
+      (p, index, { length }) =>
+        (index > 0
+          ? index === length - 1
+            ? length > 2
+              ? ', and '
+              : ' and '
+            : ', '
+          : '') + p.pkg
+    )
+    .join('')
+  const packagesCli = missingPackages.map(p => p.pkg).join(' ')
+
+  console.error(
+    chalk.bold.red(
+      `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+    )
+  )
+  console.error()
+  console.error(
+    chalk.bold(`Please install ${chalk.bold(packagesHuman)} by running:`)
+  )
+  console.error()
+  console.error(
+    `\t${chalk.bold.cyan(
+      (isYarn ? 'yarn add --dev' : 'npm install --save-dev') + ' ' + packagesCli
+    )}`
+  )
+  console.error()
+  console.error(
+    chalk.bold(
+      'If you are not trying to use TypeScript, please remove the ' +
+        chalk.cyan('tsconfig.json') +
+        ' file from your package root (and any TypeScript files).'
+    )
+  )
+  console.error()
+  process.exit(1)
+}
+
 export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
@@ -42,61 +98,15 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const hasTsConfig = await exists(tsConfigPath)
   const isYarn = await exists(yarnLockFile)
   const hasTypeScriptFiles = await hasTypeScript(dir)
+  let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
 
   if (!(hasTsConfig || hasTypeScriptFiles)) {
     return
   }
 
-  let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
+  await checkDependencies({ dir, isYarn })
 
-  // Ensure TypeScript is installed
-  let typescriptPath = ''
-  let ts: typeof import('typescript')
-
-  const toInstall: string[] = []
-  try {
-    await resolveP('@types/react/index.d.ts', { basedir: dir })
-  } catch (_) {
-    toInstall.push('@types/react')
-  }
-
-  try {
-    typescriptPath = await resolveP('typescript', { basedir: dir })
-    ts = require(typescriptPath)
-  } catch (_) {
-    toInstall.push('typescript')
-    const toInstallStr = toInstall.join(' ')
-    console.error(
-      chalk.bold.red(
-        `It looks like you're trying to use TypeScript but do not have ${chalk.bold(
-          toInstallStr
-        )} installed.`
-      )
-    )
-    console.error(
-      chalk.bold(
-        'Please install',
-        chalk.cyan.bold(toInstallStr),
-        'by running',
-        chalk.cyan.bold(
-          (isYarn ? 'yarn add --dev' : 'npm install --save-dev') +
-            ' ' +
-            toInstallStr
-        ) + '.'
-      )
-    )
-    console.error(
-      chalk.bold(
-        'If you are not trying to use TypeScript, please remove the ' +
-          chalk.cyan('tsconfig.json') +
-          ' file from your package root (and any TypeScript files).'
-      )
-    )
-    console.error()
-    process.exit(1)
-    return
-  }
-
+  const ts = await import('typescript')
   const compilerOptions: any = {
     // These are suggested values and will be set when not present in the
     // tsconfig.json
@@ -276,20 +286,6 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     fs.writeFileSync(
       appTypeDeclarations,
       `/// <reference types="next" />${os.EOL}`
-    )
-  }
-
-  if (toInstall.length > 0) {
-    console.warn(
-      chalk.red(
-        `\n${toInstall.join(' ')} ${
-          toInstall.length === 1 ? 'is' : 'are'
-        } needed when using TypeScript with Next.js. Please install ${
-          toInstall.length === 1 ? 'it' : 'them'
-        } with ${
-          isYarn ? 'yarn add --dev' : 'npm install --save-dev'
-        } ${toInstall.join(' ')}\n`
-      )
     )
   }
 }

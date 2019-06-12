@@ -67,7 +67,13 @@ export function printTreeView(
       const pageInfo = pageInfos.get(item)
 
       messages.push([
-        `${symbol} ${item}`,
+        `${symbol} ${
+          item.startsWith('/_')
+            ? ' '
+            : pageInfo && pageInfo.static
+            ? chalk.bold('⚡')
+            : 'λ'
+        } ${item}`,
         ...(pageInfo
           ? [
               pageInfo.isAmp
@@ -91,6 +97,30 @@ export function printTreeView(
       align: ['l', 'l', 'r', 'r'],
       stringLength: str => stripAnsi(str).length,
     })
+  )
+
+  console.log()
+  console.log(
+    textTable(
+      [
+        [
+          'λ',
+          '(Lambda)',
+          `page was emitted as a lambda (i.e. ${chalk.cyan(
+            'getInitialProps'
+          )})`,
+        ],
+        [
+          chalk.bold('⚡'),
+          '(Static File)',
+          'page was pre-rendered as static HTML',
+        ],
+      ],
+      {
+        align: ['l', 'l', 'l'],
+        stringLength: str => stripAnsi(str).length,
+      }
+    )
   )
 
   console.log()

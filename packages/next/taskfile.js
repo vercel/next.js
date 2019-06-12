@@ -46,7 +46,10 @@ const babelServerOpts = {
       }
     ]
   ],
-  plugins: [['@babel/plugin-proposal-class-properties', { loose: true }]]
+  plugins: [
+    'babel-plugin-dynamic-import-node',
+    ['@babel/plugin-proposal-class-properties', { loose: true }]
+  ]
 }
 
 // eslint-disable-next-line camelcase
@@ -113,13 +116,9 @@ export async function compile (task) {
 }
 
 export async function bin (task, opts) {
-  const babelOpts = {
-    ...babelServerOpts,
-    plugins: [...babelServerOpts.plugins, 'babel-plugin-dynamic-import-node']
-  }
   await task
     .source(opts.src || 'bin/*')
-    .babel(babelOpts, { stripExtension: true })
+    .babel(babelServerOpts, { stripExtension: true })
     .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
