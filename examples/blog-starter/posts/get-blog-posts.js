@@ -2,7 +2,7 @@ const fs = require('fs')
 const path = require('path')
 
 const DIR = path.join(process.cwd(), '/pages/posts/')
-const META = /export\s+const\s+meta\s+=\s+(\{(\n|.)*?\n\})/
+const META = /export\s+const\s+meta\s+=\s+({(.|[\r\n])*?\n})/
 const files = fs
   .readdirSync(DIR)
   .filter(file => file.endsWith('.md') || file.endsWith('.mdx'))
