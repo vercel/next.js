@@ -19,6 +19,7 @@
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [How to use](#how-to-use)
+
   - [Setup](#setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
@@ -44,6 +45,8 @@
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
+  - [API routes](#api-routes)
+    - [API middlewares](#api-middlewares)
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
@@ -70,6 +73,7 @@
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
+
 - [Production deployment](#production-deployment)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
@@ -907,6 +911,51 @@ class MyLink extends React.Component {
 
 export default withRouter(MyLink)
 ```
+
+### API routes
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/api-routes">Basic API routes</a></li>
+    <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+  </ul>
+</details>
+
+API routes provides straightforward solution to build your `API` with `Next.js`. Start by creating `api` folder inside `pages` folder. Every file inside `api` folder is mapped to `/api` route. For example `api/posts.js` will be mapped to `/api/posts`.
+
+```js
+export default (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.statusCode = 200
+  res.end(JSON.stringify({ name: 'Nextjs' }))
+}
+```
+
+**Note: API routes pages are compiled just for the server. So there is no overhead inside the client bundle. Every route is its own separated bundle, so there is no problem with big bundles and slow bootup.**
+
+
+#### API middlewares
+
+API routes provides built in `middlewares` which parse incoming `req` event. These middlewares are:
+
+- `req.cookies` - an object containing the cookies sent by the request - default `{}` 
+- `req.query` - an object containing the request's [query string](https://en.wikipedia.org/wiki/Query_string) - default `{}`
+- `req.body` - an object containing parsed body by `content-type`, or `null` if no body is sent
+
+#### Helper functions
+
+We're providing a set of `Express.js`-like methods to improve the developer experience and increase the speed of creating a new `API` endpoints.
+
+```js
+export default (req, res) => {
+  res.status(200).json({ name: 'Nextjs' })
+}
+```
+
+- `res.status(code)` - a function to set status code send with the response where `code` must be valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `res.json(json)` - a function to send `JSON` response where `json` is the `JSON` object to send
+- `res.send(body)` - a function to send content where body can be a `string`, an `object` or a `Buffer`
 
 ### Custom server and routing
 
@@ -1926,6 +1975,16 @@ Page.getInitialProps = async ({ pathname }) => {
 }
 
 export default Page
+```
+
+For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extends normal `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
+}
 ```
 
 ## AMP Support
