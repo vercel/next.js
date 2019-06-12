@@ -404,6 +404,8 @@ Next.js does not ship a routes manifest with every possible route in the applica
 
 Client-side transitions between routes can be enabled via a `<Link>` component.
 
+> This component is not required for navigations to static pages that require a hard refresh, like when using [AMP](#amp-support).
+
 **Basic Example**
 
 Consider these two pages:
@@ -476,7 +478,7 @@ Example:
    <Link href="/post?slug=something" as="/post/something">
    ```
 
-**Note: Dynamic pages are prefetched in the background for maximum performance**
+**Note: Dynamic pages are prefetched in the background for maximum performance.**
 
 > A dynamic page is page that uses `getInitialProps`.
 
