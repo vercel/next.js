@@ -828,37 +828,7 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 
 #### With `<Link>`
 
-You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those pages in the background.
-
-```jsx
-import Link from 'next/link'
-
-function Header() {
-  return (
-    <nav>
-      <ul>
-        <li>
-          <Link prefetch href="/">
-            <a>Home</a>
-          </Link>
-        </li>
-        <li>
-          <Link prefetch href="/about">
-            <a>About</a>
-          </Link>
-        </li>
-        <li>
-          <Link prefetch href="/contact">
-            <a>Contact</a>
-          </Link>
-        </li>
-      </ul>
-    </nav>
-  )
-}
-
-export default Header
-```
+`<Link>` will automatically prefetch pages in the background as they appear in the view.
 
 #### Imperatively
 
@@ -882,7 +852,7 @@ function MyLink({ router }) {
 export default withRouter(MyLink)
 ```
 
-The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
 
 ```jsx
 import React from 'react'
