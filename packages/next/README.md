@@ -80,7 +80,6 @@
 - [AMP Support](#amp-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
-  - [Copying custom files](#copying-custom-files)
   - [Limitation](#limitation)
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
@@ -2084,7 +2083,10 @@ This function is asynchronous and gets the default `exportPathMap` as a paramete
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: async function(defaultPathMap) {
+  exportPathMap: async function(
+    defaultPathMap,
+    { dev, dir, outDir, distDir, buildId }
+  ) {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
@@ -2098,6 +2100,14 @@ module.exports = {
 ```
 
 > Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
+
+The second argument is an `object` with:
+
+- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
+- `dir` - Absolute path to the project directory.
+- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
+- `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key).
+- `buildId` - The buildId the export is running for.
 
 Then simply run these commands:
 
@@ -2133,39 +2143,6 @@ For an example, simply visit the `out` directory and run following command to de
 
 ```bash
 now
-```
-
-### Copying custom files
-
-In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
-
-- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
-- `dir` - Absolute path to the project directory
-- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
-- `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key)
-- `buildId` - The buildId the export is running for
-
-```js
-// next.config.js
-const fs = require('fs')
-const { join } = require('path')
-const { promisify } = require('util')
-const copyFile = promisify(fs.copyFile)
-
-module.exports = {
-  exportPathMap: async function(
-    defaultPathMap,
-    { dev, dir, outDir, distDir, buildId }
-  ) {
-    if (dev) {
-      return defaultPathMap
-    }
-    // This will copy robots.txt from your project root into the out directory
-    await copyFile(join(dir, 'robots.txt'), join(outDir, 'robots.txt'))
-    return defaultPathMap
-  },
-}
 ```
 
 ### Limitation
