@@ -49,9 +49,18 @@ import { isBlockedPage, isInternalUrl } from './utils'
 type NextConfig = any
 
 export type ServerConstructor = {
+  /**
+   * Where the Next project is located - @default '.'
+   */
   dir?: string
   staticMarkup?: boolean
+  /**
+   * Hide error messages containing server information - @default false
+   */
   quiet?: boolean
+  /**
+   * Object what you would use in next.config.js - @default {}
+   */
   conf?: NextConfig
 }
 
