@@ -358,7 +358,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         invalidPages.size === 1 ? '' : 's'
       } without React Component as default export\n${[...invalidPages]
         .map(pg => `pages${pg}`)
-        .join('\n')}\n`
+        .join(
+          '\n'
+        )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
     )
   }
 
