@@ -2056,6 +2056,10 @@ AMP pages are automatically validated with [amphtml-validator](https://www.npmjs
 Pages are also validated during `next export` and any warnings / errors will be printed to the terminal.
 Any AMP errors will cause `next export` to exit with status code `1` because the export is not valid AMP.
 
+### Typescript Support
+
+AMP currently doesn't have built-in types for Typescript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125)
+
 ## Static HTML export
 
 <details>
