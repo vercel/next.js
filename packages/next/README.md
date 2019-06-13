@@ -70,6 +70,7 @@
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
+- [Automatic Pre-rendering](#automatic-pre-rendering)
 - [Production deployment](#production-deployment)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
@@ -1207,6 +1208,8 @@ class MyApp extends App {
 export default MyApp
 ```
 
+> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Pre-rendering](#automatic-pre-rendering)
+
 ### Custom `<Document>`
 
 <details>
@@ -2156,6 +2159,8 @@ now
 With `next export`, we build a HTML version of your app. At export time we will run `getInitialProps` of your pages.
 
 The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
+
+If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic pre-rendering](automatic-pre-rendering).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
