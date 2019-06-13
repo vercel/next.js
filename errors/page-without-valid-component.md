@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-While auto exporting a page a valid React Component wasn't found. This could mean you you have a file in `pages` that does `export default { some: 'object' }` instead of a React Component.
+While auto exporting a page a valid React Component wasn't found. This could mean you have a file in `pages` that does `export default { some: 'object' }` instead of a React Component.
 
 #### Possible Ways to Fix It
 
