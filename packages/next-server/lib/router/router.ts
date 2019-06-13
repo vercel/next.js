@@ -275,8 +275,9 @@ export default class Router implements BaseRouter {
 
       // detect dynamic routing
       if (route.indexOf('/$') !== -1) {
+        const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(as)
+        const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
           console.error(
             "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
