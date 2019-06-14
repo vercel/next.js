@@ -1767,7 +1767,7 @@ module.exports = {
 
 Next.js will automatically choose between a `dynamic` or `static` page at build time with `next build`, this is based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is `dynamic`, or `static` otherwise.
 
-This allows Next.js to only pre-render pages that rely on dynamic data, and to export a static `html` file for non dynamic pages.
+This allows Next.js to only do server side render of pages that rely on dynamic data, and to pre-render non dynamic pages.
 
 > If you have a custom `App` with a custom `getInitialProps` then all your pages will be dynamic, except for AMP pages.
 
