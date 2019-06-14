@@ -68,7 +68,7 @@
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
-    - [Build time configuration](#build-time-configuration)
+    - [Build-time configuration](#build-time-configuration)
     - [Runtime configuration](#runtime-configuration)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
@@ -88,7 +88,7 @@
   - [AMP Behavior with `next export`](#amp-behavior-with-next-export)
   - [Adding AMP Components](#adding-amp-components)
   - [AMP Validation](#amp-validation)
-  - [Typescript Support](#typescript-support)
+  - [TypeScript Support](#typescript-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Limitation](#limitation)
@@ -140,10 +140,10 @@ and then just run `npm run dev` and go to `http://localhost:3000`. To use anothe
 
 So far, we get:
 
-- Automatic transpilation and bundling (with webpack and babel).
-- Hot code reloading.
-- Server rendering and indexing of `./pages`.
-- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project).
+- Automatic transpilation and bundling (with webpack and babel)
+- Hot code reloading
+- Server rendering and indexing of `./pages/`
+- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
 
 ### Automatic code splitting
 
@@ -393,12 +393,12 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 `getInitialProps` receives a context object with the following properties:
 
-- `pathname` - path section of URL.
-- `query` - query string section of URL parsed as an object.
-- `asPath` - `String` of the actual path (including the query) shows in the browser.
-- `req` - HTTP request object (server only).
-- `res` - HTTP response object (server only).
-- `err` - Error object if any error is encountered during the rendering.
+- `pathname` - path section of URL
+- `query` - query string section of URL parsed as an object
+- `asPath` - `String` of the actual path (including the query) shows in the browser
+- `req` - HTTP request object (server only)
+- `res` - HTTP response object (server only)
+- `err` - Error object if any error is encountered during the rendering
 
 ### Routing
 
@@ -460,7 +460,7 @@ Example:
 
 1. Consider you have the URL `/post/:slug`.
 
-2. You created the `pages/post.js`.
+2. You created the `pages/post.js`:
 
    ```jsx
    class Post extends React.Component {
@@ -661,13 +661,13 @@ See [Disabling File-System Routing](#disabling-file-system-routing).
 
 Above `Router` object comes with the following API:
 
-- `route` - `String` of the current route.
-- `pathname` - `String` of the current path excluding the query string.
+- `route` - `String` of the current route
+- `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`.
-- `asPath` - `String` of the actual path (including the query) shows in the browser.
-- `push(url, as=url)` - performs a `pushState` call with the given url.
-- `replace(url, as=url)` - performs a `replaceState` call with the given url.
-- `beforePopState(cb=function)` - intercept popstate before router processes the event.
+- `asPath` - `String` of the actual path (including the query) shows in the browser
+- `push(url, as=url)` - performs a `pushState` call with the given url
+- `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `beforePopState(cb=function)` - intercept popstate before router processes the event
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
@@ -1182,10 +1182,10 @@ export default DynamicBundle
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
 
-- Persisting layout between page changes.
-- Keeping state when navigating pages.
-- Custom error handling using `componentDidCatch`.
-- Inject additional data into pages (for example by processing GraphQL queries).
+- Persisting layout between page changes
+- Keeping state when navigating pages
+- Custom error handling using `componentDidCatch`
+- Inject additional data into pages (for example by processing GraphQL queries)
 
 To override, create the `./pages/_app.js` file and override the App class as shown below:
 
@@ -1277,7 +1277,7 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with css-in-js libraries
 that need to wrap the application to properly work with server-rendering. 🚧
 
-- It takes as argument an options object for further customization.
+- It takes as argument an options object for further customization:
 
 ```js
 import Document from 'next/document'
@@ -1557,11 +1557,11 @@ module.exports = {
 
 The second argument to `webpack` is an object containing properties useful when customizing its configuration:
 
-- `buildId` - `String` the build id used as a unique identifier between builds.
-- `dev` - `Boolean` shows if the compilation is done in development mode.
-- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client side compilation (`false`).
-- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration.
-  - `babel` - `Object` the `babel-loader` configuration for Next.js.
+- `buildId` - `String` the build id used as a unique identifier between builds
+- `dev` - `Boolean` shows if the compilation is done in development mode
+- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client side compilation (`false`)
+- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
+  - `babel` - `Object` the `babel-loader` configuration for Next.js
 
 Example usage of `defaultLoaders.babel`:
 
@@ -1648,8 +1648,8 @@ There is a common need in applications to provide configuration values.
 
 Next.js supports 2 ways of providing configuration:
 
-- Build-time configuration.
-- Runtime configuration.
+- Build-time configuration
+- Runtime configuration
 
 #### Build time configuration
 
@@ -1769,7 +1769,7 @@ Next.js will automatically choose between a `dynamic` or `static` page at build 
 
 This allows Next.js to only do server side render of pages that rely on dynamic data, and to pre-render non dynamic pages.
 
-> If you have a custom `App` with a custom `getInitialProps` then all your pages will be dynamic, except for AMP pages.
+> **Note**: If you have a custom `App` with a custom `getInitialProps` then all your pages will be dynamic, except for AMP pages.
 
 ## Production deployment
 
@@ -2066,9 +2066,9 @@ AMP pages are automatically validated with [amphtml-validator](https://www.npmjs
 Pages are also validated during `next export` and any warnings / errors will be printed to the terminal.
 Any AMP errors will cause `next export` to exit with status code `1` because the export is not valid AMP.
 
-### Typescript Support
+### TypeScript Support
 
-AMP currently doesn't have built-in types for Typescript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125)
+AMP currently doesn't have built-in types for Typescript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125).
 
 ## Static HTML export
 
@@ -2127,10 +2127,10 @@ module.exports = {
 The second argument is an `object` with:
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
-- `dir` - Absolute path to the project directory.
-- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
-- `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key).
-- `buildId` - The buildId the export is running for.
+- `dir` - Absolute path to the project directory
+- `outDir` - Absolute path to the `out/` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
+- `distDir` - Absolute path to the `.next/` directory (configurable using the `distDir` config key)
+- `buildId` - The `buildId` the export is running for
 
 Then simply run these commands:
 
@@ -2174,7 +2174,7 @@ With `next export`, we build a HTML version of your app. At export time we will 
 
 The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
 
-If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic pre-rendering](automatic-pre-rendering).
+> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic pre-rendering](automatic-pre-rendering).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
