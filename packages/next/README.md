@@ -2126,9 +2126,9 @@ module.exports = {
 
 The second argument is an `object` with:
 
-- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes
+- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
 - `dir` - Absolute path to the project directory
-- `outDir` - Absolute path to the `out/` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`
+- `outDir` - Absolute path to the `out/` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
 - `distDir` - Absolute path to the `.next/` directory (configurable using the `distDir` config key)
 - `buildId` - The `buildId` the export is running for
 
