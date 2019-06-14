@@ -453,8 +453,8 @@ export default About
 
 `<Link>` component has two main props:
 
-- `href`: the path inside `pages` directory + query string.
-- `as`: the path that will be rendered in the browser URL bar.
+- `href`: the path inside `pages` directory + query string
+- `as`: the path that will be rendered in the browser URL bar
 
 Example:
 
@@ -836,7 +836,7 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
 
-> `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892
+> `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892.
 
 #### With `<Link>`
 
@@ -1231,7 +1231,7 @@ export default MyApp
 
 - Is rendered on the server side
 - Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -1270,7 +1270,7 @@ All of `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for pa
 
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
-- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering).
+- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
 #### Customizing `renderPage`
 
@@ -1651,7 +1651,7 @@ Next.js supports 2 ways of providing configuration:
 - Build-time configuration
 - Runtime configuration
 
-#### Build time configuration
+#### Build-time configuration
 
 The way build-time configuration works is by inlining the provided values into the Javascript bundle.
 
@@ -2126,9 +2126,9 @@ module.exports = {
 
 The second argument is an `object` with:
 
-- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
+- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes
 - `dir` - Absolute path to the project directory
-- `outDir` - Absolute path to the `out/` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
+- `outDir` - Absolute path to the `out/` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`
 - `distDir` - Absolute path to the `.next/` directory (configurable using the `distDir` config key)
 - `buildId` - The `buildId` the export is running for
 
@@ -2174,7 +2174,7 @@ With `next export`, we build a HTML version of your app. At export time we will 
 
 The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
 
-> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic pre-rendering](automatic-pre-rendering).
+> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic pre-rendering](#automatic-pre-rendering).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
