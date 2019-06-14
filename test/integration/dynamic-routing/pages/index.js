@@ -22,6 +22,10 @@ const Page = () => (
     <Link href='/blog/$post/comment/$id' as='/blog/321/comment/123'>
       <a id='view-nested-dynamic-cmnt'>View comment 123 on blog post 321</a>
     </Link>
+    <br />
+    <Link href='/$post?fromHome=true' as='/post-1?fromHome=true'>
+      <a id='view-post-1-with-query'>View post 1 with query</a>
+    </Link>
   </div>
 )
 

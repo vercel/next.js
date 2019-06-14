@@ -1,0 +1,23 @@
+import { withRouter } from 'next/router'
+import BlogPost from '../../components/layouts/blog-post'
+
+export const meta = {
+  published: true,
+  publishedAt: '2018-05-18',
+  title: 'Deploy to Now',
+  summary:
+    'One of the most amazing things about this project is that you can easily deploy it to Now',
+  image: '/static/site-feature.png',
+}
+
+export default withRouter(({ children, router }) => (
+  <BlogPost path={router.pathname} meta={meta}>
+    {children}
+  </BlogPost>
+))
+
+One of the amazing things about this project is that you can easily deploy it to Now.
+
+The time from cloning the repository to deploy and preview your blog online can be of a couple minutes.
+
+Also, you can see exactly how it will look in production using [now dev](https://zeit.co/blog/now-dev)
