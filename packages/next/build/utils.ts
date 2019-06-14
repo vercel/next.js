@@ -7,6 +7,7 @@ import path from 'path'
 import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
 
+import { isValidElementType } from 'react-is'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
@@ -262,16 +263,12 @@ export function isPageStatic(
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
     const Comp = require(serverBundle).default
-    if (!Comp) {
-      const pageStartIdx = serverBundle.indexOf('pages/') + 5
-      console.log(
-        'not exporting invalid page',
-        serverBundle.substr(pageStartIdx),
-        '(no default export)'
-      )
-      return false
+    if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
+      const invalidPage = new Error('invalid-page')
+      ;(invalidPage as any).code = 'INVALID_DEFAULT_EXPORT'
+      throw invalidPage
     }
-    return typeof Comp.getInitialProps !== 'function'
+    return typeof (Comp as any).getInitialProps !== 'function'
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return false
     throw err

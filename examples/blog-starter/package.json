@@ -1,0 +1,31 @@
+{
+  "name": "nextjs-blog-starter",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "build:rss": "node ./.next/serverless/posts/rss-feed.js",
+    "now-build": "next build && yarn build:rss"
+  },
+  "dependencies": {
+    "@zeit/next-css": "^1.0.1",
+    "@zeit/next-mdx": "^1.2.0",
+    "babel-plugin-macros": "^2.5.0",
+    "babel-plugin-preval": "^3.0.1",
+    "date-fns": "^1.30.1",
+    "human-date": "^1.4.0",
+    "isomorphic-unfetch": "^3.0.0",
+    "lodash.range": "^3.2.0",
+    "mdx-prism": "^0.3.1",
+    "micro": "^9.3.3",
+    "next": "^8.1.1-canary.37",
+    "pagination": "^0.4.6",
+    "prop-types": "^15.7.2",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  },
+  "devDependencies": {
+    "@svgr/webpack": "^4.2.0",
+    "prettier": "^1.16.4",
+    "rehype": "^8.0.0"
+  }
+}
