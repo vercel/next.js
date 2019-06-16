@@ -2,6 +2,9 @@ import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
 import fetch from 'isomorphic-unfetch'
 
 let apolloClient = null
+const uri = process.browser
+  ? 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn'  // Client URL
+  : 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn'  // Server URL (must be absolute)
 
 function create (initialState) {
   // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
@@ -9,7 +12,7 @@ function create (initialState) {
     connectToDevTools: process.browser,
     ssrMode: !process.browser, // Disables forceFetch on the server (so queries are only run once)
     link: new HttpLink({
-      uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
+      uri,
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
       // Use fetch() polyfill on the server
       fetch: !process.browser && fetch
