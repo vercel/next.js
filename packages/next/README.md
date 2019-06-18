@@ -265,6 +265,52 @@ To serve static files from the root directory you can add a folder called `publi
 
 _Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
 
+### Dynamic Routing
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/dynamic-routing">Dynamic routing</a></li>
+  </ul>
+</details>
+
+Defining routes by using predefined paths is not always enough for complex applications that require dynamic routes, in Next.js you can start a page with `$` to create a dynamic route. Consider the following page `pages/$post.js`:
+
+```jsx
+import { useRouter } from 'next/router'
+
+const $post = () => {
+  const router = useRouter()
+  const { post } = router.query
+
+  return <p>Post: {post}</p>
+}
+
+export default $post
+```
+
+Any route like `/post-1`, `/abc`, `/123` will be matched by `/$post`, and the path will be send as a query param to the page, so for `/post-1?other=param` the `query` object will be: `{ post: 'post-1', other: 'param' }`, `$` is the wildcard and `post`, or any other name you choose, is the name of the query param.
+
+Predefined routes like `pages/about.js` will not be matched by dynamic routes and you can only have a dynamic route per folder, i.e you can have `pages/$post` or `pages/$showcase` but not both, e.g you can have `pages/$post` and then add `pages/$post/$comment`:
+
+```jsx
+import { useRouter } from 'next/router'
+
+const $comment = () => {
+  const router = useRouter()
+  const { post, comment } = router.query
+
+  return <>
+    <p>Post: {post}</p>
+    <p>Comment: {comment}</p>
+  </>
+}
+
+export default $comment
+```
+
+The above route will match `/post-1/first-comment`, `/a/b`, and e.t.c
+
 ### Populating `<head>`
 
 <details>
@@ -419,7 +465,7 @@ Client-side transitions between routes can be enabled via a `<Link>` component.
 
 **Basic Example**
 
-Consider these two pages:
+Consider these three pages:
 
 ```jsx
 // pages/index.js
@@ -427,13 +473,18 @@ import Link from 'next/link'
 
 function Home() {
   return (
-    <div>
-      Click{' '}
-      <Link href="/about">
-        <a>here</a>
-      </Link>{' '}
-      to read more
-    </div>
+    <ul>
+      <li>
+        <Link href="/about">
+          <a>Go to About</a>
+        </Link>
+      </li>
+      <li>
+        <Link href="/blog/$post" as="/blog/first-post">
+          <a>Read our first post</a>
+        </Link>
+      </li>
+    </ul>
   )
 }
 
@@ -447,6 +498,15 @@ function About() {
 }
 
 export default About
+```
+
+```jsx
+// pages/blog/$post.js
+function $post() {
+  return <p>Welcome to our first post!</p>
+}
+
+export default $post
 ```
 
 **Custom routes (using props from URL)**
