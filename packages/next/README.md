@@ -26,6 +26,7 @@
     - [CSS-in-JS](#css-in-js)
     - [Importing CSS / Sass / Less / Stylus files](#importing-css--sass--less--stylus-files)
   - [Static file serving (e.g.: images)](#static-file-serving-eg-images)
+  - [Dynamic Routing](#dynamic-routing)
   - [Populating `<head>`](#populating-head)
   - [Fetching data and component lifecycle](#fetching-data-and-component-lifecycle)
   - [Routing](#routing)
