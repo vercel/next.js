@@ -36,6 +36,7 @@ async function checkDependencies({
   const requiredPackages = [
     { file: 'typescript', pkg: 'typescript' },
     { file: '@types/react/index.d.ts', pkg: '@types/react' },
+    { file: '@types/node/index.d.ts', pkg: '@types/node' },
   ]
 
   const missingPackages = requiredPackages.filter(p => {
