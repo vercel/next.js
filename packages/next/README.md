@@ -509,34 +509,60 @@ function $post() {
 export default $post
 ```
 
-**Custom routes (using props from URL)**
+**Dynamic routes**
 
 `<Link>` component has two main props:
 
 - `href`: the path inside `pages` directory + query string
 - `as`: the path that will be rendered in the browser URL bar
 
+Consider the page `pages/post/$slug.js`:
+
+```jsx
+import { useRouter } from 'next/router'
+
+const $slug = () => {
+  const router = useRouter()
+  const { slug } = router.query
+
+  return <p>My Blog Post: {slug}</p>
+}
+
+export default $slug
+```
+
+A link for `/post/first-post` should look like this:
+
+```jsx
+<Link href="/post/$slug" as="/post/first-post">
+  <a>First Post</a>
+</Link>
+```
+
+**Custom routes (using props from URL)**
+
+If you find that your use case is not covered by the filesystem implementation used by [dynamic routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
+
 Example:
 
 1. Consider you have the URL `/post/:slug`.
 
-2. You created the `pages/post.js`:
+2. You created `pages/post.js`:
 
    ```jsx
-   class Post extends React.Component {
-     static async getInitialProps({ query }) {
-       console.log('SLUG', query.slug)
-       return {}
-     }
-     render() {
-       return <h1>My blog post</h1>
-     }
+   import { useRouter } from 'next/router'
+
+   const Post = () => {
+     const router = useRouter()
+     const { slug } = router.query
+
+     return <p>My Blog Post: {slug}</p>
    }
 
    export default Post
    ```
 
-3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
+3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of the `query` object to the page.
 
    ```jsx
    server.get('/post/:slug', (req, res) => {
@@ -551,7 +577,7 @@ Example:
 
 **Note: Dynamic pages are prefetched in the background for maximum performance.**
 
-> A dynamic page is page that uses `getInitialProps`.
+> A dynamic page is a page that uses `getInitialProps`.
 
 Client-side routing behaves exactly like the browser:
 
