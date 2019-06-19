@@ -451,6 +451,9 @@ export default async function getBaseWebpackConfig(
           !config.experimental.autoExport &&
             config.experimental.exportTrailingSlash
         ),
+        ...(isServer
+          ? { 'typeof window': JSON.stringify('undefined') }
+          : undefined),
       }),
       !isServer &&
         new ReactLoadablePlugin({

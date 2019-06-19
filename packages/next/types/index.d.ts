@@ -11,6 +11,14 @@ import {
 /// <reference types="react" />
 /// <reference types="react-dom" />
 
+declare namespace NodeJS {
+  interface ProcessEnv {
+    readonly NODE_ENV: 'development' | 'production'
+    readonly browser: boolean
+    readonly crossOrigin?: string
+  }
+}
+
 // Extend the React types with missing properties
 declare module 'react' {
   // <html amp=""> support
