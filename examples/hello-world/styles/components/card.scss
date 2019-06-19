@@ -1,0 +1,15 @@
+.card {
+  display: flex;
+
+  &__image {
+    border: 10px solid green;
+  }
+
+  @include screen-mobile() {
+    background: blue;
+
+    &__image {
+      border: 10px solid gold;
+    }
+  }
+}

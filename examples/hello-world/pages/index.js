@@ -1,9 +1,17 @@
-import Link from 'next/link'
+import Link from "next/link";
+import { Card } from "../components/Card";
+import "../styles/base.scss";
+
 export default () => (
   <div>
-    Hello World.{' '}
-    <Link href='/about'>
+    {/* <Link href="/about">
       <a>About</a>
-    </Link>
+    </Link> */}
+    {/* products.map(product => {
+      return (
+        <Card key=product.id/>
+      )
+    }) */}
+    <Card />
   </div>
-)
+);

@@ -1,0 +1,11 @@
+@mixin screen-mobile-landscape() {
+  @media only screen and (min-device-width: 320px) and (max-device-width: 896px) and (orientation: landscape) {
+    @content;
+  }
+}
+
+@mixin screen-mobile() {
+  @media only screen and (min-device-width: 320px) and (max-device-width: 500px) {
+    @content;
+  }
+}
