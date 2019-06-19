@@ -453,7 +453,7 @@ export default async function getBaseWebpackConfig(
         ),
         ...(isServer
           ? { 'typeof window': JSON.stringify('undefined') }
-          : undefined),
+          : { 'typeof window': JSON.stringify('object') }),
       }),
       !isServer &&
         new ReactLoadablePlugin({
