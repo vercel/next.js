@@ -301,10 +301,12 @@ const $comment = () => {
   const router = useRouter()
   const { post, comment } = router.query
 
-  return <>
-    <p>Post: {post}</p>
-    <p>Comment: {comment}</p>
-  </>
+  return (
+    <>
+      <p>Post: {post}</p>
+      <p>Comment: {comment}</p>
+    </>
+  )
 }
 
 export default $comment
@@ -586,7 +588,7 @@ Client-side routing behaves exactly like the browser:
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered.
 3. After 1 and 2 complete, `pushState` is performed and the new component is rendered.
 
-To inject the `pathname`, `query` or `asPath` in your component, you can use [withRouter](#using-a-higher-order-component).
+To inject the `pathname`, `query` or `asPath` in your component, you can use the [useRouter](#useRouter) hook, or [withRouter](#using-a-higher-order-component) for class components.
 
 ##### With URL object
 
@@ -834,7 +836,7 @@ Router.events.on('routeChangeError', (err, url) => {
   </ul>
 </details>
 
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected using [`withRouter`](#using-a-higher-order-component)), without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected by using [`useRouter`](#useRouter) or [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -869,21 +871,22 @@ componentDidUpdate(prevProps) {
 >
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
-#### Using a Higher Order Component
+#### useRouter
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
+    <li><a href="/examples/dynamic-routing">Dynamic routing</a></li>
   </ul>
 </details>
 
-If you want to access the `router` object inside any component in your app, you can use the `withRouter` Higher-Order Component. Here's how to use it:
+If you want to access the `router` object inside any component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
-import { withRouter } from 'next/router'
+import { useRouter } from 'next/router'
 
-function ActiveLink({ children, router, href }) {
+export default function ActiveLink({ children, href }) {
+  const router = useRouter()
   const style = {
     marginRight: 10,
     color: router.pathname === href ? 'red' : 'black',
@@ -900,11 +903,30 @@ function ActiveLink({ children, router, href }) {
     </a>
   )
 }
-
-export default withRouter(ActiveLink)
 ```
 
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
+
+#### Using a Higher Order Component
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
+  </ul>
+</details>
+
+If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same `router` object to any component, here's how to use it:
+
+```jsx
+import { withRouter } from 'next/router'
+
+function Page({ router }) {
+  return <p>{router.pathname}</p>
+}
+
+export default withRouter(Page)
+```
 
 ### Prefetching Pages
 
@@ -934,24 +956,46 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
-import { withRouter } from 'next/router'
+import { useRouter } from 'next/router'
 
-function MyLink({ router }) {
+export default function MyLink() {
+  const router = useRouter()
+
   return (
-    <div>
+    <>
       <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
         A route transition will happen after 100ms
       </a>
-      {// but we can prefetch it!
+      {// and we can prefetch it!
       router.prefetch('/dynamic')}
-    </div>
+    </>
+  )
+}
+```
+
+`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively `prefetch` method in the `useEffect()` hook:
+
+```jsx
+import { useRouter } from 'next/router'
+
+export default function MyLink() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.prefetch('/dynamic')
+  })
+
+  return (
+    <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+      A route transition will happen after 100ms
+    </a>
   )
 }
 
 export default withRouter(MyLink)
 ```
 
-The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
 
 ```jsx
 import React from 'react'
@@ -967,11 +1011,9 @@ class MyLink extends React.Component {
     const { router } = this.props
 
     return (
-      <div>
-        <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
-          A route transition will happen after 100ms
-        </a>
-      </div>
+      <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+        A route transition will happen after 100ms
+      </a>
     )
   }
 }
