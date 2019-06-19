@@ -41,6 +41,7 @@
       - [With URL object](#with-url-object-1)
       - [Router Events](#router-events)
       - [Shallow Routing](#shallow-routing)
+    - [useRouter](#userouter)
     - [Using a Higher Order Component](#using-a-higher-order-component)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
