@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    dynamicRouting: true,
-  },
+    dynamicRouting: true
+  }
 }

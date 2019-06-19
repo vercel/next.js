@@ -1,5 +1,4 @@
 import { useRouter } from 'next/router'
-import Link from 'next/link'
 import Header from '../../components/header'
 
 const $comment = () => {
