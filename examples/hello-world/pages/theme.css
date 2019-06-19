@@ -1,0 +1,9 @@
+html {
+  --mdc-theme-primary: #001638;
+  --mdc-theme-on-surface: #001638;
+}
+
+body.dark-mode {
+  --mdc-theme-primary: #1f1f1f !important;
+  --mdc-theme-on-surface: #1f1f1f !important;
+}

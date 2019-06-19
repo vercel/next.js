@@ -1,0 +1,10 @@
+{
+  "name": "EB Coffee App",
+  "short_name": "Coffee",
+  "theme_color": "#001638",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "gcm_sender_id": "103953800507"
+}

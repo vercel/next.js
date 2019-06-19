@@ -1,15 +1,54 @@
 {
-  "name": "hello-world",
+  "name": "coffee",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next",
+    "dev": "node server.js",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@material/react-button": "^0.13.0",
+    "@material/react-card": "^0.13.0",
+    "@material/react-drawer": "^0.13.0",
+    "@material/react-icon-button": "^0.13.0",
+    "@material/react-layout-grid": "^0.13.0",
+    "@material/react-list": "^0.13.0",
+    "@material/react-material-icon": "^0.13.0",
+    "@material/react-menu": "0.13.2",
+    "@material/react-menu-surface": "^0.13.0",
+    "@material/react-select": "^0.13.2",
+    "@material/react-switch": "^0.13.0",
+    "@material/react-tab": "^0.13.0",
+    "@material/react-tab-bar": "^0.13.0",
+    "@material/react-tab-indicator": "^0.13.0",
+    "@material/react-tab-scroller": "^0.13.0",
+    "@material/react-text-field": "^0.13.0",
+    "@material/react-top-app-bar": "^0.13.0",
+    "@material/react-typography": "^0.13.0",
+    "@zeit/next-css": "^1.0.1",
+    "axios": "0.19.0",
+    "babel-plugin-styled-components": "^1.10.0",
+    "date-fns": "^1.30.1",
+    "firebase": "6.2.0",
+    "formik": "2.0.1-rc.5",
+    "lodash.clamp": "4.0.3",
     "next": "latest",
+    "next-compose-plugins": "^2.2.0",
+    "next-offline": "4.0.2",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react-dom": "^16.7.0",
+    "react-spinners-kit": "1.9.0",
+    "react-spring": "^8.0.23",
+    "react-toastify": "^5.2.1",
+    "react-use-gesture": "^5.1.2",
+    "styled-components": "^4.3.1",
+    "use-dark-mode": "^2.3.1",
+    "yup": "^0.27.0"
   },
-  "license": "ISC"
+  "devDependencies": {
+    "express": "4.17.1"
+  },
+  "license": "ISC",
+  "keywords": [],
+  "description": ""
 }
