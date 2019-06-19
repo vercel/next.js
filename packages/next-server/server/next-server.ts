@@ -582,10 +582,25 @@ export default class Server {
     query: ParsedUrlQuery = {}
   ) {
     const result = await this.findPageComponents('/_error', query)
-    return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
-      ...this.renderOpts,
-      err,
-    })
+    let html
+    try {
+      html = await this.renderToHTMLWithComponents(
+        req,
+        res,
+        '/_error',
+        query,
+        result,
+        {
+          ...this.renderOpts,
+          err,
+        }
+      )
+    } catch (err) {
+      console.error(err)
+      res.statusCode = 500
+      html = 'Internal Server Error'
+    }
+    return html
   }
 
   public async render404(
