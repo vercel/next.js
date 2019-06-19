@@ -53,109 +53,6 @@ const babelServerOpts = {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_webpack (task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('webpack')))
-    .ncc({
-      packageName: 'webpack',
-      externals: ['node-libs-browser']
-    })
-    .target('dist/compiled/webpack')
-
-  notify('Compiled webpack')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_webpack_NodeOutputFileSystem (task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('webpack/lib/node/NodeOutputFileSystem')
-        )
-    )
-    .ncc({
-      externals: ['webpack']
-    })
-    .target('dist/compiled/webpack/lib/node/NodeOutputFileSystem')
-
-  notify('Compiled webpack NodeOutputFileSystem')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_webpack_graph_helpers (task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('webpack/lib/GraphHelpers'))
-    )
-    .ncc()
-    .target('dist/compiled/webpack/lib')
-
-  notify('Compiled webpack/lib/GraphHelpers')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_webpack_hot_middleware (task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-hot-middleware'))
-    )
-    .ncc({
-      externals: ['chokidar', 'webpack'],
-      packageName: 'webpack-hot-middleware'
-    })
-    .target('dist/compiled/webpack-hot-middleware')
-
-  notify('Compiled webpack-hot-middleware')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_autodll_webpack_plugin (task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('autodll-webpack-plugin'))
-    )
-    .ncc({
-      externals: ['chokidar', 'webpack', './paths'],
-      packageName: 'autodll-webpack-plugin'
-    })
-    .target('dist/compiled/autodll-webpack-plugin')
-
-  notify('Compiled autodll-webpack-plugin')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_autodll_webpack_plugin_paths (task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('autodll-webpack-plugin'))
-    )
-    .ncc({
-      externals: ['chokidar', 'webpack']
-    })
-    .target('dist/compiled/autodll-webpack-plugin/paths')
-
-  notify('Compiled autodll-webpack-plugin')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_webpack_dev_middleware (task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
-    )
-    .ncc({
-      externals: ['chokidar', 'webpack'],
-      packageName: 'webpack-dev-middleware'
-    })
-    .target('dist/compiled/webpack-dev-middleware')
-
-  notify('Compiled webpack-dev-middleware')
-}
-
-// eslint-disable-next-line camelcase
 export async function ncc_arg (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('arg')))
@@ -164,11 +61,18 @@ export async function ncc_arg (task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_resolve (task, opts) {
+export async function ncc_autodll_webpack_plugin (task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('resolve')))
-    .ncc({ packageName: 'resolve' })
-    .target('dist/compiled/resolve')
+    .source(opts.src || 'build/bundles/autodll-webpack-plugin.js')
+    .ncc({
+      packageName: 'autodll-webpack-plugin',
+      externals: {
+        webpack: '../webpack'
+      }
+    })
+    .target('dist/compiled/autodll-webpack-plugin')
+
+  notify('Compiled autodll-webpack-plugin')
 }
 
 // eslint-disable-next-line camelcase
@@ -180,11 +84,11 @@ export async function ncc_nanoid (task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_unistore (task, opts) {
+export async function ncc_resolve (task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('unistore')))
-    .ncc({ packageName: 'unistore' })
-    .target('dist/compiled/unistore')
+    .source(opts.src || relative(__dirname, require.resolve('resolve')))
+    .ncc({ packageName: 'resolve' })
+    .target('dist/compiled/resolve')
 }
 
 // eslint-disable-next-line camelcase
@@ -195,20 +99,80 @@ export async function ncc_text_table (task, opts) {
     .target('dist/compiled/text-table')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_unistore (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('unistore')))
+    .ncc({ packageName: 'unistore' })
+    .target('dist/compiled/unistore')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_webpack (task, opts) {
+  await task
+    .source(opts.src || 'build/bundles/webpack*.js')
+    .target('dist/compiled/')
+
+  notify('Compiled webpack')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_Bundle (task, opts) {
+  await task
+    .source(opts.src || 'build/bundles/bundled-webpack.js')
+    .ncc({
+      packageName: 'webpack',
+      externals: ['node-libs-browser', 'chokidar']
+    })
+    .target('dist/compiled/webpack')
+
+  notify('Compiled webpack Bundle')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_hot_middleware (task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('webpack-hot-middleware'))
+    )
+    .ncc({
+      packageName: 'webpack-hot-middleware'
+    })
+    .target('dist/compiled/webpack-hot-middleware')
+
+  notify('Compiled webpack-hot-middleware')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_dev_middleware (task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('webpack-dev-middleware'))
+    )
+    .ncc({
+      externals: {
+        'webpack/lib/node/NodeOutputFileSystem':
+          '../webpack-NodeOutputFileSystem'
+      },
+      packageName: 'webpack-dev-middleware'
+    })
+    .target('dist/compiled/webpack-dev-middleware')
+
+  notify('Compiled webpack-dev-middleware')
+}
+
 export async function precompile (task) {
   await task.parallel([
-    'ncc_webpack',
-    'ncc_webpack_NodeOutputFileSystem',
-    'ncc_webpack_graph_helpers',
-    'ncc_webpack_hot_middleware',
-    'ncc_autodll_webpack_plugin',
-    'ncc_autodll_webpack_plugin_paths',
-    'ncc_webpack_dev_middleware',
-    'ncc_unistore',
-    'ncc_resolve',
     'ncc_arg',
+    'ncc_autodll_webpack_plugin',
     'ncc_nanoid',
-    'ncc_text_table'
+    'ncc_resolve',
+    'ncc_text_table',
+    'ncc_unistore',
+    'ncc_webpack',
+    'ncc_webpack_Bundle',
+    'ncc_webpack_dev_middleware',
+    'ncc_webpack_hot_middleware'
   ])
 }
 

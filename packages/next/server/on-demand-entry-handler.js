@@ -1,4 +1,4 @@
-import DynamicEntryPlugin from 'next/dist/compiled/webpack_DynamicEntryPlugin'
+import DynamicEntryPlugin from 'next/dist/compiled/webpack-DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'

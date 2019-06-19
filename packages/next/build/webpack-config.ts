@@ -22,7 +22,6 @@ import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identi
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
-import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -482,7 +481,11 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (!isServer) {
-              const AutoDllPlugin = importAutoDllPlugin({ distDir })
+              const {
+                AutoDllPlugin,
+                setCacheDir,
+              } = require('next/dist/compiled/autodll-webpack-plugin')
+              setCacheDir(distDir)
               devPlugins.push(
                 new AutoDllPlugin({
                   filename: '[name]_[hash].js',

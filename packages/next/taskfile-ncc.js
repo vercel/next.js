@@ -10,8 +10,7 @@ const { basename, dirname, extname, join, relative } = require('path')
 module.exports = function (task) {
   task.plugin('ncc', {}, function * (file, options) {
     return ncc(join(__dirname, file.dir, file.base), {
-      // cannot bundle
-      externals: ['chokidar'],
+      filename: 'index.js',
       ...options
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach(key =>
@@ -25,18 +24,13 @@ module.exports = function (task) {
       if (options && options.packageName) {
         writePackageManifest.call(this, options.packageName)
       }
-      // make sure to use our compiled version of webpack
-      code = code
-        .replace(
-          /require\(('|")webpack('|")\)/g,
-          'require("next/dist/compiled/webpack")'
-        )
-        .replace(
-          /webpack\/lib\/node\/NodeOutputFileSystem/g,
-          'next/dist/compiled/webpack/lib/node/NodeOutputFileSystem'
-        )
 
-      file.data = Buffer.from(code, 'utf8')
+      this._.files.push({
+        dir: file.dir,
+        base: 'index.js',
+        data: Buffer.from(code, 'utf8')
+      })
+      // file.data = Buffer.from(code, 'utf8')
     })
   })
 }
@@ -46,10 +40,8 @@ module.exports = function (task) {
 // n.b. types intended for development usage only.
 function writePackageManifest (packageName) {
   const packagePath = require.resolve(packageName + '/package.json')
-  let { name, main, author, license, types, typings } = require(packagePath)
-  if (!main) {
-    main = 'index.js'
-  }
+  let { name, author, license, types, typings } = require(packagePath)
+  const main = 'index.js'
 
   let typesFile = types || typings
   if (typesFile) {
