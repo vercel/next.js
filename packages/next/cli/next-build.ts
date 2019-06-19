@@ -55,11 +55,13 @@ const nextBuild: cliCommand = argv => {
     )
   }
 
-  build(dir).catch(err => {
-    // tslint:disable-next-line
-    console.error('> Build error occurred')
-    printAndExit(err)
-  })
+  build(dir)
+    .then(() => process.exit(0))
+    .catch(err => {
+      // tslint:disable-next-line
+      console.error('> Build error occurred')
+      printAndExit(err)
+    })
 }
 
 export { nextBuild }
