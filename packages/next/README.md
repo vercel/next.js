@@ -2033,15 +2033,16 @@ Next.js provides `NextPage` type that can be used for pages in the `pages` direc
 import { NextPage } from 'next'
 
 interface Props {
-  pathname: string
+  userAgent: string
 }
 
-const Page: NextPage<Props> = ({ pathname }) => (
-  <main>Your request pathname: {pathname}</main>
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
 )
 
-Page.getInitialProps = async ({ pathname }) => {
-  return { pathname }
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
 }
 
 export default Page
@@ -2054,16 +2055,18 @@ import React from 'react'
 import { NextPageContext } from 'next'
 
 interface Props {
-  pathname: string
+  userAgent: string
 }
 
 export default class Page extends React.Component<Props> {
-  static async getInitialProps({ pathname }: NextPageContext) {
-    return { pathname }
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
   }
 
   render() {
-    return <main>Your request pathname: {pathname}</main>
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
   }
 }
 ```
