@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes) which provides an easy solution to build your `API`. This example focus on using [Micro](https://github.com/zeit/micro) like `http` server framework.
+Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes) which provides an easy solution to build your own `API`. This example shows their usage alongside [Micro](https://github.com/zeit/micro), an `http` server for microservices
