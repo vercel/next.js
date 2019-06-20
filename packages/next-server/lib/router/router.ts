@@ -15,6 +15,7 @@ import {
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { isDynamicRoute } from './utils/is-dynamic'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -273,8 +274,7 @@ export default class Router implements BaseRouter {
       const route = toRoute(pathname)
       const { shallow = false } = options
 
-      // detect dynamic routing
-      if (route.indexOf('/$') !== -1) {
+      if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
         const routeMatch = getRouteMatcher(rr)(asPathname)

@@ -12,6 +12,7 @@ import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -83,7 +84,7 @@ class Container extends React.Component {
     // If it's a dynamic route (/$ inside) or has a querystring
     if (
       data.nextExport &&
-      (router.pathname.indexOf('/$') !== -1 || window.location.search)
+      (isDynamicRoute(router.pathname) || window.location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
