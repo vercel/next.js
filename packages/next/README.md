@@ -912,7 +912,7 @@ class MyLink extends React.Component {
 export default withRouter(MyLink)
 ```
 
-### API routes
+### API Routes
 
 <details>
   <summary><b>Examples</b></summary>
@@ -932,20 +932,20 @@ export default (req, res) => {
 }
 ```
 
-**Note: API routes pages are compiled just for the server. So there is no overhead inside the client bundle. Every route is its own separated bundle, so there is no problem with big bundles and slow bootup.**
+**Note: API routes pages are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
 
 
-#### API middlewares
+#### API Middlewares
 
-API routes provides built in `middlewares` which parse incoming `req` event. These middlewares are:
+API routes provides built in `middlewares` which parse the incoming `req`. Those middlewares are:
 
-- `req.cookies` - an object containing the cookies sent by the request - default `{}` 
-- `req.query` - an object containing the request's [query string](https://en.wikipedia.org/wiki/Query_string) - default `{}`
-- `req.body` - an object containing parsed body by `content-type`, or `null` if no body is sent
+- `req.cookies`: an object containing the cookies sent by the request. Defaults to `{}` 
+- `req.query`: an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
+- `req.body`: an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-#### Helper functions
+#### Helper Functions
 
-We're providing a set of `Express.js`-like methods to improve the developer experience and increase the speed of creating a new `API` endpoints.
+We're providing a set of `Express.js`-like methods to improve the developer experience and increase the speed of creating new `API` endpoints:
 
 ```js
 export default (req, res) => {
@@ -953,9 +953,9 @@ export default (req, res) => {
 }
 ```
 
-- `res.status(code)` - a function to set status code send with the response where `code` must be valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-- `res.json(json)` - a function to send `JSON` response where `json` is the `JSON` object to send
-- `res.send(body)` - a function to send content where body can be a `string`, an `object` or a `Buffer`
+- `res.status(code)` - a function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `res.json(json)` - Sends a `JSON` response. `json` must be a valid `JSON` object
+- `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 
 ### Custom server and routing
 
@@ -1977,7 +1977,7 @@ Page.getInitialProps = async ({ pathname }) => {
 export default Page
 ```
 
-For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extends normal `Node.js` request and response objects.
+For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
 
 ```ts
 import { NextApiRequest, NextApiResponse } from 'next'
