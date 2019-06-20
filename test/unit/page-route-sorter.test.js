@@ -5,14 +5,14 @@ describe('getSortedRoutes', () => {
   it('does not add extra routes', () => {
     expect(getSortedRoutes(['/posts'])).toEqual(['/posts'])
 
-    expect(getSortedRoutes(['/posts/$id'])).toEqual(['/posts/$id'])
-    expect(getSortedRoutes(['/posts/$id/foo'])).toEqual(['/posts/$id/foo'])
+    expect(getSortedRoutes(['/posts/[id]'])).toEqual(['/posts/[id]'])
+    expect(getSortedRoutes(['/posts/[id]/foo'])).toEqual(['/posts/[id]/foo'])
 
-    expect(getSortedRoutes(['/posts/$id/$foo/bar'])).toEqual([
-      '/posts/$id/$foo/bar'
+    expect(getSortedRoutes(['/posts/[id]/[foo]/bar'])).toEqual([
+      '/posts/[id]/[foo]/bar'
     ])
-    expect(getSortedRoutes(['/posts/$id/baz/$foo/bar'])).toEqual([
-      '/posts/$id/baz/$foo/bar'
+    expect(getSortedRoutes(['/posts/[id]/baz/[foo]/bar'])).toEqual([
+      '/posts/[id]/baz/[foo]/bar'
     ])
   })
 
@@ -20,13 +20,13 @@ describe('getSortedRoutes', () => {
     expect(
       getSortedRoutes([
         '/posts',
-        '/$root-slug',
+        '/[root-slug]',
         '/',
-        '/posts/$id',
-        '/blog/$id/comments/$cid',
-        '/blog/$id',
-        '/foo/$d/bar/baz/$f',
-        '/apples/$ab/$cd/ef'
+        '/posts/[id]',
+        '/blog/[id]/comments/[cid]',
+        '/blog/[id]',
+        '/foo/[d]/bar/baz/[f]',
+        '/apples/[ab]/[cd]/ef'
       ])
     ).toMatchSnapshot()
   })
