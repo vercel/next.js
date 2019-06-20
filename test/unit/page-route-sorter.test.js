@@ -30,4 +30,16 @@ describe('getSortedRoutes', () => {
       ])
     ).toMatchSnapshot()
   })
+
+  it('catches mismatched param names', () => {
+    expect(() =>
+      getSortedRoutes([
+        '/',
+        '/blog',
+        '/blog/[id]',
+        '/blog/[id]/comments/[cid]',
+        '/blog/[cid]'
+      ])
+    ).toThrowError(/different slug names/)
+  })
 })
