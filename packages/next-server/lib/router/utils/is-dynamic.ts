@@ -1,3 +1,6 @@
+// Identify /[param]/ in route string
+const TEST_ROUTE = /\/\[[^\/]+?\](?=\/|$)/
+
 export function isDynamicRoute(route: string): boolean {
-  return route.indexOf('/$') !== -1
+  return TEST_ROUTE.test(route)
 }

@@ -81,7 +81,7 @@ class Container extends React.Component {
     this.scrollToHash()
 
     // If page was exported and has a querystring
-    // If it's a dynamic route (/$ inside) or has a querystring
+    // If it's a dynamic route or has a querystring
     if (
       data.nextExport &&
       (isDynamicRoute(router.pathname) || window.location.search)
