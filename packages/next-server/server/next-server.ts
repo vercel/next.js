@@ -19,6 +19,7 @@ import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
+  isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
@@ -359,8 +360,8 @@ export default class Server {
 
   private getDynamicRoutes() {
     const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
-      p.includes('/$')
+    const dynamicRoutedPages = Object.keys(manifest.pages).filter(
+      isDynamicRoute
     )
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,

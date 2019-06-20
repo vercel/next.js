@@ -12,7 +12,8 @@ import Watchpack from 'watchpack'
 import {
   getRouteMatcher,
   getRouteRegex,
-  getSortedRoutes
+  getSortedRoutes,
+  isDynamicRoute
 } from 'next-server/dist/lib/router/utils'
 import React from 'react'
 
@@ -113,7 +114,7 @@ export default class DevServer extends Server {
           }
 
           let pageName = '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
-          if (!pageName.includes('/$')) {
+          if (!isDynamicRoute(pageName)) {
             continue
           }
 
