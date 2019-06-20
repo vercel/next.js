@@ -7,9 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "isomorphic-unfetch": "3.0.0",
     "micro": "9.3.5-canary.1",
     "next": "8.1.1-canary.50",
-    "node-fetch": "2.6.0",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },

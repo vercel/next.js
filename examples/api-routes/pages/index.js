@@ -1,5 +1,5 @@
 import Person from '../components/Person'
-import fetch from 'node-fetch'
+import fetch from 'isomorphic-unfetch'
 
 const Index = ({ people }) => (
   <ul>

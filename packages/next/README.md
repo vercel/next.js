@@ -19,7 +19,6 @@
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [How to use](#how-to-use)
-
   - [Setup](#setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
@@ -45,14 +44,15 @@
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
-  - [API routes](#api-routes)
-    - [API middlewares](#api-middlewares)
+  - [API Routes](#api-routes)
+    - [API Middlewares](#api-middlewares)
+    - [Helper Functions](#helper-functions)
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
   - [Dynamic Import](#dynamic-import)
     - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
-    - [With Named Exports](#with-named-exports)
+    - [With named exports](#with-named-exports)
     - [With Custom Loading Component](#with-custom-loading-component)
     - [With No SSR](#with-no-ssr)
     - [With Multiple Modules At Once](#with-multiple-modules-at-once)
@@ -67,21 +67,29 @@
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
     - [Configuring the build ID](#configuring-the-build-id)
-    - [Configuring Next process script](#configuring-next-process-script)
+    - [Configuring next process script](#configuring-next-process-script)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+    - [Build time configuration](#build-time-configuration)
+    - [Runtime configuration](#runtime-configuration)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
-
 - [Production deployment](#production-deployment)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
-- [Typescript](#typescript)
+- [TypeScript](#typescript)
   - [Exported types](#exported-types)
 - [AMP Support](#amp-support)
+  - [Enabling AMP Support](#enabling-amp-support)
+  - [AMP First Page](#amp-first-page)
+  - [Hybrid AMP Page](#hybrid-amp-page)
+  - [AMP Page Modes](#amp-page-modes)
+  - [AMP Behavior with `next export`](#amp-behavior-with-next-export)
+  - [Adding AMP Components](#adding-amp-components)
+  - [AMP Validation](#amp-validation)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Copying custom files](#copying-custom-files)
@@ -922,7 +930,7 @@ export default withRouter(MyLink)
   </ul>
 </details>
 
-API routes provides straightforward solution to build your `API` with `Next.js`. Start by creating `api` folder inside `pages` folder. Every file inside `api` folder is mapped to `/api` route. For example `api/posts.js` will be mapped to `/api/posts`.
+API routes provides a straightforward solution to build your `API` with `Next.js`. Start by creating the `api` folder inside the `pages` folder. Every file inside `api` is mapped to `/api/*`, for example `api/posts.js` will be mapped to `/api/posts`. Here's how an `api` route looks like:
 
 ```js
 export default (req, res) => {
@@ -939,9 +947,9 @@ export default (req, res) => {
 
 API routes provides built in `middlewares` which parse the incoming `req`. Those middlewares are:
 
-- `req.cookies`: an object containing the cookies sent by the request. Defaults to `{}` 
-- `req.query`: an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
-- `req.body`: an object containing the body parsed by `content-type`, or `null` if no body is sent
+- `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}` 
+- `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
+- `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
 #### Helper Functions
 

@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'
+import fetch from 'isomorphic-unfetch'
 
 const Person = ({ data, status }) =>
   status === 200 ? (
