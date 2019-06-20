@@ -1,7 +1,7 @@
-import { startClock, addCount, serverRenderClock } from 'actions'
-import Page from 'containers/page'
 import withRedux from 'next-redux-wrapper'
 import { compose, setDisplayName, pure, lifecycle, withProps } from 'recompose'
+import { startClock, addCount, serverRenderClock } from '../actions'
+import Page from '../containers/page'
 import initStore from '../store'
 
 const Counter = compose(
