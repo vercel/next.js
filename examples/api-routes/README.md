@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes) which provides an easy solution to build your `API`. This allows users to create multiple `API` endpoints into serverless functions, which can execute independently.
+Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes) which provides an easy solution to build your own `API`. This example shows how to create multiple `API` endpoints with serverless functions, which can execute independently.
