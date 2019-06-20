@@ -142,10 +142,13 @@ function runTests () {
   })
 
   it('should update dynamic values on mount', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+    expect(html).toMatch(/onmpost:.*pending/)
+
     const browser = await webdriver(appPort, '/on-mount/post-1')
     await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/post:.*post-1/)
+    expect(text).toMatch(/onmpost:.*post-1/)
   })
 }
 
