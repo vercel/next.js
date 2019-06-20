@@ -7,7 +7,6 @@
     "start": "next start"
   },
   "dependencies": {
-    "babel-plugin-module-resolver": "^2.7.1",
     "next": "latest",
     "next-redux-wrapper": "^1.0.0",
     "prop-types": "^15.5.10",
