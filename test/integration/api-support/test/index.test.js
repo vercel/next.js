@@ -24,7 +24,12 @@ describe('API support', () => {
   afterAll(() => killApp(server))
 
   it('should return 404 for undefined path', async () => {
-    const { status } = await fetchViaHTTP(appPort, '/api/unexisting', null, {})
+    const { status } = await fetchViaHTTP(
+      appPort,
+      '/api/errors/unexisting',
+      null,
+      {}
+    )
     expect(status).toEqual(404)
   })
 
@@ -58,6 +63,14 @@ describe('API support', () => {
     )
 
     expect(data).toEqual([{ title: 'Cool Post!' }])
+  })
+
+  it('should work with dynamic routes', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/amsterdam', null, {}).then(
+      res => res.ok && res.json()
+    )
+
+    expect(data).toEqual({ city: 'amsterdam' })
   })
 
   it('should return 404 on POST on pages', async () => {
@@ -140,7 +153,7 @@ describe('API support', () => {
   })
 
   it('should return custom error', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/error', null, {})
+    const data = await fetchViaHTTP(appPort, '/api/errors/error', null, {})
     const json = await data.json()
 
     expect(data.status).toEqual(500)
