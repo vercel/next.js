@@ -67,7 +67,7 @@ export async function ncc_autodll_webpack_plugin (task, opts) {
     .ncc({
       packageName: 'autodll-webpack-plugin',
       externals: {
-        webpack: '../webpack'
+        webpack: '../webpack.js'
       }
     })
     .target('dist/compiled/autodll-webpack-plugin')
