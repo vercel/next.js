@@ -122,7 +122,10 @@ export async function ncc_webpack_Bundle (task, opts) {
     .source(opts.src || 'build/bundles/bundled-webpack.js')
     .ncc({
       packageName: 'webpack',
-      externals: ['node-libs-browser', 'chokidar']
+      externals: {
+        'node-libs-browser': 'node-libs-browser',
+        chokidar: 'chokidar'
+      }
     })
     .target('dist/compiled/webpack')
 
