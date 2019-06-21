@@ -8,7 +8,7 @@
 /// <reference types="node" />
 
 declare module 'loader-utils' {
-  import { loader } from 'next/dist/compiled/webpack'
+  import { loader } from 'next/dist/compiled/webpack.js'
 
   export interface InterpolateOption {
     context?: string

@@ -1,4 +1,4 @@
-import { Compiler } from 'next/dist/compiled/webpack'
+import { Compiler } from 'next/dist/compiled/webpack.js'
 import { connectChunkAndModule } from 'next/dist/compiled/webpack-GraphHelpers'
 
 /**

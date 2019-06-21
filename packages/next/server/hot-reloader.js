@@ -3,7 +3,7 @@ import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
 import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
-import webpack from 'next/dist/compiled/webpack'
+import webpack from 'next/dist/compiled/webpack.js'
 import getBaseWebpackConfig from '../build/webpack-config'
 import {
   IS_BUNDLED_PAGE_REGEX,

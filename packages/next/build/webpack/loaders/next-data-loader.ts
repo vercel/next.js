@@ -1,4 +1,4 @@
-import { loader } from 'next/dist/compiled/webpack'
+import { loader } from 'next/dist/compiled/webpack.js'
 import hash from 'string-hash'
 import { basename } from 'path'
 const nextDataLoader: loader.Loader = function(source) {

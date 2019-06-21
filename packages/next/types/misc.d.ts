@@ -11,7 +11,7 @@ declare module 'node-libs-browser' {
   export = nodeLibs
 }
 
-declare module 'next/dist/compiled/webpack' {
+declare module 'next/dist/compiled/webpack.js' {
   import webpack from 'webpack'
   export = webpack
 }
@@ -82,7 +82,7 @@ declare module 'next/dist/compiled/arg/index.js' {
 }
 
 declare module 'next/dist/compiled/autodll-webpack-plugin' {
-  import webpack from 'next/dist/compiled/webpack'
+  import webpack from 'next/dist/compiled/webpack.js'
   class AutoDllPlugin implements webpack.Plugin {
     constructor(settings?: {
       inject?: boolean
