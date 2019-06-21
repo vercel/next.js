@@ -1,5 +1,5 @@
 const notifier = require('node-notifier')
-const { relative } = require('path')
+const relative = require('path').relative
 
 const babelClientOpts = {
   presets: [
