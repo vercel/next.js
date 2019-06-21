@@ -326,7 +326,8 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless'
+      this.nextConfig.target === 'serverless',
+      this.renderOpts.dev
     )
   }
 
