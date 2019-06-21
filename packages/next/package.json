@@ -126,7 +126,7 @@
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/webpack-sources": "0.1.5",
-    "@zeit/ncc": "0.20.0",
+    "@zeit/ncc": "0.20.1",
     "arg": "4.1.0",
     "autodll-webpack-plugin": "0.4.2",
     "babel-plugin-dynamic-import-node": "2.2.0",
