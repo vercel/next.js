@@ -481,11 +481,9 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (!isServer) {
-              const {
-                AutoDllPlugin,
-                setCacheDir,
-              } = require('next/dist/compiled/autodll-webpack-plugin')
-              setCacheDir(distDir)
+              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
+                distDir
+              )
               devPlugins.push(
                 new AutoDllPlugin({
                   filename: '[name]_[hash].js',
