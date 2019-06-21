@@ -177,6 +177,8 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const isProductionServerless = !dev && isServer && target === 'serverless'
+
   const devtool = dev || debug ? 'cheap-module-source-map' : false
 
   let webpackConfig: webpack.Configuration = {
@@ -348,7 +350,7 @@ export default async function getBaseWebpackConfig(
           (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
             chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)
         ) {
-          return chunk.name.replace(/\.js$/, '-[contenthash].js')
+          return chunk.name.replace(/\.js$/, '-[hash].js')
         }
         return '[name]'
       },
@@ -373,10 +375,30 @@ export default async function getBaseWebpackConfig(
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
     },
+    ...(isProductionServerless
+      ? {
+          // `@zeit/webpack-asset-relocator-loader` will relocated all assets
+          // so we can't let webpack mock this to `/` & `/index.js`
+          node: { __dirname: false, __filename: false },
+        }
+      : undefined),
     // @ts-ignore this is filtered
     module: {
       strictExportPresence: true,
       rules: [
+        isProductionServerless && {
+          test: /\.(m?js|node)$/,
+          parser: { amd: false },
+          use: {
+            loader: '@zeit/webpack-asset-relocator-loader',
+            options: {
+              outputAssetBase: 'assets',
+              existingAssetNames: [],
+              wrapperCompatibility: false,
+              production: true,
+            },
+          },
+        },
         (selectivePageBuilding || config.experimental.terserLoader) &&
           !isServer &&
           !debug && {
@@ -423,6 +445,7 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       // This plugin makes sure `output.filename` is used for entry chunks
+      new webpack.ExtendedAPIPlugin(),
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...Object.keys(config.env).reduce((acc, key) => {
