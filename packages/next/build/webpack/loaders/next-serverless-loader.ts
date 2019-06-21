@@ -1,4 +1,4 @@
-import { loader } from 'webpack'
+import { loader } from 'next/dist/compiled/webpack.js'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'

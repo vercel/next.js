@@ -1,4 +1,4 @@
-import { Compiler, Plugin } from 'webpack'
+import { Compiler, Plugin } from 'next/dist/compiled/webpack.js'
 
 export class SharedRuntimePlugin implements Plugin {
   apply(compiler: Compiler) {

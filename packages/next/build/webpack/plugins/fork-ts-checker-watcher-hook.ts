@@ -1,9 +1,9 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import { NormalizedMessage } from 'fork-ts-checker-webpack-plugin/lib/NormalizedMessage'
-import webpack from 'webpack'
+import webpack from 'next/dist/compiled/webpack.js'
 
 export function Apply(compiler: webpack.Compiler) {
-  const hooks = ForkTsCheckerWebpackPlugin.getCompilerHooks(compiler)
+  const hooks = ForkTsCheckerWebpackPlugin.getCompilerHooks(compiler as any)
 
   let additionalFiles: string[] = []
 

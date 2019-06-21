@@ -1,5 +1,5 @@
-import { Compiler } from 'webpack'
-import { connectChunkAndModule } from 'webpack/lib/GraphHelpers'
+import { Compiler } from 'next/dist/compiled/webpack.js'
+import { connectChunkAndModule } from 'next/dist/compiled/webpack-GraphHelpers'
 
 /**
  * Makes sure there are no dynamic chunks when the target is serverless

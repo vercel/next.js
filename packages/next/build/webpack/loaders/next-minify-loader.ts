@@ -1,5 +1,5 @@
 import loaderUtils from 'loader-utils'
-import { loader } from 'webpack'
+import { loader } from 'next/dist/compiled/webpack.js'
 import minify from '../plugins/terser-webpack-plugin/src/minify'
 
 const nextMiniferLoader: loader.Loader = function(source) {
