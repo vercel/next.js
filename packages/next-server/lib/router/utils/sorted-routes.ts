@@ -18,7 +18,7 @@ class UrlNode {
   private _smoosh(prefix: string = '/'): string[] {
     const childrenPaths = [...this.children.keys()].sort()
     if (this.hasSlug) {
-      childrenPaths.splice(childrenPaths.indexOf('$'), 1)
+      childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
     }
 
     const routes = childrenPaths
@@ -27,7 +27,7 @@ class UrlNode {
 
     if (this.hasSlug) {
       routes.push(
-        ...this.children.get('$')!._smoosh(`${prefix}$${this.slugName}/`)
+        ...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`)
       )
     }
 
@@ -45,8 +45,8 @@ class UrlNode {
     }
 
     let [nextSegment] = urlPaths
-    if (nextSegment.startsWith('$')) {
-      const slugName = nextSegment.substring(1)
+    if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
+      const slugName = nextSegment.slice(1, -1)
       if (this.hasSlug && slugName !== this.slugName) {
         throw new Error(
           'You cannot use different slug names for the same dynamic path.'
@@ -54,7 +54,7 @@ class UrlNode {
       }
 
       this.slugName = slugName
-      nextSegment = '$'
+      nextSegment = '[]'
     }
 
     if (!this.children.has(nextSegment)) {
