@@ -32,5 +32,5 @@ export async function recursiveReadDir(dir: string, filter: RegExp, arr: string[
     arr.push(absolutePath.replace(rootDir, ''))
   }))
 
-  return arr
+  return arr.sort()
 }
