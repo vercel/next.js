@@ -1,4 +1,4 @@
-import { Compiler, Plugin } from 'webpack'
+import { Compiler, Plugin } from 'next/dist/compiled/webpack.js'
 import { RawSource } from 'webpack-sources'
 import {
   PAGES_MANIFEST,

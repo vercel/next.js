@@ -5,6 +5,25 @@ declare module 'webpack/lib/GraphHelpers'
 declare module 'unfetch'
 declare module 'styled-jsx/server'
 
+declare module 'node-libs-browser' {
+  const nodeLibs: any
+
+  export = nodeLibs
+}
+
+declare module 'next/dist/compiled/webpack.js' {
+  import webpack from 'webpack'
+  export = webpack
+}
+
+declare module 'next/dist/compiled/webpack-DynamicEntryPlugin' {
+  export const createDependency: any
+}
+
+declare module 'next/dist/compiled/webpack-GraphHelpers' {
+  export const connectChunkAndModule: any
+}
+
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
 
@@ -62,8 +81,8 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg
 }
 
-declare module 'autodll-webpack-plugin' {
-  import webpack from 'webpack'
+declare module 'next/dist/compiled/autodll-webpack-plugin' {
+  import webpack from 'next/dist/compiled/webpack.js'
   class AutoDllPlugin implements webpack.Plugin {
     constructor(settings?: {
       inject?: boolean
@@ -80,7 +99,9 @@ declare module 'autodll-webpack-plugin' {
     [k: string]: any
   }
 
-  export = AutoDllPlugin
+  function setCacheDir(dist: string): void
+
+  export { AutoDllPlugin, setCacheDir }
 }
 
 declare module NodeJS {

@@ -2,7 +2,7 @@ import { join } from 'path'
 import { promisify } from 'util'
 import fs from 'fs'
 import { IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
-import { Compiler } from 'webpack'
+import { Compiler } from 'next/dist/compiled/webpack.js'
 
 const unlink = promisify(fs.unlink)
 
