@@ -43,7 +43,7 @@ export default App => {
         return {}
       }
 
-      if (!process.browser) {
+      if (typeof window === 'undefined') {
         // Run all graphql queries in the component tree
         // and extract the resulting data
         try {
