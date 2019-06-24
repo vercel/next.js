@@ -1,3 +1,4 @@
+import { promisify } from 'util'
 import webpack, { Stats } from 'webpack'
 
 export type CompilerResult = {
@@ -22,30 +23,22 @@ function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
   return result
 }
 
-export function runCompiler(
+export async function runCompiler(
   config: webpack.Configuration | webpack.Configuration[]
 ): Promise<CompilerResult> {
   return new Promise(async (resolve, reject) => {
     // @ts-ignore webpack allows both a single config or array of configs
     const compiler = webpack(config)
-    compiler.run((err: Error, statsOrMultiStats: any) => {
-      if (err) {
-        return reject(err)
-      }
+    const run = promisify(compiler.run.bind(compiler))
+    const statsOrMultiStats: any = await run()
 
-      if (statsOrMultiStats.stats) {
-        const result: CompilerResult = statsOrMultiStats.stats.reduce(
-          generateStats,
-          { errors: [], warnings: [] }
-        )
-        return resolve(result)
-      }
+    if (statsOrMultiStats.stats) {
+      return statsOrMultiStats.stats.reduce(generateStats, {
+        errors: [],
+        warnings: [],
+      })
+    }
 
-      const result = generateStats(
-        { errors: [], warnings: [] },
-        statsOrMultiStats
-      )
-      return resolve(result)
-    })
+    return generateStats({ errors: [], warnings: [] }, statsOrMultiStats)
   })
 }
