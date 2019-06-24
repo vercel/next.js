@@ -108,7 +108,7 @@ const listenToIntersections = (el: any, cb: any) => {
 class Link extends Component<LinkProps> {
   static propTypes?: any
   static defaultProps: Partial<LinkProps> = {
-    prefetch: true
+    prefetch: true,
   }
 
   cleanUpListeners = () => {}
@@ -284,6 +284,10 @@ if (process.env.NODE_ENV === 'development') {
       },
     ]).isRequired,
   })
+}
+
+Link.defaultProps = {
+  prefetch: true,
 }
 
 export default Link
