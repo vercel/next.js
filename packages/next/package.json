@@ -36,7 +36,8 @@
     "router.d.ts",
     "amp.js",
     "amp.d.ts",
-    "types/index.d.ts"
+    "types/index.d.ts",
+    "types/global.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
