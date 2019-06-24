@@ -286,7 +286,10 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   if (!fs.existsSync(appTypeDeclarations)) {
     fs.writeFileSync(
       appTypeDeclarations,
-      `/// <reference types="next" />${os.EOL}`
+      '/// <reference types="next" />' +
+        os.EOL +
+        '/// <reference types="next/types/global" />' +
+        os.EOL
     )
   }
 }
