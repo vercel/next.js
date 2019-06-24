@@ -4,5 +4,5 @@
     "module": "esnext",
     "jsx": "preserve"
   },
-  "include": ["components", "pages"]
+  "include": ["next-env.d.ts", "components", "pages"]
 }
