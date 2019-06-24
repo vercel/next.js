@@ -252,7 +252,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   }
 
   if (parsedTsConfig.include == null) {
-    appTsConfig.include = ['**/*.ts', '**/*.tsx']
+    appTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
   }
 
   if (messages.length > 0) {
