@@ -7,7 +7,8 @@ const { basename, dirname, extname, join, relative } = require('path')
 module.exports = function (task) {
   task.plugin('ncc', {}, function * (file, options) {
     return ncc(join(__dirname, file.dir, file.base), {
-      filename: file.base,
+      // cannot bundle
+      externals: ['chokidar'],
       ...options
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach(key =>
@@ -19,7 +20,7 @@ module.exports = function (task) {
       )
 
       if (options && options.packageName) {
-        writePackageManifest.call(this, options.packageName, file.base)
+        writePackageManifest.call(this, options.packageName)
       }
 
       file.data = Buffer.from(code, 'utf8')
@@ -30,9 +31,12 @@ module.exports = function (task) {
 // This function writes a minimal `package.json` file for a compiled package.
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
-function writePackageManifest (packageName, main) {
+function writePackageManifest (packageName) {
   const packagePath = require.resolve(packageName + '/package.json')
-  let { name, author, license, types, typings } = require(packagePath)
+  let { name, main, author, license, types, typings } = require(packagePath)
+  if (!main) {
+    main = 'index.js'
+  }
 
   let typesFile = types || typings
   if (typesFile) {

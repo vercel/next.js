@@ -22,7 +22,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to strip out unneeded results for Next's specific use case
 
 import url from 'url'
-import { Compiler, compilation } from 'next/dist/compiled/webpack.js'
+import { Compiler, compilation } from 'webpack'
 
 function buildManifest(
   compiler: Compiler,

@@ -68,6 +68,7 @@
     "@babel/runtime-corejs2": "7.4.5",
     "amphtml-validator": "1.0.23",
     "async-sema": "3.0.0",
+    "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.6",
     "babel-plugin-react-require": "3.0.0",
@@ -81,7 +82,6 @@
     "loader-utils": "1.2.3",
     "mkdirp": "0.5.1",
     "next-server": "8.1.1-canary.55",
-    "node-libs-browser": "2.2.0",
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.6",
@@ -96,6 +96,9 @@
     "unfetch": "4.1.0",
     "url": "0.11.0",
     "watchpack": "2.0.0-beta.4",
+    "webpack": "4.32.2",
+    "webpack-dev-middleware": "3.7.0",
+    "webpack-hot-middleware": "2.25.0",
     "webpack-sources": "1.3.0",
     "worker-farm": "1.7.0"
   },
@@ -126,19 +129,15 @@
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/webpack-sources": "0.1.5",
-    "@zeit/ncc": "0.20.1",
+    "@zeit/ncc": "0.18.5",
     "arg": "4.1.0",
-    "autodll-webpack-plugin": "0.4.2",
     "babel-plugin-dynamic-import-node": "2.2.0",
     "nanoid": "2.0.3",
     "resolve": "1.11.0",
     "taskr": "1.1.0",
     "text-table": "0.2.0",
     "typescript": "3.5.1",
-    "unistore": "3.4.1",
-    "webpack": "4.32.2",
-    "webpack-dev-middleware": "3.7.0",
-    "webpack-hot-middleware": "2.25.0"
+    "unistore": "3.4.1"
   },
   "engines": {
     "node": ">= 8.0.0"

@@ -1,9 +1,9 @@
 import { relative as relativePath, join, normalize, sep } from 'path'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
-import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
+import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
-import webpack from 'next/dist/compiled/webpack.js'
+import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
 import {
   IS_BUNDLED_PAGE_REGEX,
