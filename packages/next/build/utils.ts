@@ -242,13 +242,15 @@ export async function getCacheIdentifier({
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string
+  buildId: string,
+  target: string
 ): Promise<number> {
-  const clientBundle = path.join(
-    distPath,
-    `static/${buildId}/pages/`,
-    `${page}.js`
-  )
+  let clientBundle
+  if (target === 'serverless' && page.startsWith('/api')) {
+    clientBundle = path.join(distPath, 'serverless/pages', `${page}.js`)
+  } else {
+    clientBundle = path.join(distPath, `static/${buildId}/pages/`, `${page}.js`)
+  }
   try {
     return (await fsStat(clientBundle)).size
   } catch (_) {}

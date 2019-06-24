@@ -294,7 +294,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const chunks = getPageChunks(page)
 
     const actualPage = page === '/' ? '/index' : page
-    const size = await getPageSizeInKb(actualPage, distPath, buildId)
+    const size = await getPageSizeInKb(actualPage, distPath, buildId, target)
     const bundleRelative = path.join(
       target === 'serverless' ? 'pages' : `static/${buildId}/pages`,
       actualPage + '.js'
@@ -412,7 +412,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // remove temporary export folder
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
-
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
   staticPages.forEach(pg => allStaticPages.add(pg))

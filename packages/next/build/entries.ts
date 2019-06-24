@@ -72,7 +72,7 @@ export function createEntrypoints(
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
     if (isApiRoute || target === 'server') {
-      server[bundlePath] = [absolutePagePath]
+      server[join('pages', bundleFile)] = [absolutePagePath]
     } else if (
       target === 'serverless' &&
       page !== '/_app' &&
