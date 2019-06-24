@@ -83,6 +83,7 @@ export default class Server {
     assetPrefix?: string
     canonicalBase: string
     autoExport: boolean
+    documentMiddlewareEnabled: boolean
     dev?: boolean
   }
   router: Router
@@ -119,6 +120,8 @@ export default class Server {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       autoExport: this.nextConfig.experimental.autoExport,
+      documentMiddlewareEnabled: this.nextConfig.experimental
+        .documentMiddleware,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,

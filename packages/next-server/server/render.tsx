@@ -123,6 +123,7 @@ function render(
 
 type RenderOpts = {
   autoExport: boolean
+  documentMiddlewareEnabled: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
@@ -241,6 +242,7 @@ export async function renderToHTML(
     err,
     dev = false,
     autoExport = false,
+    documentMiddlewareEnabled = false,
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
@@ -306,7 +308,7 @@ export async function renderToHTML(
   const router = new ServerRouter(pathname, query, asPath)
   let props: any
 
-  if (typeof DocumentMiddleware === 'function') {
+  if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
   }
 
