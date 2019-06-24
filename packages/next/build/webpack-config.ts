@@ -179,6 +179,98 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev || debug ? 'cheap-module-source-map' : false
 
+  // Contains various versions of the Webpack SplitChunksPlugin used in different build types
+  const splitChunksConfigs = {
+    dev: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+      },
+    },
+    selective: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        react: {
+          name: 'commons',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+        },
+      },
+    },
+    prod: {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
+        },
+        react: {
+          name: 'commons',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+        },
+      },
+    },
+    prodGranular: {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        framework: {
+          name: 'framework',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+          priority: 40,
+        },
+        lib: {
+          test(module: { size: Function }): boolean {
+            return module.size() > 160000
+          },
+          name(module: { identifier: Function }): string {
+            let nodeModuleNameResults = /node_modules\/(.*)/.exec(
+              module.identifier()
+            )
+            return nodeModuleNameResults
+              ? nodeModuleNameResults[1]
+              : module.identifier()
+          },
+          priority: 30,
+          minChunks: 1,
+          reuseExistingChunk: true,
+        },
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: totalPages,
+          priority: 20,
+        },
+        shared: {
+          name: false,
+          priority: 10,
+          minChunks: 2,
+          reuseExistingChunk: true,
+        },
+      },
+      maxInitialRequests: 20,
+    },
+  }
+
+  //Select appropriate SplitChunksPlugin config for this build
+  let splitChunksConfig
+  if (dev) {
+    splitChunksConfig = splitChunksConfigs.dev
+  } else if (selectivePageBuilding) {
+    splitChunksConfig = splitChunksConfigs.selective
+  } else {
+    splitChunksConfig = config.experimental.granularChunks
+      ? splitChunksConfigs.prodGranular
+      : splitChunksConfigs.prod
+  }
+
   let webpackConfig: webpack.Configuration = {
     devtool,
     mode: webpackMode,
@@ -267,42 +359,7 @@ export default async function getBaseWebpackConfig(
               : {
                   name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
                 },
-            splitChunks: dev
-              ? {
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                  },
-                }
-              : selectivePageBuilding
-              ? {
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                    react: {
-                      name: 'commons',
-                      chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    },
-                  },
-                }
-              : {
-                  chunks: 'all',
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                    commons: {
-                      name: 'commons',
-                      chunks: 'all',
-                      minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-                    },
-                    react: {
-                      name: 'commons',
-                      chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    },
-                  },
-                },
+            splitChunks: splitChunksConfig,
             minimize: !(dev || debug),
             minimizer: !(dev || debug)
               ? [
