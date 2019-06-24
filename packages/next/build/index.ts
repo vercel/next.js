@@ -280,6 +280,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const { autoExport } = config.experimental
   const staticPages = new Set<string>()
+  const invalidPages = new Set<string>()
   const pageInfos = new Map<string, PageInfo>()
   let pagesManifest: any = {}
   let customAppGetInitialProps: boolean | undefined
@@ -336,14 +337,31 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       if (customAppGetInitialProps === false && nonReservedPage) {
-        if (isPageStatic(serverBundle, runtimeEnvConfig)) {
-          staticPages.add(page)
-          isStatic = true
+        try {
+          if (isPageStatic(serverBundle, runtimeEnvConfig)) {
+            staticPages.add(page)
+            isStatic = true
+          }
+        } catch (err) {
+          if (err.code !== 'INVALID_DEFAULT_EXPORT') throw err
+          invalidPages.add(page)
         }
       }
     }
 
     pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
+  }
+
+  if (invalidPages.size > 0) {
+    throw new Error(
+      `autoExport failed: found page${
+        invalidPages.size === 1 ? '' : 's'
+      } without React Component as default export\n${[...invalidPages]
+        .map(pg => `pages${pg}`)
+        .join(
+          '\n'
+        )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
+    )
   }
 
   if (Array.isArray(configs[0].plugins)) {
