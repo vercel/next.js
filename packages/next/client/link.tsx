@@ -286,8 +286,4 @@ if (process.env.NODE_ENV === 'development') {
   })
 }
 
-Link.defaultProps = {
-  prefetch: true,
-}
-
 export default Link
