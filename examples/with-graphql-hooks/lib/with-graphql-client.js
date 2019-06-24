@@ -18,7 +18,7 @@ export default App => {
       // and extract the resulting data
       const graphQLClient = initGraphQL()
       let graphQLState = {}
-      if (!process.browser) {
+      if (typeof window === 'undefined') {
         try {
           // Run all GraphQL queries
           graphQLState = await getInitialState({
