@@ -12,10 +12,12 @@ import {
 /// <reference types="react-dom" />
 
 declare namespace NodeJS {
+  interface Process {
+    readonly browser: boolean
+  }
+
   interface ProcessEnv {
     readonly NODE_ENV: 'development' | 'production'
-    readonly browser: boolean
-    readonly crossOrigin?: string
   }
 }
 
