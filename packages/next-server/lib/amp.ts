@@ -1,7 +1,7 @@
 import React from 'react'
-import { AmpModeContext } from './amphtml-context'
+import { AmpStateContext } from './amp-context'
 
-export function isAmp({
+export function isInAmpMode({
   enabled = false,
   hybrid = false,
   hasQuery = false,
@@ -10,9 +10,9 @@ export function isAmp({
 }
 
 export function useAmp() {
-  const ampMode = React.useContext(AmpModeContext)
+  const ampState = React.useContext(AmpStateContext)
   // un-comment below to not be considered AMP in dirty mode
-  return isAmp(ampMode) // && ampMode.hasQuery
+  return isInAmpMode(ampState) // && ampMode.hasQuery
 }
 
 /**
@@ -20,9 +20,9 @@ export function useAmp() {
  */
 export function withAmp(Component: any, { hybrid = false } = {}): any {
   function WithAmpWrapper(props = {}) {
-    const ampMode = React.useContext(AmpModeContext)
-    ampMode.enabled = true
-    ampMode.hybrid = hybrid
+    const ampState = React.useContext(AmpStateContext)
+    ampState.enabled = true
+    ampState.hybrid = hybrid
 
     return React.createElement(Component, props)
   }
