@@ -269,6 +269,9 @@ export default class Server {
           if (!pathname) {
             throw new Error('pathname is undefined')
           }
+          if (req.method === 'POST') {
+            await this.render404(req, res, parsedUrl)
+          }
 
           await this.render(req, res, pathname, query, parsedUrl)
         },

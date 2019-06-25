@@ -120,11 +120,11 @@ function runTests (serverless = false) {
   })
 
   it('should return 404 on POST on pages', async () => {
-    const data = await fetchViaHTTP(appPort, '/user', null, {
+    const res = await fetchViaHTTP(appPort, '/user', null, {
       method: 'POST'
     })
 
-    expect(data).toEqual(404)
+    expect(res.status).toEqual(404)
   })
 
   it('should return JSON on post on API', async () => {
