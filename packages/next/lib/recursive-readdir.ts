@@ -42,5 +42,5 @@ export async function recursiveReadDir(
     })
   )
 
-  return arr
+  return arr.sort()
 }
