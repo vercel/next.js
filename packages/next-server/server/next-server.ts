@@ -256,9 +256,7 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      this.dynamicRoutes = this.nextConfig.experimental.dynamicRouting
-        ? this.getDynamicRoutes()
-        : []
+      this.dynamicRoutes = this.getDynamicRoutes()
 
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
