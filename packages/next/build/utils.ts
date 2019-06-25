@@ -274,6 +274,15 @@ export function isPageStatic(
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
     const Comp = require(serverBundle).default
+
+    // clear cache to prevent memory leak
+    const mod = require.cache[serverBundle]
+    delete require.cache[serverBundle]
+    if (mod.parent) {
+      const idx = mod.parent.children.indexOf(mod)
+      mod.parent.children.splice(idx, 1)
+    }
+
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       const invalidPage = new Error('invalid-page')
       ;(invalidPage as any).code = 'INVALID_DEFAULT_EXPORT'
