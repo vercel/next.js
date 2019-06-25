@@ -56,7 +56,7 @@ describe('Static Export', () => {
     await nextExport(appDir, { outdir })
 
     nextConfig.replace(
-      `// exportTrailingSlash: false,`,
+      `exportTrailingSlash: true,`,
       `exportTrailingSlash: false,`
     )
     await nextBuild(appDir)
