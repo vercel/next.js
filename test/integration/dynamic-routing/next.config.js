@@ -1,6 +1,5 @@
 module.exports = {
   experimental: {
-    autoExport: true,
-    dynamicRouting: true
+    autoExport: true
   }
 }
