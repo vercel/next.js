@@ -19,6 +19,7 @@ import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
+  isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
@@ -82,6 +83,7 @@ export default class Server {
     assetPrefix?: string
     canonicalBase: string
     autoExport: boolean
+    documentMiddlewareEnabled: boolean
     dev?: boolean
   }
   router: Router
@@ -118,6 +120,8 @@ export default class Server {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       autoExport: this.nextConfig.experimental.autoExport,
+      documentMiddlewareEnabled: this.nextConfig.experimental
+        .documentMiddleware,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -342,7 +346,8 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless'
+      this.nextConfig.target === 'serverless',
+      this.renderOpts.dev
     )
   }
 
@@ -376,8 +381,8 @@ export default class Server {
 
   private getDynamicRoutes() {
     const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
-      p.includes('/$')
+    const dynamicRoutedPages = Object.keys(manifest.pages).filter(
+      isDynamicRoute
     )
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
@@ -599,10 +604,25 @@ export default class Server {
     query: ParsedUrlQuery = {}
   ) {
     const result = await this.findPageComponents('/_error', query)
-    return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
-      ...this.renderOpts,
-      err,
-    })
+    let html
+    try {
+      html = await this.renderToHTMLWithComponents(
+        req,
+        res,
+        '/_error',
+        query,
+        result,
+        {
+          ...this.renderOpts,
+          err,
+        }
+      )
+    } catch (err) {
+      console.error(err)
+      res.statusCode = 500
+      html = 'Internal Server Error'
+    }
+    return html
   }
 
   public async render404(

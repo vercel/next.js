@@ -2,7 +2,7 @@ import { action } from 'mobx'
 import { useObservable, useStaticRendering } from 'mobx-react-lite'
 import { createContext, useCallback } from 'react'
 
-const isServer = !process.browser
+const isServer = typeof window === 'undefined'
 useStaticRendering(isServer)
 
 let StoreContext = createContext()

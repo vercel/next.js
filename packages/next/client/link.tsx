@@ -53,9 +53,6 @@ type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   onError?: (error: Error) => void
-  /**
-   * @deprecated since version 8.1.1-canary.20
-   */
   prefetch?: boolean
 }
 
@@ -110,6 +107,10 @@ const listenToIntersections = (el: any, cb: any) => {
 
 class Link extends Component<LinkProps> {
   static propTypes?: any
+  static defaultProps: Partial<LinkProps> = {
+    prefetch: true,
+  }
+
   cleanUpListeners = () => {}
 
   componentDidMount() {
@@ -121,7 +122,7 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: Element) {
-    if (IntersectionObserver && ref && ref.tagName) {
+    if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })
@@ -188,7 +189,7 @@ class Link extends Component<LinkProps> {
   }
 
   prefetch() {
-    if (typeof window === 'undefined') return
+    if (!this.props.prefetch || typeof window === 'undefined') return
 
     // Prefetch the JSON page if asked (only in the client)
     const { pathname } = window.location

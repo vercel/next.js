@@ -47,7 +47,7 @@ export function createHook(
     }
 
     // @ts-ignore webpack optimization
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       const res = fetch(router.route + '?' + stringify(router.query), {
         headers: {
           accept: 'application/amp.bind+json',

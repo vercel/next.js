@@ -19,11 +19,12 @@ export function pageNotFoundError(page: string): Error {
 export function getPagePath(
   page: string,
   distDir: string,
-  serverless: boolean
+  serverless: boolean,
+  dev?: boolean
 ): string {
   const serverBuildPath = join(
     distDir,
-    serverless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 

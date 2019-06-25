@@ -6,7 +6,7 @@ import { counterStore } from '../containers/CounterContainer'
 class MyApp extends App {
   static async getInitialProps () {
     // do your server state here
-    if (!process.browser) {
+    if (typeof window === 'undefined') {
       // reset state for each request
       counterStore.resetState()
       // process state, in this case counter start with 999
@@ -20,7 +20,7 @@ class MyApp extends App {
     super(props)
     // pass the state to client store
     // serverState will be reset when client navigate with Link
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       counterStore.initState(props.serverState.count)
     }
   }

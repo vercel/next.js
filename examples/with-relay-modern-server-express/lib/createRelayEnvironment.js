@@ -7,7 +7,8 @@ let relayEnvironment = null
 // and returns its results as a Promise:
 function fetchQuery (operation, variables, cacheConfig, uploadables) {
   // Because we implement the graphql server, the client must to point to the same host
-  const relayServer = process.browser ? '' : process.env.RELAY_SERVER
+  const relayServer =
+    typeof window !== 'undefined' ? '' : process.env.RELAY_SERVER
   return fetch(`${relayServer}/graphql`, {
     method: 'POST',
     headers: {
@@ -28,7 +29,7 @@ export default function initEnvironment ({ records = {} } = {}) {
 
   // Make sure to create a new Relay environment for every server-side request so that data
   // isn't shared between connections (which would be bad)
-  if (!process.browser) {
+  if (typeof window === 'undefined') {
     return new Environment({
       network,
       store
