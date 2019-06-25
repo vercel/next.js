@@ -23,7 +23,7 @@ describe('AMP Validation on Export', () => {
     const toCheck = ['first', 'second', 'third.amp']
     await Promise.all(
       toCheck.map(async page => {
-        const content = await readFile(join(outDir, `${page}/index.html`))
+        const content = await readFile(join(outDir, `${page}.html`))
         await validateAMP(content.toString())
       })
     )
@@ -47,9 +47,7 @@ describe('AMP Validation on Export', () => {
       expect(stdout).toMatch(
         /warn.*The tag 'amp-video extension \.js script' is missing/
       )
-      await expect(access(join(outDir, 'cat/index.html'))).resolves.toBe(
-        undefined
-      )
+      await expect(access(join(outDir, 'cat.html'))).resolves.toBe(undefined)
       await expect(stderr).not.toMatch(
         /Found conflicting amp tag "meta" with conflicting prop name="viewport"/
       )
@@ -76,9 +74,7 @@ describe('AMP Validation on Export', () => {
       expect(stdout).toMatch(
         /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
       )
-      await expect(access(join(outDir, 'dog/index.html'))).resolves.toBe(
-        undefined
-      )
+      await expect(access(join(outDir, 'dog.html'))).resolves.toBe(undefined)
       await expect(stderr).not.toMatch(
         /Found conflicting amp tag "meta" with conflicting prop name="viewport"/
       )
@@ -108,7 +104,7 @@ describe('AMP Validation on Export', () => {
       expect(stdout).toMatch(
         /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
       )
-      await expect(access(join(outDir, 'dog-cat/index.html'))).resolves.toBe(
+      await expect(access(join(outDir, 'dog-cat.html'))).resolves.toBe(
         undefined
       )
       await expect(stderr).not.toMatch(
