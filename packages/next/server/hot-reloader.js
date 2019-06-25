@@ -318,6 +318,9 @@ export default class HotReloader {
       useTypeScript
     )
 
+    // TODO: on type error
+    // TODO: emit via this.send
+
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
@@ -494,7 +497,7 @@ export default class HotReloader {
     return []
   }
 
-  send (action, ...args) {
+  send = (action, ...args) => {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
