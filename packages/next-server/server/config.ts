@@ -38,6 +38,7 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false,
+    documentMiddleware: false,
   },
 }
 

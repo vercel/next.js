@@ -1,4 +1,4 @@
-import { Compiler } from 'next/dist/compiled/webpack.js'
+import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {
   BUILD_MANIFEST,

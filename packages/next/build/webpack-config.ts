@@ -9,7 +9,7 @@ import {
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import { promisify } from 'util'
-import webpack from 'next/dist/compiled/webpack.js'
+import webpack from 'webpack'
 
 import {
   DOT_NEXT_ALIAS,
@@ -22,6 +22,7 @@ import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identi
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
+import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -404,12 +405,14 @@ export default async function getBaseWebpackConfig(
             /next-server[\\/]dist[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
+            /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
               /next-server[\\/]dist[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
-              /next[\\/]dist[\\/]pages/.test(path)
+              /next[\\/]dist[\\/]pages/.test(path) ||
+              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
             ) {
               return false
             }
@@ -481,9 +484,7 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (!isServer) {
-              const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')(
-                distDir
-              )
+              const AutoDllPlugin = importAutoDllPlugin({ distDir })
               devPlugins.push(
                 new AutoDllPlugin({
                   filename: '[name]_[hash].js',

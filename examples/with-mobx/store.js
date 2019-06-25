@@ -1,7 +1,7 @@
 import { action, observable } from 'mobx'
 import { useStaticRendering } from 'mobx-react'
 
-const isServer = !process.browser
+const isServer = typeof window === 'undefined'
 useStaticRendering(isServer)
 
 class Store {

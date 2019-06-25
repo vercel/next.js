@@ -443,5 +443,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 
-  printTreeView(Object.keys(allMappedPages), allPageInfos)
+  printTreeView(
+    Object.keys(allMappedPages),
+    allPageInfos,
+    target === 'serverless'
+  )
 }

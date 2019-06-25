@@ -1,4 +1,4 @@
-import webpack, { Stats } from 'next/dist/compiled/webpack.js'
+import webpack, { Stats } from 'webpack'
 
 export type CompilerResult = {
   errors: Error[]
