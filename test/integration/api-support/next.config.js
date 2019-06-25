@@ -1,5 +1,3 @@
 module.exports = {
-  experimental: {
-    dynamicRouting: true
-  }
+  target: 'serverless'
 }
