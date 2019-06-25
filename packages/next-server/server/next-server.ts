@@ -301,10 +301,9 @@ export default class Server {
     ) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname)
-        if (!params) {
-          continue
-        } else {
+        if (params) {
           resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          break
         }
       }
     }
