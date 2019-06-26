@@ -14,11 +14,10 @@ import {
 import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { route } from 'next-server/dist/server/router'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
-import { watchCompiler } from '../build/output'
+import { watchCompilers } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { promisify } from 'util'
-import * as ForkTsCheckerWatcherHook from '../build/webpack/plugins/fork-ts-checker-watcher-hook'
 import fs from 'fs'
 
 const access = promisify(fs.access)
@@ -310,13 +309,15 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (multiCompiler) {
-    watchCompiler(multiCompiler.compilers[0], multiCompiler.compilers[1])
-
     const tsConfigPath = join(this.dir, 'tsconfig.json')
     const useTypeScript = await fileExists(tsConfigPath)
-    if (useTypeScript) {
-      ForkTsCheckerWatcherHook.Apply(multiCompiler.compilers[0])
-    }
+
+    watchCompilers(
+      multiCompiler.compilers[0],
+      multiCompiler.compilers[1],
+      useTypeScript,
+      ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
+    )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
@@ -494,7 +495,7 @@ export default class HotReloader {
     return []
   }
 
-  send (action, ...args) {
+  send = (action, ...args) => {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
