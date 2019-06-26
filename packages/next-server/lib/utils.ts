@@ -128,7 +128,7 @@ export type DocumentProps = DocumentInitialProps & {
   dangerousAsPath: string
   ampPath: string
   inAmpMode: boolean
-  hasAmpVersion: boolean
+  hybridAmp: boolean
   staticMarkup: boolean
   devFiles: string[]
   files: string[]

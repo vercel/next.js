@@ -205,7 +205,7 @@ export class Head extends Component<
       ampPath,
       inAmpMode,
       assetPrefix,
-      hasAmpVersion,
+      hybridAmp,
       canonicalBase,
       __NEXT_DATA__,
       dangerousAsPath,
@@ -353,7 +353,7 @@ export class Head extends Component<
         )}
         {!inAmpMode && (
           <>
-            {hasAmpVersion && (
+            {hybridAmp && (
               <link
                 rel="amphtml"
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}

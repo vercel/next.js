@@ -139,7 +139,7 @@ type RenderOpts = {
   ampPath?: string
   dataOnly?: boolean
   inAmpMode?: boolean
-  hasAmpVersion?: boolean
+  hybridAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   PageConfig: IPageConfig
@@ -172,7 +172,7 @@ function renderDocument(
     ampPath,
     ampState,
     inAmpMode,
-    hasAmpVersion,
+    hybridAmp,
     staticMarkup,
     devFiles,
     files,
@@ -187,7 +187,7 @@ function renderDocument(
     ampState: any
     ampPath: string
     inAmpMode: boolean
-    hasAmpVersion: boolean
+    hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -217,7 +217,7 @@ function renderDocument(
           canonicalBase={canonicalBase}
           ampPath={ampPath}
           inAmpMode={inAmpMode}
-          hasAmpVersion={hasAmpVersion}
+          hybridAmp={hybridAmp}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
@@ -479,11 +479,11 @@ export async function renderToHTML(
     ...new Set(dynamicImports.map(bundle => bundle.id)),
   ]
   const inAmpMode = isInAmpMode(ampState)
-  const hasAmpVersion = ampState.hybrid
+  const hybridAmp = ampState.hybrid
 
   // update renderOpts so export knows it's AMP state
   renderOpts.inAmpMode = inAmpMode
-  renderOpts.hasAmpVersion = hasAmpVersion
+  renderOpts.hybridAmp = hybridAmp
 
   let html = renderDocument(Document, {
     ...renderOpts,
@@ -496,7 +496,7 @@ export async function renderToHTML(
     ampPath,
     query,
     inAmpMode,
-    hasAmpVersion,
+    hybridAmp,
     dynamicImportsIds,
     dynamicImports,
     files,
@@ -516,7 +516,7 @@ export async function renderToHTML(
     }
   }
 
-  if (inAmpMode || hasAmpVersion) {
+  if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }

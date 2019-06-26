@@ -128,8 +128,7 @@ process.on(
 
         if (curRenderOpts.inAmpMode) {
           await validateAmp(html, path)
-        }
-        if (curRenderOpts.hasAmpVersion) {
+        } else if (curRenderOpts.hybridAmp) {
           // we need to render the AMP version
           let ampHtmlFilename = `${ampPath}${sep}index.html`
           if (!subFolders) {
