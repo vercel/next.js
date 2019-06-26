@@ -373,6 +373,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           } catch (err) {
             if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
             invalidPages.add(page)
+            staticCheckSema.release()
           }
         }
       }
