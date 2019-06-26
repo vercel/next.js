@@ -336,7 +336,7 @@ export async function renderToHTML(
   }
 
   const ampState = {
-    enabled: Boolean(PageConfig.amp),
+    ampFirst: PageConfig.amp === true,
     hasQuery: Boolean(query.amp),
     hybrid: PageConfig.amp === 'hybrid',
   }
@@ -479,8 +479,9 @@ export async function renderToHTML(
     ...new Set(dynamicImports.map(bundle => bundle.id)),
   ]
   const inAmpMode = isInAmpMode(ampState)
-  const hasAmpVersion = !inAmpMode && ampState.enabled
-  // update renderOpts so export knows it's AMP
+  const hasAmpVersion = ampState.hybrid
+
+  // update renderOpts so export knows it's AMP state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hasAmpVersion = hasAmpVersion
 

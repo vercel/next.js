@@ -2,11 +2,11 @@ import React from 'react'
 import { AmpStateContext } from './amp-context'
 
 export function isInAmpMode({
-  enabled = false,
+  ampFirst = false,
   hybrid = false,
   hasQuery = false,
 } = {}) {
-  return enabled && (!hybrid || (hybrid && hasQuery))
+  return ampFirst || (hybrid && hasQuery)
 }
 
 export function useAmp() {
@@ -21,7 +21,7 @@ export function useAmp() {
 export function withAmp(Component: any, { hybrid = false } = {}): any {
   function WithAmpWrapper(props = {}) {
     const ampState = React.useContext(AmpStateContext)
-    ampState.enabled = true
+    ampState.ampFirst = !hybrid
     ampState.hybrid = hybrid
 
     return React.createElement(Component, props)
