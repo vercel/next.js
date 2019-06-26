@@ -215,12 +215,13 @@ export function watchCompilers(
     hasTypeChecking: boolean,
     onEvent: (status: WebpackStatus) => void
   ) {
+    let tsMessagesPromise: Promise<CompilerDiagnostics> | undefined
+    let tsMessagesResolver: (diagnostics: CompilerDiagnostics) => void
+
     compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
+      tsMessagesPromise = undefined
       onEvent({ loading: true })
     })
-
-    let tsMessagesPromise: Promise<CompilerDiagnostics>
-    let tsMessagesResolver: (diagnostics: CompilerDiagnostics) => void
 
     if (hasTypeChecking) {
       const typescriptFormatter = createCodeframeFormatter({})
@@ -280,6 +281,9 @@ export function watchCompilers(
             // a new compilation started so we don't care about this
             return
           }
+
+          stats.compilation.errors.push(...(typeMessages.errors || []))
+          stats.compilation.warnings.push(...(typeMessages.warnings || []))
 
           onEvent({
             loading: false,
