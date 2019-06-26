@@ -371,7 +371,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               isStatic = true
             }
           } catch (err) {
-            if (err.code !== 'INVALID_DEFAULT_EXPORT') throw err
+            if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
             invalidPages.add(page)
           }
         }
