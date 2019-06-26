@@ -122,6 +122,7 @@ export default function connect (options) {
 var isFirstCompilation = true
 var mostRecentCompilationHash = null
 var hasCompileErrors = false
+let deferredBuildError = null
 
 function clearOutdatedErrors () {
   // Clean up outdated compile errors, if any.
@@ -130,6 +131,8 @@ function clearOutdatedErrors () {
       console.clear()
     }
   }
+
+  deferredBuildError = null
 }
 
 // Successful compilation.
@@ -141,9 +144,13 @@ function handleSuccess () {
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
     tryApplyUpdates(function onHotUpdateSuccess () {
-      // Only dismiss it when we're sure it's a hot update.
-      // Otherwise it would flicker right before the reload.
-      ErrorOverlay.dismissBuildError()
+      if (deferredBuildError) {
+        deferredBuildError()
+      } else {
+        // Only dismiss it when we're sure it's a hot update.
+        // Otherwise it would flicker right before the reload.
+        ErrorOverlay.dismissBuildError()
+      }
     })
   }
 }
@@ -220,20 +227,42 @@ function processMessage (e) {
         handleAvailableHash(obj.hash)
       }
 
-      if (obj.warnings.length > 0) {
-        handleWarnings(obj.warnings)
-      }
+      const { errors, warnings } = obj
+      const hasErrors = Boolean(errors && errors.length)
 
-      if (obj.errors.length > 0) {
+      const hasWarnings = Boolean(warnings && warnings.length)
+
+      if (hasErrors) {
         // When there is a compilation error coming from SSR we have to reload the page on next successful compile
         if (obj.action === 'sync') {
           hadRuntimeError = true
         }
-        handleErrors(obj.errors)
+
+        handleErrors(errors)
         break
+      } else if (hasWarnings) {
+        handleWarnings(warnings)
       }
 
       handleSuccess()
+      break
+    }
+    case 'typeChecked': {
+      const [{ errors, warnings }] = obj.data
+      const hasErrors = Boolean(errors && errors.length)
+
+      const hasWarnings = Boolean(warnings && warnings.length)
+
+      if (hasErrors) {
+        if (canApplyUpdates()) {
+          handleErrors(errors)
+        } else {
+          deferredBuildError = () => handleErrors(errors)
+        }
+      } else if (hasWarnings) {
+        handleWarnings(warnings)
+      }
+
       break
     }
     default: {

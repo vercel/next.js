@@ -198,7 +198,8 @@ export function ampValidation(
 export function watchCompilers(
   client: any,
   server: any,
-  enableTypeCheckingOnClient: boolean
+  enableTypeCheckingOnClient: boolean,
+  onTypeChecked: (diagnostics: CompilerDiagnostics) => void
 ) {
   if (previousClient === client && previousServer === server) {
     return
@@ -284,6 +285,14 @@ export function watchCompilers(
 
           stats.compilation.errors.push(...(typeMessages.errors || []))
           stats.compilation.warnings.push(...(typeMessages.warnings || []))
+          onTypeChecked({
+            errors: stats.compilation.errors.length
+              ? stats.compilation.errors
+              : null,
+            warnings: stats.compilation.warnings.length
+              ? stats.compilation.warnings
+              : null,
+          })
 
           onEvent({
             loading: false,

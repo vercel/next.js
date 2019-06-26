@@ -315,11 +315,9 @@ export default class HotReloader {
     watchCompilers(
       multiCompiler.compilers[0],
       multiCompiler.compilers[1],
-      useTypeScript
+      useTypeScript,
+      ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
     )
-
-    // TODO: on type error
-    // TODO: emit via this.send
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap(
