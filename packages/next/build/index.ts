@@ -38,6 +38,8 @@ import {
 import { writeBuildId } from './write-build-id'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import mkdirpOrig from 'mkdirp'
+import workerFarm from 'worker-farm'
+import { Sema } from 'async-sema'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -45,6 +47,8 @@ const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
+
+const staticCheckWorker = require.resolve('./static-checker')
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -291,66 +295,94 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  for (const page of pageKeys) {
-    const chunks = getPageChunks(page)
+  const staticCheckSema = new Sema(config.experimental.cpus, {
+    capacity: pageKeys.length,
+  })
+  const staticCheckWorkers = workerFarm(
+    {
+      maxConcurrentCalls: config.experimental.cpus,
+    },
+    staticCheckWorker,
+    ['default']
+  )
 
-    const actualPage = page === '/' ? '/index' : page
-    const size = await getPageSizeInKb(actualPage, distPath, buildId)
-    const bundleRelative = path.join(
-      target === 'serverless' ? 'pages' : `static/${buildId}/pages`,
-      actualPage + '.js'
-    )
-    const serverBundle = path.join(
-      distPath,
-      target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-      bundleRelative
-    )
+  await Promise.all(
+    pageKeys.map(async page => {
+      const chunks = getPageChunks(page)
 
-    let isStatic = false
+      const actualPage = page === '/' ? '/index' : page
+      const size = await getPageSizeInKb(actualPage, distPath, buildId)
+      const bundleRelative = path.join(
+        target === 'serverless' ? 'pages' : `static/${buildId}/pages`,
+        actualPage + '.js'
+      )
+      const serverBundle = path.join(
+        distPath,
+        target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        bundleRelative
+      )
 
-    if (autoExport) {
-      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
+      let isStatic = false
 
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+      if (autoExport) {
+        pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-      if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomAppGetInitialProps(
-          target === 'serverless'
-            ? serverBundle
-            : path.join(
-                distPath,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
-          runtimeEnvConfig
-        )
+        const runtimeEnvConfig = {
+          publicRuntimeConfig: config.publicRuntimeConfig,
+          serverRuntimeConfig: config.serverRuntimeConfig,
+        }
+        const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-        if (customAppGetInitialProps) {
-          console.warn(
-            'Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n'
+        if (nonReservedPage && customAppGetInitialProps === undefined) {
+          customAppGetInitialProps = hasCustomAppGetInitialProps(
+            target === 'serverless'
+              ? serverBundle
+              : path.join(
+                  distPath,
+                  SERVER_DIRECTORY,
+                  `/static/${buildId}/pages/_app.js`
+                ),
+            runtimeEnvConfig
           )
-        }
-      }
 
-      if (customAppGetInitialProps === false && nonReservedPage) {
-        try {
-          if (isPageStatic(serverBundle, runtimeEnvConfig)) {
-            staticPages.add(page)
-            isStatic = true
+          if (customAppGetInitialProps) {
+            console.warn(
+              'Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n'
+            )
           }
-        } catch (err) {
-          if (err.code !== 'INVALID_DEFAULT_EXPORT') throw err
-          invalidPages.add(page)
+        }
+
+        if (customAppGetInitialProps === false && nonReservedPage) {
+          try {
+            await staticCheckSema.acquire()
+            const result: any = await new Promise((resolve, reject) => {
+              staticCheckWorkers.default(
+                { serverBundle, runtimeEnvConfig },
+                (error: Error | null, result: any) => {
+                  if (error) return reject(error)
+                  resolve(result || {})
+                }
+              )
+            })
+            staticCheckSema.release()
+
+            if (result.isStatic) {
+              staticPages.add(page)
+              isStatic = true
+            }
+          } catch (err) {
+            if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
+            invalidPages.add(page)
+            staticCheckSema.release()
+          }
         }
       }
-    }
 
-    pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
-  }
+      pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
+    })
+  )
+
+  workerFarm.end(staticCheckWorkers)
 
   if (invalidPages.size > 0) {
     throw new Error(
