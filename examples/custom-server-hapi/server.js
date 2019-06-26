@@ -1,5 +1,5 @@
 const next = require('next')
-const Hapi = require('hapi')
+const Hapi = require('@hapi/hapi')
 const {
   pathWrapper,
   defaultHandlerWrapper,
