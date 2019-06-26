@@ -295,7 +295,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(5, { capacity: pageKeys.length })
+  const staticCheckSema = new Sema(config.experimental.cpus, {
+    capacity: pageKeys.length,
+  })
   const staticCheckWorkers = workerFarm(
     {
       maxConcurrentCalls: config.experimental.cpus,
