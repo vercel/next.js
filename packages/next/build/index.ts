@@ -300,7 +300,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   })
   const staticCheckWorkers = workerFarm(
     {
-      maxConcurrentCalls: config.experimental.cpus,
+      maxConcurrentWorkers: config.experimental.cpus,
     },
     staticCheckWorker,
     ['default']
