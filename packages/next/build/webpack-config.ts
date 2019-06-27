@@ -231,11 +231,6 @@ export default async function getBaseWebpackConfig(
                   return callback()
                 }
 
-                // styled-jsx has to be transpiled
-                if (res.match(/node_modules[/\\]styled-jsx/)) {
-                  return callback()
-                }
-
                 if (res.match(/node_modules[/\\].*\.js$/)) {
                   return callback(undefined, `commonjs ${request}`)
                 }
