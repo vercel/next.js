@@ -547,7 +547,7 @@ export default async function getBaseWebpackConfig(
         useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
           typescript: typeScriptPath,
-          async: false,
+          async: dev,
           useTypescriptIncrementalApi: true,
           checkSyntacticErrors: true,
           tsconfig: tsConfigPath,

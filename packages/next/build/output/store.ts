@@ -9,6 +9,7 @@ export type OutputState =
       | { loading: true }
       | {
           loading: false
+          typeChecking: boolean
           errors: string[] | null
           warnings: string[] | null
         }
@@ -76,8 +77,13 @@ store.subscribe(state => {
     return
   }
 
-  Log.ready('compiled successfully')
-  if (state.appUrl) {
-    Log.info(`ready on ${state.appUrl}`)
+  if (state.typeChecking) {
+    Log.info('bundled successfully, waiting for typecheck results ...')
+    return
   }
+
+  Log.ready(
+    'compiled successfully' +
+      (state.appUrl ? ` (ready on ${state.appUrl})` : '')
+  )
 })
