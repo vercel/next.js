@@ -274,10 +274,9 @@ export function isPageStatic(
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
     const Comp = require(serverBundle).default
+
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
-      const invalidPage = new Error('invalid-page')
-      ;(invalidPage as any).code = 'INVALID_DEFAULT_EXPORT'
-      throw invalidPage
+      throw new Error('INVALID_DEFAULT_EXPORT')
     }
     return typeof (Comp as any).getInitialProps !== 'function'
   } catch (err) {
