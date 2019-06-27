@@ -67,7 +67,7 @@ export function noSSR<P = {}>(
 }
 
 function DefaultLoading() {
-  return <p>loading...</p>
+  return null
 }
 
 // function dynamic<P = {}, O extends DynamicOptions>(options: O):
