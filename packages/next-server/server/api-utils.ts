@@ -5,6 +5,9 @@ import getRawBody from 'raw-body'
 import { URL } from 'url'
 import { parse } from 'content-type'
 
+export type NextApiRequestCookies = { [key: string]: string }
+export type NextApiRequestQuery = { [key: string]: string | string[] }
+
 /**
  * Parse incoming message like `json` or `urlencoded`
  * @param req
@@ -56,13 +59,34 @@ function parseJson(str: string) {
  * @returns Object with key name of query argument and its value
  */
 export function parseQuery({ url }: IncomingMessage) {
-  if (url) {
-    // This is just for parsing search params, base it's not important
+  return function parseQuery(): NextApiRequestQuery {
+    const { URL } = require('url')
+    // we provide a placeholder base url because we only want searchParams
     const params = new URL(url, 'https://n').searchParams
 
-    return reduceParams(params.entries())
-  } else {
-    return {}
+    const query: { [key: string]: string | string[] } = {}
+    for (const [key, value] of params) {
+      query[key] = value
+    }
+
+    return query
+  }
+}
+
+/**
+ *
+ * @param req
+ */
+export function getCookieParser(req: IncomingMessage) {
+  return function parseCookie(): NextApiRequestCookies {
+    const header: undefined | string | string[] = req.headers.cookie
+
+    if (!header) {
+      return {}
+    }
+
+    const { parse } = require('cookie')
+    return parse(Array.isArray(header) ? header.join(';') : header)
   }
 }
 
@@ -165,4 +189,26 @@ export function sendError(
   res.statusCode = statusCode
   res.statusMessage = message
   res.end()
+}
+
+export function setLazyProp<T>(
+  req: NextApiRequest,
+  prop: string,
+  getter: () => T
+) {
+  const opts = { configurable: true, enumerable: true }
+  const optsReset = { ...opts, writable: true }
+
+  Object.defineProperty(req, prop, {
+    ...opts,
+    get: () => {
+      const value = getter()
+      // we set the property on the object to avoid recalculating it
+      Object.defineProperty(req, prop, { ...optsReset, value })
+      return value
+    },
+    set: value => {
+      Object.defineProperty(req, prop, { ...optsReset, value })
+    },
+  })
 }
