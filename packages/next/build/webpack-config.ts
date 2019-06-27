@@ -180,7 +180,9 @@ export default async function getBaseWebpackConfig(
   const devtool = dev || debug ? 'cheap-module-source-map' : false
 
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
-  const splitChunksConfigs = {
+  const splitChunksConfigs: {
+    [propName: string]: webpack.Options.SplitChunksOptions
+  } = {
     dev: {
       cacheGroups: {
         default: false,
@@ -260,7 +262,7 @@ export default async function getBaseWebpackConfig(
   }
 
   //Select appropriate SplitChunksPlugin config for this build
-  let splitChunksConfig
+  let splitChunksConfig: webpack.Options.SplitChunksOptions
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
   } else if (selectivePageBuilding) {
