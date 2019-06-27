@@ -241,7 +241,7 @@ export default class Server {
       {
         match: route('/api/:path*'),
         fn: async (req, res, params, parsedUrl) => {
-          const { pathname, query } = parsedUrl
+          const { pathname } = parsedUrl
           await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
