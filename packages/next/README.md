@@ -276,29 +276,31 @@ _Note: Don't name the `static` or `public` directory anything else. The names ca
   </ul>
 </details>
 
-Defining routes by using predefined paths is not always enough for complex applications that require dynamic routes, in Next.js you can start a page with `$` to create a dynamic route. Consider the following page `pages/$post.js`:
+Defining routes by using predefined paths is not always enough for complex applications that require dynamic routes, in Next.js you can add brackets to a page (`[page]`) to create a dynamic route. Consider the following page `pages/[post].js`:
 
 ```jsx
 import { useRouter } from 'next/router'
 
-const $post = () => {
+const Post = () => {
   const router = useRouter()
   const { post } = router.query
 
   return <p>Post: {post}</p>
 }
 
-export default $post
+export default Post
 ```
 
-Any route like `/post-1`, `/abc`, `/123` will be matched by `/$post`, and the path will be send as a query param to the page, so for `/post-1?other=param` the `query` object will be: `{ post: 'post-1', other: 'param' }`, `$` is the wildcard and `post`, or any other name you choose, is the name of the query param.
+Any route like `/post-1`, `/abc`, `/123` will be matched by `/[post]`, and the path will be send as a query param to the page, so for `/post-1?other=param` the `query` object will be: `{ post: 'post-1', other: 'param' }`, `[]` is the wildcard and `post`, or any other name you choose, is the name of the query param.
 
-Predefined routes like `pages/about.js` will not be matched by dynamic routes and you can only have a dynamic route per folder, i.e you can have `pages/$post` or `pages/$showcase` but not both, e.g you can have `pages/$post` and then add `pages/$post/$comment`:
+> Predefined routes like `pages/about.js` will not be matched by dynamic routes.
+
+ You can only have a dynamic route per folder, i.e you can have `pages/[post]` or `pages/[showcase]` but not both, e.g you can have `pages/[post]` and then add `pages/[post]/[comment]`:
 
 ```jsx
 import { useRouter } from 'next/router'
 
-const $comment = () => {
+const Comment = () => {
   const router = useRouter()
   const { post, comment } = router.query
 
@@ -310,7 +312,7 @@ const $comment = () => {
   )
 }
 
-export default $comment
+export default Comment
 ```
 
 The above route will match `/post-1/first-comment`, `/a/b`, and e.t.c
@@ -484,7 +486,7 @@ function Home() {
         </Link>
       </li>
       <li>
-        <Link href="/blog/$post" as="/blog/first-post">
+        <Link href="/blog/[post]" as="/blog/first-post">
           <a>Read our first post</a>
         </Link>
       </li>
@@ -505,12 +507,12 @@ export default About
 ```
 
 ```jsx
-// pages/blog/$post.js
-function $post() {
+// pages/blog/[post].js
+function Post() {
   return <p>Welcome to our first post!</p>
 }
 
-export default $post
+export default Post
 ```
 
 **Dynamic routes**
@@ -520,25 +522,25 @@ export default $post
 - `href`: the path inside `pages` directory + query string
 - `as`: the path that will be rendered in the browser URL bar
 
-Consider the page `pages/post/$slug.js`:
+Consider the page `pages/post/[slug].js`:
 
 ```jsx
 import { useRouter } from 'next/router'
 
-const $slug = () => {
+const Slug = () => {
   const router = useRouter()
   const { slug } = router.query
 
   return <p>My Blog Post: {slug}</p>
 }
 
-export default $slug
+export default Slug
 ```
 
 A link for `/post/first-post` should look like this:
 
 ```jsx
-<Link href="/post/$slug" as="/post/first-post">
+<Link href="/post/[slug]" as="/post/first-post">
   <a>First Post</a>
 </Link>
 ```

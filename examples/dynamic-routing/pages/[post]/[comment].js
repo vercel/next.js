@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 import Header from '../../components/header'
 
-const $comment = () => {
+const Comment = () => {
   const router = useRouter()
   const { post, comment } = router.query
 
@@ -14,4 +14,4 @@ const $comment = () => {
   )
 }
 
-export default $comment
+export default Comment

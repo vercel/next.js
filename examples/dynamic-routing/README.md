@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-This example shows dynamic routing. We have 2 dynamic pages: `pages/$post/index.js` and `pages/$post/$comment.js`. The former responds to `/any-post` requests and the latter to `/any-post/any-comment`. Using `next/link` you can add hyperlinks between them with universal routing capabilities.
+This example shows dynamic routing. We have 2 dynamic pages: `pages/[post]/index.js` and `pages/[post]/[comment].js`. The former responds to `/any-post` requests and the latter to `/any-post/any-comment`. Using `next/link` you can add hyperlinks between them with universal routing capabilities.
