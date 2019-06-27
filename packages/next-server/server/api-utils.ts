@@ -58,7 +58,7 @@ function parseJson(str: string) {
  * @param url of request
  * @returns Object with key name of query argument and its value
  */
-export function parseQuery({ url }: IncomingMessage) {
+export function getQueryParser({ url }: IncomingMessage) {
   return function parseQuery(): NextApiRequestQuery {
     const { URL } = require('url')
     // we provide a placeholder base url because we only want searchParams
