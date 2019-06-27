@@ -24,7 +24,7 @@ import {
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import {
-  parseQuery,
+  getQueryParser,
   sendJson,
   sendData,
   parseBody,
@@ -327,7 +327,7 @@ export default class Server {
       // Parsing of cookies
       setLazyProp({ req }, 'cookies', getCookieParser(req))
       // Parsing query string
-      setLazyProp({ req, params }, 'query', parseQuery(req))
+      setLazyProp({ req, params }, 'query', getQueryParser(req))
       // // Parsing of body
       if (bodyParser) {
         req.body = await parseBody(req)
