@@ -34,7 +34,7 @@ describe('AMP Validation on Export', () => {
       '// exportPathMap',
       `exportPathMap: function(defaultMap) {
       return {
-        '/cat': { page: '/cat', query: { amp: 1 } },
+        '/cat': { page: '/cat' },
       }
     },`
     )
@@ -61,7 +61,7 @@ describe('AMP Validation on Export', () => {
       '// exportPathMap',
       `exportPathMap: function(defaultMap) {
       return {
-        '/dog': { page: '/dog', query: { amp: 1 }},
+        '/dog': { page: '/dog' },
       }
     },`
     )
@@ -88,7 +88,7 @@ describe('AMP Validation on Export', () => {
       '// exportPathMap',
       `exportPathMap: function(defaultMap) {
       return {
-        '/dog-cat': { page: '/dog-cat', query: { amp: 1 } },
+        '/dog-cat': { page: '/dog-cat' },
       }
     },`
     )
