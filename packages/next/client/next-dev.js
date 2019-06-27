@@ -3,6 +3,7 @@ import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
+import initializeStaticIndicator from './dev/static-indicator'
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
@@ -27,6 +28,7 @@ initNext({ webpackHMR })
   .then(emitter => {
     initOnDemandEntries({ assetPrefix: prefix })
     initializeBuildWatcher()
+    initializeStaticIndicator()
 
     let lastScroll
 
