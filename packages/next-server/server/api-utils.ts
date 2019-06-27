@@ -2,7 +2,6 @@ import { IncomingMessage } from 'http'
 import { NextApiResponse, NextApiRequest } from '../lib/utils'
 import { Stream } from 'stream'
 import getRawBody from 'raw-body'
-import { URL } from 'url'
 import { parse } from 'content-type'
 import { Params } from './router'
 
