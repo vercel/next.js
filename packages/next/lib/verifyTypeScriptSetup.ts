@@ -36,6 +36,7 @@ async function checkDependencies({
   const requiredPackages = [
     { file: 'typescript', pkg: 'typescript' },
     { file: '@types/react/index.d.ts', pkg: '@types/react' },
+    { file: '@types/node/index.d.ts', pkg: '@types/node' },
   ]
 
   const missingPackages = requiredPackages.filter(p => {
@@ -251,7 +252,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   }
 
   if (parsedTsConfig.include == null) {
-    appTsConfig.include = ['**/*.ts', '**/*.tsx']
+    appTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
   }
 
   if (messages.length > 0) {
@@ -285,7 +286,10 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   if (!fs.existsSync(appTypeDeclarations)) {
     fs.writeFileSync(
       appTypeDeclarations,
-      `/// <reference types="next" />${os.EOL}`
+      '/// <reference types="next" />' +
+        os.EOL +
+        '/// <reference types="next/types/global" />' +
+        os.EOL
     )
   }
 }

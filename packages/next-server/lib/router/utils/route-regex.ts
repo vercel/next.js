@@ -1,6 +1,7 @@
 export function getRouteRegex(
   normalizedRoute: string
 ): { re: RegExp; groups: { [groupName: string]: number } } {
+  // Escape all characters that could be considered RegEx
   const escapedRoute = (normalizedRoute.replace(/\/$/, '') || '/').replace(
     /[|\\{}()[\]^$+*?.-]/g,
     '\\$&'
@@ -10,20 +11,13 @@ export function getRouteRegex(
   let groupIndex = 1
 
   const parameterizedRoute = escapedRoute.replace(
-    /\/\\\$([^\/]+?)(?=\/|$)/g,
+    /\/\\\[([^\/]+?)\\\](?=\/|$)/g,
     (_, $1) => (
       (groups[
         $1
-          // // Remove optional parameter marker
-          // .replace(/\\\$$/, '')
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
       ] = groupIndex++),
-      // // Test the route for an optional parameter
-      // $1.lastIndexOf('$') === $1.length - 1
-      //   ? // Optional: match a param
-      //     '(?:/([^/]+?))?'
-      //   : // Required: match a param
       '/([^/]+?)'
     )
   )

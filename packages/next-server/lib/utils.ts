@@ -127,8 +127,8 @@ export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   ampPath: string
-  amphtml: boolean
-  hasAmp: boolean
+  inAmpMode: boolean
+  hybridAmp: boolean
   staticMarkup: boolean
   devFiles: string[]
   files: string[]

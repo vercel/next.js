@@ -9,7 +9,7 @@ import { Button, ColorPicker, DatePicker, ProgressRing } from 'react-uwp'
 class Index extends Component {
   static async getInitialProps ({ req }) {
     let userAgent
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       userAgent = navigator.userAgent
     } else {
       userAgent = req.headers['user-agent']

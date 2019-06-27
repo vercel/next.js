@@ -405,12 +405,14 @@ export default async function getBaseWebpackConfig(
             /next-server[\\/]dist[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
+            /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
               /next-server[\\/]dist[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
-              /next[\\/]dist[\\/]pages/.test(path)
+              /next[\\/]dist[\\/]pages/.test(path) ||
+              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
             ) {
               return false
             }
@@ -451,6 +453,9 @@ export default async function getBaseWebpackConfig(
           !config.experimental.autoExport &&
             config.experimental.exportTrailingSlash
         ),
+        ...(isServer
+          ? { 'typeof window': JSON.stringify('undefined') }
+          : { 'typeof window': JSON.stringify('object') }),
       }),
       !isServer &&
         new ReactLoadablePlugin({
@@ -542,7 +547,7 @@ export default async function getBaseWebpackConfig(
         useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
           typescript: typeScriptPath,
-          async: false,
+          async: dev,
           useTypescriptIncrementalApi: true,
           checkSyntacticErrors: true,
           tsconfig: tsConfigPath,

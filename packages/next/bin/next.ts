@@ -84,7 +84,7 @@ if (args['--help']) {
 }
 
 const defaultEnv = command === 'dev' ? 'development' : 'production'
-process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
+;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
 // this needs to come after we set the correct NODE_ENV or
 // else it might cause SSR to break
