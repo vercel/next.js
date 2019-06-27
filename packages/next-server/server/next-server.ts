@@ -42,7 +42,7 @@ import {
 } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route, RouteMatch } from './router'
+import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -289,8 +289,24 @@ export default class Server {
     res: NextApiResponse,
     pathname: string
   ) {
-    const resolverFunction = await this.resolveApiRequest(pathname)
-    if (resolverFunction === null) {
+    let params: Params | boolean = false
+
+    let resolverFunction = await this.resolveApiRequest(pathname)
+    if (
+      this.dynamicRoutes &&
+      this.dynamicRoutes.length > 0 &&
+      !resolverFunction
+    ) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        params = dynamicRoute.match(pathname)
+        if (params) {
+          resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          break
+        }
+      }
+    }
+
+    if (!resolverFunction) {
       res.statusCode = 404
       res.end('Not Found')
       return
@@ -300,7 +316,7 @@ export default class Server {
       // Parsing of cookies
       req.cookies = parseCookies(req.headers.cookie || '')
       // Parsing query string
-      req.query = parseQuery(req)
+      req.query = { ...parseQuery(req), ...params }
       // // Parsing of body
       req.body = await parseBody(req)
 
