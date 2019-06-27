@@ -105,8 +105,8 @@ export class Html extends Component<
   context!: DocumentComponentContext
 
   render() {
-    const { amphtml } = this.context._documentProps
-    return <html {...this.props} amp={amphtml ? '' : undefined} />
+    const { inAmpMode } = this.context._documentProps
+    return <html {...this.props} amp={inAmpMode ? '' : undefined} />
   }
 }
 
@@ -202,10 +202,10 @@ export class Head extends Component<
   render() {
     const {
       styles,
-      amphtml,
-      hasAmp,
       ampPath,
+      inAmpMode,
       assetPrefix,
+      hybridAmp,
       canonicalBase,
       __NEXT_DATA__,
       dangerousAsPath,
@@ -234,7 +234,7 @@ export class Head extends Component<
     }
 
     // show warning and remove conflicting amp head tags
-    head = !amphtml
+    head = !inAmpMode
       ? head
       : React.Children.map(head || [], child => {
           if (!child) return child
@@ -279,7 +279,7 @@ export class Head extends Component<
     // try to parse styles from fragment for backwards compat
     const curStyles: React.ReactElement[] = Array.isArray(styles) ? styles : []
     if (
-      amphtml &&
+      inAmpMode &&
       styles &&
       // @ts-ignore Property 'props' does not exist on type ReactElement
       styles.props &&
@@ -305,7 +305,7 @@ export class Head extends Component<
       <head {...this.props}>
         {children}
         {head}
-        {amphtml && (
+        {inAmpMode && (
           <>
             <meta
               name="viewport"
@@ -351,9 +351,9 @@ export class Head extends Component<
             <script async src="https://cdn.ampproject.org/v0.js" />
           </>
         )}
-        {!amphtml && (
+        {!inAmpMode && (
           <>
-            {hasAmp && (
+            {hybridAmp && (
               <link
                 rel="amphtml"
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
@@ -407,8 +407,8 @@ export class Main extends Component {
   context!: DocumentComponentContext
 
   render() {
-    const { amphtml, html } = this.context._documentProps
-    if (amphtml) return '__NEXT_AMP_RENDER_TARGET__'
+    const { inAmpMode, html } = this.context._documentProps
+    if (inAmpMode) return '__NEXT_AMP_RENDER_TARGET__'
     return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
   }
 }
@@ -491,13 +491,13 @@ export class NextScript extends Component<OriginProps> {
     const {
       staticMarkup,
       assetPrefix,
-      amphtml,
+      inAmpMode,
       devFiles,
       __NEXT_DATA__,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    if (amphtml) {
+    if (inAmpMode) {
       if (process.env.NODE_ENV === 'production') {
         return null
       }

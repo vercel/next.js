@@ -469,7 +469,7 @@ export default async function getBaseWebpackConfig(
               /next-server[\\/]dist[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
               /next[\\/]dist[\\/]pages/.test(path) ||
-              /[\\/](strip-ansi|ansi-regex)[\\/]/
+              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
             ) {
               return false
             }
@@ -604,7 +604,7 @@ export default async function getBaseWebpackConfig(
         useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
           typescript: typeScriptPath,
-          async: false,
+          async: dev,
           useTypescriptIncrementalApi: true,
           checkSyntacticErrors: true,
           tsconfig: tsConfigPath,
