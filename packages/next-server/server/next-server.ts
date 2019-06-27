@@ -44,7 +44,7 @@ import {
 } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route, RouteMatch } from './router'
+import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -292,9 +292,24 @@ export default class Server {
     pathname: string
   ) {
     let bodyParser = true
+    let params: Params | boolean = false
 
-    const resolverFunction = await this.resolveApiRequest(pathname)
-    if (resolverFunction === null) {
+    let resolverFunction = await this.resolveApiRequest(pathname)
+    if (
+      this.dynamicRoutes &&
+      this.dynamicRoutes.length > 0 &&
+      !resolverFunction
+    ) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        params = dynamicRoute.match(pathname)
+        if (params) {
+          resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          break
+        }
+      }
+    }
+
+    if (!resolverFunction) {
       res.statusCode = 404
       res.end('Not Found')
       return
@@ -310,9 +325,9 @@ export default class Server {
         }
       }
       // Parsing of cookies
-      setLazyProp(req, 'cookies', getCookieParser(req))
+      setLazyProp({ req }, 'cookies', getCookieParser(req))
       // Parsing query string
-      setLazyProp(req, 'query', parseQuery(req))
+      setLazyProp({ req, params }, 'query', parseQuery(req))
       // // Parsing of body
       if (bodyParser) {
         req.body = await parseBody(req)

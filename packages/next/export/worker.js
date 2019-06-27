@@ -36,10 +36,6 @@ process.on(
         await sema.acquire()
         const ampPath = `${path === '/' ? '/index' : path}.amp`
         const { page, query = {} } = exportPathMap[path]
-        delete query.ampOnly
-        delete query.hasAmp
-        delete query.ampPath
-        delete query.amphtml
 
         const headerMocks = {
           headers: {},
@@ -130,10 +126,9 @@ process.on(
           }
         }
 
-        if (curRenderOpts.amphtml && query.amp) {
+        if (curRenderOpts.inAmpMode) {
           await validateAmp(html, path)
-        }
-        if (curRenderOpts.hasAmp) {
+        } else if (curRenderOpts.hybridAmp) {
           // we need to render the AMP version
           let ampHtmlFilename = `${ampPath}${sep}index.html`
           if (!subFolders) {

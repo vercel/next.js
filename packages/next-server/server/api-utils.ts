@@ -4,13 +4,14 @@ import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { URL } from 'url'
 import { parse } from 'content-type'
+import { Params } from './router'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
 
 /**
  * Parse incoming message like `json` or `urlencoded`
- * @param req
+ * @param req request object
  */
 export async function parseBody(req: NextApiRequest, limit: string = '1mb') {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
@@ -74,8 +75,8 @@ export function parseQuery({ url }: IncomingMessage) {
 }
 
 /**
- *
- * @param req
+ * Parse cookeies from `req` header
+ * @param req request object
  */
 export function getCookieParser(req: IncomingMessage) {
   return function parseCookie(): NextApiRequestCookies {
@@ -155,14 +156,6 @@ export function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.send(jsonBody)
 }
 
-function reduceParams(params: IterableIterator<[string, string]>) {
-  const obj: any = {}
-  for (const [key, value] of params) {
-    obj[key] = value
-  }
-  return obj
-}
-
 /**
  * Custom error class
  */
@@ -191,8 +184,19 @@ export function sendError(
   res.end()
 }
 
+interface LazyProps {
+  req: NextApiRequest
+  params?: Params | boolean
+}
+
+/**
+ * Execute getter function only if its needed
+ * @param LazyProps `req` and `params` for lazyProp
+ * @param prop name of property
+ * @param getter function to get data
+ */
 export function setLazyProp<T>(
-  req: NextApiRequest,
+  { req, params }: LazyProps,
   prop: string,
   getter: () => T
 ) {
@@ -202,7 +206,10 @@ export function setLazyProp<T>(
   Object.defineProperty(req, prop, {
     ...opts,
     get: () => {
-      const value = getter()
+      let value = getter()
+      if (params && typeof params !== 'boolean') {
+        value = { ...value, ...params }
+      }
       // we set the property on the object to avoid recalculating it
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value
