@@ -4,9 +4,37 @@ import babelLoader from 'babel-loader'
 
 // increment 'c' to invalidate cache
 const cacheKey = 'babel-cache-' + 'c' + '-'
+const nextBabelPreset = require('../../babel/preset')
+
+const getModernOptions = (babelOptions = {}) => {
+  const presetEnvOptions = Object.assign({}, babelOptions['preset-env'])
+  const transformRuntimeOptions = Object.assign(
+    {},
+    babelOptions['transform-runtime'],
+    { regenerator: false }
+  )
+
+  presetEnvOptions.targets = babelOptions['modern-targets'] || {
+    esmodules: true
+  }
+  presetEnvOptions.exclude = [
+    ...(presetEnvOptions.exclude || []),
+    'babel-plugin-transform-regenerator',
+    'babel-plugin-transform-async-to-generator'
+  ]
+
+  return {
+    ...babelOptions,
+    'preset-env': presetEnvOptions,
+    'transform-runtime': transformRuntimeOptions
+  }
+}
+
+const nextBabelPresetModern = presetOptions => context =>
+  nextBabelPreset(context, getModernOptions(presetOptions))
 
 module.exports = babelLoader.custom(babel => {
-  const presetItem = babel.createConfigItem(require('../../babel/preset'), {
+  const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset'
   })
   const applyCommonJs = babel.createConfigItem(
@@ -24,7 +52,8 @@ module.exports = babelLoader.custom(babel => {
     customOptions (opts) {
       const custom = {
         isServer: opts.isServer,
-        asyncToPromises: opts.asyncToPromises
+        asyncToPromises: opts.asyncToPromises,
+        isModern: opts.isModern
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -40,7 +69,8 @@ module.exports = babelLoader.custom(babel => {
                     cwd: opts.cwd,
                     sourceFileName: filename
                   }).options
-                )
+                ) +
+                `${opts.isModern ? '-modern' : ''}`
           }
           : {
             cacheDirectory: false
@@ -52,13 +82,14 @@ module.exports = babelLoader.custom(babel => {
       delete loader.asyncToPromises
       delete loader.cache
       delete loader.distDir
+      delete loader.isModern
       return { loader, custom }
     },
     config (
       cfg,
       {
         source,
-        customOptions: { isServer, asyncToPromises }
+        customOptions: { isServer, asyncToPromises, isModern }
       }
     ) {
       const filename = this.resourcePath
@@ -98,7 +129,26 @@ module.exports = babelLoader.custom(babel => {
         options.plugins.push(nextDataPlugin)
       }
 
-      if (asyncToPromises) {
+      if (isModern) {
+        const nextPreset = options.presets.find(
+          preset => preset && preset.value === nextBabelPreset
+        ) || { options: {} }
+
+        const additionalPresets = options.presets.filter(
+          preset => preset !== nextPreset
+        )
+
+        const presetItemModern = babel.createConfigItem(
+          nextBabelPresetModern(nextPreset.options),
+          {
+            type: 'preset'
+          }
+        )
+
+        options.presets = [...additionalPresets, presetItemModern]
+      }
+
+      if (!isModern && asyncToPromises) {
         const asyncToPromisesPlugin = babel.createConfigItem(
           [
             'babel-plugin-transform-async-to-promises',

@@ -32,6 +32,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 
 const fileExists = promisify(fs.exists)
 
@@ -443,6 +444,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
+        'process.env.__NEXT_MODERN_BUILD': config.modern && !dev,
         ...(isServer
           ? { 'typeof window': JSON.stringify('undefined') }
           : { 'typeof window': JSON.stringify('object') }),
@@ -545,6 +547,23 @@ export default async function getBaseWebpackConfig(
           compilerOptions: { isolatedModules: true, noEmit: true },
           silent: true,
           formatter: 'codeframe',
+        }),
+      config.modern &&
+        !isServer &&
+        !dev &&
+        new NextEsmPlugin({
+          filename: (getFileName: Function | string) => (...args: any[]) => {
+            const name =
+              typeof getFileName === 'function'
+                ? getFileName(...args)
+                : getFileName
+
+            return name.includes('.js')
+              ? name.replace(/\.js$/, '.es6.js')
+              : args[0].chunk.name.replace(/\.js$/, '.es6.js')
+          },
+          chunkFilename: (inputChunkName: string) =>
+            inputChunkName.replace(/\.js$/, '.es6.js'),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }

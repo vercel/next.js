@@ -431,6 +431,13 @@ export class NextScript extends Component<OriginProps> {
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dedupe(dynamicImports).map((bundle: any) => {
+      let modernProps = {}
+      if (process.env.__NEXT_MODERN_BUILD) {
+        modernProps = /\.es6\.js$/.test(bundle.file)
+          ? { type: 'module' }
+          : { noModule: true }
+      }
+
       return (
         <script
           async
@@ -440,6 +447,7 @@ export class NextScript extends Component<OriginProps> {
           }${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          {...modernProps}
         />
       )
     })
@@ -458,6 +466,13 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
+      let modernProps = {}
+      if (process.env.__NEXT_MODERN_BUILD) {
+        modernProps = /\.es6\.js$/.test(file)
+          ? { type: 'module' }
+          : { noModule: true }
+      }
+
       return (
         <script
           key={file}
@@ -465,6 +480,7 @@ export class NextScript extends Component<OriginProps> {
           nonce={this.props.nonce}
           async
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          {...modernProps}
         />
       )
     })
@@ -547,6 +563,74 @@ export class NextScript extends Component<OriginProps> {
         )
     }
 
+    const pageScript = [
+      <script
+        async
+        id={`__NEXT_PAGE__${page}`}
+        src={
+          assetPrefix +
+          (dynamicBuildId
+            ? `/_next/static/client/pages${getPageFile(page, buildId)}`
+            : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+          _devOnlyInvalidateCacheQueryString
+        }
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
+      />,
+      process.env.__NEXT_MODERN_BUILD && (
+        <script
+          async
+          id={`__NEXT_PAGE__${page}`}
+          src={
+            assetPrefix +
+            (dynamicBuildId
+              ? `/_next/static/client/pages${getPageFile(page, buildId)}`
+              : `/_next/static/${buildId}/pages${getPageFile(page)}`
+            ).replace(/\.js$/, '.es6.js') +
+            _devOnlyInvalidateCacheQueryString
+          }
+          nonce={this.props.nonce}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          type="module"
+        />
+      ),
+    ]
+
+    const appScript = [
+      <script
+        async
+        id={`__NEXT_PAGE__/_app`}
+        src={
+          assetPrefix +
+          (dynamicBuildId
+            ? `/_next/static/client/pages/_app.${buildId}.js`
+            : `/_next/static/${buildId}/pages/_app.js`) +
+          _devOnlyInvalidateCacheQueryString
+        }
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
+      />,
+      process.env.__NEXT_MODERN_BUILD && (
+        <script
+          async
+          id={`__NEXT_PAGE__/_app`}
+          src={
+            assetPrefix +
+            (dynamicBuildId
+              ? `/_next/static/client/pages/_app.${buildId}.js`
+              : `/_next/static/${buildId}/pages/_app.js`
+            ).replace(/\.js$/, '.es6.js') +
+            _devOnlyInvalidateCacheQueryString
+          }
+          nonce={this.props.nonce}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          type="module"
+        />
+      ),
+    ]
+
     return (
       <>
         {devFiles
@@ -575,34 +659,8 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {page !== '/_error' && (
-          <script
-            async
-            id={`__NEXT_PAGE__${page}`}
-            src={
-              assetPrefix +
-              (dynamicBuildId
-                ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-                : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
-              _devOnlyInvalidateCacheQueryString
-            }
-            nonce={this.props.nonce}
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
-          />
-        )}
-        <script
-          async
-          id={`__NEXT_PAGE__/_app`}
-          src={
-            assetPrefix +
-            (dynamicBuildId
-              ? `/_next/static/client/pages/_app.${buildId}.js`
-              : `/_next/static/${buildId}/pages/_app.js`) +
-            _devOnlyInvalidateCacheQueryString
-          }
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
+        {page !== '/_error' && pageScript}
+        {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
       </>
