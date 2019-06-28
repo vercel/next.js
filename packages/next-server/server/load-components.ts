@@ -14,6 +14,9 @@ export function interopDefault(mod: any) {
 
 export interface IPageConfig {
   amp?: boolean | 'hybrid'
+  api?: {
+    bodyParser?: boolean
+  }
 }
 
 export type LoadComponentsReturnType = {
