@@ -1768,7 +1768,7 @@ Next.js will automatically detect if a page is `static` at build time with `next
 
 This allows Next.js to automatically replace server bundles for static pages with static HTML files. This has numerous benefits like better ability to be cached, cheaper runtime costs, and more.
 
-During the build, when we automatically pre-render a page for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
+During the build, when we automatically pre-render a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
 
 > **Note**: If you have a [custom `App`](#custom-app) with a custom `getInitialProps` then this optimization will be disabled.
 
