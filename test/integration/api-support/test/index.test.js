@@ -103,6 +103,30 @@ function runTests (serverless = false) {
     })
   })
 
+  it('should parse body in handler', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/no-parsing', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify([{ title: 'Nextjs' }])
+    }).then(res => res.ok && res.json())
+
+    expect(data).toEqual([{ title: 'Nextjs' }])
+  })
+
+  it('should parse body with config', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/parsing', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify([{ title: 'Nextjs' }])
+    }).then(res => res.ok && res.json())
+
+    expect(data).toEqual({ message: 'Parsed body' })
+  })
+
   it('should return empty cookies object', async () => {
     const data = await fetchViaHTTP(appPort, '/api/cookies', null, {}).then(
       res => res.ok && res.json()
