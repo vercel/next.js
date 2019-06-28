@@ -48,6 +48,9 @@ export type NextPage<P = {}, IP = P> = {
  */
 export type PageConfig = {
   amp?: boolean | 'hybrid'
+  api?: {
+    bodyParser?: boolean
+  }
 }
 
 export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
