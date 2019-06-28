@@ -5,9 +5,8 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-
+import { PageConfig } from '../types'
 import { requirePage } from './require'
-import { PageConfig } from 'next'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
