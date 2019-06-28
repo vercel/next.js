@@ -320,7 +320,7 @@ export default class Server {
 
       if (resolverModule.config) {
         const config: IPageConfig = resolverModule.config
-        if (config.api && !config.api.bodyParser) {
+        if (config.api && config.api.bodyParser === false) {
           bodyParser = false
         }
       }
