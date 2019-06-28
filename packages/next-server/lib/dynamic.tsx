@@ -113,6 +113,32 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
+  if (
+    typeof dynamicOptions === 'object' &&
+    !(dynamicOptions instanceof Promise)
+  ) {
+    // Support for `render` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
+    if (dynamicOptions.render) {
+      loadableOptions.render = (loaded, props) =>
+        dynamicOptions.render!(props, loaded)
+    }
+    // Support for `modules` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
+    if (dynamicOptions.modules) {
+      loadableFn = Loadable.Map
+      const loadModules: LoaderMap = {}
+      const modules = dynamicOptions.modules()
+      Object.keys(modules).forEach(key => {
+        const value: any = modules[key]
+        if (typeof value.then === 'function') {
+          loadModules[key] = () => value.then((mod: any) => mod.default || mod)
+          return
+        }
+        loadModules[key] = value
+      })
+      loadableOptions.loader = loadModules
+    }
+  }
+
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
     loadableOptions = {
