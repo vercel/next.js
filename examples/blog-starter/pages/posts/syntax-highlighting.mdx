@@ -1,0 +1,75 @@
+import { withRouter } from 'next/router'
+import BlogPost from '../../components/layouts/blog-post'
+
+export const meta = {
+  published: true,
+  publishedAt: '2018-05-19',
+  title: 'Sintax highlighting',
+  summary:
+    'Here are some code snippets to show you how syntax highlighting works',
+  image: '/static/site-feature.png',
+}
+
+export default withRouter(({ children, router }) => (
+  <BlogPost path={router.pathname} meta={meta}>
+    {children}
+  </BlogPost>
+))
+
+Here are some code snippets to show you how syntax highlighting looks.
+
+```js{4,5}
+function tick() {
+  const element = (
+    <div>
+      <h1>Hello, world!</h1>
+      <h2>It is {new Date().toLocaleTimeString()}.</h2>
+    </div>
+  )
+  ReactDOM.render(element, document.getElementById('root'))
+}
+
+setInterval(tick, 1000)
+```
+
+```bash
+>>> r = requests.get('https://api.github.com/user', auth=('user', 'pass'))
+>>> r.status_code
+200
+>>> r.headers['content-type']
+'application/json; charset=utf8'
+>>> r.encoding
+'utf-8'
+>>> r.text
+u'{"type":"User"...'
+>>> r.json()
+{u'private_gists': 419, u'total_private_repos': 77, ...}
+```
+
+```scss
+$font-stack: Helvetica, sans-serif;
+$primary-color: #333;
+
+body {
+  font: 100% $font-stack;
+  color: $primary-color;
+}
+
+nav {
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: inline-block;
+  }
+
+  a {
+    display: block;
+    padding: 6px 12px;
+    text-decoration: none;
+  }
+}
+```

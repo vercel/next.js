@@ -1476,7 +1476,6 @@ module.exports = {
 - `isServer` - `Boolean` 型，为`true`使用在服务端, 为`false`使用在客户端.
 - `defaultLoaders` - 对象型 ，内部加载器, 你可以如下配置
   - `babel` - 对象型，配置`babel-loader`.
-  - `hotSelfAccept` - 对象型， `hot-self-accept-loader`配置选项.这个加载器只能用于高阶案例。如 [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)添加顶层 typescript 页面。
 
 `defaultLoaders.babel`使用案例如下：
 
