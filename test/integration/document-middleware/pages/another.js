@@ -1,1 +1,3 @@
-export default () => <p>Hi again 👋</p>
+const Another = () => <p>Hi again 👋</p>
+Another.getInitialProps = () => ({})
+export default Another
