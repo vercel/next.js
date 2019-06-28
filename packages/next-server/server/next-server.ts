@@ -23,15 +23,16 @@ import {
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import { parse as parseCookies } from 'cookie'
 import {
-  parseQuery,
+  getQueryParser,
   sendJson,
   sendData,
   parseBody,
   sendError,
   ApiError,
   sendStatusCode,
+  setLazyProp,
+  getCookieParser,
 } from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -39,6 +40,7 @@ import {
   interopDefault,
   loadComponents,
   LoadComponentsReturnType,
+  IPageConfig,
 } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
@@ -289,6 +291,7 @@ export default class Server {
     res: NextApiResponse,
     pathname: string
   ) {
+    let bodyParser = true
     let params: Params | boolean = false
 
     let resolverFunction = await this.resolveApiRequest(pathname)
@@ -313,18 +316,28 @@ export default class Server {
     }
 
     try {
+      const resolverModule = require(resolverFunction)
+
+      if (resolverModule.config) {
+        const config: IPageConfig = resolverModule.config
+        if (config.api && config.api.bodyParser === false) {
+          bodyParser = false
+        }
+      }
       // Parsing of cookies
-      req.cookies = parseCookies(req.headers.cookie || '')
+      setLazyProp({ req }, 'cookies', getCookieParser(req))
       // Parsing query string
-      req.query = { ...parseQuery(req), ...params }
+      setLazyProp({ req, params }, 'query', getQueryParser(req))
       // // Parsing of body
-      req.body = await parseBody(req)
+      if (bodyParser) {
+        req.body = await parseBody(req)
+      }
 
       res.status = statusCode => sendStatusCode(res, statusCode)
       res.send = data => sendData(res, data)
       res.json = data => sendJson(res, data)
 
-      const resolver = interopDefault(require(resolverFunction))
+      const resolver = interopDefault(resolverModule)
       resolver(req, res)
     } catch (e) {
       if (e instanceof ApiError) {
