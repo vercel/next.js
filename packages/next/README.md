@@ -840,7 +840,7 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 
 #### With `<Link>`
 
-`<Link>` will automatically prefetch pages in the background as they appear in the view. If you don't want to prefetch one or multiple pages you can manually set `prefetch` to `false`, here's how:
+`<Link>` will automatically prefetch pages in the background as they appear in the view. If certain pages are rarely visited you can manually set `prefetch` to `false`, here's how:
 
 ```jsx
 <Link href="/about" prefetch={false}>
