@@ -1,10 +1,7 @@
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
-
-interface PageConfig {
-  amp?: boolean | 'hybrid'
-}
+import { PageConfig } from '../../../types'
 
 function replacePath(path: any, t: typeof BabelTypes) {
   path.parentPath.replaceWith(

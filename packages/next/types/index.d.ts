@@ -48,6 +48,7 @@ export type NextPage<P = {}, IP = P> = {
  */
 export type PageConfig = {
   amp?: boolean | 'hybrid'
+  prerender?: boolean
 }
 
 export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }

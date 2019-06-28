@@ -505,7 +505,6 @@ export default class Server {
     return renderToHTML(req, res, pathname, query, {
       ...result,
       ...opts,
-      PageConfig: result.PageConfig,
     })
   }
 

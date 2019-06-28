@@ -33,7 +33,7 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-import { IPageConfig } from './load-components'
+import { PageConfig } from 'next'
 
 function noRouter() {
   const message =
@@ -142,7 +142,7 @@ type RenderOpts = {
   hybridAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  PageConfig: IPageConfig
+  pageConfig: PageConfig
   Component: React.ComponentType
   Document: DocumentType
   DocumentMiddleware: (ctx: NextPageContext) => void
@@ -248,7 +248,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
-    PageConfig,
+    pageConfig,
     DocumentMiddleware,
     Component,
     buildManifest,
@@ -257,7 +257,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = false
+  let isStaticPage = Boolean(pageConfig.prerender)
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -336,9 +336,9 @@ export async function renderToHTML(
   }
 
   const ampState = {
-    ampFirst: PageConfig.amp === true,
+    ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
-    hybrid: PageConfig.amp === 'hybrid',
+    hybrid: pageConfig.amp === 'hybrid',
   }
 
   const reactLoadableModules: string[] = []

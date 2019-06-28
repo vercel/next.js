@@ -273,12 +273,17 @@ export function isPageStatic(
 ): boolean {
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
-    const Comp = require(serverBundle).default
+    const mod = require(serverBundle)
+    const Comp = mod.default
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
-    return typeof (Comp as any).getInitialProps !== 'function'
+
+    return (
+      typeof (Comp as any).getInitialProps !== 'function' ||
+      (mod.config && mod.config.prerender)
+    )
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return false
     throw err
