@@ -2,6 +2,7 @@ import { loader } from 'webpack'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -42,7 +43,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import {renderToHTML} from 'next-server/dist/server/render';
     import {sendHTML} from 'next-server/dist/server/send-html';
     ${
-      page.includes('/$')
+      isDynamicRoute(page)
         ? `import {getRouteMatcher, getRouteRegex} from 'next-server/dist/lib/router/utils';`
         : ''
     }
@@ -82,7 +83,7 @@ const nextServerlessLoader: loader.Loader = function() {
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
-          page.includes('/$')
+          isDynamicRoute(page)
             ? `const params = getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }

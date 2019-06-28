@@ -19,18 +19,20 @@ import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
+  isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import { parse as parseCookies } from 'cookie'
 import {
-  parseQuery,
+  getQueryParser,
   sendJson,
   sendData,
   parseBody,
   sendError,
   ApiError,
   sendStatusCode,
+  setLazyProp,
+  getCookieParser,
 } from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -38,10 +40,11 @@ import {
   interopDefault,
   loadComponents,
   LoadComponentsReturnType,
+  IPageConfig,
 } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route, RouteMatch } from './router'
+import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -82,6 +85,7 @@ export default class Server {
     assetPrefix?: string
     canonicalBase: string
     autoExport: boolean
+    documentMiddlewareEnabled: boolean
     dev?: boolean
   }
   router: Router
@@ -118,6 +122,8 @@ export default class Server {
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       autoExport: this.nextConfig.experimental.autoExport,
+      documentMiddlewareEnabled: this.nextConfig.experimental
+        .documentMiddleware,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -252,9 +258,7 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      this.dynamicRoutes = this.nextConfig.experimental.dynamicRouting
-        ? this.getDynamicRoutes()
-        : []
+      this.dynamicRoutes = this.getDynamicRoutes()
 
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -287,26 +291,53 @@ export default class Server {
     res: NextApiResponse,
     pathname: string
   ) {
-    const resolverFunction = await this.resolveApiRequest(pathname)
-    if (resolverFunction === null) {
+    let bodyParser = true
+    let params: Params | boolean = false
+
+    let resolverFunction = await this.resolveApiRequest(pathname)
+    if (
+      this.dynamicRoutes &&
+      this.dynamicRoutes.length > 0 &&
+      !resolverFunction
+    ) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        params = dynamicRoute.match(pathname)
+        if (params) {
+          resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          break
+        }
+      }
+    }
+
+    if (!resolverFunction) {
       res.statusCode = 404
       res.end('Not Found')
       return
     }
 
     try {
+      const resolverModule = require(resolverFunction)
+
+      if (resolverModule.config) {
+        const config: IPageConfig = resolverModule.config
+        if (config.api && config.api.bodyParser === false) {
+          bodyParser = false
+        }
+      }
       // Parsing of cookies
-      req.cookies = parseCookies(req.headers.cookie || '')
+      setLazyProp({ req }, 'cookies', getCookieParser(req))
       // Parsing query string
-      req.query = parseQuery(req)
+      setLazyProp({ req, params }, 'query', getQueryParser(req))
       // // Parsing of body
-      req.body = await parseBody(req)
+      if (bodyParser) {
+        req.body = await parseBody(req)
+      }
 
       res.status = statusCode => sendStatusCode(res, statusCode)
       res.send = data => sendData(res, data)
       res.json = data => sendJson(res, data)
 
-      const resolver = interopDefault(require(resolverFunction))
+      const resolver = interopDefault(resolverModule)
       resolver(req, res)
     } catch (e) {
       if (e instanceof ApiError) {
@@ -360,8 +391,8 @@ export default class Server {
 
   private getDynamicRoutes() {
     const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
-      p.includes('/$')
+    const dynamicRoutedPages = Object.keys(manifest.pages).filter(
+      isDynamicRoute
     )
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
@@ -583,10 +614,25 @@ export default class Server {
     query: ParsedUrlQuery = {}
   ) {
     const result = await this.findPageComponents('/_error', query)
-    return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
-      ...this.renderOpts,
-      err,
-    })
+    let html
+    try {
+      html = await this.renderToHTMLWithComponents(
+        req,
+        res,
+        '/_error',
+        query,
+        result,
+        {
+          ...this.renderOpts,
+          err,
+        }
+      )
+    } catch (err) {
+      console.error(err)
+      res.statusCode = 500
+      html = 'Internal Server Error'
+    }
+    return html
   }
 
   public async render404(

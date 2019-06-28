@@ -1,3 +1,7 @@
+/// <reference types="node" />
+/// <reference types="react" />
+/// <reference types="react-dom" />
+
 import React from 'react'
 
 import {
@@ -6,10 +10,6 @@ import {
   NextApiResponse,
   NextApiRequest,
 } from 'next-server/dist/lib/utils'
-
-/// <reference types="node" />
-/// <reference types="react" />
-/// <reference types="react-dom" />
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -48,6 +48,9 @@ export type NextPage<P = {}, IP = P> = {
  */
 export type PageConfig = {
   amp?: boolean | 'hybrid'
+  api?: {
+    bodyParser?: boolean
+  }
 }
 
 export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }

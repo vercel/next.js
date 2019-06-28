@@ -30,7 +30,6 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    dynamicRouting: false,
     autoExport: false,
     ampBindInitData: false,
     exportTrailingSlash: true,
@@ -38,6 +37,7 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false,
+    documentMiddleware: false,
   },
 }
 

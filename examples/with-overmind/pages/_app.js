@@ -24,7 +24,7 @@ class MyApp extends App {
 
     const mutations = props.pageProps.mutations || []
 
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       // On the client we just instantiate the Overmind instance and run
       // the "changePage" action
       this.overmind = createOvermind(config)

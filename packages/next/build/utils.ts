@@ -7,6 +7,7 @@ import path from 'path'
 import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
 
+import { isValidElementType } from 'react-is'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
@@ -36,7 +37,8 @@ export interface PageInfo {
 
 export function printTreeView(
   list: string[],
-  pageInfos: Map<string, PageInfo>
+  pageInfos: Map<string, PageInfo>,
+  serverless: boolean
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
@@ -72,7 +74,9 @@ export function printTreeView(
             ? ' '
             : pageInfo && pageInfo.static
             ? chalk.bold('⚡')
-            : 'λ'
+            : serverless
+            ? 'λ'
+            : 'σ'
         } ${item}`,
         ...(pageInfo
           ? [
@@ -103,13 +107,21 @@ export function printTreeView(
   console.log(
     textTable(
       [
-        [
-          'λ',
-          '(Lambda)',
-          `page was emitted as a lambda (i.e. ${chalk.cyan(
-            'getInitialProps'
-          )})`,
-        ],
+        serverless
+          ? [
+              'λ',
+              '(Lambda)',
+              `page was emitted as a lambda (i.e. ${chalk.cyan(
+                'getInitialProps'
+              )})`,
+            ]
+          : [
+              'σ',
+              '(Server)',
+              `page will be server rendered (i.e. ${chalk.cyan(
+                'getInitialProps'
+              )})`,
+            ],
         [
           chalk.bold('⚡'),
           '(Static File)',
@@ -242,15 +254,13 @@ export async function getCacheIdentifier({
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string,
-  target: string
+  buildId: string
 ): Promise<number> {
-  let clientBundle
-  if (target === 'serverless' && page.startsWith('/api')) {
-    clientBundle = path.join(distPath, 'serverless/pages', `${page}.js`)
-  } else {
-    clientBundle = path.join(distPath, `static/${buildId}/pages/`, `${page}.js`)
-  }
+  const clientBundle = path.join(
+    distPath,
+    `static/${buildId}/pages/`,
+    `${page}.js`
+  )
   try {
     return (await fsStat(clientBundle)).size
   } catch (_) {}
@@ -264,16 +274,11 @@ export function isPageStatic(
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
     const Comp = require(serverBundle).default
-    if (!Comp) {
-      const pageStartIdx = serverBundle.indexOf('pages/') + 5
-      console.log(
-        'not exporting invalid page',
-        serverBundle.substr(pageStartIdx),
-        '(no default export)'
-      )
-      return false
+
+    if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
+      throw new Error('INVALID_DEFAULT_EXPORT')
     }
-    return typeof Comp.getInitialProps !== 'function'
+    return typeof (Comp as any).getInitialProps !== 'function'
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return false
     throw err

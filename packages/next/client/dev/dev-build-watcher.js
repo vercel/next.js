@@ -7,6 +7,8 @@ export default function initializeBuildWatcher () {
   shadowHost.style.position = 'fixed'
   shadowHost.style.bottom = '10px'
   shadowHost.style.right = '10px'
+  shadowHost.style.width = 0
+  shadowHost.style.height = 0
   shadowHost.style.zIndex = 99999
   document.body.appendChild(shadowHost)
 

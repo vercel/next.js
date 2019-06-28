@@ -58,6 +58,14 @@ function runTests () {
     expect(html).toMatch(/blog post.*321.*comment.*123/i)
   })
 
+  it('should render dynamic route with query', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#view-post-1-with-query').click()
+    await waitFor(1000)
+    const url = await browser.eval('window.location.search')
+    expect(url).toBe('?fromHome=true')
+  })
+
   it('should navigate to a dynamic page successfully', async () => {
     let browser
     try {
@@ -134,10 +142,13 @@ function runTests () {
   })
 
   it('should update dynamic values on mount', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+    expect(html).toMatch(/onmpost:.*pending/)
+
     const browser = await webdriver(appPort, '/on-mount/post-1')
     await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/post:.*post-1/)
+    expect(text).toMatch(/onmpost:.*post-1/)
   })
 }
 
