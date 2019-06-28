@@ -39,4 +39,6 @@ const Home = () => (
   </div>
 )
 
+Home.getInitialProps = () => ({})
+
 export default Home
