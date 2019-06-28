@@ -839,7 +839,13 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 
 #### With `<Link>`
 
-`<Link>` will automatically prefetch pages in the background as they appear in the view.
+`<Link>` will automatically prefetch pages in the background as they appear in the view. If certain pages are rarely visited you can manually set `prefetch` to `false`, here's how:
+
+```jsx
+<Link href="/about" prefetch={false}>
+  <a>About</a>
+</Link>
+```
 
 #### Imperatively
 
@@ -1764,11 +1770,13 @@ module.exports = {
 
 ## Automatic Pre-rendering
 
-Next.js will automatically choose between a `dynamic` or `static` page at build time with `next build`, this is based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is `dynamic`, or `static` otherwise.
+Next.js will automatically detect if a page is `static` at build time with `next build`, this is currently based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is not `static` and requires a server or lambda bundle.
 
-This allows Next.js to only do server side render of pages that rely on dynamic data, and to pre-render non dynamic pages.
+This allows Next.js to automatically replace server bundles for static pages with static HTML files. This has numerous benefits like better ability to be cached, cheaper runtime costs, and more.
 
-> **Note**: If you have a custom `App` with a custom `getInitialProps` then all your pages will be dynamic, except for AMP pages.
+During the build, when we automatically pre-render a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
+
+> **Note**: If you have a [custom `App`](#custom-app) with a custom `getInitialProps` then this optimization will be disabled.
 
 ## Production deployment
 

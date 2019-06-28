@@ -21,21 +21,28 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-now-env
 ```
 
-Install it and run:
+Install it with `npm` or `yarn`:
 
 ```bash
 npm install
-npm run dev
+# or
+yarn
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Start the development server with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+
+```bash
+now dev
+```
+
+Deploy it to the cloud with `now`:
 
 ```bash
 now
 ```
 
-keep in mind that in order to deploy the app to `now` the env [secrets](https://zeit.co/docs/getting-started/secrets) defined in `now.json` should be listed in your account
+keep in mind that in order to deploy the app to `now` the env [secrets](https://zeit.co/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
 
 ## The idea behind the example
 
-This example shows the usage of [now-env](https://github.com/zeit/now-env), it allows to use secrets in development that will be replaced in production by the secrets defined with [now](https://zeit.co/docs/getting-started/secrets)
+This example shows the usage of [Now Secrets](https://zeit.co/docs/v2/deployments/environment-variables-and-secrets/?query=secret#securing-environment-variables-using-secrets) and [now dev](https://zeit.co/docs/v2/development/basics), it shows how to add environment variables in development that can be replaced in production by the secrets defined with [Now](https://zeit.co/now).
