@@ -24,16 +24,20 @@ import { RequestContext } from '../lib/request-context'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
-import {
-  ManifestItem,
-  getDynamicImportBundles,
-  Manifest as ReactLoadableManifest,
-} from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 import { IPageConfig } from './load-components'
+
+export type ManifestItem = {
+  id: number | string
+  name: string
+  file: string
+  publicPath: string
+}
+
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
 function noRouter() {
   const message =
@@ -468,12 +472,21 @@ export async function renderToHTML(
     return dataManagerData
   }
 
-  const dynamicImports = [
-    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
-  ]
-  const dynamicImportsIds: any = [
-    ...new Set(dynamicImports.map(bundle => bundle.id)),
-  ]
+  const dynamicImportIdsSet = new Set<string>()
+  const dynamicImports: ManifestItem[] = []
+
+  for (const mod of reactLoadableModules) {
+    const manifestItem = reactLoadableManifest[mod]
+
+    if (manifestItem) {
+      manifestItem.map(item => {
+        dynamicImports.push(item)
+        dynamicImportIdsSet.add(item.id as string)
+      })
+    }
+  }
+
+  const dynamicImportsIds = [...dynamicImportIdsSet]
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
