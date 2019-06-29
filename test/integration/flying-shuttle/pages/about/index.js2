@@ -40,4 +40,6 @@ const About = () => (
   </div>
 )
 
+About.getInitialProps = () => ({})
+
 export default About

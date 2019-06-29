@@ -66,10 +66,6 @@ export function noSSR<P = {}>(
   )
 }
 
-function DefaultLoading() {
-  return null
-}
-
 // function dynamic<P = {}, O extends DynamicOptions>(options: O):
 
 export default function dynamic<P = {}>(
@@ -83,7 +79,7 @@ export default function dynamic<P = {}>(
       if (!pastDelay) return null
       if (process.env.NODE_ENV === 'development') {
         if (isLoading) {
-          return <DefaultLoading />
+          return null
         }
         if (error) {
           return (
@@ -96,7 +92,7 @@ export default function dynamic<P = {}>(
         }
       }
 
-      return <DefaultLoading />
+      return null
     },
   }
 
