@@ -231,11 +231,6 @@ export default async function getBaseWebpackConfig(
                   return callback()
                 }
 
-                // styled-jsx has to be transpiled
-                if (res.match(/node_modules[/\\]styled-jsx/)) {
-                  return callback()
-                }
-
                 if (res.match(/node_modules[/\\].*\.js$/)) {
                   return callback(undefined, `commonjs ${request}`)
                 }
@@ -450,8 +445,7 @@ export default async function getBaseWebpackConfig(
           : {}),
         'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
-          !config.experimental.autoExport &&
-            config.experimental.exportTrailingSlash
+          config.experimental.exportTrailingSlash
         ),
         ...(isServer
           ? { 'typeof window': JSON.stringify('undefined') }
