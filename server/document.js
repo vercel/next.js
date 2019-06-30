@@ -112,6 +112,11 @@ export class NextScript extends Component {
   static propTypes = {
     nonce: PropTypes.string
   }
+  static defaultProps = {
+    legacy: true,
+    modern: true,
+    safariDeDupe: true
+  }
 
   static contextTypes = {
     _documentProps: PropTypes.any
@@ -127,6 +132,10 @@ export class NextScript extends Component {
     // So, we can load the script with async
     return scripts.map(({ file, module }) => {
       let { publicPath } = this.context._documentProps.__NEXT_DATA__
+
+      if ((!module && !this.props.legacy) || (module && !this.props.modern)) {
+        return
+      }
 
       return (
         <script
@@ -144,11 +153,13 @@ export class NextScript extends Component {
   render () {
     const { __NEXT_DATA__ } = this.context._documentProps
 
-    return <div>
+    const safariScript = this.props.legacy && this.props.modern && this.props.safariDeDupe ? safariNoModule : ''
+
+    return <Fragment>
       <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `module={};__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};${safariNoModule}`
+        __html: `module={};__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};${safariScript}`
       }} />
       {this.getScripts()}
-    </div>
+    </Fragment>
   }
 }
