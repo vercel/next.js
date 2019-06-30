@@ -24,16 +24,20 @@ import { RequestContext } from '../lib/request-context'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
-import {
-  ManifestItem,
-  getDynamicImportBundles,
-  Manifest as ReactLoadableManifest,
-} from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 import { PageConfig } from '../types'
+
+export type ManifestItem = {
+  id: number | string
+  name: string
+  file: string
+  publicPath: string
+}
+
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
 function noRouter() {
   const message =
@@ -122,7 +126,6 @@ function render(
 }
 
 type RenderOpts = {
-  autoExport: boolean
   documentMiddlewareEnabled: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
@@ -241,7 +244,6 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    autoExport = false,
     documentMiddlewareEnabled = false,
     ampBindInitData = false,
     staticMarkup = false,
@@ -279,19 +281,17 @@ export async function renderToHTML(
       )
     }
 
-    if (autoExport) {
-      isStaticPage = typeof (Component as any).getInitialProps !== 'function'
-      const defaultAppGetInitialProps =
-        App.getInitialProps === (App as any).origGetInitialProps
-      isStaticPage = isStaticPage && defaultAppGetInitialProps
+    isStaticPage = typeof (Component as any).getInitialProps !== 'function'
+    const defaultAppGetInitialProps =
+      App.getInitialProps === (App as any).origGetInitialProps
+    isStaticPage = isStaticPage && defaultAppGetInitialProps
 
-      if (isStaticPage) {
-        // remove query values except ones that will be set during export
-        query = {
-          amp: query.amp,
-        }
-        renderOpts.nextExport = true
+    if (isStaticPage) {
+      // remove query values except ones that will be set during export
+      query = {
+        amp: query.amp,
       }
+      renderOpts.nextExport = true
     }
   }
 
@@ -472,12 +472,21 @@ export async function renderToHTML(
     return dataManagerData
   }
 
-  const dynamicImports = [
-    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
-  ]
-  const dynamicImportsIds: any = [
-    ...new Set(dynamicImports.map(bundle => bundle.id)),
-  ]
+  const dynamicImportIdsSet = new Set<string>()
+  const dynamicImports: ManifestItem[] = []
+
+  for (const mod of reactLoadableModules) {
+    const manifestItem = reactLoadableManifest[mod]
+
+    if (manifestItem) {
+      manifestItem.map(item => {
+        dynamicImports.push(item)
+        dynamicImportIdsSet.add(item.id as string)
+      })
+    }
+  }
+
+  const dynamicImportsIds = [...dynamicImportIdsSet]
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 

@@ -84,7 +84,6 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    autoExport: boolean
     documentMiddlewareEnabled: boolean
     dev?: boolean
   }
@@ -121,7 +120,6 @@ export default class Server {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      autoExport: this.nextConfig.experimental.autoExport,
       documentMiddlewareEnabled: this.nextConfig.experimental
         .documentMiddleware,
       staticMarkup,
