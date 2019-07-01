@@ -17,5 +17,5 @@
     ],
   before_cache: ['rm -rf node_modules/.cache'],
   before_script: [],
-  after_script: ['yarn run coveralls'],
+  after_script: [],
 }
