@@ -208,13 +208,9 @@ function runTests (serverless = false) {
         `"{\\"/_error\\":\\"pages/_error.js\\",\\"/api/[post]\\":\\"pages/api/[post].js\\",\\"/api/[post]/[comment]\\":\\"pages/api/[post]/[comment].js\\",\\"/api/[post]/comments\\":\\"pages/api/[post]/comments.js\\",\\"/api/blog\\":\\"pages/api/blog.js\\",\\"/api/blog/[post]/comment/[id]\\":\\"pages/api/blog/[post]/comment/[id].js\\",\\"/api/cookies\\":\\"pages/api/cookies.js\\",\\"/api/error\\":\\"pages/api/error.js\\",\\"/api/no-parsing\\":\\"pages/api/no-parsing.js\\",\\"/api/parse\\":\\"pages/api/parse.js\\",\\"/api/parsing\\":\\"pages/api/parsing.js\\",\\"/api/users\\":\\"pages/api/users.js\\",\\"/index\\":\\"pages/index.js\\",\\"/user\\":\\"pages/user.js\\",\\"/\\":\\"pages/index.js\\"}"`
       )
     } else {
-      const pagesManifest = readFileSync(
-        join(appDir, '.next/server/pages-manifest.json'),
-        'utf8'
-      )
-      expect(pagesManifest).toMatchInlineSnapshot(
-        `"{\\"/_app\\":\\"static/k040o-VAsNftsDfeZcENK/pages/_app.js\\",\\"/_document\\":\\"static/k040o-VAsNftsDfeZcENK/pages/_document.js\\",\\"/_error\\":\\"static/k040o-VAsNftsDfeZcENK/pages/_error.js\\",\\"/api/[post]\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/[post].js\\",\\"/api/[post]/[comment]\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/[post]/[comment].js\\",\\"/api/[post]/comments\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/[post]/comments.js\\",\\"/api/blog\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/blog.js\\",\\"/api/blog/[post]/comment/[id]\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/blog/[post]/comment/[id].js\\",\\"/api/cookies\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/cookies.js\\",\\"/api/error\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/error.js\\",\\"/api/no-parsing\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/no-parsing.js\\",\\"/api/parse\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/parse.js\\",\\"/api/parsing\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/parsing.js\\",\\"/api/users\\":\\"static/k040o-VAsNftsDfeZcENK/pages/api/users.js\\",\\"/index\\":\\"static/k040o-VAsNftsDfeZcENK/pages/index.js\\",\\"/user\\":\\"static/k040o-VAsNftsDfeZcENK/pages/user.js\\",\\"/\\":\\"static/k040o-VAsNftsDfeZcENK/pages/index.js\\"}"`
-      )
+      expect(
+        existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
+      ).toBeTruthy()
     }
   })
 
