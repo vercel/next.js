@@ -2194,44 +2194,46 @@ The `req` and `res` fields of the `context` object passed to `getInitialProps` a
   </ul>
 </details>
 
-A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones. Then you can merge them as a single app.
+A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones and then you can merge them as a single app.
 
 For an example, you can have two zones like this:
 
-- https://docs.my-app.com for serving `/docs/**`
-- https://ui.my-app.com for serving all other pages
+- An app for serving `/blog/**`
+- Another app for serving all other pages
 
-With multi zones support, you can merge both these apps into a single one. Which allows your customers to browse it using a single URL. But you can develop and deploy both apps independently.
+With multi zones support, you can merge both these apps into a single one allowing your customers to browse it using a single URL, but you can develop and deploy both apps independently.
 
-> This is exactly the same concept as microservices, but for frontend apps.
+> This is exactly the same concept of microservices, but for frontend apps.
 
 ### How to define a zone
 
-There are no special zones related APIs. You only need to do following things:
+There are no special zones related APIs. You only need to do following:
 
-- Make sure to keep only the pages you need in your app. (For an example, https://ui.my-app.com should not contain pages for `/docs/**`)
-- Make sure your app has an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix). (You can also define the assetPrefix [dynamically](https://github.com/zeit/next.js#dynamic-assetprefix).)
+- Make sure to keep only the pages you need in your app, meaning that an app can't have pages from another app, if app `A` has `/blog` then app `B` shouldn't have it too.
+- Make sure to add an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix) to avoid conflicts with static files.
 
 ### How to merge them
 
 You can merge zones using any HTTP proxy.
 
-You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local proxy server. It allows you to easily define routing rules like below:
+You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local development server. It allows you to easily define routing routes for multiple apps like below:
 
 ```json
 {
-  "rules": [
-    {
-      "pathname": "/docs**",
-      "method": ["GET", "POST", "OPTIONS"],
-      "dest": "https://docs.my-app.com"
-    },
-    { "pathname": "/**", "dest": "https://ui.my-app.com" }
+  "version": 2,
+  "builds": [
+    { "src": "docs/next.config.js", "use": "@now/next" },
+    { "src": "home/next.config.js", "use": "@now/next" }
+  ],
+  "routes": [
+    { "src": "/docs/_next(.*)", "dest": "docs/_next$1" },
+    { "src": "/docs(.*)", "dest": "docs/docs$1" },
+    { "src": "(.*)", "dest": "home$1" }
   ]
 }
 ```
 
-For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as shown above.
+For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
 
 ## Recipes
 
