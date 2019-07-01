@@ -41,7 +41,6 @@ export default async function getBaseWebpackConfig(
   dir: string,
   {
     dev = false,
-    debug = false,
     isServer = false,
     buildId,
     config,
@@ -50,7 +49,6 @@ export default async function getBaseWebpackConfig(
     selectivePageBuilding = false,
   }: {
     dev?: boolean
-    debug?: boolean
     isServer?: boolean
     buildId: string
     config: any
@@ -177,7 +175,7 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const devtool = dev || debug ? 'cheap-module-source-map' : false
+  const devtool = dev ? 'cheap-module-source-map' : false
 
   let webpackConfig: webpack.Configuration = {
     devtool,
@@ -228,11 +226,6 @@ export default async function getBaseWebpackConfig(
                   res.match(/node_modules[/\\]webpack/) ||
                   res.match(/node_modules[/\\]css-loader/)
                 ) {
-                  return callback()
-                }
-
-                // styled-jsx has to be transpiled
-                if (res.match(/node_modules[/\\]styled-jsx/)) {
                   return callback()
                 }
 
@@ -303,8 +296,8 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                 },
-            minimize: !(dev || debug),
-            minimizer: !(dev || debug)
+            minimize: !dev,
+            minimizer: !dev
               ? [
                   new TerserPlugin({
                     ...terserPluginConfig,
@@ -378,8 +371,7 @@ export default async function getBaseWebpackConfig(
       strictExportPresence: true,
       rules: [
         (selectivePageBuilding || config.experimental.terserLoader) &&
-          !isServer &&
-          !debug && {
+          !isServer && {
             test: /\.(js|mjs|jsx)$/,
             exclude: /\.min\.(js|mjs|jsx)$/,
             use: {
@@ -448,10 +440,8 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
-        'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
-          !config.experimental.autoExport &&
-            config.experimental.exportTrailingSlash
+          config.experimental.exportTrailingSlash
         ),
         ...(isServer
           ? { 'typeof window': JSON.stringify('undefined') }

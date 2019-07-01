@@ -59,22 +59,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir)
 
-  const debug =
-    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
-    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1'
-
-  console.log(
-    debug
-      ? 'Creating a development build ...'
-      : 'Creating an optimized production build ...'
-  )
+  console.log('Creating an optimized production build ...')
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
-  const buildId = debug
-    ? 'unoptimized-build'
-    : await generateBuildId(config.generateBuildId, nanoid)
+  const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
@@ -192,7 +182,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
-      debug,
       buildId,
       isServer: false,
       config,
@@ -201,7 +190,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
-      debug,
       buildId,
       isServer: true,
       config,
@@ -282,16 +270,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     PAGES_MANIFEST
   )
 
-  const { autoExport } = config.experimental
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const pageInfos = new Map<string, PageInfo>()
-  let pagesManifest: any = {}
+  const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   let customAppGetInitialProps: boolean | undefined
-
-  if (autoExport) {
-    pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
-  }
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -324,57 +307,55 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       let isStatic = false
 
-      if (autoExport) {
-        pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
+      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-        const runtimeEnvConfig = {
-          publicRuntimeConfig: config.publicRuntimeConfig,
-          serverRuntimeConfig: config.serverRuntimeConfig,
-        }
-        const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+      const runtimeEnvConfig = {
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig,
+      }
+      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-        if (nonReservedPage && customAppGetInitialProps === undefined) {
-          customAppGetInitialProps = hasCustomAppGetInitialProps(
-            target === 'serverless'
-              ? serverBundle
-              : path.join(
-                  distPath,
-                  SERVER_DIRECTORY,
-                  `/static/${buildId}/pages/_app.js`
-                ),
-            runtimeEnvConfig
+      if (nonReservedPage && customAppGetInitialProps === undefined) {
+        customAppGetInitialProps = hasCustomAppGetInitialProps(
+          target === 'serverless'
+            ? serverBundle
+            : path.join(
+                distPath,
+                SERVER_DIRECTORY,
+                `/static/${buildId}/pages/_app.js`
+              ),
+          runtimeEnvConfig
+        )
+
+        if (customAppGetInitialProps) {
+          console.warn(
+            'Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n'
           )
-
-          if (customAppGetInitialProps) {
-            console.warn(
-              'Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n'
-            )
-          }
         }
+      }
 
-        if (customAppGetInitialProps === false && nonReservedPage) {
-          try {
-            await staticCheckSema.acquire()
-            const result: any = await new Promise((resolve, reject) => {
-              staticCheckWorkers.default(
-                { serverBundle, runtimeEnvConfig },
-                (error: Error | null, result: any) => {
-                  if (error) return reject(error)
-                  resolve(result || {})
-                }
-              )
-            })
-            staticCheckSema.release()
+      if (customAppGetInitialProps === false && nonReservedPage) {
+        try {
+          await staticCheckSema.acquire()
+          const result: any = await new Promise((resolve, reject) => {
+            staticCheckWorkers.default(
+              { serverBundle, runtimeEnvConfig },
+              (error: Error | null, result: any) => {
+                if (error) return reject(error)
+                resolve(result || {})
+              }
+            )
+          })
+          staticCheckSema.release()
 
-            if (result.isStatic) {
-              staticPages.add(page)
-              isStatic = true
-            }
-          } catch (err) {
-            if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
-            invalidPages.add(page)
-            staticCheckSema.release()
+          if (result.isStatic) {
+            staticPages.add(page)
+            isStatic = true
           }
+        } catch (err) {
+          if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
+          invalidPages.add(page)
+          staticCheckSema.release()
         }
       }
 
@@ -411,7 +392,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 
-  if (autoExport && staticPages.size > 0) {
+  if (staticPages.size > 0) {
     const exportApp = require('../export').default
     const exportOptions = {
       silent: true,
@@ -462,7 +443,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // remove temporary export folder
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
-
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
   staticPages.forEach(pg => allStaticPages.add(pg))
@@ -471,7 +451,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   })
 
   if (flyingShuttle) {
-    if (autoExport) await flyingShuttle.mergePagesManifest()
+    await flyingShuttle.mergePagesManifest()
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 
