@@ -84,13 +84,9 @@ export function printTreeView(
                 ? chalk.cyan('AMP')
                 : pageInfo.size >= 0
                 ? getPrettySize(pageInfo.size)
-                : 'N/A',
-              pageInfo.chunks
-                ? pageInfo.chunks.internal.size.toString()
-                : 'N/A',
-              pageInfo.chunks
-                ? pageInfo.chunks.external.size.toString()
-                : 'N/A',
+                : '',
+              pageInfo.chunks ? pageInfo.chunks.internal.size.toString() : '',
+              pageInfo.chunks ? pageInfo.chunks.external.size.toString() : '',
             ]
           : ['', '', '']),
       ])
