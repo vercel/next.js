@@ -6,5 +6,5 @@ export type PageConfig = {
   api?: {
     bodyParser?: boolean
   }
-  prerender?: boolean
+  prerender?: boolean | 'inline' | 'legacy'
 }

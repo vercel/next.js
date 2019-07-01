@@ -152,6 +152,8 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  isPrerender?: boolean
+  pageData?: any
 }
 
 function renderDocument(
@@ -490,9 +492,12 @@ export async function renderToHTML(
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows it's AMP state
+  // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
+  renderOpts.isPrerender =
+    pageConfig.prerender === true || pageConfig.prerender === 'inline'
+  renderOpts.pageData = props.pageProps
 
   let html = renderDocument(Document, {
     ...renderOpts,

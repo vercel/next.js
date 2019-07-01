@@ -270,7 +270,7 @@ export async function getPageSizeInKb(
 export function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
-): boolean {
+): { static?: boolean; prerender?: boolean } {
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
@@ -280,12 +280,12 @@ export function isPageStatic(
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
 
-    return (
-      typeof (Comp as any).getInitialProps !== 'function' ||
-      (mod.config && mod.config.prerender)
-    )
+    return {
+      static: typeof (Comp as any).getInitialProps !== 'function',
+      prerender: mod.config && mod.config.prerender,
+    }
   } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') return false
+    if (err.code === 'MODULE_NOT_FOUND') return {}
     throw err
   }
 }

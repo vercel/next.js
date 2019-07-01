@@ -346,7 +346,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      if (customAppGetInitialProps === false && nonReservedPage) {
+      if (nonReservedPage) {
         try {
           await staticCheckSema.acquire()
           const result: any = await new Promise((resolve, reject) => {
@@ -360,7 +360,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
           })
           staticCheckSema.release()
 
-          if (result.isStatic) {
+          if (
+            (result.static && customAppGetInitialProps === false) ||
+            result.prerender
+          ) {
             staticPages.add(page)
             isStatic = true
           }

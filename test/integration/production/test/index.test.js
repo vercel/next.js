@@ -468,6 +468,26 @@ describe('Production Usage', () => {
     }
   })
 
+  it('should pre-render pages with data correctly', async () => {
+    const toSomething = await renderViaHTTP(appPort, '/to-something')
+    expect(toSomething).toMatch(/some interesting title/)
+
+    const something = await renderViaHTTP(appPort, '/something')
+    expect(something).toMatch(/this is some data to be inlined/)
+  })
+
+  it('should have inlined the data correctly in pre-render', async () => {
+    const browser = await webdriver(appPort, '/to-something')
+    await browser.elementByCss('#something').click()
+
+    let text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/this is some data to be inlined/)
+
+    await browser.elementByCss('#to-something').click()
+    text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/some interesting title/)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
