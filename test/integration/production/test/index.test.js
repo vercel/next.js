@@ -80,6 +80,13 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 404 for POST on page', async () => {
+      const res = await fetch(`http://localhost:${appPort}/about`, {
+        method: 'POST'
+      })
+      expect(res.status).toBe(404)
+    })
+
     it('should render 404 for _next routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
       const res = await fetch(url)
@@ -90,6 +97,16 @@ describe('Production Usage', () => {
       const url = `http://localhost:${appPort}/static/.env`
       const res = await fetch(url)
       expect(res.status).toBe(404)
+    })
+
+    it('should retrun 405 method on static then GET and HEAD', async () => {
+      const res = await fetch(
+        `http://localhost:${appPort}/static/data/item.txt`,
+        {
+          method: 'POST'
+        }
+      )
+      expect(res.status).toBe(405)
     })
 
     it('should set Content-Length header', async () => {

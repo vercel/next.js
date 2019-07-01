@@ -441,6 +441,10 @@ export default class Server {
     query: ParsedUrlQuery = {},
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return this.render404(req, res, parsedUrl)
+    }
+
     const url: any = req.url
     if (isInternalUrl(url)) {
       return this.handleRequest(req, res, parsedUrl)
@@ -653,6 +657,11 @@ export default class Server {
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.statusCode = 405
+      return this.renderError(null, req, res, path)
+    }
+
     if (!this.isServeableUrl(path)) {
       return this.render404(req, res, parsedUrl)
     }
