@@ -378,7 +378,7 @@ export default class Router implements BaseRouter {
           const ctx = { pathname, query, asPath: as }
           this.getInitialProps(Component, ctx).then(props => {
             // if data is inlined during pre-render it is a string
-            if (typeof props.pageProps === 'string') {
+            if (props && typeof props.pageProps === 'string') {
               props.pageProps = JSON.parse(props.pageProps)
             }
             routeInfo.props = props

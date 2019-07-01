@@ -497,7 +497,7 @@ export async function renderToHTML(
   renderOpts.hybridAmp = hybridAmp
   renderOpts.isPrerender =
     pageConfig.prerender === true || pageConfig.prerender === 'inline'
-  renderOpts.pageData = props.pageProps
+  renderOpts.pageData = props && props.pageProps
 
   let html = renderDocument(Document, {
     ...renderOpts,
