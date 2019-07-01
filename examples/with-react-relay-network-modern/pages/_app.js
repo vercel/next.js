@@ -11,7 +11,7 @@ export default class App extends NextApp {
       : {}
 
     try {
-      if (initEnvironment) {
+      if (initEnvironment && Component.query) {
         const { environment, relaySSR } = initEnvironment()
 
         await fetchQuery(environment, Component.query, variables)
@@ -35,7 +35,7 @@ export default class App extends NextApp {
     const environment = createEnvironment(
       relayData,
       JSON.stringify({
-        queryID: Component.query ? Component.query().name : undefined,
+        queryID: Component.query ? Component.query().params.name : undefined,
         variables
       })
     )

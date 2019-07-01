@@ -1,9 +1,17 @@
-import React from 'react'
-import { NextPageContext, NextComponentType } from 'next-server/dist/lib/utils'
-
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
+
+import React from 'react'
+
+import {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+} from 'next-server/dist/lib/utils'
+
+import { PageConfig } from 'next-server/types'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -37,4 +45,10 @@ export type NextPage<P = {}, IP = P> = {
   getInitialProps?(ctx: NextPageContext): Promise<IP>
 }
 
-export { NextPageContext, NextComponentType }
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  PageConfig,
+}

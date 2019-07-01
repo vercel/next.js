@@ -15,6 +15,7 @@ import {
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { isDynamicRoute } from './utils/is-dynamic'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -34,9 +35,11 @@ type RouteInfo = {
   error?: any
 }
 
-type Subscription = (data: { App?: ComponentType } & RouteInfo) => void
+type Subscription = (data: RouteInfo, App?: ComponentType) => void
 
 type BeforePopStateCallback = (state: any) => boolean
+
+type ComponentLoadCancel = (() => void) | null
 
 export default class Router implements BaseRouter {
   route: string
@@ -47,8 +50,8 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
-  subscriptions: Set<Subscription>
-  componentLoadCancel: (() => void) | null
+  sub: Subscription
+  clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
 
@@ -64,7 +67,9 @@ export default class Router implements BaseRouter {
       App,
       Component,
       err,
+      subscription,
     }: {
+      subscription: Subscription
       initialProps: any
       pageLoader: any
       Component: ComponentType
@@ -95,8 +100,8 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.subscriptions = new Set()
-    this.componentLoadCancel = null
+    this.sub = subscription
+    this.clc = null
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -269,10 +274,10 @@ export default class Router implements BaseRouter {
       const route = toRoute(pathname)
       const { shallow = false } = options
 
-      // detect dynamic routing
-      if (route.indexOf('/$') !== -1) {
+      if (isDynamicRoute(route)) {
+        const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(as)
+        const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
           console.error(
             "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
@@ -372,6 +377,10 @@ export default class Router implements BaseRouter {
         return new Promise((resolve, reject) => {
           const ctx = { pathname, query, asPath: as }
           this.getInitialProps(Component, ctx).then(props => {
+            // if data is inlined during pre-render it is a string
+            if (props && typeof props.pageProps === 'string') {
+              props.pageProps = JSON.parse(props.pageProps)
+            }
             routeInfo.props = props
             this.components[route] = routeInfo
             resolve(routeInfo)
@@ -507,11 +516,7 @@ export default class Router implements BaseRouter {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.__NEXT_EXPERIMENTAL_DEBUG
-      )
-        return
+      if (process.env.NODE_ENV !== 'production') return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
@@ -522,7 +527,7 @@ export default class Router implements BaseRouter {
 
   async fetchComponent(route: string): Promise<ComponentType> {
     let cancelled = false
-    const cancel = (this.componentLoadCancel = () => {
+    const cancel = (this.clc = () => {
       cancelled = true
     })
 
@@ -536,8 +541,8 @@ export default class Router implements BaseRouter {
       throw error
     }
 
-    if (cancel === this.componentLoadCancel) {
-      this.componentLoadCancel = null
+    if (cancel === this.clc) {
+      this.clc = null
     }
 
     return Component
@@ -551,7 +556,7 @@ export default class Router implements BaseRouter {
     const cancel = () => {
       cancelled = true
     }
-    this.componentLoadCancel = cancel
+    this.clc = cancel
     const { Component: App } = this.components['/_app']
 
     const props = await loadGetInitialProps<AppContextType<Router>>(App, {
@@ -560,8 +565,8 @@ export default class Router implements BaseRouter {
       ctx,
     })
 
-    if (cancel === this.componentLoadCancel) {
-      this.componentLoadCancel = null
+    if (cancel === this.clc) {
+      this.clc = null
     }
 
     if (cancelled) {
@@ -574,20 +579,14 @@ export default class Router implements BaseRouter {
   }
 
   abortComponentLoad(as: string): void {
-    if (this.componentLoadCancel) {
+    if (this.clc) {
       Router.events.emit('routeChangeError', new Error('Route Cancelled'), as)
-      this.componentLoadCancel()
-      this.componentLoadCancel = null
+      this.clc()
+      this.clc = null
     }
   }
 
   notify(data: RouteInfo): void {
-    const { Component: App } = this.components['/_app']
-    this.subscriptions.forEach(fn => fn({ ...data, App }))
-  }
-
-  subscribe(fn: Subscription): () => void {
-    this.subscriptions.add(fn)
-    return () => this.subscriptions.delete(fn)
+    this.sub(data, this.components['/_app'].Component)
   }
 }

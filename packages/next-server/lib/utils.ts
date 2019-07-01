@@ -2,7 +2,7 @@ import { format, UrlObject, URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
-import { ManifestItem } from '../server/get-dynamic-import-bundles'
+import { ManifestItem } from '../server/render'
 import { BaseRouter } from './router/router'
 
 /**
@@ -127,8 +127,8 @@ export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   ampPath: string
-  amphtml: boolean
-  hasAmp: boolean
+  inAmpMode: boolean
+  hybridAmp: boolean
   staticMarkup: boolean
   devFiles: string[]
   files: string[]
@@ -138,9 +138,48 @@ export type DocumentProps = DocumentInitialProps & {
 }
 
 /**
+ * Next `API` route request
+ */
+export type NextApiRequest = IncomingMessage & {
+  /**
+   * Object of `query` values from url
+   */
+  query: {
+    [key: string]: string | string[]
+  }
+  /**
+   * Object of `cookies` from header
+   */
+  cookies: {
+    [key: string]: string
+  }
+
+  body: any
+}
+
+/**
+ * Send body of response
+ */
+type Send = (body: any) => void
+
+/**
+ * Next `API` route response
+ */
+export type NextApiResponse = ServerResponse & {
+  /**
+   * Send data `any` data in reponse
+   */
+  send: Send
+  /**
+   * Send data `json` data in reponse
+   */
+  json: Send
+  status: (statusCode: number) => void
+}
+
+/**
  * Utils
  */
-
 export function execOnce(this: any, fn: () => any) {
   let used = false
   return (...args: any) => {

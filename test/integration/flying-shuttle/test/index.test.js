@@ -29,7 +29,7 @@ describe('Flying Shuttle', () => {
         stdout: true
       })
       const buildText = stripAnsi(stdout)
-      expect(buildText).toMatch(/could not locate flying shuttle/)
+      expect(buildText).not.toMatch(/flying shuttle is docked/)
       await fs.copy(
         path.join(appDir, '.next'),
         path.join(appDir, '.next-first')
@@ -146,6 +146,22 @@ describe('Flying Shuttle', () => {
     } finally {
       await browser.close()
     }
+  })
+
+  it('should not re-prefetch for the page its already on', async () => {
+    const browser = await webdriver(appPort, '/')
+    const links = await browser.elementsByCss('link[rel=preload]')
+    let found = false
+
+    for (const link of links) {
+      const href = await link.getAttribute('href')
+      if (href.endsWith('index.js')) {
+        found = true
+        break
+      }
+    }
+    expect(found).toBe(false)
+    if (browser) await browser.close()
   })
 
   it('should render /index', async () => {

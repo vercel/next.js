@@ -15,7 +15,7 @@ const defaultConfig: { [key: string]: any } = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
+  target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
@@ -30,14 +30,13 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    dynamicRouting: false,
-    autoExport: false,
     ampBindInitData: false,
-    exportTrailingSlash: true,
+    exportTrailingSlash: false,
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false,
+    documentMiddleware: false,
   },
 }
 

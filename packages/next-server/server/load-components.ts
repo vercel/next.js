@@ -5,7 +5,7 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-
+import { PageConfig } from 'next-server/types'
 import { requirePage } from './require'
 
 export function interopDefault(mod: any) {
@@ -14,6 +14,7 @@ export function interopDefault(mod: any) {
 
 export type LoadComponentsReturnType = {
   Component: any
+  pageConfig: PageConfig
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -29,7 +30,7 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    return { Component }
+    return { Component, pageConfig: Component.config || {} }
   }
   const documentPath = join(
     distDir,
@@ -51,6 +52,8 @@ export async function loadComponents(
   const DocumentMod = require(documentPath)
   const { middleware: DocumentMiddleware } = DocumentMod
 
+  const ComponentMod = requirePage(pathname, distDir, serverless)
+
   const [
     buildManifest,
     reactLoadableManifest,
@@ -60,17 +63,18 @@ export async function loadComponents(
   ] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    interopDefault(requirePage(pathname, distDir, serverless)),
+    interopDefault(ComponentMod),
     interopDefault(DocumentMod),
     interopDefault(require(appPath)),
   ])
 
   return {
-    buildManifest,
-    reactLoadableManifest,
-    Component,
-    Document,
-    DocumentMiddleware,
     App,
+    Document,
+    Component,
+    buildManifest,
+    DocumentMiddleware,
+    reactLoadableManifest,
+    pageConfig: ComponentMod.config || {},
   }
 }

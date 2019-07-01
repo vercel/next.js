@@ -41,7 +41,6 @@ export default async function getBaseWebpackConfig(
   dir: string,
   {
     dev = false,
-    debug = false,
     isServer = false,
     buildId,
     config,
@@ -50,7 +49,6 @@ export default async function getBaseWebpackConfig(
     selectivePageBuilding = false,
   }: {
     dev?: boolean
-    debug?: boolean
     isServer?: boolean
     buildId: string
     config: any
@@ -156,7 +154,28 @@ export default async function getBaseWebpackConfig(
     cpus: config.experimental.cpus,
     distDir: distDir,
   }
-  const devtool = dev || debug ? 'cheap-module-source-map' : false
+  const terserOptions = {
+    parse: {
+      ecma: 8,
+    },
+    compress: {
+      ecma: 5,
+      warnings: false,
+      // The following two options are known to break valid JavaScript code
+      comparisons: false,
+      inline: 2, // https://github.com/zeit/next.js/issues/7178#issuecomment-493048965
+    },
+    mangle: { safari10: true },
+    output: {
+      ecma: 5,
+      safari10: true,
+      comments: false,
+      // Fixes usage of Emoji and certain Regex
+      ascii_only: true,
+    },
+  }
+
+  const devtool = dev ? 'cheap-module-source-map' : false
 
   let webpackConfig: webpack.Configuration = {
     devtool,
@@ -207,11 +226,6 @@ export default async function getBaseWebpackConfig(
                   res.match(/node_modules[/\\]webpack/) ||
                   res.match(/node_modules[/\\]css-loader/)
                 ) {
-                  return callback()
-                }
-
-                // styled-jsx has to be transpiled
-                if (res.match(/node_modules[/\\]styled-jsx/)) {
                   return callback()
                 }
 
@@ -282,16 +296,17 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                 },
-            minimize: !(dev || debug),
-            minimizer: !(dev || debug)
+            minimize: !dev,
+            minimizer: !dev
               ? [
                   new TerserPlugin({
                     ...terserPluginConfig,
                     terserOptions: {
-                      safari10: true,
+                      ...terserOptions,
+                      // Disable compress when using terser loader
                       ...(selectivePageBuilding ||
                       config.experimental.terserLoader
-                        ? { compress: false, mangle: true }
+                        ? { compress: false }
                         : undefined),
                     },
                   }),
@@ -356,16 +371,14 @@ export default async function getBaseWebpackConfig(
       strictExportPresence: true,
       rules: [
         (selectivePageBuilding || config.experimental.terserLoader) &&
-          !isServer &&
-          !debug && {
+          !isServer && {
             test: /\.(js|mjs|jsx)$/,
             exclude: /\.min\.(js|mjs|jsx)$/,
             use: {
               loader: 'next-minify-loader',
               options: {
                 terserOptions: {
-                  safari10: true,
-                  compress: true,
+                  ...terserOptions,
                   mangle: false,
                 },
               },
@@ -384,12 +397,14 @@ export default async function getBaseWebpackConfig(
             /next-server[\\/]dist[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
+            /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
               /next-server[\\/]dist[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
-              /next[\\/]dist[\\/]pages/.test(path)
+              /next[\\/]dist[\\/]pages/.test(path) ||
+              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
             ) {
               return false
             }
@@ -425,11 +440,12 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
-        'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
-          !config.experimental.autoExport &&
-            config.experimental.exportTrailingSlash
+          config.experimental.exportTrailingSlash
         ),
+        ...(isServer
+          ? { 'typeof window': JSON.stringify('undefined') }
+          : { 'typeof window': JSON.stringify('object') }),
       }),
       !isServer &&
         new ReactLoadablePlugin({
@@ -521,7 +537,7 @@ export default async function getBaseWebpackConfig(
         useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
           typescript: typeScriptPath,
-          async: false,
+          async: dev,
           useTypescriptIncrementalApi: true,
           checkSyntacticErrors: true,
           tsconfig: tsConfigPath,

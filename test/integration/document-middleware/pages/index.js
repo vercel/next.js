@@ -1,1 +1,3 @@
-export default () => <p>Hi there 👋</p>
+const Home = () => <p>Hi there 👋</p>
+Home.getInitialProps = () => ({})
+export default Home

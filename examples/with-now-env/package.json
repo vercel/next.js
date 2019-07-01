@@ -1,17 +1,10 @@
 {
   "name": "with-now-env",
   "version": "2.0.0",
-  "scripts": {
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
-  },
+  "license": "ISC",
   "dependencies": {
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  },
-  "devDependencies": {
-    "now-env": "^3.0.4"
   }
 }
