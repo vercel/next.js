@@ -1,4 +1,5 @@
-// NOTE: This require will be replaced with `@sentry/browser` when
+// NOTE: This require will be replaced with `@sentry/browser`
+// client side thanks to the webpack config in next.config.js
 const Sentry = require('@sentry/node')
 const SentryIntegrations = require('@sentry/integrations')
 const Cookie = require('js-cookie')
