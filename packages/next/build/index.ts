@@ -455,7 +455,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     // remove temporary export folder
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
-
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
   staticPages.forEach(pg => allStaticPages.add(pg))
