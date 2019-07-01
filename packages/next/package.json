@@ -96,7 +96,7 @@
     "tty-aware-progress": "1.0.4",
     "unfetch": "4.1.0",
     "url": "0.11.0",
-    "watchpack": "2.0.0-beta.4",
+    "watchpack": "2.0.0-beta.5",
     "webpack": "4.32.2",
     "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0",
