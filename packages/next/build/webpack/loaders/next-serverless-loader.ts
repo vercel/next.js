@@ -55,7 +55,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import * as ComponentInfo from '${absolutePagePath}';
     const Component = ComponentInfo.default
     export default Component
-    export const PageConfig = ComponentInfo['confi' + 'g'] || {}
+    export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport) {
       const options = {
@@ -74,7 +74,7 @@ const nextServerlessLoader: loader.Loader = function() {
       const renderOpts = Object.assign(
         {
           Component,
-          PageConfig,
+          pageConfig: config,
           dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },

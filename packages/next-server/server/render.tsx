@@ -28,7 +28,7 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-import { IPageConfig } from './load-components'
+import { PageConfig } from 'next-server/types'
 
 export type ManifestItem = {
   id: number | string
@@ -145,13 +145,15 @@ type RenderOpts = {
   hybridAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  PageConfig: IPageConfig
+  pageConfig: PageConfig
   Component: React.ComponentType
   Document: DocumentType
   DocumentMiddleware: (ctx: NextPageContext) => void
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  isPrerender?: boolean
+  pageData?: any
 }
 
 function renderDocument(
@@ -250,7 +252,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
-    PageConfig,
+    pageConfig,
     DocumentMiddleware,
     Component,
     buildManifest,
@@ -259,7 +261,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = false
+  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -336,9 +338,9 @@ export async function renderToHTML(
   }
 
   const ampState = {
-    ampFirst: PageConfig.amp === true,
+    ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
-    hybrid: PageConfig.amp === 'hybrid',
+    hybrid: pageConfig.amp === 'hybrid',
   }
 
   const reactLoadableModules: string[] = []
@@ -490,9 +492,13 @@ export async function renderToHTML(
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows it's AMP state
+  // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
+  renderOpts.pageData = props && props.pageProps
+  renderOpts.isPrerender =
+    pageConfig.experimentalPrerender === true ||
+    pageConfig.experimentalPrerender === 'inline'
 
   let html = renderDocument(Document, {
     ...renderOpts,
