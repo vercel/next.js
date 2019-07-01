@@ -205,7 +205,7 @@ function runTests (serverless = false) {
         'utf8'
       )
       expect(pagesManifest).toMatchInlineSnapshot(
-        `"{\\"/_error\\":\\"pages/_error.js\\",\\"/api/[post]\\":\\"pages/api/[post].js\\",\\"/api/[post]/[comment]\\":\\"pages/api/[post]/[comment].js\\",\\"/api/[post]/comments\\":\\"pages/api/[post]/comments.js\\",\\"/api/blog\\":\\"pages/api/blog.js\\",\\"/api/blog/[post]/comment/[id]\\":\\"pages/api/blog/[post]/comment/[id].js\\",\\"/api/cookies\\":\\"pages/api/cookies.js\\",\\"/api/error\\":\\"pages/api/error.js\\",\\"/api/no-parsing\\":\\"pages/api/no-parsing.js\\",\\"/api/parse\\":\\"pages/api/parse.js\\",\\"/api/parsing\\":\\"pages/api/parsing.js\\",\\"/api/users\\":\\"pages/api/users.js\\",\\"/index\\":\\"pages/index.js\\",\\"/user\\":\\"pages/user.js\\",\\"/\\":\\"pages/index.js\\"}"`
+        `"{\\"/_error\\":\\"pages/_error.js\\",\\"/api/[post]\\":\\"pages/api/[post].js\\",\\"/api/[post]/[comment]\\":\\"pages/api/[post]/[comment].js\\",\\"/api/[post]/comments\\":\\"pages/api/[post]/comments.js\\",\\"/api/blog\\":\\"pages/api/blog.js\\",\\"/api/blog/[post]/comment/[id]\\":\\"pages/api/blog/[post]/comment/[id].js\\",\\"/api/cookies\\":\\"pages/api/cookies.js\\",\\"/api/error\\":\\"pages/api/error.js\\",\\"/api/no-parsing\\":\\"pages/api/no-parsing.js\\",\\"/api/parse\\":\\"pages/api/parse.js\\",\\"/api/parsing\\":\\"pages/api/parsing.js\\",\\"/api/users\\":\\"pages/api/users.js\\",\\"/index\\":\\"pages/index.html\\",\\"/user\\":\\"pages/user.html\\",\\"/\\":\\"pages/index.html\\",\\"/_app\\":\\"pages/_app.js\\",\\"/_document\\":\\"pages/_document.js\\",\\"/404\\":\\"pages/404.html\\"}"`
       )
     } else {
       expect(
