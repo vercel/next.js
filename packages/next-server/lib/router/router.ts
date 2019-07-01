@@ -512,11 +512,7 @@ export default class Router implements BaseRouter {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.__NEXT_EXPERIMENTAL_DEBUG
-      )
-        return
+      if (process.env.NODE_ENV !== 'production') return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
