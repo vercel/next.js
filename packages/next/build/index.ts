@@ -59,22 +59,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir)
 
-  const debug =
-    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
-    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1'
-
-  console.log(
-    debug
-      ? 'Creating a development build ...'
-      : 'Creating an optimized production build ...'
-  )
+  console.log('Creating an optimized production build ...')
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
-  const buildId = debug
-    ? 'unoptimized-build'
-    : await generateBuildId(config.generateBuildId, nanoid)
+  const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
@@ -192,7 +182,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
-      debug,
       buildId,
       isServer: false,
       config,
@@ -201,7 +190,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
-      debug,
       buildId,
       isServer: true,
       config,
