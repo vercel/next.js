@@ -80,11 +80,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 404 for POST on page', async () => {
+    it('should render 501 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'
       })
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(501)
     })
 
     it('should render 404 for _next routes that do not exist', async () => {
@@ -106,6 +106,7 @@ describe('Production Usage', () => {
           method: 'POST'
         }
       )
+      expect(res.headers.get('allow').includes('GET')).toBe(true)
       expect(res.status).toBe(405)
     })
 
