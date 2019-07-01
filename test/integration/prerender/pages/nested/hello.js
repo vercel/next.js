@@ -1,4 +1,4 @@
-export const config = { prerender: true }
+export const config = { experimentalPrerender: true }
 
 const Page = ({ title }) => <p>{title}</p>
 

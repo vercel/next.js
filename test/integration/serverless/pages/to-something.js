@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 export const config = {
-  prerender: true
+  experimentalPrerender: true
 }
 
 class Page extends React.Component {

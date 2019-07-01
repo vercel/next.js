@@ -282,7 +282,7 @@ export function isPageStatic(
 
     return {
       static: typeof (Comp as any).getInitialProps !== 'function',
-      prerender: mod.config && mod.config.prerender,
+      prerender: mod.config && mod.config.experimentalPrerender,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

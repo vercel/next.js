@@ -3,7 +3,7 @@ import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
 
-const configKeys = new Set(['amp', 'prerender'])
+const configKeys = new Set(['amp', 'experimentalPrerender'])
 export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
 
@@ -76,8 +76,8 @@ export default function nextPageConfig({
                 }
 
                 if (
-                  config.prerender === true ||
-                  config.prerender === 'inline'
+                  config.experimentalPrerender === true ||
+                  config.experimentalPrerender === 'inline'
                 ) {
                   state.setupInlining = true
                 }

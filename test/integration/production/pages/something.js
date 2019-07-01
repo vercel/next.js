@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 export const config = {
-  prerender: 'inline'
+  experimentalPrerender: 'inline'
 }
 
 const Page = ({ data }) => {
