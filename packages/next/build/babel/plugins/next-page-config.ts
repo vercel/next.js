@@ -1,7 +1,7 @@
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
-import { PageConfig } from '../../../types'
+import { PageConfig } from 'next-server/types'
 
 const configKeys = new Set(['amp', 'prerender'])
 export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'

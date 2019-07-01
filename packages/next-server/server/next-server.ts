@@ -47,7 +47,7 @@ import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { PageConfig } from '../types'
+import { PageConfig } from 'next-server/types'
 
 type NextConfig = any
 
