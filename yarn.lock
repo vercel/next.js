@@ -4903,13 +4903,6 @@ escodegen@^1.9.1:
   optionalDependencies:
     source-map "~0.6.1"
 
-eslint-config-prettier@^4.3.0:
-  version "4.3.0"
-  resolved "https://registry.yarnpkg.com/eslint-config-prettier/-/eslint-config-prettier-4.3.0.tgz#c55c1fcac8ce4518aeb77906984e134d9eb5a4f0"
-  integrity sha512-sZwhSTHVVz78+kYD3t5pCWSYEdVSBR0PXnwjDRsUs8ytIrK8PLXw+6FKp8r3Z7rx4ZszdetWlXYKOHoUrrwPlA==
-  dependencies:
-    get-stdin "^6.0.0"
-
 eslint-config-standard-jsx@6.0.2:
   version "6.0.2"
   resolved "https://registry.yarnpkg.com/eslint-config-standard-jsx/-/eslint-config-standard-jsx-6.0.2.tgz#90c9aa16ac2c4f8970c13fc7efc608bacd02da70"
@@ -12963,12 +12956,11 @@ walker@^1.0.7, walker@~1.0.5:
   dependencies:
     makeerror "1.0.x"
 
-watchpack@2.0.0-beta.4:
-  version "2.0.0-beta.4"
-  resolved "https://registry.yarnpkg.com/watchpack/-/watchpack-2.0.0-beta.4.tgz#54570138581a6da2247c64fd0947561c0a60cf3b"
-  integrity sha512-DTXqmNQE11jdqQ/Y9bhmq+mOZk0+dmvXC5UjSRpiDahhtFnsrZPV4iom6SPyEOszDExGIMtfYGYsqmVkkFhfxA==
+watchpack@2.0.0-beta.5:
+  version "2.0.0-beta.5"
+  resolved "https://registry.yarnpkg.com/watchpack/-/watchpack-2.0.0-beta.5.tgz#c005db39570d81d9d34334870abc0f548901b880"
+  integrity sha512-HGqh9e9QZFhow8JYX+1+E+kIYK0uTTsk6rCOkI0ff0f9kMO0wX783yW8saQC9WDx7qHpVGPXsRnld9nY7iwzQA==
   dependencies:
-    eslint-config-prettier "^4.3.0"
     glob-to-regexp "^0.4.1"
     graceful-fs "^4.1.2"
     neo-async "^2.5.0"
