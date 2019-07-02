@@ -275,46 +275,31 @@ _Note: Don't name the `static` or `public` directory anything else. The names ca
   </ul>
 </details>
 
-Defining routes by using predefined paths is not always enough for complex applications that require dynamic routes, in Next.js you can add brackets to a page (`[page]`) to create a dynamic route. Consider the following page `pages/[post].js`:
+Defining routes by using predefined paths is not always enough for complex applications, in Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, et al).
+
+Consider the following page `pages/post/[pid].js`:
 
 ```jsx
 import { useRouter } from 'next/router'
 
 const Post = () => {
   const router = useRouter()
-  const { post } = router.query
+  const { pid } = router.query
 
-  return <p>Post: {post}</p>
+  return <p>Post: {pid}</p>
 }
 
 export default Post
 ```
 
-Any route like `/post-1`, `/abc`, `/123` will be matched by `/[post]`, and the path will be send as a query param to the page, so for `/post-1?other=param` the `query` object will be: `{ post: 'post-1', other: 'param' }`, `[]` is the wildcard and `post`, or any other name you choose, is the name of the query param.
+Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
+The matched path parameter will be sent as a query parameter to the page.
 
-> Predefined routes like `pages/about.js` will not be matched by dynamic routes.
+For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
+Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
 
- You can only have a dynamic route per folder, i.e you can have `pages/[post]` or `pages/[showcase]` but not both, e.g you can have `pages/[post]` and then add `pages/[post]/[comment]`:
-
-```jsx
-import { useRouter } from 'next/router'
-
-const Comment = () => {
-  const router = useRouter()
-  const { post, comment } = router.query
-
-  return (
-    <>
-      <p>Post: {post}</p>
-      <p>Comment: {comment}</p>
-    </>
-  )
-}
-
-export default Comment
-```
-
-The above route will match `/post-1/first-comment`, `/a/b`, and e.t.c
+> **Note**: Predefined routes take precedence over dynamic routes.
+> For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
 
 ### Populating `<head>`
 
