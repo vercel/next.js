@@ -5,7 +5,7 @@ export default function initializeBuildWatcher () {
   shadowHost.id = '__next-prerender-indicator'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
-  shadowHost.style.bottom = '10px'
+  shadowHost.style.bottom = '20px'
   shadowHost.style.right = '10px'
   shadowHost.style.width = 0
   shadowHost.style.height = 0
