@@ -155,7 +155,6 @@ export default class NextEsmPlugin implements Plugin {
   async runBuild(compiler: Compiler, compilation: compilation.Compilation) {
     const outputOptions: Output = { ...compiler.options.output }
 
-    // Handle functions as input to filenames
     if (typeof this.options.filename === 'function') {
       outputOptions.filename = this.options.filename(outputOptions.filename)
     } else {
