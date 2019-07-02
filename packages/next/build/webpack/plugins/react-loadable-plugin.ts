@@ -61,6 +61,15 @@ function buildManifest(
               manifest[request] = []
             }
 
+            // Avoid duplicate files
+            if (
+              manifest[request].some(
+                item => item.id === id && item.file === file
+              )
+            ) {
+              continue
+            }
+
             manifest[request].push({
               id,
               name,

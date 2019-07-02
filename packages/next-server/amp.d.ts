@@ -1,1 +1,1 @@
-export * from './dist/lib/amp'
+export { useAmp } from './dist/lib/amp'

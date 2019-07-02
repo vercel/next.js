@@ -5,8 +5,5 @@ module.exports = {
   },
   amp: {
     canonicalBase: 'http://localhost:1234'
-  },
-  experimental: {
-    autoExport: true
   }
 }

@@ -2,14 +2,16 @@ import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
-import { writeFile, access } from 'fs'
+import { writeFile, access, readFile } from 'fs'
 import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
+import { inlineGipIdentifier } from '../build/babel/plugins/next-page-config'
 
 const envConfig = require('next-server/config')
 const mkdirp = promisify(mkdirpModule)
 const writeFileP = promisify(writeFile)
+const readFileP = promisify(readFile)
 const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {
@@ -104,6 +106,27 @@ process.on(
             curRenderOpts = { ...components, ...renderOpts, ampPath }
             html = await renderMethod(req, res, page, query, curRenderOpts)
           }
+        }
+
+        // inline pageData for getInitialProps
+        if (curRenderOpts.isPrerender && curRenderOpts.pageData) {
+          const dataStr = JSON.stringify(curRenderOpts.pageData)
+            .replace(/"/g, '\\"')
+            .replace(/'/g, "\\'")
+
+          const bundlePath = join(
+            distDir,
+            'static',
+            buildId,
+            'pages',
+            (path === '/' ? 'index' : path) + '.js'
+          )
+
+          const bundleContent = await readFileP(bundlePath, 'utf8')
+          await writeFileP(
+            bundlePath,
+            bundleContent.replace(inlineGipIdentifier, dataStr)
+          )
         }
 
         const validateAmp = async (html, page) => {
