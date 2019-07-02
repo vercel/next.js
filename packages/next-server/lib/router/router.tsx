@@ -1,5 +1,6 @@
 /* global __NEXT_DATA__ */
 // tslint:disable:no-console
+import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { parse } from 'url'
@@ -561,10 +562,15 @@ export default class Router implements BaseRouter {
       cancelled = true
     }
     this.clc = cancel
-    const { Component: App } = this.components['/_app']
+    const { Component: App } = this.components['/_app'] as any
+    const AppContainer = this.AppContainer
 
-    const props = await loadGetInitialProps<AppContextType<Router>>(App, {
-      AppContainer: this.AppContainer,
+    const props: any = await loadGetInitialProps<AppContextType<Router>>(App, {
+      AppTree: props => (
+        <AppContainer>
+          <App Component={Component} router={this} {...props} />
+        </AppContainer>
+      ),
       Component,
       router: this,
       ctx,

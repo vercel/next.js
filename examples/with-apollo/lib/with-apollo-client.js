@@ -7,7 +7,7 @@ export default App => {
   return class Apollo extends React.Component {
     static displayName = 'withApollo(App)'
     static async getInitialProps (ctx) {
-      const { AppContainer, Component, router } = ctx
+      const { AppTree, Component, router } = ctx
 
       let appProps = {}
       if (App.getInitialProps) {
@@ -21,14 +21,12 @@ export default App => {
         try {
           // Run all GraphQL queries
           await getDataFromTree(
-            <AppContainer>
-              <App
-                {...appProps}
-                Component={Component}
-                router={router}
-                apolloClient={apollo}
-              />
-            </AppContainer>
+            <AppTree
+              {...appProps}
+              Component={Component}
+              router={router}
+              apolloClient={apollo}
+            />
           )
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
