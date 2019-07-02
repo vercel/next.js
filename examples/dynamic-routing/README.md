@@ -31,7 +31,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [Now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
 now
@@ -39,4 +39,14 @@ now
 
 ## The idea behind the example
 
-This example shows dynamic routing. We have 2 dynamic pages: `pages/[post]/index.js` and `pages/[post]/[comment].js`. The former responds to `/any-post` requests and the latter to `/any-post/any-comment`. Using `next/link` you can add hyperlinks between them with universal routing capabilities.
+This example shows usage of dynamic routing.
+
+This example contains two dynamic pages:
+
+1. `pages/post/[id]/index.js`
+   - e.g. matches `/post/my-example` (`/post/:id`)
+1. `pages/post/[id]/[comment].js`
+   - e.g. matches `/post/my-example/a-comment` (`/post/:id/:comment`)
+
+These routes are automatically matched by the server.
+You can use `next/link` as displayed in this example to route to these pages client side.
