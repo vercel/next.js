@@ -3,7 +3,6 @@
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
-[![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
 **Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
@@ -952,7 +951,13 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 
 #### With `<Link>`
 
-`<Link>` will automatically prefetch pages in the background as they appear in the view.
+`<Link>` will automatically prefetch pages in the background as they appear in the view. If certain pages are rarely visited you can manually set `prefetch` to `false`, here's how:
+
+```jsx
+<Link href="/about" prefetch={false}>
+  <a>About</a>
+</Link>
+```
 
 #### Imperatively
 
@@ -1825,7 +1830,7 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 > **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
-> The reason for this is that runtime configuration adds a small rendering / initialization overhead.
+> The reason for this is that runtime configuration adds rendering / initialization overhead.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
@@ -1897,11 +1902,13 @@ module.exports = {
 
 ## Automatic Pre-rendering
 
-Next.js will automatically choose between a `dynamic` or `static` page at build time with `next build`, this is based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is `dynamic`, or `static` otherwise.
+Next.js will automatically detect if a page is `static` at build time with `next build`, this is currently based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is not `static` and requires a server or lambda bundle.
 
-This allows Next.js to only do server side render of pages that rely on dynamic data, and to pre-render non dynamic pages.
+This allows Next.js to automatically replace server bundles for static pages with static HTML files. This has numerous benefits like better ability to be cached, cheaper runtime costs, and more.
 
-> **Note**: If you have a custom `App` with a custom `getInitialProps` then all your pages will be dynamic, except for AMP pages.
+During the build, when we automatically pre-render a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
+
+> **Note**: If you have a [custom `App`](#custom-app) with a custom `getInitialProps` then this optimization will be disabled.
 
 ## Production deployment
 
@@ -2322,44 +2329,46 @@ The `req` and `res` fields of the `context` object passed to `getInitialProps` a
   </ul>
 </details>
 
-A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones. Then you can merge them as a single app.
+A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones and then you can merge them as a single app.
 
 For an example, you can have two zones like this:
 
-- https://docs.my-app.com for serving `/docs/**`
-- https://ui.my-app.com for serving all other pages
+- An app for serving `/blog/**`
+- Another app for serving all other pages
 
-With multi zones support, you can merge both these apps into a single one. Which allows your customers to browse it using a single URL. But you can develop and deploy both apps independently.
+With multi zones support, you can merge both these apps into a single one allowing your customers to browse it using a single URL, but you can develop and deploy both apps independently.
 
-> This is exactly the same concept as microservices, but for frontend apps.
+> This is exactly the same concept of microservices, but for frontend apps.
 
 ### How to define a zone
 
-There are no special zones related APIs. You only need to do following things:
+There are no special zones related APIs. You only need to do following:
 
-- Make sure to keep only the pages you need in your app. (For an example, https://ui.my-app.com should not contain pages for `/docs/**`)
-- Make sure your app has an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix). (You can also define the assetPrefix [dynamically](https://github.com/zeit/next.js#dynamic-assetprefix).)
+- Make sure to keep only the pages you need in your app, meaning that an app can't have pages from another app, if app `A` has `/blog` then app `B` shouldn't have it too.
+- Make sure to add an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix) to avoid conflicts with static files.
 
 ### How to merge them
 
 You can merge zones using any HTTP proxy.
 
-You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local proxy server. It allows you to easily define routing rules like below:
+You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local development server. It allows you to easily define routing routes for multiple apps like below:
 
 ```json
 {
-  "rules": [
-    {
-      "pathname": "/docs**",
-      "method": ["GET", "POST", "OPTIONS"],
-      "dest": "https://docs.my-app.com"
-    },
-    { "pathname": "/**", "dest": "https://ui.my-app.com" }
+  "version": 2,
+  "builds": [
+    { "src": "docs/next.config.js", "use": "@now/next" },
+    { "src": "home/next.config.js", "use": "@now/next" }
+  ],
+  "routes": [
+    { "src": "/docs/_next(.*)", "dest": "docs/_next$1" },
+    { "src": "/docs(.*)", "dest": "docs/docs$1" },
+    { "src": "(.*)", "dest": "home$1" }
   ]
 }
 ```
 
-For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as shown above.
+For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
 
 ## Recipes
 

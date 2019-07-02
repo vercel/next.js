@@ -1,0 +1,13 @@
+{
+  "name": "with-zones",
+  "version": 2,
+  "builds": [
+    { "src": "blog/next.config.js", "use": "@now/next" },
+    { "src": "home/next.config.js", "use": "@now/next" }
+  ],
+  "routes": [
+    { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
+    { "src": "/blog", "dest": "blog/blog" },
+    { "src": "(.*)", "dest": "home$1" }
+  ]
+}

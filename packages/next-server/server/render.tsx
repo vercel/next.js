@@ -24,16 +24,20 @@ import { RequestContext } from '../lib/request-context'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
-import {
-  ManifestItem,
-  getDynamicImportBundles,
-  Manifest as ReactLoadableManifest,
-} from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-import { IPageConfig } from './load-components'
+import { PageConfig } from 'next-server/types'
+
+export type ManifestItem = {
+  id: number | string
+  name: string
+  file: string
+  publicPath: string
+}
+
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
 function noRouter() {
   const message =
@@ -122,7 +126,6 @@ function render(
 }
 
 type RenderOpts = {
-  autoExport: boolean
   documentMiddlewareEnabled: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
@@ -142,13 +145,15 @@ type RenderOpts = {
   hybridAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  PageConfig: IPageConfig
+  pageConfig: PageConfig
   Component: React.ComponentType
   Document: DocumentType
   DocumentMiddleware: (ctx: NextPageContext) => void
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  isPrerender?: boolean
+  pageData?: any
 }
 
 function renderDocument(
@@ -241,14 +246,13 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
-    autoExport = false,
     documentMiddlewareEnabled = false,
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
-    PageConfig,
+    pageConfig,
     DocumentMiddleware,
     Component,
     buildManifest,
@@ -257,7 +261,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = false
+  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -279,19 +283,17 @@ export async function renderToHTML(
       )
     }
 
-    if (autoExport) {
-      isStaticPage = typeof (Component as any).getInitialProps !== 'function'
-      const defaultAppGetInitialProps =
-        App.getInitialProps === (App as any).origGetInitialProps
-      isStaticPage = isStaticPage && defaultAppGetInitialProps
+    isStaticPage = typeof (Component as any).getInitialProps !== 'function'
+    const defaultAppGetInitialProps =
+      App.getInitialProps === (App as any).origGetInitialProps
+    isStaticPage = isStaticPage && defaultAppGetInitialProps
 
-      if (isStaticPage) {
-        // remove query values except ones that will be set during export
-        query = {
-          amp: query.amp,
-        }
-        renderOpts.nextExport = true
+    if (isStaticPage) {
+      // remove query values except ones that will be set during export
+      query = {
+        amp: query.amp,
       }
+      renderOpts.nextExport = true
     }
   }
 
@@ -336,9 +338,9 @@ export async function renderToHTML(
   }
 
   const ampState = {
-    ampFirst: PageConfig.amp === true,
+    ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
-    hybrid: PageConfig.amp === 'hybrid',
+    hybrid: pageConfig.amp === 'hybrid',
   }
 
   const reactLoadableModules: string[] = []
@@ -472,18 +474,31 @@ export async function renderToHTML(
     return dataManagerData
   }
 
-  const dynamicImports = [
-    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
-  ]
-  const dynamicImportsIds: any = [
-    ...new Set(dynamicImports.map(bundle => bundle.id)),
-  ]
+  const dynamicImportIdsSet = new Set<string>()
+  const dynamicImports: ManifestItem[] = []
+
+  for (const mod of reactLoadableModules) {
+    const manifestItem = reactLoadableManifest[mod]
+
+    if (manifestItem) {
+      manifestItem.map(item => {
+        dynamicImports.push(item)
+        dynamicImportIdsSet.add(item.id as string)
+      })
+    }
+  }
+
+  const dynamicImportsIds = [...dynamicImportIdsSet]
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows it's AMP state
+  // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
+  renderOpts.pageData = props && props.pageProps
+  renderOpts.isPrerender =
+    pageConfig.experimentalPrerender === true ||
+    pageConfig.experimentalPrerender === 'inline'
 
   let html = renderDocument(Document, {
     ...renderOpts,

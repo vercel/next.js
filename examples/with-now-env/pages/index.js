@@ -2,8 +2,8 @@ export default () => (
   <div className='hello'>
     <p>
       Hello World! Here's a secret shared with the client using Next env:{' '}
-      <strong>{process.env.SECRET}</strong>, the secret is shared at compile
-      time, which means every reference to the secret is replaced with its value
+      <strong>{process.env.SECRET}</strong>, the secret is shared at build time,
+      which means every reference to the secret is replaced with its value
     </p>
     <style jsx>{`
       .hello {
