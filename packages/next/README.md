@@ -455,7 +455,7 @@ Client-side transitions between routes can be enabled via a `<Link>` component.
 
 **Basic Example**
 
-Consider these three pages:
+Consider these two pages:
 
 ```jsx
 // pages/index.js
@@ -463,18 +463,18 @@ import Link from 'next/link'
 
 function Home() {
   return (
+    <>
     <ul>
+        <li>Home</li>
       <li>
         <Link href="/about">
-          <a>Go to About</a>
-        </Link>
-      </li>
-      <li>
-        <Link href="/blog/[post]" as="/blog/first-post">
-          <a>Read our first post</a>
+            <a>About Us</a>
         </Link>
       </li>
     </ul>
+
+      <h1>This is our homepage.</h1>
+    </>
   )
 }
 
@@ -484,19 +484,24 @@ export default Home
 ```jsx
 // pages/about.js
 function About() {
-  return <p>Welcome to About!</p>
+  return (
+    <>
+      <ul>
+        <li>
+          <Link href="/">
+            <a>Home</a>
+          </Link>
+        </li>
+        <li>About Us</li>
+      </ul>
+
+      <h1>About</h1>
+      <p>We are a cool company.</p>
+    </>
+  )
 }
 
 export default About
-```
-
-```jsx
-// pages/blog/[post].js
-function Post() {
-  return <p>Welcome to our first post!</p>
-}
-
-export default Post
 ```
 
 **Dynamic routes**
