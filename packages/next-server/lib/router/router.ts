@@ -306,7 +306,7 @@ export default class Router implements BaseRouter {
 
         if (process.env.NODE_ENV !== 'production') {
           const appComp: any = this.components['/_app'].Component
-          ;(window as any).__NEXT_DATA__.nextExport =
+          ;(window as any).next.isPrerendered =
             appComp.getInitialProps === appComp.origGetInitialProps &&
             !routeInfo.Component.getInitialProps
         }

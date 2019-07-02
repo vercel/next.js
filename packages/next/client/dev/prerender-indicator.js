@@ -56,7 +56,7 @@ export default function initializeBuildWatcher () {
   })
 
   Router.events.on('routeChangeComplete', () => {
-    isVisible = window.__NEXT_DATA__.nextExport
+    isVisible = window.next.isPrerendered
     shadowHost.style.opacity = 1
     updateContainer()
   })
