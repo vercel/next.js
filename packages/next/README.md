@@ -464,14 +464,14 @@ import Link from 'next/link'
 function Home() {
   return (
     <>
-    <ul>
+      <ul>
         <li>Home</li>
-      <li>
-        <Link href="/about">
+        <li>
+          <Link href="/about">
             <a>About Us</a>
-        </Link>
-      </li>
-    </ul>
+          </Link>
+        </li>
+      </ul>
 
       <h1>This is our homepage.</h1>
     </>
@@ -504,32 +504,32 @@ function About() {
 export default About
 ```
 
-**Dynamic routes**
+**Dynamic Routes**
 
 `<Link>` component has two main props:
 
-- `href`: the path inside `pages` directory + query string
+- `href`: the path inside `pages` directory (and optional query string)
 - `as`: the path that will be rendered in the browser URL bar
 
-Consider the page `pages/post/[slug].js`:
+Consider the page `pages/post/[postId].js`:
 
 ```jsx
 import { useRouter } from 'next/router'
 
-const Slug = () => {
+const Post = () => {
   const router = useRouter()
-  const { slug } = router.query
+  const { postId } = router.query
 
-  return <p>My Blog Post: {slug}</p>
+  return <p>My Blog Post: {postId}</p>
 }
 
-export default Slug
+export default Post
 ```
 
-A link for `/post/first-post` should look like this:
+A link for `/post/first-post` looks like this:
 
 ```jsx
-<Link href="/post/[slug]" as="/post/first-post">
+<Link href="/post/[postId]" as="/post/first-post">
   <a>First Post</a>
 </Link>
 ```
