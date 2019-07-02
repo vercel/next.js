@@ -107,5 +107,8 @@
   },
   "engines": {
     "node": ">= 8.0.0"
+  },
+  "dependencies": {
+    "create-next-app": "0.5.9"
   }
 }
