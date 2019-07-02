@@ -8,7 +8,7 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href="https://github.com/zeit/next.js#getting-started">
+            <Link href='https://github.com/zeit/next.js#getting-started'>
               <a>
                 <Title as='h3'>Getting Started &rarr;</Title>
                 <p>Learn more about Next on Github and in their examples</p>
@@ -20,7 +20,7 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href="https://open.segment.com/create-next-app">
+            <Link href='https://open.segment.com/create-next-app'>
               <a>
                 <Title as='h3'>Examples &rarr;</Title>
                 <p>
@@ -35,7 +35,7 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href="https://github.com/segmentio/create-next-app">
+            <Link href='https://github.com/segmentio/create-next-app'>
               <a>
                 <Title as='h3'>Create Next App &rarr;</Title>
                 <p>Was this tool helpful? Let us know how we can improve it</p>
