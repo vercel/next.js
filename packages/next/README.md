@@ -506,9 +506,9 @@ export default About
 
 **Dynamic Routes**
 
-`<Link>` component has two main props:
+`<Link>` component has two relevant props when using _Dynamic Routes_:
 
-- `href`: the path inside `pages` directory (and optional query string)
+- `href`: the path inside `pages` directory
 - `as`: the path that will be rendered in the browser URL bar
 
 Consider the page `pages/post/[postId].js`:
