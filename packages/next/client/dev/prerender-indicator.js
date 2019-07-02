@@ -2,7 +2,7 @@ import Router from '../router'
 
 export default function initializeBuildWatcher () {
   const shadowHost = document.createElement('div')
-  shadowHost.id = '__next-static-indicator'
+  shadowHost.id = '__next-prerender-indicator'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   shadowHost.style.bottom = '10px'
@@ -25,7 +25,7 @@ export default function initializeBuildWatcher () {
     // the Shadow DOM, we need to prefix all the names so there
     // will be no conflicts
     shadowRoot = shadowHost
-    prefix = '__next-static-indicator-'
+    prefix = '__next-prerender-indicator-'
   }
 
   // Container
@@ -73,7 +73,7 @@ function createContainer (prefix) {
       <path d="M25 77L30.26 39H53L25 77Z" fill="black"/>
       <path d="M13.5 33.5L53 39L47.5 46.5L7 41.25L13.5 33.5Z" fill="black"/>
       </svg>
-      Static Page
+      Prerendered Page
     </div>
   `
 
@@ -114,7 +114,7 @@ function createCss (prefix) {
     }
 
     #${prefix}icon-wrapper {
-      width: 95px;
+      width: 140px;
       height: 20px;
       display: flex;
       flex-shrink: 0;
@@ -127,7 +127,7 @@ function createCss (prefix) {
     }
 
     #${prefix}container.${prefix}expanded {
-      width: 95px;
+      width: 140px;
     }
 
     #${prefix}container.${prefix}visible {
