@@ -25,6 +25,7 @@
     - [CSS-in-JS](#css-in-js)
     - [Importing CSS / Sass / Less / Stylus files](#importing-css--sass--less--stylus-files)
   - [Static file serving (e.g.: images)](#static-file-serving-eg-images)
+  - [Dynamic Routing](#dynamic-routing)
   - [Populating `<head>`](#populating-head)
   - [Fetching data and component lifecycle](#fetching-data-and-component-lifecycle)
   - [Routing](#routing)
@@ -39,6 +40,7 @@
       - [With URL object](#with-url-object-1)
       - [Router Events](#router-events)
       - [Shallow Routing](#shallow-routing)
+    - [useRouter](#userouter)
     - [Using a Higher Order Component](#using-a-higher-order-component)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
@@ -264,6 +266,41 @@ To serve static files from the root directory you can add a folder called `publi
 
 _Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
 
+### Dynamic Routing
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/dynamic-routing">Dynamic routing</a></li>
+  </ul>
+</details>
+
+Defining routes by using predefined paths is not always enough for complex applications, in Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, et al).
+
+Consider the following page `pages/post/[pid].js`:
+
+```jsx
+import { useRouter } from 'next/router'
+
+const Post = () => {
+  const router = useRouter()
+  const { pid } = router.query
+
+  return <p>Post: {pid}</p>
+}
+
+export default Post
+```
+
+Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
+The matched path parameter will be sent as a query parameter to the page.
+
+For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
+Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
+
+> **Note**: Predefined routes take precedence over dynamic routes.
+> For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
+
 ### Populating `<head>`
 
 <details>
@@ -426,13 +463,18 @@ import Link from 'next/link'
 
 function Home() {
   return (
-    <div>
-      Click{' '}
-      <Link href="/about">
-        <a>here</a>
-      </Link>{' '}
-      to read more
-    </div>
+    <>
+      <ul>
+        <li>Home</li>
+        <li>
+          <Link href="/about">
+            <a>About Us</a>
+          </Link>
+        </li>
+      </ul>
+
+      <h1>This is our homepage.</h1>
+    </>
   )
 }
 
@@ -442,40 +484,80 @@ export default Home
 ```jsx
 // pages/about.js
 function About() {
-  return <p>Welcome to About!</p>
+  return (
+    <>
+      <ul>
+        <li>
+          <Link href="/">
+            <a>Home</a>
+          </Link>
+        </li>
+        <li>About Us</li>
+      </ul>
+
+      <h1>About</h1>
+      <p>We are a cool company.</p>
+    </>
+  )
 }
 
 export default About
 ```
 
+**Dynamic Routes**
+
+`<Link>` component has two relevant props when using _Dynamic Routes_:
+
+- `href`: the path inside `pages` directory
+- `as`: the path that will be rendered in the browser URL bar
+
+Consider the page `pages/post/[postId].js`:
+
+```jsx
+import { useRouter } from 'next/router'
+
+const Post = () => {
+  const router = useRouter()
+  const { postId } = router.query
+
+  return <p>My Blog Post: {postId}</p>
+}
+
+export default Post
+```
+
+A link for `/post/first-post` looks like this:
+
+```jsx
+<Link href="/post/[postId]" as="/post/first-post">
+  <a>First Post</a>
+</Link>
+```
+
 **Custom routes (using props from URL)**
 
-`<Link>` component has two main props:
-
-- `href`: the path inside `pages` directory + query string
-- `as`: the path that will be rendered in the browser URL bar
+If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
 
 Example:
 
 1. Consider you have the URL `/post/:slug`.
 
-2. You created the `pages/post.js`:
+2. You created `pages/post.js`:
 
    ```jsx
-   class Post extends React.Component {
-     static async getInitialProps({ query }) {
-       console.log('SLUG', query.slug)
-       return {}
-     }
-     render() {
-       return <h1>My blog post</h1>
-     }
+   import { useRouter } from 'next/router'
+
+   const Post = () => {
+     const router = useRouter()
+     const { slug } = router.query
+
+     return <p>My Blog Post: {slug}</p>
    }
 
    export default Post
    ```
 
-3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
+3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of the `query` object to the page.
 
    ```jsx
    server.get('/post/:slug', (req, res) => {
@@ -488,17 +570,13 @@ Example:
    <Link href="/post?slug=something" as="/post/something">
    ```
 
-**Note: Dynamic pages are prefetched in the background for maximum performance.**
-
-> A dynamic page is page that uses `getInitialProps`.
-
 Client-side routing behaves exactly like the browser:
 
 1. The component is fetched.
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered.
 3. After 1 and 2 complete, `pushState` is performed and the new component is rendered.
 
-To inject the `pathname`, `query` or `asPath` in your component, you can use [withRouter](#using-a-higher-order-component).
+To inject the `pathname`, `query` or `asPath` in your component, you can use the [useRouter](#useRouter) hook, or [withRouter](#using-a-higher-order-component) for class components.
 
 ##### With URL object
 
@@ -746,7 +824,7 @@ Router.events.on('routeChangeError', (err, url) => {
   </ul>
 </details>
 
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected using [`withRouter`](#using-a-higher-order-component)), without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected by using [`useRouter`](#useRouter) or [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -781,21 +859,22 @@ componentDidUpdate(prevProps) {
 >
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
-#### Using a Higher Order Component
+#### useRouter
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
+    <li><a href="/examples/dynamic-routing">Dynamic routing</a></li>
   </ul>
 </details>
 
-If you want to access the `router` object inside any component in your app, you can use the `withRouter` Higher-Order Component. Here's how to use it:
+If you want to access the `router` object inside any component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
-import { withRouter } from 'next/router'
+import { useRouter } from 'next/router'
 
-function ActiveLink({ children, router, href }) {
+export default function ActiveLink({ children, href }) {
+  const router = useRouter()
   const style = {
     marginRight: 10,
     color: router.pathname === href ? 'red' : 'black',
@@ -812,11 +891,30 @@ function ActiveLink({ children, router, href }) {
     </a>
   )
 }
-
-export default withRouter(ActiveLink)
 ```
 
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
+
+#### Using a Higher Order Component
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
+  </ul>
+</details>
+
+If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same `router` object to any component, here's how to use it:
+
+```jsx
+import { withRouter } from 'next/router'
+
+function Page({ router }) {
+  return <p>{router.pathname}</p>
+}
+
+export default withRouter(Page)
+```
 
 ### Prefetching Pages
 
@@ -852,24 +950,46 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
-import { withRouter } from 'next/router'
+import { useRouter } from 'next/router'
 
-function MyLink({ router }) {
+export default function MyLink() {
+  const router = useRouter()
+
   return (
-    <div>
+    <>
       <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
         A route transition will happen after 100ms
       </a>
-      {// but we can prefetch it!
+      {// and we can prefetch it!
       router.prefetch('/dynamic')}
-    </div>
+    </>
+  )
+}
+```
+
+`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively `prefetch` method in the `useEffect()` hook:
+
+```jsx
+import { useRouter } from 'next/router'
+
+export default function MyLink() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.prefetch('/dynamic')
+  })
+
+  return (
+    <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+      A route transition will happen after 100ms
+    </a>
   )
 }
 
 export default withRouter(MyLink)
 ```
 
-The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
 
 ```jsx
 import React from 'react'
@@ -885,11 +1005,9 @@ class MyLink extends React.Component {
     const { router } = this.props
 
     return (
-      <div>
-        <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
-          A route transition will happen after 100ms
-        </a>
-      </div>
+      <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+        A route transition will happen after 100ms
+      </a>
     )
   }
 }
@@ -1911,15 +2029,16 @@ Next.js provides `NextPage` type that can be used for pages in the `pages` direc
 import { NextPage } from 'next'
 
 interface Props {
-  pathname: string
+  userAgent: string
 }
 
-const Page: NextPage<Props> = ({ pathname }) => (
-  <main>Your request pathname: {pathname}</main>
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
 )
 
-Page.getInitialProps = async ({ pathname }) => {
-  return { pathname }
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
 }
 
 export default Page
@@ -1932,16 +2051,18 @@ import React from 'react'
 import { NextPageContext } from 'next'
 
 interface Props {
-  pathname: string
+  userAgent: string
 }
 
 export default class Page extends React.Component<Props> {
-  static async getInitialProps({ pathname }: NextPageContext) {
-    return { pathname }
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
   }
 
   render() {
-    return <main>Your request pathname: {pathname}</main>
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
   }
 }
 ```
