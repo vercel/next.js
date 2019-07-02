@@ -468,7 +468,7 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should pre-render pages with data correctly', async () => {
+  it('should prerender pages with data correctly', async () => {
     const toSomething = await renderViaHTTP(appPort, '/to-something')
     expect(toSomething).toMatch(/some interesting title/)
 
@@ -476,7 +476,7 @@ describe('Production Usage', () => {
     expect(something).toMatch(/this is some data to be inlined/)
   })
 
-  it('should have inlined the data correctly in pre-render', async () => {
+  it('should have inlined the data correctly in prerender', async () => {
     const browser = await webdriver(appPort, '/to-something')
     await browser.elementByCss('#something').click()
 

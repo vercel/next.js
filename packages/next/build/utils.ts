@@ -121,7 +121,7 @@ export function printTreeView(
         [
           chalk.bold('⚡'),
           '(Static File)',
-          'page was pre-rendered as static HTML',
+          'page was prerendered as static HTML',
         ],
       ],
       {
