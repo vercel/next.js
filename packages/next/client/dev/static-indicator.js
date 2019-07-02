@@ -73,7 +73,7 @@ function createContainer (prefix) {
       <path d="M25 77L30.26 39H53L25 77Z" fill="black"/>
       <path d="M13.5 33.5L53 39L47.5 46.5L7 41.25L13.5 33.5Z" fill="black"/>
       </svg>
-      Static Page
+      Pre-rendered Page
     </div>
   `
 
@@ -114,7 +114,7 @@ function createCss (prefix) {
     }
 
     #${prefix}icon-wrapper {
-      width: 95px;
+      width: 145px;
       height: 20px;
       display: flex;
       flex-shrink: 0;
@@ -127,7 +127,7 @@ function createCss (prefix) {
     }
 
     #${prefix}container.${prefix}expanded {
-      width: 95px;
+      width: 145px;
     }
 
     #${prefix}container.${prefix}visible {
