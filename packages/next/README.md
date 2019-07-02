@@ -536,7 +536,7 @@ A link for `/post/first-post` looks like this:
 
 **Custom routes (using props from URL)**
 
-If you find that your use case is not covered by the filesystem implementation used by [dynamic routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
+If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
 
 Example:
 
@@ -569,10 +569,6 @@ Example:
    ```jsx
    <Link href="/post?slug=something" as="/post/something">
    ```
-
-**Note: Dynamic pages are prefetched in the background for maximum performance.**
-
-> A dynamic page is a page that uses `getInitialProps`.
 
 Client-side routing behaves exactly like the browser:
 
