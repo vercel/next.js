@@ -1,4 +1,4 @@
-const Page = ({ name }) => <p>Pre-render page {name}</p>
+const Page = ({ name }) => <p>Prerender page {name}</p>
 
 Page.getInitialProps = async () => ({ name: 'John Deux' })
 

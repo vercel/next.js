@@ -73,7 +73,7 @@
     - [Runtime configuration](#runtime-configuration)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
-- [Automatic Pre-rendering](#automatic-pre-rendering)
+- [Automatic Prerendering](#automatic-prerendering)
 - [Production deployment](#production-deployment)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
@@ -1341,7 +1341,7 @@ class MyApp extends App {
 export default MyApp
 ```
 
-> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Pre-rendering](#automatic-pre-rendering)
+> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Prerendering](#automatic-prerendering)
 
 ### Custom `<Document>`
 
@@ -1886,13 +1886,13 @@ module.exports = {
 }
 ```
 
-## Automatic Pre-rendering
+## Automatic Prerendering
 
 Next.js will automatically detect if a page is `static` at build time with `next build`, this is currently based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is not `static` and requires a server or lambda bundle.
 
 This allows Next.js to automatically replace server bundles for static pages with static HTML files. This has numerous benefits like better ability to be cached, cheaper runtime costs, and more.
 
-During the build, when we automatically pre-render a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
+During the build, when we automatically prerender a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
 
 > **Note**: If you have a [custom `App`](#custom-app) with a custom `getInitialProps` then this optimization will be disabled.
 
@@ -2138,7 +2138,7 @@ Both of these page modes provide a consistently fast experience for users access
 
 ### AMP Behavior with `next export`
 
-When using `next export` to statically pre-render pages Next.js will detect if the page supports AMP and change the exporting behavior based on that.
+When using `next export` to statically prerender pages Next.js will detect if the page supports AMP and change the exporting behavior based on that.
 
 Hybrid AMP (`pages/about.js`) would output:
 
@@ -2210,12 +2210,12 @@ AMP currently doesn't have built-in types for Typescript, but it's in their road
 `next export` is a way to run your Next.js app as a standalone static app without the need for a Node.js server.
 The exported app supports almost every feature of Next.js, including dynamic urls, prefetching, preloading and dynamic imports.
 
-The way `next export` works is by pre-rendering all pages possible to HTML. It does so based on a mapping of `pathname` key to page object. This mapping is called the `exportPathMap`.
+The way `next export` works is by prerendering all pages possible to HTML. It does so based on a mapping of `pathname` key to page object. This mapping is called the `exportPathMap`.
 
 The page object has 2 values:
 
 - `page` - `String` the page inside the `pages` directory to render
-- `query` - `Object` the `query` object passed to `getInitialProps` when pre-rendering. Defaults to `{}`
+- `query` - `Object` the `query` object passed to `getInitialProps` when prerendering. Defaults to `{}`
 
 ### Usage
 
@@ -2302,7 +2302,7 @@ With `next export`, we build a HTML version of your app. At export time we will 
 
 The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
 
-> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic pre-rendering](#automatic-pre-rendering).
+> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic prerendering](#automatic-prerendering).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
