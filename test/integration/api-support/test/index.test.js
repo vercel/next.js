@@ -1,13 +1,15 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import {
   killApp,
   findPort,
   launchApp,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
+  nextBuild,
+  File
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -195,6 +197,23 @@ function runTests (serverless = false) {
     expect(res.status).toBe(404)
   })
 
+  it('should build api routes', async () => {
+    await nextBuild(appDir, [], { stdout: true })
+    if (serverless) {
+      const pagesManifest = JSON.parse(
+        readFileSync(
+          join(appDir, '.next/serverless/pages-manifest.json'),
+          'utf8'
+        )
+      )
+      expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
+    } else {
+      expect(
+        existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
+      ).toBeTruthy()
+    }
+  })
+
   it('should return data on dynamic optional nested route', async () => {
     const data = await fetchViaHTTP(
       appPort,
@@ -242,13 +261,14 @@ describe('API routes', () => {
     runTests()
   })
 
-  // TODO: after fixing serverless build
   describe('Serverless support', () => {
-    // const configPath = join(appDir, 'next.config.js')
-    // const originalConfig = readFileSync(configPath, 'utf8')
-    // const editedConfig = originalConfig.replace('server', 'serverless')
-    // writeFileSync(configPath, editedConfig, 'utf8')
-    // runTests(true)
-    // writeFileSync(configPath, originalConfig, 'utf8')
+    const nextConfig = new File(join(appDir, 'next.config.js'))
+    beforeEach(() => {
+      nextConfig.replace('server', 'serverless')
+    })
+    afterEach(() => {
+      nextConfig.restore()
+    })
+    runTests(true)
   })
 })

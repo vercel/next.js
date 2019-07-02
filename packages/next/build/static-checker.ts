@@ -6,7 +6,7 @@ export default function worker(
 ) {
   try {
     const { serverBundle, runtimeEnvConfig } = options || ({} as any)
-    const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
+    const result = isPageStatic(serverBundle, runtimeEnvConfig)
 
     // clear require.cache to prevent running out of memory
     // since the cache is persisted by default
@@ -19,7 +19,7 @@ export default function worker(
       }
     })
 
-    callback(null, { isStatic })
+    callback(null, result)
   } catch (error) {
     callback(error)
   }
