@@ -17,7 +17,7 @@ let buildId
 let appPort
 let app
 
-describe('Pre-rendering pages', () => {
+describe('Prerendering pages', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
@@ -62,7 +62,7 @@ describe('Pre-rendering pages', () => {
     }
   })
 
-  it('should have called getInitialProps during pre-render', async () => {
+  it('should have called getInitialProps during prerender', async () => {
     const hello = await renderViaHTTP(appPort, '/nested/hello')
     expect(hello).toMatch(/something/)
 
