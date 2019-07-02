@@ -161,7 +161,6 @@ export default class NextEsmPlugin implements Plugin {
       outputOptions.filename = this.options.filename
     }
 
-    // Option (as a function) to override the chunkFilename
     if (typeof this.options.chunkFilename === 'function') {
       outputOptions.chunkFilename = this.options.chunkFilename(
         outputOptions.chunkFilename

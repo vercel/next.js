@@ -393,7 +393,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       plugin.ampPages.forEach((pg: any) => {
-        pageInfos.get(pg)!.isAmp = true
+        // Server-side does not compile .es6 version
+        if (!pg.includes('.es6')) {
+          pageInfos.get(pg)!.isAmp = true
+        }
       })
       return true
     })
