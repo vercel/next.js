@@ -1,1 +1,2 @@
-module.exports = require('./dist/lib/amp')
+const { useAmp } = require('./dist/lib/amp')
+module.exports = { useAmp }

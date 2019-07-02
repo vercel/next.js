@@ -8,6 +8,5 @@ module.exports = {
   modulePaths: ['<rootDir>/lib'],
   globalSetup: '<rootDir>/jest-global-setup.js',
   globalTeardown: '<rootDir>/jest-global-teardown.js',
-  testEnvironment: '<rootDir>/jest-environment.js',
-  coverageReporters: ['text', 'lcov', 'cobertura']
+  testEnvironment: '<rootDir>/jest-environment.js'
 }

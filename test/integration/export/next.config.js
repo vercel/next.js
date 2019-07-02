@@ -10,7 +10,7 @@ module.exports = phase => {
       bar: 'bar'
     },
     experimental: {
-      // exportTrailingSlash: false,
+      exportTrailingSlash: true
     },
     exportPathMap: function () {
       return {
