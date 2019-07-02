@@ -15,7 +15,7 @@ describe('loadGetInitialProps', () => {
 
   it('should resolve to null if getInitialProps is missing', async () => {
     const result = await loadGetInitialProps(() => {}, {})
-    expect(result).toEqual(null)
+    expect(result).toEqual({})
   })
 
   it('should resolve getInitialProps', async () => {
