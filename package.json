@@ -53,12 +53,12 @@
     "strip-ansi": "^5.1.0"
   },
   "devDependencies": {
-    "@healthline/six-million": "4.0.5",
-    "babel-eslint": "10.0.1",
-    "lint-staged": "8.1.5",
+    "@healthline/six-million": "5.0.1",
+    "babel-eslint": "10.0.2",
+    "lint-staged": "8.2.1",
     "node-notifier": "5.4.0",
-    "react": "16.8.4",
-    "react-dom": "16.8.4",
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
     "standard": "12.0.1"
   },
   "jest": {

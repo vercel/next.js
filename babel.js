@@ -2,8 +2,17 @@ const createPreset = require('@healthline/six-million/babel').default
 
 const isJest = !!process.env.JEST_WORKER_ID
 const isServer = !!process.env.IS_SERVER || isJest
+exports.modernBrowsers = {
+  ios: '11.3',
+  chrome: '70',
+  firefox: '60'
+}
 
 module.exports = (context, opts = {}) => {
+  opts = {
+    ...opts,
+    modernBrowsers: require('./node/server/compile-targets').modernBrowsers
+  }
   const preset = createPreset(context, opts)
   preset.plugins.push(
     [

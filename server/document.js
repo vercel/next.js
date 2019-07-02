@@ -2,11 +2,7 @@ import React, { Component, Fragment } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
-
-// Hack to prevent duplicate script exec under Safari 10.3
-// https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc#file-safari-nomodule-js-L18
-const safariNoModule =
-  '(function(d,c,s){c=d.createElement("script");if(!("noModule"in c)&&"onbeforeload"in c){d.addEventListener("beforeload",function(e){if(e.target===c){s=true}else if(!e.target.hasAttribute("nomodule")||!s){return}e.preventDefault()},true);c.type="module";c.src=".";d.head.appendChild(c);c.remove()}})(document);'
+import { modernBrowsers } from './compile-targets'
 
 function scriptsForEntry (pathname, entrypoints) {
   const entry = entrypoints[`pages${pathname}.js`]
@@ -28,6 +24,22 @@ export default class Document extends Component {
 
   static childContextTypes = {
     _documentProps: PropTypes.any
+  };
+
+  constructor (props) {
+    super(props)
+
+    const { userAgent } = props
+    const browserChecks = {
+      ios:
+        /iPhone OS ([_0-9]+)/.exec(userAgent) &&
+        parseFloat(RegExp.$1.replace(/_/, '.')),
+      chrome: /Chrome\/([.0-9]*)/.exec(userAgent) && parseFloat(RegExp.$1)
+    }
+
+    this.serveModern =
+      browserChecks.ios >= modernBrowsers.ios ||
+      browserChecks.chrome >= modernBrowsers.chrome
   }
 
   getChildContext () {
@@ -36,10 +48,10 @@ export default class Document extends Component {
 
   render () {
     return <html>
-      <Head />
+      <Head serveModern={this.serveModern} />
       <body>
         <Main />
-        <NextScript />
+        <NextScript serveModern={this.serveModern} />
       </body>
     </html>
   }
@@ -55,9 +67,9 @@ export class Head extends Component {
 
     // Give preference to modern bundle for preloading (since we can't do nomodule for
     // legacy vs. not and browsers will download both)
-    return (
-      module ? `<link rel=preload href="${publicPath}${file}" as=script crossorigin="anonymous">` : ''
-    )
+    return !!module === !!this.props.serveModern
+      ? `<link rel=preload href="${publicPath}${file}" as=script crossorigin=anonymous>`
+      : ''
   }
 
   getPreloadMainLinks () {
@@ -112,17 +124,13 @@ export class NextScript extends Component {
   static propTypes = {
     nonce: PropTypes.string
   }
-  static defaultProps = {
-    legacy: true,
-    modern: true,
-    safariDeDupe: true
-  }
 
   static contextTypes = {
     _documentProps: PropTypes.any
   }
 
   getScripts () {
+    const { serveModern } = this.props
     const { __NEXT_DATA__, entrypoints } = this.context._documentProps
     const { pathname } = __NEXT_DATA__
 
@@ -133,7 +141,7 @@ export class NextScript extends Component {
     return scripts.map(({ file, module }) => {
       let { publicPath } = this.context._documentProps.__NEXT_DATA__
 
-      if ((!module && !this.props.legacy) || (module && !this.props.modern)) {
+      if ((!module && serveModern) || (module && !serveModern)) {
         return
       }
 
@@ -141,7 +149,6 @@ export class NextScript extends Component {
         <script
           key={file}
           type={module ? 'module' : 'text/javascript'}
-          noModule={!module}
           src={`${publicPath}${file}`}
           crossOrigin='anonymous'
           async
@@ -153,11 +160,9 @@ export class NextScript extends Component {
   render () {
     const { __NEXT_DATA__ } = this.context._documentProps
 
-    const safariScript = this.props.legacy && this.props.modern && this.props.safariDeDupe ? safariNoModule : ''
-
     return <Fragment>
       <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `module={};__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};${safariScript}`
+        __html: `module={};__NEXT_DATA__=${htmlescape(__NEXT_DATA__)}`
       }} />
       {this.getScripts()}
     </Fragment>
