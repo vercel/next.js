@@ -40,7 +40,6 @@ import {
   interopDefault,
   loadComponents,
   LoadComponentsReturnType,
-  IPageConfig,
 } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
@@ -48,6 +47,7 @@ import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
+import { PageConfig } from 'next-server/types'
 
 type NextConfig = any
 
@@ -317,7 +317,7 @@ export default class Server {
       const resolverModule = require(resolverFunction)
 
       if (resolverModule.config) {
-        const config: IPageConfig = resolverModule.config
+        const config: PageConfig = resolverModule.config
         if (config.api && config.api.bodyParser === false) {
           bodyParser = false
         }
@@ -516,7 +516,6 @@ export default class Server {
     return renderToHTML(req, res, pathname, query, {
       ...result,
       ...opts,
-      PageConfig: result.PageConfig,
     })
   }
 

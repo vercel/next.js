@@ -77,7 +77,7 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...options.presets, presetItem]
       }
 
-      if (!isServer && filename.indexOf('pages') !== -1) {
+      if (!isServer) {
         const pageConfigPlugin = babel.createConfigItem(
           [require('../../babel/plugins/next-page-config')],
           { type: 'plugin' }
