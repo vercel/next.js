@@ -19,6 +19,7 @@ export default App => {
 
     static async getInitialProps (ctx) {
       const {
+        AppContainer,
         Component,
         router,
         ctx: { req, res }
@@ -49,12 +50,14 @@ export default App => {
         try {
           // Run all GraphQL queries
           await getDataFromTree(
-            <App
-              {...appProps}
-              Component={Component}
-              router={router}
-              apolloClient={apollo}
-            />
+            <AppContainer>
+              <App
+                {...appProps}
+                Component={Component}
+                router={router}
+                apolloClient={apollo}
+              />
+            </AppContainer>
           )
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.

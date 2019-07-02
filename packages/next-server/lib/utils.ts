@@ -98,6 +98,7 @@ export interface NextPageContext {
 }
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {
+  AppContainer: NextComponentType
   Component: NextComponentType<NextPageContext>
   router: R
   ctx: NextPageContext

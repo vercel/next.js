@@ -314,8 +314,42 @@ export async function renderToHTML(
     await DocumentMiddleware(ctx)
   }
 
+  let dataManager: DataManager | undefined
+  if (ampBindInitData) {
+    dataManager = new DataManager()
+  }
+
+  const ampState = {
+    ampFirst: pageConfig.amp === true,
+    hasQuery: Boolean(query.amp),
+    hybrid: pageConfig.amp === 'hybrid',
+  }
+
+  const reactLoadableModules: string[] = []
+
+  const AppContainer = ({ children }: any) => (
+    <RequestContext.Provider value={req}>
+      <RouterContext.Provider value={router}>
+        <DataManagerContext.Provider value={dataManager}>
+          <AmpStateContext.Provider value={ampState}>
+            <LoadableContext.Provider
+              value={moduleName => reactLoadableModules.push(moduleName)}
+            >
+              {children}
+            </LoadableContext.Provider>
+          </AmpStateContext.Provider>
+        </DataManagerContext.Provider>
+      </RouterContext.Provider>
+    </RequestContext.Provider>
+  )
+
   try {
-    props = await loadGetInitialProps(App, { Component, router, ctx })
+    props = await loadGetInitialProps(App, {
+      AppContainer,
+      Component,
+      router,
+      ctx,
+    })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -332,18 +366,7 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, '/_app'),
     ]),
   ]
-  let dataManager: DataManager | undefined
-  if (ampBindInitData) {
-    dataManager = new DataManager()
-  }
 
-  const ampState = {
-    ampFirst: pageConfig.amp === true,
-    hasQuery: Boolean(query.amp),
-    hybrid: pageConfig.amp === 'hybrid',
-  }
-
-  const reactLoadableModules: string[] = []
   const renderElementToString = staticMarkup
     ? renderToStaticMarkup
     : renderToString
@@ -381,23 +404,13 @@ export async function renderToHTML(
       } = enhanceComponents(options, App, Component)
 
       const Application = () => (
-        <RequestContext.Provider value={req}>
-          <RouterContext.Provider value={router}>
-            <DataManagerContext.Provider value={dataManager}>
-              <AmpStateContext.Provider value={ampState}>
-                <LoadableContext.Provider
-                  value={moduleName => reactLoadableModules.push(moduleName)}
-                >
-                  <EnhancedApp
-                    Component={EnhancedComponent}
-                    router={router}
-                    {...props}
-                  />
-                </LoadableContext.Provider>
-              </AmpStateContext.Provider>
-            </DataManagerContext.Provider>
-          </RouterContext.Provider>
-        </RequestContext.Provider>
+        <AppContainer>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </AppContainer>
       )
 
       const element = <Application />
@@ -434,21 +447,13 @@ export async function renderToHTML(
 
       return render(
         renderElementToString,
-        <RequestContext.Provider value={req}>
-          <RouterContext.Provider value={router}>
-            <AmpStateContext.Provider value={ampState}>
-              <LoadableContext.Provider
-                value={moduleName => reactLoadableModules.push(moduleName)}
-              >
-                <EnhancedApp
-                  Component={EnhancedComponent}
-                  router={router}
-                  {...props}
-                />
-              </LoadableContext.Provider>
-            </AmpStateContext.Provider>
-          </RouterContext.Provider>
-        </RequestContext.Provider>,
+        <AppContainer>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </AppContainer>,
         ampState
       )
     }

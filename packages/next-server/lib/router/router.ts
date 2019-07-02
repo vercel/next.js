@@ -50,6 +50,7 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
+  AppContainer: ComponentType
   sub: Subscription
   clc: ComponentLoadCancel
   pageLoader: any
@@ -65,6 +66,7 @@ export default class Router implements BaseRouter {
       initialProps,
       pageLoader,
       App,
+      AppContainer,
       Component,
       err,
       subscription,
@@ -74,6 +76,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: ComponentType
+      AppContainer: ComponentType
       err?: Error
     }
   ) {
@@ -102,6 +105,7 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.sub = subscription
     this.clc = null
+    this.AppContainer = AppContainer
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -560,6 +564,7 @@ export default class Router implements BaseRouter {
     const { Component: App } = this.components['/_app']
 
     const props = await loadGetInitialProps<AppContextType<Router>>(App, {
+      AppContainer: this.AppContainer,
       Component,
       router: this,
       ctx,
