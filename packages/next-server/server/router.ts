@@ -33,15 +33,6 @@ export default class Router {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ) {
-    if (
-      req.method !== 'GET' &&
-      req.method !== 'HEAD' &&
-      parsedUrl.pathname &&
-      !parsedUrl.pathname.startsWith('/api') &&
-      !parsedUrl.pathname.startsWith('/static')
-    ) {
-      return
-    }
     const { pathname } = parsedUrl
     for (const route of this.routes) {
       const params = route.match(pathname)

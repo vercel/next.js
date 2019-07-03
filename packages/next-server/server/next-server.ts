@@ -265,6 +265,12 @@ export default class Server {
       routes.push({
         match: route('/:path*'),
         fn: async (req, res, _params, parsedUrl) => {
+          if (!(req.method === 'GET' || req.method === 'HEAD')) {
+            res.statusCode = 501
+            res.end('Not Implemented')
+            return
+          }
+
           const { pathname, query } = parsedUrl
           if (!pathname) {
             throw new Error('pathname is undefined')
