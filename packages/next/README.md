@@ -782,7 +782,7 @@ Here's a list of supported events:
 
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
 - `beforeHistoryChange(url)` - Fires just before changing the browser's history
 - `hashChangeStart(url)` - Fires when the hash will change but not the page
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
@@ -817,6 +817,18 @@ Router.events.on('routeChangeError', (err, url) => {
 
 > **Note**: Using router events in `getInitialProps` is discouraged as it may result in unexpected behavior.<br/>
 > Router events should be registered when a component mounts (`useEffect` or `componentDidMount`/`componentWillUnmount`) or imperatively when an event happens.
+> ```js
+> useEffect(() => {
+>   const handleRouteChange = url => {
+>     console.log('App is changing to: ', url)
+>   }
+>
+>   Router.events.on('routeChangeStart', handleRouteChange)
+>   return () => {
+>     Router.events.off('routeChangeStart', handleRouteChange)
+>   }
+> }, [])
+> ```
 
 ##### Shallow Routing
 
