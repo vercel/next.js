@@ -99,7 +99,6 @@ export interface NextPageContext {
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {
   Component: NextComponentType<NextPageContext>
-  AppTree: NextComponentType
   ctx: NextPageContext
   router: R
 }

@@ -205,11 +205,6 @@ export async function renderError (props) {
   const initProps = props.props
     ? props.props
     : await loadGetInitialProps(App, {
-      AppTree: props => (
-        <AppContainer>
-          <App Component={Component} router={router} {...props} />
-        </AppContainer>
-      ),
       Component: ErrorComponent,
       router,
       ctx: { err, pathname: page, query, asPath }

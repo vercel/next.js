@@ -566,11 +566,6 @@ export default class Router implements BaseRouter {
     const AppContainer = this.AppContainer
 
     const props: any = await loadGetInitialProps<AppContextType<Router>>(App, {
-      AppTree: props => (
-        <AppContainer>
-          <App Component={Component} router={this} {...props} />
-        </AppContainer>
-      ),
       Component,
       router: this,
       ctx,

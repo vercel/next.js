@@ -19,7 +19,6 @@ export default App => {
 
     static async getInitialProps (ctx) {
       const {
-        AppTree,
         Component,
         router,
         ctx: { req, res }
@@ -50,7 +49,7 @@ export default App => {
         try {
           // Run all GraphQL queries
           await getDataFromTree(
-            <AppTree
+            <App
               {...appProps}
               Component={Component}
               router={router}
