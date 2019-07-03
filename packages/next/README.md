@@ -46,6 +46,7 @@
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
   - [API Routes](#api-routes)
+    - [Dynamic routes support](#dynamic-routes-support)
     - [API Middlewares](#api-middlewares)
     - [Helper Functions](#helper-functions)
   - [Custom server and routing](#custom-server-and-routing)
@@ -1043,14 +1044,37 @@ export default (req, res) => {
 
 **Note: API routes pages are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
 
+#### Dynamic routes support
+API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
+
+Consider the following page `pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
+```js
+export default (req, res) => {
+  const {
+    query: { pid },
+  } = req
+
+  res.end(`Post: ${pid}`)
+}
+```
 
 #### API Middlewares
 
 API routes provides built in `middlewares` which parse the incoming `req`. Those middlewares are:
 
-- `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}` 
+- `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}`
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
+
+Body parsing is always on by default. However, if you don't want to parse body or you want to consume the body as `stream`. It's possible to opt-out from it. To disable body parsing you need to provide `config` option bellow inside page.
+
+```js
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+```
 
 #### Helper Functions
 
