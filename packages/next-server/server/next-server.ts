@@ -653,14 +653,14 @@ export default class Server {
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    if (!this.isServeableUrl(path)) {
+      return this.render404(req, res, parsedUrl)
+    }
+
     if (!(req.method === 'GET' || req.method === 'HEAD')) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
       return this.renderError(null, req, res, path)
-    }
-
-    if (!this.isServeableUrl(path)) {
-      return this.render404(req, res, parsedUrl)
     }
 
     try {
