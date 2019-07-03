@@ -23,7 +23,8 @@
     "next-config.js",
     "next-config.d.ts",
     "amp.js",
-    "amp.d.ts"
+    "amp.d.ts",
+    "types/index.d.ts"
   ],
   "scripts": {
     "build": "taskr",
