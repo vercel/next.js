@@ -37,7 +37,7 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: false
     })
 
     server = await startApp(app)
@@ -317,7 +317,12 @@ describe('Production Usage', () => {
           this.finished = true
         }
       }
-      const html = await app.renderToHTML({}, res, '/finish-response', {})
+      const html = await app.renderToHTML(
+        { method: 'GET' },
+        res,
+        '/finish-response',
+        {}
+      )
       expect(html).toBeFalsy()
     })
 
