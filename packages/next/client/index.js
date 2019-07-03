@@ -12,7 +12,7 @@ import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
