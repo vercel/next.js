@@ -202,21 +202,23 @@ export async function renderError (props) {
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const appCtx = {
+    AppTree: props => {
+      const appProps = { ...props, Component, err, router }
+      return (
+        <AppContainer>
+          <App {...appProps} />
+        </AppContainer>
+      )
+    },
+    Component: ErrorComponent,
+    router,
+    ctx: { err, pathname: page, query, asPath }
+  }
+
   const initProps = props.props
     ? props.props
-    : await loadGetInitialProps(App, {
-      AppTree: props => {
-        const appProps = { Component, err, router, ...props }
-        return (
-          <AppContainer>
-            <App {...appProps} />
-          </AppContainer>
-        )
-      },
-      Component: ErrorComponent,
-      router,
-      ctx: { err, pathname: page, query, asPath }
-    })
+    : await loadGetInitialProps(App, appCtx)
 
   await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
 }
@@ -265,18 +267,26 @@ async function doRender ({ App, Component, props, err }) {
     lastAppProps.Component === ErrorComponent
   ) {
     const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(App, {
-      AppContainer,
-      Component,
+    const appCtx = {
+      AppTree: props => {
+        const appProps = { ...props, Component, err, router }
+        return (
+          <AppContainer>
+            <App {...appProps} />
+          </AppContainer>
+        )
+      },
       router,
+      Component: ErrorComponent,
       ctx: { err, pathname, query, asPath }
-    })
+    }
+    props = await loadGetInitialProps(App, appCtx)
   }
 
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, err, router, ...props }
+  const appProps = { ...props, Component, err, router }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 

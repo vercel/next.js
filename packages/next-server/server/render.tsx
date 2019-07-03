@@ -347,7 +347,7 @@ export async function renderToHTML(
     props = await loadGetInitialProps(App, {
       Component,
       AppTree: (props: any) => {
-        const appProps = { Component, router, ...props }
+        const appProps = { ...props, Component, router }
         return (
           <AppContainer>
             <App {...appProps} />
