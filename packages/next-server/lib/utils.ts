@@ -1,6 +1,6 @@
 import { format, UrlObject, URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http'
-import { ComponentType, Component, FunctionComponent } from 'react'
+import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/render'
 import { BaseRouter } from './router/router'

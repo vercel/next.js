@@ -346,11 +346,14 @@ export async function renderToHTML(
   try {
     props = await loadGetInitialProps(App, {
       Component,
-      AppTree: (props: any) => (
-        <AppContainer>
-          <App {...props} />
-        </AppContainer>
-      ),
+      AppTree: (props: any) => {
+        const appProps = { Component, router, ...props }
+        return (
+          <AppContainer>
+            <App {...appProps} />
+          </AppContainer>
+        )
+      },
       router,
       ctx,
     })
