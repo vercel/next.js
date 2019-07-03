@@ -406,10 +406,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const exportConfig = {
       ...config,
       exportPathMap: (defaultMap: any) => defaultMap,
-      experimental: {
-        ...config.experimental,
-        exportTrailingSlash: false,
-      },
+      exportTrailingSlash: false,
     }
     await exportApp(dir, exportOptions, exportConfig)
     const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)

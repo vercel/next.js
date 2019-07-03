@@ -32,7 +32,7 @@ export default async function (dir, options, configuration) {
   const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
-  const subFolders = nextConfig.experimental.exportTrailingSlash
+  const subFolders = nextConfig.exportTrailingSlash
 
   if (!options.buildExport && nextConfig.target !== 'server') {
     throw new Error(
