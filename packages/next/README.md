@@ -816,7 +816,7 @@ Router.events.on('routeChangeError', (err, url) => {
 ```
 
 > **Note**: Using router events in `getInitialProps` is discouraged as it may result in unexpected behavior.<br/>
-> Router events should be registered when a component mounts, via `useEffect`, `componentDidMount`/`componentWillUnmount`, or   imperatively when an event happens.
+> Router events should be registered when a component mounts (`useEffect` or `componentDidMount`/`componentWillUnmount`) or imperatively when an event happens.
 
 ##### Shallow Routing
 
