@@ -5,6 +5,9 @@ import stripAnsi from 'strip-ansi'
 
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
+import forkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import { NormalizedMessage } from 'fork-ts-checker-webpack-plugin/lib/NormalizedMessage'
+import { createCodeframeFormatter } from 'fork-ts-checker-webpack-plugin/lib/formatter/codeframeFormatter'
 
 export function startedDevelopmentServer(appUrl: string) {
   consoleStore.setState({ appUrl })
@@ -13,13 +16,17 @@ export function startedDevelopmentServer(appUrl: string) {
 let previousClient: any = null
 let previousServer: any = null
 
+type CompilerDiagnostics = {
+  errors: string[] | null
+  warnings: string[] | null
+}
+
 type WebpackStatus =
   | { loading: true }
-  | {
+  | ({
       loading: false
-      errors: string[] | null
-      warnings: string[] | null
-    }
+      typeChecking: boolean
+    } & CompilerDiagnostics)
 
 type AmpStatus = {
   message: string
@@ -41,8 +48,9 @@ type BuildStatusStore = {
 enum WebpackStatusPhase {
   COMPILING = 1,
   COMPILED_WITH_ERRORS = 2,
-  COMPILED_WITH_WARNINGS = 3,
-  COMPILED = 4,
+  TYPE_CHECKING = 3,
+  COMPILED_WITH_WARNINGS = 4,
+  COMPILED = 5,
 }
 
 function getWebpackStatusPhase(status: WebpackStatus): WebpackStatusPhase {
@@ -51,6 +59,9 @@ function getWebpackStatusPhase(status: WebpackStatus): WebpackStatusPhase {
   }
   if (status.errors) {
     return WebpackStatusPhase.COMPILED_WITH_ERRORS
+  }
+  if (status.typeChecking) {
+    return WebpackStatusPhase.TYPE_CHECKING
   }
   if (status.warnings) {
     return WebpackStatusPhase.COMPILED_WITH_WARNINGS
@@ -125,14 +136,36 @@ buildStore.subscribe(state => {
       true
     )
   } else {
-    let { errors, warnings } = status
+    let { errors, warnings, typeChecking } = status
 
-    if (errors == null && Object.keys(amp).length > 0) {
-      warnings = (warnings || []).concat(formatAmpMessages(amp))
+    if (errors == null) {
+      if (typeChecking) {
+        consoleStore.setState(
+          {
+            ...partialState,
+            loading: false,
+            typeChecking: true,
+            errors,
+            warnings,
+          } as OutputState,
+          true
+        )
+        return
+      }
+
+      if (Object.keys(amp).length > 0) {
+        warnings = (warnings || []).concat(formatAmpMessages(amp))
+      }
     }
 
     consoleStore.setState(
-      { ...partialState, loading: false, errors, warnings } as OutputState,
+      {
+        ...partialState,
+        loading: false,
+        typeChecking: false,
+        errors,
+        warnings,
+      } as OutputState,
       true
     )
   }
@@ -162,7 +195,12 @@ export function ampValidation(
   })
 }
 
-export function watchCompiler(client: any, server: any) {
+export function watchCompilers(
+  client: any,
+  server: any,
+  enableTypeCheckingOnClient: boolean,
+  onTypeChecked: (diagnostics: CompilerDiagnostics) => void
+) {
   if (previousClient === client && previousServer === server) {
     return
   }
@@ -175,11 +213,49 @@ export function watchCompiler(client: any, server: any) {
   function tapCompiler(
     key: string,
     compiler: any,
+    hasTypeChecking: boolean,
     onEvent: (status: WebpackStatus) => void
   ) {
+    let tsMessagesPromise: Promise<CompilerDiagnostics> | undefined
+    let tsMessagesResolver: (diagnostics: CompilerDiagnostics) => void
+
     compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
+      tsMessagesPromise = undefined
       onEvent({ loading: true })
     })
+
+    if (hasTypeChecking) {
+      const typescriptFormatter = createCodeframeFormatter({})
+
+      compiler.hooks.beforeCompile.tap(`NextJs-${key}-StartTypeCheck`, () => {
+        tsMessagesPromise = new Promise(resolve => {
+          tsMessagesResolver = msgs => resolve(msgs)
+        })
+      })
+
+      forkTsCheckerWebpackPlugin
+        .getCompilerHooks(compiler)
+        .receive.tap(
+          `NextJs-${key}-afterTypeScriptCheck`,
+          (diagnostics: NormalizedMessage[], lints: NormalizedMessage[]) => {
+            const allMsgs = [...diagnostics, ...lints]
+            const format = (message: NormalizedMessage) =>
+              typescriptFormatter(message, true)
+
+            const errors = allMsgs
+              .filter(msg => msg.severity === 'error')
+              .map(format)
+            const warnings = allMsgs
+              .filter(msg => msg.severity === 'warning')
+              .map(format)
+
+            tsMessagesResolver({
+              errors: errors.length ? errors : null,
+              warnings: warnings.length ? warnings : null,
+            })
+          }
+        )
+    }
 
     compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: any) => {
       buildStore.setState({ amp: {} })
@@ -188,18 +264,53 @@ export function watchCompiler(client: any, server: any) {
         stats.toJson({ all: false, warnings: true, errors: true })
       )
 
+      const hasErrors = errors && errors.length
+      const hasWarnings = warnings && warnings.length
+
       onEvent({
         loading: false,
-        errors: errors && errors.length ? errors : null,
-        warnings: warnings && warnings.length ? warnings : null,
+        typeChecking: hasTypeChecking,
+        errors: hasErrors ? errors : null,
+        warnings: hasWarnings ? warnings : null,
       })
+
+      const typePromise = tsMessagesPromise
+
+      if (!hasErrors && typePromise) {
+        typePromise.then(typeMessages => {
+          if (typePromise !== tsMessagesPromise) {
+            // a new compilation started so we don't care about this
+            return
+          }
+
+          stats.compilation.errors.push(...(typeMessages.errors || []))
+          stats.compilation.warnings.push(...(typeMessages.warnings || []))
+          onTypeChecked({
+            errors: stats.compilation.errors.length
+              ? stats.compilation.errors
+              : null,
+            warnings: stats.compilation.warnings.length
+              ? stats.compilation.warnings
+              : null,
+          })
+
+          onEvent({
+            loading: false,
+            typeChecking: false,
+            errors: typeMessages.errors,
+            warnings: hasWarnings
+              ? [...warnings, ...(typeMessages.warnings || [])]
+              : typeMessages.warnings,
+          })
+        })
+      }
     })
   }
 
-  tapCompiler('client', client, status =>
+  tapCompiler('client', client, enableTypeCheckingOnClient, status =>
     buildStore.setState({ client: status })
   )
-  tapCompiler('server', server, status =>
+  tapCompiler('server', server, false, status =>
     buildStore.setState({ server: status })
   )
 

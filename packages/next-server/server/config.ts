@@ -30,14 +30,13 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    dynamicRouting: false,
-    autoExport: false,
     ampBindInitData: false,
-    exportTrailingSlash: true,
+    exportTrailingSlash: false,
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false,
+    documentMiddleware: false,
   },
 }
 

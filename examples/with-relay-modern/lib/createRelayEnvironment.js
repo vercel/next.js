@@ -26,7 +26,7 @@ export default function initEnvironment ({ records = {} } = {}) {
 
   // Make sure to create a new Relay environment for every server-side request so that data
   // isn't shared between connections (which would be bad)
-  if (!process.browser) {
+  if (typeof window === 'undefined') {
     return new Environment({
       network,
       store

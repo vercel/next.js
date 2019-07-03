@@ -7,7 +7,7 @@ export default class TopArticles extends React.Component {
   static async getInitialProps ({ props, req, res }) {
     // Fetch the weather from a remote API, it may take some time...
     return new Promise(resolve => {
-      console.log(process.browser ? 'client-side' : 'server-side')
+      console.log(typeof window !== 'undefined' ? 'client-side' : 'server-side')
       // Simulate a delay (slow network, huge computation...)
       setTimeout(
         () =>
@@ -21,7 +21,7 @@ export default class TopArticles extends React.Component {
   }
 
   render () {
-    console.log(process.browser ? 'client-side' : 'server-side')
+    console.log(typeof window !== 'undefined' ? 'client-side' : 'server-side')
 
     return (
       <section>

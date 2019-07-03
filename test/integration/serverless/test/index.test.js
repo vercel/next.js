@@ -31,6 +31,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/Hello World/)
   })
 
+  it('should serve file from public folder', async () => {
+    const content = await renderViaHTTP(appPort, '/hello.txt')
+    expect(content.trim()).toBe('hello world')
+  })
+
   it('should render the page with dynamic import', async () => {
     const html = await renderViaHTTP(appPort, '/dynamic')
     expect(html).toMatch(/Hello!/)
@@ -106,6 +111,26 @@ describe('Serverless', () => {
       expect(existsSync(join(serverlessDir, file + '.js'))).toBe(true)
       expect(existsSync(join(serverlessDir, file + '.html'))).toBe(false)
     }
+  })
+
+  it('should prerender pages with data correctly', async () => {
+    const toSomething = await renderViaHTTP(appPort, '/to-something')
+    expect(toSomething).toMatch(/some interesting title/)
+
+    const something = await renderViaHTTP(appPort, '/something')
+    expect(something).toMatch(/this is some data to be inlined/)
+  })
+
+  it('should have inlined the data correctly in prerender', async () => {
+    const browser = await webdriver(appPort, '/to-something')
+    await browser.elementByCss('#something').click()
+
+    let text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/this is some data to be inlined/)
+
+    await browser.elementByCss('#to-something').click()
+    text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/some interesting title/)
   })
 
   describe('With basic usage', () => {

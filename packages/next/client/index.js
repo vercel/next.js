@@ -12,6 +12,7 @@ import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -62,7 +63,7 @@ window.__NEXT_P = []
 window.__NEXT_P.push = register
 
 const headManager = new HeadManager()
-const appContainer = document.getElementById('__next')
+const appElement = document.getElementById('__next')
 
 let lastAppProps
 let webpackHMR
@@ -80,10 +81,10 @@ class Container extends React.Component {
     this.scrollToHash()
 
     // If page was exported and has a querystring
-    // If it's a dynamic route (/$ inside) or has a querystring
+    // If it's a dynamic route or has a querystring
     if (
       data.nextExport &&
-      (router.pathname.indexOf('/$') !== -1 || window.location.search)
+      (isDynamicRoute(router.pathname) || window.location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -223,6 +224,28 @@ function renderReactElement (reactEl, domEl) {
   }
 }
 
+function AppContainer ({ children }) {
+  return (
+    <Container
+      fn={error =>
+        renderError({ App, err: error }).catch(err =>
+          console.error('Error rendering page: ', err)
+        )
+      }
+    >
+      <Suspense fallback={<div>Loading...</div>}>
+        <RouterContext.Provider value={makePublicRouterInstance(router)}>
+          <DataManagerContext.Provider value={dataManager}>
+            <HeadManagerContext.Provider value={headManager.updateHead}>
+              {children}
+            </HeadManagerContext.Provider>
+          </DataManagerContext.Provider>
+        </RouterContext.Provider>
+      </Suspense>
+    </Container>
+  )
+}
+
 async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
@@ -256,46 +279,18 @@ async function doRender ({ App, Component, props, err }) {
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement(
-      <Container
-        fn={error =>
-          renderError({ App, err: error }).catch(err =>
-            console.error('Error rendering page: ', err)
-          )
-        }
-      >
-        <Suspense fallback={<div>Loading...</div>}>
-          <RouterContext.Provider value={makePublicRouterInstance(router)}>
-            <DataManagerContext.Provider value={dataManager}>
-              <HeadManagerContext.Provider value={headManager.updateHead}>
-                <App {...appProps} />
-              </HeadManagerContext.Provider>
-            </DataManagerContext.Provider>
-          </RouterContext.Provider>
-        </Suspense>
-      </Container>,
-      appContainer
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>,
+      appElement
     )
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
     renderReactElement(
-      <Container
-        fn={error =>
-          renderError({ App, err: error }).catch(err =>
-            console.error('Error rendering page: ', err)
-          )
-        }
-      >
-        <Suspense fallback={<div>Loading...</div>}>
-          <RouterContext.Provider value={makePublicRouterInstance(router)}>
-            <DataManagerContext.Provider value={dataManager}>
-              <HeadManagerContext.Provider value={headManager.updateHead}>
-                <App {...appProps} />
-              </HeadManagerContext.Provider>
-            </DataManagerContext.Provider>
-          </RouterContext.Provider>
-        </Suspense>
-      </Container>,
-      appContainer
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>,
+      appElement
     )
   }
 

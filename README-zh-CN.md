@@ -3,7 +3,6 @@
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
-[![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
 Next.js 是一个轻量级的 React 服务端渲染应用框架。
@@ -1476,7 +1475,6 @@ module.exports = {
 - `isServer` - `Boolean` 型，为`true`使用在服务端, 为`false`使用在客户端.
 - `defaultLoaders` - 对象型 ，内部加载器, 你可以如下配置
   - `babel` - 对象型，配置`babel-loader`.
-  - `hotSelfAccept` - 对象型， `hot-self-accept-loader`配置选项.这个加载器只能用于高阶案例。如 [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)添加顶层 typescript 页面。
 
 `defaultLoaders.babel`使用案例如下：
 

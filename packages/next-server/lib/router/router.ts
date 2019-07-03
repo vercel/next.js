@@ -15,6 +15,7 @@ import {
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { isDynamicRoute } from './utils/is-dynamic'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -273,10 +274,10 @@ export default class Router implements BaseRouter {
       const route = toRoute(pathname)
       const { shallow = false } = options
 
-      // detect dynamic routing
-      if (route.indexOf('/$') !== -1) {
+      if (isDynamicRoute(route)) {
+        const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(as)
+        const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
           console.error(
             "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
@@ -302,6 +303,13 @@ export default class Router implements BaseRouter {
         Router.events.emit('beforeHistoryChange', as)
         this.changeState(method, url, as, options)
         const hash = window.location.hash.substring(1)
+
+        if (process.env.NODE_ENV !== 'production') {
+          const appComp: any = this.components['/_app'].Component
+          ;(window as any).next.isPrerendered =
+            appComp.getInitialProps === appComp.origGetInitialProps &&
+            !routeInfo.Component.getInitialProps
+        }
 
         // @ts-ignore pathname is always defined
         this.set(route, pathname, query, as, { ...routeInfo, hash })
@@ -376,6 +384,10 @@ export default class Router implements BaseRouter {
         return new Promise((resolve, reject) => {
           const ctx = { pathname, query, asPath: as }
           this.getInitialProps(Component, ctx).then(props => {
+            // if data is inlined during prerender it is a string
+            if (props && typeof props.pageProps === 'string') {
+              props.pageProps = JSON.parse(props.pageProps)
+            }
             routeInfo.props = props
             this.components[route] = routeInfo
             resolve(routeInfo)
@@ -511,11 +523,7 @@ export default class Router implements BaseRouter {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.__NEXT_EXPERIMENTAL_DEBUG
-      )
-        return
+      if (process.env.NODE_ENV !== 'production') return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
