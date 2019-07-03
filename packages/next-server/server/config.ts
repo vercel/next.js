@@ -24,6 +24,7 @@ const defaultConfig: { [key: string]: any } = {
   amp: {
     canonicalBase: '',
   },
+  exportTrailingSlash: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -31,7 +32,6 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     ampBindInitData: false,
-    exportTrailingSlash: false,
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
