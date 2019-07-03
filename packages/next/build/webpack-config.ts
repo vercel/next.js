@@ -441,7 +441,7 @@ export default async function getBaseWebpackConfig(
             }
           : {}),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
-          config.experimental.exportTrailingSlash
+          config.exportTrailingSlash
         ),
         ...(isServer
           ? { 'typeof window': JSON.stringify('undefined') }
