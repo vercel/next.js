@@ -652,7 +652,7 @@ export default class Server {
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
+    if (!(req.method === 'GET' || req.method === 'HEAD')) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
       return this.renderError(null, req, res, path)
