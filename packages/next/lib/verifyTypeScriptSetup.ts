@@ -4,9 +4,9 @@ import path from 'path'
 import chalk from 'chalk'
 import { promisify } from 'util'
 import { recursiveReadDir } from './recursive-readdir'
+import { fileExists } from './file-exists'
 import resolve from 'next/dist/compiled/resolve/index.js'
 
-const exists = promisify(fs.exists)
 const writeFile = promisify(fs.writeFile)
 
 function writeJson(fileName: string, object: object): Promise<void> {
@@ -96,8 +96,8 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
-  const hasTsConfig = await exists(tsConfigPath)
-  const isYarn = await exists(yarnLockFile)
+  const hasTsConfig = await fileExists(tsConfigPath)
+  const isYarn = await fileExists(yarnLockFile)
   const hasTypeScriptFiles = await hasTypeScript(dir)
   let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
 
