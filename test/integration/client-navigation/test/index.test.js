@@ -74,6 +74,20 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should set focus back to body after navigating', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser
+        .elementByCss('#about-link')
+        .click()
+        .waitForElementByCss('.nav-about')
+
+      const result = await browser.eval(
+        `document.activeElement === document.querySelector('body')`
+      )
+
+      expect(result).toBe(true)
+    })
+
     it('should navigate via the client side', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
