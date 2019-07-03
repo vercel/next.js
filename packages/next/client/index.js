@@ -258,7 +258,6 @@ async function doRender ({ App, Component, props, err }) {
   ) {
     const { pathname, query, asPath } = router
     props = await loadGetInitialProps(App, {
-      AppContainer,
       Component,
       router,
       ctx: { err, pathname, query, asPath }
