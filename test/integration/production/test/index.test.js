@@ -37,7 +37,7 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: false
+      quiet: true
     })
 
     server = await startApp(app)
