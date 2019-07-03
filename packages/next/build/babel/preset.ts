@@ -7,7 +7,8 @@ const isTest = env === 'test'
 type StyledJsxPlugin = [string, any] | string
 type StyledJsxBabelOptions =
   | {
-      plugins?: StyledJsxPlugin[]
+      plugins?: StyledJsxPlugin[],
+      'babel-test'?: boolean
     }
   | undefined
 
