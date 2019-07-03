@@ -104,7 +104,7 @@ module.exports = (
           ...options['transform-runtime'],
         },
       ],
-      [require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
+      [(isTest && options['styled-jsx'] && options['styled-jsx']['babel-test']) ? require('styled-jsx/babel-test') : require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
       require('./plugins/amp-attributes'),
       isProduction && [
         require('babel-plugin-transform-react-remove-prop-types'),
