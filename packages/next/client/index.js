@@ -63,7 +63,7 @@ window.__NEXT_P = []
 window.__NEXT_P.push = register
 
 const headManager = new HeadManager()
-const appContainer = document.getElementById('__next')
+const appElement = document.getElementById('__next')
 
 let lastAppProps
 let webpackHMR
@@ -224,6 +224,28 @@ function renderReactElement (reactEl, domEl) {
   }
 }
 
+function AppContainer ({ children }) {
+  return (
+    <Container
+      fn={error =>
+        renderError({ App, err: error }).catch(err =>
+          console.error('Error rendering page: ', err)
+        )
+      }
+    >
+      <Suspense fallback={<div>Loading...</div>}>
+        <RouterContext.Provider value={makePublicRouterInstance(router)}>
+          <DataManagerContext.Provider value={dataManager}>
+            <HeadManagerContext.Provider value={headManager.updateHead}>
+              {children}
+            </HeadManagerContext.Provider>
+          </DataManagerContext.Provider>
+        </RouterContext.Provider>
+      </Suspense>
+    </Container>
+  )
+}
+
 async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
@@ -257,46 +279,18 @@ async function doRender ({ App, Component, props, err }) {
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement(
-      <Container
-        fn={error =>
-          renderError({ App, err: error }).catch(err =>
-            console.error('Error rendering page: ', err)
-          )
-        }
-      >
-        <Suspense fallback={<div>Loading...</div>}>
-          <RouterContext.Provider value={makePublicRouterInstance(router)}>
-            <DataManagerContext.Provider value={dataManager}>
-              <HeadManagerContext.Provider value={headManager.updateHead}>
-                <App {...appProps} />
-              </HeadManagerContext.Provider>
-            </DataManagerContext.Provider>
-          </RouterContext.Provider>
-        </Suspense>
-      </Container>,
-      appContainer
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>,
+      appElement
     )
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
     renderReactElement(
-      <Container
-        fn={error =>
-          renderError({ App, err: error }).catch(err =>
-            console.error('Error rendering page: ', err)
-          )
-        }
-      >
-        <Suspense fallback={<div>Loading...</div>}>
-          <RouterContext.Provider value={makePublicRouterInstance(router)}>
-            <DataManagerContext.Provider value={dataManager}>
-              <HeadManagerContext.Provider value={headManager.updateHead}>
-                <App {...appProps} />
-              </HeadManagerContext.Provider>
-            </DataManagerContext.Provider>
-          </RouterContext.Provider>
-        </Suspense>
-      </Container>,
-      appContainer
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>,
+      appElement
     )
   }
 
