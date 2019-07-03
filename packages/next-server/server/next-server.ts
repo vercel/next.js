@@ -22,7 +22,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import {
   getQueryParser,
   sendJson,
@@ -533,8 +533,6 @@ export default class Server {
       .then(
         result => {
           if (!(req.method === 'GET' || req.method === 'HEAD')) {
-            if (isResSent(res)) return null
-
             res.statusCode = 405
             res.setHeader('Allow', ['GET', 'HEAD'])
             return this.renderError(null, req, res, pathname, query)
@@ -563,8 +561,6 @@ export default class Server {
             return this.findPageComponents(dynamicRoute.page, query).then(
               result => {
                 if (!(req.method === 'GET' || req.method === 'HEAD')) {
-                  if (isResSent(res)) return null
-
                   res.statusCode = 405
                   res.setHeader('Allow', ['GET', 'HEAD'])
                   return this.renderError(null, req, res, pathname, query)
