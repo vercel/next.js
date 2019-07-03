@@ -6,7 +6,7 @@ export default function initializeBuildWatcher () {
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   shadowHost.style.bottom = '10px'
-  shadowHost.style.right = '10px'
+  shadowHost.style.right = '20px'
   shadowHost.style.width = 0
   shadowHost.style.height = 0
   shadowHost.style.zIndex = 99999
