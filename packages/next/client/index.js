@@ -159,7 +159,6 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     pageLoader,
     App,
     Component,
-    AppContainer,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
       render({ App, Component, props, err, emitter })
