@@ -817,6 +817,7 @@ Router.events.on('routeChangeError', (err, url) => {
 
 > **Note**: Using router events in `getInitialProps` is discouraged as it may result in unexpected behavior.<br/>
 > Router events should be registered when a component mounts (`useEffect` or `componentDidMount`/`componentWillUnmount`) or imperatively when an event happens.
+>
 > ```js
 > useEffect(() => {
 >   const handleRouteChange = url => {
@@ -2211,7 +2212,7 @@ Any AMP errors will cause `next export` to exit with status code `1` because the
 
 ### TypeScript Support
 
-AMP currently doesn't have built-in types for Typescript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125).
+AMP currently doesn't have built-in types for TypeScript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125).
 
 ## Static HTML export
 
@@ -2265,7 +2266,20 @@ module.exports = {
 }
 ```
 
-> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
+The pages will be exported as html files, i.e. `/about` will become `/about.html`.
+
+It is possible to configure Next.js to export pages as `index.html` files and require trailing slashes, i.e. `/about` becomes `/about/index.html` and is routable via `/about/`.
+This was the default behavior prior to Next.js 9.
+You can use the following `next.config.js` to switch back to this behavior:
+
+```js
+// next.config.js
+module.exports = {
+  exportTrailingSlash: true,
+}
+```
+
+> **Note**: If the export path is a filename (e.g. `/readme.md`) and is different than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
 
 The second argument is an `object` with:
 

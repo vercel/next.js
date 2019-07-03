@@ -12,7 +12,7 @@ const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 
-describe('Export experimental.exportTrailingSlash set to false', () => {
+describe('Export config#exportTrailingSlash set to false', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
