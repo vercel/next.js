@@ -265,15 +265,15 @@ export default class Server {
       routes.push({
         match: route('/:path*'),
         fn: async (req, res, _params, parsedUrl) => {
-          if (!(req.method === 'GET' || req.method === 'HEAD')) {
-            res.statusCode = 501
-            res.end('Not Implemented')
-            return
-          }
-
           const { pathname, query } = parsedUrl
           if (!pathname) {
             throw new Error('pathname is undefined')
+          }
+
+          if (!(req.method === 'GET' || req.method === 'HEAD')) {
+            res.statusCode = 405
+            res.setHeader('Allow', ['GET', 'HEAD'])
+            return this.renderError(null, req, res, pathname, query)
           }
 
           await this.render(req, res, pathname, query, parsedUrl)
@@ -423,12 +423,7 @@ export default class Server {
       throw err
     }
 
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      await this.render404(req, res, parsedUrl)
-    } else {
-      res.statusCode = 501
-      res.end('Not Implemented')
-    }
+    await this.render404(req, res, parsedUrl)
   }
 
   private async sendHTML(

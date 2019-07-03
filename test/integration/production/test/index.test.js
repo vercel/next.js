@@ -80,11 +80,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 501 for POST on page', async () => {
+    it('should render 405 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'
       })
-      expect(res.status).toBe(501)
+      expect(res.status).toBe(405)
     })
 
     it('should render 404 for _next routes that do not exist', async () => {
@@ -93,12 +93,12 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
+    it('should render 404 even if the HTTP method is not GET or HEAD', async () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
       const methods = ['POST', 'PUT', 'DELETE']
       for (const method of methods) {
         const res = await fetch(url, { method })
-        expect(res.status).toBe(501)
+        expect(res.status).toBe(404)
       }
     })
 
