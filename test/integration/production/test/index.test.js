@@ -93,6 +93,15 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const methods = ['POST', 'PUT', 'DELETE']
+      for (const method of methods) {
+        const res = await fetch(url, { method })
+        expect(res.status).toBe(501)
+      }
+    })
+
     it('should render 404 for dotfiles in /static', async () => {
       const url = `http://localhost:${appPort}/static/.env`
       const res = await fetch(url)
