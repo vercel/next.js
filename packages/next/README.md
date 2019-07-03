@@ -296,7 +296,7 @@ Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].
 The matched path parameter will be sent as a query parameter to the page.
 
 For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
-Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
+Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`. However, if your query and route params name are the same. Route parameters are going to override query params with the same name. For example `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 
 > **Note**: Predefined routes take precedence over dynamic routes.
 > For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
