@@ -13,6 +13,8 @@ import {
 
 import { PageConfig } from 'next-server/types'
 
+import next from 'next/dist/server/next'
+
 // Extend the React types with missing properties
 declare module 'react' {
   // <html amp=""> support
@@ -52,3 +54,5 @@ export {
   NextApiRequest,
   PageConfig,
 }
+
+export default next
