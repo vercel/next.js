@@ -115,7 +115,7 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should retrun 405 method on static then GET and HEAD', async () => {
+    it('should return 405 method on static then GET and HEAD', async () => {
       const res = await fetch(
         `http://localhost:${appPort}/static/data/item.txt`,
         {
