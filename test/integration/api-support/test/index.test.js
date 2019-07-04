@@ -145,13 +145,13 @@ function runTests (serverless = false) {
     expect(data).toEqual({ nextjs: 'cool' })
   })
 
-  // it('should return 404 on POST on pages', async () => {
-  //  const res = await fetchViaHTTP(appPort, '/user', null, {
-  //    method: 'POST'
-  //  })
-  //
-  //    expect(res.status).toEqual(404)
-  //  })
+  it('should return 405 on POST on pages', async () => {
+    const res = await fetchViaHTTP(appPort, '/user', null, {
+      method: 'POST'
+    })
+
+    expect(res.status).toEqual(405)
+  })
 
   it('should return JSON on post on API', async () => {
     const data = await fetchViaHTTP(appPort, '/api/blog?title=Nextjs', null, {
