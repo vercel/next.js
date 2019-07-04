@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import {Section, Card, Content, Title} from 'rbx'
+import { Section, Card, Content, Title } from 'rbx'
 import Layout from '../components/Layout'
 
 const Home = () => (

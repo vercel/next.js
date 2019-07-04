@@ -1,4 +1,13 @@
-import {Section, Title, Field, Label, Control, Input, Textarea, Button} from 'rbx';
+import {
+  Section,
+  Title,
+  Field,
+  Label,
+  Control,
+  Input,
+  Textarea,
+  Button
+} from 'rbx'
 import Layout from '../components/Layout'
 
 const ContactPage = () => (
@@ -30,12 +39,12 @@ const ContactPage = () => (
         </Control>
       </Field>
       <Button.Group align='right'>
-          <Button color='primary' key='submit'>
-            Submit
-          </Button>
+        <Button color='primary' key='submit'>
+          Submit
+        </Button>
       </Button.Group>
     </Section>
   </Layout>
 )
 
-export default ContactPage;
+export default ContactPage
