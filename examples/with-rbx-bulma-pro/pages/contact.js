@@ -4,7 +4,7 @@ import Layout from '../components/Layout'
 const ContactPage = () => (
   <Layout>
     <Section>
-      <Title as='h2'>Contact</Title>
+      <Title as='h2'>Contact Form Example</Title>
       <Field>
         <Label>Name</Label>
         <Control>

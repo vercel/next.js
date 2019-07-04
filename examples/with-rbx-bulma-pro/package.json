@@ -1,5 +1,5 @@
 {
-  "name": "create-next-example-app",
+  "name": "with-rbx-bulma-pro",
   "scripts": {
     "dev": "next",
     "build": "next build",
