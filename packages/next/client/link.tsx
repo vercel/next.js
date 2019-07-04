@@ -180,7 +180,16 @@ class Link extends Component<LinkProps> {
         if (!success) return
         if (scroll) {
           window.scrollTo(0, 0)
-          document.body.focus()
+          // set focus back to the body element
+          const activeElement = document.activeElement as HTMLElement
+          const bodyElement = document.querySelector('body')
+          if (
+            activeElement &&
+            activeElement !== bodyElement &&
+            activeElement.blur
+          ) {
+            activeElement.blur()
+          }
         }
       })
       .catch((err: any) => {
