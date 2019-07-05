@@ -22,7 +22,7 @@ describe('Serverless', () => {
   afterAll(() => killApp(app))
 
   it('should render the page', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/Hello Firebase: 0/)
+    const html = await renderViaHTTP(appPort, '/about/history')
+    expect(html).toMatch(/Hello Firebase: <!-- -->0/)
   })
 })

@@ -2447,10 +2447,10 @@
   dependencies:
     "@babel/preset-typescript" "^7.0.0"
 
-"@zeit/webpack-asset-relocator-loader@0.5.5":
-  version "0.5.5"
-  resolved "https://registry.yarnpkg.com/@zeit/webpack-asset-relocator-loader/-/webpack-asset-relocator-loader-0.5.5.tgz#c50543e479feb642c68356f0216759325544b507"
-  integrity sha512-QrAytM+XznVV1q3E1nkg95ASYka2kz/OEoDTZ/GeDRWihYmk8iyqqI4XpzystIYOc4vi7jXkHmuQutscs6PgAw==
+"@zeit/webpack-asset-relocator-loader@0.6.2":
+  version "0.6.2"
+  resolved "https://registry.yarnpkg.com/@zeit/webpack-asset-relocator-loader/-/webpack-asset-relocator-loader-0.6.2.tgz#b15353d8578562f299eddb94d4b771297acc0487"
+  integrity sha512-IUz2YvFAv03LHP4dhjHqG549ecZhdp7KU8B+vGfJRgcDzvlCmc9CA1YcYfJHVO96U8dU5z85RIysr2whYUXmgQ==
   dependencies:
     sourcemap-codec "^1.4.4"
 
