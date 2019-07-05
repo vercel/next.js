@@ -53,7 +53,6 @@
     - [With named exports](#with-named-exports)
     - [With Custom Loading Component](#with-custom-loading-component)
     - [With No SSR](#with-no-ssr)
-    - [With Multiple Modules At Once](#with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
     - [Customizing `renderPage`](#customizing-renderpage)
@@ -1175,7 +1174,7 @@ app.prepare().then(() => {
   </ul>
 </details>
 
-Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
+Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
 With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
 
 You can think dynamic imports as another way to split your code into manageable chunks.
@@ -1239,9 +1238,7 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponentWithCustomLoading = dynamic(
   () => import('../components/hello2'),
-  {
-    loading: () => <p>...</p>,
-  }
+  { loading: () => <p>...</p> }
 )
 
 function Home() {
@@ -1264,9 +1261,7 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponentWithNoSSR = dynamic(
   () => import('../components/hello3'),
-  {
-    ssr: false,
-  }
+  { ssr: false }
 )
 
 function Home() {
@@ -1280,36 +1275,6 @@ function Home() {
 }
 
 export default Home
-```
-
-#### With Multiple Modules At Once
-
-```jsx
-import dynamic from 'next/dynamic'
-
-const HelloBundle = dynamic({
-  modules: () => {
-    const components = {
-      Hello1: () => import('../components/hello1'),
-      Hello2: () => import('../components/hello2'),
-    }
-
-    return components
-  },
-  render: (props, { Hello1, Hello2 }) => (
-    <div>
-      <h1>{props.title}</h1>
-      <Hello1 />
-      <Hello2 />
-    </div>
-  ),
-})
-
-function DynamicBundle() {
-  return <HelloBundle title="Dynamic Bundle" />
-}
-
-export default DynamicBundle
 ```
 
 ### Custom `<App>`
