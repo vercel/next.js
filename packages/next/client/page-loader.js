@@ -165,8 +165,12 @@ export default class PageLoader {
 
   async prefetch (route) {
     route = this.normalizeRoute(route)
-    const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
-    if (this.prefetchCache.has(scriptRoute)) {
+    const scriptRoute = `${route === '/' ? '/index' : route}.js`
+
+    if (
+      this.prefetchCache.has(scriptRoute) ||
+      document.getElementById(`__NEXT_PAGE__${route}`)
+    ) {
       return
     }
     this.prefetchCache.add(scriptRoute)

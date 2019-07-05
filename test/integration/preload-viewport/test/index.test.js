@@ -121,4 +121,21 @@ describe('Prefetching Links in viewport', () => {
       if (browser) await browser.close()
     }
   })
+
+  it('should not prefetch when prefetch is explicitly set to false', async () => {
+    const browser = await webdriver(appPort, '/opt-out')
+    await waitFor(2 * 1000)
+
+    const links = await browser.elementsByCss('link[rel=preload]')
+    let found = false
+
+    for (const link of links) {
+      const href = await link.getAttribute('href')
+      if (href.includes('another')) {
+        found = true
+        break
+      }
+    }
+    expect(found).toBe(false)
+  })
 })

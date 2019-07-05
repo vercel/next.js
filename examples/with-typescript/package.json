@@ -8,14 +8,15 @@
     "type-check": "tsc"
   },
   "dependencies": {
-    "next": "^8.1.1-canary.28",
+    "next": "8.1.1-canary.61",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "@types/node": "^11.13.9",
     "@types/react": "^16.8.15",
-    "@types/react-dom": "^16.0.11"
+    "@types/react-dom": "^16.0.11",
+    "typescript": "3.5.2"
   },
   "license": "ISC"
 }

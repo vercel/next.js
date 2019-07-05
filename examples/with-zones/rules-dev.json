@@ -1,6 +1,0 @@
-{
-  "rules": [
-    { "pathname": "/blog", "dest": "http://localhost:5000" },
-    { "pathname": "/**", "dest": "http://localhost:4000" }
-  ]
-}

@@ -81,7 +81,7 @@ export default class DevServer extends Server {
               .filter(key => query[key] === undefined)
               .forEach(key =>
                 console.warn(
-                  `Url defines a query parameter '${key}' that is missing in exportPathMap`
+                  `Url '${path}' defines a query parameter '${key}' that is missing in exportPathMap`
                 )
               )
 
@@ -95,7 +95,7 @@ export default class DevServer extends Server {
   }
 
   async startWatcher () {
-    if (this.webpackWatcher || !this.nextConfig.experimental.dynamicRouting) {
+    if (this.webpackWatcher) {
       return
     }
 

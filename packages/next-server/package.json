@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "8.1.1-canary.54",
+  "version": "8.1.1-canary.68",
   "main": "./index.js",
   "license": "MIT",
   "repository": "zeit/next.js",
@@ -23,7 +23,8 @@
     "next-config.js",
     "next-config.d.ts",
     "amp.js",
-    "amp.d.ts"
+    "amp.d.ts",
+    "types/index.d.ts"
   ],
   "scripts": {
     "build": "taskr",
@@ -49,6 +50,7 @@
     "raw-body": "2.4.0",
     "react-is": "16.8.6",
     "send": "0.16.1",
+    "styled-jsx": "3.2.1",
     "url": "0.11.0"
   },
   "peerDependencies": {

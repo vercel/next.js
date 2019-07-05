@@ -80,16 +80,50 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 405 for POST on page', async () => {
+      const res = await fetch(`http://localhost:${appPort}/about`, {
+        method: 'POST'
+      })
+      expect(res.status).toBe(405)
+    })
+
+    it('should render 404 for POST on missing page', async () => {
+      const res = await fetch(`http://localhost:${appPort}/fake-page`, {
+        method: 'POST'
+      })
+      expect(res.status).toBe(404)
+    })
+
     it('should render 404 for _next routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
       const res = await fetch(url)
       expect(res.status).toBe(404)
     })
 
+    it('should render 404 even if the HTTP method is not GET or HEAD', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const methods = ['POST', 'PUT', 'DELETE']
+      for (const method of methods) {
+        const res = await fetch(url, { method })
+        expect(res.status).toBe(404)
+      }
+    })
+
     it('should render 404 for dotfiles in /static', async () => {
       const url = `http://localhost:${appPort}/static/.env`
       const res = await fetch(url)
       expect(res.status).toBe(404)
+    })
+
+    it('should return 405 method on static then GET and HEAD', async () => {
+      const res = await fetch(
+        `http://localhost:${appPort}/static/data/item.txt`,
+        {
+          method: 'POST'
+        }
+      )
+      expect(res.headers.get('allow').includes('GET')).toBe(true)
+      expect(res.status).toBe(405)
     })
 
     it('should set Content-Length header', async () => {
@@ -283,7 +317,12 @@ describe('Production Usage', () => {
           this.finished = true
         }
       }
-      const html = await app.renderToHTML({}, res, '/finish-response', {})
+      const html = await app.renderToHTML(
+        { method: 'GET' },
+        res,
+        '/finish-response',
+        {}
+      )
       expect(html).toBeFalsy()
     })
 
@@ -466,6 +505,26 @@ describe('Production Usage', () => {
       expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
       expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
     }
+  })
+
+  it('should prerender pages with data correctly', async () => {
+    const toSomething = await renderViaHTTP(appPort, '/to-something')
+    expect(toSomething).toMatch(/some interesting title/)
+
+    const something = await renderViaHTTP(appPort, '/something')
+    expect(something).toMatch(/this is some data to be inlined/)
+  })
+
+  it('should have inlined the data correctly in prerender', async () => {
+    const browser = await webdriver(appPort, '/to-something')
+    await browser.elementByCss('#something').click()
+
+    let text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/this is some data to be inlined/)
+
+    await browser.elementByCss('#to-something').click()
+    text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/some interesting title/)
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

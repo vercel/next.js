@@ -1,5 +1,5 @@
-// NOTE: This require will be replaced with `@sentry/browser` when
-// process.browser === true thanks to the webpack config in next.config.js
+// NOTE: This require will be replaced with `@sentry/browser`
+// client side thanks to the webpack config in next.config.js
 const Sentry = require('@sentry/node')
 const SentryIntegrations = require('@sentry/integrations')
 const Cookie = require('js-cookie')
@@ -53,7 +53,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
             scope.setExtra('statusCode', res.statusCode)
           }
 
-          if (process.browser) {
+          if (typeof window !== 'undefined') {
             scope.setTag('ssr', false)
             scope.setExtra('query', query)
             scope.setExtra('pathname', pathname)

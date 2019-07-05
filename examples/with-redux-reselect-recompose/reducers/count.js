@@ -1,4 +1,4 @@
-import { ADD, TICK } from 'constants/actionTypes'
+import { ADD, TICK } from '../constants/actionTypes'
 
 export const initialState = {
   lastUpdate: 0,

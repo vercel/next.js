@@ -1,3 +1,7 @@
+/// <reference types="node" />
+/// <reference types="react" />
+/// <reference types="react-dom" />
+
 import React from 'react'
 
 import {
@@ -7,17 +11,9 @@ import {
   NextApiRequest,
 } from 'next-server/dist/lib/utils'
 
-/// <reference types="node" />
-/// <reference types="react" />
-/// <reference types="react-dom" />
+import { PageConfig } from 'next-server/types'
 
-declare namespace NodeJS {
-  interface ProcessEnv {
-    readonly NODE_ENV: 'development' | 'production'
-    readonly browser: boolean
-    readonly crossOrigin?: string
-  }
-}
+import next from 'next/dist/server/next'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -51,11 +47,12 @@ export type NextPage<P = {}, IP = P> = {
   getInitialProps?(ctx: NextPageContext): Promise<IP>
 }
 
-/**
- * `Config` type, use it for export const config
- */
-export type PageConfig = {
-  amp?: boolean | 'hybrid'
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  PageConfig,
 }
 
-export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
+export default next

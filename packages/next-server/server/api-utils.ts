@@ -2,12 +2,15 @@ import { IncomingMessage } from 'http'
 import { NextApiResponse, NextApiRequest } from '../lib/utils'
 import { Stream } from 'stream'
 import getRawBody from 'raw-body'
-import { URL } from 'url'
 import { parse } from 'content-type'
+import { Params } from './router'
+
+export type NextApiRequestCookies = { [key: string]: string }
+export type NextApiRequestQuery = { [key: string]: string | string[] }
 
 /**
  * Parse incoming message like `json` or `urlencoded`
- * @param req
+ * @param req request object
  */
 export async function parseBody(req: NextApiRequest, limit: string = '1mb') {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
@@ -55,14 +58,35 @@ function parseJson(str: string) {
  * @param url of request
  * @returns Object with key name of query argument and its value
  */
-export function parseQuery({ url }: IncomingMessage) {
-  if (url) {
-    // This is just for parsing search params, base it's not important
+export function getQueryParser({ url }: IncomingMessage) {
+  return function parseQuery(): NextApiRequestQuery {
+    const { URL } = require('url')
+    // we provide a placeholder base url because we only want searchParams
     const params = new URL(url, 'https://n').searchParams
 
-    return reduceParams(params.entries())
-  } else {
-    return {}
+    const query: { [key: string]: string | string[] } = {}
+    for (const [key, value] of params) {
+      query[key] = value
+    }
+
+    return query
+  }
+}
+
+/**
+ * Parse cookeies from `req` header
+ * @param req request object
+ */
+export function getCookieParser(req: IncomingMessage) {
+  return function parseCookie(): NextApiRequestCookies {
+    const header: undefined | string | string[] = req.headers.cookie
+
+    if (!header) {
+      return {}
+    }
+
+    const { parse } = require('cookie')
+    return parse(Array.isArray(header) ? header.join(';') : header)
   }
 }
 
@@ -131,14 +155,6 @@ export function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.send(jsonBody)
 }
 
-function reduceParams(params: IterableIterator<[string, string]>) {
-  const obj: any = {}
-  for (const [key, value] of params) {
-    obj[key] = value
-  }
-  return obj
-}
-
 /**
  * Custom error class
  */
@@ -165,4 +181,40 @@ export function sendError(
   res.statusCode = statusCode
   res.statusMessage = message
   res.end()
+}
+
+interface LazyProps {
+  req: NextApiRequest
+  params?: Params | boolean
+}
+
+/**
+ * Execute getter function only if its needed
+ * @param LazyProps `req` and `params` for lazyProp
+ * @param prop name of property
+ * @param getter function to get data
+ */
+export function setLazyProp<T>(
+  { req, params }: LazyProps,
+  prop: string,
+  getter: () => T
+) {
+  const opts = { configurable: true, enumerable: true }
+  const optsReset = { ...opts, writable: true }
+
+  Object.defineProperty(req, prop, {
+    ...opts,
+    get: () => {
+      let value = getter()
+      if (params && typeof params !== 'boolean') {
+        value = { ...value, ...params }
+      }
+      // we set the property on the object to avoid recalculating it
+      Object.defineProperty(req, prop, { ...optsReset, value })
+      return value
+    },
+    set: value => {
+      Object.defineProperty(req, prop, { ...optsReset, value })
+    },
+  })
 }

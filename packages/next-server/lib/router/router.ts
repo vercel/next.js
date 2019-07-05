@@ -304,6 +304,13 @@ export default class Router implements BaseRouter {
         this.changeState(method, url, as, options)
         const hash = window.location.hash.substring(1)
 
+        if (process.env.NODE_ENV !== 'production') {
+          const appComp: any = this.components['/_app'].Component
+          ;(window as any).next.isPrerendered =
+            appComp.getInitialProps === appComp.origGetInitialProps &&
+            !routeInfo.Component.getInitialProps
+        }
+
         // @ts-ignore pathname is always defined
         this.set(route, pathname, query, as, { ...routeInfo, hash })
 
@@ -377,6 +384,10 @@ export default class Router implements BaseRouter {
         return new Promise((resolve, reject) => {
           const ctx = { pathname, query, asPath: as }
           this.getInitialProps(Component, ctx).then(props => {
+            // if data is inlined during prerender it is a string
+            if (props && typeof props.pageProps === 'string') {
+              props.pageProps = JSON.parse(props.pageProps)
+            }
             routeInfo.props = props
             this.components[route] = routeInfo
             resolve(routeInfo)
@@ -512,11 +523,7 @@ export default class Router implements BaseRouter {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.__NEXT_EXPERIMENTAL_DEBUG
-      )
-        return
+      if (process.env.NODE_ENV !== 'production') return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined

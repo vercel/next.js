@@ -37,6 +37,9 @@ export type LoadableOptions<P = {}> = LoadableBaseOptions<P> & {
 }
 
 export type DynamicOptions<P = {}> = LoadableBaseOptions<P> & {
+  /**
+   * @deprecated the modules option has been planned for removal
+   */
   render?(props: P, loaded: any): JSX.Element
 }
 
@@ -66,10 +69,6 @@ export function noSSR<P = {}>(
   )
 }
 
-function DefaultLoading() {
-  return <p>loading...</p>
-}
-
 // function dynamic<P = {}, O extends DynamicOptions>(options: O):
 
 export default function dynamic<P = {}>(
@@ -83,7 +82,7 @@ export default function dynamic<P = {}>(
       if (!pastDelay) return null
       if (process.env.NODE_ENV === 'development') {
         if (isLoading) {
-          return <DefaultLoading />
+          return null
         }
         if (error) {
           return (
@@ -96,7 +95,7 @@ export default function dynamic<P = {}>(
         }
       }
 
-      return <DefaultLoading />
+      return null
     },
   }
 
@@ -121,6 +120,12 @@ export default function dynamic<P = {}>(
     typeof dynamicOptions === 'object' &&
     !(dynamicOptions instanceof Promise)
   ) {
+    if (process.env.NODE_ENV !== 'production') {
+      // show deprecation warning in development
+      console.warn(
+        'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
+      )
+    }
     // Support for `render` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
     if (dynamicOptions.render) {
       loadableOptions.render = (loaded, props) =>

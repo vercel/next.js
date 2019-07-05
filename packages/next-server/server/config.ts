@@ -24,20 +24,19 @@ const defaultConfig: { [key: string]: any } = {
   amp: {
     canonicalBase: '',
   },
+  exportTrailingSlash: false,
   experimental: {
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    dynamicRouting: false,
-    autoExport: false,
     ampBindInitData: false,
-    exportTrailingSlash: true,
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false,
+    documentMiddleware: false,
   },
 }
 

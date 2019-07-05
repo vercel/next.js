@@ -37,7 +37,8 @@ export interface PageInfo {
 
 export function printTreeView(
   list: string[],
-  pageInfos: Map<string, PageInfo>
+  pageInfos: Map<string, PageInfo>,
+  serverless: boolean
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
@@ -73,7 +74,9 @@ export function printTreeView(
             ? ' '
             : pageInfo && pageInfo.static
             ? chalk.bold('⚡')
-            : 'λ'
+            : serverless
+            ? 'λ'
+            : 'σ'
         } ${item}`,
         ...(pageInfo
           ? [
@@ -81,13 +84,9 @@ export function printTreeView(
                 ? chalk.cyan('AMP')
                 : pageInfo.size >= 0
                 ? getPrettySize(pageInfo.size)
-                : 'N/A',
-              pageInfo.chunks
-                ? pageInfo.chunks.internal.size.toString()
-                : 'N/A',
-              pageInfo.chunks
-                ? pageInfo.chunks.external.size.toString()
-                : 'N/A',
+                : '',
+              pageInfo.chunks ? pageInfo.chunks.internal.size.toString() : '',
+              pageInfo.chunks ? pageInfo.chunks.external.size.toString() : '',
             ]
           : ['', '', '']),
       ])
@@ -104,17 +103,25 @@ export function printTreeView(
   console.log(
     textTable(
       [
-        [
-          'λ',
-          '(Lambda)',
-          `page was emitted as a lambda (i.e. ${chalk.cyan(
-            'getInitialProps'
-          )})`,
-        ],
+        serverless
+          ? [
+              'λ',
+              '(Lambda)',
+              `page was emitted as a lambda (i.e. ${chalk.cyan(
+                'getInitialProps'
+              )})`,
+            ]
+          : [
+              'σ',
+              '(Server)',
+              `page will be server rendered (i.e. ${chalk.cyan(
+                'getInitialProps'
+              )})`,
+            ],
         [
           chalk.bold('⚡'),
           '(Static File)',
-          'page was pre-rendered as static HTML',
+          'page was prerendered as static HTML',
         ],
       ],
       {
@@ -259,18 +266,22 @@ export async function getPageSizeInKb(
 export function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
-): boolean {
+): { static?: boolean; prerender?: boolean } {
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
-    const Comp = require(serverBundle).default
+    const mod = require(serverBundle)
+    const Comp = mod.default
+
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
-      const invalidPage = new Error('invalid-page')
-      ;(invalidPage as any).code = 'INVALID_DEFAULT_EXPORT'
-      throw invalidPage
+      throw new Error('INVALID_DEFAULT_EXPORT')
     }
-    return typeof (Comp as any).getInitialProps !== 'function'
+
+    return {
+      static: typeof (Comp as any).getInitialProps !== 'function',
+      prerender: mod.config && mod.config.experimentalPrerender,
+    }
   } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') return false
+    if (err.code === 'MODULE_NOT_FOUND') return {}
     throw err
   }
 }
