@@ -584,7 +584,7 @@ export default async function getBaseWebpackConfig(
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
-      !isServer && new BuildManifestPlugin(),
+      !isServer && new BuildManifestPlugin(buildId),
       config.experimental.profiling &&
         new webpack.debug.ProfilingPlugin({
           outputPath: path.join(

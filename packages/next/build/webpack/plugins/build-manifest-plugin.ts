@@ -4,12 +4,19 @@ import {
   BUILD_MANIFEST,
   ROUTE_NAME_REGEX,
   IS_BUNDLED_PAGE_REGEX,
+  CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
 } from 'next-server/constants'
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
+  buildId: string
+
+  constructor(buildId: string) {
+    this.buildId = buildId
+  }
+
   apply(compiler: Compiler) {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
@@ -84,14 +91,35 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
+        // Add the runtime buildManifest.js file (generated later in this file) as a
+        // dependency for the app.
+        assetMap.pages['/_app'].push(
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+        )
+
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
           .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
+        const manifestContentString = JSON.stringify(assetMap, null, 2)
+
         compilation.assets[BUILD_MANIFEST] = new RawSource(
-          JSON.stringify(assetMap, null, 2)
+          manifestContentString
         )
+
+        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
+          this.buildId
+        }/_buildManifest.js`
+        const clientManifestContentString = manifestContentString.replace(
+          /\s/g,
+          ''
+        )
+
+        compilation.assets[clientManifestPath] = new RawSource(
+          `(function(){__BUILD_MANIFEST = JSON.parse('${clientManifestContentString}')})()`
+        )
+
         callback()
       }
     )
