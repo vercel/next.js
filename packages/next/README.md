@@ -53,7 +53,6 @@
     - [With named exports](#with-named-exports)
     - [With Custom Loading Component](#with-custom-loading-component)
     - [With No SSR](#with-no-ssr)
-    - [With Multiple Modules At Once](#with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
     - [Customizing `renderPage`](#customizing-renderpage)
