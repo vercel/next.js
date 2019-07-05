@@ -417,12 +417,7 @@ export default class Server {
       throw err
     }
 
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      await this.render404(req, res, parsedUrl)
-    } else {
-      res.statusCode = 501
-      res.end('Not Implemented')
-    }
+    await this.render404(req, res, parsedUrl)
   }
 
   private async sendHTML(
@@ -537,6 +532,12 @@ export default class Server {
     return this.findPageComponents(pathname, query)
       .then(
         result => {
+          if (!(req.method === 'GET' || req.method === 'HEAD')) {
+            res.statusCode = 405
+            res.setHeader('Allow', ['GET', 'HEAD'])
+            return this.renderError(null, req, res, pathname, query)
+          }
+
           return this.renderToHTMLWithComponents(
             req,
             res,
@@ -558,8 +559,14 @@ export default class Server {
             }
 
             return this.findPageComponents(dynamicRoute.page, query).then(
-              result =>
-                this.renderToHTMLWithComponents(
+              result => {
+                if (!(req.method === 'GET' || req.method === 'HEAD')) {
+                  res.statusCode = 405
+                  res.setHeader('Allow', ['GET', 'HEAD'])
+                  return this.renderError(null, req, res, pathname, query)
+                }
+
+                return this.renderToHTMLWithComponents(
                   req,
                   res,
                   dynamicRoute.page,
@@ -567,6 +574,7 @@ export default class Server {
                   result,
                   { ...this.renderOpts, amphtml, hasAmp, dataOnly }
                 )
+              }
             )
           }
 
@@ -654,6 +662,12 @@ export default class Server {
   ): Promise<void> {
     if (!this.isServeableUrl(path)) {
       return this.render404(req, res, parsedUrl)
+    }
+
+    if (!(req.method === 'GET' || req.method === 'HEAD')) {
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      return this.renderError(null, req, res, path)
     }
 
     try {
