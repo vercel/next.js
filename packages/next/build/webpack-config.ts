@@ -439,7 +439,6 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       // This plugin makes sure `output.filename` is used for entry chunks
-      new webpack.ExtendedAPIPlugin(),
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...Object.keys(config.env).reduce((acc, key) => {
