@@ -304,6 +304,13 @@ export default class Router implements BaseRouter {
         this.changeState(method, url, as, options)
         const hash = window.location.hash.substring(1)
 
+        if (process.env.NODE_ENV !== 'production') {
+          const appComp: any = this.components['/_app'].Component
+          ;(window as any).next.isPrerendered =
+            appComp.getInitialProps === appComp.origGetInitialProps &&
+            !routeInfo.Component.getInitialProps
+        }
+
         // @ts-ignore pathname is always defined
         this.set(route, pathname, query, as, { ...routeInfo, hash })
 

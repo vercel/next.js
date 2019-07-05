@@ -298,6 +298,9 @@ The matched path parameter will be sent as a query parameter to the page.
 For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
 
+However, if a query and route param name are the same, route parameters will override the matching query params.
+For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
+
 > **Note**: Predefined routes take precedence over dynamic routes.
 > For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
 
@@ -782,7 +785,7 @@ Here's a list of supported events:
 
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
 - `beforeHistoryChange(url)` - Fires just before changing the browser's history
 - `hashChangeStart(url)` - Fires when the hash will change but not the page
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
@@ -814,6 +817,22 @@ Router.events.on('routeChangeError', (err, url) => {
   }
 })
 ```
+
+> **Note**: Using router events in `getInitialProps` is discouraged as it may result in unexpected behavior.<br/>
+> Router events should be registered when a component mounts (`useEffect` or `componentDidMount`/`componentWillUnmount`) or imperatively when an event happens.
+>
+> ```js
+> useEffect(() => {
+>   const handleRouteChange = url => {
+>     console.log('App is changing to: ', url)
+>   }
+>
+>   Router.events.on('routeChangeStart', handleRouteChange)
+>   return () => {
+>     Router.events.off('routeChangeStart', handleRouteChange)
+>   }
+> }, [])
+> ```
 
 ##### Shallow Routing
 
@@ -2196,7 +2215,7 @@ Any AMP errors will cause `next export` to exit with status code `1` because the
 
 ### TypeScript Support
 
-AMP currently doesn't have built-in types for Typescript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125).
+AMP currently doesn't have built-in types for TypeScript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125).
 
 ## Static HTML export
 
@@ -2250,7 +2269,20 @@ module.exports = {
 }
 ```
 
-> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
+The pages will be exported as html files, i.e. `/about` will become `/about.html`.
+
+It is possible to configure Next.js to export pages as `index.html` files and require trailing slashes, i.e. `/about` becomes `/about/index.html` and is routable via `/about/`.
+This was the default behavior prior to Next.js 9.
+You can use the following `next.config.js` to switch back to this behavior:
+
+```js
+// next.config.js
+module.exports = {
+  exportTrailingSlash: true,
+}
+```
+
+> **Note**: If the export path is a filename (e.g. `/readme.md`) and is different than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
 
 The second argument is an `object` with:
 
