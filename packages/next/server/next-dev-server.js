@@ -250,9 +250,19 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname).catch(err => {
+      await this.hotReloader.ensurePage(pathname).catch(async err => {
         if (err.code !== 'ENOENT') {
           return Promise.reject(err)
+        }
+
+        try {
+          // Try to send a public file and let servePublic handle the request from here
+          await this.servePublic(req, res, pathname)
+          return null
+        } catch (err) {
+          if (err.code !== 'ENOENT' && err.statusCode !== 404) {
+            throw err
+          }
         }
 
         for (const dynamicRoute of this.dynamicRoutes) {
@@ -266,16 +276,16 @@ export default class DevServer extends Server {
             query = Object.assign({}, query, params)
           })
         }
-
         return Promise.reject(err)
       })
     } catch (err) {
-      if (err.code === 'ENOENT') {
-        // Try to send a public file and let servePublic handle the request from here
-        await this.servePublic(req, res, pathname)
+      if (err.code === 'ENOENT' || err.statusCode === 404) {
+        this.render404(req, res)
         return null
+      } else {
+        if (!this.quiet) console.error(err)
+        throw err
       }
-      if (!this.quiet) console.error(err)
     }
     const html = await super.renderToHTML(req, res, pathname, query, options)
     return html
@@ -319,7 +329,7 @@ export default class DevServer extends Server {
 
   servePublic (req, res, path) {
     const p = join(this.publicDir, path)
-    return this.serveStatic(req, res, p)
+    return this.serveStatic(req, res, p, undefined, true)
   }
 
   async getCompilationError (page) {

@@ -150,6 +150,11 @@ function runTests () {
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
+
+  it('should prioritize public files over dynamic routes', async () => {
+    const content = await renderViaHTTP(appPort, '/hello.txt')
+    expect(content).toMatch(/hello world/)
+  })
 }
 
 describe('Dynamic Routing', () => {

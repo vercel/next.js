@@ -658,21 +658,27 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     path: string,
-    parsedUrl?: UrlWithParsedQuery
+    parsedUrl?: UrlWithParsedQuery,
+    throwOnError?: boolean
   ): Promise<void> {
-    if (!this.isServeableUrl(path)) {
-      return this.render404(req, res, parsedUrl)
-    }
+    if (!throwOnError) {
+      if (!this.isServeableUrl(path)) {
+        return this.render404(req, res, parsedUrl)
+      }
 
-    if (!(req.method === 'GET' || req.method === 'HEAD')) {
-      res.statusCode = 405
-      res.setHeader('Allow', ['GET', 'HEAD'])
-      return this.renderError(null, req, res, path)
+      if (!(req.method === 'GET' || req.method === 'HEAD')) {
+        res.statusCode = 405
+        res.setHeader('Allow', ['GET', 'HEAD'])
+        return this.renderError(null, req, res, path)
+      }
     }
 
     try {
       await serveStatic(req, res, path)
     } catch (err) {
+      if (throwOnError) {
+        throw err
+      }
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
       } else {
