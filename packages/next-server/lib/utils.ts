@@ -228,7 +228,7 @@ export async function loadGetInitialProps<
   const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
   if (!Component.getInitialProps) {
-    return null
+    return {} as any
   }
 
   const props = await Component.getInitialProps(ctx)
