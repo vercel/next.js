@@ -3,8 +3,8 @@ import {
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
-} from 'next-server/lib/utils'
-import { RouterUrl } from 'next-server/lib/router/router'
+} from 'next-server/dist/lib/utils'
+import { RouterUrl } from 'next-server/dist/lib/router/router'
 
 /**
  * `Config` type, use it for export const config
