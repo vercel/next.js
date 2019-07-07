@@ -329,7 +329,7 @@ export async function renderToHTML(
 
   const AppContainer = ({ children }: any) => (
     <RequestContext.Provider value={req}>
-      <RouterContext.Provider value={router}>
+      <RouterContext.Provider value={router as any}>
         <DataManagerContext.Provider value={dataManager}>
           <AmpStateContext.Provider value={ampState}>
             <LoadableContext.Provider
