@@ -5,14 +5,13 @@
 import React from 'react'
 
 import {
+  PageConfig,
   NextPageContext,
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
-} from 'next-server/dist/lib/utils'
-
-import { PageConfig } from 'next-server/types'
-import { RouterUrl } from 'next-server/dist/lib/router/router'
+  RouterUrl,
+} from 'next-server/types'
 
 import next from 'next/dist/server/next'
 

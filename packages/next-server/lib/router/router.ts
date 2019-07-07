@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject, Url } from 'url'
+import { parse, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -21,7 +21,7 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-export type RouterUrl = string | UrlObject | Url
+export type RouterUrl = string | UrlObject
 
 export type BaseRouter = {
   route: string
