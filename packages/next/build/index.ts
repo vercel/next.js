@@ -329,7 +329,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
         if (customAppGetInitialProps) {
           console.warn(
-            'Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n'
+            chalk.bold.yellow(`Warning: `) +
+              chalk.yellow(
+                `You have opted-out of Automatic Prerendering due to \`getInitialProps\` in \`pages/_app\`.`
+              )
+          )
+          console.warn(
+            'Read more: https://err.sh/next.js/opt-out-automatic-prerendering\n'
           )
         }
       }
@@ -406,10 +412,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const exportConfig = {
       ...config,
       exportPathMap: (defaultMap: any) => defaultMap,
-      experimental: {
-        ...config.experimental,
-        exportTrailingSlash: false,
-      },
+      exportTrailingSlash: false,
     }
     await exportApp(dir, exportOptions, exportConfig)
     const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)

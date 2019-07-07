@@ -176,6 +176,32 @@ export function nextStart (dir, port, opts = {}) {
   return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
 }
 
+export function buildTS (args = [], cwd, env = {}) {
+  cwd = cwd || path.dirname(require.resolve('next/package'))
+  env = { ...process.env, NODE_ENV: undefined, ...env }
+
+  return new Promise((resolve, reject) => {
+    const instance = spawn(
+      'node',
+      [require.resolve('typescript/lib/tsc'), ...args],
+      { cwd, env }
+    )
+    let output = ''
+
+    const handleData = chunk => {
+      output += chunk.toString()
+    }
+
+    instance.stdout.on('data', handleData)
+    instance.stderr.on('data', handleData)
+
+    instance.on('exit', code => {
+      if (code) { return reject(new Error('exited with code: ' + code + '\n' + output)) }
+      resolve()
+    })
+  })
+}
+
 // Kill a launched app
 export async function killApp (instance) {
   await new Promise((resolve, reject) => {
