@@ -12,6 +12,7 @@ import {
 } from 'next-server/dist/lib/utils'
 
 import { PageConfig } from 'next-server/types'
+import { RouterUrl } from 'next-server/dist/lib/router/router'
 
 import next from 'next/dist/server/next'
 
@@ -53,6 +54,7 @@ export {
   NextApiResponse,
   NextApiRequest,
   PageConfig,
+  RouterUrl,
 }
 
 export default next
