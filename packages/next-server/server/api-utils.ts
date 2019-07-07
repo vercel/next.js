@@ -4,9 +4,55 @@ import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { parse } from 'content-type'
 import { Params } from './router'
+import { PageConfig } from '../types'
+import { interopDefault } from './load-components'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
+
+export async function apiResolver(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  params: any,
+  resolverModule: any
+) {
+  try {
+    let bodyParser = true
+    if (!resolverModule) {
+      res.statusCode = 404
+      res.end('Not Found')
+      return
+    }
+
+    if (resolverModule.config) {
+      const config: PageConfig = resolverModule.config
+      if (config.api && config.api.bodyParser === false) {
+        bodyParser = false
+      }
+    }
+    // Parsing of cookies
+    setLazyProp({ req }, 'cookies', getCookieParser(req))
+    // Parsing query string
+    setLazyProp({ req, params }, 'query', getQueryParser(req))
+    // // Parsing of body
+    if (bodyParser) {
+      req.body = await parseBody(req)
+    }
+
+    res.status = statusCode => sendStatusCode(res, statusCode)
+    res.send = data => sendData(res, data)
+    res.json = data => sendJson(res, data)
+
+    const resolver = interopDefault(resolverModule)
+    resolver(req, res)
+  } catch (e) {
+    if (e instanceof ApiError) {
+      sendError(res, e.statusCode, e.message)
+    } else {
+      sendError(res, 500, e.message)
+    }
+  }
+}
 
 /**
  * Parse incoming message like `json` or `urlencoded`

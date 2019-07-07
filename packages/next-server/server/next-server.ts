@@ -23,31 +23,16 @@ import {
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import {
-  getQueryParser,
-  sendJson,
-  sendData,
-  parseBody,
-  sendError,
-  ApiError,
-  sendStatusCode,
-  setLazyProp,
-  getCookieParser,
-} from './api-utils'
+import { apiResolver } from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import {
-  interopDefault,
-  loadComponents,
-  LoadComponentsReturnType,
-} from './load-components'
+import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { PageConfig } from 'next-server/types'
 
 type NextConfig = any
 
@@ -289,7 +274,6 @@ export default class Server {
     res: NextApiResponse,
     pathname: string
   ) {
-    let bodyParser = true
     let params: Params | boolean = false
 
     let resolverFunction = await this.resolveApiRequest(pathname)
@@ -307,43 +291,12 @@ export default class Server {
       }
     }
 
-    if (!resolverFunction) {
-      res.statusCode = 404
-      res.end('Not Found')
-      return
-    }
-
-    try {
-      const resolverModule = require(resolverFunction)
-
-      if (resolverModule.config) {
-        const config: PageConfig = resolverModule.config
-        if (config.api && config.api.bodyParser === false) {
-          bodyParser = false
-        }
-      }
-      // Parsing of cookies
-      setLazyProp({ req }, 'cookies', getCookieParser(req))
-      // Parsing query string
-      setLazyProp({ req, params }, 'query', getQueryParser(req))
-      // // Parsing of body
-      if (bodyParser) {
-        req.body = await parseBody(req)
-      }
-
-      res.status = statusCode => sendStatusCode(res, statusCode)
-      res.send = data => sendData(res, data)
-      res.json = data => sendJson(res, data)
-
-      const resolver = interopDefault(resolverModule)
-      resolver(req, res)
-    } catch (e) {
-      if (e instanceof ApiError) {
-        sendError(res, e.statusCode, e.message)
-      } else {
-        sendError(res, 500, e.message)
-      }
-    }
+    apiResolver(
+      req,
+      res,
+      params,
+      resolverFunction ? require(resolverFunction) : undefined
+    )
   }
 
   /**

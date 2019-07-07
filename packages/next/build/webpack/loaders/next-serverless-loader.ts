@@ -38,7 +38,22 @@ const nextServerlessLoader: loader.Loader = function() {
     /\\/g,
     '/'
   )
-  return `
+
+  if (page.startsWith('/api')) {
+    return `
+      import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher';
+      import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex';
+      import { apiResolver } from 'next-server/dist/server/api-utils'
+    
+      export default (req, res) => {
+        const params = getRouteMatcher(getRouteRegex('${page}'))(req.url)
+        
+        const resolver = require('${absolutePagePath}')
+        apiResolver(req, res, params, resolver)
+      }
+    `
+  } else {
+    return `
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';
     import {sendHTML} from 'next-server/dist/server/send-html';
@@ -120,6 +135,7 @@ const nextServerlessLoader: loader.Loader = function() {
       }
     }
   `
+  }
 }
 
 export default nextServerlessLoader
