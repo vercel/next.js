@@ -41,13 +41,22 @@ const nextServerlessLoader: loader.Loader = function() {
 
   if (page.startsWith('/api')) {
     return `
+    ${
+      isDynamicRoute(page)
+        ? `
       import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher';
       import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex';
+      `
+        : ``
+    }
       import { apiResolver } from 'next-server/dist/server/api-utils'
     
       export default (req, res) => {
-        const params = getRouteMatcher(getRouteRegex('${page}'))(req.url)
-        
+        const params = ${
+          isDynamicRoute(page)
+            ? `getRouteMatcher(getRouteRegex('${page}'))(req.url)`
+            : `{}`
+        }
         const resolver = require('${absolutePagePath}')
         apiResolver(req, res, params, resolver)
       }
