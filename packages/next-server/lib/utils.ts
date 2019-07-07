@@ -13,7 +13,7 @@ export type NextComponentType<
   IP = {},
   P = {}
 > = ComponentType<P> & {
-  getInitialProps?(context: C): Promise<IP>
+  getInitialProps?(context: C): IP | Promise<IP>
 }
 
 export type DocumentType = NextComponentType<
