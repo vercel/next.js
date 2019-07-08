@@ -5,13 +5,13 @@
 import React from 'react'
 
 import {
-  PageConfig,
   NextPageContext,
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
-  RouterUrl,
-} from 'next-server/types'
+} from 'next-server/dist/lib/utils'
+
+import { PageConfig } from 'next-server/types'
 
 import next from 'next/dist/server/next'
 
@@ -53,7 +53,6 @@ export {
   NextApiResponse,
   NextApiRequest,
   PageConfig,
-  RouterUrl,
 }
 
 export default next
