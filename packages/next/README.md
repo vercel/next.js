@@ -1047,7 +1047,7 @@ export default withRouter(MyLink)
   </ul>
 </details>
 
-API routes provides a straightforward solution to build your `API` with `Next.js`. Start by creating the `api` folder inside the `pages` folder. Every file inside `api` is mapped to `/api/*`, for example `api/posts.js` will be mapped to `/api/posts`. Here's how an `api` route looks like:
+API routes provides a straightforward solution to build your `API` with `Next.js`. Start by creating the `api` folder inside the `pages` folder. Every file inside `./pages/api` is mapped to `/api/*`, for example `./pages/api/posts.js` will be mapped to `/api/posts`. Here's how an `api` route looks like:
 
 ```js
 export default (req, res) => {
@@ -1062,7 +1062,7 @@ export default (req, res) => {
 #### Dynamic routes support
 API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
 
-Consider the following page `pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
+Consider the following page `./pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
 ```js
 export default (req, res) => {
   const {
