@@ -587,7 +587,9 @@ export default class Router implements BaseRouter {
 
   abortComponentLoad(as: string): void {
     if (this.clc) {
-      Router.events.emit('routeChangeError', new Error('Route Cancelled'), as)
+      const e = new Error('Route Cancelled')
+      ;(e as any).cancelled = true
+      Router.events.emit('routeChangeError', e, as)
       this.clc()
       this.clc = null
     }
