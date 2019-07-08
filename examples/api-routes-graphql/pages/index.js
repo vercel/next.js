@@ -14,7 +14,7 @@ Index.getInitialProps = async () => {
     headers: {
       'Content-type': 'application/json'
     },
-    body: JSON.stringify({ query: '{users{name}}' })
+    body: JSON.stringify({ query: '{ users { name } }' })
   })
 
   const {
