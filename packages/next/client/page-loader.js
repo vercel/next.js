@@ -1,4 +1,4 @@
-/* global document */
+/* global document, __BUILD_MANIFEST */
 import mitt from 'next-server/dist/lib/mitt'
 import unfetch from 'unfetch'
 
@@ -20,7 +20,6 @@ export default class PageLoader {
   constructor (buildId, assetPrefix) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
-
     this.pageCache = {}
     this.prefetchCache = new Set()
     this.pageRegisterEvents = mitt()
@@ -70,11 +69,48 @@ export default class PageLoader {
         return
       }
 
-      // Load the script if not asked to load yet.
       if (!this.loadingRoutes[route]) {
-        this.loadScript(route)
+        // Make sure we don't load a dependency that's already loaded
+        const loadedModules = new Set(
+          Array.from(document.getElementsByTagName('script'), el => {
+            const results = /\/_next\/.*/g.exec(el.src)
+            return results ? results[0] : el.src
+          })
+        )
+        const deps = this.getDependencies(route)
+        const urlsToLoad = deps
+          .map(url => '/_next/' + url)
+          .filter(url => !loadedModules.has(url))
+
+        // Wait for all of the page's dependencies to load before loading
+        // the main page script
+        Promise.all(urlsToLoad.map(this.loadDependency)).then(() => {
+          this.loadScript(route)
+        })
         this.loadingRoutes[route] = true
       }
+    })
+  }
+
+  // Retrieve a list of dependencies for a given route from the build manifest
+  getDependencies (route) {
+    return __BUILD_MANIFEST.pages[route] || []
+  }
+
+  loadDependency (url) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.crossOrigin = process.crossOrigin
+      script.src = url
+      script.onerror = () => {
+        const error = new Error(`Error loading script ${url}`)
+        error.code = 'PAGE_LOAD_ERROR'
+        reject(error)
+      }
+      script.onload = () => {
+        resolve()
+      }
+      document.body.appendChild(script)
     })
   }
 
@@ -163,7 +199,7 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch (route) {
+  async prefetch (route, isDependency) {
     route = this.normalizeRoute(route)
     const scriptRoute = `${route === '/' ? '/index' : route}.js`
 
@@ -186,20 +222,31 @@ export default class PageLoader {
       }
     }
 
+    if (!isDependency) {
+      this.getDependencies(route)
+        .map(url => '/_next/' + url)
+        .forEach(url => {
+          this.prefetch(url, true)
+        })
+    }
+
     // Feature detection is used to see if preload is supported
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
       await this.promisedBuildId
+      const url = isDependency
+        ? route
+        : `${this.assetPrefix}/_next/static/${encodeURIComponent(
+          this.buildId
+        )}/pages${scriptRoute}`
+      this.createPreloadLink(url)
+      return
+    }
 
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.crossOrigin = process.crossOrigin
-      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${scriptRoute}`
-      link.as = 'script'
-      document.head.appendChild(link)
+    if (isDependency) {
+      // loadPage will automatically handle depencies, so no need to
+      // preload them manually
       return
     }
 
@@ -212,6 +259,15 @@ export default class PageLoader {
         })
       })
     }
+  }
+
+  createPreloadLink (url) {
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.crossOrigin = process.crossOrigin
+    link.href = url
+    link.as = 'script'
+    document.head.appendChild(link)
   }
 
   clearCache (route) {
