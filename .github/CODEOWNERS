@@ -2,7 +2,7 @@
 # https://help.github.com/en/articles/about-code-owners
 
 /packages/                @timneutkens @Timer @ijjk @lfades
-/examples/                @kheruc @lfades
+/examples/                @lfades
 /test/                    @timneutkens @Timer @ijjk @lfades
 /bench/                   @timneutkens
-/errors/                  @kheruc
+/errors/                  @Timer
