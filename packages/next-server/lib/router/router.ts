@@ -21,7 +21,7 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-export type RouterUrl = string | UrlObject
+export type RouteUrl = string | UrlObject
 
 export type BaseRouter = {
   route: string
@@ -221,7 +221,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: RouterUrl, as: RouterUrl = url, options = {}) {
+  push(url: RouteUrl, as: RouteUrl = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
@@ -231,14 +231,14 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: RouterUrl, as: RouterUrl = url, options = {}) {
+  replace(url: RouteUrl, as: RouteUrl = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
 
   change(
     method: string,
-    _url: RouterUrl,
-    _as: RouterUrl,
+    _url: RouteUrl,
+    _as: RouteUrl,
     options: any
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
