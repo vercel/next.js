@@ -13,7 +13,7 @@ export type NextComponentType<
   IP = {},
   P = {}
 > = ComponentType<P> & {
-  getInitialProps?(context: C): Promise<IP>
+  getInitialProps?(context: C): IP | Promise<IP>
 }
 
 export type DocumentType = NextComponentType<
@@ -228,25 +228,13 @@ export async function loadGetInitialProps<
   const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
   if (!Component.getInitialProps) {
-    return null
+    return {} as any
   }
 
   const props = await Component.getInitialProps(ctx)
 
   if (res && isResSent(res)) {
     return props
-  }
-
-  // if page component doesn't have getInitialProps
-  // set cache-control header to stale-while-revalidate
-  if (ctx.Component && !ctx.Component.getInitialProps) {
-    const customAppGetInitialProps =
-      (Component as any).origGetInitialProps &&
-      (Component as any).origGetInitialProps !== Component.getInitialProps
-
-    if (!customAppGetInitialProps && res && res.setHeader) {
-      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate')
-    }
   }
 
   if (!props) {

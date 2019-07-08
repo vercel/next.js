@@ -10,8 +10,9 @@ module.exports = phase => {
       bar: 'bar'
     },
     experimental: {
-      exportTrailingSlash: true
+      publicDirectory: true
     },
+    exportTrailingSlash: true,
     exportPathMap: function () {
       return {
         '/': { page: '/' },
