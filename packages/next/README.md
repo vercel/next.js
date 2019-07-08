@@ -1057,7 +1057,7 @@ export default (req, res) => {
 }
 ```
 
-**Note: API routes pages are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
+**Note: API routes are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
 
 #### Dynamic routes support
 API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
