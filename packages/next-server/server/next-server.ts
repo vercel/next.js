@@ -58,7 +58,7 @@ export default class Server {
   nextConfig: NextConfig
   distDir: string
   publicDir: string
-  buildManifest: string
+  pagesManifest: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -88,7 +88,11 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.buildManifest = join(this.distDir, BUILD_MANIFEST)
+    this.pagesManifest = join(
+      this.distDir,
+      this.nextConfig.target || 'server',
+      PAGES_MANIFEST
+    )
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -278,8 +282,12 @@ export default class Server {
     pathname: string
   ) {
     let params: Params | boolean = false
+    let resolverFunction: any
 
-    let resolverFunction = await this.resolveApiRequest(pathname)
+    try {
+      resolverFunction = await this.resolveApiRequest(pathname)
+    } catch (err) {}
+
     if (
       this.dynamicRoutes &&
       this.dynamicRoutes.length > 0 &&
@@ -291,6 +299,17 @@ export default class Server {
           resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
           break
         }
+      }
+    }
+
+    if (!resolverFunction) {
+      return this.render404(req, res)
+    }
+
+    if (!this.renderOpts.dev && this.nextConfig.target === 'serverless') {
+      const mod = require(resolverFunction)
+      if (typeof mod.default === 'function') {
+        return mod.default(req, res)
       }
     }
 
@@ -344,10 +363,8 @@ export default class Server {
   }
 
   private getDynamicRoutes() {
-    const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter(
-      isDynamicRoute
-    )
+    const manifest = require(this.pagesManifest)
+    const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
       match: getRouteMatcher(getRouteRegex(page)),
