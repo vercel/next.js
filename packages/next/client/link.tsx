@@ -198,6 +198,27 @@ class Link extends Component<LinkProps> {
     Router.prefetch(href)
   }
 
+  // This will return the first child, if multiple are provided it will throw an error
+  getChild = () => Children.only(this.props.children)
+
+  onMouseEnter = (e: React.MouseEvent) => {
+    const child: any = this.getChild()
+    if (child.props && typeof child.props.onMouseEnter === 'function') {
+      child.props.onMouseEnter(e)
+    }
+    this.prefetch()
+  }
+
+  onClick = (e: React.MouseEvent) => {
+    const child: any = this.getChild()
+    if (child.props && typeof child.props.onClick === 'function') {
+      child.props.onClick(e)
+    }
+    if (!e.defaultPrevented) {
+      this.linkClicked(e)
+    }
+  }
+
   render() {
     let { children } = this.props
     const { href, as } = this.formatUrls(this.props.href, this.props.as)
@@ -206,29 +227,16 @@ class Link extends Component<LinkProps> {
       children = <a>{children}</a>
     }
 
-    // This will return the first child, if multiple are provided it will throw an error
-    const child: any = Children.only(children)
+    const child: any = this.getChild()
     const props: {
       onMouseEnter: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
       ref?: any
     } = {
-      ref: (el: any) => this.handleRef(el),
-      onMouseEnter: (e: React.MouseEvent) => {
-        if (child.props && typeof child.props.onMouseEnter === 'function') {
-          child.props.onMouseEnter(e)
-        }
-        this.prefetch()
-      },
-      onClick: (e: React.MouseEvent) => {
-        if (child.props && typeof child.props.onClick === 'function') {
-          child.props.onClick(e)
-        }
-        if (!e.defaultPrevented) {
-          this.linkClicked(e)
-        }
-      },
+      ref: this.handleRef,
+      onMouseEnter: this.onMouseEnter,
+      onClick: this.onClick,
     }
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
