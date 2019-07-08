@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "draft-js": "0.10.5",
-    "next": "5.0.0",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   }
