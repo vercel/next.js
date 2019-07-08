@@ -45,7 +45,7 @@ function formatUrl(url: Url) {
   return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
 
-type LinkProps = {
+export type LinkProps = {
   href: Url
   as?: Url | undefined
   replace?: boolean
