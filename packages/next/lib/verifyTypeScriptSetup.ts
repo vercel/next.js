@@ -93,7 +93,7 @@ async function checkDependencies({
 }
 
 export async function verifyTypeScriptSetup(dir: string): Promise<void> {
-  const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const tsConfigPath = path.join(process.cwd(), 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
   const hasTsConfig = await exists(tsConfigPath)
@@ -282,7 +282,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   }
 
   // Reference `next` types
-  const appTypeDeclarations = path.join(dir, 'next-env.d.ts')
+  const appTypeDeclarations = path.join(process.cwd(), 'next-env.d.ts')
   if (!fs.existsSync(appTypeDeclarations)) {
     fs.writeFileSync(
       appTypeDeclarations,
