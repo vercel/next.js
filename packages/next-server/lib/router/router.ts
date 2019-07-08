@@ -21,10 +21,10 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-export type BaseRouter = {
+export type BaseRouter<Query = unknown> = {
   route: string
   pathname: string
-  query: ParsedUrlQuery
+  query: ParsedUrlQuery & Query
   asPath: string
 }
 
