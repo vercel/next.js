@@ -1,6 +1,6 @@
 import * as React from 'react'
-import Router from './router/router'
+import { PublicRouterInstance } from './router/router'
 
-export const RouterContext: React.Context<Router> = React.createContext(
+export const RouterContext = React.createContext<PublicRouterInstance>(
   null as any
 )

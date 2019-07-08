@@ -30,6 +30,14 @@ export type BaseRouter = {
   asPath: string
 }
 
+export type PublicRouterInstance = BaseRouter &
+  Pick<
+    Router,
+    'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'
+  > & {
+    events: typeof Router['events']
+  }
+
 type RouteInfo = {
   Component: ComponentType
   props?: any
