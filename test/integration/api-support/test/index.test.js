@@ -12,6 +12,7 @@ import {
   File
 } from 'next-test-utils'
 import json from '../big.json'
+import { createServer } from 'http'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -207,6 +208,19 @@ function runTests (serverless = false) {
         )
       )
       expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
+
+      const port = await findPort()
+      const resolver = require(join(
+        appDir,
+        '.next/serverless/pages/api/blog.js'
+      )).default
+
+      const server = createServer(resolver).listen(port)
+      const res = await fetchViaHTTP(port, '/api/nextjs')
+      const json = await res.json()
+      server.close()
+
+      expect(json).toEqual([{ title: 'Cool Post!' }])
     } else {
       expect(
         existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
