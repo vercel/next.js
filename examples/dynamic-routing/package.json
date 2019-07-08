@@ -8,7 +8,7 @@
   },
   "license": "ISC",
   "dependencies": {
-    "next": "8.1.1-canary.61",
+    "next": "latest",
     "react": "16.8.6",
     "react-dom": "16.8.6"
   }

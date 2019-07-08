@@ -17,7 +17,7 @@
     "lodash.range": "^3.2.0",
     "mdx-prism": "^0.3.1",
     "micro": "^9.3.3",
-    "next": "^8.1.1-canary.37",
+    "next": "latest",
     "pagination": "^0.4.6",
     "prop-types": "^15.7.2",
     "react": "^16.8.6",
