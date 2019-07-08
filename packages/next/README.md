@@ -45,6 +45,10 @@
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
+  - [API Routes](#api-routes)
+    - [Dynamic routes support](#dynamic-routes-support)
+    - [API Middlewares](#api-middlewares)
+    - [Helper Functions](#helper-functions)
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
@@ -1032,6 +1036,74 @@ class MyLink extends React.Component {
 
 export default withRouter(MyLink)
 ```
+
+### API Routes
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/api-routes">Basic API routes</a></li>
+    <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+  </ul>
+</details>
+
+API routes provides a straightforward solution to build your `API` with `Next.js`. Start by creating the `api` folder inside the `pages` folder. Every file inside `api` is mapped to `/api/*`, for example `api/posts.js` will be mapped to `/api/posts`. Here's how an `api` route looks like:
+
+```js
+export default (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.statusCode = 200
+  res.end(JSON.stringify({ name: 'Nextjs' }))
+}
+```
+
+**Note: API routes are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
+
+#### Dynamic routes support
+API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
+
+Consider the following page `pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
+```js
+export default (req, res) => {
+  const {
+    query: { pid },
+  } = req
+
+  res.end(`Post: ${pid}`)
+}
+```
+
+#### API Middlewares
+
+API routes provides built in `middlewares` which parse the incoming `req`. Those middlewares are:
+
+- `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}`
+- `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
+- `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
+
+Body parsing is always on by default. However, if you don't want to parse body or you want to consume the body as `stream`. It's possible to opt-out from it. To disable body parsing you need to provide `config` option bellow inside page.
+
+```js
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+```
+
+#### Helper Functions
+
+We're providing a set of `Express.js`-like methods to improve the developer experience and increase the speed of creating new `API` endpoints:
+
+```js
+export default (req, res) => {
+  res.status(200).json({ name: 'Nextjs' })
+}
+```
+
+- `res.status(code)` - a function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `res.json(json)` - Sends a `JSON` response. `json` must be a valid `JSON` object
+- `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 
 ### Custom server and routing
 
@@ -2026,6 +2098,15 @@ Page.getInitialProps = async ({ req }) => {
 }
 
 export default Page
+```
+
+For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
 ```
 
 For `React.Component` you can use `NextPageContext`:
