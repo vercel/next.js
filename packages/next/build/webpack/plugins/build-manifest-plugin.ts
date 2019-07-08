@@ -11,10 +11,10 @@ import {
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
-  buildId: string
+  options: { buildId: string; clientManifest: boolean }
 
-  constructor(buildId: string) {
-    this.buildId = buildId
+  constructor(options: { buildId: string; clientManifest: boolean }) {
+    this.options = options
   }
 
   apply(compiler: Compiler) {
@@ -92,10 +92,15 @@ export default class BuildManifestPlugin {
         }
 
         // Add the runtime buildManifest.js file (generated later in this file) as a
-        // dependency for the app.
-        assetMap.pages['/_app'].push(
-          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
-        )
+        // dependency for the app. If the flag is false, the file won't be downloaded
+        // by the client
+        if (this.options.clientManifest) {
+          assetMap.pages['/_app'].push(
+            `${CLIENT_STATIC_FILES_PATH}/${
+              this.options.buildId
+            }/_buildManifest.js`
+          )
+        }
 
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
@@ -109,16 +114,18 @@ export default class BuildManifestPlugin {
         )
 
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
-          this.buildId
+          this.options.buildId
         }/_buildManifest.js`
         const clientManifestContentString = manifestContentString.replace(
           /\s/g,
           ''
         )
 
-        compilation.assets[clientManifestPath] = new RawSource(
-          `(function(){__BUILD_MANIFEST = JSON.parse('${clientManifestContentString}')})()`
-        )
+        if (this.options.clientManifest) {
+          compilation.assets[clientManifestPath] = new RawSource(
+            `(function(){__BUILD_MANIFEST = JSON.parse('${clientManifestContentString}')})()`
+          )
+        }
 
         callback()
       }

@@ -1,4 +1,4 @@
-/* global document, __BUILD_MANIFEST */
+/* global document, window */
 import mitt from 'next-server/dist/lib/mitt'
 import unfetch from 'unfetch'
 
@@ -94,7 +94,10 @@ export default class PageLoader {
 
   // Retrieve a list of dependencies for a given route from the build manifest
   getDependencies (route) {
-    return __BUILD_MANIFEST.pages[route] || []
+    if (!window.__BUILD_MANIFEST) {
+      return []
+    }
+    return window.__BUILD_MANIFEST.pages[route]
   }
 
   loadDependency (url) {
