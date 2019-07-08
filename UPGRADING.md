@@ -2,6 +2,12 @@
 
 ## Breaking Changes
 
+#### `@zeit/next-typescript` is no longer necessary
+
+Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it. Please remove this plugin from your `next.config.js`.
+
+Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
+
 #### `next/dynamic` no longer renders "loading..." by default while loading
 
 Dynamic components will not render anything by default while loading. You can still customize this behavior by setting the `loading` property:
