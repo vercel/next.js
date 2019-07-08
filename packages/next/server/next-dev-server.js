@@ -271,9 +271,14 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
-        // Try to send a public file and let servePublic handle the request from here
-        await this.servePublic(req, res, pathname)
-        return null
+        if (this.nextConfig.experimental.publicDirectory) {
+          // Try to send a public file and let servePublic handle the request from here
+          await this.servePublic(req, res, pathname)
+          return null
+        } else {
+          res.statusCode = 404
+          return this.renderErrorToHTML(null, req, res, pathname, query)
+        }
       }
       if (!this.quiet) console.error(err)
     }

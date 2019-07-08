@@ -236,7 +236,10 @@ export default class Server {
       },
     ]
 
-    if (fs.existsSync(this.publicDir)) {
+    if (
+      this.nextConfig.experimental.publicDirectory &&
+      fs.existsSync(this.publicDir)
+    ) {
       routes.push(...this.generatePublicRoutes())
     }
 
