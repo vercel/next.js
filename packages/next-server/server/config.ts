@@ -37,6 +37,7 @@ const defaultConfig: { [key: string]: any } = {
     flyingShuttle: false,
     asyncToPromises: false,
     documentMiddleware: false,
+    publicDirectory: false,
   },
 }
 
