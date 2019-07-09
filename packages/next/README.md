@@ -1965,7 +1965,7 @@ This determination is made by the absence of `getInitialProps` in the page.
 If `getInitialProps` is present, Next.js will not prerender the page.
 Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
-If `getInitialProps` is abset, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
 
 This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
 This ensures Next.js always emits applications that are **fast by default**.
