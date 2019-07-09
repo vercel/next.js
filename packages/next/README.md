@@ -1959,7 +1959,7 @@ module.exports = {
 
 ## Automatic Prerendering
 
-Next.js will automatically determine a page is static (and can be prerendered) if it has no has blocking data requirements.
+Next.js automatically determines that a page is static (can be prerendered) if it has no has blocking data requirements.
 This determination is made by the absence of `getInitialProps` in both the page itself and a [custom `<App>`](#custom-app) (if present).
 
 If `getInitialProps` is present, Next.js will not prerender the page.
