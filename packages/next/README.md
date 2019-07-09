@@ -1427,7 +1427,7 @@ A custom `<Document>` can also include `getInitialProps` for expressing asynchro
 > **Note**: Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`.
 > These variables will be `undefined` when a page is being statically exported for `next export` or [automatic prerendering (static optimization)](#automatic-prerendering).
 
-To use a custom `<Document>`, must create a file at `./pages/_document.js` and extend the `Document` class:
+To use a custom `<Document>`, you must create a file at `./pages/_document.js` and extend the `Document` class:
 
 ```jsx
 // _document is only rendered on the server side and not on the client side
