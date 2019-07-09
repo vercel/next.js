@@ -43,7 +43,7 @@ export function getPageChunks(
     if (mod.includes('node_modules/')) {
       if (
         mod.match(
-          /(@babel|core-js|styled-jsx|string-hash|object-assign|process|react|react-dom|regenerator-runtime|webpack|node-libs-browser)/
+          /node_modules\/(@babel|core-js|styled-jsx|string-hash|object-assign|process|react|react-dom|regenerator-runtime|webpack|node-libs-browser)\//
         )
       ) {
         return null
