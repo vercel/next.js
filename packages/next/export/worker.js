@@ -43,11 +43,17 @@ process.on(
         const { page } = exportPathMap[path]
         let { query = {} } = exportPathMap[path]
 
-        if (isDynamicRoute) {
+        if (isDynamicRoute(page)) {
           const params = getRouteMatcher(getRouteRegex(page))(path)
-          query = {
-            ...query,
-            ...params
+          if (params) {
+            query = {
+              ...query,
+              ...params
+            }
+          } else {
+            throw new Error(
+              `Your path: ${path} didn't match ${page} page. https://err.sh/zeit/next.js/wrong-path-for-dynamic-page-export`
+            )
           }
         }
 
