@@ -1887,13 +1887,16 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 > **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
-> The reason for this is that runtime configuration adds rendering / initialization overhead.
+> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic prerendering](#automatic-prerendering)**.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
 Place any server-only runtime config under a `serverRuntimeConfig` property.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
+
+> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic prerendering](#automatic-prerendering).
+> You can also de-optimize your entire application by creating a [Custom `<App>`](#custom-app) with `getInitialProps`.
 
 ```js
 // next.config.js
@@ -1979,6 +1982,7 @@ The result is an _ultra fast_ loading experience for your users.
 
 `next build` will emit `.html` files for statically optimized pages.
 The result will be a file named `.next/server/static/${BUILD_ID}/about.html` instead of `.next/server/static/${BUILD_ID}/about.js`.
+This behavior is similar for `target: 'serverless'`.
 
 The built-in Next.js server (`next start`) and programmatic API (`app.getRequestHandler()`) both support this build output transparently.
 There is no configuration or special handling required.
@@ -2016,9 +2020,12 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
   </ul>
 </details>
 
-Serverless deployment dramatically improves reliability and scalability by splitting your application into smaller parts (also called [**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)). In the case of Next.js, each page in the `pages` directory becomes a serverless lambda.
+Serverless deployment dramatically improves reliability and scalability by splitting your application into smaller parts (also called [**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)).
+In the case of Next.js, each page in the `pages` directory becomes a serverless lambda.
 
-There are [a number of benefits](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express) to serverless. The referenced link talks about some of them in the context of Express, but the principles apply universally: serverless allows for distributed points of failure, infinite scalability, and is incredibly affordable with a "pay for what you use" model.
+There are [a number of benefits](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express) to serverless.
+The referenced link talks about some of them in the context of Express, but the principles apply universally:
+serverless allows for distributed points of failure, infinite scalability, and is incredibly affordable with a "pay for what you use" model.
 
 To enable **serverless mode** in Next.js, add the `serverless` build `target` in `next.config.js`:
 
@@ -2029,10 +2036,12 @@ module.exports = {
 }
 ```
 
-The `serverless` target will output a single lambda per page. This file is completely standalone and doesn't require any dependencies to run:
+The `serverless` target will output a single lambda or [HTML file](#automatic-prerendering) per page.
+This file is completely standalone and doesn't require any dependencies to run:
 
 - `pages/index.js` => `.next/serverless/pages/index.js`
 - `pages/about.js` => `.next/serverless/pages/about.js`
+- `pages/blog.js` => `.next/serverless/pages/blog.html`
 
 The signature of the Next.js Serverless function is similar to the Node.js HTTP server callback:
 
@@ -2043,6 +2052,9 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 - [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
+
+The static HTML files are ready to be served as-is.
+You can read more about this feature, including how to opt-out, in the [Automatic Prerendering section](#automatic-prerendering).
 
 Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
