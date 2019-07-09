@@ -8,8 +8,10 @@ Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it.
 
 Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
 
-Typescript Definitions are also published with next npm package. So you need to uninstall `@types/next` as they would conflict.
-Following types have changed: (may not be a comprehensive list, do give PRs for modifications)
+Typescript Definitions are published with the `next` package, so you need to uninstall `@types/next` as they would conflict.
+The following types are different:
+> This list was created by the community to help you upgrade, if you find other differences please send a pull-request to this list to help other users.
+
 From:
 ```tsx
 import { NextContext } from "next";
