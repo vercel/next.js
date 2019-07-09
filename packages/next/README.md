@@ -781,7 +781,7 @@ function ReadMore() {
 export default ReadMore
 ```
 
-This uses the same exact parameters as in the `<Link>` component.
+This uses the same exact parameters as [in the `<Link>` component](#with-url-object). The first parameter maps to `href` while the second parameter maps to `as` in the `<Link>` component as documented [here](#with-url-object).
 
 ##### Router Events
 
