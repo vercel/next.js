@@ -7,6 +7,9 @@ import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
 import { inlineGipIdentifier } from '../build/babel/plugins/next-page-config'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher'
+import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex'
 
 const envConfig = require('next-server/config')
 const mkdirp = promisify(mkdirpModule)
@@ -37,7 +40,16 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const ampPath = `${path === '/' ? '/index' : path}.amp`
-        const { page, query = {} } = exportPathMap[path]
+        const { page } = exportPathMap[path]
+        let { query = {} } = exportPathMap[path]
+
+        if (isDynamicRoute) {
+          const params = getRouteMatcher(getRouteRegex(page))(path)
+          query = {
+            ...query,
+            ...params
+          }
+        }
 
         const headerMocks = {
           headers: {},
