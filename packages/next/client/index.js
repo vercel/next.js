@@ -17,7 +17,7 @@ import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
-// So we need to polyfill it
+// So, we need to polyfill it.
 // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
   window.Promise = Promise
@@ -185,7 +185,7 @@ export async function render (props) {
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
-// and they are still handle via the main render method
+// and they are still handle via the main render method.
 export async function renderError (props) {
   const { App, err } = props
 
@@ -193,14 +193,14 @@ export async function renderError (props) {
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
   }
 
-  // Make sure we log the error to the console, otherwise users can't track down issues
+  // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
 
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
-  // Otherwise, we need to call `getInitialProps` on `App` before mounting
+  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
   const initProps = props.props
     ? props.props
     : await loadGetInitialProps(App, {
@@ -212,7 +212,7 @@ export async function renderError (props) {
   await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
 }
 
-// If hydrate does not exist, eg in preact
+// If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
   // The check for `.hydrate` is there to support React alternatives like preact
@@ -267,7 +267,7 @@ async function doRender ({ App, Component, props, err }) {
   props = props || lastAppProps.props
 
   const appProps = { Component, err, router, ...props }
-  // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error
+  // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
   emitter.emit('before-reactdom-render', {
