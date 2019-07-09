@@ -1049,7 +1049,13 @@ export default withRouter(MyLink)
   </ul>
 </details>
 
-API routes provides a straightforward solution to build your `API` with `Next.js`. Start by creating the `api` folder inside the `pages` folder. Every file inside `./pages/api` is mapped to `/api/*`, for example `./pages/api/posts.js` will be mapped to `/api/posts`. Here's how an `api` route looks like:
+API routes provides a straightforward solution to build your **API** with Next.js.
+Start by creating the `api/` folder inside the `./pages/` folder.
+
+Every file inside `./pages/api` is mapped to `/api/*`.
+For example, `./pages/api/posts.js` is mapped to the route `/api/posts`.
+
+Here's an example API route file:
 
 ```js
 export default (req, res) => {
@@ -1059,7 +1065,15 @@ export default (req, res) => {
 }
 ```
 
-**Note: API routes are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
+- `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
+
+- `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+> **Note**: API Routes do not specify CORS, so they'll be **same-origin only**.
+> You can customize this behavior by wrapping your export with CORS middleware.
+> We provide an example of this below.
+
+API Routes do not increase your client-side bundle size. They are server-side only bundles.
 
 #### Dynamic routes support
 
@@ -1085,7 +1099,10 @@ API routes provides built in `middlewares` which parse the incoming `req`. Those
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-Body parsing is always on by default. However, if you don't want to parse body or you want to consume the body as `stream`. It's possible to opt-out from it. To disable body parsing you need to provide `config` option bellow inside page.
+Body parsing is always on by default.
+However, if you don't want to parse body or you want to consume the body as `stream`.
+It's possible to opt-out from it.
+To disable body parsing you need to provide `config` option bellow inside page.
 
 ```js
 export const config = {
@@ -1097,11 +1114,11 @@ export const config = {
 
 #### Helper Functions
 
-We're providing a set of `Express.js`-like methods to improve the developer experience and increase the speed of creating new `API` endpoints:
+We're providing a set of Express.js-like methods to improve the developer experience and increase the speed of creating new API endpoints:
 
 ```js
 export default (req, res) => {
-  res.status(200).json({ name: 'Nextjs' })
+  res.status(200).json({ name: 'Next.js' })
 }
 ```
 
