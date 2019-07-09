@@ -2111,7 +2111,7 @@ After adding the `tsconfig.json` you need to install `@types` to get proper Type
 npm install --save-dev @types/react @types/react-dom @types/node
 ```
 
-Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout out its [documentation](https://www.typescriptlang.org/).
+Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
 
 ### Exported types
 
