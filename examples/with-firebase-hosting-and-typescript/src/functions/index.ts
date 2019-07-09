@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions'
-import * as next from 'next'
+import next from 'next'
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev, conf: { distDir: 'next' } })
