@@ -47,7 +47,7 @@ function formatUrl(url: Url) {
 
 export type LinkProps = {
   href: Url
-  as?: Url | undefined
+  as?: Url
   replace?: boolean
   scroll?: boolean
   shallow?: boolean
