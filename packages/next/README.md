@@ -1960,7 +1960,6 @@ module.exports = {
 ## Automatic Prerendering
 
 Next.js will automatically determine a page is static (and can be prerendered) if it has no has blocking data requirements.
-
 This determination is made by the absence of `getInitialProps` in both the page itself and a [custom `<App>`](#custom-app) (if present).
 
 If `getInitialProps` is present, Next.js will not prerender the page.
@@ -1969,11 +1968,13 @@ Instead, Next.js will use its default behavior and render the page on-demand, pe
 If `getInitialProps` is abset, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
 
 This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
+This ensures Next.js always emits applications that are **fast by default**.
 
 > **Note**: Statically generated pages are still reactive: Next.js will hydrate your application client-side to give it full interactivity.
 
 This feature provides many benefits.
 For example, optimized pages require no server-side computation and can be instantly streamed to the end-user from CDN locations.
+
 The result is an _ultra fast_ loading experience for your users.
 
 `next build` will emit `.html` files for statically optimized pages.
