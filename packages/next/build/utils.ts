@@ -15,7 +15,6 @@ import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
-const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -268,9 +267,9 @@ export function isPageStatic(
   runtimeEnvConfig: any
 ): { static?: boolean; prerender?: boolean } {
   try {
-    nextEnvConfig.setConfig(runtimeEnvConfig)
+    require('next-server/config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
-    const Comp = mod.default
+    const Comp = mod.default || mod
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
@@ -290,11 +289,11 @@ export function hasCustomAppGetInitialProps(
   _appBundle: string,
   runtimeEnvConfig: any
 ): boolean {
-  nextEnvConfig.setConfig(runtimeEnvConfig)
+  require('next-server/config').setConfig(runtimeEnvConfig)
   let mod = require(_appBundle)
 
   if (_appBundle.endsWith('_app.js')) {
-    mod = mod.default
+    mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page
     mod = mod._app
