@@ -8,7 +8,7 @@
   "dependencies": {
     "isomorphic-unfetch": "^3.0.0",
     "js-cookie": "^2.2.0",
-    "next": "^8.1.0",
+    "next": "latest",
     "next-cookies": "^1.0.4",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"

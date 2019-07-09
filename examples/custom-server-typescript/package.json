@@ -7,7 +7,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
-    "next": "^8.1.0",
+    "next": "latest",
     "react": "^16.8.4",
     "react-dom": "^16.8.4"
   },
