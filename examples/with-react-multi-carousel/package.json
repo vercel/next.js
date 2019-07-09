@@ -16,7 +16,7 @@
     "@zeit/next-css": "^1.0.1",
     "jss": "^9.8.7",
     "mobile-detect": "^1.4.3",
-    "next": "^8.0.3",
+    "next": "latest",
     "react": "^16.8.3",
     "react-dom": "^16.8.3",
     "react-jss": "^8.6.1",

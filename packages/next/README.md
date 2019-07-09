@@ -265,9 +265,11 @@ function MyImage() {
 export default MyImage
 ```
 
+<!--
 To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
+-->
 
-_Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
+_Note: Don't name the `static` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
 
 ### Dynamic Routing
 
@@ -1060,9 +1062,11 @@ export default (req, res) => {
 **Note: API routes are compiled just for the server, there's no overhead added to the client bundle and every route is its own separated bundle.**
 
 #### Dynamic routes support
+
 API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
 
 Consider the following page `./pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
+
 ```js
 export default (req, res) => {
   const {
@@ -1931,7 +1935,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static` or `/public`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
 
 If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
 
