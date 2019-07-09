@@ -84,7 +84,7 @@ export class Head extends Component {
 
   render () {
     const { head, styles } = this.context._documentProps
-    const { children, ...rest } = this.props
+    const { children, serveModern, ...rest } = this.props
 
     const headMarkup = renderToStaticMarkup(
       <Fragment>
