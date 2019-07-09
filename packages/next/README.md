@@ -1412,11 +1412,22 @@ export default MyApp
   </ul>
 </details>
 
-- Is rendered on the server side
-- Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+A custom `<Document>` is commonly used to augment your application's `<html>` and `<body>` tags.
+This is necessary because Next.js pages skip the definition of the surrounding document's markup.
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
+This allows you to support Server-Side Rendering for CSS-in-JS libraries like
+[styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion).
+Note, [styled-jsx](https://github.com/zeit/styled-jsx) is included in Next.js by default.
+
+A custom `<Document>` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
+
+> **Note**: `<Document>`'s `getInitialProps` function is not called during client-side transitions,
+> nor when a page is [automatically prerendered](#automatic-prerendering).
+
+> **Note**: Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`.
+> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic prerendering (static optimization)](#automatic-prerendering).
+
+To use a custom `<Document>`, you must create a file at `./pages/_document.js` and extend the `Document` class:
 
 ```jsx
 // _document is only rendered on the server side and not on the client side
@@ -1449,7 +1460,7 @@ export default MyDocument
 
 All of `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
-**Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.**
+**Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`<App>`](#custom-app) component instead.**
 
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
@@ -1948,13 +1959,34 @@ module.exports = {
 
 ## Automatic Prerendering
 
-Next.js will automatically detect if a page is `static` at build time with `next build`, this is currently based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is not `static` and requires a server or lambda bundle.
+Next.js automatically determines that a page is static (can be prerendered) if it has no has blocking data requirements.
+This determination is made by the absence of `getInitialProps` in the page.
 
-This allows Next.js to automatically replace server bundles for static pages with static HTML files. This has numerous benefits like better ability to be cached, cheaper runtime costs, and more.
+If `getInitialProps` is present, Next.js will not prerender the page.
+Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
-During the build, when we automatically prerender a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
 
-> **Note**: If you have a [custom `App`](#custom-app) with a custom `getInitialProps` then this optimization will be disabled.
+This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
+This ensures Next.js always emits applications that are **fast by default**.
+
+> **Note**: Statically generated pages are still reactive: Next.js will hydrate your application client-side to give it full interactivity.
+
+This feature provides many benefits.
+For example, optimized pages require no server-side computation and can be instantly streamed to the end-user from CDN locations.
+
+The result is an _ultra fast_ loading experience for your users.
+
+`next build` will emit `.html` files for statically optimized pages.
+The result will be a file named `.next/server/static/${BUILD_ID}/about.html` instead of `.next/server/static/${BUILD_ID}/about.js`.
+
+The built-in Next.js server (`next start`) and programmatic API (`app.getRequestHandler()`) both support this build output transparently.
+There is no configuration or special handling required.
+
+> **Note**: If you have a [custom `<App>`](#custom-app) with `getInitialProps` then this optimization will be disabled.
+
+> **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
+> `ctx.req` will be `undefined` for pages that are prerendered.
 
 ## Production deployment
 
