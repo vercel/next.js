@@ -2,7 +2,7 @@
   "name": "with-refnux",
   "version": "1.0.0",
   "scripts": {
-    "next": "next"
+    "next": "latest"
   },
   "license": "ISC",
   "dependencies": {
