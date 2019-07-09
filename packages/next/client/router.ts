@@ -1,7 +1,7 @@
 /* global window */
 import React from 'react'
-import Router, {
-  PublicRouterInstance,
+import BrowserRouter, {
+  Router,
   RouteUrl,
 } from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
@@ -9,17 +9,17 @@ import { RequestContext } from 'next-server/dist/lib/request-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
-type RouterArgs = ClassArguments<typeof Router>
+type RouterArgs = ClassArguments<typeof BrowserRouter>
 
 type SingletonRouterBase = {
-  router: Router | null
+  router: BrowserRouter | null
   readyCallbacks: Array<() => any>
   ready(cb: () => any): void
 }
 
-export { Router, PublicRouterInstance, RouteUrl }
+export { BrowserRouter, Router, RouteUrl }
 
-export type SingletonRouter = SingletonRouterBase & PublicRouterInstance
+export type SingletonRouter = SingletonRouterBase & Router
 
 const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
@@ -55,7 +55,7 @@ const coreMethodFields = [
 // Events is a static property on the router, the router doesn't have to be initialized to use it
 Object.defineProperty(singletonRouter, 'events', {
   get() {
-    return Router.events
+    return BrowserRouter.events
   },
 })
 
@@ -82,7 +82,7 @@ coreMethodFields.forEach(field => {
 
 routerEvents.forEach(event => {
   singletonRouter.ready(() => {
-    Router.events.on(event, (...args) => {
+    BrowserRouter.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
         1
       )}`
@@ -92,7 +92,9 @@ routerEvents.forEach(event => {
           _singletonRouter[eventField](...args)
         } catch (err) {
           // tslint:disable-next-line:no-console
-          console.error(`Error when running the Router event: ${eventField}`)
+          console.error(
+            `Error when running the BrowserRouter event: ${eventField}`
+          )
           // tslint:disable-next-line:no-console
           console.error(`${err.message}\n${err.stack}`)
         }
@@ -133,15 +135,17 @@ export function useRequest() {
 // This is used in client side when we are initilizing the app.
 // This should **not** use inside the server.
 export const createRouter = (...args: RouterArgs) => {
-  singletonRouter.router = new Router(...args)
+  singletonRouter.router = new BrowserRouter(...args)
   singletonRouter.readyCallbacks.forEach(cb => cb())
   singletonRouter.readyCallbacks = []
 
   return singletonRouter.router
 }
 
-// This function is used to create the `withRouter` router instance
-export function makePublicRouterInstance(router: Router): PublicRouterInstance {
+// This function is used to create the router object of `useRouter` and `withRouter`
+export function makePublicRouterInstance(
+  router: BrowserRouter | Router
+): Router {
   const _router = router as any
   const instance = {} as any
 
@@ -155,7 +159,7 @@ export function makePublicRouterInstance(router: Router): PublicRouterInstance {
   }
 
   // Events is a static property on the router, the router doesn't have to be initialized to use it
-  instance.events = Router.events
+  instance.events = BrowserRouter.events
 
   propertyFields.forEach(field => {
     // Here we need to use Object.defineProperty because, we need to return

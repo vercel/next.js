@@ -30,13 +30,18 @@ export type BaseRouter = {
   asPath: string
 }
 
-export type PublicRouterInstance = BaseRouter &
+// Public router instance returned after importing the router from any of our public APIs
+export type Router = BaseRouter &
   Pick<
-    Router,
-    'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'
-  > & {
-    events: typeof Router['events']
-  }
+    BrowserRouter,
+    | 'push'
+    | 'replace'
+    | 'reload'
+    | 'back'
+    | 'prefetch'
+    | 'beforePopState'
+    | 'events'
+  >
 
 type RouteInfo = {
   Component: ComponentType
@@ -51,19 +56,20 @@ type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
-export default class Router implements BaseRouter {
+export default class BrowserRouter implements BaseRouter {
   route: string
   pathname: string
   query: ParsedUrlQuery
   asPath: string
   /**
-   * Map of all components loaded in `Router`
+   * Map of all components loaded in `BrowserRouter`
    */
   components: { [pathname: string]: RouteInfo }
   sub: Subscription
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
+  events: MittEmitter
 
   static events: MittEmitter = mitt()
 
@@ -104,7 +110,7 @@ export default class Router implements BaseRouter {
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
     // @ts-ignore backwards compatibility
-    this.events = Router.events
+    this.events = BrowserRouter.events
 
     this.pageLoader = pageLoader
     this.pathname = pathname
@@ -262,10 +268,10 @@ export default class Router implements BaseRouter {
       // We should not proceed. We should only change the state.
       if (this.onlyAHashChange(as)) {
         this.asPath = as
-        Router.events.emit('hashChangeStart', as)
+        BrowserRouter.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
         this.scrollToHash(as)
-        Router.events.emit('hashChangeComplete', as)
+        BrowserRouter.events.emit('hashChangeComplete', as)
         return resolve(true)
       }
 
@@ -299,7 +305,7 @@ export default class Router implements BaseRouter {
         Object.assign(query, routeMatch)
       }
 
-      Router.events.emit('routeChangeStart', as)
+      BrowserRouter.events.emit('routeChangeStart', as)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
       // @ts-ignore pathname is always a string
@@ -310,7 +316,7 @@ export default class Router implements BaseRouter {
           return resolve(false)
         }
 
-        Router.events.emit('beforeHistoryChange', as)
+        BrowserRouter.events.emit('beforeHistoryChange', as)
         this.changeState(method, url, as, options)
         const hash = window.location.hash.substring(1)
 
@@ -325,11 +331,11 @@ export default class Router implements BaseRouter {
         this.set(route, pathname, query, as, { ...routeInfo, hash })
 
         if (error) {
-          Router.events.emit('routeChangeError', error, as)
+          BrowserRouter.events.emit('routeChangeError', error, as)
           throw error
         }
 
-        Router.events.emit('routeChangeComplete', as)
+        BrowserRouter.events.emit('routeChangeComplete', as)
         return resolve(true)
       }, reject)
     })
@@ -576,11 +582,14 @@ export default class Router implements BaseRouter {
     this.clc = cancel
     const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps<AppContextType<Router>>(App, {
-      Component,
-      router: this,
-      ctx,
-    })
+    const props = await loadGetInitialProps<AppContextType<BrowserRouter>>(
+      App,
+      {
+        Component,
+        router: this,
+        ctx,
+      }
+    )
 
     if (cancel === this.clc) {
       this.clc = null
@@ -599,7 +608,7 @@ export default class Router implements BaseRouter {
     if (this.clc) {
       const e = new Error('Route Cancelled')
       ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, as)
+      BrowserRouter.events.emit('routeChangeError', e, as)
       this.clc()
       this.clc = null
     }
