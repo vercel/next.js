@@ -119,7 +119,6 @@ export function runNextCommand (argv, options = {}) {
     })
 
     instance.on('error', err => {
-      console.log('EROOOO', err)
       err.stdout = stdoutOutput
       err.stderr = stderrOutput
       reject(err)
