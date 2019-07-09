@@ -8,6 +8,21 @@ Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it.
 
 Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
 
+Typescript Definitions are also published with next npm package. So you need to uninstall `@types/next` as they would conflict.
+Following types have changed: (may not be a comprehensive list, do give PRs for modifications)
+From:
+```tsx
+import { NextContext } from "next";
+import { NextAppContext } from "next/app";
+import { NextDocumentContext } from "next/document";
+```
+to
+```tsx
+import { NextPageContext } from "next";
+import { AppContext } from "next/app";
+import { DocumentContext } from "next/document";
+```
+
 #### `next/dynamic` no longer renders "loading..." by default while loading
 
 Dynamic components will not render anything by default while loading. You can still customize this behavior by setting the `loading` property:
