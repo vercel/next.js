@@ -4,11 +4,6 @@ export default () => {
   return runtimeConfig
 }
 
-export function setConfig(
-  { publicRuntimeConfig, serverRuntimeConfig } = {} as any
-) {
-  runtimeConfig = {
-    publicRuntimeConfig: publicRuntimeConfig || {},
-    serverRuntimeConfig: serverRuntimeConfig || {},
-  }
+export function setConfig(configValue: any) {
+  runtimeConfig = configValue
 }

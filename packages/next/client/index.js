@@ -49,7 +49,7 @@ __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
-  publicRuntimeConfig: runtimeConfig
+  publicRuntimeConfig: runtimeConfig || {}
 })
 
 const asPath = getURL()
