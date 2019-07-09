@@ -269,7 +269,7 @@ export function isPageStatic(
   try {
     require('next-server/config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
-    const Comp = mod.default
+    const Comp = mod.default || mod
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
@@ -293,7 +293,7 @@ export function hasCustomAppGetInitialProps(
   let mod = require(_appBundle)
 
   if (_appBundle.endsWith('_app.js')) {
-    mod = mod.default
+    mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page
     mod = mod._app

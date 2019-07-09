@@ -160,21 +160,21 @@ export type NextApiRequest = IncomingMessage & {
 /**
  * Send body of response
  */
-type Send = (body: any) => void
+type Send<T> = (body: T) => void
 
 /**
  * Next `API` route response
  */
-export type NextApiResponse = ServerResponse & {
+export type NextApiResponse<T = any> = ServerResponse & {
   /**
    * Send data `any` data in reponse
    */
-  send: Send
+  send: Send<T>
   /**
    * Send data `json` data in reponse
    */
-  json: Send
-  status: (statusCode: number) => void
+  json: Send<T>
+  status: (statusCode: number) => NextApiResponse<T>
 }
 
 /**
