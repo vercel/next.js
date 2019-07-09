@@ -1071,7 +1071,7 @@ export default (req, res) => {
 
 > **Note**: API Routes do not specify CORS, so they'll be **same-origin only**.
 > You can customize this behavior by wrapping your export with CORS middleware.
-> We provide an example of this below.
+> We provide an [example of this below](#api-middlewares).
 
 API Routes do not increase your client-side bundle size. They are server-side only bundles.
 
@@ -1093,23 +1093,55 @@ export default (req, res) => {
 
 #### API Middlewares
 
-API routes provides built in `middlewares` which parse the incoming `req`. Those middlewares are:
+API routes provides built in middlewares which parse the incoming `req`.
+Those middlewares are:
 
 - `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}`
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-Body parsing is always on by default.
-However, if you don't want to parse body or you want to consume the body as `stream`.
-It's possible to opt-out from it.
-To disable body parsing you need to provide `config` option bellow inside page.
+Body parsing is enabled by default.
+You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
 
 ```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
 export const config = {
   api: {
     bodyParser: false,
   },
 }
+```
+
+As an added bonus, you can also use any [Micro](https://github.com/zeit/micro) compatible [middleware](https://github.com/amio/awesome-micro)!
+
+For example, configuring CORS for your API endpoint can be done leveraging `micro-cors`.
+
+First, install `micro-cors`:
+
+```bash
+npm i micro-cors
+# or
+yarn add micro-cors
+```
+
+Then, import `micro-cors` and [configure it](https://github.com/possibilities/micro-cors#readme). Finally, wrap your exported function in the middleware:
+
+```js
+import Cors from 'micro-cors'
+
+const cors = Cors({
+  allowedMethods: ['GET', 'HEAD'],
+})
+
+function Endpoint(req, res) {
+  res.json({ message: 'Hello Everyone!' })
+}
+
+export default cors(Endpoint)
 ```
 
 #### Helper Functions
