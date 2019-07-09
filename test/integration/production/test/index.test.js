@@ -375,6 +375,12 @@ describe('Production Usage', () => {
       await browser.close()
     })
 
+    it('should have default runtime values when not defined', async () => {
+      const html = await renderViaHTTP(appPort, '/runtime-config')
+      expect(html).toMatch(/found public config/)
+      expect(html).toMatch(/found server config/)
+    })
+
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
