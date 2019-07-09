@@ -174,7 +174,7 @@ export type NextApiResponse = ServerResponse & {
    * Send data `json` data in reponse
    */
   json: Send
-  status: (statusCode: number) => void
+  status: (statusCode: number) => NextApiResponse
 }
 
 /**
