@@ -1,6 +1,9 @@
 /* global window */
 import React from 'react'
-import Router, { BaseRouter } from 'next-server/dist/lib/router/router'
+import Router, {
+  PublicRouterInstance,
+  RouteUrl,
+} from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { RequestContext } from 'next-server/dist/lib/request-context'
 
@@ -14,15 +17,7 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router }
-
-export type PublicRouterInstance = BaseRouter &
-  Pick<
-    Router,
-    'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'
-  > & {
-    events: typeof Router['events']
-  }
+export { Router, PublicRouterInstance, RouteUrl }
 
 export type SingletonRouter = SingletonRouterBase & PublicRouterInstance
 

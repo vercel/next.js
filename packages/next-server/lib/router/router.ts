@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse } from 'url'
+import { parse, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -21,12 +21,22 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
+export type RouteUrl = string | UrlObject
+
 export type BaseRouter = {
   route: string
   pathname: string
   query: ParsedUrlQuery
   asPath: string
 }
+
+export type PublicRouterInstance = BaseRouter &
+  Pick<
+    Router,
+    'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'
+  > & {
+    events: typeof Router['events']
+  }
 
 type RouteInfo = {
   Component: ComponentType
@@ -211,7 +221,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: string, as: string = url, options = {}) {
+  push(url: RouteUrl, as: RouteUrl = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
@@ -221,14 +231,14 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: string, as: string = url, options = {}) {
+  replace(url: RouteUrl, as: RouteUrl = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
 
   change(
     method: string,
-    _url: string,
-    _as: string,
+    _url: RouteUrl,
+    _as: RouteUrl,
     options: any
   ): Promise<boolean> {
     return new Promise((resolve, reject) => {
