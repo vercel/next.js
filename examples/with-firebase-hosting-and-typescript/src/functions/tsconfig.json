@@ -1,12 +1,20 @@
 {
   "compilerOptions": {
-    "lib": ["es2017"],
+    "lib": [
+      "es6",
+      "dom",
+      "es2016"
+    ],
     "module": "commonjs",
     "strict": true,
     "outDir": "../../dist/functions",
     "sourceMap": true,
     "target": "es2017",
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
   "compileOnSave": true
 }
