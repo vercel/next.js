@@ -9,7 +9,9 @@ Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it.
 Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
 
 TypeScript Definitions are published with the `next` package, so you need to uninstall `@types/next` as they would conflict.
+
 The following types are different:
+
 > This list was created by the community to help you upgrade, if you find other differences please send a pull-request to this list to help other users.
 
 From:
