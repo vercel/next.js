@@ -1073,7 +1073,7 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
-> **Note**: API Routes do not specify CORS, so they'll be **same-origin only**.
+> **Note**: API Routes do not specify CORS, so they'll be **same-origin only** by default.
 > You can customize this behavior by wrapping your export with CORS middleware.
 > We provide an [example of this below](#api-middlewares).
 
