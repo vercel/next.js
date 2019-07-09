@@ -133,6 +133,17 @@ describe('Serverless', () => {
     expect(text).toMatch(/some interesting title/)
   })
 
+  it('should reply on API request successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello')
+    expect(content).toMatch(/hello world/)
+  })
+
+  it('should reply on dynamic API request successfully', async () => {
+    const result = await renderViaHTTP(appPort, '/api/posts/post-1')
+    const { post } = JSON.parse(result)
+    expect(post).toBe('post-1')
+  })
+
   describe('With basic usage', () => {
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
