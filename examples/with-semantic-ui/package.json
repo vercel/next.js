@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "canary",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "semantic-ui-css": "^2.4.1",

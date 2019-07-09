@@ -31,7 +31,7 @@
     "firebase-admin": "6.0.0",
     "firebase-functions": "^2.0.5",
     "helmet": "^3.13.0",
-    "next": "7.0.0",
+    "next": "latest",
     "prop-types": "^15.6.2",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
