@@ -26,6 +26,8 @@ export type DocumentComponentContext = {
   readonly _devOnlyInvalidateCacheQueryString: string
 }
 
+type Without<T, K> = Pick<T, Exclude<keyof T, K>>
+
 export async function middleware({ req, res }: DocumentContext) {}
 
 function dedupe(bundles: any[]): any[] {
@@ -277,7 +279,9 @@ export class Head extends Component<
         })
 
     // try to parse styles from fragment for backwards compat
-    const curStyles: React.ReactElement[] = Array.isArray(styles) ? styles : []
+    const curStyles: React.ReactElement[] = Array.isArray(styles)
+      ? (styles as React.ReactElement[])
+      : []
     if (
       inAmpMode &&
       styles &&
