@@ -123,6 +123,13 @@ export function runNextCommand (argv, options = {}) {
       err.stderr = stderrOutput
       reject(err)
     })
+
+    instance.on('exit', code => {
+      if (code) {
+        reject({ code, stdoutOutput, stderrOutput })
+      }
+      resolve()
+    })
   })
 }
 
@@ -168,8 +175,8 @@ export function nextBuild (dir, args = [], opts = {}) {
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport (dir, { outdir }) {
-  return runNextCommand(['export', dir, '--outdir', outdir])
+export function nextExport (dir, { outdir, stdout, stderr }) {
+  return runNextCommand(['export', dir, '--outdir', outdir], { stdout, stderr })
 }
 
 export function nextStart (dir, port, opts = {}) {

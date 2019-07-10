@@ -21,7 +21,7 @@ let appPort
 let server
 const appDir = join(__dirname, '../')
 
-function runTests () {
+function runTests (dev) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -142,8 +142,11 @@ function runTests () {
   })
 
   it('should update dynamic values on mount', async () => {
-    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
-    expect(html).toMatch(/onmpost:.*pending/)
+    // This should work only in dynamic mode, in production we are rendering query
+    if (dev) {
+      const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+      expect(html).toMatch(/onmpost:.*pending/)
+    }
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
     await waitFor(1000)
