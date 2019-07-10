@@ -381,6 +381,13 @@ describe('Production Usage', () => {
       expect(html).toMatch(/found server config/)
     })
 
+    it('should not have runtimeConfig in __NEXT_DATA__', async () => {
+      const html = await renderViaHTTP(appPort, '/runtime-config')
+      const $ = cheerio.load(html)
+      const script = $('#__NEXT_DATA__').html()
+      expect(script).not.toMatch(/runtimeConfig/)
+    })
+
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
