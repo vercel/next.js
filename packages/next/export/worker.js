@@ -43,7 +43,8 @@ process.on(
         const { page } = exportPathMap[path]
         let { query = {} } = exportPathMap[path]
 
-        if (isDynamicRoute(page)) {
+        // Check if the page is a specified dynamic route
+        if (isDynamicRoute(page) && page !== path) {
           const params = getRouteMatcher(getRouteRegex(page))(path)
           if (params) {
             query = {
