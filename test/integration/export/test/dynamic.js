@@ -1,9 +1,9 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { File, nextExport } from 'next-test-utils'
+import { File, runNextCommand } from 'next-test-utils'
 
 export default function (context) {
-  describe('Dynamic routes builds', () => {
+  describe('Dynamic routes export', () => {
     const nextConfig = new File(join(context.appDir, 'next.config.js'))
     beforeEach(() => {
       nextConfig.replace('/blog/nextjs/comment/test', '/bad/path')
@@ -13,14 +13,15 @@ export default function (context) {
     })
 
     it('Should throw error not matched route', async () => {
-      try {
-        const outdir = join(context.appDir, 'outDynamic')
-        await nextExport(context.appDir, { outdir, stderr: true, onExit: true })
-      } catch (e) {
-        expect(e.Error).toContain(
-          'https://err.sh/zeit/next.js/export-path-mismatch'
-        )
-      }
+      const outdir = join(context.appDir, 'outDynamic')
+      const { stderr } = await runNextCommand(
+        ['export', context.appDir, '--outdir', outdir],
+        { stderr: true }
+      ).catch(err => err)
+
+      expect(stderr).toContain(
+        'https://err.sh/zeit/next.js/export-path-mismatch'
+      )
     })
   })
 }

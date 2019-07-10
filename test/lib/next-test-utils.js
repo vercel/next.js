@@ -123,17 +123,6 @@ export function runNextCommand (argv, options = {}) {
       err.stderr = stderrOutput
       reject(err)
     })
-
-    instance.on('exit', code => {
-      if (options.onExit) {
-        if (code) {
-          reject(
-            new Error(`exited with code: ${code}\n output: ${stderrOutput}`)
-          )
-        }
-        resolve()
-      }
-    })
   })
 }
 
@@ -179,8 +168,8 @@ export function nextBuild (dir, args = [], opts = {}) {
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport (dir, { outdir, stdout, stderr }) {
-  return runNextCommand(['export', dir, '--outdir', outdir], { stdout, stderr })
+export function nextExport (dir, { outdir }) {
+  return runNextCommand(['export', dir, '--outdir', outdir])
 }
 
 export function nextStart (dir, port, opts = {}) {
@@ -208,7 +197,7 @@ export function buildTS (args = [], cwd, env = {}) {
 
     instance.on('exit', code => {
       if (code) {
-        reject(new Error('exited with code: ' + code + '\n' + output))
+        return reject(new Error('exited with code: ' + code + '\n' + output))
       }
       resolve()
     })
