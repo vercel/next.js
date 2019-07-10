@@ -21,5 +21,8 @@ describe('Empty Project', () => {
     expect(res.status).toBe(404)
   })
 
-  afterAll(() => killApp(context.server))
+  afterAll(() => {
+    killApp(context.server)
+    fs.closeSync(fs.openSync(join(__dirname, '..', 'pages', '.gitkeep'), 'w'))
+  })
 })
