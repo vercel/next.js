@@ -41,10 +41,10 @@ export type IStoreSnapshotOut = SnapshotOut<typeof Store>
 
 export const initializeStore = (isServer, snapshot = null) => {
   if (isServer) {
-    store = Store.create({ foo: 6, lastUpdate: Date.now() })
+    store = Store.create({ foo: 6, lastUpdate: Date.now(), light: false })
   }
   if ((store as any) === null) {
-    store = Store.create({ foo: 6, lastUpdate: Date.now() })
+    store = Store.create({ foo: 6, lastUpdate: Date.now(), light: false })
   }
   if (snapshot) {
     applySnapshot(store, snapshot)
