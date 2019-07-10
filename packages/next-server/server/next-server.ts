@@ -118,7 +118,7 @@ export default class Server {
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (publicRuntimeConfig) {
+    if (Object.keys(publicRuntimeConfig).length > 0) {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
