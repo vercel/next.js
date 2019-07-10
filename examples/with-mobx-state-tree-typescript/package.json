@@ -4,11 +4,9 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "tslint": "tslint -c tslint.json -p tsconfig.json"
+    "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.1.0",
     "mobx": "^5.9.0",
     "mobx-react": "^5.4.3",
     "mobx-state-tree": "^3.11.0",
@@ -18,13 +16,8 @@
     "typescript": "^3.0.1"
   },
   "devDependencies": {
-    "@types/next": "^6.1.4",
-    "@types/react": "^16.4.12",
     "@babel/plugin-proposal-decorators": "^7.3.0",
-    "tslint": "^5.9.1",
-    "tslint-config-standard": "^7.0.0",
-    "tslint-loader": "^3.5.3",
-    "tslint-react": "^3.4.0"
+    "@types/react": "^16.4.12"
   },
   "license": "ISC"
 }
