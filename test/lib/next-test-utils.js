@@ -126,7 +126,7 @@ export function runNextCommand (argv, options = {}) {
 
     instance.on('exit', code => {
       if (code) {
-        reject({ code, stdoutOutput, stderrOutput })
+        reject(new Error(`exited with code: ${code}\n output: ${stderrOutput}`))
       }
       resolve()
     })
@@ -204,7 +204,7 @@ export function buildTS (args = [], cwd, env = {}) {
 
     instance.on('exit', code => {
       if (code) {
-        return reject(new Error('exited with code: ' + code + '\n' + output))
+        reject(new Error('exited with code: ' + code + '\n' + output))
       }
       resolve()
     })

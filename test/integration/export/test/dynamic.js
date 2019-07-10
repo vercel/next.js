@@ -17,8 +17,7 @@ export default function (context) {
         const outdir = join(context.appDir, 'outDynamic')
         await nextExport(context.appDir, { outdir, stderr: true })
       } catch (e) {
-        const { stderrOutput } = e
-        expect(stderrOutput).toContain(
+        expect(e.Error).toContain(
           'https://err.sh/zeit/next.js/wrong-path-for-dynamic-page-export'
         )
       }
