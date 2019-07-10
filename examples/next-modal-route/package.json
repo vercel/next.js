@@ -1,0 +1,26 @@
+{
+  "name": "react-modal-route-example",
+  "version": "1.0.0",
+  "description": "React modal route example",
+  "main": "server.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/singlepageprogrammer/react-modal-route-example.git"
+  },
+  "author": "Amin smProgrammer :)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/singlepageprogrammer/react-modal-route-example/issues"
+  },
+  "homepage": "https://github.com/singlepageprogrammer/react-modal-route-example#readme",
+  "dependencies": {
+    "next": "^9.0.0",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  }
+}
