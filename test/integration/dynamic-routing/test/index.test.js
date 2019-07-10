@@ -142,11 +142,8 @@ function runTests (dev) {
   })
 
   it('should update dynamic values on mount', async () => {
-    // This should work only in dynamic mode, in production we are rendering query
-    if (dev) {
-      const html = await renderViaHTTP(appPort, '/on-mount/post-1')
-      expect(html).toMatch(/onmpost:.*pending/)
-    }
+    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+    expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
     await waitFor(1000)
