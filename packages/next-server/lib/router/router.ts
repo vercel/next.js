@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse } from 'url'
+import { parse, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -20,6 +20,8 @@ import { isDynamicRoute } from './utils/is-dynamic'
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
+
+type Url = UrlObject | string
 
 export type BaseRouter = {
   route: string
@@ -211,7 +213,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: string, as: string = url, options = {}) {
+  push(url: Url, as: Url = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
@@ -221,16 +223,11 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: string, as: string = url, options = {}) {
+  replace(url: Url, as: Url = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
 
-  change(
-    method: string,
-    _url: string,
-    _as: string,
-    options: any
-  ): Promise<boolean> {
+  change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
