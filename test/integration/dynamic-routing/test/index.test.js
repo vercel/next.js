@@ -22,7 +22,7 @@ let appPort
 let server
 const appDir = join(__dirname, '../')
 
-function runTests (dev) {
+function runTests () {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
