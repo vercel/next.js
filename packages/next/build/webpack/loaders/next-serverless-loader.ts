@@ -50,7 +50,7 @@ const nextServerlessLoader: loader.Loader = function() {
         : ``
     }
       import { apiResolver } from 'next-server/dist/server/api-utils'
-    
+
       export default (req, res) => {
         const params = ${
           isDynamicRoute(page)
@@ -108,7 +108,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           isDynamicRoute(page)
-            ? `const params = getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+            ? `const params = fromExport ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
