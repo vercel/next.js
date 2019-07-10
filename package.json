@@ -7,6 +7,7 @@
   "scripts": {
     "lerna": "lerna",
     "dev": "lerna run build --stream --parallel",
+    "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest",
     "testall": "yarn check && yarn run testonly -- --ci --reporters=default --reporters=jest-junit --forceExit --runInBand",
     "pretest": "yarn run lint",
