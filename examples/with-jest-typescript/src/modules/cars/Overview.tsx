@@ -3,7 +3,7 @@ import * as React from 'react'
 import * as T from './types'
 
 export interface CarsOverviewProps {
-  cars: T.CarList
+  cars?: T.CarList
 }
 
 export interface CarsOverviewState {
@@ -26,7 +26,7 @@ export default class CarsOverview extends React.Component<
     this.setState({ selectedCar: car })
   }
 
-  renderCarsList = (cars: T.CarList): JSX.Element => {
+  renderCarsList = (cars?: T.CarList): JSX.Element => {
     if (!cars || cars.length === 0) {
       return <p>No cars</p>
     }

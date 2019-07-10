@@ -120,7 +120,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[]
+  styles?: React.ReactElement[] | React.ReactFragment
 }
 
 export type DocumentProps = DocumentInitialProps & {
