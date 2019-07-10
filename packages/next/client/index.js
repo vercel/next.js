@@ -1,3 +1,4 @@
+/* global location */
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
@@ -84,7 +85,7 @@ class Container extends React.Component {
     // If it's a dynamic route or has a querystring
     if (
       data.nextExport &&
-      (isDynamicRoute(router.pathname) || window.location.search)
+      (isDynamicRoute(router.pathname) || location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -92,7 +93,7 @@ class Container extends React.Component {
           '?' +
           stringifyQs({
             ...router.query,
-            ...parseQs(window.location.search.substr(1))
+            ...parseQs(location.search.substr(1))
           }),
         asPath
       )
@@ -104,7 +105,7 @@ class Container extends React.Component {
   }
 
   scrollToHash () {
-    let { hash } = window.location
+    let { hash } = location
     hash = hash && hash.substring(1)
     if (!hash) return
 
