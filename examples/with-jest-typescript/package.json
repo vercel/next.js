@@ -14,10 +14,8 @@
   },
   "devDependencies": {
     "@types/jest": "^24.0.11",
-    "@types/next": "^8.0.1",
     "@types/react": "^16.8.8",
     "@types/react-dom": "^16.8.2",
-    "@zeit/next-typescript": "^1.1.1",
     "babel-core": "^6.26.3",
     "babel-jest": "^24.5.0",
     "enzyme": "^3.9.0",

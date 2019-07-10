@@ -41,6 +41,8 @@ const defaultConfig: { [key: string]: any } = {
     documentMiddleware: false,
     publicDirectory: false,
   },
+  serverRuntimeConfig: {},
+  publicRuntimeConfig: {},
 }
 
 function assignDefaults(userConfig: { [key: string]: any }) {
@@ -104,6 +106,12 @@ export default function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    if (userConfig.target === 'serverless' && userConfig.publicRuntimeConfig) {
+      throw new Error(
+        'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+      )
     }
 
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
