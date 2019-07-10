@@ -26,8 +26,6 @@ export type DocumentComponentContext = {
   readonly _devOnlyInvalidateCacheQueryString: string
 }
 
-type Without<T, K> = Pick<T, Exclude<keyof T, K>>
-
 export async function middleware({ req, res }: DocumentContext) {}
 
 function dedupe(bundles: any[]): any[] {
