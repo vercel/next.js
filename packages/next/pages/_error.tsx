@@ -11,7 +11,7 @@ const statusCodes: { [code: number]: string } = {
 
 export type ErrorProps = {
   statusCode: number
-  title: string
+  title?: string
 }
 
 /**
