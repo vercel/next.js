@@ -150,6 +150,12 @@ function runTests () {
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
+
+  it('should be able to handle hash in URL', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#something')
+    const content = await browser.eval(`document.documentElement.innerHTML`)
+    expect(content).toMatch(/post:.*?post-1/)
+  })
 }
 
 describe('Dynamic Routing', () => {

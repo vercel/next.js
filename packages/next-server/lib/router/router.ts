@@ -54,6 +54,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
+  parsedDynamicRoute?: boolean
 
   static events: MittEmitter = mitt()
 
@@ -248,9 +249,15 @@ export default class Router implements BaseRouter {
 
       this.abortComponentLoad(as)
 
+      const { pathname, query } = parse(url, true)
+      // @ts-ignore pathname is always a string
+      const route = toRoute(pathname)
+      const { shallow = false } = options
+      const isDynamic = isDynamicRoute(route)
+
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
-      if (this.onlyAHashChange(as)) {
+      if (this.onlyAHashChange(as) && (!isDynamic || this.parsedDynamicRoute)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
@@ -258,8 +265,6 @@ export default class Router implements BaseRouter {
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
       }
-
-      const { pathname, query } = parse(url, true)
 
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
@@ -270,11 +275,8 @@ export default class Router implements BaseRouter {
         method = 'replaceState'
       }
 
-      // @ts-ignore pathname is always a string
-      const route = toRoute(pathname)
-      const { shallow = false } = options
-
       if (isDynamicRoute(route)) {
+        this.parsedDynamicRoute = true
         const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
         const routeMatch = getRouteMatcher(rr)(asPathname)
