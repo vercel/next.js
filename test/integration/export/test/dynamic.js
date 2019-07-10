@@ -18,7 +18,7 @@ export default function (context) {
         await nextExport(context.appDir, { outdir, stderr: true, onExit: true })
       } catch (e) {
         expect(e.Error).toContain(
-          'https://err.sh/zeit/next.js/wrong-path-for-dynamic-page-export'
+          'https://err.sh/zeit/next.js/export-path-mismatch'
         )
       }
     })

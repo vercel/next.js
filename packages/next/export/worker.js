@@ -52,7 +52,7 @@ process.on(
             }
           } else {
             throw new Error(
-              `Your path: ${path} didn't match ${page} page. https://err.sh/zeit/next.js/wrong-path-for-dynamic-page-export`
+              `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/zeit/next.js/export-path-mismatch`
             )
           }
         }
