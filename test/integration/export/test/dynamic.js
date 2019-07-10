@@ -15,7 +15,7 @@ export default function (context) {
     it('Should throw error not matched route', async () => {
       try {
         const outdir = join(context.appDir, 'outDynamic')
-        await nextExport(context.appDir, { outdir, stderr: true })
+        await nextExport(context.appDir, { outdir, stderr: true, onExit: true })
       } catch (e) {
         expect(e.Error).toContain(
           'https://err.sh/zeit/next.js/wrong-path-for-dynamic-page-export'

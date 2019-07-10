@@ -125,10 +125,14 @@ export function runNextCommand (argv, options = {}) {
     })
 
     instance.on('exit', code => {
-      if (code) {
-        reject(new Error(`exited with code: ${code}\n output: ${stderrOutput}`))
+      if (options.onExit) {
+        if (code) {
+          reject(
+            new Error(`exited with code: ${code}\n output: ${stderrOutput}`)
+          )
+        }
+        resolve()
       }
-      resolve()
     })
   })
 }
