@@ -445,6 +445,7 @@ export default async function getBaseWebpackConfig(
           config.exportTrailingSlash
         ),
         'process.env.__NEXT_MODERN_BUILD': config.modern && !dev,
+        'process.env.__NEXT_SAFARI_NOMODULE': config.safari10NomoduleFix,
         ...(isServer
           ? { 'typeof window': JSON.stringify('undefined') }
           : { 'typeof window': JSON.stringify('object') }),

@@ -40,6 +40,14 @@ function dedupe(bundles: any[]): any[] {
   return kept
 }
 
+function formatModernPath(path: string) {
+  if (process.env.__NEXT_MODERN_BUILD) {
+    return path.replace(/\.js$/, '.es6.js')
+  }
+
+  return path
+}
+
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -158,6 +166,10 @@ export class Head extends Component<
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dedupe(dynamicImports).map((bundle: any) => {
+      // Only render .js files here
+      if (!bundle.file.endsWith(formatModernPath('.js'))) {
+        return null
+      }
       return (
         <link
           rel="preload"
@@ -182,7 +194,7 @@ export class Head extends Component<
 
     return files.map((file: string) => {
       // Only render .js files here
-      if (!/\.js$/.exec(file)) {
+      if (!file.endsWith(formatModernPath('.js'))) {
         return null
       }
 
@@ -364,9 +376,14 @@ export class Head extends Component<
                 rel="preload"
                 href={
                   assetPrefix +
-                  (dynamicBuildId
-                    ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-                    : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+                  formatModernPath(
+                    dynamicBuildId
+                      ? `/_next/static/client/pages${getPageFile(
+                          page,
+                          buildId
+                        )}`
+                      : `/_next/static/${buildId}/pages${getPageFile(page)}`
+                  ) +
                   _devOnlyInvalidateCacheQueryString
                 }
                 as="script"
@@ -378,9 +395,11 @@ export class Head extends Component<
               rel="preload"
               href={
                 assetPrefix +
-                (dynamicBuildId
-                  ? `/_next/static/client/pages/_app.${buildId}.js`
-                  : `/_next/static/${buildId}/pages/_app.js`) +
+                formatModernPath(
+                  dynamicBuildId
+                    ? `/_next/static/client/pages/_app.${buildId}.js`
+                    : `/_next/static/${buildId}/pages/_app.js`
+                ) +
                 _devOnlyInvalidateCacheQueryString
               }
               as="script"
@@ -425,6 +444,10 @@ export class NextScript extends Component<OriginProps> {
   }
 
   context!: DocumentComponentContext
+
+  // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
+  static safariNomoduleFix =
+    '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
   getDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
@@ -584,10 +607,11 @@ export class NextScript extends Component<OriginProps> {
           id={`__NEXT_PAGE__${page}`}
           src={
             assetPrefix +
-            (dynamicBuildId
-              ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-              : `/_next/static/${buildId}/pages${getPageFile(page)}`
-            ).replace(/\.js$/, '.es6.js') +
+            formatModernPath(
+              dynamicBuildId
+                ? `/_next/static/client/pages${getPageFile(page, buildId)}`
+                : `/_next/static/${buildId}/pages${getPageFile(page)}`
+            ) +
             _devOnlyInvalidateCacheQueryString
           }
           nonce={this.props.nonce}
@@ -618,10 +642,11 @@ export class NextScript extends Component<OriginProps> {
           id={`__NEXT_PAGE__/_app`}
           src={
             assetPrefix +
-            (dynamicBuildId
-              ? `/_next/static/client/pages/_app.${buildId}.js`
-              : `/_next/static/${buildId}/pages/_app.js`
-            ).replace(/\.js$/, '.es6.js') +
+            formatModernPath(
+              dynamicBuildId
+                ? `/_next/static/client/pages/_app.${buildId}.js`
+                : `/_next/static/${buildId}/pages/_app.js`
+            ) +
             _devOnlyInvalidateCacheQueryString
           }
           nonce={this.props.nonce}
@@ -656,6 +681,15 @@ export class NextScript extends Component<OriginProps> {
               __html: NextScript.getInlineScriptSource(
                 this.context._documentProps
               ),
+            }}
+          />
+        )}
+        {process.env.__NEXT_SAFARI_NOMODULE ? null : (
+          <script
+            nonce={this.props.nonce}
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            dangerouslySetInnerHTML={{
+              __html: NextScript.safariNomoduleFix,
             }}
           />
         )}
