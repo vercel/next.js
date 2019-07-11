@@ -27,7 +27,6 @@ export async function apiResolver(
 
     if (resolverModule.config) {
       const config: PageConfig = resolverModule.config
-      console.log(config)
       if (config.api && config.api.bodyParser === false) {
         bodyParser = false
       }
