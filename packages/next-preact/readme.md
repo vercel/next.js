@@ -5,7 +5,7 @@ Use [preact](https://preactjs.com/) with [Next.js](https://github.com/zeit/next.
 ## Installation
 
 ```
-npm install --save @next/preact preact
+npm install --save @next/preact preact@next
 ```
 
 or
