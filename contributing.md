@@ -5,8 +5,11 @@ Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
 2. Install yarn: `npm install -g yarn`
 3. Install the dependencies: `yarn`
-4. Run `yarn run dev` to build and watch for code changes
-5. The development branch is `canary`. On a release, the relevant parts of the changes in the `canary` branch are rebased into `master`.
+4. Run `yarn dev` to build and watch for code changes
+5. In a new terminal, run `yarn types` to compile declaration files from TypeScript
+6. The development branch is `canary`. On a release, the relevant parts of the changes in the `canary` branch are rebased into `master`.
+
+> You may need to run `yarn types` again if your types get outdated.
 
 ## To run tests
 

@@ -120,7 +120,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[]
+  styles?: React.ReactElement[] | React.ReactFragment
 }
 
 export type DocumentProps = DocumentInitialProps & {
@@ -167,11 +167,11 @@ type Send<T> = (body: T) => void
  */
 export type NextApiResponse<T = any> = ServerResponse & {
   /**
-   * Send data `any` data in reponse
+   * Send data `any` data in response
    */
   send: Send<T>
   /**
-   * Send data `json` data in reponse
+   * Send data `json` data in response
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>

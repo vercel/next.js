@@ -7,6 +7,7 @@
   "scripts": {
     "lerna": "lerna",
     "dev": "lerna run build --stream --parallel",
+    "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest",
     "testall": "yarn check && yarn run testonly -- --ci --reporters=default --reporters=jest-junit --forceExit --runInBand",
     "pretest": "yarn run lint",
@@ -17,6 +18,7 @@
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
     "prettier": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
+    "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
