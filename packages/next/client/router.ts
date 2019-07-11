@@ -1,7 +1,7 @@
 /* global window */
 import React from 'react'
 import Router, {
-  PublicRouterInstance,
+  NextRouter,
   RouteUrl,
 } from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
@@ -17,9 +17,9 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, PublicRouterInstance, RouteUrl }
+export { Router, NextRouter, RouteUrl }
 
-export type SingletonRouter = SingletonRouterBase & PublicRouterInstance
+export type SingletonRouter = SingletonRouterBase & NextRouter
 
 const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
@@ -141,7 +141,7 @@ export const createRouter = (...args: RouterArgs) => {
 }
 
 // This function is used to create the `withRouter` router instance
-export function makePublicRouterInstance(router: Router): PublicRouterInstance {
+export function makePublicRouterInstance(router: Router): NextRouter {
   const _router = router as any
   const instance = {} as any
 

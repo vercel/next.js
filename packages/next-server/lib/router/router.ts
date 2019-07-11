@@ -30,7 +30,7 @@ export type BaseRouter = {
   asPath: string
 }
 
-export type PublicRouterInstance = BaseRouter &
+export type NextRouter = BaseRouter &
   Pick<
     Router,
     'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'

@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { PublicRouterInstance } from '../lib/router/router'
+import { NextRouter } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt'
 import {
   loadGetInitialProps,
@@ -45,7 +45,7 @@ function noRouter() {
   throw new Error(message)
 }
 
-class ServerRouter implements PublicRouterInstance {
+class ServerRouter implements NextRouter {
   route: string
   pathname: string
   query: ParsedUrlQuery
