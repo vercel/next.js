@@ -2,6 +2,7 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import fs from 'fs-extra'
 import {
   renderViaHTTP,
   findPort,
@@ -156,9 +157,20 @@ function runTests () {
     const content = await browser.eval(`document.documentElement.innerHTML`)
     expect(content).toMatch(/post:.*?post-1/)
   })
+  
+  it('should not have placeholder query values for SSS', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+    expect(html).not.toMatch(/post:.*?\[post\].*?<\/p>/)
+  })
 }
 
+const nextConfig = join(appDir, 'next.config.js')
+
 describe('Dynamic Routing', () => {
+  beforeAll(async () => {
+    await fs.remove(nextConfig)
+  })
+
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -171,6 +183,33 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
+      await runNextCommand(['build', appDir])
+
+      app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
+    })
+    afterAll(() => stopApp(server))
+
+    runTests()
+  })
+
+  describe('SSR production mode', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          target: 'serverless'
+        }
+      `
+      )
+
       await runNextCommand(['build', appDir])
 
       app = nextServer({

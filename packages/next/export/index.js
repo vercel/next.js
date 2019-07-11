@@ -110,7 +110,7 @@ export default async function (dir, options, configuration) {
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
-  if (publicRuntimeConfig) {
+  if (Object.keys(publicRuntimeConfig).length > 0) {
     renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
