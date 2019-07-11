@@ -448,8 +448,18 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SAFARI_NOMODULE':
           config.safari10NomoduleFix && !dev,
         ...(isServer
-          ? { 'typeof window': JSON.stringify('undefined') }
-          : { 'typeof window': JSON.stringify('object') }),
+          ? {
+              // Allow browser-only code to be eliminated
+              'typeof window': JSON.stringify('undefined'),
+              // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
+              // This is typically found in unmaintained modules from the
+              // pre-webpack era (common in server-side code)
+              'global.GENTLY': JSON.stringify(false),
+            }
+          : {
+              // Allow server-only code to be eliminated
+              'typeof window': JSON.stringify('object'),
+            }),
       }),
       !isServer &&
         new ReactLoadablePlugin({
