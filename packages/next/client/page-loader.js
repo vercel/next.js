@@ -80,12 +80,9 @@ export default class PageLoader {
         const deps = this.getDependencies(route)
         const urlsToLoad = deps.filter(url => !loadedModules.has(url))
 
-        // Wait for all of the page's dependencies to load before loading
-        // the main page script
-        Promise.all(urlsToLoad.map(this.loadDependency)).then(() => {
-          this.loadScript(route)
-        })
         this.loadingRoutes[route] = true
+        urlsToLoad.forEach(this.loadScript)
+        this.loadRouteBundle(route)
       }
     })
   }
@@ -96,23 +93,6 @@ export default class PageLoader {
       return []
     }
     return window.__BUILD_MANIFEST.pages[route].map(url => '/_next/' + url)
-  }
-
-  loadDependency (url) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script')
-      script.crossOrigin = process.crossOrigin
-      script.src = url
-      script.onerror = () => {
-        const error = new Error(`Error loading script ${url}`)
-        error.code = 'PAGE_LOAD_ERROR'
-        reject(error)
-      }
-      script.onload = () => {
-        resolve()
-      }
-      document.body.appendChild(script)
-    })
   }
 
   onDynamicBuildId () {
@@ -144,24 +124,28 @@ export default class PageLoader {
     })
   }
 
-  async loadScript (route) {
+  async loadRouteBundle (route) {
     await this.promisedBuildId
 
     route = this.normalizeRoute(route)
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
-    const script = document.createElement('script')
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
     )}/pages${scriptRoute}`
+    this.loadScript(url)
+  }
+
+  loadScript (url) {
+    const script = document.createElement('script')
     script.crossOrigin = process.crossOrigin
     script.src = url
+    script.async = false // Explicit async = false required for in-order execution
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
-      this.pageRegisterEvents.emit(route, { error })
+      this.pageRegisterEvents.emit(url, { error })
     }
-
     document.body.appendChild(script)
   }
 
