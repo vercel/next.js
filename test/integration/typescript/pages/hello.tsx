@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { hello } from '../components/hello'
 import { World } from '../components/world'
 import Router from '../components/router'
+import Link from '../components/link'
 
 export default function HelloPage(): JSX.Element {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function HelloPage(): JSX.Element {
     <div>
       {hello()} <World />
       <Router />
+      <Link />
     </div>
   )
 }
