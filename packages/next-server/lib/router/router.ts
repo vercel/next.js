@@ -21,7 +21,7 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-export type Url = UrlObject | string
+type Url = UrlObject | string
 
 export type BaseRouter = {
   route: string
