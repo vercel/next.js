@@ -9,6 +9,7 @@ import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
+import fs from 'fs'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -99,8 +100,21 @@ export default class DevServer extends Server {
       return
     }
 
+    let resolved = false
     return new Promise(resolve => {
       const pagesDir = join(this.dir, 'pages')
+
+      // Watchpack doesn't emit an event for an empty directory
+      fs.readdir(pagesDir, (_, files) => {
+        if (files && files.length) {
+          return
+        }
+
+        if (!resolved) {
+          resolve()
+          resolved = true
+        }
+      })
 
       let wp = (this.webpackWatcher = new Watchpack())
       wp.watch([], [pagesDir], 0)
@@ -132,7 +146,10 @@ export default class DevServer extends Server {
           match: getRouteMatcher(getRouteRegex(page))
         }))
 
-        resolve()
+        if (!resolved) {
+          resolve()
+          resolved = true
+        }
       })
     })
   }

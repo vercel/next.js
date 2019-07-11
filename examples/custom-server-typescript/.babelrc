@@ -1,13 +1,13 @@
 {
   "env": {
     "development": {
-      "presets": ["next/babel", "@zeit/next-typescript/babel"]
+      "presets": ["next/babel"]
     },
     "production": {
-      "presets": ["next/babel", "@zeit/next-typescript/babel"]
+      "presets": ["next/babel"]
     },
     "test": {
-      "presets": [["next/babel", { "preset-env": { "modules": "commonjs" } }], "@zeit/next-typescript/babel"]
+      "presets": [["next/babel", { "preset-env": { "modules": "commonjs" } }]]
     }
   }
 }

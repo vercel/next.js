@@ -12,10 +12,9 @@
     "react-dom": "^16.8.4"
   },
   "devDependencies": {
-    "@types/next": "^8.0.5",
+    "@types/node": "^12.0.12",
     "@types/react": "^16.8.17",
     "@types/react-dom": "16.8.4",
-    "@zeit/next-typescript": "^1.1.1",
     "cross-env": "^5.2.0",
     "nodemon": "^1.19.0",
     "ts-node": "^8.1.0",

@@ -8,6 +8,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP
 } from 'next-test-utils'
 import fetch from 'node-fetch'
@@ -142,6 +143,11 @@ describe('Serverless', () => {
     const result = await renderViaHTTP(appPort, '/api/posts/post-1')
     const { post } = JSON.parse(result)
     expect(post).toBe('post-1')
+  })
+
+  it('should 404 on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/hello/')
+    expect(res.status).toBe(404)
   })
 
   describe('With basic usage', () => {

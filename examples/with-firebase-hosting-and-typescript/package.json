@@ -21,16 +21,16 @@
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "@zeit/next-typescript": "^1.1.0",
     "firebase-admin": "^6.3.0",
     "firebase-functions": "^2.1.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "16.8.6",
+    "react-dom": "16.8.6"
   },
   "devDependencies": {
-    "@types/next": "^7.0.0",
+    "@types/node": "12.0.12",
     "@types/react": "^16.6.0",
+    "@types/react-dom": "16.8.4",
     "cpx": "1.5.0",
     "cross-env": "5.2.0",
     "firebase-tools": "^6.1.0",

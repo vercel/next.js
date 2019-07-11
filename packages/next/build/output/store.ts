@@ -84,6 +84,6 @@ store.subscribe(state => {
 
   Log.ready(
     'compiled successfully' +
-      (state.appUrl ? ` (ready on ${state.appUrl})` : '')
+      (state.appUrl ? ` - ready on ${state.appUrl}` : '')
   )
 })

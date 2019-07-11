@@ -1,3 +1,4 @@
+/* global location */
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
@@ -49,7 +50,7 @@ __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
-  publicRuntimeConfig: runtimeConfig
+  publicRuntimeConfig: runtimeConfig || {}
 })
 
 const asPath = getURL()
@@ -84,7 +85,7 @@ class Container extends React.Component {
     // If it's a dynamic route or has a querystring
     if (
       data.nextExport &&
-      (isDynamicRoute(router.pathname) || window.location.search)
+      (isDynamicRoute(router.pathname) || location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -92,7 +93,7 @@ class Container extends React.Component {
           '?' +
           stringifyQs({
             ...router.query,
-            ...parseQs(window.location.search.substr(1))
+            ...parseQs(location.search.substr(1))
           }),
         asPath
       )
@@ -104,7 +105,7 @@ class Container extends React.Component {
   }
 
   scrollToHash () {
-    let { hash } = window.location
+    let { hash } = location
     hash = hash && hash.substring(1)
     if (!hash) return
 
@@ -276,7 +277,7 @@ async function doRender ({ App, Component, props, err }) {
     appProps
   })
 
-  // In development runtime errors are caught by react-error-overlay.
+  // In development runtime errors are caught by react-error-overlay
   if (process.env.NODE_ENV === 'development') {
     renderReactElement(
       <AppContainer>
@@ -285,7 +286,7 @@ async function doRender ({ App, Component, props, err }) {
       appElement
     )
   } else {
-    // In production we catch runtime errors using componentDidCatch which will trigger renderError.
+    // In production we catch runtime errors using componentDidCatch which will trigger renderError
     renderReactElement(
       <AppContainer>
         <App {...appProps} />

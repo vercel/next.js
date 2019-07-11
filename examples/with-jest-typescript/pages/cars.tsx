@@ -1,4 +1,4 @@
-import CarsOverview from './../src/modules/cars/Overview'
+import CarsOverview from '../src/modules/cars/Overview'
 
 const CarsPage = () => <CarsOverview />
 

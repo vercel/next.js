@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to generate type declarations for using CSS modules with TypeScript. It uses the [next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css) and [next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) plugins with [typings-for-css-modules-loader](https://www.npmjs.com/package/typings-for-css-modules-loader). With additional samples of how to apply using sass, less and stylus.
+This example shows how to generate type declarations for using CSS modules with TypeScript. It uses the [next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css) plugin and [typings-for-css-modules-loader](https://www.npmjs.com/package/typings-for-css-modules-loader). With additional samples of how to apply using sass, less and stylus.
