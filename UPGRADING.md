@@ -4,7 +4,7 @@
 
 #### `@zeit/next-typescript` is no longer necessary
 
-Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it. Please remove this plugin from your `next.config.js`.
+Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it. Please remove this plugin from your `next.config.js`, and remove references to it in any custom `.bablerc` you may have.
 
 Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
 
