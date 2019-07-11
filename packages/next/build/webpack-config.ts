@@ -231,7 +231,7 @@ export default async function getBaseWebpackConfig(
             return module.size() > 160000
           },
           name(module: { identifier: Function }): string {
-            let nodeModuleNameResults = /node_modules\/(.*)/.exec(
+            let nodeModuleNameResults = /(?:^|\/)node_modules\/(.*)/.exec(
               module.identifier()
             )
             return nodeModuleNameResults
