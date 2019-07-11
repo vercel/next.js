@@ -371,7 +371,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (invalidPages.size > 0) {
     throw new Error(
-      `autoExport failed: found page${
+      `automatic static optimization failed: found page${
         invalidPages.size === 1 ? '' : 's'
       } without React Component as default export\n${[...invalidPages]
         .map(pg => `pages${pg}`)
