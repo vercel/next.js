@@ -123,7 +123,7 @@ export default class BuildManifestPlugin {
 
         if (this.options.clientManifest) {
           compilation.assets[clientManifestPath] = new RawSource(
-            `(function(){__BUILD_MANIFEST = JSON.parse('${clientManifestContentString}')})()`
+            `self.__BUILD_MANIFEST = JSON.parse('${clientManifestContentString}')`
           )
         }
 
