@@ -201,11 +201,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   let result: CompilerResult = { warnings: [], errors: [] }
   if (target === 'serverless') {
-    if (config.publicRuntimeConfig)
-      throw new Error(
-        'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
-      )
-
     const clientResult = await runCompiler(configs[0])
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {

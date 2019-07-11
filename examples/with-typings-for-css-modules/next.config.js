@@ -1,26 +1,24 @@
 const withCSS = require('@zeit/next-css')
-const withTypescript = require('@zeit/next-typescript')
 
 /* With additional configuration on top of CSS Modules */
-module.exports = withTypescript(
-  withCSS({
-    cssModules: true,
-    cssLoaderOptions: {
-      camelCase: true,
-      namedExport: true
-    },
-    webpack (config, options) {
-      if (!options.isServer) {
-        /* Using next-css */
-        for (let entry of options.defaultLoaders.css) {
-          if (entry.loader === 'css-loader') {
-            entry.loader = 'typings-for-css-modules-loader'
-            break
-          }
+module.exports = withCSS({
+  cssModules: true,
+  cssLoaderOptions: {
+    camelCase: true,
+    namedExport: true
+  },
+  webpack (config, options) {
+    if (!options.isServer) {
+      /* Using next-css */
+      for (let entry of options.defaultLoaders.css) {
+        if (entry.loader === 'css-loader') {
+          entry.loader = 'typings-for-css-modules-loader'
+          break
         }
+      }
 
-        /* Using next-less */
-        /*
+      /* Using next-less */
+      /*
       for (let entry of options.defaultLoaders.less) {
         if (entry.loader === 'css-loader') {
           entry.loader = 'typings-for-css-modules-loader';
@@ -29,8 +27,8 @@ module.exports = withTypescript(
       }
       */
 
-        /* Using next-sass */
-        /*
+      /* Using next-sass */
+      /*
       for (let entry of options.defaultLoaders.sass) {
         if (entry.loader === 'css-loader') {
           entry.loader = 'typings-for-css-modules-loader';
@@ -39,8 +37,8 @@ module.exports = withTypescript(
       }
       */
 
-        /* Using next-stylus */
-        /*
+      /* Using next-stylus */
+      /*
       for (let entry of options.defaultLoaders.stylus) {
         if (entry.loader === 'css-loader') {
           entry.loader = 'typings-for-css-modules-loader';
@@ -48,9 +46,8 @@ module.exports = withTypescript(
         }
       }
       */
-      }
-
-      return config
     }
-  })
-)
+
+    return config
+  }
+})

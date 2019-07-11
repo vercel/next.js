@@ -10,14 +10,12 @@
   },
   "dependencies": {
     "@zeit/next-css": "^1.0.1",
-    "@zeit/next-typescript": "^1.1.1",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "typings-for-css-modules-loader": "^1.7.0"
   },
   "devDependencies": {
-    "@types/next": "7.0.2",
     "@types/react": "16.4.16",
     "@types/react-dom": "16.0.9",
     "typescript": "3.1.3"
