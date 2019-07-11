@@ -78,9 +78,7 @@ export default class PageLoader {
           })
         )
         const deps = this.getDependencies(route)
-        const urlsToLoad = deps
-          .map(url => '/_next/' + url)
-          .filter(url => !loadedModules.has(url))
+        const urlsToLoad = deps.filter(url => !loadedModules.has(url))
 
         // Wait for all of the page's dependencies to load before loading
         // the main page script
@@ -97,7 +95,7 @@ export default class PageLoader {
     if (!window.__BUILD_MANIFEST) {
       return []
     }
-    return window.__BUILD_MANIFEST.pages[route]
+    return window.__BUILD_MANIFEST.pages[route].map(url => '/_next/' + url)
   }
 
   loadDependency (url) {
@@ -226,11 +224,9 @@ export default class PageLoader {
     }
 
     if (!isDependency) {
-      this.getDependencies(route)
-        .map(url => '/_next/' + url)
-        .forEach(url => {
-          this.prefetch(url, true)
-        })
+      this.getDependencies(route).forEach(url => {
+        this.prefetch(url, true)
+      })
     }
 
     // Feature detection is used to see if preload is supported
