@@ -21,7 +21,7 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-type Url = UrlObject | string
+export type Url = UrlObject | string
 
 export type BaseRouter = {
   route: string
@@ -33,10 +33,14 @@ export type BaseRouter = {
 export type NextRouter = BaseRouter &
   Pick<
     Router,
-    'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'
-  > & {
-    events: typeof Router['events']
-  }
+    | 'push'
+    | 'replace'
+    | 'reload'
+    | 'back'
+    | 'prefetch'
+    | 'beforePopState'
+    | 'events'
+  >
 
 type RouteInfo = {
   Component: ComponentType
@@ -64,6 +68,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
+  events: MittEmitter
 
   static events: MittEmitter = mitt()
 

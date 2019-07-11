@@ -1,9 +1,6 @@
 /* global window */
 import React from 'react'
-import Router, {
-  NextRouter,
-  RouteUrl,
-} from 'next-server/dist/lib/router/router'
+import Router, { NextRouter, Url } from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { RequestContext } from 'next-server/dist/lib/request-context'
 
@@ -17,7 +14,7 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, NextRouter, RouteUrl }
+export { Router, NextRouter, Url }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 
