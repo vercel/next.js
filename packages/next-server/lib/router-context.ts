@@ -1,3 +1,4 @@
 import * as React from 'react'
+import { NextRouter } from './router/router'
 
-export const RouterContext: React.Context<any> = React.createContext(null)
+export const RouterContext = React.createContext<NextRouter>(null as any)

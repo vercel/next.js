@@ -17,6 +17,7 @@ describe('TypeScript Features', () => {
 
     // pre-build all pages at the start
     await Promise.all([renderViaHTTP(context.appPort, '/hello')])
+    await Promise.all([renderViaHTTP(context.appPort, '/type-error-recover')])
   })
   afterAll(() => killApp(context.server))
 

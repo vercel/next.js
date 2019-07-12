@@ -55,7 +55,7 @@ function runTests (serverless = false) {
     expect(data).toEqual([{ title: 'Nextjs' }])
   })
 
-  it('shuld return error with invalid JSON', async () => {
+  it('should return error with invalid JSON', async () => {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
