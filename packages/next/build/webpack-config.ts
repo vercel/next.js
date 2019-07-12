@@ -9,6 +9,7 @@ import {
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import { promisify } from 'util'
+import crypto from 'crypto'
 import webpack from 'webpack'
 
 import {
@@ -249,7 +250,17 @@ export default async function getBaseWebpackConfig(
           priority: 20,
         },
         shared: {
-          name: false,
+          name(module, chunks) {
+            return crypto
+              .createHash('sha1')
+              .update(
+                chunks.reduce((acc: string, chunk: any) => {
+                  return acc + chunk.name
+                }, '')
+              )
+              .digest('base64')
+              .replace(/\//, '')
+          },
           priority: 10,
           minChunks: 2,
           reuseExistingChunk: true,
