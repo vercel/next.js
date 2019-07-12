@@ -344,7 +344,13 @@ export async function renderToHTML(
   )
 
   try {
-    props = await loadGetInitialProps(App, { Component, router, ctx })
+    const InitialPropsApp = props => (
+      <AppContainer>
+        <App {...props} />
+      </AppContainer>
+    );
+    InitialPropsApp.getInitialProps = App.getInitialProps;
+    props = await loadGetInitialProps(InitialPropsApp, { Component, router, ctx })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
