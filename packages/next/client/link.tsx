@@ -54,7 +54,6 @@ export type LinkProps = {
   passHref?: boolean
   onError?: (error: Error) => void
   prefetch?: boolean
-  childRef?: React.RefObject<any>
 }
 
 let observer: IntersectionObserver
