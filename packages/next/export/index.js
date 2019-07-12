@@ -67,22 +67,27 @@ export default async function (dir, options, configuration) {
 
   // Initialize the output directory
   const outDir = options.outdir
-  await recursiveDelete(join(outDir))
-  await mkdirp(join(outDir, '_next', buildId))
-
-  // Copy static directory
-  if (existsSync(join(dir, 'static'))) {
-    log('  copying "static" directory')
-    await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
+  if (!options.overwrite) {
+    await recursiveDelete(join(outDir))
   }
 
-  // Copy .next/static directory
-  if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
-    log('  copying "static build" directory')
-    await recursiveCopy(
-      join(distDir, CLIENT_STATIC_FILES_PATH),
-      join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
-    )
+  await mkdirp(join(outDir, '_next', buildId))
+
+  if (!options.overwrite) {
+    // Copy static directory
+    if (existsSync(join(dir, 'static'))) {
+      log('  copying "static" directory')
+      await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
+    }
+
+    // Copy .next/static directory
+    if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
+      log('  copying "static build" directory')
+      await recursiveCopy(
+        join(distDir, CLIENT_STATIC_FILES_PATH),
+        join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+      )
+    }
   }
 
   // Get the exportPathMap from the config file
@@ -130,7 +135,13 @@ export default async function (dir, options, configuration) {
     buildId
   })
   exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
-  const exportPaths = Object.keys(exportPathMap)
+
+  const pathRegexp = new RegExp(
+    '^'.concat(options.filter.replace(/\//g, '\\/'))
+  )
+  const exportPaths = Object.keys(exportPathMap).filter(path =>
+    pathRegexp.exec(path)
+  )
 
   const progress = !options.silent && createProgress(exportPaths.length)
 
@@ -147,17 +158,20 @@ export default async function (dir, options, configuration) {
   const ampValidations = {}
   let hadValidationError = false
 
-  const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
-  // Copy public directory
-  if (existsSync(publicDir)) {
-    log('  copying "public" directory')
-    await recursiveCopy(publicDir, outDir, {
-      filter (path) {
-        // Exclude paths used by pages
-        return !exportPathMap[path]
-      }
-    })
+  if (!options.overwrite) {
+    const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
+    // Copy public directory
+    if (existsSync(publicDir)) {
+      log('  copying "public" directory')
+      await recursiveCopy(publicDir, outDir, {
+        filter (path) {
+          // Exclude paths used by pages
+          return !exportPathMap[path]
+        }
+      })
+    }
   }
+
   const workers = new Set()
 
   await Promise.all(

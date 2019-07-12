@@ -15,6 +15,8 @@ const nextExport: cliCommand = argv => {
       '--outdir': String,
       '--threads': Number,
       '--concurrency': Number,
+      '--overwrite': Boolean,
+      '--filter': String,
 
       // Aliases
       '-h': '--help',
@@ -68,6 +70,8 @@ const nextExport: cliCommand = argv => {
     threads: args['--threads'],
     concurrency: args['--concurrency'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
+    overwrite: args['--overwrite'] || args['--filter'] !== undefined || false,
+    filter: args['--filter'] || '',
   }
 
   exportApp(dir, options)
