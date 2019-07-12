@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject } from 'url'
+import { parse, format, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -68,7 +68,6 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  parsedDynamicRoute?: boolean
   events: MittEmitter
 
   static events: MittEmitter = mitt()
@@ -263,11 +262,29 @@ export default class Router implements BaseRouter {
       // @ts-ignore pathname is always a string
       const route = toRoute(pathname)
       const { shallow = false } = options
-      const isDynamic = isDynamicRoute(route)
+
+      if (isDynamicRoute(route)) {
+        const { pathname: asPathname } = parse(as)
+        const rr = getRouteRegex(route)
+        const routeMatch = getRouteMatcher(rr)(asPathname)
+        if (!routeMatch) {
+          console.error(
+            "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
+          )
+          return resolve(false)
+        }
+
+        // Merge params into `query`, overwriting any specified in search
+        Object.assign(query, routeMatch)
+      }
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
-      if (this.onlyAHashChange(as) && (!isDynamic || this.parsedDynamicRoute)) {
+      // We need to compare the query since it could be a dynamic route update
+      if (
+        format({ query }) === format({ query: this.query }) &&
+        this.onlyAHashChange(as)
+      ) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
@@ -283,22 +300,6 @@ export default class Router implements BaseRouter {
       // We should compare the new asPath to the current asPath, not the url
       if (!this.urlIsNew(as)) {
         method = 'replaceState'
-      }
-
-      if (isDynamicRoute(route)) {
-        this.parsedDynamicRoute = true
-        const { pathname: asPathname } = parse(as)
-        const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(asPathname)
-        if (!routeMatch) {
-          console.error(
-            "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
-          )
-          return resolve(false)
-        }
-
-        // Merge params into `query`, overwriting any specified in search
-        Object.assign(query, routeMatch)
       }
 
       Router.events.emit('routeChangeStart', as)

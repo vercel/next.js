@@ -221,7 +221,10 @@ describe('Dynamic Routing', () => {
       server = await startApp(app)
       appPort = server.address().port
     })
-    afterAll(() => stopApp(server))
+    afterAll(async () => {
+      await stopApp(server)
+      await fs.remove(nextConfig)
+    })
 
     runTests()
   })
