@@ -300,6 +300,16 @@ export default Post
 Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
 The matched path parameter will be sent as a query parameter to the page.
 
+> Note: A `<Link>` for a Dynamic Route looks like so:
+>
+> ```jsx
+> <Link href="/post/[pid]" as="/post/abc">
+>   <a>First Post</a>
+> </Link>
+> ```
+>
+> You can [read more about `<Link>` here](#with-link).
+
 For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
 
@@ -316,11 +326,11 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 ### Populating `<head>`
 
 <details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="/examples/head-elements">Head elements</a></li>
-    <li><a href="/examples/layout-component">Layout component</a></li>
-  </ul>
+<summary><b>Examples</b></summary>
+<ul>
+ <li><a href="/examples/head-elements">Head elements</a></li>
+ <li><a href="/examples/layout-component">Layout component</a></li>
+</ul>
 </details>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
@@ -2682,3 +2692,7 @@ Please see our [contributing.md](/contributing.md).
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+
+```
+
+```
