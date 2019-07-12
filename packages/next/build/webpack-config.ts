@@ -224,7 +224,7 @@ export default async function getBaseWebpackConfig(
         framework: {
           name: 'framework',
           chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
           priority: 40,
         },
         lib: {
