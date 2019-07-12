@@ -30,6 +30,18 @@ export type BaseRouter = {
   asPath: string
 }
 
+export type NextRouter = BaseRouter &
+  Pick<
+    Router,
+    | 'push'
+    | 'replace'
+    | 'reload'
+    | 'back'
+    | 'prefetch'
+    | 'beforePopState'
+    | 'events'
+  >
+
 type RouteInfo = {
   Component: ComponentType
   props?: any
@@ -56,6 +68,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
+  events: MittEmitter
 
   static events: MittEmitter = mitt()
 
