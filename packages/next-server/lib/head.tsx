@@ -7,13 +7,9 @@ type WithInAmpMode = {
   inAmpMode?: boolean
 }
 
-type State = Array<React.ReactElement<any>> | undefined
+const headInstanceRefs: Set<React.RefObject<JSX.Element>> = new Set()
 
-const isServer = typeof window === 'undefined'
-
-const headInstanceRefs: Set<any> = new Set()
-
-let headState: State
+let headState: Array<React.ReactElement> | undefined
 
 export function defaultHead(className = 'next-head', inAmpMode = false) {
   const head = [<meta key="charSet" charSet="utf-8" className={className} />]
@@ -113,20 +109,23 @@ function unique() {
  * @param headElement List of multiple <Head> instances
  */
 function reduceHeadInstances(
-  headInstanceRefs: Array<React.RefObject<React.ReactElement>>,
+  headInstanceRefs: Array<React.RefObject<JSX.Element>>,
   options: WithInAmpMode
 ) {
   return headInstanceRefs
-    .reduce((list: Array<any>, headInstanceRef) => {
-      const headElements = React.Children.toArray(headInstanceRef.current)
-      return [...list, ...headElements]
-    }, [])
+    .reduce(
+      (list: Array<any>, headInstanceRef: React.RefObject<JSX.Element>) => {
+        const headElements = React.Children.toArray(headInstanceRef.current)
+        return [...list, ...headElements]
+      },
+      []
+    )
     .reduce(onlyReactElement, [])
     .reverse()
     .concat(defaultHead('', options.inAmpMode))
     .filter(unique())
     .reverse()
-    .map((c: React.ReactElement<any>, i: number) => {
+    .map((c: React.ReactElement, i: number) => {
       let className: string | undefined =
         (c.props && c.props.className ? c.props.className + ' ' : '') +
         'next-head'
@@ -143,10 +142,10 @@ function reduceHeadInstances(
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
-function Head({ children }: { children: any }) {
+function Head({ children }: { children: JSX.Element }) {
   const ampState = React.useContext(AmpStateContext)
   const updateHead = React.useContext(HeadManagerContext)
-  const instanceRef = React.useRef<any>(children)
+  const instanceRef = React.useRef(children)
 
   // Update the instanceRef every render
   instanceRef.current = children
