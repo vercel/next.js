@@ -143,10 +143,10 @@ function reduceHeadInstances(
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
-function Head({ children }: { children: React.ReactNode }) {
+function Head({ children }: { children: any }) {
   const ampState = React.useContext(AmpStateContext)
   const updateHead = React.useContext(HeadManagerContext)
-  const instanceRef = React.useRef<React.ReactNode>(children)
+  const instanceRef = React.useRef<any>(children)
 
   // Update the instanceRef every render
   instanceRef.current = children
