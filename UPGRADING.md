@@ -6,6 +6,8 @@
 
 Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it. Please remove this plugin from your `next.config.js`.
 
+Remove references to `@zeit/next-typescript/babel` from your custom `.babelrc` (if present).
+
 Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
 
 TypeScript Definitions are published with the `next` package, so you need to uninstall `@types/next` as they would conflict.
