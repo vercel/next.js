@@ -9,6 +9,8 @@ type WithInAmpMode = {
 
 const headInstanceRefs: Set<React.RefObject<JSX.Element>> = new Set()
 
+const isServer = typeof window === 'undefined'
+
 let headState: Array<React.ReactElement> | undefined
 
 export function defaultHead(className = 'next-head', inAmpMode = false) {
@@ -115,8 +117,7 @@ function reduceHeadInstances(
   return headInstanceRefs
     .reduce(
       (list: Array<any>, headInstanceRef: React.RefObject<JSX.Element>) => {
-        const headElements = React.Children.toArray(headInstanceRef.current)
-        return [...list, ...headElements]
+        return [...list, ...React.Children.toArray(headInstanceRef.current)]
       },
       []
     )
@@ -156,11 +157,17 @@ function Head({ children }: { children: JSX.Element }) {
     headState = reduceHeadInstances([...headInstanceRefs], {
       inAmpMode,
     })
-    updateHead(headState)
+    if (updateHead) {
+      updateHead(headState)
+    }
   }, [updateHead, reduceHeadInstances, inAmpMode])
 
   // Since this is a Set(), we can just always add it
   headInstanceRefs.add(instanceRef)
+
+  if (isServer) {
+    emitUpdate()
+  }
 
   // We want to run this after every single render... right?
   React.useEffect(() => {
@@ -172,7 +179,7 @@ function Head({ children }: { children: JSX.Element }) {
     }
   })
 
-  return children
+  return null
 }
 
 Head.rewind = () => {
