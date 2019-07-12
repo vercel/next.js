@@ -3,7 +3,7 @@ import { ServerResponse, IncomingMessage } from 'http'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/render'
-import { BaseRouter } from './router/router'
+import { NextRouter } from './router/router'
 
 /**
  * Types used by both next and next-server
@@ -97,7 +97,7 @@ export interface NextPageContext {
   asPath?: string
 }
 
-export type AppContextType<R extends BaseRouter = BaseRouter> = {
+export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
   router: R
   ctx: NextPageContext
@@ -108,7 +108,7 @@ export type AppInitialProps = {
 }
 
 export type AppPropsType<
-  R extends BaseRouter = BaseRouter,
+  R extends NextRouter = NextRouter,
   P = {}
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>

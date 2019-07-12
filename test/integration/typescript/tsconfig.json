@@ -2,7 +2,18 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "module": "esnext",
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
+  "exclude": ["node_modules"],
   "include": ["next-env.d.ts", "components", "pages"]
 }
