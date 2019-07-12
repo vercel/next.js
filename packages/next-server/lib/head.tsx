@@ -1,5 +1,4 @@
 import React from 'react'
-import withSideEffect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
@@ -7,6 +6,14 @@ import { isInAmpMode } from './amp'
 type WithInAmpMode = {
   inAmpMode?: boolean
 }
+
+type State = Array<React.ReactElement<any>> | undefined
+
+const isServer = typeof window === 'undefined'
+
+const headInstanceRefs: Set<any> = new Set()
+
+let headState: State
 
 export function defaultHead(className = 'next-head', inAmpMode = false) {
   const head = [<meta key="charSet" charSet="utf-8" className={className} />]
@@ -105,23 +112,18 @@ function unique() {
  *
  * @param headElement List of multiple <Head> instances
  */
-function reduceComponents(
-  headElements: Array<React.ReactElement<any>>,
-  props: WithInAmpMode
+function reduceHeadInstances(
+  headInstanceRefs: Array<React.RefObject<React.ReactElement>>,
+  options: WithInAmpMode
 ) {
-  return headElements
-    .reduce(
-      (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
-        const headElementChildren = React.Children.toArray(
-          headElement.props.children
-        )
-        return list.concat(headElementChildren)
-      },
-      []
-    )
+  return headInstanceRefs
+    .reduce((list: Array<any>, headInstanceRef) => {
+      const headElements = React.Children.toArray(headInstanceRef.current)
+      return [...list, ...headElements]
+    }, [])
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead('', props.inAmpMode))
+    .concat(defaultHead('', options.inAmpMode))
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -137,32 +139,48 @@ function reduceComponents(
     })
 }
 
-const Effect = withSideEffect()
-
 /**
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
-  return (
-    <AmpStateContext.Consumer>
-      {ampState => (
-        <HeadManagerContext.Consumer>
-          {updateHead => (
-            <Effect
-              reduceComponentsToState={reduceComponents}
-              handleStateChange={updateHead}
-              inAmpMode={isInAmpMode(ampState)}
-            >
-              {children}
-            </Effect>
-          )}
-        </HeadManagerContext.Consumer>
-      )}
-    </AmpStateContext.Consumer>
-  )
+  const ampState = React.useContext(AmpStateContext)
+  const updateHead = React.useContext(HeadManagerContext)
+  const instanceRef = React.useRef<React.ReactNode>(children)
+
+  // Update the instanceRef every render
+  instanceRef.current = children
+
+  const inAmpMode = isInAmpMode(ampState)
+
+  const emitUpdate = React.useCallback(() => {
+    headState = reduceHeadInstances([...headInstanceRefs], {
+      inAmpMode,
+    })
+    updateHead(headState)
+  }, [updateHead, reduceHeadInstances, inAmpMode])
+
+  // Since this is a Set(), we can just always add it
+  headInstanceRefs.add(instanceRef)
+
+  // We want to run this after every single render... right?
+  React.useEffect(() => {
+    emitUpdate()
+
+    return () => {
+      headInstanceRefs.delete(instanceRef)
+      emitUpdate()
+    }
+  })
+
+  return children
 }
 
-Head.rewind = Effect.rewind
+Head.rewind = () => {
+  const recordedState = headState
+  headState = undefined
+  headInstanceRefs.clear()
+  return recordedState
+}
 
 export default Head

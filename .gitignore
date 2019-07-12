@@ -23,6 +23,7 @@ test/**/out*
 
 # Editors
 **/.idea
+**/.history
 
 # example output
 examples/**/out
