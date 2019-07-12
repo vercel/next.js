@@ -190,6 +190,8 @@ export async function render (props) {
 export async function renderError (props) {
   const { App, err } = props
 
+  // In development runtime errors are caught by react-error-overlay
+  // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
   }
@@ -277,23 +279,13 @@ async function doRender ({ App, Component, props, err }) {
     appProps
   })
 
-  // In development runtime errors are caught by react-error-overlay
-  if (process.env.NODE_ENV === 'development') {
-    renderReactElement(
-      <AppContainer>
-        <App {...appProps} />
-      </AppContainer>,
-      appElement
-    )
-  } else {
-    // In production we catch runtime errors using componentDidCatch which will trigger renderError
-    renderReactElement(
-      <AppContainer>
-        <App {...appProps} />
-      </AppContainer>,
-      appElement
-    )
-  }
+  // We catch runtime errors using componentDidCatch which will trigger renderError
+  renderReactElement(
+    <AppContainer>
+      <App {...appProps} />
+    </AppContainer>,
+    appElement
+  )
 
   emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
