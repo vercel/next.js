@@ -3,8 +3,8 @@ import PropTypes from 'prop-types'
 import { NextComponentType, NextPageContext } from 'next-server/dist/lib/utils'
 import { NextRouter } from './router'
 
-export type WithRouterProps = {
-  router: NextRouter
+export type WithRouterProps<Query = unknown> = {
+  router: NextRouter<Query>
 }
 
 export type ExcludeRouterProps<P> = Pick<

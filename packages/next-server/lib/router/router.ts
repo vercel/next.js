@@ -23,14 +23,14 @@ function toRoute(path: string): string {
 
 type Url = UrlObject | string
 
-export type BaseRouter = {
+export type BaseRouter<Query = unknown> = {
   route: string
   pathname: string
-  query: ParsedUrlQuery
+  query: ParsedUrlQuery & Query
   asPath: string
 }
 
-export type NextRouter = BaseRouter &
+export type NextRouter<Query = unknown> = BaseRouter<Query> &
   Pick<
     Router,
     | 'push'
