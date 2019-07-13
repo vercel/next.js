@@ -59,6 +59,7 @@ module.exports = (
   options: NextBabelPresetOptions = {}
 ): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
+  const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
@@ -66,6 +67,17 @@ module.exports = (
     exclude: ['transform-typeof-symbol'],
     ...options['preset-env'],
   }
+
+  // When transpiling for the server, target the current Node version if not explicitly specified:
+  if (
+    isServer &&
+    (!presetEnvConfig.targets || !('node' in presetEnvConfig.targets))
+  ) {
+    presetEnvConfig.targets = {
+      node: true,
+    }
+  }
+
   return {
     presets: [
       [require('@babel/preset-env').default, presetEnvConfig],
