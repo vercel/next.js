@@ -4,6 +4,7 @@ import { hello } from '../components/hello'
 import { World } from '../components/world'
 import Router from '../components/router'
 import Link from '../components/link'
+import WithRouterComp from '../components/with-router-comp'
 
 export default function HelloPage(): JSX.Element {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function HelloPage(): JSX.Element {
       {hello()} <World />
       <Router />
       <Link />
+      <WithRouterComp />
     </div>
   )
 }
