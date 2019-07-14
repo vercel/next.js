@@ -247,7 +247,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     ) {
       const page_name_regex = /\'private-next-pages\/(?<page_name>[^\']*)\'/
       const parsed = page_name_regex.exec(error)
-      const page_name = parsed.groups.page_name
+      const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(
         `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
       )
