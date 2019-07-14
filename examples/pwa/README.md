@@ -1,0 +1,29 @@
+# PWA example
+
+> **NOTE: Source code is hosted at [`next-pwa` plugin repository](https://github.com/shadowwalker/next-pwa/tree/master/examples/next-9)**
+
+[TOC]
+
+This example demostrates how to use `next-pwa` plugin to turn a `next.js` based web application into a progressive web application easily.
+
+Thanks to **Next.js 9+**, we can use `public` folder (currently an experimental feature) to serve static files from root url path. It cuts the need to write custom server only to serve those files. Therefore the setup is more concise and easy to setup. We can use `next.config.js` to config `next-pwa` to generates service worker and precache files into `public` folder.
+
+> [Check out the lighthouse summary](https://github.com/shadowwalker/next-pwa/blob/master/examples/next-9/lighthouse.pdf), or run the test your self.
+
+## Usage
+
+[![gitpod](https://img.shields.io/static/v1.svg?label=TRY%20IT%20ON&message=GitPod.io&color=blue&style=for-the-badge&logoWidth=24&logo=data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGlkPSJsb2dvLWZpbmFsIiB2aWV3Qm94PSIwIDAgMjA2LjM1IDIwNi4zNSI+CiAgIDxkZWZzPgogICAgICA8c3R5bGU+LmNscy0xe2ZpbGw6IzAwODdiZTt9LmNscy0ye2ZpbGw6IzFhYTZlNDt9LmNscy0ze2ZpbGw6IzAwOTJjZjt9LmNscy00e2ZpbGw6I2U4YmZkODt9LmNscy01e2ZpbGw6I2ZmZjt9PC9zdHlsZT4KICAgPC9kZWZzPgogICA8dGl0bGU+R2l0cG9kPC90aXRsZT4KICAgPHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9Ijg5LjM1IDE4NS42IDE3Ljc0IDE0NC41OCAxNy43NCA2MS44NyAxNy43NyA2MS44NSAwIDUxLjYgMCAxNTQuNzYgMCAxNTQuNzcgODkuMzUgMjA2LjM1IDg5LjM1IDIwNi4zNSA4OS4zNSAxODUuNiA4OS4zNSAxODUuNiIgLz4KICAgPHBvbHlnb24gY2xhc3M9ImNscy0xIiBwb2ludHM9Ijg5LjM1IDEwMy4xOCA4OS4zNSAxMDMuMTggMzUuNzcgNzIuMjUgMzUuNzQgNzIuMjcgMzUuNzQgMTM0LjE1IDg5LjM1IDE2NC44NiA4OS4zNSAxMDMuMTkgODkuMzUgMTAzLjE5IDg5LjM1IDEwMy4xOCIgLz4KICAgPHBvbHlnb24gY2xhc3M9ImNscy0yIiBwb2ludHM9IjE3OC43MSA1MS42MSA4OS4zNSAwIDAgNTEuNTkgMCA1MS42IDE3Ljc3IDYxLjg1IDg5LjM1IDIwLjU1IDE2MC45OCA2MS44MyAxNzguNyA1MS42MSAxNzguNyA1MS42MiAxNzguNzEgNTEuNjIgMTc4LjcxIDUxLjYxIiAvPgogICA8cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iMTQyLjk3IDcyLjIzIDg5LjM2IDQxLjMzIDM1Ljc3IDcyLjI1IDg5LjM1IDEwMy4xOCAxNDIuOTcgNzIuMjMiIC8+CiAgIDxwb2x5Z29uIGNsYXNzPSJjbHMtMyIgcG9pbnRzPSI4OS4zNSAxMDMuMTggODkuMzUgMTAzLjE5IDg5LjM1IDEwMy4xOSA4OS4zNSAxMDMuMTkgODkuMzUgMTAzLjE4IDg5LjM1IDEwMy4xOCA4OS4zNSAxMDMuMTgiIC8+CiAgIDxwb2x5Z29uIGNsYXNzPSJjbHMtMyIgcG9pbnRzPSI4OS4zNSAxMDMuMTggODkuMzUgMTAzLjE4IDg5LjM1IDEwMy4xOCAxNDIuOTggNzIuMjMgMTQyLjk3IDcyLjIzIDg5LjM1IDEwMy4xOCIgLz4KICAgPHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjE2MC45OCA2MS44MyAxNjAuOTkgNjEuODQgMTc4LjcgNTEuNjIgMTc4LjcgNTEuNjEgMTYwLjk4IDYxLjgzIiAvPgogICA8cG9seWdvbiBjbGFzcz0iY2xzLTQiIHBvaW50cz0iMTQyLjk4IDcyLjIzIDE2MC45OSA2MS44NCAxNjAuOTggNjEuODMgMTQyLjk3IDcyLjIzIDE0Mi45OCA3Mi4yMyIgLz4KICAgPHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjE3OC43IDUxLjYyIDE2MC45OSA2MS44NCAxNDIuOTggNzIuMjMgODkuMzUgMTAzLjE4IDg5LjM1IDEwMy4xOCA4OS4zNSAxMDMuMTkgODkuMzUgMTAzLjE5IDg5LjM1IDExMi40MSA4OS4zNCAxMTIuNDEgODkuMzQgMTM2LjkxIDg5LjM1IDEzNi45MSA4OS4zNSAxNjQuODYgODkuMzUgMTY0Ljg2IDE0My4wMiAxMzQuMTQgMTQzLjAyIDExMy42NiAxMDcuMDEgMTM0LjE1IDEwNy4wMSAxMTMuNDQgMTYxLjAyIDgyLjcgMTYxLjAyIDE0NC41OCA4OS4zNSAxODUuNiA4OS4zNSAyMDYuMzUgMTc4LjcgMTU0Ljc4IDE3OC43IDE1NC43OCAxNzguNyAxNTQuNzcgMTc4LjcgNTEuNjIiIC8+Cjwvc3ZnPg==)](https://gitpod.io/#https://github.com/shadowwalker/next-pwa/)
+
+``` bash
+cd examples/next-9
+yarn install
+yarn build
+yarn start
+```
+
+## Recommend `.gitignore`
+
+```
+**/public/precache-manifest.*.js
+**/public/sw.js
+```
