@@ -6,5 +6,7 @@ module.exports = {
   },
   experimental: {
     publicDirectory: true
-  }
+  },
+  // make sure error isn't thrown from empty publicRuntimeConfig
+  publicRuntimeConfig: {}
 }
