@@ -47,7 +47,10 @@ export default function initializeBuildWatcher () {
     }
   }
 
-  shadowHost.addEventListener('click', () => (shadowHost.style.opacity = 0))
+  shadowHost.addEventListener('click', () => {
+    shadowHost.style.opacity = 0
+    shadowHost.style.pointerEvents = 'none'
+  })
   shadowHost.addEventListener('mouseenter', () => {
     container.classList.add(`${prefix}expanded`)
   })

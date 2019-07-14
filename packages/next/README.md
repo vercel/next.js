@@ -2318,14 +2318,16 @@ When using `next export` to statically prerender pages Next.js will detect if th
 
 Hybrid AMP (`pages/about.js`) would output:
 
-- `out/about/index.html` - with client-side React runtime
-- `out/about.amp/index.html` - AMP page
+- `out/about.html` - with client-side React runtime
+- `out/about.amp.html` - AMP page
 
 AMP-only (`pages/about.js`) would output:
 
-- `out/about/index.html` - Optimized AMP page
+- `out/about.html` - Optimized AMP page
 
-During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+
+> **Note**: When using `exportTrailingSlash: true` in `next.config.js`, output will be different. For Hybrid AMP pages, output will be `out/page/index.html` and `out/page.amp/index.html`, and for AMP-only pages, output will be `out/page/index.html`
 
 ### Adding AMP Components
 
