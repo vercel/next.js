@@ -106,7 +106,11 @@ export default function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (userConfig.target === 'serverless' && userConfig.publicRuntimeConfig) {
+    if (
+      userConfig.target === 'serverless' &&
+      userConfig.publicRuntimeConfig &&
+      Object.keys(userConfig.publicRuntimeConfig).length !== 0
+    ) {
       throw new Error(
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
