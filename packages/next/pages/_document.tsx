@@ -13,6 +13,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
+import { renderToStaticMarkup } from 'react-dom/server'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -107,6 +108,27 @@ export class Html extends Component<
   render() {
     const { inAmpMode } = this.context._documentProps
     return <html {...this.props} amp={inAmpMode ? '' : undefined} />
+  }
+}
+
+function flattenFragments(node: React.ReactNode): React.ReactNode[] {
+  const asArray = React.Children.toArray(node)
+  return asArray.reduce((flatChildren: React.ReactNode[], child) => {
+    if (React.isValidElement(child) && child.type === React.Fragment) {
+      return flatChildren.concat(flattenFragments(child.props.children))
+    }
+    flatChildren.push(child)
+    return flatChildren
+  }, [])
+}
+
+function renderChildrenToString(node: React.ReactNode): string {
+  if (!React.isValidElement(node)) {
+    return ''
+  } else if (node.props.dangerouslySetInnerHTML) {
+    return node.props.dangerouslySetInnerHTML.__html
+  } else {
+    return renderToStaticMarkup(node.props.children)
   }
 }
 
@@ -328,8 +350,8 @@ export class Head extends Component<
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
-                  __html: curStyles
-                    .map(style => style.props.dangerouslySetInnerHTML.__html)
+                  __html: flattenFragments(curStyles)
+                    .map(renderChildrenToString)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
                     .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
