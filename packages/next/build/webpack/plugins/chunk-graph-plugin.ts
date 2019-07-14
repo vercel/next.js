@@ -36,6 +36,8 @@ export function getPageChunks(
   const external = new Set<string>() // from node_modules
   const internal = new Set<string>() // from project
   ;[...(manifest.pages[page] || []), ...(pageModules[page] || [])].map(mod => {
+    mod = mod.replace(/\\/g, '/')
+
     if (mod.match(/(next-server|next)\//)) {
       return null
     }
