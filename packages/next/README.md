@@ -1114,7 +1114,7 @@ Those middlewares are:
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-Body parsing is enabled by default and size limit of parsed body is `1mb`. 
+Body parsing is enabled by default with a size limit of `1mb` for the parsed body.
 You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
 
 ```js
