@@ -60,10 +60,13 @@ commands:
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
             JEST_JUNIT_CLASSNAME: '{filepath}'
-  test_ie11:
+  test_browser:
+    parameters:
+      browser:
+        type: string
     steps:
       - run:
-          name: Test in ie11
+          name: Test in a browser
           command: |
             if [[ ! -z $BROWSERSTACK_USERNAME ]]; then
               yarn testall test/integration/production/
@@ -72,33 +75,7 @@ commands:
             fi
           environment:
             BROWSERSTACK: 'true'
-            BROWSER_NAME: 'ie'
-  test_safari:
-    steps:
-      - run:
-          name: Test in Safari
-          command: |
-            if [[ ! -z $BROWSERSTACK_USERNAME ]]; then
-              yarn testall test/integration/production/
-            else
-              echo "Not running for PR"
-            fi
-          environment:
-            BROWSERSTACK: 'true'
-            BROWSER_NAME: 'safari'
-  test_firefox:
-    steps:
-      - run:
-          name: Test in Firefox
-          command: |
-            if [[ ! -z $BROWSERSTACK_USERNAME ]]; then
-              yarn testall test/integration/production/
-            else
-              echo "Not running for PR"
-            fi
-          environment:
-            BROWSERSTACK: 'true'
-            BROWSER_NAME: 'firefox'
+            BROWSER_NAME: << parameters.browser >>
   save_npm_token:
     steps:
       - run:
@@ -155,17 +132,20 @@ jobs:
     executor: node
     steps:
       - *attach_workspace
-      - test_ie11
+      - test_browser:
+          browser: 'ie'
   test-safari:
     executor: node
     steps:
       - *attach_workspace
-      - test_safari
+      - test_browser:
+          browser: 'safari'
   test-firefox:
     executor: node
     steps:
       - *attach_workspace
-      - test_firefox
+      - test_browser:
+          browser: 'firefox'
   deploy:
     executor: node
     steps:
