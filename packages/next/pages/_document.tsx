@@ -113,11 +113,12 @@ export class Html extends Component<
 
 function flattenFragments(node: React.ReactNode): React.ReactNode[] {
   const asArray = React.Children.toArray(node)
-  return asArray.reduce((flatChildren: React.ReactNode[], child) => {
+  return asArray.reduce<React.ReactNode[]>((flatChildren, child) => {
     if (React.isValidElement(child) && child.type === React.Fragment) {
-      return flatChildren.concat(flattenFragments(child.props.children))
+      flatChildren.push(...flattenFragments(child.props.children))
+    } else {
+      flatChildren.push(child)
     }
-    flatChildren.push(child)
     return flatChildren
   }, [])
 }
