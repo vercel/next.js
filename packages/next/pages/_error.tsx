@@ -20,7 +20,7 @@ export type ErrorProps = {
 export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static displayName = 'ErrorPage'
 
-  static getInitialProps({ res, err }: NextPageContext) {
+  static async getInitialProps({ res, err }: NextPageContext) {
     const statusCode =
       res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
     return { statusCode }
