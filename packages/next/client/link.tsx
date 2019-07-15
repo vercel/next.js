@@ -2,7 +2,7 @@
 declare const __NEXT_DATA__: any
 
 import { resolve, parse, UrlObject } from 'url'
-import React, { Component, Children } from 'react'
+import React, { Children } from 'react'
 import PropTypes from 'prop-types'
 import Router from './router'
 import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url-for-export'
@@ -24,23 +24,6 @@ function isLocal(href: string) {
 type Url = string | UrlObject
 type FormatResult = { href: string; as?: string }
 
-function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
-  let lastHref: null | Url = null
-  let lastAs: undefined | null | Url = null
-  let lastResult: null | FormatResult = null
-  return (href: Url, as?: Url) => {
-    if (lastResult && href === lastHref && as === lastAs) {
-      return lastResult
-    }
-
-    const result = formatFunc(href, as)
-    lastHref = href
-    lastAs = as
-    lastResult = result
-    return result
-  }
-}
-
 function formatUrl(url: Url) {
   return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
@@ -54,6 +37,7 @@ export type LinkProps = {
   passHref?: boolean
   onError?: (error: Error) => void
   prefetch?: boolean
+  children: JSX.Element
 }
 
 let observer: IntersectionObserver
@@ -105,37 +89,36 @@ const listenToIntersections = (el: any, cb: any) => {
   }
 }
 
-class Link extends Component<LinkProps> {
-  static propTypes?: any
-  static defaultProps: Partial<LinkProps> = {
-    prefetch: true,
-  }
+function Link({
+  prefetch = true,
+  href: userHref,
+  as: userAs,
+  scroll,
+  replace,
+  shallow,
+  onError,
+  passHref,
+  children,
+}: LinkProps) {
+  const elRef = React.useRef()
 
-  cleanUpListeners = () => {}
+  let { href, as } = React.useMemo(
+    () => ({
+      href: formatUrl(userHref),
+      as: userAs ? formatUrl(userAs) : userAs,
+    }),
+    [formatUrl, userHref, userAs]
+  )
 
-  componentWillUnmount() {
-    this.cleanUpListeners()
-  }
+  const doPrefetch = React.useCallback(() => {
+    if (!prefetch || typeof window === 'undefined') return
 
-  handleRef(ref: Element) {
-    if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
-      this.cleanUpListeners()
-      this.cleanUpListeners = listenToIntersections(ref, () => {
-        this.prefetch()
-      })
-    }
-  }
+    // Prefetch the JSON page if asked (only in the client)
+    const { pathname } = window.location
+    Router.prefetch(resolve(pathname, href))
+  }, [href, resolve, Router.prefetch])
 
-  // The function is memoized so that no extra lifecycles are needed
-  // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
-  formatUrls = memoizedFormatUrl((href, asHref) => {
-    return {
-      href: formatUrl(href),
-      as: asHref ? formatUrl(asHref) : asHref,
-    }
-  })
-
-  linkClicked = (e: React.MouseEvent) => {
+  const linkClicked = (e: React.MouseEvent) => {
     // @ts-ignore target exists on currentTarget
     const { nodeName, target } = e.currentTarget
     if (
@@ -150,28 +133,26 @@ class Link extends Component<LinkProps> {
       return
     }
 
-    let { href, as } = this.formatUrls(this.props.href, this.props.as)
-
     if (!isLocal(href)) {
       // ignore click if it's outside our scope
       return
     }
 
     const { pathname } = window.location
+
     href = resolve(pathname, href)
     as = as ? resolve(pathname, as) : href
 
     e.preventDefault()
 
     //  avoid scroll for urls with anchor refs
-    let { scroll } = this.props
     if (scroll == null) {
       scroll = as.indexOf('#') < 0
     }
 
     // replace state instead of push if prop is present
-    Router[this.props.replace ? 'replace' : 'push'](href, as, {
-      shallow: this.props.shallow,
+    Router[replace ? 'replace' : 'push'](href, as, {
+      shallow: shallow,
     })
       .then((success: boolean) => {
         if (!success) return
@@ -181,76 +162,69 @@ class Link extends Component<LinkProps> {
         }
       })
       .catch((err: any) => {
-        if (this.props.onError) this.props.onError(err)
+        if (onError) onError(err)
       })
   }
 
-  prefetch() {
-    if (!this.props.prefetch || typeof window === 'undefined') return
+  React.useEffect(() => {
+    if (prefetch && IntersectionObserver) {
+      const cleanUpListeners = listenToIntersections(elRef.current, () => {
+        doPrefetch()
+      })
+      return cleanUpListeners
+    }
+  })
 
-    // Prefetch the JSON page if asked (only in the client)
-    const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    const href = resolve(pathname, parsedHref)
-    Router.prefetch(href)
+  // Deprecated. Warning shown by propType check. If the childen provided is a string (<Link>example</Link>) we wrap it in an <a> tag
+  if (typeof children === 'string') {
+    children = <a>{children}</a>
   }
 
-  render() {
-    let { children } = this.props
-    const { href, as } = this.formatUrls(this.props.href, this.props.as)
-    // Deprecated. Warning shown by propType check. If the childen provided is a string (<Link>example</Link>) we wrap it in an <a> tag
-    if (typeof children === 'string') {
-      children = <a>{children}</a>
-    }
-
-    // This will return the first child, if multiple are provided it will throw an error
-    const child: any = Children.only(children)
-    const props: {
-      onMouseEnter: React.MouseEventHandler
-      onClick: React.MouseEventHandler
-      href?: string
-      ref?: any
-    } = {
-      ref: (el: any) => this.handleRef(el),
-      onMouseEnter: (e: React.MouseEvent) => {
-        if (child.props && typeof child.props.onMouseEnter === 'function') {
-          child.props.onMouseEnter(e)
-        }
-        this.prefetch()
-      },
-      onClick: (e: React.MouseEvent) => {
-        if (child.props && typeof child.props.onClick === 'function') {
-          child.props.onClick(e)
-        }
-        if (!e.defaultPrevented) {
-          this.linkClicked(e)
-        }
-      },
-    }
-
-    // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-    // defined, we specify the current 'href', so that repetition is not needed by the user
-    if (
-      this.props.passHref ||
-      (child.type === 'a' && !('href' in child.props))
-    ) {
-      props.href = as || href
-    }
-
-    // Add the ending slash to the paths. So, we can serve the
-    // "<page>/index.html" directly.
-    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      if (
-        props.href &&
-        typeof __NEXT_DATA__ !== 'undefined' &&
-        __NEXT_DATA__.nextExport
-      ) {
-        props.href = rewriteUrlForNextExport(props.href)
+  // This will return the first child, if multiple are provided it will throw an error
+  const child: any = Children.only(children)
+  const props: {
+    onMouseEnter: React.MouseEventHandler
+    onClick: React.MouseEventHandler
+    href?: string
+    ref?: any
+  } = {
+    ref: elRef,
+    // ref: (el: any) => console.log(el),
+    onMouseEnter: (e: React.MouseEvent) => {
+      if (child.props && typeof child.props.onMouseEnter === 'function') {
+        child.props.onMouseEnter(e)
       }
-    }
-
-    return React.cloneElement(child, props)
+      doPrefetch()
+    },
+    onClick: (e: React.MouseEvent) => {
+      if (child.props && typeof child.props.onClick === 'function') {
+        child.props.onClick(e)
+      }
+      if (!e.defaultPrevented) {
+        linkClicked(e)
+      }
+    },
   }
+
+  // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
+  // defined, we specify the current 'href', so that repetition is not needed by the user
+  if (passHref || (child.type === 'a' && !('href' in child.props))) {
+    props.href = as || href
+  }
+
+  // Add the ending slash to the paths. So, we can serve the
+  // "<page>/index.html" directly.
+  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+    if (
+      props.href &&
+      typeof __NEXT_DATA__ !== 'undefined' &&
+      __NEXT_DATA__.nextExport
+    ) {
+      props.href = rewriteUrlForNextExport(props.href)
+    }
+  }
+
+  return React.cloneElement(child, props)
 }
 
 if (process.env.NODE_ENV === 'development') {

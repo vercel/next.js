@@ -73,50 +73,10 @@ export let ErrorComponent
 let Component
 let App
 
-class Container extends React.Component {
+class ErrorBoundary extends React.Component {
   componentDidCatch (err, info) {
     this.props.fn(err, info)
   }
-
-  componentDidMount () {
-    this.scrollToHash()
-
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
-    if (
-      data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search)
-    ) {
-      // update query on mount for exported pages
-      router.replace(
-        router.pathname +
-          '?' +
-          stringifyQs({
-            ...router.query,
-            ...parseQs(location.search.substr(1))
-          }),
-        asPath
-      )
-    }
-  }
-
-  componentDidUpdate () {
-    this.scrollToHash()
-  }
-
-  scrollToHash () {
-    let { hash } = location
-    hash = hash && hash.substring(1)
-    if (!hash) return
-
-    const el = document.getElementById(hash)
-    if (!el) return
-
-    // If we call scrollIntoView() in here without a setTimeout
-    // it won't scroll properly.
-    setTimeout(() => el.scrollIntoView(), 0)
-  }
-
   render () {
     return this.props.children
   }
@@ -228,8 +188,46 @@ function renderReactElement (reactEl, domEl) {
 }
 
 function AppContainer ({ children }) {
+  const scrollToHash = React.useCallback(() => {
+    let { hash } = location
+    hash = hash && hash.substring(1)
+    if (!hash) return
+
+    const el = document.getElementById(hash)
+    if (!el) return
+
+    // If we call scrollIntoView() in here without a setTimeout
+    // it won't scroll properly.
+    setTimeout(() => el.scrollIntoView(), 0)
+  }, [])
+
+  React.useEffect(() => {
+    // Run scrollToHash after every mount/update
+    scrollToHash()
+  })
+
+  React.useEffect(() => {
+    // If page was exported and has a querystring
+    // If it's a dynamic route or has a querystring
+    if (
+      data.nextExport &&
+      (isDynamicRoute(router.pathname) || location.search)
+    ) {
+      // update query on mount for exported pages
+      router.replace(
+        router.pathname +
+          '?' +
+          stringifyQs({
+            ...router.query,
+            ...parseQs(location.search.substr(1))
+          }),
+        asPath
+      )
+    }
+  }, [])
+
   return (
-    <Container
+    <ErrorBoundary
       fn={error =>
         renderError({ App, err: error }).catch(err =>
           console.error('Error rendering page: ', err)
@@ -245,7 +243,7 @@ function AppContainer ({ children }) {
           </DataManagerContext.Provider>
         </RouterContext.Provider>
       </Suspense>
-    </Container>
+    </ErrorBoundary>
   )
 }
 

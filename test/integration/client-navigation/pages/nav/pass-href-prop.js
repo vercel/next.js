@@ -1,11 +1,16 @@
+import React from 'react'
 import Link from 'next/link'
 
 const UnexpectedNestedA = () => {
-  const UnexpectedWrapper = props => {
+  const UnexpectedWrapper = React.forwardRef((props, ref) => {
     const { href, id } = props
     const safeProps = { href, id }
-    return <a {...safeProps}>{props.children}</a>
-  }
+    return (
+      <a {...safeProps} ref={ref}>
+        {props.children}
+      </a>
+    )
+  })
 
   return UnexpectedWrapper
 }

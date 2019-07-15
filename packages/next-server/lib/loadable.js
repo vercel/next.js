@@ -151,35 +151,39 @@ function createLoadableComponent (loadFn, options) {
     })
   }
 
-  return class LoadableComponent extends React.Component {
-    constructor (props) {
-      super(props)
+  function LoadableComponent (props) {
+    const constructorRef = React.useRef(false)
+    const delayRef = React.useRef()
+    const timeoutRef = React.useRef()
+    const mountedRef = React.useRef()
+
+    if (!constructorRef.current) {
+      constructorRef.current = true
       init()
-
-      this.state = {
-        error: res.error,
-        pastDelay: false,
-        timedOut: false,
-        loading: res.loading,
-        loaded: res.loaded
-      }
     }
 
-    static preload () {
-      return init()
+    const [
+      { loading, error, pastDelay, timedOut, loaded },
+      setState
+    ] = React.useState({
+      error: res.error,
+      pastDelay: false,
+      timedOut: false,
+      loading: res.loading,
+      loaded: res.loaded
+    })
+
+    const loadableContext = React.useContext(LoadableContext)
+
+    const clearTimeouts = () => {
+      clearTimeout(delayRef.current)
+      clearTimeout(timeoutRef.current)
     }
 
-    static contextType = LoadableContext
-
-    componentWillMount () {
-      this._mounted = true
-      this._loadModule()
-    }
-
-    _loadModule () {
-      if (this.context && Array.isArray(opts.modules)) {
+    const loadModule = () => {
+      if (loadableContext && Array.isArray(opts.modules)) {
         opts.modules.forEach(moduleName => {
-          this.context(moduleName)
+          loadableContext(moduleName)
         })
       }
 
@@ -189,32 +193,33 @@ function createLoadableComponent (loadFn, options) {
 
       if (typeof opts.delay === 'number') {
         if (opts.delay === 0) {
-          this.setState({ pastDelay: true })
+          setState(old => ({ ...old, pastDelay: true }))
         } else {
-          this._delay = setTimeout(() => {
-            this.setState({ pastDelay: true })
+          delayRef.current = setTimeout(() => {
+            setState(old => ({ ...old, pastDelay: true }))
           }, opts.delay)
         }
       }
 
       if (typeof opts.timeout === 'number') {
-        this._timeout = setTimeout(() => {
-          this.setState({ timedOut: true })
+        timeoutRef.current = setTimeout(() => {
+          setState(old => ({ ...old, timedOut: true }))
         }, opts.timeout)
       }
 
       let update = () => {
-        if (!this._mounted) {
+        if (!mountedRef.current) {
           return
         }
 
-        this.setState({
+        setState(old => ({
+          ...old,
           error: res.error,
           loaded: res.loaded,
           loading: res.loading
-        })
+        }))
 
-        this._clearTimeouts()
+        clearTimeouts()
       }
 
       res.promise
@@ -227,38 +232,39 @@ function createLoadableComponent (loadFn, options) {
         })
     }
 
-    componentWillUnmount () {
-      this._mounted = false
-      this._clearTimeouts()
-    }
-
-    _clearTimeouts () {
-      clearTimeout(this._delay)
-      clearTimeout(this._timeout)
-    }
-
-    retry = () => {
-      this.setState({ error: null, loading: true, timedOut: false })
-      res = loadFn(opts.loader)
-      this._loadModule()
-    }
-
-    render () {
-      if (this.state.loading || this.state.error) {
-        return React.createElement(opts.loading, {
-          isLoading: this.state.loading,
-          pastDelay: this.state.pastDelay,
-          timedOut: this.state.timedOut,
-          error: this.state.error,
-          retry: this.retry
-        })
-      } else if (this.state.loaded) {
-        return opts.render(this.state.loaded, this.props)
-      } else {
-        return null
+    React.useEffect(() => {
+      mountedRef.current = true
+      loadModule()
+      return () => {
+        mountedRef.current = false
+        clearTimeouts()
       }
+    }, [])
+
+    const retry = React.useCallback(() => {
+      setState(old => ({ ...old, error: null, loading: true, timedOut: false }))
+      res = loadFn(opts.loader)
+      loadModule()
+    }, [setState, loadFn, opts.loader, loadModule])
+
+    if (loading || error) {
+      return React.createElement(opts.loading, {
+        isLoading: loading,
+        pastDelay: pastDelay,
+        timedOut: timedOut,
+        error: error,
+        retry: retry
+      })
+    } else if (loaded) {
+      return opts.render(loaded, props)
+    } else {
+      return null
     }
   }
+
+  LoadableComponent.preload = () => init()
+
+  return LoadableComponent
 }
 
 function Loadable (opts) {
