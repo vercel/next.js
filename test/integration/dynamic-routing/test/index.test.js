@@ -163,6 +163,30 @@ function runTests () {
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
+
+  it('should scroll to a hash on mount', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
+    await waitFor(1000)
+
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/onmpost:.*post-1/)
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    expect(scrollPosition).toBe(7232)
+  })
+
+  it('should scroll to a hash on client-side navigation', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(1000)
+    await browser.elementByCss('#view-dynamic-with-hash').click()
+    await browser.waitForElementByCss('p')
+
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/onmpost:.*test-w-hash/)
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    expect(scrollPosition).toBe(7232)
+  })
 }
 
 const nextConfig = join(appDir, 'next.config.js')
