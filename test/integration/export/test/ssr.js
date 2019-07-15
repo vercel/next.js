@@ -74,10 +74,17 @@ export default function (context) {
       const html = await renderViaHTTP(context.port, '/about')
       const html2 = await renderViaHTTP(context.port, '/query')
       const data = await renderViaHTTP(context.port, '/about/data.txt')
-
       expect(html).toMatch(/This is the About page foobar/)
       expect(html2).toMatch(/{"a":"blue"}/)
       expect(data).toBe('data')
+    })
+
+    it('Should render dynamic files with query', async () => {
+      const html = await renderViaHTTP(
+        context.port,
+        '/blog/nextjs/comment/test'
+      )
+      expect(html).toMatch(/Blog post nextjs comment test/)
     })
   })
 }

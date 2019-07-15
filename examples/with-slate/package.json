@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "immutable": "^3.8.2",
-    "next": "6.1.1",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "slate": "^0.37.0",

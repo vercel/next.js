@@ -3,7 +3,7 @@ import { ServerResponse, IncomingMessage } from 'http'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/render'
-import { BaseRouter } from './router/router'
+import { NextRouter } from './router/router'
 
 /**
  * Types used by both next and next-server
@@ -13,7 +13,7 @@ export type NextComponentType<
   IP = {},
   P = {}
 > = ComponentType<P> & {
-  getInitialProps?(context: C): Promise<IP>
+  getInitialProps?(context: C): IP | Promise<IP>
 }
 
 export type DocumentType = NextComponentType<
@@ -97,7 +97,7 @@ export interface NextPageContext {
   asPath?: string
 }
 
-export type AppContextType<R extends BaseRouter = BaseRouter> = {
+export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
   AppTree: NextComponentType
   ctx: NextPageContext
@@ -109,7 +109,7 @@ export type AppInitialProps = {
 }
 
 export type AppPropsType<
-  R extends BaseRouter = BaseRouter,
+  R extends NextRouter = NextRouter,
   P = {}
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
@@ -121,7 +121,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[]
+  styles?: React.ReactElement[] | React.ReactFragment
 }
 
 export type DocumentProps = DocumentInitialProps & {
@@ -161,21 +161,21 @@ export type NextApiRequest = IncomingMessage & {
 /**
  * Send body of response
  */
-type Send = (body: any) => void
+type Send<T> = (body: T) => void
 
 /**
  * Next `API` route response
  */
-export type NextApiResponse = ServerResponse & {
+export type NextApiResponse<T = any> = ServerResponse & {
   /**
-   * Send data `any` data in reponse
+   * Send data `any` data in response
    */
-  send: Send
+  send: Send<T>
   /**
-   * Send data `json` data in reponse
+   * Send data `json` data in response
    */
-  json: Send
-  status: (statusCode: number) => void
+  json: Send<T>
+  status: (statusCode: number) => NextApiResponse<T>
 }
 
 /**
@@ -229,25 +229,13 @@ export async function loadGetInitialProps<
   const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
   if (!Component.getInitialProps) {
-    return null
+    return {} as any
   }
 
   const props = await Component.getInitialProps(ctx)
 
   if (res && isResSent(res)) {
     return props
-  }
-
-  // if page component doesn't have getInitialProps
-  // set cache-control header to stale-while-revalidate
-  if (ctx.Component && !ctx.Component.getInitialProps) {
-    const customAppGetInitialProps =
-      (Component as any).origGetInitialProps &&
-      (Component as any).origGetInitialProps !== Component.getInitialProps
-
-    if (!customAppGetInitialProps && res && res.setHeader) {
-      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate')
-    }
   }
 
   if (!props) {

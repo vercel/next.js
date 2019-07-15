@@ -9,6 +9,9 @@ module.exports = phase => {
     serverRuntimeConfig: {
       bar: 'bar'
     },
+    experimental: {
+      publicDirectory: true
+    },
     exportTrailingSlash: true,
     exportPathMap: function () {
       return {
@@ -33,7 +36,8 @@ module.exports = phase => {
           page: '/dynamic',
           query: { text: 'this file has an extension' }
         },
-        '/query': { page: '/query', query: { a: 'blue' } }
+        '/query': { page: '/query', query: { a: 'blue' } },
+        '/blog/nextjs/comment/test': { page: '/blog/[post]/comment/[id]' }
       }
     } // end exportPathMap
   }

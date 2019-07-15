@@ -5,7 +5,7 @@
   "dependencies": {
     "cross-fetch": "^3.0.2",
     "graphql-react": "^8.2.0",
-    "next": "^8.1.0",
+    "next": "latest",
     "next-graphql-react": "^3.0.2",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"

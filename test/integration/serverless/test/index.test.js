@@ -8,6 +8,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP
 } from 'next-test-utils'
 import fetch from 'node-fetch'
@@ -131,6 +132,22 @@ describe('Serverless', () => {
     await browser.elementByCss('#to-something').click()
     text = await browser.elementByCss('h3').text()
     expect(text).toMatch(/some interesting title/)
+  })
+
+  it('should reply on API request successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello')
+    expect(content).toMatch(/hello world/)
+  })
+
+  it('should reply on dynamic API request successfully', async () => {
+    const result = await renderViaHTTP(appPort, '/api/posts/post-1')
+    const { post } = JSON.parse(result)
+    expect(post).toBe('post-1')
+  })
+
+  it('should 404 on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/hello/')
+    expect(res.status).toBe(404)
   })
 
   describe('With basic usage', () => {
