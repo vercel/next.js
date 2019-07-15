@@ -22,6 +22,10 @@ const Page = () => (
     <Link href='/[post]?fromHome=true' as='/post-1?fromHome=true'>
       <a id='view-post-1-with-query'>View post 1 with query</a>
     </Link>
+    <br />
+    <Link href='/on-mount/[post]' as='/on-mount/test-w-hash#item-400'>
+      <a id='view-dynamic-with-hash'>View test with hash</a>
+    </Link>
   </div>
 )
 
