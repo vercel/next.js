@@ -357,6 +357,15 @@ export async function renderToHTML(
     renderOpts.err = err
   }
 
+  if (
+    pageConfig.contentHandler === true &&
+    req.headers['content-type'] === 'application/json'
+  ) {
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify(props.pageProps || {}))
+    return null
+  }
+
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 

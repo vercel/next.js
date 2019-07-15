@@ -10,5 +10,6 @@ export type PageConfig = {
      */
     bodyParser?: { sizeLimit?: number | string } | false
   }
+  contentHandler?: boolean
   experimentalPrerender?: boolean | 'inline' | 'legacy'
 }

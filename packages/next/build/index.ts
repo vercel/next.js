@@ -5,6 +5,7 @@ import {
   PAGES_MANIFEST,
   CHUNK_GRAPH_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  PRERENDER_MANIFEST,
 } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
@@ -39,6 +40,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import mkdirpOrig from 'mkdirp'
 import workerFarm from 'worker-farm'
 import { Sema } from 'async-sema'
+import { contentHandlerPages } from './babel/plugins/next-page-config'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -458,6 +460,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+
+  if (contentHandlerPages.size > 0) {
+    await fsWriteFile(
+      path.join(distDir, PRERENDER_MANIFEST),
+      JSON.stringify([...contentHandlerPages]),
+      'utf8'
+    )
+  }
+
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {
     allPageInfos.set(key, info)

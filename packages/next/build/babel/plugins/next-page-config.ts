@@ -1,13 +1,17 @@
+import { join } from 'path'
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
 
-const configKeys = new Set(['amp', 'experimentalPrerender'])
 export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
+const clientFetchIdentifier = '__nextClientFetcher'
 
-// replace progam path with just a variable with the drop identifier
+export const contentHandlerPages = new Set()
+const configKeys = new Set(['amp', 'experimentalPrerender', 'contentHandler'])
+
+// replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
   path.parentPath.replaceWith(
     t.program(
@@ -29,8 +33,10 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 }
 
 interface ConfigState {
+  nextPage?: string
   setupInlining?: boolean
   bundleDropped?: boolean
+  setupContentHandler?: boolean
 }
 
 export default function nextPageConfig({
@@ -93,6 +99,33 @@ export default function nextPageConfig({
                 ) {
                   state.setupInlining = true
                 }
+
+                if (config.contentHandler === true) {
+                  state.setupContentHandler = true
+                  let page = (state.filename || '')
+                    .split(join(state.cwd || '', 'pages'))
+                    .pop()
+
+                  page = page.split('.')
+                  page.pop()
+                  page = page.join('.')
+
+                  page = page.replace(/\/index$/, '') || '/'
+                  state.nextPage = page
+                  contentHandlerPages.add(page)
+
+                  // prepend import for client fetcher to program body
+                  ;(path.parentPath.node as any).body.unshift(
+                    t.importDeclaration(
+                      [
+                        t.importDefaultSpecifier(
+                          t.identifier(clientFetchIdentifier)
+                        ),
+                      ],
+                      t.stringLiteral('next/dist/client/content-fetcher')
+                    )
+                  )
+                }
               },
             },
             state
@@ -101,26 +134,54 @@ export default function nextPageConfig({
       },
       // handles Page.getInitialProps = () => {}
       AssignmentExpression(path, state: ConfigState) {
-        if (!state.setupInlining) return
+        if (!state.setupInlining && !state.setupContentHandler) return
         const { property } = (path.node.left || {}) as any
         const { name } = property
         if (name !== 'getInitialProps') return
-        // replace the getInitialProps function with an identifier for replacing
-        path.node.right = t.functionExpression(
-          null,
-          [],
-          t.blockStatement([
-            t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-          ])
-        )
+
+        if (state.setupInlining) {
+          // replace the getInitialProps function with an identifier for replacing
+          path.node.right = t.functionExpression(
+            null,
+            [],
+            t.blockStatement([
+              t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
+            ])
+          )
+        }
+        if (state.setupContentHandler) {
+          path.node.right = t.functionExpression(
+            null,
+            [],
+            t.blockStatement([
+              t.returnStatement(
+                t.callExpression(t.identifier(clientFetchIdentifier), [
+                  t.stringLiteral(state.nextPage!),
+                ])
+              ),
+            ])
+          )
+        }
       },
       // handles class { static async getInitialProps() {} }
       FunctionDeclaration(path, state: ConfigState) {
-        if (!state.setupInlining) return
+        if (!state.setupInlining && !state.setupContentHandler) return
         if ((path.node.id && path.node.id.name) !== 'getInitialProps') return
-        path.node.body = t.blockStatement([
-          t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-        ])
+
+        if (state.setupInlining) {
+          path.node.body = t.blockStatement([
+            t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
+          ])
+        }
+        if (state.setupContentHandler) {
+          path.node.body = t.blockStatement([
+            t.returnStatement(
+              t.callExpression(t.identifier(clientFetchIdentifier), [
+                t.stringLiteral(state.nextPage!),
+              ])
+            ),
+          ])
+        }
       },
       // handles class { static async getInitialProps() {} }
       ClassMethod(path, state: ConfigState) {
