@@ -9,8 +9,6 @@ type WithInAmpMode = {
 
 const headInstanceRefs: Set<React.RefObject<JSX.Element>> = new Set()
 
-const isServer = typeof window === 'undefined'
-
 let headState: Array<React.ReactElement> | undefined
 
 export function defaultHead(className = 'next-head', inAmpMode = false) {
@@ -165,7 +163,7 @@ function Head({ children }: { children: JSX.Element }) {
   // Since this is a Set(), we can just always add it
   headInstanceRefs.add(instanceRef)
 
-  if (isServer) {
+  if (typeof window === 'undefined') {
     emitUpdate()
   }
 
