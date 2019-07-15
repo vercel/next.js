@@ -240,6 +240,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const error = result.errors.join('\n\n')
 
     console.error(chalk.red('Failed to compile.\n'))
+
+    if (
+      error.indexOf('private-next-pages') > -1 &&
+      error.indexOf('does not contain a default export') > -1
+    ) {
+      const page_name_regex = /\'private-next-pages\/(?<page_name>[^\']*)\'/
+      const parsed = page_name_regex.exec(error)
+      const page_name = parsed && parsed.groups && parsed.groups.page_name
+      throw new Error(
+        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
+      )
+    }
+
     console.error(error)
     console.error()
 
@@ -371,9 +384,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (invalidPages.size > 0) {
     throw new Error(
-      `autoExport failed: found page${
+      `automatic static optimization failed: found page${
         invalidPages.size === 1 ? '' : 's'
-      } without React Component as default export\n${[...invalidPages]
+      } without a React Component as default export in \n${[...invalidPages]
         .map(pg => `pages${pg}`)
         .join(
           '\n'
