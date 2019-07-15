@@ -168,10 +168,6 @@ function runTests () {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
-  beforeAll(async () => {
-    await fs.remove(nextConfig)
-  })
-
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -202,6 +198,7 @@ describe('Dynamic Routing', () => {
 
   describe('SSR production mode', () => {
     beforeAll(async () => {
+      await fs.remove(nextConfig)
       await fs.writeFile(
         nextConfig,
         `
@@ -222,7 +219,10 @@ describe('Dynamic Routing', () => {
       server = await startApp(app)
       appPort = server.address().port
     })
-    afterAll(() => stopApp(server))
+    afterAll(async () => {
+      await stopApp(server)
+      await fs.remove(nextConfig)
+    })
 
     runTests()
   })
