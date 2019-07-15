@@ -156,6 +156,13 @@ function runTests () {
     const html = await renderViaHTTP(appPort, '/on-mount/post-1')
     expect(html).not.toMatch(/post:.*?\[post\].*?<\/p>/)
   })
+
+  it('should update with a hash in the URL', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#abc')
+    await waitFor(1000)
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/onmpost:.*post-1/)
+  })
 }
 
 const nextConfig = join(appDir, 'next.config.js')
