@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
 
-export const config = { contentHandler: true }
+export const config = { experimentalPrerender: 'spr' }
 
 class Page extends Component {
   static async getInitialProps () {

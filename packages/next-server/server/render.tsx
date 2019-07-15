@@ -231,6 +231,8 @@ function renderDocument(
   )
 }
 
+export function isStaticPrerender() {}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -257,7 +259,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
+  let isStaticPage = pageConfig.experimentalPrerender
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -358,7 +360,7 @@ export async function renderToHTML(
   }
 
   if (
-    pageConfig.contentHandler === true &&
+    pageConfig.experimentalPrerender === 'spr' &&
     req.headers['content-type'] === 'application/json'
   ) {
     res.setHeader('content-type', 'application/json')

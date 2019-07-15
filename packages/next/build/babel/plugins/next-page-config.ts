@@ -6,10 +6,10 @@ import { PageConfig } from 'next-server/types'
 
 export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
-const clientFetchIdentifier = '__nextClientFetcher'
+const sprFetchIdentifier = '__nextSprFetcher'
 
-export const contentHandlerPages = new Set()
-const configKeys = new Set(['amp', 'experimentalPrerender', 'contentHandler'])
+export const sprPages = new Set()
+const configKeys = new Set(['amp', 'experimentalPrerender'])
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
@@ -36,7 +36,7 @@ interface ConfigState {
   nextPage?: string
   setupInlining?: boolean
   bundleDropped?: boolean
-  setupContentHandler?: boolean
+  setupSprHandler?: boolean
 }
 
 export default function nextPageConfig({
@@ -100,8 +100,8 @@ export default function nextPageConfig({
                   state.setupInlining = true
                 }
 
-                if (config.contentHandler === true) {
-                  state.setupContentHandler = true
+                if (config.experimentalPrerender === 'spr') {
+                  state.setupSprHandler = true
                   let page = (state.filename || '')
                     .split(join(state.cwd || '', 'pages'))
                     .pop()
@@ -112,17 +112,17 @@ export default function nextPageConfig({
 
                   page = page.replace(/\/index$/, '') || '/'
                   state.nextPage = page
-                  contentHandlerPages.add(page)
+                  sprPages.add(page)
 
                   // prepend import for client fetcher to program body
                   ;(path.parentPath.node as any).body.unshift(
                     t.importDeclaration(
                       [
                         t.importDefaultSpecifier(
-                          t.identifier(clientFetchIdentifier)
+                          t.identifier(sprFetchIdentifier)
                         ),
                       ],
-                      t.stringLiteral('next/dist/client/content-fetcher')
+                      t.stringLiteral('next/dist/client/spr-fetcher')
                     )
                   )
                 }
@@ -134,7 +134,7 @@ export default function nextPageConfig({
       },
       // handles Page.getInitialProps = () => {}
       AssignmentExpression(path, state: ConfigState) {
-        if (!state.setupInlining && !state.setupContentHandler) return
+        if (!state.setupInlining && !state.setupSprHandler) return
         const { property } = (path.node.left || {}) as any
         const { name } = property
         if (name !== 'getInitialProps') return
@@ -149,13 +149,13 @@ export default function nextPageConfig({
             ])
           )
         }
-        if (state.setupContentHandler) {
+        if (state.setupSprHandler) {
           path.node.right = t.functionExpression(
             null,
             [],
             t.blockStatement([
               t.returnStatement(
-                t.callExpression(t.identifier(clientFetchIdentifier), [
+                t.callExpression(t.identifier(sprFetchIdentifier), [
                   t.stringLiteral(state.nextPage!),
                 ])
               ),
@@ -165,7 +165,7 @@ export default function nextPageConfig({
       },
       // handles class { static async getInitialProps() {} }
       FunctionDeclaration(path, state: ConfigState) {
-        if (!state.setupInlining && !state.setupContentHandler) return
+        if (!state.setupInlining && !state.setupSprHandler) return
         if ((path.node.id && path.node.id.name) !== 'getInitialProps') return
 
         if (state.setupInlining) {
@@ -173,10 +173,10 @@ export default function nextPageConfig({
             t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
           ])
         }
-        if (state.setupContentHandler) {
+        if (state.setupSprHandler) {
           path.node.body = t.blockStatement([
             t.returnStatement(
-              t.callExpression(t.identifier(clientFetchIdentifier), [
+              t.callExpression(t.identifier(sprFetchIdentifier), [
                 t.stringLiteral(state.nextPage!),
               ])
             ),

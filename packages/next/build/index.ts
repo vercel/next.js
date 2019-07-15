@@ -40,7 +40,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import mkdirpOrig from 'mkdirp'
 import workerFarm from 'worker-farm'
 import { Sema } from 'async-sema'
-import { contentHandlerPages } from './babel/plugins/next-page-config'
+import { sprPages } from './babel/plugins/next-page-config'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -461,10 +461,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
 
-  if (contentHandlerPages.size > 0) {
+  if (sprPages.size > 0) {
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify([...contentHandlerPages]),
+      JSON.stringify([...sprPages]),
       'utf8'
     )
   }

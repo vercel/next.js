@@ -66,7 +66,7 @@ const runTests = () => {
   })
 }
 
-describe('Content Handler', () => {
+describe('SPR Prerender', () => {
   describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -86,5 +86,13 @@ describe('Content Handler', () => {
     afterAll(() => killApp(app))
 
     runTests()
+
+    it('outputs a prerender-manifest correctly', async () => {
+      const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
+
+      expect(JSON.stringify(manifest.sort())).toBe(
+        JSON.stringify(['/', '/another', '/something'])
+      )
+    })
   })
 })

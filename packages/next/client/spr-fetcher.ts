@@ -1,4 +1,4 @@
-export default function contentFetcher(route) {
+export default function sprFetcher(route: string) {
   return fetch(route, {
     headers: {
       'content-type': 'application/json',
