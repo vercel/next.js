@@ -106,6 +106,7 @@ export default function nextPageConfig({
                     .split(join(state.cwd || '', 'pages'))
                     .pop()
 
+                  page = page.replace(/\\/g, '/')
                   page = page.split('.')
                   page.pop()
                   page = page.join('.')
