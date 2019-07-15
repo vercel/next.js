@@ -120,14 +120,15 @@ export default function dynamic<P = {}>(
     typeof dynamicOptions === 'object' &&
     !(dynamicOptions instanceof Promise)
   ) {
+    // show deprecation warning for `modules` key in development
     if (
-      dynamicOptions.hasOwnProperty('modules') &&
       process.env.NODE_ENV !== 'production'
     ) {
-      // show deprecation warning in development
-      console.warn(
-        'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
-      )
+      if(dynamicOptions.modules) {
+        console.warn(
+          'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
+        )
+      }
     }
     // Support for `render` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
     if (dynamicOptions.render) {
