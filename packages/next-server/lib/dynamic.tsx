@@ -120,7 +120,10 @@ export default function dynamic<P = {}>(
     typeof dynamicOptions === 'object' &&
     !(dynamicOptions instanceof Promise)
   ) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (
+      dynamicOptions.hasOwnProperty('modules') &&
+      process.env.NODE_ENV !== 'production'
+    ) {
       // show deprecation warning in development
       console.warn(
         'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
