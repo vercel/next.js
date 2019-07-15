@@ -36,6 +36,8 @@ export function getPageChunks(
   const external = new Set<string>() // from node_modules
   const internal = new Set<string>() // from project
   ;[...(manifest.pages[page] || []), ...(pageModules[page] || [])].map(mod => {
+    mod = mod.replace(/\\/g, '/')
+
     if (mod.match(/(next-server|next)\//)) {
       return null
     }
@@ -43,7 +45,7 @@ export function getPageChunks(
     if (mod.includes('node_modules/')) {
       if (
         mod.match(
-          /(@babel|core-js|styled-jsx|string-hash|object-assign|process|react|react-dom|regenerator-runtime|webpack|node-libs-browser)/
+          /node_modules\/(@babel|core-js|styled-jsx|string-hash|object-assign|process|react|react-dom|regenerator-runtime|webpack|node-libs-browser)\//
         )
       ) {
         return null

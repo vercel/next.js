@@ -16,7 +16,7 @@
     "graphql-hooks-memcache": "^1.0.4",
     "graphql-hooks-ssr": "^1.0.1",
     "isomorphic-unfetch": "^3.0.0",
-    "next": "^8.0.1",
+    "next": "latest",
     "prop-types": "^15.7.2",
     "react": "^16.8.2",
     "react-dom": "^16.8.2"

@@ -196,7 +196,9 @@ export function buildTS (args = [], cwd, env = {}) {
     instance.stderr.on('data', handleData)
 
     instance.on('exit', code => {
-      if (code) { return reject(new Error('exited with code: ' + code + '\n' + output)) }
+      if (code) {
+        return reject(new Error('exited with code: ' + code + '\n' + output))
+      }
       resolve()
     })
   })

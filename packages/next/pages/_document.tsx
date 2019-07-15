@@ -277,7 +277,9 @@ export class Head extends Component<
         })
 
     // try to parse styles from fragment for backwards compat
-    const curStyles: React.ReactElement[] = Array.isArray(styles) ? styles : []
+    const curStyles: React.ReactElement[] = Array.isArray(styles)
+      ? (styles as React.ReactElement[])
+      : []
     if (
       inAmpMode &&
       styles &&

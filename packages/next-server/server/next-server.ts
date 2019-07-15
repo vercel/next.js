@@ -23,31 +23,16 @@ import {
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import {
-  getQueryParser,
-  sendJson,
-  sendData,
-  parseBody,
-  sendError,
-  ApiError,
-  sendStatusCode,
-  setLazyProp,
-  getCookieParser,
-} from './api-utils'
+import { apiResolver } from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import {
-  interopDefault,
-  loadComponents,
-  LoadComponentsReturnType,
-} from './load-components'
+import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { PageConfig } from 'next-server/types'
 
 type NextConfig = any
 
@@ -73,7 +58,7 @@ export default class Server {
   nextConfig: NextConfig
   distDir: string
   publicDir: string
-  buildManifest: string
+  pagesManifest: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -103,7 +88,11 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.buildManifest = join(this.distDir, BUILD_MANIFEST)
+    this.pagesManifest = join(
+      this.distDir,
+      this.nextConfig.target || 'server',
+      PAGES_MANIFEST
+    )
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -129,7 +118,7 @@ export default class Server {
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (publicRuntimeConfig) {
+    if (Object.keys(publicRuntimeConfig).length > 0) {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
@@ -251,7 +240,10 @@ export default class Server {
       },
     ]
 
-    if (fs.existsSync(this.publicDir)) {
+    if (
+      this.nextConfig.experimental.publicDirectory &&
+      fs.existsSync(this.publicDir)
+    ) {
       routes.push(...this.generatePublicRoutes())
     }
 
@@ -289,10 +281,13 @@ export default class Server {
     res: NextApiResponse,
     pathname: string
   ) {
-    let bodyParser = true
     let params: Params | boolean = false
+    let resolverFunction: any
 
-    let resolverFunction = await this.resolveApiRequest(pathname)
+    try {
+      resolverFunction = await this.resolveApiRequest(pathname)
+    } catch (err) {}
+
     if (
       this.dynamicRoutes &&
       this.dynamicRoutes.length > 0 &&
@@ -308,42 +303,22 @@ export default class Server {
     }
 
     if (!resolverFunction) {
-      res.statusCode = 404
-      res.end('Not Found')
-      return
+      return this.render404(req, res)
     }
 
-    try {
-      const resolverModule = require(resolverFunction)
-
-      if (resolverModule.config) {
-        const config: PageConfig = resolverModule.config
-        if (config.api && config.api.bodyParser === false) {
-          bodyParser = false
-        }
-      }
-      // Parsing of cookies
-      setLazyProp({ req }, 'cookies', getCookieParser(req))
-      // Parsing query string
-      setLazyProp({ req, params }, 'query', getQueryParser(req))
-      // // Parsing of body
-      if (bodyParser) {
-        req.body = await parseBody(req)
-      }
-
-      res.status = statusCode => sendStatusCode(res, statusCode)
-      res.send = data => sendData(res, data)
-      res.json = data => sendJson(res, data)
-
-      const resolver = interopDefault(resolverModule)
-      resolver(req, res)
-    } catch (e) {
-      if (e instanceof ApiError) {
-        sendError(res, e.statusCode, e.message)
-      } else {
-        sendError(res, 500, e.message)
+    if (!this.renderOpts.dev && this.nextConfig.target === 'serverless') {
+      const mod = require(resolverFunction)
+      if (typeof mod.default === 'function') {
+        return mod.default(req, res)
       }
     }
+
+    apiResolver(
+      req,
+      res,
+      params,
+      resolverFunction ? require(resolverFunction) : undefined
+    )
   }
 
   /**
@@ -388,10 +363,8 @@ export default class Server {
   }
 
   private getDynamicRoutes() {
-    const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter(
-      isDynamicRoute
-    )
+    const manifest = require(this.pagesManifest)
+    const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
       match: getRouteMatcher(getRouteRegex(page)),

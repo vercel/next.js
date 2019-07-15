@@ -45,6 +45,10 @@
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
+  - [API Routes](#api-routes)
+    - [Dynamic routes support](#dynamic-routes-support)
+    - [API Middlewares](#api-middlewares)
+    - [Helper Functions](#helper-functions)
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
@@ -53,7 +57,6 @@
     - [With named exports](#with-named-exports)
     - [With Custom Loading Component](#with-custom-loading-component)
     - [With No SSR](#with-no-ssr)
-    - [With Multiple Modules At Once](#with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
     - [Customizing `renderPage`](#customizing-renderpage)
@@ -262,9 +265,11 @@ function MyImage() {
 export default MyImage
 ```
 
+<!--
 To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
+-->
 
-_Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
+_Note: Don't name the `static` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
 
 ### Dynamic Routing
 
@@ -295,6 +300,16 @@ export default Post
 Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
 The matched path parameter will be sent as a query parameter to the page.
 
+> Note: A `<Link>` for a Dynamic Route looks like so:
+>
+> ```jsx
+> <Link href="/post/[pid]" as="/post/abc">
+>   <a>First Post</a>
+> </Link>
+> ```
+>
+> You can [read more about `<Link>` here](#with-link).
+
 For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
 
@@ -304,14 +319,18 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 > **Note**: Predefined routes take precedence over dynamic routes.
 > For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
 
+> **Note**: Pages that are statically optimized by [automatic prerendering](#automatic-prerendering) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
+> After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
+> If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
+
 ### Populating `<head>`
 
 <details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="/examples/head-elements">Head elements</a></li>
-    <li><a href="/examples/layout-component">Layout component</a></li>
-  </ul>
+<summary><b>Examples</b></summary>
+<ul>
+ <li><a href="/examples/head-elements">Head elements</a></li>
+ <li><a href="/examples/layout-component">Layout component</a></li>
+</ul>
 </details>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
@@ -776,7 +795,7 @@ function ReadMore() {
 export default ReadMore
 ```
 
-This uses the same exact parameters as in the `<Link>` component.
+This uses the same exact parameters as [in the `<Link>` component](#with-url-object). The first parameter maps to `href` while the second parameter maps to `as` in the `<Link>` component as documented [here](#with-url-object).
 
 ##### Router Events
 
@@ -1034,6 +1053,125 @@ class MyLink extends React.Component {
 export default withRouter(MyLink)
 ```
 
+### API Routes
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/api-routes">Basic API routes</a></li>
+    <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+  </ul>
+</details>
+
+API routes provides a straightforward solution to build your **API** with Next.js.
+Start by creating the `api/` folder inside the `./pages/` folder.
+
+Every file inside `./pages/api` is mapped to `/api/*`.
+For example, `./pages/api/posts.js` is mapped to the route `/api/posts`.
+
+Here's an example API route file:
+
+```js
+export default (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.statusCode = 200
+  res.end(JSON.stringify({ name: 'Nextjs' }))
+}
+```
+
+- `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
+
+- `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+> **Note**: API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), so they'll be **same-origin only** by default.
+> You can customize this behavior by wrapping your export with CORS middleware.
+> We provide an [example of this below](#api-middlewares).
+
+API Routes do not increase your client-side bundle size. They are server-side only bundles.
+
+#### Dynamic routes support
+
+API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
+
+Consider the following page `./pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
+
+```js
+export default (req, res) => {
+  const {
+    query: { pid },
+  } = req
+
+  res.end(`Post: ${pid}`)
+}
+```
+
+#### API Middlewares
+
+API routes provides built in middlewares which parse the incoming `req`.
+Those middlewares are:
+
+- `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}`
+- `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
+- `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
+
+Body parsing is enabled by default.
+You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
+
+```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+```
+
+As an added bonus, you can also use any [Micro](https://github.com/zeit/micro) compatible [middleware](https://github.com/amio/awesome-micro)!
+
+For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging `micro-cors`.
+
+First, install `micro-cors`:
+
+```bash
+npm i micro-cors
+# or
+yarn add micro-cors
+```
+
+Then, import `micro-cors` and [configure it](https://github.com/possibilities/micro-cors#readme). Finally, wrap your exported function in the middleware:
+
+```js
+import Cors from 'micro-cors'
+
+const cors = Cors({
+  allowedMethods: ['GET', 'HEAD'],
+})
+
+function Endpoint(req, res) {
+  res.json({ message: 'Hello Everyone!' })
+}
+
+export default cors(Endpoint)
+```
+
+#### Helper Functions
+
+We're providing a set of Express.js-like methods to improve the developer experience and increase the speed of creating new API endpoints:
+
+```js
+export default (req, res) => {
+  res.status(200).json({ name: 'Next.js' })
+}
+```
+
+- `res.status(code)` - a function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `res.json(json)` - Sends a `JSON` response. `json` must be a valid `JSON` object
+- `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
+
 ### Custom server and routing
 
 <details>
@@ -1175,7 +1313,7 @@ app.prepare().then(() => {
   </ul>
 </details>
 
-Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
+Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
 With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
 
 You can think dynamic imports as another way to split your code into manageable chunks.
@@ -1239,9 +1377,7 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponentWithCustomLoading = dynamic(
   () => import('../components/hello2'),
-  {
-    loading: () => <p>...</p>,
-  }
+  { loading: () => <p>...</p> }
 )
 
 function Home() {
@@ -1264,9 +1400,7 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponentWithNoSSR = dynamic(
   () => import('../components/hello3'),
-  {
-    ssr: false,
-  }
+  { ssr: false }
 )
 
 function Home() {
@@ -1280,36 +1414,6 @@ function Home() {
 }
 
 export default Home
-```
-
-#### With Multiple Modules At Once
-
-```jsx
-import dynamic from 'next/dynamic'
-
-const HelloBundle = dynamic({
-  modules: () => {
-    const components = {
-      Hello1: () => import('../components/hello1'),
-      Hello2: () => import('../components/hello2'),
-    }
-
-    return components
-  },
-  render: (props, { Hello1, Hello2 }) => (
-    <div>
-      <h1>{props.title}</h1>
-      <Hello1 />
-      <Hello2 />
-    </div>
-  ),
-})
-
-function DynamicBundle() {
-  return <HelloBundle title="Dynamic Bundle" />
-}
-
-export default DynamicBundle
 ```
 
 ### Custom `<App>`
@@ -1371,11 +1475,22 @@ export default MyApp
   </ul>
 </details>
 
-- Is rendered on the server side
-- Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+A custom `<Document>` is commonly used to augment your application's `<html>` and `<body>` tags.
+This is necessary because Next.js pages skip the definition of the surrounding document's markup.
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
+This allows you to support Server-Side Rendering for CSS-in-JS libraries like
+[styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion).
+Note, [styled-jsx](https://github.com/zeit/styled-jsx) is included in Next.js by default.
+
+A custom `<Document>` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
+
+> **Note**: `<Document>`'s `getInitialProps` function is not called during client-side transitions,
+> nor when a page is [automatically prerendered](#automatic-prerendering).
+
+> **Note**: Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`.
+> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic prerendering (static optimization)](#automatic-prerendering).
+
+To use a custom `<Document>`, you must create a file at `./pages/_document.js` and extend the `Document` class:
 
 ```jsx
 // _document is only rendered on the server side and not on the client side
@@ -1408,7 +1523,7 @@ export default MyDocument
 
 All of `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
-**Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.**
+**Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`<App>`](#custom-app) component instead.**
 
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
@@ -1835,13 +1950,16 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 > **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
-> The reason for this is that runtime configuration adds rendering / initialization overhead.
+> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic prerendering](#automatic-prerendering)**.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
 Place any server-only runtime config under a `serverRuntimeConfig` property.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
+
+> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic prerendering](#automatic-prerendering).
+> You can also de-optimize your entire application by creating a [Custom `<App>`](#custom-app) with `getInitialProps`.
 
 ```js
 // next.config.js
@@ -1894,7 +2012,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static` or `/public`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
 
 If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
 
@@ -1907,13 +2025,35 @@ module.exports = {
 
 ## Automatic Prerendering
 
-Next.js will automatically detect if a page is `static` at build time with `next build`, this is currently based on whether or not `getInitialProps` is set in the page, if set Next.js will assume that your page is not `static` and requires a server or lambda bundle.
+Next.js automatically determines that a page is static (can be prerendered) if it has no has blocking data requirements.
+This determination is made by the absence of `getInitialProps` in the page.
 
-This allows Next.js to automatically replace server bundles for static pages with static HTML files. This has numerous benefits like better ability to be cached, cheaper runtime costs, and more.
+If `getInitialProps` is present, Next.js will not prerender the page.
+Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
-During the build, when we automatically prerender a page, for example `/about`, the server bundle in `.next/server/static/${BUILD_ID}/about.js` will be automatically replaced with `.next/server/static/${BUILD_ID}/about.html`. Then when you run `next start` or deploy with [now](https://zeit.co/now) the HTML file will be automatically served instead of requiring a server-side render each request.
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
 
-> **Note**: If you have a [custom `App`](#custom-app) with a custom `getInitialProps` then this optimization will be disabled.
+This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
+This ensures Next.js always emits applications that are **fast by default**.
+
+> **Note**: Statically generated pages are still reactive: Next.js will hydrate your application client-side to give it full interactivity.
+
+This feature provides many benefits.
+For example, optimized pages require no server-side computation and can be instantly streamed to the end-user from CDN locations.
+
+The result is an _ultra fast_ loading experience for your users.
+
+`next build` will emit `.html` files for statically optimized pages.
+The result will be a file named `.next/server/static/${BUILD_ID}/about.html` instead of `.next/server/static/${BUILD_ID}/about.js`.
+This behavior is similar for `target: 'serverless'`.
+
+The built-in Next.js server (`next start`) and programmatic API (`app.getRequestHandler()`) both support this build output transparently.
+There is no configuration or special handling required.
+
+> **Note**: If you have a [custom `<App>`](#custom-app) with `getInitialProps` then this optimization will be disabled.
+
+> **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
+> `ctx.req` will be `undefined` for pages that are prerendered.
 
 ## Production deployment
 
@@ -1943,9 +2083,12 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
   </ul>
 </details>
 
-Serverless deployment dramatically improves reliability and scalability by splitting your application into smaller parts (also called [**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)). In the case of Next.js, each page in the `pages` directory becomes a serverless lambda.
+Serverless deployment dramatically improves reliability and scalability by splitting your application into smaller parts (also called [**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)).
+In the case of Next.js, each page in the `pages` directory becomes a serverless lambda.
 
-There are [a number of benefits](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express) to serverless. The referenced link talks about some of them in the context of Express, but the principles apply universally: serverless allows for distributed points of failure, infinite scalability, and is incredibly affordable with a "pay for what you use" model.
+There are [a number of benefits](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express) to serverless.
+The referenced link talks about some of them in the context of Express, but the principles apply universally:
+serverless allows for distributed points of failure, infinite scalability, and is incredibly affordable with a "pay for what you use" model.
 
 To enable **serverless mode** in Next.js, add the `serverless` build `target` in `next.config.js`:
 
@@ -1956,10 +2099,12 @@ module.exports = {
 }
 ```
 
-The `serverless` target will output a single lambda per page. This file is completely standalone and doesn't require any dependencies to run:
+The `serverless` target will output a single lambda or [HTML file](#automatic-prerendering) per page.
+This file is completely standalone and doesn't require any dependencies to run:
 
 - `pages/index.js` => `.next/serverless/pages/index.js`
 - `pages/about.js` => `.next/serverless/pages/about.js`
+- `pages/blog.js` => `.next/serverless/pages/blog.html`
 
 The signature of the Next.js Serverless function is similar to the Node.js HTTP server callback:
 
@@ -1970,6 +2115,9 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 - [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
+
+The static HTML files are ready to be served as-is.
+You can read more about this feature, including how to opt-out, in the [Automatic Prerendering section](#automatic-prerendering).
 
 Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
@@ -2038,7 +2186,7 @@ After adding the `tsconfig.json` you need to install `@types` to get proper Type
 npm install --save-dev @types/react @types/react-dom @types/node
 ```
 
-Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout out its [documentation](https://www.typescriptlang.org/).
+Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
 
 ### Exported types
 
@@ -2061,6 +2209,15 @@ Page.getInitialProps = async ({ req }) => {
 }
 
 export default Page
+```
+
+For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
 ```
 
 For `React.Component` you can use `NextPageContext`:
@@ -2161,14 +2318,16 @@ When using `next export` to statically prerender pages Next.js will detect if th
 
 Hybrid AMP (`pages/about.js`) would output:
 
-- `out/about/index.html` - with client-side React runtime
-- `out/about.amp/index.html` - AMP page
+- `out/about.html` - with client-side React runtime
+- `out/about.amp.html` - AMP page
 
 AMP-only (`pages/about.js`) would output:
 
-- `out/about/index.html` - Optimized AMP page
+- `out/about.html` - Optimized AMP page
 
-During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+
+> **Note**: When using `exportTrailingSlash: true` in `next.config.js`, output will be different. For Hybrid AMP pages, output will be `out/page/index.html` and `out/page.amp/index.html`, and for AMP-only pages, output will be `out/page/index.html`
 
 ### Adding AMP Components
 
@@ -2535,3 +2694,7 @@ Please see our [contributing.md](/contributing.md).
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+
+```
+
+```
