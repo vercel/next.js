@@ -17,6 +17,7 @@ const defaultConfig: { [key: string]: any } = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
+  crossOrigin: 'anonymous',
   modern: true,
   safari10NomoduleFix: false,
   onDemandEntries: {
