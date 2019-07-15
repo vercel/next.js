@@ -231,8 +231,6 @@ function renderDocument(
   )
 }
 
-export function isStaticPrerender() {}
-
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -259,7 +257,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = pageConfig.experimentalPrerender
+  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
 
   if (dev) {
     const { isValidElementType } = require('react-is')
