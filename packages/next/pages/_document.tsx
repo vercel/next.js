@@ -13,7 +13,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
-import { renderToStaticMarkup } from 'react-dom/server'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -129,7 +128,7 @@ function renderChildrenToString(node: React.ReactNode): string {
   } else if (node.props.dangerouslySetInnerHTML) {
     return node.props.dangerouslySetInnerHTML.__html
   } else {
-    return renderToStaticMarkup(node.props.children)
+    return node.props.children
   }
 }
 
