@@ -249,7 +249,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
-    pageConfig,
+    pageConfig = {},
     DocumentMiddleware,
     Component,
     buildManifest,
