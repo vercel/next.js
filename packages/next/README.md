@@ -1060,6 +1060,8 @@ export default withRouter(MyLink)
   <ul>
     <li><a href="/examples/api-routes">Basic API routes</a></li>
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+    <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
+    <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
   </ul>
 </details>
 
