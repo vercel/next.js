@@ -46,7 +46,7 @@ const defaultConfig: { [key: string]: any } = {
 
 const experimentalWarning = execOnce(() => {
   console.warn(
-    `\nFound experimental config:\nExperimental configs can change at anytime and aren't officially supported (use at your own risk).\n`
+    `\nFound experimental config:\nExperimental features can change at anytime and aren't officially supported (use at your own risk).\n`
   )
 })
 
