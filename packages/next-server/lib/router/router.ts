@@ -260,7 +260,11 @@ export default class Router implements BaseRouter {
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
-      if (this.onlyAHashChange(as)) {
+
+      // WARNING: `_h` is an internal option for handing Next.js client-side
+      // hydration. Your app should _never_ use this property. It may change at
+      // any time without notice.
+      if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)

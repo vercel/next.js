@@ -180,7 +180,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 /**
  * Utils
  */
-export function execOnce(this: any, fn: () => any) {
+export function execOnce(this: any, fn: (...args: any) => any) {
   let used = false
   return (...args: any) => {
     if (!used) {

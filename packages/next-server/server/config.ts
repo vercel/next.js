@@ -1,6 +1,7 @@
 import os from 'os'
 import findUp from 'find-up'
 import { CONFIG_FILE } from '../lib/constants'
+import { execOnce } from '../lib/utils'
 
 const targets = ['server', 'serverless']
 
@@ -46,8 +47,18 @@ const defaultConfig: { [key: string]: any } = {
   publicRuntimeConfig: {},
 }
 
+const experimentalWarning = execOnce(() => {
+  console.warn(
+    `\nFound experimental config:\nExperimental features can change at anytime and aren't officially supported (use at your own risk).\n`
+  )
+})
+
 function assignDefaults(userConfig: { [key: string]: any }) {
   Object.keys(userConfig).forEach((key: string) => {
+    if (key === 'experimental' && userConfig[key]) {
+      experimentalWarning()
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
@@ -109,7 +120,11 @@ export default function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (userConfig.target === 'serverless' && userConfig.publicRuntimeConfig) {
+    if (
+      userConfig.target === 'serverless' &&
+      userConfig.publicRuntimeConfig &&
+      Object.keys(userConfig.publicRuntimeConfig).length !== 0
+    ) {
       throw new Error(
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
