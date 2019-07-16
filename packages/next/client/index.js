@@ -95,7 +95,13 @@ class Container extends React.Component {
             ...router.query,
             ...parseQs(location.search.substr(1))
           }),
-        asPath
+        asPath,
+        {
+          // WARNING: `_h` is an internal option for handing Next.js
+          // client-side hydration. Your app should _never_ use this property.
+          // It may change at any time without notice.
+          _h: 1
+        }
       )
     }
   }
