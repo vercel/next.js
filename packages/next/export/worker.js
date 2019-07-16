@@ -2,14 +2,19 @@ import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
-import { writeFile, access } from 'fs'
+import { writeFile, access, readFile } from 'fs'
 import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
+import { inlineGipIdentifier } from '../build/babel/plugins/next-page-config'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher'
+import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex'
 
 const envConfig = require('next-server/config')
 const mkdirp = promisify(mkdirpModule)
 const writeFileP = promisify(writeFile)
+const readFileP = promisify(readFile)
 const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {
@@ -35,11 +40,23 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const ampPath = `${path === '/' ? '/index' : path}.amp`
-        const { page, query = {} } = exportPathMap[path]
-        delete query.ampOnly
-        delete query.hasAmp
-        delete query.ampPath
-        delete query.amphtml
+        const { page } = exportPathMap[path]
+        let { query = {} } = exportPathMap[path]
+
+        // Check if the page is a specified dynamic route
+        if (isDynamicRoute(page) && page !== path) {
+          const params = getRouteMatcher(getRouteRegex(page))(path)
+          if (params) {
+            query = {
+              ...query,
+              ...params
+            }
+          } else {
+            throw new Error(
+              `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/zeit/next.js/export-path-mismatch`
+            )
+          }
+        }
 
         const headerMocks = {
           headers: {},
@@ -110,6 +127,27 @@ process.on(
           }
         }
 
+        // inline pageData for getInitialProps
+        if (curRenderOpts.isPrerender && curRenderOpts.pageData) {
+          const dataStr = JSON.stringify(curRenderOpts.pageData)
+            .replace(/"/g, '\\"')
+            .replace(/'/g, "\\'")
+
+          const bundlePath = join(
+            distDir,
+            'static',
+            buildId,
+            'pages',
+            (path === '/' ? 'index' : path) + '.js'
+          )
+
+          const bundleContent = await readFileP(bundlePath, 'utf8')
+          await writeFileP(
+            bundlePath,
+            bundleContent.replace(inlineGipIdentifier, dataStr)
+          )
+        }
+
         const validateAmp = async (html, page) => {
           const validator = await AmpHtmlValidator.getInstance()
           const result = validator.validateString(html)
@@ -130,10 +168,9 @@ process.on(
           }
         }
 
-        if (curRenderOpts.amphtml && query.amp) {
+        if (curRenderOpts.inAmpMode) {
           await validateAmp(html, path)
-        }
-        if (curRenderOpts.hasAmp) {
+        } else if (curRenderOpts.hybridAmp) {
           // we need to render the AMP version
           let ampHtmlFilename = `${ampPath}${sep}index.html`
           if (!subFolders) {

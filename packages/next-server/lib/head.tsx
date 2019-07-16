@@ -1,16 +1,16 @@
 import React from 'react'
 import withSideEffect from './side-effect'
-import { AmpModeContext } from './amphtml-context'
+import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
-import { isAmp } from './amp'
+import { isInAmpMode } from './amp'
 
-type WithIsAmp = {
-  isAmp?: boolean
+type WithInAmpMode = {
+  inAmpMode?: boolean
 }
 
-export function defaultHead(className = 'next-head', isAmp = false) {
+export function defaultHead(className = 'next-head', inAmpMode = false) {
   const head = [<meta key="charSet" charSet="utf-8" className={className} />]
-  if (!isAmp) {
+  if (!inAmpMode) {
     head.push(
       <meta
         key="viewport"
@@ -54,7 +54,7 @@ function onlyReactElement(
   return list.concat(child)
 }
 
-const METATYPES = ['name', 'httpEquiv', 'charSet', 'viewport', 'itemProp']
+const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
  returns a function for filtering head child elements
@@ -84,7 +84,7 @@ function unique() {
           const metatype = METATYPES[i]
           if (!h.props.hasOwnProperty(metatype)) continue
 
-          if (metatype === 'charSet' || metatype === 'viewport') {
+          if (metatype === 'charSet') {
             if (metaTypes.has(metatype)) return false
             metaTypes.add(metatype)
           } else {
@@ -107,7 +107,7 @@ function unique() {
  */
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
-  props: WithIsAmp
+  props: WithInAmpMode
 ) {
   return headElements
     .reduce(
@@ -121,7 +121,7 @@ function reduceComponents(
     )
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead('', props.isAmp))
+    .concat(defaultHead('', props.inAmpMode))
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -145,21 +145,21 @@ const Effect = withSideEffect()
  */
 function Head({ children }: { children: React.ReactNode }) {
   return (
-    <AmpModeContext.Consumer>
-      {ampMode => (
+    <AmpStateContext.Consumer>
+      {ampState => (
         <HeadManagerContext.Consumer>
           {updateHead => (
             <Effect
               reduceComponentsToState={reduceComponents}
               handleStateChange={updateHead}
-              isAmp={isAmp(ampMode)}
+              inAmpMode={isInAmpMode(ampState)}
             >
               {children}
             </Effect>
           )}
         </HeadManagerContext.Consumer>
       )}
-    </AmpModeContext.Consumer>
+    </AmpStateContext.Consumer>
   )
 }
 

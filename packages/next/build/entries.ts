@@ -68,10 +68,20 @@ export function createEntrypoints(
   Object.keys(pages).forEach(page => {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-    const isApiRoute = bundleFile.startsWith('/api')
+    const isApiRoute = bundleFile.startsWith('/api/')
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
-    if (isApiRoute || target === 'server') {
+
+    if (isApiRoute && target === 'serverless') {
+      const serverlessLoaderOptions: ServerlessLoaderQuery = {
+        page,
+        absolutePagePath,
+        ...defaultServerlessOptions,
+      }
+      server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(
+        serverlessLoaderOptions
+      )}!`
+    } else if (isApiRoute || target === 'server') {
       server[bundlePath] = [absolutePagePath]
     } else if (
       target === 'serverless' &&

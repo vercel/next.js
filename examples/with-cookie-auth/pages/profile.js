@@ -49,12 +49,12 @@ Profile.getInitialProps = async ctx => {
     : `${protocol}://${ctx.req.headers.host}/api/profile`
 
   const redirectOnError = () =>
-    process.browser
+    typeof window !== 'undefined'
       ? Router.push('/login')
       : ctx.res.writeHead(302, { Location: '/login' }).end()
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch(url, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
@@ -64,10 +64,10 @@ Profile.getInitialProps = async ctx => {
 
     if (response.ok) {
       return await response.json()
-    } else {
-      // https://github.com/developit/unfetch#caveats
-      return redirectOnError()
     }
+
+    // https://github.com/developit/unfetch#caveats
+    return redirectOnError()
   } catch (error) {
     // Implementation or Network error
     return redirectOnError()

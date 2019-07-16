@@ -62,7 +62,11 @@ function buildManifest(
             }
 
             // Avoid duplicate files
-            if (manifest[request].some(item => item.file === file)) {
+            if (
+              manifest[request].some(
+                item => item.id === id && item.file === file
+              )
+            ) {
               continue
             }
 

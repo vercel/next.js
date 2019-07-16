@@ -32,7 +32,7 @@ export default async function (dir, options, configuration) {
   const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
-  const subFolders = nextConfig.experimental.exportTrailingSlash
+  const subFolders = nextConfig.exportTrailingSlash
 
   if (!options.buildExport && nextConfig.target !== 'server') {
     throw new Error(
@@ -110,7 +110,7 @@ export default async function (dir, options, configuration) {
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
-  if (publicRuntimeConfig) {
+  if (Object.keys(publicRuntimeConfig).length > 0) {
     renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
@@ -149,7 +149,11 @@ export default async function (dir, options, configuration) {
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
-  if (existsSync(publicDir)) {
+  if (
+    nextConfig.experimental &&
+    nextConfig.experimental.publicDirectory &&
+    existsSync(publicDir)
+  ) {
     log('  copying "public" directory')
     await recursiveCopy(publicDir, outDir, {
       filter (path) {

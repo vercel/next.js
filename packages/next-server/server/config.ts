@@ -1,6 +1,7 @@
 import os from 'os'
 import findUp from 'find-up'
 import { CONFIG_FILE } from '../lib/constants'
+import { execOnce } from '../lib/utils'
 
 const targets = ['server', 'serverless']
 
@@ -24,25 +25,37 @@ const defaultConfig: { [key: string]: any } = {
   amp: {
     canonicalBase: '',
   },
+  exportTrailingSlash: false,
   experimental: {
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    dynamicRouting: false,
-    autoExport: false,
     ampBindInitData: false,
-    exportTrailingSlash: true,
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false,
+    documentMiddleware: false,
+    publicDirectory: false,
   },
+  serverRuntimeConfig: {},
+  publicRuntimeConfig: {},
 }
+
+const experimentalWarning = execOnce(() => {
+  console.warn(
+    `\nFound experimental config:\nExperimental features can change at anytime and aren't officially supported (use at your own risk).\n`
+  )
+})
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   Object.keys(userConfig).forEach((key: string) => {
+    if (key === 'experimental' && userConfig[key]) {
+      experimentalWarning()
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
@@ -102,6 +115,16 @@ export default function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    if (
+      userConfig.target === 'serverless' &&
+      userConfig.publicRuntimeConfig &&
+      Object.keys(userConfig.publicRuntimeConfig).length !== 0
+    ) {
+      throw new Error(
+        'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+      )
     }
 
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })

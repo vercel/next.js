@@ -18,6 +18,7 @@ import browser from './browser'
 import dev from './dev'
 import { promisify } from 'util'
 import fs from 'fs'
+import dynamic from './dynamic'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -26,6 +27,7 @@ const mkdir = promisify(fs.mkdir)
 const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
 const context = {}
+context.appDir = appDir
 const devContext = {}
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
@@ -56,8 +58,8 @@ describe('Static Export', () => {
     await nextExport(appDir, { outdir })
 
     nextConfig.replace(
-      `// exportTrailingSlash: false,`,
-      `exportTrailingSlash: false,`
+      `exportTrailingSlash: true`,
+      `exportTrailingSlash: false`
     )
     await nextBuild(appDir)
     await nextExport(appDir, { outdir: outNoTrailSlash })
@@ -93,4 +95,5 @@ describe('Static Export', () => {
   ssr(context)
   browser(context)
   dev(devContext)
+  dynamic(context)
 })

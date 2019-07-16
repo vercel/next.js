@@ -34,69 +34,46 @@ yarn
 With Next.js you can use multiple apps as a single app using it's multi-zones feature.
 This is an example showing how to use it.
 
-In this example, we've two apps: 'home' and 'blog'.
-We also have a set of rules defined in `rules.json` for the proxy.
-
-Now let's start two of our app using:
+In this example, we've two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
+We also have a set of builders and routes defined in `now.json`.
 
 ```bash
-npm run home
-npm run blog
-# or
-yarn home
-yarn blog
+now dev
 ```
 
-Then start the proxy:
+Now you can visit http://localhost:3000 and develop for both apps as a single app.
 
-```bash
-npm run proxy
-# or
-yarn proxy
-```
+### Now config
 
-Now you can visit http://localhost:9000 and access and develop both apps a single app.
-
-### Proxy Rules
-
-This is the place we define rules for our proxy. Here are the rules(in `rules.json`) available for this app:
+`now.json` allows us to create a single dev server for any builders and routes we add to it, with `now dev` we can easily create a dev server for multiple apps without having to deploy or setup anything else:
 
 ```json
 {
-  "rules": [
-    {
-      "pathname": "/blog",
-      "dest": "http://localhost:5000"
-    },
-    { "pathname": "/**", "dest": "http://localhost:4000" }
+  "name": "with-zones",
+  "version": 2,
+  "builds": [
+    { "src": "blog/next.config.js", "use": "@now/next" },
+    { "src": "home/next.config.js", "use": "@now/next" }
+  ],
+  "routes": [
+    { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
+    { "src": "/blog", "dest": "blog/blog" },
+    { "src": "(.*)", "dest": "home$1" }
   ]
 }
 ```
 
-These rules are based on ZEIT now v1 [path alias](https://zeit.co/docs/features/path-aliases) rules and use [`micro-proxy`](https://github.com/zeit/micro-proxy) as the proxy.
+The previous file is based in the [@now/next](https://zeit.co/docs/v2/deployments/official-builders/next-js-now-next/) builder and [Now Routes](https://zeit.co/docs/v2/deployments/routes/) from Now V2.
 
 ## Special Notes
 
-- All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviour in client side navigation.
+- All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviours in client side navigation.
   - According to the above example, a page named `blog` should not be exist in the `home` zone.
 
 ## Production Deployment
 
-Here's how are going to deploy this application into production.
-
-- Open the `now.json` and `next.config.js` files in both `blog` and `home` directories and change the aliases as you wish.
-- Then update `routes` in `home/now.json` accordingly.
-- Now deploy both apps:
+We only need to run `now`, the same `now.json` used for development will be used for the deployment:
 
 ```bash
-cd home
-now && now alias
-cd ../blog
-now && now alias
-cd ..
+now
 ```
-
-> You can use a domain name of your choice in the above command instead of `with-zones.nextjs.org`.
-
-That's it.
-Now you can access the final app via: <https://with-zones.nextjs.org>

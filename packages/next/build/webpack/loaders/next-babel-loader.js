@@ -61,8 +61,11 @@ module.exports = babelLoader.custom(babel => {
         customOptions: { isServer, asyncToPromises }
       }
     ) {
+      const { cwd } = cfg.options
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
+      const isPageFile = filename.startsWith(join(cwd, 'pages'))
+
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
           // We only log for client compilation otherwise there will be double output
@@ -77,13 +80,13 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...options.presets, presetItem]
       }
 
-      if (!isServer && source.indexOf('next/amp')) {
-        const dropClientPlugin = babel.createConfigItem(
-          [require('../../babel/plugins/next-drop-client-page'), {}],
+      if (!isServer && isPageFile) {
+        const pageConfigPlugin = babel.createConfigItem(
+          [require('../../babel/plugins/next-page-config')],
           { type: 'plugin' }
         )
         options.plugins = options.plugins || []
-        options.plugins.push(dropClientPlugin)
+        options.plugins.push(pageConfigPlugin)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {

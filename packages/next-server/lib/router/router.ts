@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse } from 'url'
+import { parse, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -15,10 +15,13 @@ import {
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { isDynamicRoute } from './utils/is-dynamic'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
+
+type Url = UrlObject | string
 
 export type BaseRouter = {
   route: string
@@ -26,6 +29,18 @@ export type BaseRouter = {
   query: ParsedUrlQuery
   asPath: string
 }
+
+export type NextRouter = BaseRouter &
+  Pick<
+    Router,
+    | 'push'
+    | 'replace'
+    | 'reload'
+    | 'back'
+    | 'prefetch'
+    | 'beforePopState'
+    | 'events'
+  >
 
 type RouteInfo = {
   Component: ComponentType
@@ -53,6 +68,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
+  events: MittEmitter
 
   static events: MittEmitter = mitt()
 
@@ -210,7 +226,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: string, as: string = url, options = {}) {
+  push(url: Url, as: Url = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
@@ -220,16 +236,11 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: string, as: string = url, options = {}) {
+  replace(url: Url, as: Url = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
 
-  change(
-    method: string,
-    _url: string,
-    _as: string,
-    options: any
-  ): Promise<boolean> {
+  change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
@@ -249,7 +260,11 @@ export default class Router implements BaseRouter {
 
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
-      if (this.onlyAHashChange(as)) {
+
+      // WARNING: `_h` is an internal option for handing Next.js client-side
+      // hydration. Your app should _never_ use this property. It may change at
+      // any time without notice.
+      if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
@@ -273,10 +288,10 @@ export default class Router implements BaseRouter {
       const route = toRoute(pathname)
       const { shallow = false } = options
 
-      // detect dynamic routing
-      if (route.indexOf('/$') !== -1) {
+      if (isDynamicRoute(route)) {
+        const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(as)
+        const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
           console.error(
             "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
@@ -302,6 +317,13 @@ export default class Router implements BaseRouter {
         Router.events.emit('beforeHistoryChange', as)
         this.changeState(method, url, as, options)
         const hash = window.location.hash.substring(1)
+
+        if (process.env.NODE_ENV !== 'production') {
+          const appComp: any = this.components['/_app'].Component
+          ;(window as any).next.isPrerendered =
+            appComp.getInitialProps === appComp.origGetInitialProps &&
+            !routeInfo.Component.getInitialProps
+        }
 
         // @ts-ignore pathname is always defined
         this.set(route, pathname, query, as, { ...routeInfo, hash })
@@ -376,6 +398,10 @@ export default class Router implements BaseRouter {
         return new Promise((resolve, reject) => {
           const ctx = { pathname, query, asPath: as }
           this.getInitialProps(Component, ctx).then(props => {
+            // if data is inlined during prerender it is a string
+            if (props && typeof props.pageProps === 'string') {
+              props.pageProps = JSON.parse(props.pageProps)
+            }
             routeInfo.props = props
             this.components[route] = routeInfo
             resolve(routeInfo)
@@ -511,11 +537,7 @@ export default class Router implements BaseRouter {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.__NEXT_EXPERIMENTAL_DEBUG
-      )
-        return
+      if (process.env.NODE_ENV !== 'production') return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
@@ -579,7 +601,9 @@ export default class Router implements BaseRouter {
 
   abortComponentLoad(as: string): void {
     if (this.clc) {
-      Router.events.emit('routeChangeError', new Error('Route Cancelled'), as)
+      const e = new Error('Route Cancelled')
+      ;(e as any).cancelled = true
+      Router.events.emit('routeChangeError', e, as)
       this.clc()
       this.clc = null
     }

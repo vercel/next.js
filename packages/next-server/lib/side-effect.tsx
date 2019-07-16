@@ -1,4 +1,4 @@
-import React, { Component, ReactNode } from 'react'
+import React, { Component } from 'react'
 
 const isServer = typeof window === 'undefined'
 
@@ -10,7 +10,7 @@ type SideEffectProps = {
     props: T
   ) => State
   handleStateChange?: (state: State) => void
-  isAmp?: boolean
+  inAmpMode?: boolean
 }
 
 export default () => {

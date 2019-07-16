@@ -5,6 +5,8 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60
   },
   experimental: {
-    autoExport: true
-  }
+    publicDirectory: true
+  },
+  // make sure error isn't thrown from empty publicRuntimeConfig
+  publicRuntimeConfig: {}
 }

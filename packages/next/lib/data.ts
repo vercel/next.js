@@ -26,7 +26,7 @@ export function createHook(
     throw new Error('key not provided to createHook options.')
   }
   return function useData(...args: Array<string | number>) {
-    const router: import('next-server/lib/router/router').default = useContext(
+    const router: import('next-server/lib/router/router').NextRouter = useContext(
       RouterContext
     )
     const dataManager: import('next-server/lib/data-manager').DataManager = useContext(
@@ -47,7 +47,7 @@ export function createHook(
     }
 
     // @ts-ignore webpack optimization
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       const res = fetch(router.route + '?' + stringify(router.query), {
         headers: {
           accept: 'application/amp.bind+json',

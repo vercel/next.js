@@ -45,17 +45,14 @@ function formatUrl(url: Url) {
   return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
 
-type LinkProps = {
+export type LinkProps = {
   href: Url
-  as?: Url | undefined
+  as?: Url
   replace?: boolean
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
   onError?: (error: Error) => void
-  /**
-   * @deprecated since version 8.1.1-canary.20
-   */
   prefetch?: boolean
 }
 
@@ -110,18 +107,19 @@ const listenToIntersections = (el: any, cb: any) => {
 
 class Link extends Component<LinkProps> {
   static propTypes?: any
-  cleanUpListeners = () => {}
-
-  componentDidMount() {
-    this.cleanUpListeners = () => {}
+  static defaultProps: Partial<LinkProps> = {
+    prefetch: true,
   }
+
+  cleanUpListeners = () => {}
 
   componentWillUnmount() {
     this.cleanUpListeners()
   }
 
   handleRef(ref: Element) {
-    if (IntersectionObserver && ref && ref.tagName) {
+    if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
+      this.cleanUpListeners()
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })
@@ -188,7 +186,7 @@ class Link extends Component<LinkProps> {
   }
 
   prefetch() {
-    if (typeof window === 'undefined') return
+    if (!this.props.prefetch || typeof window === 'undefined') return
 
     // Prefetch the JSON page if asked (only in the client)
     const { pathname } = window.location
@@ -214,7 +212,10 @@ class Link extends Component<LinkProps> {
       ref?: any
     } = {
       ref: (el: any) => this.handleRef(el),
-      onMouseEnter: () => {
+      onMouseEnter: (e: React.MouseEvent) => {
+        if (child.props && typeof child.props.onMouseEnter === 'function') {
+          child.props.onMouseEnter(e)
+        }
         this.prefetch()
       },
       onClick: (e: React.MouseEvent) => {

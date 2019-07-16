@@ -7,6 +7,7 @@ import path from 'path'
 import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
 
+import { isValidElementType } from 'react-is'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
@@ -14,7 +15,6 @@ import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
-const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -36,7 +36,8 @@ export interface PageInfo {
 
 export function printTreeView(
   list: string[],
-  pageInfos: Map<string, PageInfo>
+  pageInfos: Map<string, PageInfo>,
+  serverless: boolean
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
@@ -67,20 +68,24 @@ export function printTreeView(
       const pageInfo = pageInfos.get(item)
 
       messages.push([
-        `${symbol} ${item}`,
+        `${symbol} ${
+          item.startsWith('/_')
+            ? ' '
+            : pageInfo && pageInfo.static
+            ? chalk.bold('⚡')
+            : serverless
+            ? 'λ'
+            : 'σ'
+        } ${item}`,
         ...(pageInfo
           ? [
               pageInfo.isAmp
                 ? chalk.cyan('AMP')
                 : pageInfo.size >= 0
                 ? getPrettySize(pageInfo.size)
-                : 'N/A',
-              pageInfo.chunks
-                ? pageInfo.chunks.internal.size.toString()
-                : 'N/A',
-              pageInfo.chunks
-                ? pageInfo.chunks.external.size.toString()
-                : 'N/A',
+                : '',
+              pageInfo.chunks ? pageInfo.chunks.internal.size.toString() : '',
+              pageInfo.chunks ? pageInfo.chunks.external.size.toString() : '',
             ]
           : ['', '', '']),
       ])
@@ -91,6 +96,38 @@ export function printTreeView(
       align: ['l', 'l', 'r', 'r'],
       stringLength: str => stripAnsi(str).length,
     })
+  )
+
+  console.log()
+  console.log(
+    textTable(
+      [
+        serverless
+          ? [
+              'λ',
+              '(Lambda)',
+              `page was emitted as a lambda (i.e. ${chalk.cyan(
+                'getInitialProps'
+              )})`,
+            ]
+          : [
+              'σ',
+              '(Server)',
+              `page will be server rendered (i.e. ${chalk.cyan(
+                'getInitialProps'
+              )})`,
+            ],
+        [
+          chalk.bold('⚡'),
+          '(Static File)',
+          'page was prerendered as static HTML',
+        ],
+      ],
+      {
+        align: ['l', 'l', 'l'],
+        stringLength: str => stripAnsi(str).length,
+      }
+    )
   )
 
   console.log()
@@ -228,22 +265,22 @@ export async function getPageSizeInKb(
 export function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
-): boolean {
+): { static?: boolean; prerender?: boolean } {
   try {
-    nextEnvConfig.setConfig(runtimeEnvConfig)
-    const Comp = require(serverBundle).default
-    if (!Comp) {
-      const pageStartIdx = serverBundle.indexOf('pages/') + 5
-      console.log(
-        'not exporting invalid page',
-        serverBundle.substr(pageStartIdx),
-        '(no default export)'
-      )
-      return false
+    require('next-server/config').setConfig(runtimeEnvConfig)
+    const mod = require(serverBundle)
+    const Comp = mod.default || mod
+
+    if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
+      throw new Error('INVALID_DEFAULT_EXPORT')
     }
-    return typeof Comp.getInitialProps !== 'function'
+
+    return {
+      static: typeof (Comp as any).getInitialProps !== 'function',
+      prerender: mod.config && mod.config.experimentalPrerender,
+    }
   } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') return false
+    if (err.code === 'MODULE_NOT_FOUND') return {}
     throw err
   }
 }
@@ -252,11 +289,11 @@ export function hasCustomAppGetInitialProps(
   _appBundle: string,
   runtimeEnvConfig: any
 ): boolean {
-  nextEnvConfig.setConfig(runtimeEnvConfig)
+  require('next-server/config').setConfig(runtimeEnvConfig)
   let mod = require(_appBundle)
 
   if (_appBundle.endsWith('_app.js')) {
-    mod = mod.default
+    mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page
     mod = mod._app

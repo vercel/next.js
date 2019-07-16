@@ -2,6 +2,7 @@ import { loader } from 'webpack'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
+import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -37,12 +38,36 @@ const nextServerlessLoader: loader.Loader = function() {
     /\\/g,
     '/'
   )
-  return `
+
+  if (page.startsWith('/api/')) {
+    return `
+    ${
+      isDynamicRoute(page)
+        ? `
+      import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher';
+      import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex';
+      `
+        : ``
+    }
+      import { apiResolver } from 'next-server/dist/server/api-utils'
+
+      export default (req, res) => {
+        const params = ${
+          isDynamicRoute(page)
+            ? `getRouteMatcher(getRouteRegex('${page}'))(req.url)`
+            : `{}`
+        }
+        const resolver = require('${absolutePagePath}')
+        apiResolver(req, res, params, resolver)
+      }
+    `
+  } else {
+    return `
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';
     import {sendHTML} from 'next-server/dist/server/send-html';
     ${
-      page.includes('/$')
+      isDynamicRoute(page)
         ? `import {getRouteMatcher, getRouteRegex} from 'next-server/dist/lib/router/utils';`
         : ''
     }
@@ -51,8 +76,10 @@ const nextServerlessLoader: loader.Loader = function() {
     import Document from '${absoluteDocumentPath}';
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
-    import Component from '${absolutePagePath}';
+    import * as ComponentInfo from '${absolutePagePath}';
+    const Component = ComponentInfo.default
     export default Component
+    export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport) {
       const options = {
@@ -71,6 +98,7 @@ const nextServerlessLoader: loader.Loader = function() {
       const renderOpts = Object.assign(
         {
           Component,
+          pageConfig: config,
           dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },
@@ -79,8 +107,8 @@ const nextServerlessLoader: loader.Loader = function() {
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
-          page.includes('/$')
-            ? `const params = getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+          isDynamicRoute(page)
+            ? `const params = fromExport ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
@@ -116,6 +144,7 @@ const nextServerlessLoader: loader.Loader = function() {
       }
     }
   `
+  }
 }
 
 export default nextServerlessLoader

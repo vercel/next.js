@@ -13,34 +13,23 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
 } from '../lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
+  isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import { parse as parseCookies } from 'cookie'
-import {
-  parseQuery,
-  sendJson,
-  sendData,
-  parseBody,
-  sendError,
-  ApiError,
-  sendStatusCode,
-} from './api-utils'
+import { apiResolver } from './api-utils'
 import loadConfig from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import {
-  interopDefault,
-  loadComponents,
-  LoadComponentsReturnType,
-} from './load-components'
+import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route, RouteMatch } from './router'
+import Router, { route, Route, RouteMatch, Params } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -48,9 +37,18 @@ import { isBlockedPage, isInternalUrl } from './utils'
 type NextConfig = any
 
 export type ServerConstructor = {
+  /**
+   * Where the Next project is located - @default '.'
+   */
   dir?: string
   staticMarkup?: boolean
+  /**
+   * Hide error messages containing server information - @default false
+   */
   quiet?: boolean
+  /**
+   * Object what you would use in next.config.js - @default {}
+   */
   conf?: NextConfig
 }
 
@@ -60,7 +58,7 @@ export default class Server {
   nextConfig: NextConfig
   distDir: string
   publicDir: string
-  buildManifest: string
+  pagesManifest: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -71,7 +69,7 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string
     canonicalBase: string
-    autoExport: boolean
+    documentMiddlewareEnabled: boolean
     dev?: boolean
   }
   router: Router
@@ -90,7 +88,11 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.buildManifest = join(this.distDir, BUILD_MANIFEST)
+    this.pagesManifest = join(
+      this.distDir,
+      this.nextConfig.target || 'server',
+      PAGES_MANIFEST
+    )
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -107,7 +109,8 @@ export default class Server {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
-      autoExport: this.nextConfig.experimental.autoExport,
+      documentMiddlewareEnabled: this.nextConfig.experimental
+        .documentMiddleware,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -115,7 +118,7 @@ export default class Server {
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (publicRuntimeConfig) {
+    if (Object.keys(publicRuntimeConfig).length > 0) {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
@@ -237,14 +240,15 @@ export default class Server {
       },
     ]
 
-    if (fs.existsSync(this.publicDir)) {
+    if (
+      this.nextConfig.experimental.publicDirectory &&
+      fs.existsSync(this.publicDir)
+    ) {
       routes.push(...this.generatePublicRoutes())
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      this.dynamicRoutes = this.nextConfig.experimental.dynamicRouting
-        ? this.getDynamicRoutes()
-        : []
+      this.dynamicRoutes = this.getDynamicRoutes()
 
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -277,34 +281,44 @@ export default class Server {
     res: NextApiResponse,
     pathname: string
   ) {
-    const resolverFunction = await this.resolveApiRequest(pathname)
-    if (resolverFunction === null) {
-      res.statusCode = 404
-      res.end('Not Found')
-      return
-    }
+    let params: Params | boolean = false
+    let resolverFunction: any
 
     try {
-      // Parsing of cookies
-      req.cookies = parseCookies(req.headers.cookie || '')
-      // Parsing query string
-      req.query = parseQuery(req)
-      // // Parsing of body
-      req.body = await parseBody(req)
+      resolverFunction = await this.resolveApiRequest(pathname)
+    } catch (err) {}
 
-      res.status = statusCode => sendStatusCode(res, statusCode)
-      res.send = data => sendData(res, data)
-      res.json = data => sendJson(res, data)
-
-      const resolver = interopDefault(require(resolverFunction))
-      resolver(req, res)
-    } catch (e) {
-      if (e instanceof ApiError) {
-        sendError(res, e.statusCode, e.message)
-      } else {
-        sendError(res, 500, e.message)
+    if (
+      this.dynamicRoutes &&
+      this.dynamicRoutes.length > 0 &&
+      !resolverFunction
+    ) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        params = dynamicRoute.match(pathname)
+        if (params) {
+          resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          break
+        }
       }
     }
+
+    if (!resolverFunction) {
+      return this.render404(req, res)
+    }
+
+    if (!this.renderOpts.dev && this.nextConfig.target === 'serverless') {
+      const mod = require(resolverFunction)
+      if (typeof mod.default === 'function') {
+        return mod.default(req, res)
+      }
+    }
+
+    apiResolver(
+      req,
+      res,
+      params,
+      resolverFunction ? require(resolverFunction) : undefined
+    )
   }
 
   /**
@@ -315,14 +329,20 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless'
+      this.nextConfig.target === 'serverless',
+      this.renderOpts.dev
     )
   }
 
   private generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
-    const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
+    const serverBuildPath = join(
+      this.distDir,
+      this.nextConfig.target === 'serverless'
+        ? SERVERLESS_DIRECTORY
+        : SERVER_DIRECTORY
+    )
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
     publicFiles.forEach(path => {
@@ -343,10 +363,8 @@ export default class Server {
   }
 
   private getDynamicRoutes() {
-    const manifest = require(this.buildManifest)
-    const dynamicRoutedPages = Object.keys(manifest.pages).filter(p =>
-      p.includes('/$')
-    )
+    const manifest = require(this.pagesManifest)
+    const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
       match: getRouteMatcher(getRouteRegex(page)),
@@ -372,12 +390,7 @@ export default class Server {
       throw err
     }
 
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      await this.render404(req, res, parsedUrl)
-    } else {
-      res.statusCode = 501
-      res.end('Not Implemented')
-    }
+    await this.render404(req, res, parsedUrl)
   }
 
   private async sendHTML(
@@ -468,7 +481,10 @@ export default class Server {
       return result.Component.renderReqToHTML(req, res)
     }
 
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
+    return renderToHTML(req, res, pathname, query, {
+      ...result,
+      ...opts,
+    })
   }
 
   public renderToHTML(
@@ -489,6 +505,12 @@ export default class Server {
     return this.findPageComponents(pathname, query)
       .then(
         result => {
+          if (!(req.method === 'GET' || req.method === 'HEAD')) {
+            res.statusCode = 405
+            res.setHeader('Allow', ['GET', 'HEAD'])
+            return this.renderError(null, req, res, pathname, query)
+          }
+
           return this.renderToHTMLWithComponents(
             req,
             res,
@@ -510,8 +532,14 @@ export default class Server {
             }
 
             return this.findPageComponents(dynamicRoute.page, query).then(
-              result =>
-                this.renderToHTMLWithComponents(
+              result => {
+                if (!(req.method === 'GET' || req.method === 'HEAD')) {
+                  res.statusCode = 405
+                  res.setHeader('Allow', ['GET', 'HEAD'])
+                  return this.renderError(null, req, res, pathname, query)
+                }
+
+                return this.renderToHTMLWithComponents(
                   req,
                   res,
                   dynamicRoute.page,
@@ -519,6 +547,7 @@ export default class Server {
                   result,
                   { ...this.renderOpts, amphtml, hasAmp, dataOnly }
                 )
+              }
             )
           }
 
@@ -563,10 +592,25 @@ export default class Server {
     query: ParsedUrlQuery = {}
   ) {
     const result = await this.findPageComponents('/_error', query)
-    return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
-      ...this.renderOpts,
-      err,
-    })
+    let html
+    try {
+      html = await this.renderToHTMLWithComponents(
+        req,
+        res,
+        '/_error',
+        query,
+        result,
+        {
+          ...this.renderOpts,
+          err,
+        }
+      )
+    } catch (err) {
+      console.error(err)
+      res.statusCode = 500
+      html = 'Internal Server Error'
+    }
+    return html
   }
 
   public async render404(
@@ -593,11 +637,20 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
+    if (!(req.method === 'GET' || req.method === 'HEAD')) {
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      return this.renderError(null, req, res, path)
+    }
+
     try {
       await serveStatic(req, res, path)
     } catch (err) {
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
+      } else if (err.statusCode === 412) {
+        res.statusCode = 412
+        return this.renderError(err, req, res, path)
       } else {
         throw err
       }

@@ -5,13 +5,13 @@ import { NextPageContext } from 'next-server/dist/lib/utils'
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
   404: 'This page could not be found',
+  405: 'Method Not Allowed',
   500: 'Internal Server Error',
-  501: 'Not Implemented',
 }
 
 export type ErrorProps = {
   statusCode: number
-  title: string
+  title?: string
 }
 
 /**
@@ -20,9 +20,12 @@ export type ErrorProps = {
 export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static displayName = 'ErrorPage'
 
-  static getInitialProps({ res, err }: NextPageContext) {
+  static getInitialProps({
+    res,
+    err,
+  }: NextPageContext): Promise<ErrorProps> | ErrorProps {
     const statusCode =
-      res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+      res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
     return { statusCode }
   }
 

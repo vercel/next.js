@@ -2,6 +2,7 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import fs from 'fs-extra'
 import {
   renderViaHTTP,
   findPort,
@@ -56,6 +57,14 @@ function runTests () {
   it('should render nested optional dynamic page', async () => {
     const html = await renderViaHTTP(appPort, '/blog/321/comment/123')
     expect(html).toMatch(/blog post.*321.*comment.*123/i)
+  })
+
+  it('should render dynamic route with query', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#view-post-1-with-query').click()
+    await waitFor(1000)
+    const url = await browser.eval('window.location.search')
+    expect(url).toBe('?fromHome=true')
   })
 
   it('should navigate to a dynamic page successfully', async () => {
@@ -134,12 +143,53 @@ function runTests () {
   })
 
   it('should update dynamic values on mount', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+    expect(html).toMatch(/onmpost:.*pending/)
+
     const browser = await webdriver(appPort, '/on-mount/post-1')
     await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/post:.*post-1/)
+    expect(text).toMatch(/onmpost:.*post-1/)
+  })
+
+  it('should not have placeholder query values for SSS', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/post-1')
+    expect(html).not.toMatch(/post:.*?\[post\].*?<\/p>/)
+  })
+
+  it('should update with a hash in the URL', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#abc')
+    await waitFor(1000)
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/onmpost:.*post-1/)
+  })
+
+  it('should scroll to a hash on mount', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
+    await waitFor(1000)
+
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/onmpost:.*post-1/)
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    expect(scrollPosition).toBe(7232)
+  })
+
+  it('should scroll to a hash on client-side navigation', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(1000)
+    await browser.elementByCss('#view-dynamic-with-hash').click()
+    await browser.waitForElementByCss('p')
+
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/onmpost:.*test-w-hash/)
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    expect(scrollPosition).toBe(7232)
   })
 }
+
+const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
@@ -166,6 +216,37 @@ describe('Dynamic Routing', () => {
       appPort = server.address().port
     })
     afterAll(() => stopApp(server))
+
+    runTests()
+  })
+
+  describe('SSR production mode', () => {
+    beforeAll(async () => {
+      await fs.remove(nextConfig)
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          target: 'serverless'
+        }
+      `
+      )
+
+      await runNextCommand(['build', appDir])
+
+      app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
+    })
+    afterAll(async () => {
+      await stopApp(server)
+      await fs.remove(nextConfig)
+    })
 
     runTests()
   })

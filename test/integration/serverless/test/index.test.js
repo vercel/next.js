@@ -8,6 +8,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP
 } from 'next-test-utils'
 import fetch from 'node-fetch'
@@ -29,6 +30,11 @@ describe('Serverless', () => {
   it('should render the page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/Hello World/)
+  })
+
+  it('should serve file from public folder', async () => {
+    const content = await renderViaHTTP(appPort, '/hello.txt')
+    expect(content.trim()).toBe('hello world')
   })
 
   it('should render the page with dynamic import', async () => {
@@ -106,6 +112,42 @@ describe('Serverless', () => {
       expect(existsSync(join(serverlessDir, file + '.js'))).toBe(true)
       expect(existsSync(join(serverlessDir, file + '.html'))).toBe(false)
     }
+  })
+
+  it('should prerender pages with data correctly', async () => {
+    const toSomething = await renderViaHTTP(appPort, '/to-something')
+    expect(toSomething).toMatch(/some interesting title/)
+
+    const something = await renderViaHTTP(appPort, '/something')
+    expect(something).toMatch(/this is some data to be inlined/)
+  })
+
+  it('should have inlined the data correctly in prerender', async () => {
+    const browser = await webdriver(appPort, '/to-something')
+    await browser.elementByCss('#something').click()
+
+    let text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/this is some data to be inlined/)
+
+    await browser.elementByCss('#to-something').click()
+    text = await browser.elementByCss('h3').text()
+    expect(text).toMatch(/some interesting title/)
+  })
+
+  it('should reply on API request successfully', async () => {
+    const content = await renderViaHTTP(appPort, '/api/hello')
+    expect(content).toMatch(/hello world/)
+  })
+
+  it('should reply on dynamic API request successfully', async () => {
+    const result = await renderViaHTTP(appPort, '/api/posts/post-1')
+    const { post } = JSON.parse(result)
+    expect(post).toBe('post-1')
+  })
+
+  it('should 404 on API request with trailing slash', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/hello/')
+    expect(res.status).toBe(404)
   })
 
   describe('With basic usage', () => {
