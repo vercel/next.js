@@ -6,17 +6,17 @@ const Header = props => (
     <nav>
       <ul>
         <li>
-          <Link href='/'>
+          <Link href="/">
             <a>Home</a>
           </Link>
         </li>
         <li>
-          <Link href='/login'>
+          <Link href="/login">
             <a>Login</a>
           </Link>
         </li>
         <li>
-          <Link href='/profile'>
+          <Link href="/profile">
             <a>Profile</a>
           </Link>
         </li>

@@ -1,19 +1,22 @@
-import micro from 'micro'
 import fetch from 'isomorphic-unfetch'
 
-export default micro(async (req, res) => {
-  const { username } = await micro.json(req)
+export default async (req, res) => {
+  const { username } = await req.body
+  console.log('username', username)
   const url = `https://api.github.com/users/${username}`
 
   try {
     const response = await fetch(url)
+
     if (response.ok) {
       const { id } = await response.json()
-      return micro.send(res, 200, { token: id })
+      return res.status(200).json({ token: id })
     } else {
-      return micro.send(res, response.status, response.statusText)
+      return res.status(response.status).send(response.statusText)
     }
-  } catch (error) {
-    micro.createError(error.statusCode, error.statusText)
+  } catch ({ statusText, statusCode }) {
+    const err = new Error(statusText)
+    err.statusCode = statusCode
+    return err
   }
-})
+}

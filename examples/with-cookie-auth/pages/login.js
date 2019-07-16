@@ -3,12 +3,13 @@ import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
-function Login () {
+function Login() {
   const [userData, setUserData] = useState({ username: '', error: '' })
 
-  async function handleSubmit (event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     setUserData(Object.assign({}, userData, { error: '' }))
+
     const username = userData.username
     const url = '/api/login'
 
@@ -19,7 +20,7 @@ function Login () {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
       })
-      if (response.ok) {
+      if (response.status == 200) {
         const { token } = await response.json()
         await login({ token })
       } else {
@@ -41,14 +42,14 @@ function Login () {
 
   return (
     <Layout>
-      <div className='login'>
+      <div className="login">
         <form onSubmit={handleSubmit}>
-          <label htmlFor='username'>GitHub username</label>
+          <label htmlFor="username">GitHub username</label>
 
           <input
-            type='text'
-            id='username'
-            name='username'
+            type="text"
+            id="username"
+            name="username"
             value={userData.username}
             onChange={event =>
               setUserData(
@@ -57,7 +58,7 @@ function Login () {
             }
           />
 
-          <button type='submit'>Login</button>
+          <button type="submit">Login</button>
 
           <p className={`error ${userData.error && 'show'}`}>
             {userData.error && `Error: ${userData.error}`}

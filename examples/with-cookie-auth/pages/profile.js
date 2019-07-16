@@ -10,9 +10,9 @@ const Profile = props => {
 
   return (
     <Layout>
-      <img src={avatarUrl} alt='Avatar' />
+      <img src={avatarUrl} alt="Avatar" />
       <h1>{name}</h1>
-      <p className='lead'>{login}</p>
+      <p className="lead">{login}</p>
       <p>{bio}</p>
 
       <style jsx>{`
@@ -42,32 +42,29 @@ const Profile = props => {
 
 Profile.getInitialProps = async ctx => {
   const { token } = nextCookie(ctx)
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-  const apiUrl = process.browser
-    ? `${protocol}://${window.location.host}/api/profile`
-
-    : `${protocol}://${ctx.req.headers.host}/api/profile`
+  const apiUrl = '/api/profile'
 
   const redirectOnError = () =>
-    typeof window !== 'undefined'
+    process.browser
       ? Router.push('/login')
-      : ctx.res.writeHead(302, { Location: '/login' }).end()
+      : ctx.res.writeHead(302, { Location: '/login' })
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: JSON.stringify({ token })
       }
     })
 
     if (response.ok) {
-      return await response.json()
+      const js = await response.json()
+      console.log('js', js)
+      return js
+    } else {
+      // https://github.com/developit/unfetch#caveats
+      return await redirectOnError()
     }
-
-    // https://github.com/developit/unfetch#caveats
-    return redirectOnError()
   } catch (error) {
     // Implementation or Network error
     return redirectOnError()

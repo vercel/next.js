@@ -7,8 +7,7 @@
   "dependencies": {
     "isomorphic-unfetch": "^3.0.0",
     "js-cookie": "^2.2.0",
-    "micro": "^9.3.5-canary.1",
-    "next": "^8.1.1-canary.37",
+    "next": "^9.0.1",
     "next-cookies": "^1.0.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
