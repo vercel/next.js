@@ -110,28 +110,6 @@ export class Html extends Component<
   }
 }
 
-function flattenFragments(node: React.ReactNode): React.ReactNode[] {
-  const asArray = React.Children.toArray(node)
-  return asArray.reduce<React.ReactNode[]>((flatChildren, child) => {
-    if (React.isValidElement(child) && child.type === React.Fragment) {
-      flatChildren.push(...flattenFragments(child.props.children))
-    } else {
-      flatChildren.push(child)
-    }
-    return flatChildren
-  }, [])
-}
-
-function renderChildrenToString(node: React.ReactNode): string {
-  if (!React.isValidElement(node)) {
-    return ''
-  } else if (node.props.dangerouslySetInnerHTML) {
-    return node.props.dangerouslySetInnerHTML.__html
-  } else {
-    return node.props.children
-  }
-}
-
 export class Head extends Component<
   OriginProps &
     React.DetailedHTMLProps<
@@ -350,8 +328,8 @@ export class Head extends Component<
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
-                  __html: flattenFragments(curStyles)
-                    .map(renderChildrenToString)
+                  __html: curStyles
+                    .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
                     .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
