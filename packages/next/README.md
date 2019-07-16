@@ -1,4 +1,5 @@
-[![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
+[![Next.js](h
+ttps://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
@@ -1140,7 +1141,7 @@ export default (req, res) => {
 
 export const config = {
   api: {
-    bodySizeLimit: '2mb',
+    bodySizeLimit: '1mb',
   },
 }
 ```
