@@ -321,7 +321,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         publicRuntimeConfig: config.publicRuntimeConfig,
         serverRuntimeConfig: config.serverRuntimeConfig,
       }
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api\/)/)
+      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomAppGetInitialProps(
