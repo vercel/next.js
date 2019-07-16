@@ -649,7 +649,7 @@ export default class Server {
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
       } else if (err.statusCode === 412) {
-        res.statusCode = err.statusCode
+        res.statusCode = 412
         return this.renderError(err, req, res, path)
       } else {
         throw err
