@@ -690,6 +690,7 @@ export class NextScript extends Component<OriginProps> {
           <script
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            noModule={true}
             dangerouslySetInnerHTML={{
               __html: NextScript.safariNomoduleFix,
             }}
