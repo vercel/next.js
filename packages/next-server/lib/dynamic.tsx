@@ -121,10 +121,8 @@ export default function dynamic<P = {}>(
     !(dynamicOptions instanceof Promise)
   ) {
     // show deprecation warning for `modules` key in development
-    if (
-      process.env.NODE_ENV !== 'production'
-    ) {
-      if(dynamicOptions.modules) {
+    if (process.env.NODE_ENV !== 'production') {
+      if (dynamicOptions.modules) {
         console.warn(
           'The modules option for next/dynamic has been deprecated. See here for more info https://err.sh/zeit/next.js/next-dynamic-modules'
         )
