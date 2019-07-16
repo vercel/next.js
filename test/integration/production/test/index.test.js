@@ -126,6 +126,21 @@ describe('Production Usage', () => {
       expect(res.status).toBe(405)
     })
 
+    it('should return 412 method on static file if If-Unmodified-Since is invalid', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const res = await fetch(
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
+        {
+          method: 'GET',
+          headers: {
+            'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT'
+          }
+        }
+      )
+      expect(res.status).toBe(412)
+    })
+
     it('should set Content-Length header', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetch(url)
