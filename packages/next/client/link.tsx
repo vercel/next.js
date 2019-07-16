@@ -203,6 +203,22 @@ class Link extends Component<LinkProps> {
       children = <a>{children}</a>
     }
 
+    let ref
+
+    // only set ref for valid children
+    if (
+      children &&
+      typeof children === 'object' &&
+      // normal DOM element e.g. `a` and `div`
+      (typeof (children as any).type === 'string' ||
+        // forwardRef
+        ((children as any).type &&
+          typeof (children as any).type === 'object' &&
+          typeof (children as any).type.render === 'function'))
+    ) {
+      ref = (el: any) => this.handleRef(el)
+    }
+
     // This will return the first child, if multiple are provided it will throw an error
     const child: any = Children.only(children)
     const props: {
@@ -211,7 +227,7 @@ class Link extends Component<LinkProps> {
       href?: string
       ref?: any
     } = {
-      ref: (el: any) => this.handleRef(el),
+      ref,
       onMouseEnter: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
