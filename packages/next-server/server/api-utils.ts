@@ -17,8 +17,8 @@ export async function apiResolver(
   resolverModule: any
 ) {
   try {
+    let config: PageConfig = {}
     let bodyParser = true
-    let bodySizeLimit = undefined
     if (!resolverModule) {
       res.statusCode = 404
       res.end('Not Found')
@@ -26,12 +26,9 @@ export async function apiResolver(
     }
 
     if (resolverModule.config) {
-      const config: PageConfig = resolverModule.config
+      config = resolverModule.config
       if (config.api && config.api.bodyParser === false) {
         bodyParser = false
-      }
-      if (config.api && config.api.bodySizeLimit) {
-        bodySizeLimit = config.api.bodySizeLimit
       }
     }
     // Parsing of cookies
@@ -40,7 +37,12 @@ export async function apiResolver(
     setLazyProp({ req, params }, 'query', getQueryParser(req))
     // // Parsing of body
     if (bodyParser) {
-      req.body = await parseBody(req, bodySizeLimit)
+      req.body = await parseBody(
+        req,
+        config.api && config.api.bodySizeLimit
+          ? config.api.bodySizeLimit
+          : '1mb'
+      )
     }
 
     res.status = statusCode => sendStatusCode(res, statusCode)
@@ -62,10 +64,7 @@ export async function apiResolver(
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
  */
-export async function parseBody(
-  req: NextApiRequest,
-  limit: string | number = '1mb'
-) {
+export async function parseBody(req: NextApiRequest, limit: string | number) {
   const contentType = parse(req.headers['content-type'] || 'text/plain')
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
