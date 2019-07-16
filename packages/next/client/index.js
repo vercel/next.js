@@ -7,7 +7,6 @@ import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
-import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
@@ -155,7 +154,9 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     initialErr = error
   }
 
-  await Loadable.preloadReady(dynamicIds || [])
+  if (window.__NEXT_PRELOADREADY) {
+    await window.__NEXT_PRELOADREADY(dynamicIds)
+  }
 
   if (dynamicBuildId === true) {
     pageLoader.onDynamicBuildId()
