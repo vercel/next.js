@@ -49,7 +49,7 @@ export async function apiResolver(
     if (e instanceof ApiError) {
       sendError(res, e.statusCode, e.message)
     } else {
-      sendError(res, 500, e.message)
+      throw e
     }
   }
 }
