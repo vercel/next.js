@@ -462,9 +462,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   if (sprPages.size > 0) {
+    const prerenderRoutes: any[] = []
+
+    sprPages.forEach(pg => {
+      prerenderRoutes.push({
+        path: pg,
+        contentTypes: ['application/json', 'text/html'],
+      })
+    })
+
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify([...sprPages]),
+      JSON.stringify({ prerenderRoutes }),
       'utf8'
     )
   }
