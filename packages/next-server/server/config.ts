@@ -18,8 +18,6 @@ const defaultConfig: { [key: string]: any } = {
   target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
   crossOrigin: 'anonymous',
-  modern: true,
-  safari10NomoduleFix: false,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
@@ -41,6 +39,8 @@ const defaultConfig: { [key: string]: any } = {
     asyncToPromises: false,
     documentMiddleware: false,
     publicDirectory: false,
+    modern: true,
+    safari10NomoduleFix: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

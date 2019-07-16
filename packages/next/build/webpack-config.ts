@@ -444,9 +444,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_MODERN_BUILD': config.modern && !dev,
+        'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         'process.env.__NEXT_SAFARI_NOMODULE':
-          config.safari10NomoduleFix && !dev,
+          config.experimental.safari10NomoduleFix && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
@@ -560,7 +560,7 @@ export default async function getBaseWebpackConfig(
           silent: true,
           formatter: 'codeframe',
         }),
-      config.modern &&
+      config.experimental.modern &&
         !isServer &&
         !dev &&
         new NextEsmPlugin({
