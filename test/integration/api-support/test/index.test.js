@@ -9,6 +9,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
   nextBuild,
+  nextStart,
   File
 } from 'next-test-utils'
 import json from '../big.json'
@@ -33,6 +34,15 @@ function runTests (serverless = false) {
       {}
     )
     expect(status).toEqual(404)
+  })
+
+  it('should not conflict with /api routes', async () => {
+    const port = await findPort()
+    await nextBuild(appDir)
+    const app = await nextStart(appDir, port)
+    const res = await fetchViaHTTP(port, '/api-conflict')
+    expect(res.status).not.toEqual(404)
+    killApp(app)
   })
 
   it('should return custom error', async () => {
