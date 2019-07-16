@@ -126,7 +126,7 @@ describe('Production Usage', () => {
       expect(res.status).toBe(405)
     })
 
-    it('should return 412 on static file if If-Unmodified-Since is true', async () => {
+    it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const res = await fetch(
@@ -139,7 +139,7 @@ describe('Production Usage', () => {
       expect(res.status).toBe(412)
     })
 
-    it('should return 200 on static file if If-Unmodified-Since is invalid', async () => {
+    it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const res = await fetch(
