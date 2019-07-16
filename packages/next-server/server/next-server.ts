@@ -312,16 +312,13 @@ export default class Server {
         return mod.default(req, res)
       }
     }
-    try {
-      await apiResolver(
-        req,
-        res,
-        params,
-        resolverFunction ? require(resolverFunction) : undefined
-      )
-    } catch (e) {
-      throw e
-    }
+
+    await apiResolver(
+      req,
+      res,
+      params,
+      resolverFunction ? require(resolverFunction) : undefined
+    )
   }
 
   /**
