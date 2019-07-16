@@ -213,14 +213,7 @@ export async function renderError (props) {
   // If we've gotten here upon initial render, we can use the props from the server.
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
   const appCtx = {
-    AppTree: props => {
-      const appProps = { ...props, Component, err, router }
-      return (
-        <AppContainer>
-          <App {...appProps} />
-        </AppContainer>
-      )
-    },
+    AppTree: wrapApp(App),
     Component: ErrorComponent,
     router,
     ctx: { err, pathname: page, query, asPath }
@@ -267,6 +260,15 @@ function AppContainer ({ children }) {
   )
 }
 
+const wrapApp = App => props => {
+  const appProps = { ...props, Component, err, router }
+  return (
+    <AppContainer>
+      <App {...appProps} />
+    </AppContainer>
+  )
+}
+
 async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
@@ -278,15 +280,8 @@ async function doRender ({ App, Component, props, err }) {
   ) {
     const { pathname, query, asPath } = router
     const appCtx = {
-      AppTree: props => {
-        const appProps = { ...props, Component, err, router }
-        return (
-          <AppContainer>
-            <App {...appProps} />
-          </AppContainer>
-        )
-      },
       router,
+      AppTree: wrapApp(App),
       Component: ErrorComponent,
       ctx: { err, pathname, query, asPath }
     }
