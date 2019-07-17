@@ -240,13 +240,43 @@ export async function renderError (props) {
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
+  window.performance.mark('beforeHydrate') // mark start of hydration
+
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl)
+    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl)
+    ReactDOM.render(reactEl, domEl, markHydrateComplete)
   }
+}
+
+function markHydrateComplete () {
+  window.performance.mark('afterHydrate') // mark end of hydration
+  logTimings()
+}
+
+function logTimings () {
+  const navStartEntries = window.performance.getEntriesByName(
+    'linkClick',
+    'mark'
+  )
+  const navStartEntry =
+    navStartEntries.length >= 1 ? navStartEntries[0].name : null
+
+  window.performance.measure(
+    '⌛ (Next.js) Readiness (time-to-hydrate)',
+    navStartEntry,
+    'beforeHydrate'
+  )
+  window.performance.measure(
+    '💧 (Next.js) Hydration',
+    'beforeHydrate',
+    'afterHydrate'
+  )
+
+  window.performance.clearMarks()
+  window.performance.clearMeasures()
 }
 
 function AppContainer ({ children }) {

@@ -168,6 +168,8 @@ class Link extends Component<LinkProps> {
       scroll = as.indexOf('#') < 0
     }
 
+    window.performance.mark('linkClick') // marking link clicks as a navigation start entry
+
     // replace state instead of push if prop is present
     Router[this.props.replace ? 'replace' : 'push'](href, as, {
       shallow: this.props.shallow,
