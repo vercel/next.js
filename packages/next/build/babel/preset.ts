@@ -74,7 +74,9 @@ module.exports = (
     (!presetEnvConfig.targets || !('node' in presetEnvConfig.targets))
   ) {
     presetEnvConfig.targets = {
-      node: true,
+      // Targets the current process' version of Node. This requires apps be
+      // built and deployed on the same version of Node.
+      node: 'current',
     }
   }
 
