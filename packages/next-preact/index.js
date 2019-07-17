@@ -7,10 +7,6 @@ module.exports = (nextConfig = {}) => {
         )
       }
 
-      if (options.isServer) {
-        config.externals = ['react', 'react-dom', ...config.externals]
-      }
-
       config.resolve.alias = Object.assign({}, config.resolve.alias, {
         react$: 'preact/compat',
         'react-dom$': 'preact/compat',

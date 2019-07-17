@@ -8707,11 +8707,6 @@ modify-values@^1.0.0:
   resolved "https://registry.yarnpkg.com/modify-values/-/modify-values-1.0.1.tgz#b3939fa605546474e3e3e3c63d64bd43b4ee6022"
   integrity sha512-xV2bxeN6F7oYjZWTe/YPAy6MN2M+sL4u/Rlm2AHCIVGfo2p1yGmBHQ6vHehl4bRTZBdHu3TSkWdYgkwpYzAGSw==
 
-module-alias@2.0.6:
-  version "2.0.6"
-  resolved "https://registry.yarnpkg.com/module-alias/-/module-alias-2.0.6.tgz#abb2cfa07014f503514ad5061c6f03d79b591889"
-  integrity sha1-q7LPoHAU9QNRStUGHG8D15tZGIk=
-
 move-concurrently@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/move-concurrently/-/move-concurrently-1.0.1.tgz#be2c005fda32e0b29af1f05d7c4b33214c701f92"
