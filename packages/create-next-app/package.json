@@ -10,10 +10,9 @@
   "engines": {
     "node": ">=4"
   },
-  "repository": "zeit/create-next-app",
-  "bugs": {
-    "url": "https://github.com/zeit/create-next-app/issues"
-  },
+  "repository": "zeit/next.js",
+  "bugs": "https://github.com/zeit/next.js/issues",
+  "homepage": "https://nextjs.org",
   "dependencies": {
     "@octokit/rest": "^15.9.4",
     "ansi-escapes": "^2.0.0",
