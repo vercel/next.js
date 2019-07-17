@@ -163,7 +163,7 @@ Questions? Feedback? [Please let us know](https://github.com/zeit/create-next-ap
 
 ## Maintainers
 
-This repo, `create-next-app`, was previously maintiained by Segment, Inc. It is now maintained by Zeit, Inc.
+This repo, `create-next-app`, was previously maintiained by Segment, Inc. It is now maintained by ZEIT, Inc.
 
 ## License (MIT)
 
