@@ -8,6 +8,9 @@ export async function fileExists(fileName: string): Promise<boolean> {
     await access(fileName, fs.constants.F_OK)
     return true
   } catch (err) {
-    return false
+    if (err.code === 'ENOENT') {
+      return false
+    }
+    throw err
   }
 }
