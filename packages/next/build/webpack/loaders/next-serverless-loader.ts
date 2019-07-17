@@ -39,7 +39,7 @@ const nextServerlessLoader: loader.Loader = function() {
     '/'
   )
 
-  if (page.startsWith('/api')) {
+  if (page.startsWith('/api/')) {
     return `
     ${
       isDynamicRoute(page)
