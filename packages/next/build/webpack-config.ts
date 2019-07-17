@@ -247,7 +247,9 @@ export default async function getBaseWebpackConfig(
             ) {
               // if it's the Next.js' require mark it as external
               // since it's not used
-              if (context.includes('next-server/dist/server')) {
+              if (
+                context.replace(/\\/g, '/').includes('next-server/dist/server')
+              ) {
                 return callback(undefined, `commonjs ${request}`)
               }
             }
