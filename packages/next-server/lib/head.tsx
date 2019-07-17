@@ -151,37 +151,31 @@ function Head({ children }: { children: JSX.Element }) {
 
   const inAmpMode = isInAmpMode(ampState)
 
-  const emitUpdate = React.useCallback(() => {
+  const emitUpdate = () => {
     headState = reduceHeadInstances([...headInstanceRefs], {
       inAmpMode,
     })
     if (updateHead) {
       updateHead(headState)
     }
-  }, [updateHead, reduceHeadInstances, inAmpMode])
-
-  // Since this is a Set(), we can just always add it
-  // We need to do ensure that we do this before the component
-  // renders for the first time anyway. So bing bang boom!
-  headInstanceRefs.add(instanceRef)
-
-  // We also have to emit before the render on the server
-  if (typeof window === 'undefined') {
-    emitUpdate()
   }
 
-  // After ever render, emit an update
   React.useEffect(() => {
-    emitUpdate()
-  })
-
-  // Be sure to clean up and emit on unmount
-  React.useEffect(() => {
+    headInstanceRefs.add(instanceRef)
     return () => {
       headInstanceRefs.delete(instanceRef)
       emitUpdate()
     }
   }, [])
+
+  if (typeof window === 'undefined') {
+    headInstanceRefs.add(instanceRef)
+    emitUpdate()
+  }
+  // After ever render, emit an update
+  React.useEffect(() => {
+    emitUpdate()
+  })
 
   return null
 }
