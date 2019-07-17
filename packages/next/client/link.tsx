@@ -260,6 +260,7 @@ if (process.env.NODE_ENV === 'development') {
   const exact = require('prop-types-exact')
   Link.propTypes = exact({
     href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
+    onError: PropTypes.func,
     as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     prefetch: PropTypes.bool,
     replace: PropTypes.bool,
