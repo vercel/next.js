@@ -302,7 +302,7 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = ids => {
+Loadable.preloadReady = (ids = []) => {
   return new Promise(resolve => {
     const res = () => {
       initialized = true
@@ -311,6 +311,10 @@ Loadable.preloadReady = ids => {
     // We always will resolve, errors should be handled within loading UIs.
     flushInitializers(READY_INITIALIZERS, ids).then(res, res)
   })
+}
+
+if (typeof window !== 'undefined') {
+  window.__NEXT_PRELOADREADY = Loadable.preloadReady
 }
 
 export default Loadable

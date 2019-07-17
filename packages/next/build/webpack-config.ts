@@ -8,7 +8,6 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
-import { promisify } from 'util'
 import webpack from 'webpack'
 
 import {
@@ -17,6 +16,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
+import { fileExists } from '../lib/file-exists'
 import { WebpackEntrypoints } from './entries'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -32,8 +32,6 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-
-const fileExists = promisify(fs.exists)
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
