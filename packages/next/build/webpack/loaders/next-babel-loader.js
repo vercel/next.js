@@ -34,8 +34,7 @@ module.exports = babelLoader.custom(babel => {
             cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
             cacheIdentifier:
                 cacheKey +
-                // @TODO: this point of variability doesn't seem to be accounted for?
-                // (opts.isServer ? '-server' : '') +
+                (opts.isServer ? '-server' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
