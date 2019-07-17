@@ -160,19 +160,27 @@ function Head({ children }: { children: JSX.Element }) {
     }
   }
 
+  // The `useEffect` hook is only called on the client.
+  // This means we need to simulate the component being mounted and trust that
+  // `rewind()` is invoked to clean up these entries.
+  if (typeof window === 'undefined') {
+    headInstanceRefs.add(instanceRef)
+    emitUpdate()
+  }
+
+  // We need to register this head instance on mount and unregister it when
+  // unmounted.
   React.useEffect(() => {
     headInstanceRefs.add(instanceRef)
+    // n.b. emitUpdate() for mount is called in below effect
     return () => {
       headInstanceRefs.delete(instanceRef)
       emitUpdate()
     }
   }, [])
 
-  if (typeof window === 'undefined') {
-    headInstanceRefs.add(instanceRef)
-    emitUpdate()
-  }
-  // After ever render, emit an update
+  // Trigger an update on mount and every update (note the undefined dependency
+  // array)
   React.useEffect(() => {
     emitUpdate()
   })
