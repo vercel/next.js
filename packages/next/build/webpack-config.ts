@@ -8,7 +8,6 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
-import { promisify } from 'util'
 import webpack from 'webpack'
 
 import {
@@ -17,6 +16,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
+import { fileExists } from '../lib/file-exists'
 import { WebpackEntrypoints } from './entries'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -32,8 +32,6 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-
-const fileExists = promisify(fs.exists)
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -242,7 +240,19 @@ export default async function getBaseWebpackConfig(
           // When the serverless target is used all node_modules will be compiled into the output bundles
           // So that the serverless bundles have 0 runtime dependencies
           'amp-toolbox-optimizer', // except this one
-          ...(config.experimental.ampBindInitData ? [] : ['react-ssr-prepass']),
+          (context, request, callback) => {
+            if (
+              request === 'react-ssr-prepass' &&
+              !config.experimental.ampBindInitData
+            ) {
+              // if it's the Next.js' require mark it as external
+              // since it's not used
+              if (context.includes('next-server/dist/server')) {
+                return callback(undefined, `commonjs ${request}`)
+              }
+            }
+            return callback()
+          },
         ],
     optimization: Object.assign(
       {

@@ -9,6 +9,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
   nextBuild,
+  nextStart,
   File
 } from 'next-test-utils'
 import json from '../big.json'
@@ -35,12 +36,28 @@ function runTests (serverless = false) {
     expect(status).toEqual(404)
   })
 
+  it('should not conflict with /api routes', async () => {
+    const port = await findPort()
+    await nextBuild(appDir)
+    const app = await nextStart(appDir, port)
+    const res = await fetchViaHTTP(port, '/api-conflict')
+    expect(res.status).not.toEqual(404)
+    killApp(app)
+  })
+
   it('should return custom error', async () => {
     const data = await fetchViaHTTP(appPort, '/api/error', null, {})
     const json = await data.json()
 
     expect(data.status).toEqual(500)
     expect(json).toEqual({ error: 'Server error!' })
+  })
+
+  it('should throw Internal Server Error', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
+    const text = await res.text()
+    expect(res.status).toBe(500)
+    expect(text).toBe('Internal Server Error')
   })
 
   it('should parse JSON body', async () => {
