@@ -35,14 +35,6 @@ If you run into any issues or have feedback, please <a href="https://github.com/
 Open [http://localhost:3000](http://localhost:3000) to view your running app.
 When you're ready for production, run the `build` then `start` scripts.
 
-<p align='center'>
-  <img width="600" alt="Create Next App running in terminal" src="media/init-app.png" />
-</p>
-
-<p align='center'>
-  <img width="600" alt="Create Next App running in terminal" src="media/dev-tree.png" />
-</p>
-
 ### Start Coding Now
 
 You **don't** need to install or setup Webpack or Babel.
