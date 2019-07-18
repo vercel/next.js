@@ -37,7 +37,7 @@ async function run() {
       message: 'What is your project named?',
       initial: 'my-app',
       validate: name => {
-        const validation = validateNpmName(path.resolve(path.basename(name)))
+        const validation = validateNpmName(path.basename(path.resolve(name)))
         if (validation.valid) {
           return true
         }
