@@ -1,7 +1,7 @@
 {
   "name": "create-next-app",
   "description": "Create Next.js apps in one command",
-  "version": "9.0.3-canary.0",
+  "version": "9.0.3-canary.1",
   "main": "index.js",
   "license": "MIT",
   "bin": {
