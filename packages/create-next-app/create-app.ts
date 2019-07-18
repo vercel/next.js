@@ -44,6 +44,7 @@ export async function createApp({
   const isOnline = !useYarn || (await getOnline())
   const originalDirectory = process.cwd()
 
+  const displayedCommand = useYarn ? 'yarn' : 'npm'
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
@@ -76,11 +77,10 @@ export async function createApp({
       JSON.stringify(packageJson, null, 2) + os.EOL
     )
 
-    console.log('Installing packages. This might take a couple of minutes.')
     console.log(
       `Installing ${chalk.cyan('react')}, ${chalk.cyan(
         'react-dom'
-      )}, and ${chalk.cyan('next')}...`
+      )}, and ${chalk.cyan('next')} using ${displayedCommand}...`
     )
     console.log()
 
@@ -110,7 +110,6 @@ export async function createApp({
     cdpath = appPath
   }
 
-  const displayedCommand = useYarn ? 'yarn' : 'npm'
   console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
   console.log('Inside that directory, you can run several commands:')
   console.log()
