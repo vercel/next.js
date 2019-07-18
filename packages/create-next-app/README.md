@@ -155,7 +155,7 @@ Questions? Feedback? [Please let us know](https://github.com/zeit/next.js/issues
 
 ## Maintainers
 
-This repo, `create-next-app`, was previously maintiained by Segment, Inc. It is now maintained by ZEIT, Inc.
+This repo, `create-next-app`, was previously maintained by Segment, Inc. It is now maintained by ZEIT, Inc.
 
 ## License (MIT)
 
