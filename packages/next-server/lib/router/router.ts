@@ -273,7 +273,8 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      const { pathname, query } = parse(url, true)
+      const { pathname } = parse(url)
+      const { query } = parse(as, true)
 
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
