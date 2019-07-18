@@ -116,7 +116,7 @@ There are a ton of examples in the [Next.js repo](https://github.com/zeit/next.j
 
 To use an example:
 
-1.  Go to https://open.segment.com/create-next-app#examples
+1.  Go to https://github.com/zeit/next.js/tree/master/examples
 2.  Search for an example you want and get it's name (looks like `basic-css`)
 3.  Run: `create-next-app --example basic-css example-app`
 4.  Done 💥

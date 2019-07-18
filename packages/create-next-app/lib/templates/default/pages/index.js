@@ -21,7 +21,7 @@ const Home = () => (
             <p>Learn more about Next on GitHub and in their examples</p>
           </a>
         </Link>
-        <Link href='https://open.segment.com/create-next-app'>
+        <Link href='https://github.com/zeit/next.js/tree/master/examples'>
           <a className='card'>
             <h3>Examples &rarr;</h3>
             <p>
