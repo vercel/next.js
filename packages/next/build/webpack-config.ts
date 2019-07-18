@@ -457,8 +457,6 @@ export default async function getBaseWebpackConfig(
           config.exportTrailingSlash
         ),
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
-        'process.env.__NEXT_SAFARI_NOMODULE':
-          config.experimental.safari10NomoduleFix && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated

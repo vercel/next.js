@@ -41,7 +41,6 @@ const defaultConfig: { [key: string]: any } = {
     documentMiddleware: false,
     publicDirectory: false,
     modern: true,
-    safari10NomoduleFix: true,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

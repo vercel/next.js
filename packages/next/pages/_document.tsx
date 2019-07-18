@@ -686,7 +686,7 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {process.env.__NEXT_SAFARI_NOMODULE ? (
+        {process.env.__NEXT_MODERN_BUILD ? (
           <script
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
