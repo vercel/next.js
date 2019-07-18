@@ -14,13 +14,13 @@ The easiest way to create a <a href="https://facebook.github.io/react">React</a>
 <p align="center">
     <em>
       <a href="#getting-started">Getting Started</a>
-      · <a href="https://github.com/zeit/create-next-app/blob/master/lib/templates/default/README.md">Starting from scratch with Create Next App</a>
+      · <a href="https://github.com/zeit/next.js/blob/master/lib/templates/default/README.md">Starting from scratch with Create Next App</a>
       · <a href="#starting-from-nextjs-examples">Starting from Next.js Examples</a>
     </em>
 </p>
 
 <p align="center">
-If you run into any issues or have feedback, please <a href="https://github.com/zeit/create-next-app/issues/new">file an issue</a>
+If you run into any issues or have feedback, please <a href="https://github.com/zeit/next.js/issues/new">file an issue</a>
 </p>
 
 ## Overview
@@ -159,7 +159,7 @@ Looking for alternatives? Here are some other project starter kits:
 - [tarec](https://github.com/geowarin/tarec)
 - [sku](https://github.com/seek-oss/sku)
 
-Questions? Feedback? [Please let us know](https://github.com/zeit/create-next-app/issues/new)
+Questions? Feedback? [Please let us know](https://github.com/zeit/next.js/issues/new)
 
 ## Maintainers
 

@@ -11,7 +11,7 @@ exports.help = function () {
     Only ${chalk.green('<project-directory>')} is required.
 
     If you have any problems, do not hesitate to file an issue:
-      ${chalk.cyan('https://github.com/zeit/create-next-app/issues/new')}
+      ${chalk.cyan('https://github.com/zeit/next.js/issues/new')}
   `
 }
 
@@ -107,6 +107,6 @@ exports.start = function (projectName) {
 
   Questions? Feedback? Please let us know!
 
-  ${chalk.green('https://github.com/zeit/create-next-app/issues')}
+  ${chalk.green('https://github.com/zeit/next.js/issues')}
 `
 }

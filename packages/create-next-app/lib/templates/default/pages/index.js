@@ -30,7 +30,7 @@ const Home = () => (
             </p>
           </a>
         </Link>
-        <Link href='https://github.com/zeit/create-next-app'>
+        <Link href='https://github.com/zeit/next.js'>
           <a className='card'>
             <h3>Create Next App &rarr;</h3>
             <p>Was this tool helpful? Let us know how we can improve it</p>
