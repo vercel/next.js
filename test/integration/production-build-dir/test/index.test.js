@@ -75,7 +75,7 @@ describe('Production Custom Build Directory', () => {
 
       expectedFiles.forEach(file => {
         expect(buildFiles).toContain(`${file}.js`)
-        expect(buildFiles).toContain(`${file}.es6.js`)
+        expect(buildFiles).toContain(`${file}.module.js`)
       })
     })
   })

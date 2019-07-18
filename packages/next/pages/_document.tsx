@@ -42,7 +42,7 @@ function dedupe(bundles: any[]): any[] {
 
 function formatModernPath(path: string) {
   if (process.env.__NEXT_MODERN_BUILD) {
-    return path.replace(/\.js$/, '.es6.js')
+    return path.replace(/\.js$/, '.module.js')
   }
 
   return path
@@ -458,7 +458,7 @@ export class NextScript extends Component<OriginProps> {
     return dedupe(dynamicImports).map((bundle: any) => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = /\.es6\.js$/.test(bundle.file)
+        modernProps = /\.module\.js$/.test(bundle.file)
           ? { type: 'module' }
           : { noModule: true }
       }
@@ -493,7 +493,7 @@ export class NextScript extends Component<OriginProps> {
 
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = /\.es6\.js$/.test(file)
+        modernProps = /\.module\.js$/.test(file)
           ? { type: 'module' }
           : { noModule: true }
       }

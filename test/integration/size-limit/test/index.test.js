@@ -70,7 +70,7 @@ describe('Production response size', () => {
     const responseSizes = [
       baseResponseSize,
       ...(await getResponseSizes(
-        scriptsUrls.filter(path => !path.endsWith('.es6.js'))
+        scriptsUrls.filter(path => !path.endsWith('.module.js'))
       ))
     ]
     const responseSizeKilobytes = getResponseSizesKB(responseSizes)
@@ -88,7 +88,7 @@ describe('Production response size', () => {
     const responseSizes = [
       baseResponseSize,
       ...(await getResponseSizes(
-        scriptsUrls.filter(path => path.endsWith('.es6.js'))
+        scriptsUrls.filter(path => path.endsWith('.module.js'))
       ))
     ]
     const responseSizeKilobytes = getResponseSizesKB(responseSizes)

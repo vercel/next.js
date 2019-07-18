@@ -30,7 +30,7 @@ export default class PageLoader {
 
   static getScriptRoute (route) {
     const scriptName = route === '/' ? '/index' : route
-    return `${scriptName}${process.env.__NEXT_MODERN_BUILD ? '.es6' : ''}.js`
+    return `${scriptName}${process.env.__NEXT_MODERN_BUILD ? '.module' : ''}.js`
   }
 
   normalizeRoute (route) {

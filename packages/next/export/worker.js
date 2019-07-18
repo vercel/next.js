@@ -139,7 +139,7 @@ process.on(
             buildId,
             'pages',
             (path === '/' ? 'index' : path) +
-              `${renderOpts.isModern ? '.es6' : ''}.js`
+              `${renderOpts.isModern ? '.module' : ''}.js`
           )
 
           const bundleContent = await readFileP(bundlePath, 'utf8')

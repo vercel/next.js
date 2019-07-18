@@ -581,11 +581,11 @@ export default async function getBaseWebpackConfig(
                 : getFileName
 
             return name.includes('.js')
-              ? name.replace(/\.js$/, '.es6.js')
-              : args[0].chunk.name.replace(/\.js$/, '.es6.js')
+              ? name.replace(/\.js$/, '.module.js')
+              : args[0].chunk.name.replace(/\.js$/, '.module.js')
           },
           chunkFilename: (inputChunkName: string) =>
-            inputChunkName.replace(/\.js$/, '.es6.js'),
+            inputChunkName.replace(/\.js$/, '.module.js'),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }

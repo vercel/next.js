@@ -14,7 +14,7 @@ const getModernOptions = (babelOptions = {}) => {
     { regenerator: false }
   )
 
-  presetEnvOptions.targets = babelOptions['modern-targets'] || {
+  presetEnvOptions.targets = {
     esmodules: true
   }
   presetEnvOptions.exclude = [

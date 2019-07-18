@@ -45,8 +45,8 @@ const SplitChunksPlugin = require('webpack/lib/optimize/SplitChunksPlugin')
 const RuntimeChunkPlugin = require('webpack/lib/optimize/RuntimeChunkPlugin')
 
 const PLUGIN_NAME = 'NextEsmPlugin'
-const FILENAME = '[name].es6.js'
-const CHUNK_FILENAME = '[id].es6.js'
+const FILENAME = '[name].module.js'
+const CHUNK_FILENAME = '[id].module.js'
 
 export default class NextEsmPlugin implements Plugin {
   options: {
