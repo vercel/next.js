@@ -1,6 +1,6 @@
 import got from 'got'
-import tar from 'tar'
 import promisePipe from 'promisepipe'
+import tar from 'tar'
 
 export async function hasExample(name: string): Promise<boolean> {
   const res = await got(

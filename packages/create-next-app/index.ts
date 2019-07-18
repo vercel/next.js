@@ -3,9 +3,10 @@ import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import updateNotifier from 'update-notifier'
+
+import { createApp } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
-import { createApp } from './create-app'
 
 let projectPath: string = ''
 

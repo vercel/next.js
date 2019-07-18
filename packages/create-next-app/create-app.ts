@@ -4,11 +4,12 @@ import fs from 'fs'
 import makeDir from 'make-dir'
 import os from 'os'
 import path from 'path'
-import { isFolderEmpty } from './helpers/is-folder-empty'
+
+import { downloadAndExtractExample, hasExample } from './helpers/examples'
 import { install } from './helpers/install'
+import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
-import { hasExample, downloadAndExtractExample } from './helpers/examples'
 
 export async function createApp({
   appPath,
