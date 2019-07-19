@@ -47,7 +47,7 @@ Profile.getInitialProps = async ctx => {
   const redirectOnError = () =>
     typeof window !== 'undefined'
       ? Router.push('/login')
-      : ctx.res.writeHead(302, { Location: '/login' })
+      : ctx.res.writeHead(302, { Location: '/login' }).end()
 
   try {
     const response = await fetch(apiUrl, {

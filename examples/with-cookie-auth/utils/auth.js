@@ -70,6 +70,7 @@ function auth(ctx) {
    */
   if (ctx.req && !token) {
     ctx.res.writeHead(302, { Location: '/login' })
+    ctx.res.end();
   }
 
   // We already checked for server. This should only happen on client.
