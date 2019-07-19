@@ -1038,6 +1038,15 @@ describe('Client Navigation', () => {
     await browser.close()
   })
 
+  it('should render 404 for reserved pages', async () => {
+    const reservedPages = ['/_app', '/_document', '/_error']
+
+    for (const page of reservedPages) {
+      const html = await renderViaHTTP(context.appPort, page)
+      expect(html).toMatch(/This page could not be found/)
+    }
+  })
+
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
     (p, q) => fetchViaHTTP(context.appPort, p, q)

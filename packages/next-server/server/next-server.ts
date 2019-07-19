@@ -14,6 +14,7 @@ import {
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  BLOCKED_PAGES,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -240,6 +241,15 @@ export default class Server {
       },
     ]
 
+    BLOCKED_PAGES.map(page => {
+      routes.unshift({
+        match: route(page),
+        fn: async (req, res, params, parsedUrl) => {
+          return this.render404(req, res, parsedUrl)
+        },
+      })
+    })
+
     if (
       this.nextConfig.experimental.publicDirectory &&
       fs.existsSync(this.publicDir)
@@ -412,10 +422,6 @@ export default class Server {
     const url: any = req.url
     if (isInternalUrl(url)) {
       return this.handleRequest(req, res, parsedUrl)
-    }
-
-    if (isBlockedPage(pathname)) {
-      return this.render404(req, res, parsedUrl)
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
