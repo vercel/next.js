@@ -24,7 +24,7 @@
     "build": "ncc build ./index.ts -w -o dist/",
     "prerelease": "rimraf ./dist/",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register --v8-cache",
-    "prepublishOnly": "yarn release"
+    "prepublish": "yarn release"
   },
   "devDependencies": {
     "@types/got": "9.6.2",
