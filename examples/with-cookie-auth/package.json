@@ -11,8 +11,5 @@
     "next-cookies": "^1.0.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
-  },
-  "devDependencies": {
-    "prettier": "^1.17.1"
   }
 }
