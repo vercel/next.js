@@ -5,7 +5,6 @@ export default () => {
   const props: LinkProps = {
     href: '/page',
     as: '/as-page',
-    onError() {},
   }
 
   return (

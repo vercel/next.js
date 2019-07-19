@@ -52,7 +52,6 @@ export type LinkProps = {
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
-  onError?: (error: Error) => void
   prefetch?: boolean
 }
 
@@ -180,9 +179,6 @@ class Link extends Component<LinkProps> {
           document.body.focus()
         }
       })
-      .catch((err: any) => {
-        if (this.props.onError) this.props.onError(err)
-      })
   }
 
   prefetch() {
@@ -260,7 +256,6 @@ if (process.env.NODE_ENV === 'development') {
   const exact = require('prop-types-exact')
   Link.propTypes = exact({
     href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
-    onError: PropTypes.func,
     as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     prefetch: PropTypes.bool,
     replace: PropTypes.bool,
