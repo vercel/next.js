@@ -8,7 +8,7 @@ import { promisify } from 'util'
 
 const mkdirp = promisify(mkdirpModule)
 
-const cli = require.resolve('create-next-app/cli.js')
+const cli = require.resolve('create-next-app/dist/index.js')
 const cwd = path.join(
   os.tmpdir(),
   Math.random()
@@ -35,7 +35,7 @@ describe('create next app', () => {
     try {
       await run(projectName)
     } catch (e) {
-      expect(e.stdout).toMatch(/there's already a directory called/)
+      expect(e.stdout).toMatch(/contains files that could conflict/)
     }
   })
 
@@ -54,9 +54,12 @@ describe('create next app', () => {
 
   it('invalid example name', async () => {
     const projectName = 'invalid-example-name'
-    const res = await run(projectName, '--example', 'not a real example')
-    // TODO: the exit code should be non-zero also
-    expect(res.stderr.match(/error downloading/i)).toBeTruthy()
+    expect.assertions(2)
+    try {
+      await run(projectName, '--example', 'not a real example')
+    } catch (e) {
+      expect(e.stderr).toMatch(/Could not locate an example named/i)
+    }
     expect(
       fs.existsSync(path.join(cwd, projectName, 'package.json'))
     ).toBeFalsy()
