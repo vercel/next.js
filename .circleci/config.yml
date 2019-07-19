@@ -23,7 +23,7 @@ aliases:
 executors:
   node:
     docker:
-      - image: circleci/node:8.16-browsers
+      - image: circleci/node:8-browsers
     working_directory: ~/repo
 
 #########################
