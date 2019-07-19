@@ -1,12 +1,14 @@
+#!/usr/bin/env node
 import chalk from 'chalk'
 import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
-import updateNotifier from 'update-notifier'
+import checkForUpdate from 'update-check'
 
 import { createApp } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
+import { shouldUseYarn } from './helpers/should-use-yarn'
 
 let projectPath: string = ''
 
@@ -91,12 +93,36 @@ async function run() {
   })
 }
 
-const notifier = updateNotifier({ pkg: packageJson })
+const update = checkForUpdate(packageJson).catch(() => null)
+
+async function notifyUpdate() {
+  try {
+    const res = await update
+    if (res && res.latest) {
+      const isYarn = shouldUseYarn()
+
+      console.log()
+      console.log(
+        chalk.yellow.bold('A new version of `create-next-app` is available!')
+      )
+      console.log(
+        'You can update by running: ' +
+          chalk.cyan(
+            isYarn
+              ? 'yarn global add create-next-app'
+              : 'npm i -g create-next-app'
+          )
+      )
+      console.log()
+    }
+  } catch {
+    // ignore error
+  }
+}
+
 run()
-  .then(() => {
-    notifier.notify()
-  })
-  .catch(reason => {
+  .then(notifyUpdate)
+  .catch(async reason => {
     console.log()
     console.log('Aborting installation.')
     if (reason.command) {
@@ -107,7 +133,7 @@ run()
     }
     console.log()
 
-    notifier.notify()
+    await notifyUpdate()
 
     process.exit(1)
   })
