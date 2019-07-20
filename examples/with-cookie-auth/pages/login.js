@@ -18,7 +18,7 @@ function Login() {
         method: 'POST',
 
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
+        body: JSON.stringify({ username }),
       })
       if (response.status == 200) {
         const { token } = await response.json()
@@ -28,15 +28,14 @@ function Login() {
         // https://github.com/developit/unfetch#caveats
         let error = new Error(response.statusText)
         error.response = response
-
         throw error
       }
-    } catch (error) {
+    } catch ({ response }) {
       console.error(
         'You have an error in your code or there are Network issues.',
-        error
+        response
       )
-      setUserData(Object.assign({}, userData, { error: error.message }))
+      setUserData(Object.assign({}, userData, { error: response.statusText }))
     }
   }
 
@@ -60,9 +59,7 @@ function Login() {
 
           <button type="submit">Login</button>
 
-          <p className={`error ${userData.error && 'show'}`}>
-            {userData.error && `Error: ${userData.error}`}
-          </p>
+          {userData.error && <p className="error">Error: {userData.error}</p>}
         </form>
       </div>
       <style jsx>{`
@@ -92,12 +89,7 @@ function Login() {
 
         .error {
           margin: 0.5rem 0 0;
-          display: none;
           color: brown;
-        }
-
-        .error.show {
-          display: block;
         }
       `}</style>
     </Layout>

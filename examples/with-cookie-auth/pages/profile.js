@@ -4,6 +4,7 @@ import fetch from 'isomorphic-unfetch'
 import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
 import { withAuthSync } from '../utils/auth'
+import getHost from '../utils/get-host'
 
 const Profile = props => {
   const { name, login, bio, avatarUrl } = props.data
@@ -42,7 +43,7 @@ const Profile = props => {
 
 Profile.getInitialProps = async ctx => {
   const { token } = nextCookie(ctx)
-  const apiUrl = '/api/profile'
+  const apiUrl = getHost(ctx.req) + '/api/profile'
 
   const redirectOnError = () =>
     typeof window !== 'undefined'
@@ -53,8 +54,8 @@ Profile.getInitialProps = async ctx => {
     const response = await fetch(apiUrl, {
       credentials: 'include',
       headers: {
-        Authorization: JSON.stringify({ token })
-      }
+        Authorization: JSON.stringify({ token }),
+      },
     })
 
     if (response.ok) {

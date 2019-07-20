@@ -12,11 +12,12 @@ export default async (req, res) => {
       const { id } = await response.json()
       return res.status(200).json({ token: id })
     } else {
-      return res.status(response.status).send(response.statusText)
+      // https://github.com/developit/unfetch#caveats
+      const error = new Error(response.statusText)
+      error.response = response
+      throw error
     }
-  } catch ({ statusText, statusCode }) {
-    const err = new Error(statusText)
-    err.statusCode = statusCode
-    return err
+  } catch ({ response }) {
+    return res.status(response.status).json({ message: response.statusText })
   }
 }

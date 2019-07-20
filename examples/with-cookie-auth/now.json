@@ -1,5 +1,0 @@
-{
-  "version": 2,
-  "name": "with-cookie-auth",
-  "builds": [{ "src": "package.json", "use": "@now/next" }]
-}

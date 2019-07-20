@@ -22,12 +22,12 @@ cd with-cookie-auth
 
 ### Run locally
 
-After you clone the repository you can install the dependencies, run `now dev` and start hacking! You'll be able to see the application running locally as if it were deployed.
+After you clone the repository you can install the dependencies, run `yarn dev` and start hacking! You'll be able to see the application running locally as if it were deployed.
 
 ```bash
 $ cd with-cookie-auth
 $ (with-cookie-auth/) yarn install
-$ (with-cookie-auth/) now dev
+$ (with-cookie-auth/) yarn dev
 ```
 
 ### Deploy

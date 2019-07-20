@@ -6,10 +6,11 @@ export default async (req, res) => {
   }
 
   const auth = await req.headers.authorization
-  const { token } = JSON.parse(auth)
-  const url = `https://api.github.com/user/${token}`
 
   try {
+    const { token } = JSON.parse(auth)
+    const url = `https://api.github.com/user/${token}`
+
     const response = await fetch(url)
 
     if (response.ok) {
@@ -18,11 +19,12 @@ export default async (req, res) => {
       const data = Object.assign({}, { avatarUrl: js.avatar_url }, js)
       return res.status(200).json({ data })
     } else {
-      return res.status(response.status).send(response.statusText)
+      // https://github.com/developit/unfetch#caveats
+      const error = new Error(response.statusText)
+      error.response = response
+      throw error
     }
-  } catch ({ statusText, statusCode }) {
-    const err = new Error(statusText)
-    err.statusCode = statusCode
-    return err
+  } catch ({ response }) {
+    return res.status(response.status).json({ message: response.statusText })
   }
 }
