@@ -2,6 +2,11 @@ class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
+  parentSlugNames: Array<string> = new Array()
+
+  constructor(parentSlugNames = new Array()) {
+    this.parentSlugNames = parentSlugNames
+  }
 
   get hasSlug() {
     return this.slugName != null
@@ -53,12 +58,19 @@ class UrlNode {
         )
       }
 
+      if (this.parentSlugNames.indexOf(slugName) !== -1) {
+        throw new Error(
+          `You cannot have the same slug name "${slugName}" repeat within a single dynamic path`
+        )
+      }
+
       this.slugName = slugName
       nextSegment = '[]'
     }
 
     if (!this.children.has(nextSegment)) {
-      this.children.set(nextSegment, new UrlNode())
+      const nextParentSlugNames = [...this.parentSlugNames, this.slugName]
+      this.children.set(nextSegment, new UrlNode(nextParentSlugNames))
     }
 
     this.children.get(nextSegment)!._insert(urlPaths.slice(1))
