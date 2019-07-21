@@ -2,9 +2,9 @@ class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
-  parentSlugNames: Array<string> = new Array()
+  parentSlugNames: Array<string> = []
 
-  constructor(parentSlugNames = new Array()) {
+  constructor(parentSlugNames = []) {
     this.parentSlugNames = parentSlugNames
   }
 
