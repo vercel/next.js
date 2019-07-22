@@ -49,7 +49,8 @@ export async function apiResolver(
     if (e instanceof ApiError) {
       sendError(res, e.statusCode, e.message)
     } else {
-      sendError(res, 500, e.message)
+      console.error(e)
+      sendError(res, 500, 'Internal Server Error')
     }
   }
 }
@@ -226,7 +227,7 @@ export function sendError(
 ) {
   res.statusCode = statusCode
   res.statusMessage = message
-  res.end()
+  res.end(message)
 }
 
 interface LazyProps {

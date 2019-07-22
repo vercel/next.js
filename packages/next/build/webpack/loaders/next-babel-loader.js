@@ -63,6 +63,7 @@ module.exports = babelLoader.custom(babel => {
             cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
             cacheIdentifier:
                 cacheKey +
+                (opts.isServer ? '-server' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -110,6 +111,8 @@ module.exports = babelLoader.custom(babel => {
         // Add our default preset if the no "babelrc" found.
         options.presets = [...options.presets, presetItem]
       }
+
+      options.caller.isServer = isServer
 
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
