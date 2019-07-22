@@ -240,34 +240,42 @@ export async function renderError (props) {
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
-  performance.mark('beforeHydrate') // mark start of hydration
+  performance.mark('beforeRender') // mark start of hydrate/render
 
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
     ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl, markHydrateComplete)
+    ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
 }
 
 function markHydrateComplete () {
   performance.mark('afterHydrate') // mark end of hydration
-  logTimings()
+
+  performance.measure('Next.js-before-hydration', null, 'beforeRender')
+  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
+  clearMarks()
 }
 
-function logTimings () {
+function markRenderComplete () {
+  performance.mark('afterRender') // mark end of render
+
   const navStartEntries = performance.getEntriesByName('linkClick', 'mark')
-  const navStartEntry =
-    navStartEntries.length >= 1 ? navStartEntries[0].name : null
 
   performance.measure(
-    'Next.js-time-to-hydrate)',
-    navStartEntry,
-    'beforeHydrate'
+    'Next.js-nav-to-render',
+    navStartEntries[0].name,
+    'beforeRender'
   )
-  performance.measure('Next.js-hydration', 'beforeHydrate', 'afterHydrate')
+  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
 
+  clearMarks()
+}
+
+function clearMarks () {
   performance.clearMarks()
   performance.clearMeasures()
 }
