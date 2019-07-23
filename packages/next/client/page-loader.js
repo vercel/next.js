@@ -73,7 +73,7 @@ export default class PageLoader {
         // Make sure we don't load a dependency that's already loaded
         const loadedModules = new Set(
           Array.from(document.getElementsByTagName('script'), el => {
-            const results = /\/_next\/.*/g.exec(el.src)
+            const results = /\/_next\/[^?]*/g.exec(el.src)
             return results ? results[0] : el.src
           })
         )
@@ -89,7 +89,7 @@ export default class PageLoader {
 
   // Retrieve a list of dependencies for a given route from the build manifest
   getDependencies (route) {
-    if (!window.__BUILD_MANIFEST) {
+    if (!window.__BUILD_MANIFEST || !window.__BUILD_MANIFEST.pages[route]) {
       return []
     }
     return window.__BUILD_MANIFEST.pages[route].map(url => '/_next/' + url)
