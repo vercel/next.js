@@ -81,7 +81,7 @@ Make sure to commit your changes before doing this.
   <summary>Detailed version</summary>
    
    ```sh
-      $ mv amplify/backend/api/nextjswithamplifyts/schema.graphql ./schema.graphql
+      $ mv amplify/backend/api/nextjswithamplify/schema.graphql ./schema.graphql
       $ rm -rf amplify/ src/
       $ amplify init 
 
@@ -113,10 +113,9 @@ Make sure to commit your changes before doing this.
       ? Are you sure you want to continue? Yes
       ? Do you want to generate code for your newly created GraphQL API Yes
       ? Choose the code generation language target javascript
-      ? Enter the file name pattern of graphql queries, mutations and subscriptions src/graphql/**/*.ts
+      ? Enter the file name pattern of graphql queries, mutations and subscriptions src/graphql/**/*.js
       ? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions Yes
       ? Enter maximum statement depth [increase from default if your schema is deeply nested] 2
-      ? Enter the file name for the generated code src/API.ts
    ```
 </details>
 
@@ -139,8 +138,8 @@ The NextJS app has dynamic and static routes to demonstrate how to load data on 
 
 Two routes are implemented : 
 
-- `/` : A static route that uses getInitialProps to load data from AppSync and renders it on the server (Code in [pages/index.tsx](/pages/index.tsx))
+- `/` : A static route that uses getInitialProps to load data from AppSync and renders it on the server (Code in [pages/index.js](/pages/index.js))
 
-- `/todo/[id]` : A dynamic route that uses getInitialProps and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].tsx](/pages/todo/[id].tsx))
+- `/todo/[id]` : A dynamic route that uses getInitialProps and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].js](/pages/todo/[id].js))
 
 
