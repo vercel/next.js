@@ -1,24 +1,28 @@
 # rbx & bulma-pro example
 
 ## How to use
+
 ### Using `create-next-app`
 
 Execute create-next-app with yarn or npm to bootstrap the example:
+
 ```
 npm create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 # or
 yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 ```
 
-
 ### Download manually
+
 Download the example:
+
 ```
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-rbx-bulma-pro
 cd with-rbx-bulma-pro
 ```
 
 Install it and run:
+
 ```
 npm install
 npm run dev
