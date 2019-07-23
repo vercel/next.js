@@ -1,4 +1,4 @@
-# AWS Amplify and Typescript with NextJS
+# AWS Amplify with NextJS
 
 [![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/zeit/next.js/tree/canary/examples/with-aws-amplify)
 
