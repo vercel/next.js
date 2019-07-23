@@ -1,0 +1,4 @@
+{
+    "AppSyncApiName": "nextjswithawsamplify",
+    "DynamoDBBillingMode": "PAY_PER_REQUEST"
+}

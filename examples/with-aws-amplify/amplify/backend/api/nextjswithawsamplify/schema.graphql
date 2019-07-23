@@ -1,0 +1,10 @@
+type Todo @model {
+  id: ID!
+  name: String!
+  createdAt: String!
+  completed: Boolean!
+}
+
+type Query {
+  fetchTodo(id: ID): Todo
+}

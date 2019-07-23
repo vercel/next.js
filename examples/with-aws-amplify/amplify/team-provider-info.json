@@ -1,0 +1,14 @@
+{
+    "prod": {
+        "awscloudformation": {
+            "AuthRoleName": "nextjswithawsamplify-prod-20190723153238-authRole",
+            "UnauthRoleArn": "arn:aws:iam::534592782540:role/nextjswithawsamplify-prod-20190723153238-unauthRole",
+            "AuthRoleArn": "arn:aws:iam::534592782540:role/nextjswithawsamplify-prod-20190723153238-authRole",
+            "Region": "us-east-1",
+            "DeploymentBucketName": "nextjswithawsamplify-prod-20190723153238-deployment",
+            "UnauthRoleName": "nextjswithawsamplify-prod-20190723153238-unauthRole",
+            "StackName": "nextjswithawsamplify-prod-20190723153238",
+            "StackId": "arn:aws:cloudformation:us-east-1:534592782540:stack/nextjswithawsamplify-prod-20190723153238/f8147630-ad45-11e9-9fa5-0a545e22b5be"
+        }
+    }
+}
