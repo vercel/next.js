@@ -1,6 +1,5 @@
 /* global __NEXT_DATA__ */
 // tslint:disable:no-console
-import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { parse, UrlObject } from 'url'
@@ -65,12 +64,12 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
-  AppContainer: ComponentType
   sub: Subscription
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
+  _wrapApp: (App: ComponentType) => any
 
   static events: MittEmitter = mitt()
 
@@ -82,7 +81,7 @@ export default class Router implements BaseRouter {
       initialProps,
       pageLoader,
       App,
-      AppContainer,
+      wrapApp,
       Component,
       err,
       subscription,
@@ -92,7 +91,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: ComponentType
-      AppContainer: ComponentType
+      wrapApp: (App: ComponentType) => any
       err?: Error
     }
   ) {
@@ -121,7 +120,7 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.sub = subscription
     this.clc = null
-    this.AppContainer = AppContainer
+    this._wrapApp = wrapApp
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -584,14 +583,9 @@ export default class Router implements BaseRouter {
     }
     this.clc = cancel
     const { Component: App } = this.components['/_app'] as any
-    const AppContainer = this.AppContainer
 
     const props: any = await loadGetInitialProps<AppContextType<Router>>(App, {
-      AppTree: props => (
-        <AppContainer>
-          <App {...props} Component={Component} router={this} />
-        </AppContainer>
-      ),
+      AppTree: this._wrapApp(App),
       Component,
       router: this,
       ctx,
