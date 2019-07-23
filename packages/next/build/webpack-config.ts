@@ -257,7 +257,7 @@ export default async function getBaseWebpackConfig(
                 }, '')
               )
               .digest('base64')
-              .replace(/\//, '')
+              .replace(/\//g, '')
           },
           priority: 10,
           minChunks: 2,
