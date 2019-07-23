@@ -582,9 +582,9 @@ export default class Router implements BaseRouter {
       cancelled = true
     }
     this.clc = cancel
-    const { Component: App } = this.components['/_app'] as any
+    const { Component: App } = this.components['/_app']
 
-    const props: any = await loadGetInitialProps<AppContextType<Router>>(App, {
+    const props = await loadGetInitialProps<AppContextType<Router>>(App, {
       AppTree: this._wrapApp(App),
       Component,
       router: this,
