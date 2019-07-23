@@ -47,6 +47,7 @@ type NextBabelPresetOptions = {
 type BabelPreset = {
   presets?: PluginItem[] | null
   plugins?: PluginItem[] | null
+  sourceType?: 'script' | 'module' | 'unambiguous'
   overrides?: any[]
 }
 
@@ -82,6 +83,7 @@ module.exports = (
   }
 
   return {
+    sourceType: 'unambiguous',
     presets: [
       [require('@babel/preset-env').default, presetEnvConfig],
       [

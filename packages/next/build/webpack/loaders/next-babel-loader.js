@@ -3,7 +3,7 @@ import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
 
 // increment 'c' to invalidate cache
-const cacheKey = 'babel-cache-' + 'c' + '-'
+const cacheKey = 'babel-cache-' + 'd' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -38,10 +38,6 @@ module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset'
   })
-  const applyCommonJs = babel.createConfigItem(
-    require('../../babel/plugins/commonjs'),
-    { type: 'plugin' }
-  )
   const commonJsItem = babel.createConfigItem(
     require('@babel/plugin-transform-modules-commonjs'),
     { type: 'plugin' }
@@ -187,13 +183,6 @@ module.exports = babelLoader.custom(babel => {
             'transform-async-to-generator'
           ])
         }
-      }
-
-      // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
-      // That break webpack, since webpack doesn't support combining commonjs and esmodules
-      if (source.indexOf('module.exports') !== -1) {
-        options.plugins = options.plugins || []
-        options.plugins.push(applyCommonJs)
       }
 
       // As next-server/lib has stateful modules we have to transpile commonjs
