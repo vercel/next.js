@@ -16,7 +16,7 @@ const $comment = ({ gipQuery }) => {
 
 $comment.getInitialProps = async ({ query }) => {
   return {
-    gipQuery: query
+    gipQuery: query,
   }
 }
 
