@@ -40,7 +40,7 @@ const defaultConfig: { [key: string]: any } = {
     asyncToPromises: false,
     documentMiddleware: false,
     publicDirectory: false,
-    modern: true,
+    modern: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
