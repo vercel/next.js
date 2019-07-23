@@ -17,13 +17,12 @@ import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { fileExists } from '../lib/file-exists'
 import { promisify } from 'util'
 import fs from 'fs'
 
 const access = promisify(fs.access)
 const readFile = promisify(fs.readFile)
-// eslint-disable-next-line
-const fileExists = promisify(fs.exists)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
