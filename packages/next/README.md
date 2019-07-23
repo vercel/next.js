@@ -1421,15 +1421,20 @@ import React from 'react'
 import App, { Container } from 'next/app'
 
 class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
+  // Only uncomment this method if you have blocking data requirements for
+  // every single page in your application. This disables the ability to
+  // perform automatic static optimization, causing every page in your app to
+  // be server-side rendered.
+  //
+  // static async getInitialProps({ Component, ctx }) {
+  //   let pageProps = {}
+  //
+  //   if (Component.getInitialProps) {
+  //     pageProps = await Component.getInitialProps(ctx)
+  //   }
+  //
+  //   return { pageProps }
+  // }
 
   render() {
     const { Component, pageProps } = this.props
@@ -2177,7 +2182,7 @@ Next.js provides `NextPage` type that can be used for pages in the `pages` direc
 import { NextPage } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 const Page: NextPage<Props> = ({ userAgent }) => (
@@ -2208,7 +2213,7 @@ import React from 'react'
 import { NextPageContext } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 export default class Page extends React.Component<Props> {
