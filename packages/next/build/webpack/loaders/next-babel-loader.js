@@ -2,7 +2,7 @@ import hash from 'string-hash'
 import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
 
-// increment 'c' to invalidate cache
+// increment 'd' to invalidate cache
 const cacheKey = 'babel-cache-' + 'd' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
