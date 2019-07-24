@@ -28,11 +28,6 @@ export default class PageLoader {
     this.promisedBuildId = Promise.resolve()
   }
 
-  static getScriptRoute (route) {
-    const scriptName = route === '/' ? '/index' : route
-    return `${scriptName}${process.env.__NEXT_MODERN_BUILD ? '.module' : ''}.js`
-  }
-
   normalizeRoute (route) {
     if (route[0] !== '/') {
       throw new Error(`Route name should start with a "/", got "${route}"`)
@@ -116,12 +111,13 @@ export default class PageLoader {
     await this.promisedBuildId
 
     route = this.normalizeRoute(route)
-    const scriptRoute = PageLoader.getScriptRoute(route)
+    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const script = document.createElement('script')
 
     if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
       script.type = 'module'
+      scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
@@ -175,7 +171,14 @@ export default class PageLoader {
 
   async prefetch (route) {
     route = this.normalizeRoute(route)
-    const scriptRoute = PageLoader.getScriptRoute(route)
+    let scriptRoute = `${route === '/' ? '/index' : route}.js`
+
+    if (
+      process.env.__NEXT_MODERN_BUILD &&
+      'noModule' in document.createElement('script')
+    ) {
+      scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+    }
 
     if (
       this.prefetchCache.has(scriptRoute) ||
