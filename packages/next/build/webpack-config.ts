@@ -139,8 +139,11 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
-      // Collection of improperly published ecosystem packages:
-      'node-fetch': 'node-fetch/lib/index.js',
+
+      // Collection of improperly published ecosystem packages
+      // Reasons:
+      //   1. CJS-variant does not export using `default` key
+      'node-fetch': 'node-fetch/lib/index.js', // (1)
     },
     mainFields: isServer ? ['module', 'main'] : ['browser', 'module', 'main'],
   }
