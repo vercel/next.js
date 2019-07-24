@@ -3,7 +3,7 @@ import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
 
 // increment 'c' to invalidate cache
-const cacheKey = 'babel-cache-' + 'cdsfs' + '-'
+const cacheKey = 'babel-cache-' + 'c' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
