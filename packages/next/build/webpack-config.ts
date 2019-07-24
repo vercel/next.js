@@ -144,7 +144,7 @@ export default async function getBaseWebpackConfig(
       ? target === 'serverless'
         ? ['module', 'main']
         : ['main', 'module']
-      : ['module', 'browser', 'main'],
+      : ['browser', 'module', 'main'],
   }
 
   const webpackMode = dev ? 'development' : 'production'
