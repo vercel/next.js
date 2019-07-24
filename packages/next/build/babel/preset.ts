@@ -126,6 +126,7 @@ module.exports = (
         styledJsxOptions(options['styled-jsx']),
       ],
       require('./plugins/amp-attributes'),
+      require('./plugins/noop-esm'),
       isProduction && [
         require('babel-plugin-transform-react-remove-prop-types'),
         {
