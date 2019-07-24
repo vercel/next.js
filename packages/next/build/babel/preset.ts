@@ -66,6 +66,7 @@ module.exports = (
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
+    targets: { ie: 11 },
     ...options['preset-env'],
   }
 
