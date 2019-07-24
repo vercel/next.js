@@ -19,8 +19,9 @@ const getModernOptions = (babelOptions = {}) => {
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
-    'babel-plugin-transform-regenerator',
-    'babel-plugin-transform-async-to-generator'
+    // Blacklist accidental inclusions
+    'transform-regenerator',
+    'transform-async-to-generator'
   ]
 
   return {
@@ -178,13 +179,13 @@ module.exports = babelLoader.custom(babel => {
           return preset[0] === require('@babel/preset-env').default
         })
         if (babelPresetEnv) {
-          babelPresetEnv[1].exclude = (options.presets[0][1].exclude || [])
-            .concat([
-              'transform-typeof-symbol',
-              'transform-regenerator',
-              'transform-async-to-generator'
-            ])
-            .filter('transform-typeof-symbol')
+          babelPresetEnv[1].exclude = (
+            options.presets[0][1].exclude || []
+          ).concat([
+            'transform-typeof-symbol',
+            'transform-regenerator',
+            'transform-async-to-generator'
+          ])
         }
       }
 
