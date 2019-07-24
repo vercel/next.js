@@ -7,7 +7,7 @@ const isTest = env === 'test'
 type StyledJsxPlugin = [string, any] | string
 type StyledJsxBabelOptions =
   | {
-      plugins?: StyledJsxPlugin[],
+      plugins?: StyledJsxPlugin[]
       'babel-test'?: boolean
     }
   | undefined
@@ -119,7 +119,12 @@ module.exports = (
           ...options['transform-runtime'],
         },
       ],
-      [(isTest && options['styled-jsx'] && options['styled-jsx']['babel-test']) ? require('styled-jsx/babel-test') : require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
+      [
+        isTest && options['styled-jsx'] && options['styled-jsx']['babel-test']
+          ? require('styled-jsx/babel-test')
+          : require('styled-jsx/babel'),
+        styledJsxOptions(options['styled-jsx']),
+      ],
       require('./plugins/amp-attributes'),
       isProduction && [
         require('babel-plugin-transform-react-remove-prop-types'),
