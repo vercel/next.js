@@ -65,14 +65,14 @@ module.exports = babelLoader.custom(babel => {
             cacheIdentifier:
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
+                (opts.isModern ? '-modern' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
                     cwd: opts.cwd,
                     sourceFileName: filename
                   }).options
-                ) +
-                `${opts.isModern ? '-modern' : ''}`
+                )
           }
           : {
             cacheDirectory: false
