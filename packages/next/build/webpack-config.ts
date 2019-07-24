@@ -143,7 +143,7 @@ export default async function getBaseWebpackConfig(
       // Collection of incorrectly published packages in the ecosystem
       // Reasons:
       //   1. CJS-variant does not export using `default` key
-      'node-fetch': 'node-fetch/lib/index.js', // (1)
+      'node-fetch': 'node-fetch/lib/index.js', // reason 1: v2.6.0
     },
     mainFields: isServer ? ['module', 'main'] : ['browser', 'module', 'main'],
   }
