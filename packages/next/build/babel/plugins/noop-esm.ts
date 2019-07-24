@@ -5,15 +5,7 @@ import { PluginObj } from '@babel/core'
 //
 // Reasoning:
 // https://github.com/webpack/webpack/issues/4742
-//
-// tl;dr:
-//
-// `const bla require('esm-module')` is not the same as:
-// `import bla from 'esm-module'` -- it's equivalent to:
-// `import * as bla from 'esm-module`.
-// This means CJS packages cannot consume ESM-enabled variants of CJS modules,
-// "magically". i.e. we cannot resolve the `module` key first. This is not a
-// problem for webpack though, because it understands ESM natively unlike Node.
+// https://github.com/zeit/next.js/pull/8081
 
 export default function NoopEsmPatcher(): PluginObj {
   return {
