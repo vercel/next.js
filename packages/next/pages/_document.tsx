@@ -40,11 +40,10 @@ function dedupe(bundles: any[]): any[] {
   return kept
 }
 
-function formatModernPath(path: string) {
+function getOptionalModernScriptVariant(path: string) {
   if (process.env.__NEXT_MODERN_BUILD) {
     return path.replace(/\.js$/, '.module.js')
   }
-
   return path
 }
 
@@ -165,24 +164,32 @@ export class Head extends Component<
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dedupe(dynamicImports).map((bundle: any) => {
-      // Only render .js files here
-      if (!bundle.file.endsWith(formatModernPath('.js'))) {
-        return null
-      }
-      return (
-        <link
-          rel="preload"
-          key={bundle.file}
-          href={`${assetPrefix}/_next/${
-            bundle.file
-          }${_devOnlyInvalidateCacheQueryString}`}
-          as="script"
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
-    })
+    return (
+      dedupe(dynamicImports)
+        .map((bundle: any) => {
+          // `dynamicImports` will contain both `.js` and `.modern.js` when the
+          // feature is enabled. This clause will filter down to the modern
+          // variants only.
+          if (!bundle.file.endsWith(getOptionalModernScriptVariant('.js'))) {
+            return null
+          }
+
+          return (
+            <link
+              rel="preload"
+              key={bundle.file}
+              href={`${assetPrefix}/_next/${
+                bundle.file
+              }${_devOnlyInvalidateCacheQueryString}`}
+              as="script"
+              nonce={this.props.nonce}
+              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            />
+          )
+        })
+        // Filter out nulled scripts
+        .filter(Boolean)
+    )
   }
 
   getPreloadMainLinks() {
@@ -192,23 +199,28 @@ export class Head extends Component<
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file: string) => {
-      // Only render .js files here
-      if (!file.endsWith(formatModernPath('.js'))) {
-        return null
-      }
+    return files
+      .map((file: string) => {
+        // `dynamicImports` will contain both `.js` and `.modern.js` when the
+        // feature is enabled. This clause will filter down to the modern
+        // variants only.
+        // This also filters out non-JS assets.
+        if (!file.endsWith(getOptionalModernScriptVariant('.js'))) {
+          return null
+        }
 
-      return (
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-          as="script"
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
-    })
+        return (
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        )
+      })
+      .filter(Boolean)
   }
 
   render() {
@@ -378,7 +390,7 @@ export class Head extends Component<
                 rel="preload"
                 href={
                   assetPrefix +
-                  formatModernPath(
+                  getOptionalModernScriptVariant(
                     dynamicBuildId
                       ? `/_next/static/client/pages${getPageFile(
                           page,
@@ -397,7 +409,7 @@ export class Head extends Component<
               rel="preload"
               href={
                 assetPrefix +
-                formatModernPath(
+                getOptionalModernScriptVariant(
                   dynamicBuildId
                     ? `/_next/static/client/pages/_app.${buildId}.js`
                     : `/_next/static/${buildId}/pages/_app.js`
@@ -609,7 +621,7 @@ export class NextScript extends Component<OriginProps> {
           id={`__NEXT_PAGE__${page}`}
           src={
             assetPrefix +
-            formatModernPath(
+            getOptionalModernScriptVariant(
               dynamicBuildId
                 ? `/_next/static/client/pages${getPageFile(page, buildId)}`
                 : `/_next/static/${buildId}/pages${getPageFile(page)}`
@@ -644,11 +656,9 @@ export class NextScript extends Component<OriginProps> {
           id={`__NEXT_PAGE__/_app`}
           src={
             assetPrefix +
-            formatModernPath(
-              dynamicBuildId
-                ? `/_next/static/client/pages/_app.${buildId}.js`
-                : `/_next/static/${buildId}/pages/_app.js`
-            ) +
+            (dynamicBuildId
+              ? `/_next/static/client/pages/_app.${buildId}.modern.js`
+              : `/_next/static/${buildId}/pages/_app.modern.js`) +
             _devOnlyInvalidateCacheQueryString
           }
           nonce={this.props.nonce}
