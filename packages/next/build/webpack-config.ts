@@ -139,6 +139,8 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
+      // Collection of improperly published ecosystem packages:
+      'node-fetch': 'node-fetch/lib/index.js',
     },
     mainFields: isServer ? ['module', 'main'] : ['browser', 'module', 'main'],
   }
