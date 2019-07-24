@@ -176,6 +176,11 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
+  const crossOrigin =
+    !config.crossOrigin && config.experimental.modern
+      ? 'anonymous'
+      : config.crossOrigin
+
   let webpackConfig: webpack.Configuration = {
     devtool,
     mode: webpackMode,
@@ -366,7 +371,7 @@ export default async function getBaseWebpackConfig(
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
         : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
-      crossOriginLoading: config.crossOrigin,
+      crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
@@ -445,7 +450,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(config.crossOrigin),
+        'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
