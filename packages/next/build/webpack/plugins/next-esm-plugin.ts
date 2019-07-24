@@ -241,11 +241,15 @@ export default class NextEsmPlugin implements Plugin {
         this.updateOptions(childCompiler)
 
         childCompiler.runAsChild((err, entries, childCompilation) => {
-          if (!err) {
-            this.updateAssets(compilation, childCompilation)
+          if (err) {
+            return childProcessDone(err)
           }
 
-          err && compilation.errors.push(err)
+          if (childCompilation.errors.length > 0) {
+            return childProcessDone(childCompilation.errors[0])
+          }
+
+          this.updateAssets(compilation, childCompilation)
           childProcessDone()
         })
       }
