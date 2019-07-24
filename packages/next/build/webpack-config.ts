@@ -140,7 +140,7 @@ export default async function getBaseWebpackConfig(
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
 
-      // Collection of improperly published ecosystem packages
+      // Collection of incorrectly published packages in the ecosystem
       // Reasons:
       //   1. CJS-variant does not export using `default` key
       'node-fetch': 'node-fetch/lib/index.js', // (1)
