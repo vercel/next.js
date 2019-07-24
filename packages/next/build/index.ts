@@ -27,7 +27,6 @@ import {
   getSpecifiedPages,
   printTreeView,
   PageInfo,
-  isPageStatic,
   hasCustomAppGetInitialProps,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
@@ -401,10 +400,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       plugin.ampPages.forEach((pg: any) => {
-        // Server-side does not compile .es6 version
-        if (!pg.includes('.module')) {
-          pageInfos.get(pg)!.isAmp = true
-        }
+        pageInfos.get(pg)!.isAmp = true
       })
       return true
     })
