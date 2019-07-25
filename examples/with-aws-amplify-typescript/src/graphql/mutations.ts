@@ -7,6 +7,14 @@ export const createTodo = `mutation CreateTodo($input: CreateTodoInput!) {
     name
     createdAt
     completed
+    todoList {
+      id
+      createdAt
+      todos {
+        nextToken
+      }
+    }
+    userId
   }
 }
 `;
@@ -16,6 +24,14 @@ export const updateTodo = `mutation UpdateTodo($input: UpdateTodoInput!) {
     name
     createdAt
     completed
+    todoList {
+      id
+      createdAt
+      todos {
+        nextToken
+      }
+    }
+    userId
   }
 }
 `;
@@ -25,6 +41,65 @@ export const deleteTodo = `mutation DeleteTodo($input: DeleteTodoInput!) {
     name
     createdAt
     completed
+    todoList {
+      id
+      createdAt
+      todos {
+        nextToken
+      }
+    }
+    userId
+  }
+}
+`;
+export const createTodoList = `mutation CreateTodoList($input: CreateTodoListInput!) {
+  createTodoList(input: $input) {
+    id
+    createdAt
+    todos {
+      items {
+        id
+        name
+        createdAt
+        completed
+        userId
+      }
+      nextToken
+    }
+  }
+}
+`;
+export const updateTodoList = `mutation UpdateTodoList($input: UpdateTodoListInput!) {
+  updateTodoList(input: $input) {
+    id
+    createdAt
+    todos {
+      items {
+        id
+        name
+        createdAt
+        completed
+        userId
+      }
+      nextToken
+    }
+  }
+}
+`;
+export const deleteTodoList = `mutation DeleteTodoList($input: DeleteTodoListInput!) {
+  deleteTodoList(input: $input) {
+    id
+    createdAt
+    todos {
+      items {
+        id
+        name
+        createdAt
+        completed
+        userId
+      }
+      nextToken
+    }
   }
 }
 `;

@@ -1,10 +1,15 @@
 type Todo @model {
+  # ! means non-null GraphQL fields are allowed to be null by default
   id: ID!
   name: String!
-  createdAt: Int!
+  createdAt: String!
   completed: Boolean!
+  todoList: TodoList! @connection(name: "SortedList")
+  userId: String!
 }
 
-type Query {
-  fetchTodo(id: ID): Todo
+type TodoList @model {
+  id: ID!
+  createdAt: String!
+  todos: [Todo] @connection(name: "SortedList", sortField: "createdAt")
 }

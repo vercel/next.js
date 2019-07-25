@@ -2,16 +2,23 @@ import * as React from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
 import nanoid from 'nanoid'
 import produce from 'immer'
-import sortBy from 'array-sort'
 
-import { ListTodosQuery } from '../src/API'
+import { ListTodosQuery, GetTodoListQuery } from '../src/API'
 import config from '../src/aws-exports'
-import { createTodo, deleteTodo } from '../src/graphql/mutations'
-import { listTodos } from '../src/graphql/queries'
+import {
+  createTodo,
+  deleteTodo,
+  createTodoList,
+} from '../src/graphql/mutations'
+import { getTodoList } from '../src/graphql/queries'
 
+const MY_ID = nanoid()
 API.configure(config)
 
-type Todo = Omit<ListTodosQuery['listTodos']['items'][0], '__typename'>
+type Todo = Omit<
+  ListTodosQuery['listTodos']['items'][0],
+  '__typename' | 'todoList'
+>
 
 type Props = {
   todos: Todo[]
@@ -69,6 +76,8 @@ const createToDo = async (dispatch: React.Dispatch<Action>, currentToDo) => {
     name: currentToDo,
     createdAt: `${Date.now()}`,
     completed: false,
+    todoTodoListId: 'global',
+    userId: MY_ID,
   }
   dispatch({ type: 'add-todo', payload: todo })
   try {
@@ -97,9 +106,6 @@ const App = (props: Props) => {
     todos: props.todos,
     currentName: '',
   })
-  // In cases where a big amount of data is retrieved you would need to do sorting on the server using the @key directive in your GraphQL schema
-  const sortedTodos = sortBy(state.todos.filter(todo => todo), ['createdAt'])
-
   return (
     <div>
       <h3>Add a Todo</h3>
@@ -118,7 +124,7 @@ const App = (props: Props) => {
         <button type="submit">Create Todo</button>
       </form>
       <h3>Todos List</h3>
-      {sortedTodos.map((todo, index) => (
+      {state.todos.map((todo, index) => (
         <p key={index}>
           <a href={`/todo/${todo.id}`}>{todo.name}</a>
           <button
@@ -133,14 +139,30 @@ const App = (props: Props) => {
     </div>
   )
 }
-App.getInitialProps = async context => {
-  const result = (await API.graphql({
-    ...graphqlOperation(listTodos),
-  })) as { data: ListTodosQuery }
-
-  return {
-    todos: result.data.listTodos.items,
+App.getInitialProps = async () => {
+  let result: { data: GetTodoListQuery; errors: {}[] } = await API.graphql(
+    graphqlOperation(getTodoList, { id: 'global' })
+  )
+  if (result.errors) {
+    console.log('Failed to fetch todolist. ', result.errors)
+    return { todos: [] }
   }
-}
+  if (result.data.getTodoList !== null) {
+    return { todos: result.data.getTodoList.todos.items }
+  }
 
+  try {
+    await API.graphql(
+      graphqlOperation(createTodoList, {
+        input: {
+          id: 'global',
+          createdAt: `${Date.now()}`,
+        },
+      })
+    )
+  } catch (err) {
+    console.warn(err)
+  }
+  return { todos: [] }
+}
 export default App
