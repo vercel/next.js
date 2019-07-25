@@ -311,8 +311,20 @@ A `<Link>` for `/post/abc` looks like so:
 </Link>
 ```
 
-- `href`: the path inside `pages` directory
-- `as`: the path that will be rendered in the browser URL bar
+- `href`: the path inside `pages` directory.
+- `as`: the path that will be rendered in the browser URL bar.
+
+As `href` is a filesystem path, it shouldn't change at runtime, instead, you will probably need to change `as`
+dynamically according to your needs. Here's an example to create a list of links:
+
+```jsx
+const pids = ['id1', 'id2', 'id3'];
+{pids.map(pid => (
+  <Link href="/post/[pid]" as={`/post/${pid}`}>
+    <a>Post {pid}</a>
+  </Link>
+))}
+```
 
 > You can [read more about `<Link>` here](#with-link).
 
