@@ -128,7 +128,7 @@ export default class PageLoader {
     await this.promisedBuildId
 
     route = this.normalizeRoute(route)
-    const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
@@ -138,6 +138,10 @@ export default class PageLoader {
 
   loadScript (url) {
     const script = document.createElement('script')
+    if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
+      script.type = 'module'
+      url = url.replace(/\.js$/, '.module.js')
+    }
     script.crossOrigin = process.crossOrigin
     script.src = url
     script.async = false // Explicit async = false required for in-order execution
@@ -186,7 +190,14 @@ export default class PageLoader {
 
   async prefetch (route, isDependency) {
     route = this.normalizeRoute(route)
-    const scriptRoute = `${route === '/' ? '/index' : route}.js`
+    let scriptRoute = `${route === '/' ? '/index' : route}.js`
+
+    if (
+      process.env.__NEXT_MODERN_BUILD &&
+      'noModule' in document.createElement('script')
+    ) {
+      scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+    }
 
     if (
       this.prefetchCache.has(scriptRoute) ||

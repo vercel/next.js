@@ -40,6 +40,7 @@ const defaultConfig: { [key: string]: any } = {
     documentMiddleware: false,
     granularChunks: false,
     publicDirectory: false,
+    modern: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

@@ -46,14 +46,24 @@ export default class HeadManager {
 
   updateElements (type, components) {
     const headEl = document.getElementsByTagName('head')[0]
-    const oldTags = Array.prototype.slice.call(
-      headEl.querySelectorAll(type + '.next-head')
-    )
+    const headCountEl = headEl.querySelector('meta[name=next-head-count]')
+    const headCount = Number(headCountEl.content)
+    const oldTags = []
+
+    for (
+      let i = 0, j = headCountEl.previousElementSibling;
+      i < headCount;
+      i++, j = j.previousElementSibling
+    ) {
+      if (j.tagName.toLowerCase() === type) {
+        oldTags.push(j)
+      }
+    }
     const newTags = components.map(reactElementToDOM).filter(newTag => {
-      for (let i = 0, len = oldTags.length; i < len; i++) {
-        const oldTag = oldTags[i]
+      for (let k = 0, len = oldTags.length; k < len; k++) {
+        const oldTag = oldTags[k]
         if (oldTag.isEqualNode(newTag)) {
-          oldTags.splice(i, 1)
+          oldTags.splice(k, 1)
           return false
         }
       }
@@ -61,7 +71,12 @@ export default class HeadManager {
     })
 
     oldTags.forEach(t => t.parentNode.removeChild(t))
-    newTags.forEach(t => headEl.appendChild(t))
+    newTags.forEach(t => headEl.insertBefore(t, headCountEl))
+    headCountEl.content = (
+      headCount -
+      oldTags.length +
+      newTags.length
+    ).toString()
   }
 }
 
