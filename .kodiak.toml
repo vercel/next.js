@@ -1,0 +1,18 @@
+version = 1
+
+[merge]
+automerge_label = "lgtm"
+require_automerge_label = false
+blacklist_title_regex = "^WIP.*"
+blacklist_labels = ["hold"]
+method = "squash"
+delete_branch_on_merge = true
+block_on_reviews_requested = false
+notify_on_conflict = true
+optimistic_updates = true
+
+[merge.message]
+title = "pull_request_title"
+body = "pull_request_body"
+include_pr_number = true
+body_type = "markdown"
