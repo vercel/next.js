@@ -10,7 +10,6 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 const rimrafPromise = promisify(rimraf)
 let appDir = join(__dirname, '..')
-let buildDir = join(__dirname, '../build')
 let server
 // let appPort
 
@@ -23,7 +22,7 @@ describe('Modern Mode', () => {
     })
 
     const app = nextServer({
-      dir: buildDir,
+      dir: appDir,
       dev: false,
       quiet: true,
       experimental: {
@@ -36,10 +35,10 @@ describe('Modern Mode', () => {
   })
   afterAll(async () => {
     stopApp(server)
-    rimrafPromise(join(buildDir, '.next'))
+    rimrafPromise(join(appDir, '.next'))
   })
   it('should generate client side modern and legacy build files', async () => {
-    const buildId = readFileSync(join(buildDir, '.next/BUILD_ID'), 'utf8')
+    const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
 
     const expectedFiles = [
       'index',
@@ -50,11 +49,11 @@ describe('Modern Mode', () => {
       'commons'
     ]
     const buildFiles = [
-      ...readdirSync(join(buildDir, '.next/static', buildId, 'pages')),
-      ...readdirSync(join(buildDir, '.next/static/runtime')).map(
+      ...readdirSync(join(appDir, '.next/static', buildId, 'pages')),
+      ...readdirSync(join(appDir, '.next/static/runtime')).map(
         file => file.replace(/-\w+\./, '.') // remove hash
       ),
-      ...readdirSync(join(buildDir, '.next/static/chunks')).map(
+      ...readdirSync(join(appDir, '.next/static/chunks')).map(
         file => file.replace(/\.\w+\./, '.') // remove hash
       )
     ]
