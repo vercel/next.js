@@ -3,6 +3,7 @@ import { join } from 'path'
 import { parse } from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
+import { API_ROUTE } from '../../../lib/constants'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -39,7 +40,7 @@ const nextServerlessLoader: loader.Loader = function() {
     '/'
   )
 
-  if (page.startsWith('/api/')) {
+  if (page.match(API_ROUTE)) {
     return `
     ${
       isDynamicRoute(page)

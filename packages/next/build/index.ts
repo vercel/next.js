@@ -27,7 +27,6 @@ import {
   getSpecifiedPages,
   printTreeView,
   PageInfo,
-  isPageStatic,
   hasCustomAppGetInitialProps,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
