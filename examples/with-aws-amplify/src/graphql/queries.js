@@ -17,7 +17,7 @@ export const getTodo = `query GetTodo($id: ID!) {
     userId
   }
 }
-`;
+`
 export const listTodos = `query ListTodos(
   $filter: ModelTodoFilterInput
   $limit: Int
@@ -38,7 +38,7 @@ export const listTodos = `query ListTodos(
     nextToken
   }
 }
-`;
+`
 export const getTodoList = `query GetTodoList($id: ID!) {
   getTodoList(id: $id) {
     id
@@ -55,7 +55,7 @@ export const getTodoList = `query GetTodoList($id: ID!) {
     }
   }
 }
-`;
+`
 export const listTodoLists = `query ListTodoLists(
   $filter: ModelTodoListFilterInput
   $limit: Int
@@ -72,4 +72,4 @@ export const listTodoLists = `query ListTodoLists(
     nextToken
   }
 }
-`;
+`

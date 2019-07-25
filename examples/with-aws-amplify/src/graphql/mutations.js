@@ -17,7 +17,7 @@ export const createTodo = `mutation CreateTodo($input: CreateTodoInput!) {
     userId
   }
 }
-`;
+`
 export const updateTodo = `mutation UpdateTodo($input: UpdateTodoInput!) {
   updateTodo(input: $input) {
     id
@@ -34,7 +34,7 @@ export const updateTodo = `mutation UpdateTodo($input: UpdateTodoInput!) {
     userId
   }
 }
-`;
+`
 export const deleteTodo = `mutation DeleteTodo($input: DeleteTodoInput!) {
   deleteTodo(input: $input) {
     id
@@ -51,7 +51,7 @@ export const deleteTodo = `mutation DeleteTodo($input: DeleteTodoInput!) {
     userId
   }
 }
-`;
+`
 export const createTodoList = `mutation CreateTodoList($input: CreateTodoListInput!) {
   createTodoList(input: $input) {
     id
@@ -68,7 +68,7 @@ export const createTodoList = `mutation CreateTodoList($input: CreateTodoListInp
     }
   }
 }
-`;
+`
 export const updateTodoList = `mutation UpdateTodoList($input: UpdateTodoListInput!) {
   updateTodoList(input: $input) {
     id
@@ -85,7 +85,7 @@ export const updateTodoList = `mutation UpdateTodoList($input: UpdateTodoListInp
     }
   }
 }
-`;
+`
 export const deleteTodoList = `mutation DeleteTodoList($input: DeleteTodoListInput!) {
   deleteTodoList(input: $input) {
     id
@@ -102,4 +102,4 @@ export const deleteTodoList = `mutation DeleteTodoList($input: DeleteTodoListInp
     }
   }
 }
-`;
+`

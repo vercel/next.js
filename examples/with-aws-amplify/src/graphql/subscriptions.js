@@ -17,7 +17,7 @@ export const onCreateTodo = `subscription OnCreateTodo {
     userId
   }
 }
-`;
+`
 export const onUpdateTodo = `subscription OnUpdateTodo {
   onUpdateTodo {
     id
@@ -34,7 +34,7 @@ export const onUpdateTodo = `subscription OnUpdateTodo {
     userId
   }
 }
-`;
+`
 export const onDeleteTodo = `subscription OnDeleteTodo {
   onDeleteTodo {
     id
@@ -51,7 +51,7 @@ export const onDeleteTodo = `subscription OnDeleteTodo {
     userId
   }
 }
-`;
+`
 export const onCreateTodoList = `subscription OnCreateTodoList {
   onCreateTodoList {
     id
@@ -68,7 +68,7 @@ export const onCreateTodoList = `subscription OnCreateTodoList {
     }
   }
 }
-`;
+`
 export const onUpdateTodoList = `subscription OnUpdateTodoList {
   onUpdateTodoList {
     id
@@ -85,7 +85,7 @@ export const onUpdateTodoList = `subscription OnUpdateTodoList {
     }
   }
 }
-`;
+`
 export const onDeleteTodoList = `subscription OnDeleteTodoList {
   onDeleteTodoList {
     id
@@ -102,4 +102,4 @@ export const onDeleteTodoList = `subscription OnDeleteTodoList {
     }
   }
 }
-`;
+`
