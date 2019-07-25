@@ -1,7 +1,7 @@
 export const config = {
   api: {
     bodyParser: {
-      bodySizeLimit: '5mb'
+      sizeLimit: '5mb'
     }
   }
 }

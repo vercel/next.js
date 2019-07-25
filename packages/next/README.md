@@ -1130,7 +1130,7 @@ export const config = {
 }
 ```
 
-You can adjust size of parsed body by adding `bodySizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
+You can adjust size of parsed body by adding `sizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
 
 ```js
 // ./pages/api/my-endpoint.js
@@ -1141,7 +1141,7 @@ export default (req, res) => {
 export const config = {
   api: {
     bodyParser: {
-      bodySizeLimit: '1mb',
+      sizeLimit: '1mb',
     }
   },
 }

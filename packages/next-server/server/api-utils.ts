@@ -39,10 +39,8 @@ export async function apiResolver(
     if (bodyParser) {
       req.body = await parseBody(
         req,
-        config.api &&
-          config.api.bodyParser &&
-          config.api.bodyParser.bodySizeLimit
-          ? config.api.bodyParser.bodySizeLimit
+        config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
+          ? config.api.bodyParser.sizeLimit
           : '1mb'
       )
     }
