@@ -167,7 +167,7 @@ export class Head extends Component<
     return (
       dedupe(dynamicImports)
         .map((bundle: any) => {
-          // `dynamicImports` will contain both `.js` and `.modern.js` when the
+          // `dynamicImports` will contain both `.js` and `.module.js` when the
           // feature is enabled. This clause will filter down to the modern
           // variants only.
           if (!bundle.file.endsWith(getOptionalModernScriptVariant('.js'))) {
@@ -201,7 +201,7 @@ export class Head extends Component<
 
     return files
       .map((file: string) => {
-        // `dynamicImports` will contain both `.js` and `.modern.js` when the
+        // `dynamicImports` will contain both `.js` and `.module.js` when the
         // feature is enabled. This clause will filter down to the modern
         // variants only.
         // This also filters out non-JS assets.
@@ -661,8 +661,8 @@ export class NextScript extends Component<OriginProps> {
           src={
             assetPrefix +
             (dynamicBuildId
-              ? `/_next/static/client/pages/_app.${buildId}.modern.js`
-              : `/_next/static/${buildId}/pages/_app.modern.js`) +
+              ? `/_next/static/client/pages/_app.${buildId}.module.js`
+              : `/_next/static/${buildId}/pages/_app.module.js`) +
             _devOnlyInvalidateCacheQueryString
           }
           nonce={this.props.nonce}
