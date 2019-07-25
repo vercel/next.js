@@ -81,7 +81,7 @@ export default class PageLoader {
         const urlsToLoad = deps.filter(url => !loadedModules.has(url))
 
         this.loadingRoutes[route] = true
-        urlsToLoad.forEach(this.loadScript)
+        urlsToLoad.forEach(url => this.loadScript(url, route))
         this.loadRouteBundle(route)
       }
     })
@@ -133,10 +133,10 @@ export default class PageLoader {
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
     )}/pages${scriptRoute}`
-    this.loadScript(url)
+    this.loadScript(url, route)
   }
 
-  loadScript (url) {
+  loadScript (url, route) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
       script.type = 'module'
@@ -148,7 +148,7 @@ export default class PageLoader {
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
-      this.pageRegisterEvents.emit(url, { error })
+      this.pageRegisterEvents.emit(route, { error })
     }
     document.body.appendChild(script)
   }
