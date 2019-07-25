@@ -1108,7 +1108,7 @@ Those middlewares are:
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-Body parsing is enabled by default.
+Body parsing is enabled by default with a size limit of `1mb` for the parsed body.
 You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
 
 ```js
@@ -1120,6 +1120,23 @@ export default (req, res) => {
 export const config = {
   api: {
     bodyParser: false,
+  },
+}
+```
+
+You can adjust size of parsed body by adding `sizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
+
+```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    }
   },
 }
 ```
