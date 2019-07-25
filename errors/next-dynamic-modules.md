@@ -11,6 +11,7 @@ Updating code that relies on this behavior is relatively straightforward! We've 
 Migrate to using separate dynamic calls for each module.
 
 Before
+
 ```js
 import dynamic from 'next/dynamic'
 
@@ -40,6 +41,7 @@ export default DynamicBundle
 ```
 
 After
+
 ```js
 import dynamic from 'next/dynamic'
 
