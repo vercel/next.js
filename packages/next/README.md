@@ -314,7 +314,7 @@ A `<Link>` for `/post/abc` looks like so:
 - `href`: the path inside `pages` directory.
 - `as`: the path that will be rendered in the browser URL bar.
 
-As `href` is a filesystem path, it shouldn't change during execution, while you will probably need to change `as`
+As `href` is a filesystem path, it shouldn't change at runtime, instead, you will probably need to change `as`
 dynamically according to your needs. Here's an example to create a list of links:
 
 ```jsx
