@@ -580,8 +580,8 @@ Example:
    <Link href="/post?slug=something" as="/post/something">
    ```
 
-   - `href`: the path inside `pages` directory. Only right side of `?` character could change dynamically during execution, if needed, as left side is a filesystem path.
-   - `as`: the path used by your server routes.
+   - `href`: the path inside `pages` directory
+   - `as`: the path used by your server routes
 
 Client-side routing behaves exactly like the browser:
 
