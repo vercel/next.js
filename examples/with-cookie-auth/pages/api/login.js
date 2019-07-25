@@ -17,7 +17,10 @@ export default async (req, res) => {
       error.response = response
       throw error
     }
-  } catch ({ response }) {
-    return res.status(response.status).json({ message: response.statusText })
+  } catch (error) {
+    const { response } = error
+    return response
+      ? res.status(response.status).json({ message: response.statusText })
+      : res.status(400).json({ message: error.message })
   }
 }

@@ -30,12 +30,18 @@ function Login () {
         error.response = response
         throw error
       }
-    } catch ({ response }) {
+    } catch (error) {
       console.error(
         'You have an error in your code or there are Network issues.',
-        response
+        error
       )
-      setUserData(Object.assign({}, userData, { error: response.statusText }))
+
+      const { response } = error
+      setUserData(
+        Object.assign({}, userData, {
+          error: response ? response.statusText : error.message
+        })
+      )
     }
   }
 
