@@ -8,7 +8,7 @@ blacklist_labels = ["hold"]
 method = "squash"
 delete_branch_on_merge = true
 block_on_reviews_requested = false
-notify_on_conflict = true
+notify_on_conflict = false
 optimistic_updates = true
 
 [merge.message]
