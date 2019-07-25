@@ -2,26 +2,20 @@ import * as React from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
 import nanoid from 'nanoid'
 import produce from 'immer'
-import sortBy from 'array-sort'
 
 import config from '../src/aws-exports'
-import { createTodo, deleteTodo } from '../src/graphql/mutations'
-import { listTodos } from '../src/graphql/queries'
+import {
+  createTodo,
+  deleteTodo,
+  createTodoList,
+} from '../src/graphql/mutations'
+import { getTodoList } from '../src/graphql/queries'
 
+const MY_ID = nanoid()
 API.configure(config)
 
 const reducer = (state, action) => {
   switch (action.type) {
-    case 'set-current': {
-      return produce(state, draft => {
-        draft.currentName = action.payload
-      })
-    }
-    case 'reset-current': {
-      return produce(state, draft => {
-        draft.currentName = ''
-      })
-    }
     case 'add-todo': {
       return produce(state, draft => {
         draft.todos.push(action.payload)
@@ -34,15 +28,27 @@ const reducer = (state, action) => {
         draft.todos.splice(index, 1)
       })
     }
+    case 'reset-current': {
+      return produce(state, draft => {
+        draft.currentName = ''
+      })
+    }
+    case 'set-current': {
+      return produce(state, draft => {
+        draft.currentName = action.payload
+      })
+    }
   }
 }
 
-const createToDo = async (dispatch, name) => {
+const createToDo = async (dispatch, currentToDo) => {
   const todo = {
     id: nanoid(),
-    name: name,
+    name: currentToDo,
     createdAt: `${Date.now()}`,
     completed: false,
+    todoTodoListId: 'global',
+    userId: MY_ID,
   }
   dispatch({ type: 'add-todo', payload: todo })
   try {
@@ -55,7 +61,6 @@ const createToDo = async (dispatch, name) => {
     console.warn('Error adding to do ', err)
   }
 }
-
 const deleteToDo = async (dispatch, id) => {
   dispatch({ type: 'delete-todo', payload: id })
   try {
@@ -72,8 +77,6 @@ const App = props => {
     todos: props.todos,
     currentName: '',
   })
-  // In cases where a big amount of data is retrieved you would need to do sorting on the server using the @key directive in your GraphQL schema
-  const sortedTodos = sortBy(state.todos.filter(todo => todo), ['createdAt'])
   return (
     <div>
       <h3>Add a Todo</h3>
@@ -92,7 +95,7 @@ const App = props => {
         <button type="submit">Create Todo</button>
       </form>
       <h3>Todos List</h3>
-      {sortedTodos.map((todo, index) => (
+      {state.todos.map((todo, index) => (
         <p key={index}>
           <a href={`/todo/${todo.id}`}>{todo.name}</a>
           <button
@@ -107,14 +110,30 @@ const App = props => {
     </div>
   )
 }
-App.getInitialProps = async context => {
-  const result = await API.graphql({
-    ...graphqlOperation(listTodos),
-  })
-
-  return {
-    todos: result.data.listTodos.items,
+App.getInitialProps = async () => {
+  let result = await API.graphql(
+    graphqlOperation(getTodoList, { id: 'global' })
+  )
+  if (result.errors) {
+    console.log('Failed to fetch todolist. ', result.errors)
+    return { todos: [] }
   }
-}
+  if (result.data.getTodoList !== null) {
+    return { todos: result.data.getTodoList.todos.items }
+  }
 
+  try {
+    await API.graphql(
+      graphqlOperation(createTodoList, {
+        input: {
+          id: 'global',
+          createdAt: `${Date.now()}`,
+        },
+      })
+    )
+  } catch (err) {
+    console.warn(err)
+  }
+  return { todos: [] }
+}
 export default App

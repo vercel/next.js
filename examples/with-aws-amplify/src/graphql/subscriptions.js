@@ -7,6 +7,14 @@ export const onCreateTodo = `subscription OnCreateTodo {
     name
     createdAt
     completed
+    todoList {
+      id
+      createdAt
+      todos {
+        nextToken
+      }
+    }
+    userId
   }
 }
 `;
@@ -16,6 +24,14 @@ export const onUpdateTodo = `subscription OnUpdateTodo {
     name
     createdAt
     completed
+    todoList {
+      id
+      createdAt
+      todos {
+        nextToken
+      }
+    }
+    userId
   }
 }
 `;
@@ -25,6 +41,65 @@ export const onDeleteTodo = `subscription OnDeleteTodo {
     name
     createdAt
     completed
+    todoList {
+      id
+      createdAt
+      todos {
+        nextToken
+      }
+    }
+    userId
+  }
+}
+`;
+export const onCreateTodoList = `subscription OnCreateTodoList {
+  onCreateTodoList {
+    id
+    createdAt
+    todos {
+      items {
+        id
+        name
+        createdAt
+        completed
+        userId
+      }
+      nextToken
+    }
+  }
+}
+`;
+export const onUpdateTodoList = `subscription OnUpdateTodoList {
+  onUpdateTodoList {
+    id
+    createdAt
+    todos {
+      items {
+        id
+        name
+        createdAt
+        completed
+        userId
+      }
+      nextToken
+    }
+  }
+}
+`;
+export const onDeleteTodoList = `subscription OnDeleteTodoList {
+  onDeleteTodoList {
+    id
+    createdAt
+    todos {
+      items {
+        id
+        name
+        createdAt
+        completed
+        userId
+      }
+      nextToken
+    }
   }
 }
 `;

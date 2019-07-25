@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
 
+import { GetTodoQuery } from '../../src/API'
 import { getTodo } from '../../src/graphql/queries'
 import config from '../../src/aws-exports'
 
@@ -18,14 +19,17 @@ const TodoPage = props => {
 TodoPage.getInitialProps = async context => {
   const { id } = context.query
   try {
-    const todos = await API.graphql({
+    const todo = await API.graphql({
       ...graphqlOperation(getTodo),
       variables: { id },
     })
-
-    return { todo: todos.data.getTodo }
+    if (todo.errors) {
+      console.log('Failed to fetch todo. ', todo.errors)
+      return { todo: {} }
+    }
+    return { todo: todo.data.getTodo }
   } catch (err) {
-    console.warn(err)
+    console.log('Failed to fetch todo. ', err)
     return { todo: {} }
   }
 }
