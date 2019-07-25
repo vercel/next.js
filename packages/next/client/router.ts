@@ -112,7 +112,7 @@ function getRouter() {
 export default singletonRouter as SingletonRouter
 
 // Reexport the withRoute HOC
-export { default as withRouter } from './with-router'
+export { default as withRouter, WithRouterProps } from './with-router'
 
 export function useRouter() {
   return React.useContext(RouterContext)

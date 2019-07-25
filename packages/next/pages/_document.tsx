@@ -40,6 +40,13 @@ function dedupe(bundles: any[]): any[] {
   return kept
 }
 
+function getOptionalModernScriptVariant(path: string) {
+  if (process.env.__NEXT_MODERN_BUILD) {
+    return path.replace(/\.js$/, '.module.js')
+  }
+  return path
+}
+
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -157,20 +164,32 @@ export class Head extends Component<
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dedupe(dynamicImports).map((bundle: any) => {
-      return (
-        <link
-          rel="preload"
-          key={bundle.file}
-          href={`${assetPrefix}/_next/${
-            bundle.file
-          }${_devOnlyInvalidateCacheQueryString}`}
-          as="script"
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
-    })
+    return (
+      dedupe(dynamicImports)
+        .map((bundle: any) => {
+          // `dynamicImports` will contain both `.js` and `.modern.js` when the
+          // feature is enabled. This clause will filter down to the modern
+          // variants only.
+          if (!bundle.file.endsWith(getOptionalModernScriptVariant('.js'))) {
+            return null
+          }
+
+          return (
+            <link
+              rel="preload"
+              key={bundle.file}
+              href={`${assetPrefix}/_next/${
+                bundle.file
+              }${_devOnlyInvalidateCacheQueryString}`}
+              as="script"
+              nonce={this.props.nonce}
+              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            />
+          )
+        })
+        // Filter out nulled scripts
+        .filter(Boolean)
+    )
   }
 
   getPreloadMainLinks() {
@@ -180,23 +199,28 @@ export class Head extends Component<
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file: string) => {
-      // Only render .js files here
-      if (!/\.js$/.exec(file)) {
-        return null
-      }
+    return files
+      .map((file: string) => {
+        // `dynamicImports` will contain both `.js` and `.modern.js` when the
+        // feature is enabled. This clause will filter down to the modern
+        // variants only.
+        // This also filters out non-JS assets.
+        if (!file.endsWith(getOptionalModernScriptVariant('.js'))) {
+          return null
+        }
 
-      return (
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
-          as="script"
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
-    })
+        return (
+          <link
+            key={file}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+            as="script"
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          />
+        )
+      })
+      .filter(Boolean)
   }
 
   render() {
@@ -366,9 +390,14 @@ export class Head extends Component<
                 rel="preload"
                 href={
                   assetPrefix +
-                  (dynamicBuildId
-                    ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-                    : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+                  getOptionalModernScriptVariant(
+                    dynamicBuildId
+                      ? `/_next/static/client/pages${getPageFile(
+                          page,
+                          buildId
+                        )}`
+                      : `/_next/static/${buildId}/pages${getPageFile(page)}`
+                  ) +
                   _devOnlyInvalidateCacheQueryString
                 }
                 as="script"
@@ -380,9 +409,11 @@ export class Head extends Component<
               rel="preload"
               href={
                 assetPrefix +
-                (dynamicBuildId
-                  ? `/_next/static/client/pages/_app.${buildId}.js`
-                  : `/_next/static/${buildId}/pages/_app.js`) +
+                getOptionalModernScriptVariant(
+                  dynamicBuildId
+                    ? `/_next/static/client/pages/_app.${buildId}.js`
+                    : `/_next/static/${buildId}/pages/_app.js`
+                ) +
                 _devOnlyInvalidateCacheQueryString
               }
               as="script"
@@ -428,11 +459,22 @@ export class NextScript extends Component<OriginProps> {
 
   context!: DocumentComponentContext
 
+  // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
+  static safariNomoduleFix =
+    '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
+
   getDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dedupe(dynamicImports).map((bundle: any) => {
+      let modernProps = {}
+      if (process.env.__NEXT_MODERN_BUILD) {
+        modernProps = /\.module\.js$/.test(bundle.file)
+          ? { type: 'module' }
+          : { noModule: true }
+      }
+
       return (
         <script
           async
@@ -442,6 +484,7 @@ export class NextScript extends Component<OriginProps> {
           }${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          {...modernProps}
         />
       )
     })
@@ -460,6 +503,13 @@ export class NextScript extends Component<OriginProps> {
         return null
       }
 
+      let modernProps = {}
+      if (process.env.__NEXT_MODERN_BUILD) {
+        modernProps = /\.module\.js$/.test(file)
+          ? { type: 'module' }
+          : { noModule: true }
+      }
+
       return (
         <script
           key={file}
@@ -467,6 +517,7 @@ export class NextScript extends Component<OriginProps> {
           nonce={this.props.nonce}
           async
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          {...modernProps}
         />
       )
     })
@@ -549,6 +600,74 @@ export class NextScript extends Component<OriginProps> {
         )
     }
 
+    const pageScript = [
+      <script
+        async
+        id={`__NEXT_PAGE__${page}`}
+        src={
+          assetPrefix +
+          (dynamicBuildId
+            ? `/_next/static/client/pages${getPageFile(page, buildId)}`
+            : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+          _devOnlyInvalidateCacheQueryString
+        }
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
+      />,
+      process.env.__NEXT_MODERN_BUILD && (
+        <script
+          async
+          id={`__NEXT_PAGE__${page}`}
+          src={
+            assetPrefix +
+            getOptionalModernScriptVariant(
+              dynamicBuildId
+                ? `/_next/static/client/pages${getPageFile(page, buildId)}`
+                : `/_next/static/${buildId}/pages${getPageFile(page)}`
+            ) +
+            _devOnlyInvalidateCacheQueryString
+          }
+          nonce={this.props.nonce}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          type="module"
+        />
+      ),
+    ]
+
+    const appScript = [
+      <script
+        async
+        id={`__NEXT_PAGE__/_app`}
+        src={
+          assetPrefix +
+          (dynamicBuildId
+            ? `/_next/static/client/pages/_app.${buildId}.js`
+            : `/_next/static/${buildId}/pages/_app.js`) +
+          _devOnlyInvalidateCacheQueryString
+        }
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
+      />,
+      process.env.__NEXT_MODERN_BUILD && (
+        <script
+          async
+          id={`__NEXT_PAGE__/_app`}
+          src={
+            assetPrefix +
+            (dynamicBuildId
+              ? `/_next/static/client/pages/_app.${buildId}.modern.js`
+              : `/_next/static/${buildId}/pages/_app.modern.js`) +
+            _devOnlyInvalidateCacheQueryString
+          }
+          nonce={this.props.nonce}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          type="module"
+        />
+      ),
+    ]
+
     return (
       <>
         {devFiles
@@ -577,34 +696,18 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {page !== '/_error' && (
+        {process.env.__NEXT_MODERN_BUILD ? (
           <script
-            async
-            id={`__NEXT_PAGE__${page}`}
-            src={
-              assetPrefix +
-              (dynamicBuildId
-                ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-                : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
-              _devOnlyInvalidateCacheQueryString
-            }
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            noModule={true}
+            dangerouslySetInnerHTML={{
+              __html: NextScript.safariNomoduleFix,
+            }}
           />
-        )}
-        <script
-          async
-          id={`__NEXT_PAGE__/_app`}
-          src={
-            assetPrefix +
-            (dynamicBuildId
-              ? `/_next/static/client/pages/_app.${buildId}.js`
-              : `/_next/static/${buildId}/pages/_app.js`) +
-            _devOnlyInvalidateCacheQueryString
-          }
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
+        ) : null}
+        {page !== '/_error' && pageScript}
+        {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
       </>

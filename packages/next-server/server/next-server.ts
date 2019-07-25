@@ -313,7 +313,7 @@ export default class Server {
       }
     }
 
-    apiResolver(
+    await apiResolver(
       req,
       res,
       params,
