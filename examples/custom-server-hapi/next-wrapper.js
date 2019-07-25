@@ -11,7 +11,10 @@ const defaultHandlerWrapper = app => async ({ raw: { req, res }, url }, h) => {
   return h.response(html).code(res.statusCode)
 }
 
-const pathWrapper = (app, pathName, opts) => async ({ raw, query, params }, h) => {
+const pathWrapper = (app, pathName, opts) => async (
+  { raw, query, params },
+  h
+) => {
   const html = await app.renderToHTML(
     raw.req,
     raw.res,

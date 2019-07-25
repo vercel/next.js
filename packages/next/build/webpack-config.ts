@@ -32,6 +32,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -174,6 +175,11 @@ export default async function getBaseWebpackConfig(
   }
 
   const devtool = dev ? 'cheap-module-source-map' : false
+
+  const crossOrigin =
+    !config.crossOrigin && config.experimental.modern
+      ? 'anonymous'
+      : config.crossOrigin
 
   let webpackConfig: webpack.Configuration = {
     devtool,
@@ -365,7 +371,7 @@ export default async function getBaseWebpackConfig(
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
         : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
-      crossOriginLoading: config.crossOrigin,
+      crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
@@ -444,7 +450,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(config.crossOrigin),
+        'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
@@ -455,6 +461,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
+        'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
@@ -567,6 +574,23 @@ export default async function getBaseWebpackConfig(
           compilerOptions: { isolatedModules: true, noEmit: true },
           silent: true,
           formatter: 'codeframe',
+        }),
+      config.experimental.modern &&
+        !isServer &&
+        !dev &&
+        new NextEsmPlugin({
+          filename: (getFileName: Function | string) => (...args: any[]) => {
+            const name =
+              typeof getFileName === 'function'
+                ? getFileName(...args)
+                : getFileName
+
+            return name.includes('.js')
+              ? name.replace(/\.js$/, '.module.js')
+              : args[0].chunk.name.replace(/\.js$/, '.module.js')
+          },
+          chunkFilename: (inputChunkName: string) =>
+            inputChunkName.replace(/\.js$/, '.module.js'),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
