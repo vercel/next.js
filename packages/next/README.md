@@ -1065,7 +1065,7 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
-To handle different HTTP methods with your api calls you can handle it by `req.method` in your resolver function:
+To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
 
 ```js
 export default (req, res) => {
