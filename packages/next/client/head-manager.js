@@ -60,10 +60,10 @@ export default class HeadManager {
       }
     }
     const newTags = components.map(reactElementToDOM).filter(newTag => {
-      for (let i = 0, len = oldTags.length; i < len; i++) {
-        const oldTag = oldTags[i]
+      for (let k = 0, len = oldTags.length; k < len; k++) {
+        const oldTag = oldTags[k]
         if (oldTag.isEqualNode(newTag)) {
-          oldTags.splice(i, 1)
+          oldTags.splice(k, 1)
           return false
         }
       }
