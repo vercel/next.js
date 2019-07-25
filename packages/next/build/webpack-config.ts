@@ -237,7 +237,7 @@ export default async function getBaseWebpackConfig(
               module.identifier()
             )
             return nodeModuleNameResults
-              ? nodeModuleNameResults[1]
+              ? nodeModuleNameResults[1].replace(/^@(\w+)\//, '$1-')
               : module.identifier()
           },
           priority: 30,
