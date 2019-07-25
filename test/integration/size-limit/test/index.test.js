@@ -81,7 +81,7 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(216) // Kilobytes
+    expect(responseSizeKilobytes).toBeLessThanOrEqual(213) // Kilobytes
   })
 
   it('should not increase the overall response size of modern build', async () => {
@@ -99,6 +99,6 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(216) // Kilobytes
+    expect(responseSizeKilobytes).toBeLessThanOrEqual(186) // Kilobytes
   })
 })
