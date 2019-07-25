@@ -300,18 +300,21 @@ export default Post
 Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
 The matched path parameter will be sent as a query parameter to the page.
 
-> Note: A `<Link>` for a Dynamic Route looks like so:
->
-> ```jsx
-> <Link href="/post/[pid]" as="/post/abc">
->   <a>First Post</a>
-> </Link>
-> ```
->
-> You can [read more about `<Link>` here](#with-link).
-
-For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
+For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
+
+A `<Link>` for `/post/abc` looks like so:
+
+```jsx
+<Link href="/post/[pid]" as="/post/abc">
+  <a>First Post</a>
+</Link>
+```
+
+- `href`: the path inside `pages` directory
+- `as`: the path that will be rendered in the browser URL bar
+
+> You can [read more about `<Link>` here](#with-link).
 
 However, if a query and route param name are the same, route parameters will override the matching query params.
 For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
@@ -404,6 +407,8 @@ When you need state, lifecycle hooks or **initial data population** you can expo
 Using a stateless function:
 
 ```jsx
+import fetch from 'isomorphic-unfetch'
+
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
@@ -526,36 +531,6 @@ function About() {
 export default About
 ```
 
-**Dynamic Routes**
-
-`<Link>` component has two relevant props when using _Dynamic Routes_:
-
-- `href`: the path inside `pages` directory
-- `as`: the path that will be rendered in the browser URL bar
-
-Consider the page `pages/post/[postId].js`:
-
-```jsx
-import { useRouter } from 'next/router'
-
-const Post = () => {
-  const router = useRouter()
-  const { postId } = router.query
-
-  return <p>My Blog Post: {postId}</p>
-}
-
-export default Post
-```
-
-A link for `/post/first-post` looks like this:
-
-```jsx
-<Link href="/post/[postId]" as="/post/first-post">
-  <a>First Post</a>
-</Link>
-```
-
 **Custom routes (using props from URL)**
 
 If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
@@ -588,9 +563,13 @@ Example:
    ```
 
 4. For client side routing, use `next/link`:
+
    ```jsx
    <Link href="/post?slug=something" as="/post/something">
    ```
+
+   - `href`: the path inside `pages` directory
+   - `as`: the path used by your server routes
 
 Client-side routing behaves exactly like the browser:
 
@@ -1060,6 +1039,8 @@ export default withRouter(MyLink)
   <ul>
     <li><a href="/examples/api-routes">Basic API routes</a></li>
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+    <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
+    <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
   </ul>
 </details>
 
@@ -1457,15 +1438,20 @@ import React from 'react'
 import App, { Container } from 'next/app'
 
 class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
+  // Only uncomment this method if you have blocking data requirements for
+  // every single page in your application. This disables the ability to
+  // perform automatic static optimization, causing every page in your app to
+  // be server-side rendered.
+  //
+  // static async getInitialProps({ Component, ctx }) {
+  //   let pageProps = {}
+  //
+  //   if (Component.getInitialProps) {
+  //     pageProps = await Component.getInitialProps(ctx)
+  //   }
+  //
+  //   return { pageProps }
+  // }
 
   render() {
     const { Component, pageProps } = this.props
@@ -2213,7 +2199,7 @@ Next.js provides `NextPage` type that can be used for pages in the `pages` direc
 import { NextPage } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 const Page: NextPage<Props> = ({ userAgent }) => (
@@ -2244,7 +2230,7 @@ import React from 'react'
 import { NextPageContext } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 export default class Page extends React.Component<Props> {
@@ -2508,7 +2494,7 @@ now
 
 With `next export`, we build a HTML version of your app. At export time we will run `getInitialProps` of your pages.
 
-The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
+The `req` and `res` fields of the `context` object passed to `getInitialProps` are empty objects during export as there is no server running.
 
 > **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic prerendering](#automatic-prerendering).
 

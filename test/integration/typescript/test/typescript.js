@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { runNextCommand } from 'next-test-utils'
+import { runNextCommand, File } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
@@ -17,7 +17,22 @@ export default (context, render) => {
         expect($('body').text()).toMatch(/Hello World/)
       })
 
-      it('Should compile the app', async () => {
+      it('should compile the app', async () => {
+        const output = await runNextCommand(['build', appDir], { stdout: true })
+        expect(output.stdout).toMatch(/Compiled successfully/)
+      })
+    })
+
+    describe('should compile with different types', () => {
+      const nextConfig = new File(join(appDir, 'pages/_error.tsx'))
+      beforeEach(() => {
+        nextConfig.replace('static ', 'static async ')
+      })
+      afterEach(() => {
+        nextConfig.restore()
+      })
+
+      it('should compile async getInitialProps for _error', async () => {
         const output = await runNextCommand(['build', appDir], { stdout: true })
         expect(output.stdout).toMatch(/Compiled successfully/)
       })

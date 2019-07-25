@@ -68,7 +68,7 @@ export function createEntrypoints(
   Object.keys(pages).forEach(page => {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-    const isApiRoute = bundleFile.startsWith('/api')
+    const isApiRoute = bundleFile.startsWith('/api/')
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
 

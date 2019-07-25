@@ -113,16 +113,13 @@ class Link extends Component<LinkProps> {
 
   cleanUpListeners = () => {}
 
-  componentDidMount() {
-    this.cleanUpListeners = () => {}
-  }
-
   componentWillUnmount() {
     this.cleanUpListeners()
   }
 
   handleRef(ref: Element) {
     if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
+      this.cleanUpListeners()
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })

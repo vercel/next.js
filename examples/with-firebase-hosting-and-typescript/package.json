@@ -21,8 +21,8 @@
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "firebase-admin": "^6.3.0",
-    "firebase-functions": "^2.1.0",
+    "firebase-admin": "^8.0.0",
+    "firebase-functions": "^3.1.0",
     "next": "latest",
     "react": "16.8.6",
     "react-dom": "16.8.6"
@@ -33,7 +33,7 @@
     "@types/react-dom": "16.8.4",
     "cpx": "1.5.0",
     "cross-env": "5.2.0",
-    "firebase-tools": "^6.1.0",
+    "firebase-tools": "^7.1.0",
     "rimraf": "2.6.2",
     "tslint": "^5.11.0",
     "tslint-react": "^3.6.0",
