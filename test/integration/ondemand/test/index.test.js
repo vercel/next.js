@@ -46,7 +46,6 @@ describe('On Demand Entries', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
   afterAll(() => {
-    context.ws.close()
     killApp(context.server)
   })
 

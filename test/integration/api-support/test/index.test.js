@@ -97,6 +97,18 @@ function runTests (serverless = false) {
     expect(data.statusText).toEqual('Body exceeded 1mb limit')
   })
 
+  it('should parse bigger body then 1mb', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/big-parse', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify(json)
+    })
+
+    expect(data.status).toEqual(200)
+  })
+
   it('should parse urlencoded body', async () => {
     const body = {
       title: 'Nextjs',
