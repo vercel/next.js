@@ -39,9 +39,10 @@ process.on(
     try {
       const work = async path => {
         await sema.acquire()
-        const ampPath = `${path === '/' ? '/index' : path}.amp`
-        const { page, sprPage } = exportPathMap[path]
         let { query = {} } = exportPathMap[path]
+        const { page, sprPage } = exportPathMap[path]
+        const filePath = path === '/' ? '/index' : path
+        const ampPath = `${filePath}.amp`
 
         // Check if the page is a specified dynamic route
         if (isDynamicRoute(page) && page !== path) {
@@ -84,9 +85,8 @@ process.on(
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
 
-        let htmlFilename = `${path}${sep}index.html`
-        if (!subFolders) htmlFilename = `${path}.html`
-        if (sprPage) { htmlFilename = htmlFilename.replace(/\.html$/, '.prerender.html') }
+        let htmlFilename = `${filePath}${sep}index.html`
+        if (!subFolders) htmlFilename = `${filePath}.html`
 
         const pageExt = extname(page)
         const pathExt = extname(path)
@@ -98,6 +98,11 @@ process.on(
           // If the path is the root, just use index.html
           htmlFilename = 'index.html'
         }
+
+        if (sprPage) {
+          htmlFilename = htmlFilename.replace(/\.html$/, '.prerender.html')
+        }
+
         const baseDir = join(outDir, dirname(htmlFilename))
         const htmlFilepath = join(outDir, htmlFilename)
 
