@@ -1121,6 +1121,11 @@ declare module 'webpack' {
             query?: any
           }
         ): string
+        createChildCompiler(
+          name: string,
+          outputOptions: Output,
+          plugins?: Plugin[]
+        ): Compiler
         /**
          * @deprecated Compilation.applyPlugins is deprecated. Use new API on `.hooks` instead
          */
@@ -1171,6 +1176,11 @@ declare module 'webpack' {
 
     namespace ICompiler {
       type Handler = (err: Error, stats: Stats) => void
+      type ChildHandler = (
+        err: Error,
+        entries: any[],
+        childCompilation: compilation.Compilation
+      ) => void
 
       interface WatchOptions {
         /**
@@ -1256,11 +1266,13 @@ declare module 'webpack' {
 
       name: string
       options: Configuration
+      context: string
       inputFileSystem: InputFileSystem
       outputFileSystem: OutputFileSystem
       fileTimestamps: Map<string, number>
       contextTimestamps: Map<string, number>
       run(handler: Compiler.Handler): void
+      runAsChild(handler: Compiler.ChildHandler): void
       watch(
         watchOptions: Compiler.WatchOptions,
         handler: Compiler.Handler
@@ -1269,6 +1281,7 @@ declare module 'webpack' {
 
     namespace Compiler {
       type Handler = ICompiler.Handler
+      type ChildHandler = ICompiler.ChildHandler
       type WatchOptions = ICompiler.WatchOptions
 
       class Watching implements Watching {

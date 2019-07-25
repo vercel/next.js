@@ -4,9 +4,38 @@ import babelLoader from 'babel-loader'
 
 // increment 'c' to invalidate cache
 const cacheKey = 'babel-cache-' + 'c' + '-'
+const nextBabelPreset = require('../../babel/preset')
+
+const getModernOptions = (babelOptions = {}) => {
+  const presetEnvOptions = Object.assign({}, babelOptions['preset-env'])
+  const transformRuntimeOptions = Object.assign(
+    {},
+    babelOptions['transform-runtime'],
+    { regenerator: false }
+  )
+
+  presetEnvOptions.targets = {
+    esmodules: true
+  }
+  presetEnvOptions.exclude = [
+    ...(presetEnvOptions.exclude || []),
+    // Blacklist accidental inclusions
+    'transform-regenerator',
+    'transform-async-to-generator'
+  ]
+
+  return {
+    ...babelOptions,
+    'preset-env': presetEnvOptions,
+    'transform-runtime': transformRuntimeOptions
+  }
+}
+
+const nextBabelPresetModern = presetOptions => context =>
+  nextBabelPreset(context, getModernOptions(presetOptions))
 
 module.exports = babelLoader.custom(babel => {
-  const presetItem = babel.createConfigItem(require('../../babel/preset'), {
+  const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset'
   })
   const applyCommonJs = babel.createConfigItem(
@@ -24,7 +53,8 @@ module.exports = babelLoader.custom(babel => {
     customOptions (opts) {
       const custom = {
         isServer: opts.isServer,
-        asyncToPromises: opts.asyncToPromises
+        asyncToPromises: opts.asyncToPromises,
+        isModern: opts.isModern
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -35,6 +65,7 @@ module.exports = babelLoader.custom(babel => {
             cacheIdentifier:
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
+                (opts.isModern ? '-modern' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -53,13 +84,14 @@ module.exports = babelLoader.custom(babel => {
       delete loader.asyncToPromises
       delete loader.cache
       delete loader.distDir
+      delete loader.isModern
       return { loader, custom }
     },
     config (
       cfg,
       {
         source,
-        customOptions: { isServer, asyncToPromises }
+        customOptions: { isServer, asyncToPromises, isModern }
       }
     ) {
       const { cwd } = cfg.options
@@ -104,7 +136,26 @@ module.exports = babelLoader.custom(babel => {
         options.plugins.push(nextDataPlugin)
       }
 
-      if (asyncToPromises) {
+      if (isModern) {
+        const nextPreset = options.presets.find(
+          preset => preset && preset.value === nextBabelPreset
+        ) || { options: {} }
+
+        const additionalPresets = options.presets.filter(
+          preset => preset !== nextPreset
+        )
+
+        const presetItemModern = babel.createConfigItem(
+          nextBabelPresetModern(nextPreset.options),
+          {
+            type: 'preset'
+          }
+        )
+
+        options.presets = [...additionalPresets, presetItemModern]
+      }
+
+      if (!isModern && asyncToPromises) {
         const asyncToPromisesPlugin = babel.createConfigItem(
           [
             'babel-plugin-transform-async-to-promises',
@@ -128,13 +179,13 @@ module.exports = babelLoader.custom(babel => {
           return preset[0] === require('@babel/preset-env').default
         })
         if (babelPresetEnv) {
-          babelPresetEnv[1].exclude = (options.presets[0][1].exclude || [])
-            .concat([
-              'transform-typeof-symbol',
-              'transform-regenerator',
-              'transform-async-to-generator'
-            ])
-            .filter('transform-typeof-symbol')
+          babelPresetEnv[1].exclude = (
+            options.presets[0][1].exclude || []
+          ).concat([
+            'transform-typeof-symbol',
+            'transform-regenerator',
+            'transform-async-to-generator'
+          ])
         }
       }
 
