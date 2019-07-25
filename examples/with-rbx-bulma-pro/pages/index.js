@@ -20,7 +20,7 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href='https://open.segment.com/create-next-app'>
+            <Link href='https://github.com/zeit/next.js/tree/master/examples'>
               <a>
                 <Title as='h3'>Examples &rarr;</Title>
                 <p>
