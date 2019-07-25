@@ -3,12 +3,12 @@ import Router from 'next/router'
 import nextCookie from 'next-cookies'
 import cookie from 'js-cookie'
 
-function login({ token }) {
+function login ({ token }) {
   cookie.set('token', token, { expires: 1 })
   Router.push('/profile')
 }
 
-function logout() {
+function logout () {
   cookie.remove('token')
   // to support logging out from all windows
   window.localStorage.setItem('logout', Date.now())
@@ -19,11 +19,11 @@ function logout() {
 const getDisplayName = Component =>
   Component.displayName || Component.name || 'Component'
 
-function withAuthSync(WrappedComponent) {
+function withAuthSync (WrappedComponent) {
   return class extends Component {
     static displayName = `withAuthSync(${getDisplayName(WrappedComponent)})`
 
-    static async getInitialProps(ctx) {
+    static async getInitialProps (ctx) {
       const token = auth(ctx)
 
       const componentProps =
@@ -33,35 +33,35 @@ function withAuthSync(WrappedComponent) {
       return { ...componentProps, token }
     }
 
-    constructor(props) {
+    constructor (props) {
       super(props)
 
       this.syncLogout = this.syncLogout.bind(this)
     }
 
-    componentDidMount() {
+    componentDidMount () {
       window.addEventListener('storage', this.syncLogout)
     }
 
-    componentWillUnmount() {
+    componentWillUnmount () {
       window.removeEventListener('storage', this.syncLogout)
       window.localStorage.removeItem('logout')
     }
 
-    syncLogout(event) {
+    syncLogout (event) {
       if (event.key === 'logout') {
         console.log('logged out from storage!')
         Router.push('/login')
       }
     }
 
-    render() {
+    render () {
       return <WrappedComponent {...this.props} />
     }
   }
 }
 
-function auth(ctx) {
+function auth (ctx) {
   const { token } = nextCookie(ctx)
 
   /*
@@ -70,7 +70,7 @@ function auth(ctx) {
    */
   if (ctx.req && !token) {
     ctx.res.writeHead(302, { Location: '/login' })
-    ctx.res.end();
+    ctx.res.end()
   }
 
   // We already checked for server. This should only happen on client.
