@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 export const config = {
-  experimentalPrerender: true
+  experimentalPrerender: 'inline'
 }
 
 class Page extends React.Component {

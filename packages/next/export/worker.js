@@ -40,7 +40,7 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const ampPath = `${path === '/' ? '/index' : path}.amp`
-        const { page } = exportPathMap[path]
+        const { page, sprPage } = exportPathMap[path]
         let { query = {} } = exportPathMap[path]
 
         // Check if the page is a specified dynamic route
@@ -75,14 +75,18 @@ process.on(
           ...headerMocks
         }
 
+        if (sprPage && isDynamicRoute(page)) {
+          req.skipGip = true
+        }
+
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
 
         let htmlFilename = `${path}${sep}index.html`
-
         if (!subFolders) htmlFilename = `${path}.html`
+        if (sprPage) { htmlFilename = htmlFilename.replace(/\.html$/, '.prerender.html') }
 
         const pageExt = extname(page)
         const pathExt = extname(path)
@@ -128,7 +132,7 @@ process.on(
         }
 
         // inline pageData for getInitialProps
-        if (curRenderOpts.isPrerender && curRenderOpts.pageData) {
+        if (curRenderOpts.isInlinePrerender && curRenderOpts.pageData) {
           const dataStr = JSON.stringify(curRenderOpts.pageData)
             .replace(/"/g, '\\"')
             .replace(/'/g, "\\'")

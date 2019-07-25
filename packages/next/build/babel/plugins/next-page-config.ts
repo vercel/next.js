@@ -93,14 +93,11 @@ export default function nextPageConfig({
                   return
                 }
 
-                if (
-                  config.experimentalPrerender === true ||
-                  config.experimentalPrerender === 'inline'
-                ) {
+                if (config.experimentalPrerender === 'inline') {
                   state.setupInlining = true
                 }
 
-                if (config.experimentalPrerender === 'spr') {
+                if (config.experimentalPrerender === true) {
                   state.setupSprHandler = true
                   let page = (state.filename || '')
                     .split(join(state.cwd || '', 'pages'))

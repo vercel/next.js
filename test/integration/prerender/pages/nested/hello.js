@@ -1,4 +1,4 @@
-export const config = { experimentalPrerender: true }
+export const config = { experimentalPrerender: 'inline' }
 
 const Page = ({ title }) => <p>{title}</p>
 

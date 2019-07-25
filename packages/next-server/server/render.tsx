@@ -28,6 +28,7 @@ import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 import { PageConfig } from 'next-server/types'
+import { isDynamicRoute } from '../lib/router/utils'
 
 export type ManifestItem = {
   id: number | string
@@ -148,7 +149,7 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  isPrerender?: boolean
+  isInlinePrerender?: boolean
   pageData?: any
 }
 
@@ -338,19 +339,21 @@ export async function renderToHTML(
   )
 
   try {
-    props = await loadGetInitialProps(App, {
-      Component,
-      AppTree: (props: any) => {
-        const appProps = { ...props, Component, router }
-        return (
-          <AppContainer>
-            <App {...appProps} />
-          </AppContainer>
-        )
-      },
-      router,
-      ctx,
-    })
+    props = (req as any).skipGIP
+      ? { pageProps: {} }
+      : await loadGetInitialProps(App, {
+          Component,
+          AppTree: (props: any) => {
+            const appProps = { ...props, Component, router }
+            return (
+              <AppContainer>
+                <App {...appProps} />
+              </AppContainer>
+            )
+          },
+          router,
+          ctx,
+        })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -358,7 +361,7 @@ export async function renderToHTML(
   }
 
   if (
-    pageConfig.experimentalPrerender === 'spr' &&
+    pageConfig.experimentalPrerender === true &&
     req.headers['content-type'] === 'application/json'
   ) {
     res.setHeader('content-type', 'application/json')
@@ -511,9 +514,7 @@ export async function renderToHTML(
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
   renderOpts.pageData = props && props.pageProps
-  renderOpts.isPrerender =
-    pageConfig.experimentalPrerender === true ||
-    pageConfig.experimentalPrerender === 'inline'
+  renderOpts.isInlinePrerender = pageConfig.experimentalPrerender === 'inline'
 
   let html = renderDocument(Document, {
     ...renderOpts,

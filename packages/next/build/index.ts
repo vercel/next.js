@@ -365,7 +365,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
           if (
             (result.static && customAppGetInitialProps === false) ||
-            result.prerender
+            result.prerender === 'inline' ||
+            result.prerender === 'legacy'
           ) {
             staticPages.add(page)
             isStatic = true
@@ -413,9 +414,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (staticPages.size > 0) {
     const exportApp = require('../export').default
     const exportOptions = {
+      sprPages,
       silent: true,
       buildExport: true,
-      pages: Array.from(staticPages),
+      pages: [...staticPages, ...sprPages],
       outdir: path.join(distDir, 'export'),
     }
     const exportConfig = {
@@ -447,11 +449,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         : path.join('static', buildId, 'pages', file)
       ).replace(/\\/g, '/')
 
-      let page = file.split('.html')[0].replace(/\\/g, '/')
-      pagesManifest[page] = relativeDest
-      page = page === '/index' ? '/' : page
-      pagesManifest[page] = relativeDest
-      staticPages.add(page)
+      if (!file.endsWith('.prerender.html')) {
+        let page = file.split('.html')[0].replace(/\\/g, '/')
+        pagesManifest[page] = relativeDest
+        page = page === '/index' ? '/' : page
+        pagesManifest[page] = relativeDest
+        staticPages.add(page)
+      }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
     }
@@ -484,7 +488,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   })
 
   if (flyingShuttle) {
-    await flyingShuttle.mergePagesManifest()
+    await flyingShuttle.mergeManifests()
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 

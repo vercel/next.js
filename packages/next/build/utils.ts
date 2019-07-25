@@ -277,11 +277,7 @@ export function isPageStatic(
 
     return {
       static: typeof (Comp as any).getInitialProps !== 'function',
-      prerender:
-        mod.config &&
-        (mod.config.experimentalPrerender === true ||
-          mod.config.experimentalPrerender === 'inline' ||
-          mod.config.experimentalPrerender === 'legacy'),
+      prerender: mod.config && mod.config.experimentalPrerender,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

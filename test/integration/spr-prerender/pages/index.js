@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: 'spr' }
+export const config = { experimentalPrerender: true }
 
 const Page = ({ world }) => {
   return (
