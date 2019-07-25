@@ -80,13 +80,14 @@ const createToDo = async (dispatch: React.Dispatch<Action>, currentToDo) => {
     userId: MY_ID,
   }
   dispatch({ type: 'add-todo', payload: todo })
+  dispatch({ type: 'reset-current' })
   try {
     await API.graphql({
       ...graphqlOperation(createTodo),
       variables: { input: todo },
     })
-    dispatch({ type: 'reset-current' })
   } catch (err) {
+    dispatch({ type: 'set-current', payload: todo.name })
     console.warn('Error adding to do ', err)
   }
 }
