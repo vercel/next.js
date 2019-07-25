@@ -1041,6 +1041,7 @@ export default withRouter(MyLink)
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
     <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
     <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>    
   </ul>
 </details>
 
@@ -1063,6 +1064,18 @@ export default (req, res) => {
 - `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
+
+```js
+export default (req, res) => {
+  if (req.method === 'POST') {
+    // Process your POST request
+  } else {
+    // Handle the rest of your HTTP methods
+  }
+}
+```
 
 > **Note**: API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), so they'll be **same-origin only** by default.
 > You can customize this behavior by wrapping your export with CORS middleware.
