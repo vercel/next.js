@@ -60,6 +60,18 @@ export default function nextPageConfig({
                 for (const declaration of declarations) {
                   if (declaration.id.name !== 'config') continue
 
+                  if (declaration.init.type !== 'ObjectExpression') {
+                    const pageName =
+                      (state.filename || '').split(state.cwd || '').pop() ||
+                      'unknown'
+
+                    throw new Error(
+                      `Invalid page config export found. Expected object but got ${
+                        declaration.init.type
+                      } in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                    )
+                  }
+
                   for (const prop of declaration.init.properties) {
                     const { name } = prop.key
                     if (configKeys.has(name)) {
@@ -106,6 +118,19 @@ export default function nextPageConfig({
       FunctionDeclaration(path, state: ConfigState) {
         if (!state.setupInlining) return
         if ((path.node.id && path.node.id.name) !== 'getInitialProps') return
+        path.node.body = t.blockStatement([
+          t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
+        ])
+      },
+      // handles class { static async getInitialProps() {} }
+      ClassMethod(path, state: ConfigState) {
+        if (!state.setupInlining) return
+        if (
+          (path.node.key && (path.node.key as BabelTypes.Identifier).name) !==
+          'getInitialProps'
+        )
+          return
+
         path.node.body = t.blockStatement([
           t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
         ])

@@ -45,50 +45,69 @@ commands:
     steps:
       - run:
           name: Run All Tests
-          command: >
-            yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname) || (yarn git-clean; yarn git-reset; yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname))
+          command: |
+            yarn testall $(
+              circleci tests glob "test/**/*.test.*" | \
+              circleci tests split --split-by=timings --timings-type=classname
+            ) || (
+              yarn git-clean
+              yarn git-reset
+              yarn testall $(
+                circleci tests glob "test/**/*.test.*" | \
+                circleci tests split --split-by=timings --timings-type=classname
+              )
+            )
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
             JEST_JUNIT_CLASSNAME: '{filepath}'
-  test_ie11:
+  test_browser:
+    parameters:
+      browser:
+        type: string
     steps:
       - run:
-          name: Test in ie11
-          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
+          name: Test in a browser
+          command: |
+            if [[ ! -z $BROWSERSTACK_USERNAME ]]; then
+              yarn testall test/integration/production/
+            else
+              echo "Not running for PR"
+            fi
           environment:
             BROWSERSTACK: 'true'
-            BROWSER_NAME: 'ie'
-  test_safari:
-    steps:
-      - run:
-          name: Test in Safari
-          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
-          environment:
-            BROWSERSTACK: 'true'
-            BROWSER_NAME: 'safari'
-  test_firefox:
-    steps:
-      - run:
-          name: Test in Firefox
-          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
-          environment:
-            BROWSERSTACK: 'true'
-            BROWSER_NAME: 'firefox'
+            BROWSER_NAME: << parameters.browser >>
   save_npm_token:
     steps:
       - run:
           name: Potentially save npm token
-          command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
+          command: |
+            ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
   publish_canary:
     steps:
       - run:
           name: Potentially publish canary release
-          command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --npm-tag canary --yes; else  echo "Did not publish"; fi'
+          command: |
+            if \
+              ls ~/.npmrc >/dev/null 2>&1 && \
+              [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; \
+            then
+              yarn run lerna publish from-git --npm-tag canary --yes
+            else
+              echo "Did not publish"
+            fi
   publish_stable:
     steps:
       - run:
           name: Potentially publish stable release
-          command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo "Did not publish"; fi'
+          command: |
+            if \
+              ls ~/.npmrc >/dev/null 2>&1 && \
+              [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; \
+            then
+              yarn run lerna publish from-git --yes
+            else
+              echo "Did not publish"
+            fi
 
 #########################
 # Jobs
@@ -113,17 +132,20 @@ jobs:
     executor: node
     steps:
       - *attach_workspace
-      - test_ie11
+      - test_browser:
+          browser: 'ie'
   test-safari:
     executor: node
     steps:
       - *attach_workspace
-      - test_safari
+      - test_browser:
+          browser: 'safari'
   test-firefox:
     executor: node
     steps:
       - *attach_workspace
-      - test_firefox
+      - test_browser:
+          browser: 'firefox'
   deploy:
     executor: node
     steps:
