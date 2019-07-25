@@ -4,12 +4,11 @@
 export type PageConfig = {
   amp?: boolean | 'hybrid'
   api?: {
-    bodyParser?: boolean
     /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
-    bodySizeLimit?: number | string
+    bodyParser?: { bodySizeLimit?: number | string } | false
   }
   experimentalPrerender?: boolean | 'inline' | 'legacy'
 }

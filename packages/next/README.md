@@ -1,5 +1,4 @@
-[![Next.js](h
-ttps://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
+[![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
@@ -1131,7 +1130,7 @@ export const config = {
 }
 ```
 
-You can adjust size of parsed body by `bodySizeLimit` key, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
+You can adjust size of parsed body by adding `bodySizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
 
 ```js
 // ./pages/api/my-endpoint.js
@@ -1141,7 +1140,9 @@ export default (req, res) => {
 
 export const config = {
   api: {
-    bodySizeLimit: '1mb',
+    bodyParser: {
+      bodySizeLimit: '1mb',
+    }
   },
 }
 ```
