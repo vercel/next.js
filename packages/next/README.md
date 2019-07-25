@@ -311,8 +311,20 @@ A `<Link>` for `/post/abc` looks like so:
 </Link>
 ```
 
-- `href`: the path inside `pages` directory
-- `as`: the path that will be rendered in the browser URL bar
+- `href`: the path inside `pages` directory.
+- `as`: the path that will be rendered in the browser URL bar.
+
+As `href` is a filesystem path, it shouldn't change during execution, while you will probably need to change `as`
+dynamically according to your needs. Here's an example to create a list of links:
+
+```jsx
+const pids = ['id1', 'id2', 'id3'];
+{pids.map(pid => (
+  <Link href="/post/[pid]" as={`/post/${pid}`}>
+    <a>Post {pid}</a>
+  </Link>
+))}
+```
 
 > You can [read more about `<Link>` here](#with-link).
 
@@ -568,8 +580,8 @@ Example:
    <Link href="/post?slug=something" as="/post/something">
    ```
 
-   - `href`: the path inside `pages` directory
-   - `as`: the path used by your server routes
+   - `href`: the path inside `pages` directory. Only right side of `?` character could change dynamically during execution, if needed, as left side is a filesystem path.
+   - `as`: the path used by your server routes.
 
 Client-side routing behaves exactly like the browser:
 
