@@ -38,8 +38,7 @@ const sourcemapsForSentryOnly = token => (req, res, next) => {
 }
 
 app.prepare().then(() => {
-  // The app.buildId is only available after app.prepare(), hence why we setup
-  // here.
+  // app.buildId is only available after app.prepare(), hence why we setup here
   const { Sentry } = require('./utils/sentry')(app.buildId)
 
   express()
