@@ -2,13 +2,13 @@ version = 1
 
 [merge]
 automerge_label = "lgtm"
-require_automerge_label = false
+require_automerge_label = true
 blacklist_title_regex = "^WIP.*"
-blacklist_labels = ["hold"]
+blacklist_labels = ["hold", "work in progress"]
 method = "squash"
 delete_branch_on_merge = true
 block_on_reviews_requested = false
-notify_on_conflict = true
+notify_on_conflict = false
 optimistic_updates = true
 
 [merge.message]
