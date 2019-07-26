@@ -280,7 +280,7 @@ function runTests (serverless = false) {
         readFileSync(join(appDir, '.next/build-manifest.json'), 'utf8')
       )
       expect(
-        Object.keys(buildManifes.pages).includes('/api-conflict')
+        Object.keys(buildManifest.pages).includes('/api-conflict')
       ).toBeTruthy()
     }
   })
