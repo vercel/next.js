@@ -50,7 +50,7 @@ app.prepare().then(() => {
     .get(/\.map$/, sourcemapsForSentryOnly(process.env.SENTRY_TOKEN))
     // Regular next.js request handler
     .use(handler)
-    // This handles errors if they are thrown before raching the app
+    // This handles errors if they are thrown before reaching the app
     .use(Sentry.Handlers.errorHandler())
     .listen(port, err => {
       if (err) {
