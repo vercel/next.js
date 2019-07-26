@@ -15,6 +15,9 @@ export const NEXT_PROJECT_ROOT_DIST_SERVER = join(
   'server'
 )
 
+// Regex for API routes
+export const API_ROUTE = /^\/api(?:\/|$)/
+
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'

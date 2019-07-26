@@ -1,8 +1,10 @@
+import React from 'react'
 import Router from 'next/router'
 import fetch from 'isomorphic-unfetch'
 import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
 import { withAuthSync } from '../utils/auth'
+import getHost from '../utils/get-host'
 
 const Profile = props => {
   const { name, login, bio, avatarUrl } = props.data
@@ -41,7 +43,7 @@ const Profile = props => {
 
 Profile.getInitialProps = async ctx => {
   const { token } = nextCookie(ctx)
-  const url = `${process.env.API_URL}/api/profile.js`
+  const apiUrl = getHost(ctx.req) + '/api/profile'
 
   const redirectOnError = () =>
     typeof window !== 'undefined'
@@ -49,20 +51,21 @@ Profile.getInitialProps = async ctx => {
       : ctx.res.writeHead(302, { Location: '/login' }).end()
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: JSON.stringify({ token })
       }
     })
 
     if (response.ok) {
-      return await response.json()
+      const js = await response.json()
+      console.log('js', js)
+      return js
+    } else {
+      // https://github.com/developit/unfetch#caveats
+      return await redirectOnError()
     }
-
-    // https://github.com/developit/unfetch#caveats
-    return redirectOnError()
   } catch (error) {
     // Implementation or Network error
     return redirectOnError()
