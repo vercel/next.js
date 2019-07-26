@@ -231,7 +231,10 @@ export default async function getBaseWebpackConfig(
             return module.size() > 160000
           },
           name(module: { identifier: Function; rawRequest: string }): string {
-            const rawRequest = module.rawRequest
+            const rawRequest =
+              module.rawRequest && module.rawRequest.replace(/^@(\w+)\//, '$1-')
+            if (rawRequest) return rawRequest
+
             const identifier = module.identifier()
             const trimmedIdentifier = /(?:^|\/)node_modules\/(.*)/.exec(
               identifier
@@ -240,7 +243,7 @@ export default async function getBaseWebpackConfig(
               trimmedIdentifier &&
               trimmedIdentifier[1].replace(/^@(\w+)\//, '$1-')
 
-            return rawRequest || processedIdentifier || identifier
+            return processedIdentifier || identifier
           },
           priority: 30,
           minChunks: 1,
