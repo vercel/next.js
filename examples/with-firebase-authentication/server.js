@@ -12,8 +12,7 @@ const handle = app.getRequestHandler()
 
 const firebase = admin.initializeApp(
   {
-    credential: admin.credential.cert(require('./credentials/server')),
-    databaseURL: '' // TODO database URL goes here
+    credential: admin.credential.cert(require('./credentials/server'))
   },
   'server'
 )
