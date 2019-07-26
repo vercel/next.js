@@ -131,7 +131,7 @@ export default class Server {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
-    if (compress) {
+    if (compress && this.nextConfig.target !== 'serverless') {
       this.compression = compression() as Middleware
     }
 
