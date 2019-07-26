@@ -27,7 +27,7 @@ function sessionCookie (req, res, next) {
 }
 
 const sourcemapsForSentryOnly = token => (req, res, next) => {
-  // In production we only want to serve source maps for sentry
+  // In production we only want to serve source maps for Sentry
   if (!dev && !!token && req.headers['x-sentry-token'] !== token) {
     res
       .status(401)
@@ -43,7 +43,7 @@ app.prepare().then(() => {
   const { Sentry } = require('./utils/sentry')(app.buildId)
 
   express()
-    // This attaches request information to sentry errors
+    // This attaches request information to Sentry errors
     .use(Sentry.Handlers.requestHandler())
     .use(cookieParser())
     .use(sessionCookie)
