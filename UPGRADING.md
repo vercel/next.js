@@ -107,6 +107,11 @@ module.exports = {
 }
 ```
 
+#### `pages/api` is treated differently
+
+Pages in `pages/api` are now considered [API routes](https://nextjs.org/blog/next-9#api-routes). Pages in that directory will no longer contain a client-side bundle. 
+
+
 ## Deprecated Features
 
 #### `next/dynamic` has deprecated loading multiple modules at once
