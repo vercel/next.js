@@ -3,12 +3,12 @@ import Router from 'next/router'
 import nextCookie from 'next-cookies'
 import cookie from 'js-cookie'
 
-export const login = async ({ token }) => {
+function login ({ token }) {
   cookie.set('token', token, { expires: 1 })
   Router.push('/profile')
 }
 
-export const logout = () => {
+function logout () {
   cookie.remove('token')
   // to support logging out from all windows
   window.localStorage.setItem('logout', Date.now())
@@ -19,8 +19,8 @@ export const logout = () => {
 const getDisplayName = Component =>
   Component.displayName || Component.name || 'Component'
 
-export const withAuthSync = WrappedComponent =>
-  class extends Component {
+function withAuthSync (WrappedComponent) {
+  return class extends Component {
     static displayName = `withAuthSync(${getDisplayName(WrappedComponent)})`
 
     static async getInitialProps (ctx) {
@@ -59,19 +59,18 @@ export const withAuthSync = WrappedComponent =>
       return <WrappedComponent {...this.props} />
     }
   }
+}
 
-export const auth = ctx => {
+function auth (ctx) {
   const { token } = nextCookie(ctx)
 
   /*
-   * This happens on server only, ctx.req is available means it's being
-   * rendered on server. If we are on server and token is not available,
-   * means user is not logged in.
+   * If `ctx.req` is available it means we are on the server.
+   * Additionally if there's no token it means the user is not logged in.
    */
   if (ctx.req && !token) {
     ctx.res.writeHead(302, { Location: '/login' })
     ctx.res.end()
-    return
   }
 
   // We already checked for server. This should only happen on client.
@@ -81,3 +80,5 @@ export const auth = ctx => {
 
   return token
 }
+
+export { login, logout, withAuthSync, auth }
