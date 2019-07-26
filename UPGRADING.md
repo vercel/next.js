@@ -6,6 +6,8 @@
 
 Next.js will now ignore usage `@zeit/next-typescript` and warn you to remove it. Please remove this plugin from your `next.config.js`.
 
+Remove references to `@zeit/next-typescript/babel` from your custom `.babelrc` (if present).
+
 Usage of [`fork-ts-checker-webpack-plugin`](https://github.com/Realytics/fork-ts-checker-webpack-plugin/issues) should also be removed from your `next.config.js`.
 
 TypeScript Definitions are published with the `next` package, so you need to uninstall `@types/next` as they would conflict.
@@ -15,16 +17,19 @@ The following types are different:
 > This list was created by the community to help you upgrade, if you find other differences please send a pull-request to this list to help other users.
 
 From:
+
 ```tsx
-import { NextContext } from "next";
-import { NextAppContext } from "next/app";
-import { NextDocumentContext } from "next/document";
+import { NextContext } from 'next'
+import { NextAppContext } from 'next/app'
+import { NextDocumentContext } from 'next/document'
 ```
+
 to
+
 ```tsx
-import { NextPageContext } from "next";
-import { AppContext } from "next/app";
-import { DocumentContext } from "next/document";
+import { NextPageContext } from 'next'
+import { AppContext } from 'next/app'
+import { DocumentContext } from 'next/document'
 ```
 
 #### The `config` key is now a special export on a page

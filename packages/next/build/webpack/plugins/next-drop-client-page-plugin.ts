@@ -19,8 +19,13 @@ export class DropClientPage implements Plugin {
           const page = '/' + cleanAssetKey.split('pages/')[1]
           const pageNoExt = page.split(extname(page))[0]
 
-          this.ampPages.add(pageNoExt.replace(/\/index$/, '') || '/')
           delete compilation.assets[assetKey]
+
+          // Detect being re-ran through a child compiler and don't re-mark the
+          // page as AMP
+          if (!pageNoExt.endsWith('.module')) {
+            this.ampPages.add(pageNoExt.replace(/\/index$/, '') || '/')
+          }
         }
       })
     })

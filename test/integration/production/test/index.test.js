@@ -126,6 +126,32 @@ describe('Production Usage', () => {
       expect(res.status).toBe(405)
     })
 
+    it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const res = await fetch(
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
+        {
+          method: 'GET',
+          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' }
+        }
+      )
+      expect(res.status).toBe(412)
+    })
+
+    it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const res = await fetch(
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
+        {
+          method: 'GET',
+          headers: { 'if-unmodified-since': 'nextjs' }
+        }
+      )
+      expect(res.status).toBe(200)
+    })
+
     it('should set Content-Length header', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetch(url)
@@ -538,6 +564,13 @@ describe('Production Usage', () => {
     await browser.elementByCss('#to-something').click()
     text = await browser.elementByCss('h3').text()
     expect(text).toMatch(/some interesting title/)
+  })
+
+  it('should handle AMP correctly in IE', async () => {
+    const browser = await webdriver(appPort, '/some-amp')
+    await waitFor(1000)
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('Not AMP')
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

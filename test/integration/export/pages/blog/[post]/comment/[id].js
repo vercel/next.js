@@ -6,9 +6,7 @@ const Page = () => {
 
   return (
     <>
-      <p>
-        {`Blog post ${post} comment ${id || '(all)'}`}
-      </p>
+      <p>{`Blog post ${post} comment ${id || '(all)'}`}</p>
     </>
   )
 }

@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { BaseRouter } from '../lib/router/router'
+import { NextRouter } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt'
 import {
   loadGetInitialProps,
@@ -45,11 +45,12 @@ function noRouter() {
   throw new Error(message)
 }
 
-class ServerRouter implements BaseRouter {
+class ServerRouter implements NextRouter {
   route: string
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  events: any
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -60,23 +61,19 @@ class ServerRouter implements BaseRouter {
     this.asPath = as
     this.pathname = pathname
   }
-  // @ts-ignore
-  push() {
+  push(): any {
     noRouter()
   }
-  // @ts-ignore
-  replace() {
+  replace(): any {
     noRouter()
   }
-  // @ts-ignore
   reload() {
     noRouter()
   }
   back() {
     noRouter()
   }
-  // @ts-ignore
-  prefetch() {
+  prefetch(): any {
     noRouter()
   }
   beforePopState() {
@@ -119,7 +116,7 @@ function render(
   try {
     html = renderElementToString(element)
   } finally {
-    head = Head.rewind() || defaultHead(undefined, isInAmpMode(ampMode))
+    head = Head.rewind() || defaultHead(isInAmpMode(ampMode))
   }
 
   return { html, head }
@@ -252,7 +249,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
-    pageConfig,
+    pageConfig = {},
     DocumentMiddleware,
     Component,
     buildManifest,

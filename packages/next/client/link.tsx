@@ -45,14 +45,13 @@ function formatUrl(url: Url) {
   return url && typeof url === 'object' ? formatWithValidation(url) : url
 }
 
-type LinkProps = {
+export type LinkProps = {
   href: Url
-  as?: Url | undefined
+  as?: Url
   replace?: boolean
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
-  onError?: (error: Error) => void
   prefetch?: boolean
 }
 
@@ -113,16 +112,13 @@ class Link extends Component<LinkProps> {
 
   cleanUpListeners = () => {}
 
-  componentDidMount() {
-    this.cleanUpListeners = () => {}
-  }
-
   componentWillUnmount() {
     this.cleanUpListeners()
   }
 
   handleRef(ref: Element) {
     if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
+      this.cleanUpListeners()
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })
@@ -182,9 +178,6 @@ class Link extends Component<LinkProps> {
           window.scrollTo(0, 0)
           document.body.focus()
         }
-      })
-      .catch((err: any) => {
-        if (this.props.onError) this.props.onError(err)
       })
   }
 

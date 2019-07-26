@@ -133,19 +133,24 @@ process.on(
             .replace(/"/g, '\\"')
             .replace(/'/g, "\\'")
 
-          const bundlePath = join(
-            distDir,
-            'static',
-            buildId,
-            'pages',
-            (path === '/' ? 'index' : path) + '.js'
-          )
+          for (const bundleExt of [
+            '.js',
+            renderOpts.isModern && '.module.js'
+          ].filter(Boolean)) {
+            const bundlePath = join(
+              distDir,
+              'static',
+              buildId,
+              'pages',
+              (path === '/' ? 'index' : path) + bundleExt
+            )
 
-          const bundleContent = await readFileP(bundlePath, 'utf8')
-          await writeFileP(
-            bundlePath,
-            bundleContent.replace(inlineGipIdentifier, dataStr)
-          )
+            const bundleContent = await readFileP(bundlePath, 'utf8')
+            await writeFileP(
+              bundlePath,
+              bundleContent.replace(inlineGipIdentifier, dataStr)
+            )
+          }
         }
 
         const validateAmp = async (html, page) => {

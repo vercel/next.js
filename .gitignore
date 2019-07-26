@@ -19,6 +19,7 @@ coverage
 
 # test output
 test/**/out*
+test/**/next-env.d.ts
 .DS_Store
 
 # Editors

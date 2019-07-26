@@ -156,15 +156,42 @@ function runTests () {
     const html = await renderViaHTTP(appPort, '/on-mount/post-1')
     expect(html).not.toMatch(/post:.*?\[post\].*?<\/p>/)
   })
+
+  it('should update with a hash in the URL', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#abc')
+    await waitFor(1000)
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/onmpost:.*post-1/)
+  })
+
+  it('should scroll to a hash on mount', async () => {
+    const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
+    await waitFor(1000)
+
+    const text = await browser.eval(`document.body.innerHTML`)
+    expect(text).toMatch(/onmpost:.*post-1/)
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    expect(scrollPosition).toBe(7232)
+  })
+
+  it('should scroll to a hash on client-side navigation', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(1000)
+    await browser.elementByCss('#view-dynamic-with-hash').click()
+    await browser.waitForElementByCss('p')
+
+    const text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/onmpost:.*test-w-hash/)
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    expect(scrollPosition).toBe(7232)
+  })
 }
 
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
-  beforeAll(async () => {
-    await fs.remove(nextConfig)
-  })
-
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -195,6 +222,7 @@ describe('Dynamic Routing', () => {
 
   describe('SSR production mode', () => {
     beforeAll(async () => {
+      await fs.remove(nextConfig)
       await fs.writeFile(
         nextConfig,
         `
@@ -215,7 +243,10 @@ describe('Dynamic Routing', () => {
       server = await startApp(app)
       appPort = server.address().port
     })
-    afterAll(() => stopApp(server))
+    afterAll(async () => {
+      await stopApp(server)
+      await fs.remove(nextConfig)
+    })
 
     runTests()
   })

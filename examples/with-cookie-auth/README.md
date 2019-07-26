@@ -22,31 +22,12 @@ cd with-cookie-auth
 
 ### Run locally
 
-The repository is setup as a [monorepo](https://zeit.co/examples/monorepo/) so you can run start the development server with `now dev` inside the project folder.
-
-Install the packages of `/api` and `/www` using `npm` or `yarn`:
+After you clone the repository you can install the dependencies, run `yarn dev` and start hacking! You'll be able to see the application running locally as if it were deployed.
 
 ```bash
-cd api
-npm install
-cd ../www
-npm install
-```
-
-Now you can start the development server in the root folder:
-
-```bash
-now dev
-```
-
-You can configure the `API_URL` environment variable (defaults to `http://localhost:3000`) with [Now env](https://zeit.co/docs/v2/development/environment-variables/#using-now.json) in the `now.json` file:
-
-```bash
-"build": {
-  "env": {
-    "API_URL": "https://example.com"
-  }
-},
+$ cd with-cookie-auth
+$ (with-cookie-auth/) yarn install
+$ (with-cookie-auth/) yarn dev
 ```
 
 ### Deploy
@@ -63,8 +44,8 @@ In this example, we authenticate users and store a token in a cookie. The exampl
 
 This example is backend agnostic and uses [isomorphic-unfetch](https://www.npmjs.com/package/isomorphic-unfetch) to do the API calls on the client and the server.
 
-The repo includes a minimal passwordless backend built with [Micro](https://www.npmjs.com/package/micro) that logs the user in with a GitHub username and saves the user id from the API call as token.
+The repo includes a minimal passwordless backend built with the new [API Routes support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro) and the [GitHub API](https://developer.github.com/v3/). The backend allows the user to log in with their GitHub username.
 
-Session is synchronized across tabs. If you logout your session gets logged out on all the windows as well. We use the HOC `withAuthSync` for this.
+Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
 
 The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.

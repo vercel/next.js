@@ -105,7 +105,8 @@ export default async function (dir, options, configuration) {
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || ''
+    canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
+    isModern: nextConfig.experimental.modern
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -149,7 +150,11 @@ export default async function (dir, options, configuration) {
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
-  if (existsSync(publicDir)) {
+  if (
+    nextConfig.experimental &&
+    nextConfig.experimental.publicDirectory &&
+    existsSync(publicDir)
+  ) {
     log('  copying "public" directory')
     await recursiveCopy(publicDir, outDir, {
       filter (path) {

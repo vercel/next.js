@@ -300,8 +300,33 @@ export default Post
 Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
 The matched path parameter will be sent as a query parameter to the page.
 
-For example, the route `/post/1` will have the following `query` object: `{ pid: '1' }`.
+For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
+
+A `<Link>` for `/post/abc` looks like so:
+
+```jsx
+<Link href="/post/[pid]" as="/post/abc">
+  <a>First Post</a>
+</Link>
+```
+
+- `href`: the path inside `pages` directory.
+- `as`: the path that will be rendered in the browser URL bar.
+
+As `href` is a filesystem path, it shouldn't change at runtime, instead, you will probably need to change `as`
+dynamically according to your needs. Here's an example to create a list of links:
+
+```jsx
+const pids = ['id1', 'id2', 'id3'];
+{pids.map(pid => (
+  <Link href="/post/[pid]" as={`/post/${pid}`}>
+    <a>Post {pid}</a>
+  </Link>
+))}
+```
+
+> You can [read more about `<Link>` here](#with-link).
 
 However, if a query and route param name are the same, route parameters will override the matching query params.
 For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
@@ -316,11 +341,11 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 ### Populating `<head>`
 
 <details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="/examples/head-elements">Head elements</a></li>
-    <li><a href="/examples/layout-component">Layout component</a></li>
-  </ul>
+<summary><b>Examples</b></summary>
+<ul>
+ <li><a href="/examples/head-elements">Head elements</a></li>
+ <li><a href="/examples/layout-component">Layout component</a></li>
+</ul>
 </details>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
@@ -394,6 +419,8 @@ When you need state, lifecycle hooks or **initial data population** you can expo
 Using a stateless function:
 
 ```jsx
+import fetch from 'isomorphic-unfetch'
+
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
@@ -516,36 +543,6 @@ function About() {
 export default About
 ```
 
-**Dynamic Routes**
-
-`<Link>` component has two relevant props when using _Dynamic Routes_:
-
-- `href`: the path inside `pages` directory
-- `as`: the path that will be rendered in the browser URL bar
-
-Consider the page `pages/post/[postId].js`:
-
-```jsx
-import { useRouter } from 'next/router'
-
-const Post = () => {
-  const router = useRouter()
-  const { postId } = router.query
-
-  return <p>My Blog Post: {postId}</p>
-}
-
-export default Post
-```
-
-A link for `/post/first-post` looks like this:
-
-```jsx
-<Link href="/post/[postId]" as="/post/first-post">
-  <a>First Post</a>
-</Link>
-```
-
 **Custom routes (using props from URL)**
 
 If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
@@ -578,9 +575,13 @@ Example:
    ```
 
 4. For client side routing, use `next/link`:
+
    ```jsx
    <Link href="/post?slug=something" as="/post/something">
    ```
+
+   - `href`: the path inside `pages` directory
+   - `as`: the path used by your server routes
 
 Client-side routing behaves exactly like the browser:
 
@@ -1050,6 +1051,9 @@ export default withRouter(MyLink)
   <ul>
     <li><a href="/examples/api-routes">Basic API routes</a></li>
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+    <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
+    <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>    
   </ul>
 </details>
 
@@ -1072,6 +1076,18 @@ export default (req, res) => {
 - `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
+
+```js
+export default (req, res) => {
+  if (req.method === 'POST') {
+    // Process your POST request
+  } else {
+    // Handle the rest of your HTTP methods
+  }
+}
+```
 
 > **Note**: API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), so they'll be **same-origin only** by default.
 > You can customize this behavior by wrapping your export with CORS middleware.
@@ -1104,7 +1120,7 @@ Those middlewares are:
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-Body parsing is enabled by default.
+Body parsing is enabled by default with a size limit of `1mb` for the parsed body.
 You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
 
 ```js
@@ -1116,6 +1132,23 @@ export default (req, res) => {
 export const config = {
   api: {
     bodyParser: false,
+  },
+}
+```
+
+You can adjust size of parsed body by adding `sizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
+
+```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    }
   },
 }
 ```
@@ -1430,15 +1463,20 @@ import React from 'react'
 import App, { Container } from 'next/app'
 
 class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
+  // Only uncomment this method if you have blocking data requirements for
+  // every single page in your application. This disables the ability to
+  // perform automatic static optimization, causing every page in your app to
+  // be server-side rendered.
+  //
+  // static async getInitialProps({ Component, ctx }) {
+  //   let pageProps = {}
+  //
+  //   if (Component.getInitialProps) {
+  //     pageProps = await Component.getInitialProps(ctx)
+  //   }
+  //
+  //   return { pageProps }
+  // }
 
   render() {
     const { Component, pageProps } = this.props
@@ -2186,7 +2224,7 @@ Next.js provides `NextPage` type that can be used for pages in the `pages` direc
 import { NextPage } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 const Page: NextPage<Props> = ({ userAgent }) => (
@@ -2217,7 +2255,7 @@ import React from 'react'
 import { NextPageContext } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 export default class Page extends React.Component<Props> {
@@ -2308,14 +2346,16 @@ When using `next export` to statically prerender pages Next.js will detect if th
 
 Hybrid AMP (`pages/about.js`) would output:
 
-- `out/about/index.html` - with client-side React runtime
-- `out/about.amp/index.html` - AMP page
+- `out/about.html` - with client-side React runtime
+- `out/about.amp.html` - AMP page
 
 AMP-only (`pages/about.js`) would output:
 
-- `out/about/index.html` - Optimized AMP page
+- `out/about.html` - Optimized AMP page
 
-During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+
+> **Note**: When using `exportTrailingSlash: true` in `next.config.js`, output will be different. For Hybrid AMP pages, output will be `out/page/index.html` and `out/page.amp/index.html`, and for AMP-only pages, output will be `out/page/index.html`
 
 ### Adding AMP Components
 
@@ -2479,7 +2519,7 @@ now
 
 With `next export`, we build a HTML version of your app. At export time we will run `getInitialProps` of your pages.
 
-The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
+The `req` and `res` fields of the `context` object passed to `getInitialProps` are empty objects during export as there is no server running.
 
 > **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic prerendering](#automatic-prerendering).
 
@@ -2682,3 +2722,7 @@ Please see our [contributing.md](/contributing.md).
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+
+```
+
+```
