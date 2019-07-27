@@ -2202,7 +2202,7 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
     "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
     "noUnusedLocals": true, /* Report errors on unused locals. */
     "noUnusedParameters": true, /* Report errors on unused parameters. */
-    "strict": true /* Enable all strict type-checking options. */,
+    "strict": true, /* Enable all strict type-checking options. */
     "target": "esnext" /* The type checking input. */
   }
 }
