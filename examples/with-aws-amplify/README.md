@@ -27,7 +27,9 @@ cd with-aws-amplify
 
 <details>
   <summary>If you've never used amplify before </summary>
-    
+
+#### Install & Configure Amplify
+
   1. [Sign up](https://portal.aws.amazon.com/billing/signup#/start) for an AWS account
   2. Install the AWS Amplify cli: 
   ```sh
@@ -40,21 +42,62 @@ amplify configure
   [Read More](https://aws-amplify.github.io/docs/cli-toolchain/quickstart?sdk=js)
 </details>
 
-  
+#### Initialize Amplify
+
 ```bash
 $ amplify init
 
+# <Interactive>
+? Enter a name for the project <PROJECT_NAME>
 ? Enter a name for the environment: dev (or whatever you would like to call this env)
 ? Choose your default editor: <YOUR_EDITOR_OF_CHOICE>
+? Choose the type of app that you're building (Use arrow keys)
+  android 
+  ios 
+❯ javascript 
+? What javascript framework are you using react
+? Source Directory Path:  src
+? Distribution Directory Path: out
+? Build Command:  (npm run-script build)
+? Start Command: (npm run-script start)
 ? Do you want to use an AWS profile? Y
 
-$ amplify push
+# </Interactive>
+```
 
+#### Add the API
+
+```sh
+$ amplify add api
+# <Interactive>
+? Please select from one of the below mentioned services (Use arrow keys)
+❯ GraphQL 
+  REST 
+? Provide API name: <API_NAME>
+? Choose an authorization type for the API (Use arrow keys)
+❯ API key 
+  Amazon Cognito User Pool
+? Do you have an annotated GraphQL schema? (y/N) y
+? Provide your schema file path: ./schema.graphql
+# </Interactive>
+```
+
+#### Deploy infrastructure
+
+```sh
+$ amplify push
+# <Interactive>
 ? Are you sure you want to continue? Y
 ? Do you want to generate code for your newly created GraphQL API? Y
+? Choose the code generation language target (Use arrow keys)
+❯ javascript 
+  typescript 
+  flow
+? Enter the file name pattern of graphql queries, mutations and subscriptions (src/graphql/**/*.js) 
+? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions (Y/n) Y
+? Enter maximum statement depth [increase from default if your schema is deeply nested] (2) 
 
-> We already have the GraphQL code generated for this project, so generating it here is not necessary.
-
+# </Interactive>
 ```
 
 ### Install & Run
@@ -69,55 +112,13 @@ yarn dev
 
 ### Edit GraphQL Schema
 
-1. Open [`amplify/backend/api/nextjswithawsamplify/schema.graphql`](amplify/backend/api/nextjswithawsamplify/schema.graphql) and change what you need to.
+1. Open `amplify/backend/api/projectname/schema.graphql` and change what you need to.
 2. Run `amplify push`
 3. 👍 
 
 ### Use with new Amplify project
 
 Make sure to commit your changes before doing this.
-
-<details>
-  <summary>Detailed version</summary>
-   
-   ```sh
-      $ mv amplify/backend/api/nextjswithamplify/schema.graphql ./schema.graphql
-      $ rm -rf amplify/ src/
-      $ amplify init 
-
-      ? Enter a name for the project <MY_PROJECT_NAME>
-      ? Enter a name for the environment prod
-      ? Choose your default editor: <MY_CODE_EDITOR>
-      ? Choose the type of app that you're building javascript
-      ? What javascript framework are you using react
-      ? Source Directory Path: src
-      next export outputs the project to the out directory
-      ? Distribution Directory Path: out
-      ? Build Command: default
-      ? Start Command: default
-      ? Do you want to use an AWS profile? (Y/n) Y
-      ...
-      Your project has been successfully initialized and connected to the cloud!
-
-      $ amplify add api
-      ? Please select from one of the below mentioned services
-      GraphQL
-      ? Provide API name: <MY_API_NAME>
-      ? Choose an authorization type for the API (Use arrow keys)
-      API key
-      ? Do you have an annotated GraphQL schema? (y/N) y
-      ? Provide your schema file path: ./schema.graphql
-
-      $ rm ./schema.graphql
-      $ amplify push
-      ? Are you sure you want to continue? Yes
-      ? Do you want to generate code for your newly created GraphQL API Yes
-      ? Choose the code generation language target javascript
-      ? Enter the file name pattern of graphql queries, mutations and subscriptions src/graphql/**/*.js
-      ? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions Yes
-      ? Enter maximum statement depth [increase from default if your schema is deeply nested] 2
-   ```
-</details>
 
 ```sh
 mv amplify/backend/api/nextjswithawsamplify/schema.graphql ./schema.graphql
