@@ -275,6 +275,13 @@ function runTests (serverless = false) {
       expect(
         existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
       ).toBeTruthy()
+
+      const buildManifest = JSON.parse(
+        readFileSync(join(appDir, '.next/build-manifest.json'), 'utf8')
+      )
+      expect(
+        Object.keys(buildManifest.pages).includes('/api-conflict')
+      ).toBeTruthy()
     }
   })
 
