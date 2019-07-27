@@ -116,62 +116,6 @@ yarn dev
 2. Run `amplify push`
 3. 👍 
 
-### Use with new Amplify project
-
-Make sure to commit your changes before doing this.
-
-<details>
-  <summary>Detailed version</summary>
-   
-   ```sh
-      $ mv amplify/backend/api/nextjswithamplifyts/schema.graphql ./schema.graphql
-      $ rm -rf amplify/ src/
-      $ amplify init 
-
-      ? Enter a name for the project <MY_PROJECT_NAME>
-      ? Enter a name for the environment prod
-      ? Choose your default editor: <MY_CODE_EDITOR>
-      ? Choose the type of app that you're building javascript
-      ? What javascript framework are you using react
-      ? Source Directory Path: src
-      next export outputs the project to the out directory
-      ? Distribution Directory Path: out
-      ? Build Command: default
-      ? Start Command: default
-      ? Do you want to use an AWS profile? (Y/n) Y
-      ...
-      Your project has been successfully initialized and connected to the cloud!
-
-      $ amplify add api
-      ? Please select from one of the below mentioned services
-      GraphQL
-      ? Provide API name: <MY_API_NAME>
-      ? Choose an authorization type for the API (Use arrow keys)
-      API key
-      ? Do you have an annotated GraphQL schema? (y/N) y
-      ? Provide your schema file path: ./schema.graphql
-
-      $ rm ./schema.graphql
-      $ amplify push
-      ? Are you sure you want to continue? Yes
-      ? Do you want to generate code for your newly created GraphQL API Yes
-      ? Choose the code generation language target typescript
-      ? Enter the file name pattern of graphql queries, mutations and subscriptions src/graphql/**/*.ts
-      ? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions Yes
-      ? Enter maximum statement depth [increase from default if your schema is deeply nested] 2
-      ? Enter the file name for the generated code src/API.ts
-   ```
-</details>
-
-```sh
-mv amplify/backend/api/nextjswithamplifyts/schema.graphql ./schema.graphql
-rm -rf amplify/ src/
-amplify init 
-amplify add api
-rm ./schema.graphql
-amplify push
-```
-
 ## The idea behind the example
 
 This example shows how to build a server rendered web application with NextJS and AWS Amplify.
