@@ -4,22 +4,18 @@ import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
 
-type WithInAmpMode = {
-  inAmpMode?: boolean
-}
-
 export function defaultHead(inAmpMode = false) {
-  const head = [<meta key="charSet" charSet="utf-8" />]
-  if (!inAmpMode) {
-    head.push(
+  return [<meta key="charSet" charSet="utf-8" />].concat(
+    inAmpMode ? (
+      []
+    ) : (
       <meta
         key="viewport"
         name="viewport"
         content="width=device-width,minimum-scale=1,initial-scale=1"
       />
     )
-  }
-  return head
+  )
 }
 
 function onlyReactElement(
@@ -30,27 +26,14 @@ function onlyReactElement(
   if (typeof child === 'string' || typeof child === 'number') {
     return list
   }
-  // Adds support for React.Fragment
-  if (child.type === React.Fragment) {
-    return list.concat(
-      React.Children.toArray(child.props.children).reduce(
-        (
-          fragmentList: Array<React.ReactElement<any>>,
-          fragmentChild: React.ReactChild
-        ): Array<React.ReactElement<any>> => {
-          if (
-            typeof fragmentChild === 'string' ||
-            typeof fragmentChild === 'number'
-          ) {
-            return fragmentList
-          }
-          return fragmentList.concat(fragmentChild)
-        },
-        []
+  return child.type === React.Fragment
+    ? list.concat(
+        React.Children.toArray(child.props.children).reduce(
+          onlyReactElement,
+          []
+        )
       )
-    )
-  }
-  return list.concat(child)
+    : list.concat(child)
 }
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
@@ -64,37 +47,32 @@ function unique() {
   const keys = new Set()
   const tags = new Set()
   const metaTypes = new Set()
-  const metaCategories: { [metatype: string]: Set<string> } = {}
+  const metaCategories: Record<string, Set<string>> = {}
+
+  const isExistingAdd = <T extends any>(set: Set<T>, ele: T) => {
+    return set.has(ele) ? false : Boolean(set.add(ele))
+  }
 
   return (h: React.ReactElement<any>) => {
     if (h.key && typeof h.key !== 'number' && h.key.indexOf('.$') === 0) {
-      if (keys.has(h.key)) return false
-      keys.add(h.key)
-      return true
+      return isExistingAdd(keys, h.key)
     }
     switch (h.type) {
       case 'title':
       case 'base':
-        if (tags.has(h.type)) return false
-        tags.add(h.type)
-        break
+        return isExistingAdd(tags, h.type)
       case 'meta':
-        for (let i = 0, len = METATYPES.length; i < len; i++) {
-          const metatype = METATYPES[i]
-          if (!h.props.hasOwnProperty(metatype)) continue
+        return METATYPES.reduce((isUnique, metatype) => {
+          if (!isUnique || !h.props.hasOwnProperty(metatype)) return isUnique
+          if (metatype === 'charSet') return isExistingAdd(metaTypes, metatype)
 
-          if (metatype === 'charSet') {
-            if (metaTypes.has(metatype)) return false
-            metaTypes.add(metatype)
-          } else {
-            const category = h.props[metatype]
-            const categories = metaCategories[metatype] || new Set()
-            if (categories.has(category)) return false
-            categories.add(category)
-            metaCategories[metatype] = categories
-          }
-        }
-        break
+          const category = h.props[metatype]
+          const categories = metaCategories[metatype] || new Set()
+          if (categories.has(category)) return false
+          categories.add(category)
+          metaCategories[metatype] = categories
+          return isUnique
+        }, true)
     }
     return true
   }
@@ -102,11 +80,12 @@ function unique() {
 
 /**
  *
- * @param headElement List of multiple <Head> instances
+ * @param headElements List of multiple <Head> instances
+ * @param props {inAmpMode: boolean} used to run this function inAmpMode
  */
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
-  props: WithInAmpMode
+  props: { inAmpMode?: boolean }
 ) {
   return headElements
     .reduce(
@@ -123,10 +102,7 @@ function reduceComponents(
     .concat(defaultHead(props.inAmpMode))
     .filter(unique())
     .reverse()
-    .map((c: React.ReactElement<any>, i: number) => {
-      const key = c.key || i
-      return React.cloneElement(c, { key })
-    })
+    .map((ele, i) => React.cloneElement(ele, { key: ele.key || i }))
 }
 
 const Effect = withSideEffect()
