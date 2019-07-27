@@ -45,6 +45,27 @@ function runTests (serverless = false) {
     killApp(app)
   })
 
+  it('should work with index api', async () => {
+    if (serverless) {
+      const port = await findPort()
+      const resolver = require(join(appDir, '.next/serverless/pages/api.js'))
+        .default
+
+      const server = createServer(resolver).listen(port)
+      const res = await fetchViaHTTP(port, '/api')
+      const text = await res.text()
+      server.close()
+
+      expect(text).toEqual('Index should work')
+    } else {
+      const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
+        res => res.ok && res.text()
+      )
+
+      expect(text).toEqual('Index should work')
+    }
+  })
+
   it('should return custom error', async () => {
     const data = await fetchViaHTTP(appPort, '/api/error', null, {})
     const json = await data.json()
@@ -95,6 +116,18 @@ function runTests (serverless = false) {
 
     expect(data.status).toEqual(413)
     expect(data.statusText).toEqual('Body exceeded 1mb limit')
+  })
+
+  it('should parse bigger body then 1mb', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/big-parse', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify(json)
+    })
+
+    expect(data.status).toEqual(200)
   })
 
   it('should parse urlencoded body', async () => {
@@ -241,6 +274,13 @@ function runTests (serverless = false) {
     } else {
       expect(
         existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
+      ).toBeTruthy()
+
+      const buildManifest = JSON.parse(
+        readFileSync(join(appDir, '.next/build-manifest.json'), 'utf8')
+      )
+      expect(
+        Object.keys(buildManifest.pages).includes('/api-conflict')
       ).toBeTruthy()
     }
   })
