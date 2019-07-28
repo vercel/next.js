@@ -34,6 +34,10 @@ export interface PageInfo {
   serverBundle: string
 }
 
+function stringLength(str: string) {
+  return stripAnsi(str).replace(/⚡/g, '  ').length
+}
+
 export function printTreeView(
   list: string[],
   pageInfos: Map<string, PageInfo>,
@@ -70,12 +74,12 @@ export function printTreeView(
       messages.push([
         `${symbol} ${
           item.startsWith('/_')
-            ? ' '
+            ? '  '
             : pageInfo && pageInfo.static
             ? chalk.bold('⚡')
             : serverless
-            ? 'λ'
-            : 'σ'
+            ? 'λ '
+            : 'σ '
         } ${item}`,
         ...(pageInfo
           ? [
@@ -94,7 +98,7 @@ export function printTreeView(
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r', 'r'],
-      stringLength: str => stripAnsi(str).length,
+      stringLength,
     })
   )
 
@@ -125,7 +129,7 @@ export function printTreeView(
       ],
       {
         align: ['l', 'l', 'l'],
-        stringLength: str => stripAnsi(str).length,
+        stringLength,
       }
     )
   )
