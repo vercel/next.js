@@ -32,7 +32,6 @@ After creating an app, it should look something like:
 ├── components
 │   ├── head.js
 │   └── nav.js
-├── next.config.js
 ├── node_modules
 │   ├── [...]
 ├── package.json
