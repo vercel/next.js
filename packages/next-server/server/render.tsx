@@ -116,7 +116,7 @@ function render(
   try {
     html = renderElementToString(element)
   } finally {
-    head = Head.rewind() || defaultHead(undefined, isInAmpMode(ampMode))
+    head = Head.rewind() || defaultHead(isInAmpMode(ampMode))
   }
 
   return { html, head }
@@ -249,7 +249,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
-    pageConfig,
+    pageConfig = {},
     DocumentMiddleware,
     Component,
     buildManifest,

@@ -8,15 +8,14 @@ type WithInAmpMode = {
   inAmpMode?: boolean
 }
 
-export function defaultHead(className = 'next-head', inAmpMode = false) {
-  const head = [<meta key="charSet" charSet="utf-8" className={className} />]
+export function defaultHead(inAmpMode = false) {
+  const head = [<meta key="charSet" charSet="utf-8" />]
   if (!inAmpMode) {
     head.push(
       <meta
         key="viewport"
         name="viewport"
         content="width=device-width,minimum-scale=1,initial-scale=1"
-        className={className}
       />
     )
   }
@@ -121,19 +120,12 @@ function reduceComponents(
     )
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead('', props.inAmpMode))
+    .concat(defaultHead(props.inAmpMode))
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
-      let className: string | undefined =
-        (c.props && c.props.className ? c.props.className + ' ' : '') +
-        'next-head'
-
-      if (c.type === 'title' && !c.props.className) {
-        className = undefined
-      }
       const key = c.key || i
-      return React.cloneElement(c, { key, className })
+      return React.cloneElement(c, { key })
     })
 }
 
