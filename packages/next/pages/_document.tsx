@@ -608,6 +608,7 @@ export class NextScript extends Component<OriginProps> {
       <script
         async
         id={`__NEXT_PAGE__${page}`}
+        key={page}
         src={
           assetPrefix +
           (dynamicBuildId
@@ -623,6 +624,7 @@ export class NextScript extends Component<OriginProps> {
         <script
           async
           id={`__NEXT_PAGE__${page}`}
+          key={`${page}-modern`}
           src={
             assetPrefix +
             getOptionalModernScriptVariant(
@@ -650,6 +652,7 @@ export class NextScript extends Component<OriginProps> {
             : `/_next/static/${buildId}/pages/_app.js`) +
           _devOnlyInvalidateCacheQueryString
         }
+        key="_app"
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
         {...(process.env.__NEXT_MODERN_BUILD ? { noModule: true } : {})}
@@ -665,6 +668,7 @@ export class NextScript extends Component<OriginProps> {
               : `/_next/static/${buildId}/pages/_app.module.js`) +
             _devOnlyInvalidateCacheQueryString
           }
+          key="_app-modern"
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           type="module"
