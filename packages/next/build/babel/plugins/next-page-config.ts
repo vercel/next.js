@@ -181,7 +181,7 @@ export default function nextPageConfig({
           ])
         }
       },
-      // handles class { static async getInitialProps() {} }
+      // handles modern class { static async getInitialProps() {} }
       ClassMethod(path, state: ConfigState) {
         if (!state.setupInlining) return
         if (
