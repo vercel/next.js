@@ -1,7 +1,18 @@
+import Link from 'next/link'
+
 export const config = { experimentalPrerender: true }
 
-const Comment = ({ time }) => <p>Current time: {time}</p>
+const Comment = ({ data }) => (
+  <>
+    <p>Comment: {data}</p>
+    <Link href='/'>
+      <a id='home'>to home</a>
+    </Link>
+  </>
+)
 
-Comment.getInitialProps = () => { time: new Date().getTime() }
+Comment.getInitialProps = () => ({
+  data: typeof window === 'undefined' ? 'SSR' : 'Skeleton'
+})
 
 export default Comment

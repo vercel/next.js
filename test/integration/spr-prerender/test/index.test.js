@@ -9,7 +9,8 @@ import {
   launchApp,
   killApp,
   nextBuild,
-  nextStart
+  nextStart,
+  waitFor
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -23,20 +24,45 @@ const runTests = () => {
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
+    // go to /another
     await browser.elementByCss('#another').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
+    // go to /
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#another')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
+    // go to /something
     await browser.elementByCss('#something').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#post-1')
+
+    // go to /blog/post-1
+    await browser.elementByCss('#post-1').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Post:.*?SSR/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /blog/post-1/comment-1
+    await browser.elementByCss('#comment-1').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Comment:.*?SSR/)
+
+    await browser.close()
   })
 
   it('should SSR content correctly', async () => {
@@ -63,6 +89,28 @@ const runTests = () => {
     }).then(res => res.ok && res.text())
 
     expect(JSON.parse(data).world).toMatch('world')
+  })
+
+  it('should generate skeleton without calling getInitialProps', async () => {
+    let html = await renderViaHTTP(appPort, '/blog/post-1?skeleton=1')
+    expect(html).not.toMatch(/Post:.*?SSR/)
+
+    html = await renderViaHTTP(appPort, '/blog/post-1/comment-1?skeleton=1')
+    expect(html).not.toMatch(/Comment:.*?SSR/)
+  })
+
+  it('should call getInitialProps client-side when viewing skeleton', async () => {
+    let browser = await webdriver(appPort, '/blog/post-1?skeleton=1')
+    await waitFor(1000)
+    let text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Post:.*?Skeleton/)
+    await browser.close()
+
+    browser = await webdriver(appPort, '/blog/post-1/comment-1?skeleton=1')
+    await waitFor(1000)
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Comment:.*?Skeleton/)
+    await browser.close()
   })
 }
 
@@ -92,7 +140,15 @@ describe('SPR Prerender', () => {
       const pages = manifest.prerenderRoutes.map(route => route.path)
 
       expect(JSON.stringify(pages.sort())).toBe(
-        JSON.stringify(['/', '/another', '/something'])
+        JSON.stringify(
+          [
+            '/',
+            '/another',
+            '/something',
+            '/blog/[post]',
+            '/blog/[post]/[comment]'
+          ].sort()
+        )
       )
     })
   })

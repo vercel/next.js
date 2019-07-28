@@ -28,7 +28,6 @@ import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 import { PageConfig } from 'next-server/types'
-import { isDynamicRoute } from '../lib/router/utils'
 
 export type ManifestItem = {
   id: number | string
@@ -134,6 +133,7 @@ type RenderOpts = {
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
+  skeleton?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
@@ -167,6 +167,7 @@ function renderDocument(
     assetPrefix,
     runtimeConfig,
     nextExport,
+    skeleton,
     dynamicImportsIds,
     dangerousAsPath,
     err,
@@ -211,6 +212,7 @@ function renderDocument(
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
+            skeleton, // If this is a skeleton page for experimentalPrerender
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -259,6 +261,7 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
   let isStaticPage = Boolean(pageConfig.experimentalPrerender)
+  let isSkeleton = false
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -293,6 +296,10 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
+  // might want to change previewing of skeleton from `?skeleton=1`
+  isSkeleton =
+    pageConfig.experimentalPrerender === true &&
+    ((req as any).skipGIP || query.skeleton)
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
@@ -339,7 +346,7 @@ export async function renderToHTML(
   )
 
   try {
-    props = (req as any).skipGIP
+    props = isSkeleton
       ? { pageProps: {} }
       : await loadGetInitialProps(App, {
           Component,
@@ -515,6 +522,7 @@ export async function renderToHTML(
   renderOpts.hybridAmp = hybridAmp
   renderOpts.pageData = props && props.pageProps
   renderOpts.isInlinePrerender = pageConfig.experimentalPrerender === 'inline'
+  if (isSkeleton) renderOpts.skeleton = true
 
   let html = renderDocument(Document, {
     ...renderOpts,

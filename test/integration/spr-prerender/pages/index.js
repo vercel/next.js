@@ -17,6 +17,14 @@ const Page = ({ world }) => {
       <Link href='/normal'>
         <a id='normal'>to normal</a>
       </Link>
+      <br />
+      <Link href='/blog/[post]' as='/blog/post-1'>
+        <a id='post-1'>to dynamic</a>
+      </Link>
+      <br />
+      <Link href='/blog/[post]/[comment]' as='/blog/post-1/comment-1'>
+        <a id='comment-1'>to another dynamic</a>
+      </Link>
     </>
   )
 }

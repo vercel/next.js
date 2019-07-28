@@ -77,7 +77,8 @@ process.on(
         }
 
         if (sprPage && isDynamicRoute(page)) {
-          req.skipGip = true
+          // pass via `req` to avoid adding code to serverless bundle
+          req.skipGIP = true
         }
 
         envConfig.setConfig({

@@ -1,4 +1,4 @@
-/* global location */
+/* global location, __NEXT_DATA__ */
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
@@ -173,8 +173,17 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       render({ App, Component, props, err, emitter })
     }
   })
+  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  render(renderCtx)
 
-  render({ App, Component, props, err: initialErr, emitter })
+  if (__NEXT_DATA__.skeleton && Component.__nextOrigGip) {
+    props.pageProps = await Component.__nextOrigGip({
+      pathname: page,
+      asPath,
+      query
+    })
+    render(renderCtx)
+  }
 
   return emitter
 }

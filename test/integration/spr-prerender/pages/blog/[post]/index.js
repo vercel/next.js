@@ -1,15 +1,23 @@
 import React from 'react'
+import Link from 'next/link'
 
 export const config = { experimentalPrerender: true }
 
 export default class Post extends React.Component {
-  static getInitialProps() {
+  static async getInitialProps () {
     return {
-      time: new Date().getTime()
+      data: typeof window === 'undefined' ? 'SSR' : 'Skeleton'
     }
   }
 
-  render() {
-    return <p>Current time: {this.props.time}</p>
+  render () {
+    return (
+      <>
+        <p>Post: {this.props.data}</p>
+        <Link href='/'>
+          <a id='home'>to home</a>
+        </Link>
+      </>
+    )
   }
 }
