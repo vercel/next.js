@@ -25,6 +25,14 @@ function createPreloadLink (url) {
 
 const hasPreload = supportsPreload(document.createElement('link').relList)
 
+// Retrieve a list of dependencies for a given route from the build manifest
+function getDependencies (route) {
+  if (!window.__BUILD_MANIFEST || !window.__BUILD_MANIFEST.pages[route]) {
+    return []
+  }
+  return window.__BUILD_MANIFEST.pages[route].map(url => '/_next/' + url)
+}
+
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
     this.buildId = buildId
@@ -86,7 +94,7 @@ export default class PageLoader {
             return results ? results[0] : el.src
           })
         )
-        const deps = this.getDependencies(route)
+        const deps = getDependencies(route)
         const urlsToLoad = deps.filter(url => !loadedModules.has(url))
 
         this.loadingRoutes[route] = true
@@ -94,14 +102,6 @@ export default class PageLoader {
         this.loadRoute(route)
       }
     })
-  }
-
-  // Retrieve a list of dependencies for a given route from the build manifest
-  getDependencies (route) {
-    if (!window.__BUILD_MANIFEST || !window.__BUILD_MANIFEST.pages[route]) {
-      return []
-    }
-    return window.__BUILD_MANIFEST.pages[route].map(url => '/_next/' + url)
   }
 
   onDynamicBuildId () {
@@ -228,7 +228,7 @@ export default class PageLoader {
     }
 
     if (!isDependency) {
-      this.getDependencies(route).forEach(url => {
+      getDependencies(route).forEach(url => {
         this.prefetch(url, true)
       })
     }
