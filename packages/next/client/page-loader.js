@@ -154,7 +154,6 @@ export default class PageLoader {
     }
     script.crossOrigin = process.crossOrigin
     script.src = url
-    script.async = false // Explicit async = false required for in-order execution
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
