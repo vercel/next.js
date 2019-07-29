@@ -82,7 +82,7 @@ export default class PageLoader {
 
         this.loadingRoutes[route] = true
         urlsToLoad.forEach(url => this.loadScript(url, route))
-        this.loadRouteBundle(route)
+        this.loadRoute(route)
       }
     })
   }
@@ -124,7 +124,7 @@ export default class PageLoader {
     })
   }
 
-  async loadRouteBundle (route) {
+  async loadRoute (route) {
     await this.promisedBuildId
 
     route = this.normalizeRoute(route)
