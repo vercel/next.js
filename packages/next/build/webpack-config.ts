@@ -276,7 +276,7 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  //Select appropriate SplitChunksPlugin config for this build
+  // Select appropriate SplitChunksPlugin config for this build
   let splitChunksConfig: webpack.Options.SplitChunksOptions
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
