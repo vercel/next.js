@@ -11,14 +11,12 @@
     "next": "latest",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
-    "workbox-window": "next",
-    "yarn-deduplicate": "1.1.1"
+    "workbox-window": "next"
   },
   "devDependencies": {
     "@types/node": "^12.6.8",
     "@types/react": "^16.8.22",
     "@types/react-dom": "16.8.5",
-    "cpy-cli": "2.0.0",
     "typescript": "^3.5.3",
     "workbox-precaching": "next",
     "workbox-webpack-plugin": "next"
