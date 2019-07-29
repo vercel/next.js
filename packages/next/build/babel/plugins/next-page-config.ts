@@ -122,6 +122,19 @@ export default function nextPageConfig({
           t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
         ])
       },
+      // handles class { static async getInitialProps() {} }
+      ClassMethod(path, state: ConfigState) {
+        if (!state.setupInlining) return
+        if (
+          (path.node.key && (path.node.key as BabelTypes.Identifier).name) !==
+          'getInitialProps'
+        )
+          return
+
+        path.node.body = t.blockStatement([
+          t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
+        ])
+      },
     },
   }
 }

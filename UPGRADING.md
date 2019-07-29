@@ -17,16 +17,19 @@ The following types are different:
 > This list was created by the community to help you upgrade, if you find other differences please send a pull-request to this list to help other users.
 
 From:
+
 ```tsx
-import { NextContext } from "next";
-import { NextAppContext } from "next/app";
-import { NextDocumentContext } from "next/document";
+import { NextContext } from 'next'
+import { NextAppContext } from 'next/app'
+import { NextDocumentContext } from 'next/document'
 ```
+
 to
+
 ```tsx
-import { NextPageContext } from "next";
-import { AppContext } from "next/app";
-import { DocumentContext } from "next/document";
+import { NextPageContext } from 'next'
+import { AppContext } from 'next/app'
+import { DocumentContext } from 'next/document'
 ```
 
 #### The `config` key is now a special export on a page
@@ -103,6 +106,12 @@ module.exports = {
   exportTrailingSlash: true,
 }
 ```
+
+#### `./pages/api/` is treated differently
+
+Pages in `./pages/api/` are now considered [API Routes](https://nextjs.org/blog/next-9#api-routes).
+Pages in this directory will no longer contain a client-side bundle.
+
 
 ## Deprecated Features
 

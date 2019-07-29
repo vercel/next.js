@@ -138,11 +138,18 @@ export function runNextCommandDev (argv, stdOut, opts = {}) {
       if (/ready on/i.test(message)) {
         resolve(stdOut ? message : instance)
       }
+      if (typeof opts.onStdout === 'function') {
+        opts.onStdout(message)
+      }
       process.stdout.write(message)
     }
 
     function handleStderr (data) {
-      process.stderr.write(data.toString())
+      const message = data.toString()
+      if (typeof opts.onStderr === 'function') {
+        opts.onStderr(message)
+      }
+      process.stderr.write(message)
     }
 
     instance.stdout.on('data', handleStdout)
@@ -160,8 +167,8 @@ export function runNextCommandDev (argv, stdOut, opts = {}) {
 }
 
 // Launch the app in dev mode.
-export function launchApp (dir, port) {
-  return runNextCommandDev([dir, '-p', port])
+export function launchApp (dir, port, opts) {
+  return runNextCommandDev([dir, '-p', port], undefined, opts)
 }
 
 export function nextBuild (dir, args = [], opts = {}) {
