@@ -1808,7 +1808,7 @@
     "@types/connect" "*"
     "@types/node" "*"
 
-"@types/compression@^0.0.36":
+"@types/compression@0.0.36":
   version "0.0.36"
   resolved "https://registry.yarnpkg.com/@types/compression/-/compression-0.0.36.tgz#7646602ffbfc43ea48a8bf0b2f1d5e5f9d75c0d0"
   integrity sha512-B66iZCIcD2eB2F8e8YDIVtCUKgfiseOR5YOIbmMN2tM57Wu55j1xSdxdSw78aVzsPmbZ6G+hINc+1xe1tt4NBg==
@@ -3912,7 +3912,7 @@ compressible@~2.0.16:
   dependencies:
     mime-db ">= 1.40.0 < 2"
 
-compression@^1.7.4:
+compression@1.7.4:
   version "1.7.4"
   resolved "https://registry.yarnpkg.com/compression/-/compression-1.7.4.tgz#95523eff170ca57c29a0ca41e6fe131f41e5bb8f"
   integrity sha512-jaSIDzP9pZVS4ZfQ+TzvtiWhdpFhE2RDHz8QJkpX9SIpLq88VueF5jJw6t+6CUQcAoA6t+x89MLrWAqpfDE8iQ==
