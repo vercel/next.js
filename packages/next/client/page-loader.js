@@ -37,6 +37,7 @@ export default class PageLoader {
   constructor (buildId, assetPrefix) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
+
     this.pageCache = {}
     this.prefetchCache = new Set()
     this.pageRegisterEvents = mitt()
