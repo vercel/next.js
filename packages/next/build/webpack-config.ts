@@ -235,16 +235,17 @@ export default async function getBaseWebpackConfig(
           },
           name(module: { identifier: Function; rawRequest: string }): string {
             const rawRequest =
-              module.rawRequest && module.rawRequest.replace(/^@(\w+)\//, '$1-')
+              module.rawRequest &&
+              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
             if (rawRequest) return rawRequest
 
             const identifier = module.identifier()
-            const trimmedIdentifier = /(?:^|\/)node_modules\/(.*)/.exec(
+            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
               identifier
             )
             const processedIdentifier =
               trimmedIdentifier &&
-              trimmedIdentifier[1].replace(/^@(\w+)\//, '$1-')
+              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
 
             return processedIdentifier || identifier
           },
