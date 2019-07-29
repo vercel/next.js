@@ -11,10 +11,12 @@ import {
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
-  options: { buildId: string; clientManifest: boolean }
+  private buildId: string
+  private clientManifest: boolean
 
   constructor(options: { buildId: string; clientManifest: boolean }) {
-    this.options = options
+    this.buildId = options.buildId
+    this.clientManifest = options.clientManifest
   }
 
   apply(compiler: Compiler) {
@@ -91,14 +93,12 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
-        // Add the runtime buildManifest.js file (generated later in this file) as a
-        // dependency for the app. If the flag is false, the file won't be downloaded
-        // by the client
-        if (this.options.clientManifest) {
+        // Add the runtime build manifest file (generated later in this file)
+        // as a dependency for the app. If the flag is false, the file won't be
+        // downloaded by the client.
+        if (this.clientManifest) {
           assetMap.pages['/_app'].push(
-            `${CLIENT_STATIC_FILES_PATH}/${
-              this.options.buildId
-            }/_buildManifest.js`
+            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
           )
         }
 
@@ -107,23 +107,17 @@ export default class BuildManifestPlugin {
           // eslint-disable-next-line
           .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
-        const manifestContentString = JSON.stringify(assetMap, null, 2)
-
         compilation.assets[BUILD_MANIFEST] = new RawSource(
-          manifestContentString
+          JSON.stringify(assetMap, null, 2)
         )
 
-        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
-          this.options.buildId
-        }/_buildManifest.js`
-        const clientManifestContentString = manifestContentString.replace(
-          /\s/g,
-          ''
-        )
+        if (this.clientManifest) {
+          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
+            this.buildId
+          }/_buildManifest.js`
 
-        if (this.options.clientManifest) {
           compilation.assets[clientManifestPath] = new RawSource(
-            `self.__BUILD_MANIFEST = JSON.parse('${clientManifestContentString}')`
+            `self.__BUILD_MANIFEST = JSON.parse('${JSON.stringify(assetMap)}')`
           )
         }
 
