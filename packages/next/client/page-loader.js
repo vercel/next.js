@@ -25,6 +25,8 @@ function createPreloadLink (url) {
   document.head.appendChild(link)
 }
 
+const hasModule = 'noModule' in document.createElement('script')
+
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
     this.buildId = buildId
@@ -124,7 +126,7 @@ export default class PageLoader {
 
     const script = document.createElement('script')
 
-    if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
+    if (process.env.__NEXT_MODERN_BUILD && hasModule) {
       script.type = 'module'
       scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
@@ -182,10 +184,7 @@ export default class PageLoader {
     route = this.normalizeRoute(route)
     let scriptRoute = `${route === '/' ? '/index' : route}.js`
 
-    if (
-      process.env.__NEXT_MODERN_BUILD &&
-      'noModule' in document.createElement('script')
-    ) {
+    if (process.env.__NEXT_MODERN_BUILD && hasModule) {
       scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
 
