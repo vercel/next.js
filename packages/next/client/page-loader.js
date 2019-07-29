@@ -88,19 +88,13 @@ export default class PageLoader {
       }
 
       if (!this.loadingRoutes[route]) {
-        // Make sure we don't load a dependency that's already loaded
-        const loadedModules = new Set(
-          [].slice.call(document.getElementsByTagName('script')).map(el => {
-            const results = /\/_next\/[^?]*/g.exec(el.src)
-            return results ? results[0] : el.src
-          })
-        )
-        const deps = getDependencies(route)
-        const urlsToLoad = deps.filter(url => !loadedModules.has(url))
-
-        this.loadingRoutes[route] = true
-        urlsToLoad.forEach(url => this.loadScript(url, route))
+        getDependencies(route).forEach(d => {
+          if (!document.querySelector(`script[src^="${d}"]`)) {
+            this.loadScript(d, route)
+          }
+        })
         this.loadRoute(route)
+        this.loadingRoutes[route] = true
       }
     })
   }
