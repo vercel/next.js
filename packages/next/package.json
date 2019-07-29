@@ -120,7 +120,7 @@
     "@types/babel__template": "7.0.2",
     "@types/babel__traverse": "7.0.6",
     "@types/cross-spawn": "6.0.0",
-    "@types/compression": "^0.0.36",
+    "@types/compression": "0.0.36",
     "@types/etag": "1.8.0",
     "@types/find-up": "2.1.1",
     "@types/fresh": "0.5.0",
