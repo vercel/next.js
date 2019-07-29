@@ -10,8 +10,7 @@ declare global {
   }
 }
 
-// @ts-ignore
-import { precacheAndRoute } from 'workbox-precaching/precacheAndRoute.mjs'
+import { precacheAndRoute } from 'workbox-precaching/precacheAndRoute'
 
 self.addEventListener('message', event => {
   if (!event.data || !event.data.type) return
