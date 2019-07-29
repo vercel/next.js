@@ -14,6 +14,8 @@ function supportsPreload (list) {
   }
 }
 
+const hasPreload = supportsPreload(document.createElement('link').relList)
+
 function createPreloadLink (url) {
   const link = document.createElement('link')
   link.rel = 'preload'
@@ -22,8 +24,6 @@ function createPreloadLink (url) {
   link.as = 'script'
   document.head.appendChild(link)
 }
-
-const hasPreload = supportsPreload(document.createElement('link').relList)
 
 // Retrieve a list of dependencies for a given route from the build manifest
 function getDependencies (route) {
