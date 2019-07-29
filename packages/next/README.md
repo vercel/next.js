@@ -1077,6 +1077,16 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
+For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
+}
+```
+
 To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
 
 ```js
@@ -2237,15 +2247,6 @@ Page.getInitialProps = async ({ req }) => {
 }
 
 export default Page
-```
-
-For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
-
-```ts
-import { NextApiRequest, NextApiResponse } from 'next'
-
-export default (req: NextApiRequest, res: NextApiResponse) => {
-  res.status(200).json({ title: 'Next.js' })
 ```
 
 For `React.Component` you can use `NextPageContext`:
