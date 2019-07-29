@@ -3,6 +3,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import compression from 'compression'
 
 import {
   BUILD_ID_FILE,
@@ -35,6 +36,12 @@ import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
 
 type NextConfig = any
+
+type Middleware = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  next: (err?: Error) => void
+) => void
 
 export type ServerConstructor = {
   /**
@@ -72,6 +79,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     dev?: boolean
   }
+  private compression?: Middleware
   router: Router
   private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
@@ -101,6 +109,7 @@ export default class Server {
       publicRuntimeConfig,
       assetPrefix,
       generateEtags,
+      compress,
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
@@ -120,6 +129,10 @@ export default class Server {
     // It'll be rendered as part of __NEXT_DATA__ on the client side
     if (Object.keys(publicRuntimeConfig).length > 0) {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
+    }
+
+    if (compress && this.nextConfig.target !== 'serverless') {
+      this.compression = compression() as Middleware
     }
 
     // Initialize next/config with the environment configuration
@@ -371,11 +384,19 @@ export default class Server {
     }))
   }
 
+  private handleCompression(req: IncomingMessage, res: ServerResponse) {
+    if (this.compression) {
+      this.compression(req, res, () => {})
+    }
+  }
+
   private async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ) {
+    this.handleCompression(req, res)
+
     try {
       const fn = this.router.match(req, res, parsedUrl)
       if (fn) {
