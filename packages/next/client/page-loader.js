@@ -14,6 +14,15 @@ function supportsPreload (list) {
   }
 }
 
+function createPreloadLink (url) {
+  const link = document.createElement('link')
+  link.rel = 'preload'
+  link.crossOrigin = process.crossOrigin
+  link.href = url
+  link.as = 'script'
+  document.head.appendChild(link)
+}
+
 const hasPreload = supportsPreload(document.createElement('link').relList)
 
 export default class PageLoader {
@@ -234,7 +243,7 @@ export default class PageLoader {
         : `${this.assetPrefix}/_next/static/${encodeURIComponent(
           this.buildId
         )}/pages${scriptRoute}`
-      this.createPreloadLink(url)
+      createPreloadLink(url)
       return
     }
 
@@ -253,15 +262,6 @@ export default class PageLoader {
         })
       })
     }
-  }
-
-  createPreloadLink (url) {
-    const link = document.createElement('link')
-    link.rel = 'preload'
-    link.crossOrigin = process.crossOrigin
-    link.href = url
-    link.as = 'script'
-    document.head.appendChild(link)
   }
 
   clearCache (route) {
