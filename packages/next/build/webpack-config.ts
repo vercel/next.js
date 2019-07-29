@@ -287,6 +287,7 @@ export default async function getBaseWebpackConfig(
       ? splitChunksConfigs.prodGranular
       : splitChunksConfigs.prod
   }
+
   const crossOrigin =
     !config.crossOrigin && config.experimental.modern
       ? 'anonymous'
