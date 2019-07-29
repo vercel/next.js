@@ -262,11 +262,14 @@ function markHydrateComplete () {
 
 function markRenderComplete () {
   performance.mark('afterRender') // mark end of render
+  const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
 
-  const navStartEntries = performance.getEntriesByName('linkClick', 'mark')
+  if (!navStartEntries.length) {
+    return
+  }
 
   performance.measure(
-    'Next.js-nav-to-render',
+    'Next.js-route-change-to-render',
     navStartEntries[0].name,
     'beforeRender'
   )
