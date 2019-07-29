@@ -176,6 +176,56 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
+  // Contains various versions of the Webpack SplitChunksPlugin used in different build types
+  const splitChunksConfigs: {
+    [propName: string]: webpack.Options.SplitChunksOptions
+  } = {
+    dev: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+      },
+    },
+    selective: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        react: {
+          name: 'commons',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+        },
+      },
+    },
+    prod: {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
+        },
+        react: {
+          name: 'commons',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+        },
+      },
+    },
+  }
+
+  // Select appropriate SplitChunksPlugin config for this build
+  let splitChunksConfig: webpack.Options.SplitChunksOptions
+  if (dev) {
+    splitChunksConfig = splitChunksConfigs.dev
+  } else if (selectivePageBuilding) {
+    splitChunksConfig = splitChunksConfigs.selective
+  } else {
+    splitChunksConfig = splitChunksConfigs.prod
+  }
+
   const crossOrigin =
     !config.crossOrigin && config.experimental.modern
       ? 'anonymous'
@@ -278,42 +328,7 @@ export default async function getBaseWebpackConfig(
               : {
                   name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
                 },
-            splitChunks: dev
-              ? {
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                  },
-                }
-              : selectivePageBuilding
-              ? {
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                    react: {
-                      name: 'commons',
-                      chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    },
-                  },
-                }
-              : {
-                  chunks: 'all',
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                    commons: {
-                      name: 'commons',
-                      chunks: 'all',
-                      minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-                    },
-                    react: {
-                      name: 'commons',
-                      chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    },
-                  },
-                },
+            splitChunks: splitChunksConfig,
             minimize: !dev,
             minimizer: !dev
               ? [
