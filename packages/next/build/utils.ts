@@ -50,7 +50,9 @@ export function printTreeView(
   }
 
   const messages: string[][] = [
-    ['Page', 'Size', 'Files', 'Packages'].map(entry => chalk.underline(entry)),
+    ['', 'Page', 'Size', 'Files', 'Packages'].map(entry =>
+      chalk.underline(entry)
+    ),
   ]
 
   list
@@ -70,14 +72,14 @@ export function printTreeView(
       messages.push([
         `${symbol} ${
           item.startsWith('/_')
-            ? '  '
+            ? ' '
             : pageInfo && pageInfo.static
-            ? // '⚡' has a width of two characters in the terminal
-              chalk.bold('⚡')
+            ? chalk.bold('⚡')
             : serverless
-            ? 'λ '
-            : 'σ '
-        } ${item}`,
+            ? 'λ'
+            : 'σ'
+        }`,
+        item,
         ...(pageInfo
           ? [
               pageInfo.isAmp
@@ -94,7 +96,7 @@ export function printTreeView(
 
   console.log(
     textTable(messages, {
-      align: ['l', 'l', 'r', 'r'],
+      align: ['l', 'l', 'l', 'r', 'r'],
       stringLength: stringWidth,
     })
   )
