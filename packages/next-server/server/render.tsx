@@ -149,7 +149,6 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  isInlinePrerender?: boolean
   pageData?: any
 }
 
@@ -521,7 +520,6 @@ export async function renderToHTML(
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
   renderOpts.pageData = props && props.pageProps
-  renderOpts.isInlinePrerender = pageConfig.experimentalPrerender === 'inline'
   if (isSkeleton) renderOpts.skeleton = true
 
   let html = renderDocument(Document, {

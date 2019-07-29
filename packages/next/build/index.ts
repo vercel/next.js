@@ -365,7 +365,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
           if (
             (result.static && customAppGetInitialProps === false) ||
-            result.prerender === 'inline' ||
             result.prerender === 'legacy'
           ) {
             staticPages.add(page)

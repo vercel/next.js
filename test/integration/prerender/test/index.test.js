@@ -1,85 +1,155 @@
 /* eslint-env jest */
 /* global jasmine */
-import fs from 'fs-extra'
-import path from 'path'
+import { join } from 'path'
+import webdriver from 'next-webdriver'
 import {
+  renderViaHTTP,
+  fetchViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
   nextBuild,
   nextStart,
-  findPort,
-  killApp,
-  renderViaHTTP
+  waitFor
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 3
-
-const appDir = path.join(__dirname, '../')
-let buildId
-let appPort
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+const appDir = join(__dirname, '..')
 let app
+let appPort
 
-describe('Prerendering pages', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-    buildId = (
-      (await fs.readFile(path.join(appDir, '.next/BUILD_ID'), 'utf8')) || ''
-    ).trim()
+const runTests = () => {
+  it('should navigate between pages successfully', async () => {
+    const browser = await webdriver(appPort, '/')
+    let text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello.*?world/)
+
+    // go to /another
+    await browser.elementByCss('#another').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello.*?world/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#another')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello.*?world/)
+
+    // go to /something
+    await browser.elementByCss('#something').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello.*?world/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#post-1')
+
+    // go to /blog/post-1
+    await browser.elementByCss('#post-1').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Post:.*?SSR/)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /blog/post-1/comment-1
+    await browser.elementByCss('#comment-1').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Comment:.*?SSR/)
+
+    await browser.close()
   })
-  afterAll(() => killApp(app))
 
-  it('should render the correct files', async () => {
-    let files = ['nested/hello', 'another', 'index']
+  it('should SSR content correctly', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(html).toMatch(/hello.*?world/)
+  })
 
-    for (const file of files) {
-      expect(
-        await fs.exists(
-          path.join(
-            appDir,
-            '.next/server/static',
-            buildId,
-            'pages',
-            file + '.html'
-          )
+  it('should navigate to a normal page and back', async () => {
+    const browser = await webdriver(appPort, '/')
+    let text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/hello.*?world/)
+
+    await browser.elementByCss('#normal').click()
+    await browser.waitForElementByCss('#normal-text')
+    text = await browser.elementByCss('#normal-text').text()
+    expect(text).toMatch(/a normal page/)
+  })
+
+  it('should return JSON when content-type is set', async () => {
+    const data = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        'content-type': 'application/json'
+      }
+    }).then(res => res.ok && res.text())
+
+    expect(JSON.parse(data).world).toMatch('world')
+  })
+
+  it('should generate skeleton without calling getInitialProps', async () => {
+    let html = await renderViaHTTP(appPort, '/blog/post-1?skeleton=1')
+    expect(html).not.toMatch(/Post:.*?SSR/)
+
+    html = await renderViaHTTP(appPort, '/blog/post-1/comment-1?skeleton=1')
+    expect(html).not.toMatch(/Comment:.*?SSR/)
+  })
+
+  it('should call getInitialProps client-side when viewing skeleton', async () => {
+    let browser = await webdriver(appPort, '/blog/post-1?skeleton=1')
+    await waitFor(1000)
+    let text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Post:.*?Skeleton/)
+    await browser.close()
+
+    browser = await webdriver(appPort, '/blog/post-1/comment-1?skeleton=1')
+    await waitFor(1000)
+    text = await browser.elementByCss('p').text()
+    expect(text).toMatch(/Comment:.*?Skeleton/)
+    await browser.close()
+  })
+}
+
+describe('SPR Prerender', () => {
+  describe('development mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests()
+  })
+
+  describe('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests()
+
+    it('outputs a prerender-manifest correctly', async () => {
+      const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
+      const pages = manifest.prerenderRoutes.map(route => route.path)
+
+      expect(JSON.stringify(pages.sort())).toBe(
+        JSON.stringify(
+          [
+            '/',
+            '/another',
+            '/something',
+            '/blog/[post]',
+            '/blog/[post]/[comment]'
+          ].sort()
         )
-      ).toBe(true)
-    }
-
-    files = ['nested/old-school', 'old-school']
-
-    for (const file of files) {
-      expect(
-        await fs.exists(
-          path.join(
-            appDir,
-            '.next/server/static',
-            buildId,
-            'pages',
-            file + '.js'
-          )
-        )
-      ).toBe(true)
-    }
-  })
-
-  it('should have called getInitialProps during prerender', async () => {
-    const hello = await renderViaHTTP(appPort, '/nested/hello')
-    expect(hello).toMatch(/something/)
-
-    const another = await renderViaHTTP(appPort, '/another')
-    expect(another).toMatch(/John Deux/)
-  })
-
-  it('should call getInitialProps for SSR pages', async () => {
-    const oldSchool1 = await renderViaHTTP(appPort, '/old-school')
-    expect(oldSchool1).toMatch(/I.*?m just an old SSR page/)
-
-    const oldSchool2 = await renderViaHTTP(appPort, '/nested/old-school')
-    expect(oldSchool2).toMatch(/I.*?m just an old SSR page/)
-  })
-
-  it('should autoExport correctly', async () => {
-    const index = await renderViaHTTP(appPort, '/')
-    expect(index).toMatch(/An autoExported page/)
+      )
+    })
   })
 })

@@ -5,7 +5,6 @@ import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
 import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
 
-export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
 const sprFetchIdentifier = '__nextSprFetcher'
 const skeletonGipIdentifier = '__nextOrigGip'
@@ -95,11 +94,6 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
-
-                if (config.experimentalPrerender === 'inline') {
-                  state.setupInlining = true
-                }
-
                 if (config.experimentalPrerender === true) {
                   state.setupSprHandler = true
                   let page = (state.filename || '')
@@ -133,7 +127,7 @@ export default function nextPageConfig({
             state
           )
 
-          if (state.setupInlining || state.setupSprHandler) {
+          if (state.setupSprHandler) {
             // if we're replacing `getInitialProps` at all we need to do it before
             // other transforms or else the replacing could fail
             path.traverse(
@@ -144,40 +138,28 @@ export default function nextPageConfig({
                   const { name } = property
                   if (name !== 'getInitialProps') return
 
-                  if (state.setupInlining) {
-                    // replace the getInitialProps function with an identifier for replacing
-                    path.node.right = t.functionExpression(
-                      null,
-                      [],
-                      t.blockStatement([
-                        t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-                      ])
+                  // if it's a skeleton we need to maintain the original getInitialProps
+                  // in the client bundle to call client-side
+                  if (state.dynamicPage) {
+                    const origGip = t.cloneDeep(path.node)
+                    origGip.left = t.memberExpression(
+                      t.identifier((origGip.left as any).object.name),
+                      t.identifier(skeletonGipIdentifier)
                     )
+                    path.insertBefore(origGip)
                   }
-                  if (state.setupSprHandler) {
-                    // if it's a skeleton we need to maintain the original getInitialProps
-                    // in the client bundle to call client-side
-                    if (state.dynamicPage) {
-                      const origGip = t.cloneDeep(path.node)
-                      origGip.left = t.memberExpression(
-                        t.identifier((origGip.left as any).object.name),
-                        t.identifier(skeletonGipIdentifier)
-                      )
-                      path.insertBefore(origGip)
-                    }
 
-                    path.node.right = t.functionExpression(
-                      null,
-                      [],
-                      t.blockStatement([
-                        t.returnStatement(
-                          t.callExpression(t.identifier(sprFetchIdentifier), [
-                            t.stringLiteral(state.nextPage!),
-                          ])
-                        ),
-                      ])
-                    )
-                  }
+                  path.node.right = t.functionExpression(
+                    null,
+                    [],
+                    t.blockStatement([
+                      t.returnStatement(
+                        t.callExpression(t.identifier(sprFetchIdentifier), [
+                          t.stringLiteral(state.nextPage!),
+                        ])
+                      ),
+                    ])
+                  )
                 },
                 // handles modern class { static async getInitialProps() {} }
                 ClassMethod(path, state: ConfigState) {
@@ -188,27 +170,19 @@ export default function nextPageConfig({
                   )
                     return
 
-                  if (state.setupInlining) {
-                    path.node.body = t.blockStatement([
-                      t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-                    ])
+                  if (state.dynamicPage) {
+                    const origGip = t.cloneDeep(path.node)
+                    origGip.key = t.stringLiteral(skeletonGipIdentifier)
+                    path.insertBefore(origGip)
                   }
 
-                  if (state.setupSprHandler) {
-                    if (state.dynamicPage) {
-                      const origGip = t.cloneDeep(path.node)
-                      origGip.key = t.stringLiteral(skeletonGipIdentifier)
-                      path.insertBefore(origGip)
-                    }
-
-                    path.node.body = t.blockStatement([
-                      t.returnStatement(
-                        t.callExpression(t.identifier(sprFetchIdentifier), [
-                          t.stringLiteral(state.nextPage!),
-                        ])
-                      ),
-                    ])
-                  }
+                  path.node.body = t.blockStatement([
+                    t.returnStatement(
+                      t.callExpression(t.identifier(sprFetchIdentifier), [
+                        t.stringLiteral(state.nextPage!),
+                      ])
+                    ),
+                  ])
                 },
               },
               state

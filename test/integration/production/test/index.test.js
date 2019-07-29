@@ -546,26 +546,6 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should prerender pages with data correctly', async () => {
-    const toSomething = await renderViaHTTP(appPort, '/to-something')
-    expect(toSomething).toMatch(/some interesting title/)
-
-    const something = await renderViaHTTP(appPort, '/something')
-    expect(something).toMatch(/this is some data to be inlined/)
-  })
-
-  it('should have inlined the data correctly in prerender', async () => {
-    const browser = await webdriver(appPort, '/to-something')
-    await browser.elementByCss('#something').click()
-
-    let text = await browser.elementByCss('h3').text()
-    expect(text).toMatch(/this is some data to be inlined/)
-
-    await browser.elementByCss('#to-something').click()
-    text = await browser.elementByCss('h3').text()
-    expect(text).toMatch(/some interesting title/)
-  })
-
   it('should handle AMP correctly in IE', async () => {
     const browser = await webdriver(appPort, '/some-amp')
     await waitFor(1000)
