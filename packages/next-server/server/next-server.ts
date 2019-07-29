@@ -384,19 +384,10 @@ export default class Server {
     }))
   }
 
-  private handleCompression(
-    req: IncomingMessage,
-    res: ServerResponse
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.compression) {
-        return resolve()
-      }
-      this.compression(req, res, err => {
-        if (err) reject(err)
-        else resolve()
-      })
-    })
+  private handleCompression(req: IncomingMessage, res: ServerResponse) {
+    if (this.compression) {
+      this.compression(req, res, () => {})
+    }
   }
 
   private async run(
@@ -404,7 +395,7 @@ export default class Server {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ) {
-    await this.handleCompression(req, res)
+    this.handleCompression(req, res)
 
     try {
       const fn = this.router.match(req, res, parsedUrl)
