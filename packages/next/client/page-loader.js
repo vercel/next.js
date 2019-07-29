@@ -26,11 +26,11 @@ function createPreloadLink (url) {
 }
 
 // Retrieve a list of dependencies for a given route from the build manifest
-function getDependencies (route) {
-  if (!window.__BUILD_MANIFEST || !window.__BUILD_MANIFEST.pages[route]) {
-    return []
+function getDependencies (route, _m) {
+  if ((_m = window.__BUILD_MANIFEST) && (_m = _m.pages[route])) {
+    return _m.map(url => `/_next/${url}`)
   }
-  return window.__BUILD_MANIFEST.pages[route].map(url => '/_next/' + url)
+  return []
 }
 
 export default class PageLoader {
