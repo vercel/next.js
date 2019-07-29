@@ -67,17 +67,17 @@ export function printTreeView(
 
       const pageInfo = pageInfos.get(item)
 
-      const renderTarget = item.startsWith('/_')
-        ? ' '
-        : pageInfo && pageInfo.static
-        ? chalk.bold('⚡')
-        : serverless
-        ? 'λ'
-        : 'σ'
-      const maxWidth = Math.max(...[' ', 'λ', 'σ', '⚡'].map(stringWidth))
-
       messages.push([
-        `${symbol} ${renderTarget.padEnd(maxWidth)} ${item}`,
+        `${symbol} ${
+          item.startsWith('/_')
+            ? '  '
+            : pageInfo && pageInfo.static
+            ? // '⚡' has a width of two characters in the terminal
+              chalk.bold('⚡')
+            : serverless
+            ? 'λ '
+            : 'σ '
+        } ${item}`,
         ...(pageInfo
           ? [
               pageInfo.isAmp
