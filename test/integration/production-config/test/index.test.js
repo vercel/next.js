@@ -40,7 +40,7 @@ describe('Production Config Usage', () => {
   })
 
   describe('env', () => {
-    it('should fail with __ in env key', async () => {
+    it('should fail with leading __ in env key', async () => {
       const result = await runNextCommand(['build', appDir], {
         env: { ENABLE_ENV_FAIL_UNDERSCORE: true },
         stdout: true,
@@ -58,6 +58,16 @@ describe('Production Config Usage', () => {
       })
 
       expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
+    })
+
+    it('should allow __ within env key', async () => {
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_WITH_UNDERSCORES: true },
+        stdout: true,
+        stderr: true
+      })
+
+      expect(result.stderr).not.toMatch(/The key "SOME__ENV__VAR" under/)
     })
   })
 

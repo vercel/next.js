@@ -438,7 +438,7 @@ export default async function getBaseWebpackConfig(
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...Object.keys(config.env).reduce((acc, key) => {
-          if (/^(?:NODE_.+)|(?:__.+)$/i.test(key)) {
+          if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
               `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
             )
