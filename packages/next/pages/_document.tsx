@@ -257,6 +257,9 @@ export class Head extends Component<
         )
     }
 
+    let hasAmphtmlRel = false
+    let hasCanonicalRel = false
+
     // show warning and remove conflicting amp head tags
     head = !inAmpMode
       ? head
@@ -268,7 +271,9 @@ export class Head extends Component<
           if (type === 'meta' && props.name === 'viewport') {
             badProp = 'name="viewport"'
           } else if (type === 'link' && props.rel === 'canonical') {
-            badProp = 'rel="canonical"'
+            hasCanonicalRel = true
+          } else if (type === 'link' && props.rel === 'amphtml') {
+            hasAmphtmlRel = true
           } else if (type === 'script') {
             // only block if
             // 1. it has a src and isn't pointing to ampproject's CDN
@@ -341,10 +346,12 @@ export class Head extends Component<
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link
-              rel="canonical"
-              href={canonicalBase + cleanAmpPath(dangerousAsPath)}
-            />
+            {!hasCanonicalRel && (
+              <link
+                rel="canonical"
+                href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+              />
+            )}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -383,7 +390,7 @@ export class Head extends Component<
         )}
         {!inAmpMode && (
           <>
-            {hybridAmp && (
+            {!hasAmphtmlRel && hybridAmp && (
               <link
                 rel="amphtml"
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
