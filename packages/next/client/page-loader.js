@@ -90,7 +90,7 @@ export default class PageLoader {
       if (!this.loadingRoutes[route]) {
         // Make sure we don't load a dependency that's already loaded
         const loadedModules = new Set(
-          Array.from(document.getElementsByTagName('script'), el => {
+          [].slice.call(document.getElementsByTagName('script')).map(el => {
             const results = /\/_next\/[^?]*/g.exec(el.src)
             return results ? results[0] : el.src
           })
