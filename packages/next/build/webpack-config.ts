@@ -230,7 +230,7 @@ export default async function getBaseWebpackConfig(
           test(module: { size: Function; identifier: Function }): boolean {
             return (
               module.size() > 160000 &&
-              /node_modules\//.test(module.identifier())
+              /node_modules[/\\]/.test(module.identifier())
             )
           },
           name(module: { identifier: Function; rawRequest: string }): string {
