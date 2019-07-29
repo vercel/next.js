@@ -52,7 +52,6 @@ export type LinkProps = {
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
-  onError?: (error: Error) => void
   prefetch?: boolean
 }
 
@@ -179,9 +178,6 @@ class Link extends Component<LinkProps> {
           window.scrollTo(0, 0)
           document.body.focus()
         }
-      })
-      .catch((err: any) => {
-        if (this.props.onError) this.props.onError(err)
       })
   }
 

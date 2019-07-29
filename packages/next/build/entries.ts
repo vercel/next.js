@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { stringify } from 'querystring'
-import { PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
+import { PAGES_DIR_ALIAS, DOT_NEXT_ALIAS, API_ROUTE } from '../lib/constants'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 
 type PagesMapping = {
@@ -68,7 +68,7 @@ export function createEntrypoints(
   Object.keys(pages).forEach(page => {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-    const isApiRoute = bundleFile.startsWith('/api/')
+    const isApiRoute = bundleFile.match(API_ROUTE)
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
 
