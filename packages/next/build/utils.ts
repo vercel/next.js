@@ -4,7 +4,7 @@ import findUp from 'find-up'
 import fs from 'fs'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
-import stripAnsi from 'strip-ansi'
+import stringWidth from 'string-width'
 import { promisify } from 'util'
 
 import { isValidElementType } from 'react-is'
@@ -32,10 +32,6 @@ export interface PageInfo {
   chunks?: ReturnType<typeof getPageChunks>
   static?: boolean
   serverBundle: string
-}
-
-function stringLength(str: string) {
-  return stripAnsi(str).replace(/⚡/g, '  ').length
 }
 
 export function printTreeView(
@@ -71,16 +67,17 @@ export function printTreeView(
 
       const pageInfo = pageInfos.get(item)
 
+      const renderTarget = item.startsWith('/_')
+        ? ' '
+        : pageInfo && pageInfo.static
+        ? chalk.bold('⚡')
+        : serverless
+        ? 'λ'
+        : 'σ'
+      const maxWidth = Math.max(...[' ', 'λ', 'σ', '⚡'].map(stringWidth))
+
       messages.push([
-        `${symbol} ${
-          item.startsWith('/_')
-            ? '  '
-            : pageInfo && pageInfo.static
-            ? chalk.bold('⚡')
-            : serverless
-            ? 'λ '
-            : 'σ '
-        } ${item}`,
+        `${symbol} ${renderTarget.padEnd(maxWidth)} ${item}`,
         ...(pageInfo
           ? [
               pageInfo.isAmp
@@ -98,7 +95,7 @@ export function printTreeView(
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r', 'r'],
-      stringLength,
+      stringLength: stringWidth,
     })
   )
 
@@ -129,7 +126,7 @@ export function printTreeView(
       ],
       {
         align: ['l', 'l', 'l'],
-        stringLength,
+        stringLength: stringWidth,
       }
     )
   )
