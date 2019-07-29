@@ -16,6 +16,15 @@ function supportsPreload (list) {
 
 const hasPreload = supportsPreload(document.createElement('link').relList)
 
+function createPreloadLink (url) {
+  const link = document.createElement('link')
+  link.rel = 'preload'
+  link.crossOrigin = process.crossOrigin
+  link.href = url
+  link.as = 'script'
+  document.head.appendChild(link)
+}
+
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
     this.buildId = buildId
@@ -205,14 +214,11 @@ export default class PageLoader {
     if (hasPreload) {
       await this.promisedBuildId
 
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.crossOrigin = process.crossOrigin
-      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${scriptRoute}`
-      link.as = 'script'
-      document.head.appendChild(link)
+      createPreloadLink(
+        `${this.assetPrefix}/_next/static/${encodeURIComponent(
+          this.buildId
+        )}/pages${scriptRoute}`
+      )
       return
     }
 
