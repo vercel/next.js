@@ -194,7 +194,7 @@ export default async function getBaseWebpackConfig(
         react: {
           name: 'commons',
           chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
         },
       },
     },
