@@ -2,19 +2,15 @@
 import mitt from 'next-server/dist/lib/mitt'
 import unfetch from 'unfetch'
 
-// smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
-function supportsPreload (list) {
-  if (!list || !list.supports) {
-    return false
-  }
+function supportsPreload (el) {
   try {
-    return list.supports('preload')
-  } catch (e) {
+    return el.relList.supports('preload')
+  } catch {
     return false
   }
 }
 
-const hasPreload = supportsPreload(document.createElement('link').relList)
+const hasPreload = supportsPreload(document.createElement('link'))
 
 function createPreloadLink (url) {
   const link = document.createElement('link')
@@ -27,8 +23,13 @@ function createPreloadLink (url) {
 
 // Retrieve a list of dependencies for a given route from the build manifest
 function getDependencies (route, _m) {
+  const isModern =
+    process.env.__NEXT_MODERN_BUILD &&
+    'noModule' in document.createElement('script')
   if ((_m = window.__BUILD_MANIFEST) && (_m = _m[route])) {
-    return _m.map(url => `/_next/${url}`)
+    return _m
+      .map(url => `/_next/${url}`)
+      .filter(url => /\.module\.js$/.test(url) === isModern)
   }
   return []
 }
@@ -207,6 +208,9 @@ export default class PageLoader {
       : `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
       )}/pages${scriptRoute}`
+
+    // n.b. If preload is not supported, we fall back to `loadPage` which has
+    // its own deduping mechanism.
     if (
       document.querySelector(`link[rel="preload"][href^="${url}"]`) ||
       document.getElementById(`__NEXT_PAGE__${route}`)
