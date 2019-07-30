@@ -230,21 +230,22 @@ export default async function getBaseWebpackConfig(
           test(module: { size: Function; identifier: Function }): boolean {
             return (
               module.size() > 160000 &&
-              /node_modules\//.test(module.identifier())
+              /node_modules[/\\]/.test(module.identifier())
             )
           },
           name(module: { identifier: Function; rawRequest: string }): string {
             const rawRequest =
-              module.rawRequest && module.rawRequest.replace(/^@(\w+)\//, '$1-')
+              module.rawRequest &&
+              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
             if (rawRequest) return rawRequest
 
             const identifier = module.identifier()
-            const trimmedIdentifier = /(?:^|\/)node_modules\/(.*)/.exec(
+            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
               identifier
             )
             const processedIdentifier =
               trimmedIdentifier &&
-              trimmedIdentifier[1].replace(/^@(\w+)\//, '$1-')
+              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
 
             return processedIdentifier || identifier
           },
