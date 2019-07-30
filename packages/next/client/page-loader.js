@@ -23,8 +23,13 @@ function createPreloadLink (url) {
 
 // Retrieve a list of dependencies for a given route from the build manifest
 function getDependencies (route, _m) {
+  const isModern =
+    process.env.__NEXT_MODERN_BUILD &&
+    'noModule' in document.createElement('script')
   if ((_m = window.__BUILD_MANIFEST) && (_m = _m[route])) {
-    return _m.map(url => `/_next/${url}`)
+    return _m
+      .map(url => `/_next/${url}`)
+      .filter(url => /\.module\.js$/.test(url) === isModern)
   }
   return []
 }
