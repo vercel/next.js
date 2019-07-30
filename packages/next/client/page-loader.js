@@ -207,6 +207,9 @@ export default class PageLoader {
       : `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
       )}/pages${scriptRoute}`
+
+    // n.b. If preload is not supported, we fall back to `loadPage` which has
+    // its own deduping mechanism.
     if (
       document.querySelector(`link[rel="preload"][href^="${url}"]`) ||
       document.getElementById(`__NEXT_PAGE__${route}`)
