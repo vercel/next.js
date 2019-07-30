@@ -1,0 +1,15 @@
+type Todo @model {
+  # ! means non-null GraphQL fields are allowed to be null by default
+  id: ID!
+  name: String!
+  createdAt: String!
+  completed: Boolean!
+  todoList: TodoList! @connection(name: "SortedList")
+  userId: String!
+}
+
+type TodoList @model {
+  id: ID!
+  createdAt: String!
+  todos: [Todo] @connection(name: "SortedList", sortField: "createdAt")
+}

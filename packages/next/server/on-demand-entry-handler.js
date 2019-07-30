@@ -9,6 +9,7 @@ import { stringify } from 'querystring'
 import { findPageFile } from './lib/find-page-file'
 import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
+import { API_ROUTE } from '../lib/constants'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -56,7 +57,7 @@ export default function onDemandEntryHandler (
       invalidator.startBuilding()
 
       const allEntries = Object.keys(entries).map(async page => {
-        if (compiler.name === 'client' && page.startsWith('/api')) {
+        if (compiler.name === 'client' && page.match(API_ROUTE)) {
           return
         }
         const { name, absolutePagePath } = entries[page]
