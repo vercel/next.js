@@ -28,7 +28,6 @@ const generateClientManifest = (
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
-
     const a = dependencies.filter(
       dep => !appDependencies.has(dep) && /\.module\.js$/.test(dep) === isModern
     )
