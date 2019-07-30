@@ -35,10 +35,16 @@ export default async function createCompiler (dir, { buildId = '-', dev = false 
   return webpack(sites, {
     mainJS: [`./pages/_error.js`, mainJS],
 
-    async entries (entryPages, buildEntry) {
+    async entries (entryPages, buildEntry, buildConfig) {
       const entries = {
         'pages/_error.js': buildEntry([])
       }
+
+      // Allow for per-site page filtering
+      if (config.filterPages) {
+        entryPages = config.filterPages(buildConfig, entryPages)
+      }
+
       for (const p of entryPages) {
         entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = buildEntry(p)
       }
