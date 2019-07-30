@@ -8,6 +8,28 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
 } from 'next-server/constants'
 
+interface AssetMap {
+  devFiles: string[]
+  pages: {
+    '/_app': string[]
+    [s: string]: string[]
+  }
+}
+
+// This function takes the asset map generated in BuildManifestPlugin and creates a
+// reduced version to send to the client.
+const generateClientManifest = (assetMap: AssetMap): string => {
+  const clientManifest: { [s: string]: string[] } = {}
+  const appDependencies = new Set(assetMap.pages['/_app'])
+  delete assetMap.pages['/_app']
+  Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
+    // Filter out dependencies in the _app entry, because those will have already
+    // been loaded by the client prior to a navigation event
+    clientManifest[page] = dependencies.filter(dep => !appDependencies.has(dep))
+  })
+  return JSON.stringify(clientManifest)
+}
+
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -24,10 +46,7 @@ export default class BuildManifestPlugin {
       'NextJsBuildManifest',
       (compilation, callback) => {
         const { chunks } = compilation
-        const assetMap: {
-          devFiles: string[]
-          pages: { [page: string]: string[] }
-        } = { devFiles: [], pages: {} }
+        const assetMap: AssetMap = { devFiles: [], pages: { '/_app': [] } }
 
         const mainJsChunk = chunks.find(
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
@@ -117,10 +136,11 @@ export default class BuildManifestPlugin {
           }/_buildManifest.js`
 
           compilation.assets[clientManifestPath] = new RawSource(
-            `self.__BUILD_MANIFEST = JSON.parse('${JSON.stringify(assetMap)}')`
+            `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
+              assetMap
+            )}')`
           )
         }
-
         callback()
       }
     )

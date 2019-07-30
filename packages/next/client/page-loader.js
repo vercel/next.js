@@ -27,7 +27,7 @@ function createPreloadLink (url) {
 
 // Retrieve a list of dependencies for a given route from the build manifest
 function getDependencies (route, _m) {
-  if ((_m = window.__BUILD_MANIFEST) && (_m = _m.pages[route])) {
+  if ((_m = window.__BUILD_MANIFEST) && (_m = _m[route])) {
     return _m.map(url => `/_next/${url}`)
   }
   return []
