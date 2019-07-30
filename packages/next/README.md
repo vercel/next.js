@@ -311,8 +311,20 @@ A `<Link>` for `/post/abc` looks like so:
 </Link>
 ```
 
-- `href`: the path inside `pages` directory
-- `as`: the path that will be rendered in the browser URL bar
+- `href`: the path inside `pages` directory.
+- `as`: the path that will be rendered in the browser URL bar.
+
+As `href` is a filesystem path, it shouldn't change at runtime, instead, you will probably need to change `as`
+dynamically according to your needs. Here's an example to create a list of links:
+
+```jsx
+const pids = ['id1', 'id2', 'id3'];
+{pids.map(pid => (
+  <Link href="/post/[pid]" as={`/post/${pid}`}>
+    <a>Post {pid}</a>
+  </Link>
+))}
+```
 
 > You can [read more about `<Link>` here](#with-link).
 
@@ -1041,6 +1053,7 @@ export default withRouter(MyLink)
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
     <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
     <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>    
   </ul>
 </details>
 
@@ -1063,6 +1076,28 @@ export default (req, res) => {
 - `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
+}
+```
+
+To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
+
+```js
+export default (req, res) => {
+  if (req.method === 'POST') {
+    // Process your POST request
+  } else {
+    // Handle the rest of your HTTP methods
+  }
+}
+```
 
 > **Note**: API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), so they'll be **same-origin only** by default.
 > You can customize this behavior by wrapping your export with CORS middleware.
@@ -1095,7 +1130,7 @@ Those middlewares are:
 - `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
 - `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
 
-Body parsing is enabled by default.
+Body parsing is enabled by default with a size limit of `1mb` for the parsed body.
 You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
 
 ```js
@@ -1107,6 +1142,23 @@ export default (req, res) => {
 export const config = {
   api: {
     bodyParser: false,
+  },
+}
+```
+
+You can adjust size of parsed body by adding `sizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
+
+```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    }
   },
 }
 ```
@@ -1421,15 +1473,20 @@ import React from 'react'
 import App, { Container } from 'next/app'
 
 class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
+  // Only uncomment this method if you have blocking data requirements for
+  // every single page in your application. This disables the ability to
+  // perform automatic static optimization, causing every page in your app to
+  // be server-side rendered.
+  //
+  // static async getInitialProps({ Component, ctx }) {
+  //   let pageProps = {}
+  //
+  //   if (Component.getInitialProps) {
+  //     pageProps = await Component.getInitialProps(ctx)
+  //   }
+  //
+  //   return { pageProps }
+  // }
 
   render() {
     const { Component, pageProps } = this.props
@@ -2006,7 +2063,7 @@ module.exports = {
 
 ## Automatic Prerendering
 
-Next.js automatically determines that a page is static (can be prerendered) if it has no has blocking data requirements.
+Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements.
 This determination is made by the absence of `getInitialProps` in the page.
 
 If `getInitialProps` is present, Next.js will not prerender the page.
@@ -2155,7 +2212,7 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
     "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
     "noUnusedLocals": true, /* Report errors on unused locals. */
     "noUnusedParameters": true, /* Report errors on unused parameters. */
-    "strict": true /* Enable all strict type-checking options. */,
+    "strict": true, /* Enable all strict type-checking options. */
     "target": "esnext" /* The type checking input. */
   }
 }
@@ -2177,7 +2234,7 @@ Next.js provides `NextPage` type that can be used for pages in the `pages` direc
 import { NextPage } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 const Page: NextPage<Props> = ({ userAgent }) => (
@@ -2192,15 +2249,6 @@ Page.getInitialProps = async ({ req }) => {
 export default Page
 ```
 
-For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
-
-```ts
-import { NextApiRequest, NextApiResponse } from 'next'
-
-export default (req: NextApiRequest, res: NextApiResponse) => {
-  res.status(200).json({ title: 'Next.js' })
-```
-
 For `React.Component` you can use `NextPageContext`:
 
 ```tsx
@@ -2208,7 +2256,7 @@ import React from 'react'
 import { NextPageContext } from 'next'
 
 interface Props {
-  userAgent: string
+  userAgent?: string
 }
 
 export default class Page extends React.Component<Props> {
