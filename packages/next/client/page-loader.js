@@ -139,7 +139,7 @@ export default class PageLoader {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
       script.type = 'module'
-      url = url.replace(/\.js$/, '.module.js')
+      url = url.replace(/(?<!module)\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
     script.src = url
