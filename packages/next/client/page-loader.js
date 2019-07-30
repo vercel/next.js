@@ -39,7 +39,6 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.prefetchCache = new Set()
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     this.promisedBuildId = Promise.resolve()
@@ -192,6 +191,8 @@ export default class PageLoader {
   }
 
   async prefetch (route, isDependency) {
+    await this.promisedBuildId
+
     route = this.normalizeRoute(route)
     let scriptRoute = `${route === '/' ? '/index' : route}.js`
 
@@ -201,14 +202,17 @@ export default class PageLoader {
     ) {
       scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
-
+    const url = isDependency
+      ? route
+      : `${this.assetPrefix}/_next/static/${encodeURIComponent(
+        this.buildId
+      )}/pages${scriptRoute}`
     if (
-      this.prefetchCache.has(scriptRoute) ||
+      document.querySelector(`link[rel="preload"][href^="${url}"]`) ||
       document.getElementById(`__NEXT_PAGE__${route}`)
     ) {
       return
     }
-    this.prefetchCache.add(scriptRoute)
 
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
     // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
@@ -231,12 +235,6 @@ export default class PageLoader {
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
-      await this.promisedBuildId
-      const url = isDependency
-        ? route
-        : `${this.assetPrefix}/_next/static/${encodeURIComponent(
-          this.buildId
-        )}/pages${scriptRoute}`
       createPreloadLink(url)
       return
     }
