@@ -95,7 +95,7 @@ export class Head extends Component {
 
     return <head {...rest} dangerouslySetInnerHTML={{
       __html: `
-${this.getPreloadMainLinks()}
+${!this.props.amp && this.getPreloadMainLinks()}
 ${head || ''}
 ${headMarkup}
     ` }} />
