@@ -710,6 +710,20 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         ) : null}
+        {process.env.__NEXT_MODERN_OPTIMIZATIONS ? (
+          <script
+            nonce={this.props.nonce}
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            noModule={true}
+            src={
+              assetPrefix +
+              (dynamicBuildId
+                ? `/_next/static/client/polyfill.${buildId}.js`
+                : `/_next/static/${buildId}/polyfill.js`) +
+              _devOnlyInvalidateCacheQueryString
+            }
+          />
+        ) : null}
         {page !== '/_error' && pageScript}
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
