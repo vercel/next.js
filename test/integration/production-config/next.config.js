@@ -13,6 +13,11 @@ module.exports = withCSS(
         ? {
           NODE_ENV: 'abc'
         }
+        : {}),
+      ...(process.env.ENABLE_ENV_WITH_UNDERSCORES
+        ? {
+          SOME__ENV__VAR: '123'
+        }
         : {})
     },
     onDemandEntries: {

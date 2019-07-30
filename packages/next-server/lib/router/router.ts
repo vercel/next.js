@@ -69,6 +69,7 @@ export default class Router implements BaseRouter {
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
+  _wrapApp: (App: ComponentType) => any
 
   static events: MittEmitter = mitt()
 
@@ -80,6 +81,7 @@ export default class Router implements BaseRouter {
       initialProps,
       pageLoader,
       App,
+      wrapApp,
       Component,
       err,
       subscription,
@@ -89,6 +91,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: ComponentType
+      wrapApp: (App: ComponentType) => any
       err?: Error
     }
   ) {
@@ -117,6 +120,7 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.sub = subscription
     this.clc = null
+    this._wrapApp = wrapApp
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -581,6 +585,7 @@ export default class Router implements BaseRouter {
     const { Component: App } = this.components['/_app']
 
     const props = await loadGetInitialProps<AppContextType<Router>>(App, {
+      AppTree: this._wrapApp(App),
       Component,
       router: this,
       ctx,
