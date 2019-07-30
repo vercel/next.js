@@ -99,8 +99,9 @@ export interface NextPageContext {
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
-  router: R
+  AppTree: NextComponentType
   ctx: NextPageContext
+  router: R
 }
 
 export type AppInitialProps = {
