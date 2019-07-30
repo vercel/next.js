@@ -639,6 +639,7 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           clientManifest: config.experimental.granularChunks,
+          modern: config.experimental.modern,
         }),
       config.experimental.profiling &&
         new webpack.debug.ProfilingPlugin({

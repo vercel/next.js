@@ -18,14 +18,19 @@ interface AssetMap {
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
-const generateClientManifest = (assetMap: AssetMap): string => {
+const generateClientManifest = (
+  assetMap: AssetMap,
+  isModern: boolean
+): string => {
   const clientManifest: { [s: string]: string[] } = {}
   const appDependencies = new Set(assetMap.pages['/_app'])
   delete assetMap.pages['/_app']
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
-    clientManifest[page] = dependencies.filter(dep => !appDependencies.has(dep))
+    clientManifest[page] = dependencies.filter(
+      dep => !appDependencies.has(dep) && /\.module\.js$/.test(dep) === isModern
+    )
   })
   return JSON.stringify(clientManifest)
 }
@@ -35,10 +40,16 @@ const generateClientManifest = (assetMap: AssetMap): string => {
 export default class BuildManifestPlugin {
   private buildId: string
   private clientManifest: boolean
+  private modern: boolean
 
-  constructor(options: { buildId: string; clientManifest: boolean }) {
+  constructor(options: {
+    buildId: string
+    clientManifest: boolean
+    modern: boolean
+  }) {
     this.buildId = options.buildId
     this.clientManifest = options.clientManifest
+    this.modern = options.modern
   }
 
   apply(compiler: Compiler) {
@@ -119,6 +130,13 @@ export default class BuildManifestPlugin {
           assetMap.pages['/_app'].push(
             `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
           )
+          if (this.modern) {
+            assetMap.pages['/_app'].push(
+              `${CLIENT_STATIC_FILES_PATH}/${
+                this.buildId
+              }/_buildManifest.module.js`
+            )
+          }
         }
 
         assetMap.pages = Object.keys(assetMap.pages)
@@ -137,9 +155,23 @@ export default class BuildManifestPlugin {
 
           compilation.assets[clientManifestPath] = new RawSource(
             `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
-              assetMap
+              assetMap,
+              false
             )}')`
           )
+
+          if (this.modern) {
+            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
+              this.buildId
+            }/_buildManifest.module.js`
+
+            compilation.assets[modernClientManifestPath] = new RawSource(
+              `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
+                assetMap,
+                true
+              )}')`
+            )
+          }
         }
         callback()
       }
