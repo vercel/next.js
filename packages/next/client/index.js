@@ -176,8 +176,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const renderCtx = { App, Component, props, err: initialErr, emitter }
   render(renderCtx)
 
-  if (__NEXT_DATA__.skeleton && Component.__nextOrigGip) {
-    props.pageProps = await Component.__nextOrigGip({
+  if (__NEXT_DATA__.skeleton && Component.getInitialProps) {
+    props.pageProps = await Component.getInitialProps({
       pathname: page,
       asPath,
       query

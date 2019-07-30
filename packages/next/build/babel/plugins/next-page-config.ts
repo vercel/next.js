@@ -1,16 +1,13 @@
-import { join } from 'path'
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
 
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
-const sprFetchIdentifier = '__nextSprFetcher'
-const skeletonGipIdentifier = '__nextOrigGip'
 
-export const sprPages = new Set()
 const configKeys = new Set(['amp', 'experimentalPrerender'])
+const pageComponentVar = '__NEXT_COMP'
+const prerenderId = '__NEXT_PRERENDER'
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
@@ -34,11 +31,8 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 }
 
 interface ConfigState {
-  nextPage?: string
-  dynamicPage?: boolean
-  setupInlining?: boolean
+  isPrerender?: boolean
   bundleDropped?: boolean
-  setupSprHandler?: boolean
 }
 
 export default function nextPageConfig({
@@ -94,101 +88,61 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
-                if (config.experimentalPrerender === true) {
-                  state.setupSprHandler = true
-                  let page = (state.filename || '')
-                    .split(join(state.cwd || '', 'pages'))
-                    .pop()
 
-                  page = page.replace(/\\/g, '/')
-                  page = page.split('.')
-                  page.pop()
-                  page = page.join('.')
-
-                  page = page.replace(/\/index$/, '') || '/'
-                  state.nextPage = page
-                  state.dynamicPage = isDynamicRoute(page)
-                  sprPages.add(page)
-
-                  // prepend import for client fetcher to program body
-                  ;(path.parentPath.node as any).body.unshift(
-                    t.importDeclaration(
-                      [
-                        t.importDefaultSpecifier(
-                          t.identifier(sprFetchIdentifier)
-                        ),
-                      ],
-                      t.stringLiteral('next/dist/client/spr-fetcher')
-                    )
-                  )
-                }
+                state.isPrerender = config.experimentalPrerender === true
               },
             },
             state
           )
-
-          if (state.setupSprHandler) {
-            // if we're replacing `getInitialProps` at all we need to do it before
-            // other transforms or else the replacing could fail
-            path.traverse(
-              {
-                // handles Page.getInitialProps = () => {}
-                AssignmentExpression(path, state: ConfigState) {
-                  const { property } = (path.node.left || {}) as any
-                  const { name } = property
-                  if (name !== 'getInitialProps') return
-
-                  // if it's a skeleton we need to maintain the original getInitialProps
-                  // in the client bundle to call client-side
-                  if (state.dynamicPage) {
-                    const origGip = t.cloneDeep(path.node)
-                    origGip.left = t.memberExpression(
-                      t.identifier((origGip.left as any).object.name),
-                      t.identifier(skeletonGipIdentifier)
-                    )
-                    path.insertBefore(origGip)
-                  }
-
-                  path.node.right = t.functionExpression(
-                    null,
-                    [],
-                    t.blockStatement([
-                      t.returnStatement(
-                        t.callExpression(t.identifier(sprFetchIdentifier), [
-                          t.stringLiteral(state.nextPage!),
-                        ])
-                      ),
-                    ])
-                  )
-                },
-                // handles modern class { static async getInitialProps() {} }
-                ClassMethod(path, state: ConfigState) {
-                  if (
-                    (path.node.key &&
-                      (path.node.key as BabelTypes.Identifier).name) !==
-                    'getInitialProps'
-                  )
-                    return
-
-                  if (state.dynamicPage) {
-                    const origGip = t.cloneDeep(path.node)
-                    origGip.key = t.stringLiteral(skeletonGipIdentifier)
-                    path.insertBefore(origGip)
-                  }
-
-                  path.node.body = t.blockStatement([
-                    t.returnStatement(
-                      t.callExpression(t.identifier(sprFetchIdentifier), [
-                        t.stringLiteral(state.nextPage!),
-                      ])
-                    ),
-                  ])
-                },
-              },
-              state
-            )
-          }
         },
+      },
+      ExportDefaultDeclaration(path, state: ConfigState) {
+        if (!state.isPrerender) return
+        const clonedNode = t.cloneDeep(path.node)
+
+        // if it's a class we can just insert it before the
+        // default export to allow attaching the prerenderId
+        if (t.isClassDeclaration(path.node.declaration)) {
+          path.insertBefore(clonedNode.declaration)
+          path.insertBefore(
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                t.identifier(pageComponentVar),
+                t.assignmentExpression(
+                  '=',
+                  t.identifier(pageComponentVar),
+                  (clonedNode.declaration as BabelTypes.ClassDeclaration).id!
+                )
+              ),
+            ])
+          )
+        } else {
+          path.insertBefore(
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                t.identifier(pageComponentVar),
+                t.assignmentExpression(
+                  '=',
+                  t.identifier(pageComponentVar),
+                  clonedNode.declaration as any
+                )
+              ),
+            ])
+          )
+        }
+
+        path.insertBefore(
+          t.assignmentExpression(
+            '=',
+            t.memberExpression(
+              t.identifier(pageComponentVar),
+              t.identifier(prerenderId)
+            ),
+            t.booleanLiteral(true)
+          )
+        )
+
+        path.node.declaration = t.identifier(pageComponentVar)
       },
     },
   }

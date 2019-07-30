@@ -86,9 +86,9 @@ const runTests = () => {
       headers: {
         'content-type': 'application/json'
       }
-    }).then(res => res.ok && res.text())
+    }).then(res => res.ok && res.json())
 
-    expect(JSON.parse(data).world).toMatch('world')
+    expect(data.world).toMatch('world')
   })
 
   it('should generate skeleton without calling getInitialProps', async () => {

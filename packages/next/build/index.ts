@@ -40,7 +40,6 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import mkdirpOrig from 'mkdirp'
 import workerFarm from 'worker-farm'
 import { Sema } from 'async-sema'
-import { sprPages } from './babel/plugins/next-page-config'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -49,6 +48,7 @@ const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
+const sprPages = new Set<string>()
 const staticCheckWorker = require.resolve('./static-checker')
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -362,6 +362,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
             )
           })
           staticCheckSema.release()
+
+          if (result.prerender === true) {
+            sprPages.add(page)
+          }
 
           if (
             (result.static && customAppGetInitialProps === false) ||
