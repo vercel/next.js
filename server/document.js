@@ -84,7 +84,7 @@ export class Head extends Component {
 
   render () {
     const { head, styles } = this.context._documentProps
-    const { children, serveModern, ...rest } = this.props
+    const { children, serveModern, amp, ...rest } = this.props
 
     const headMarkup = renderToStaticMarkup(
       <Fragment>
@@ -95,7 +95,7 @@ export class Head extends Component {
 
     return <head {...rest} dangerouslySetInnerHTML={{
       __html: `
-${this.props.amp ? '' : this.getPreloadMainLinks()}
+${amp ? '' : this.getPreloadMainLinks()}
 ${head || ''}
 ${headMarkup}
     ` }} />
