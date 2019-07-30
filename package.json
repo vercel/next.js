@@ -1,6 +1,6 @@
 {
   "name": "@kpdecker/next",
-  "version": "24.2.2",
+  "version": "24.2.3",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./node/server/next.js",
   "license": "MIT",
