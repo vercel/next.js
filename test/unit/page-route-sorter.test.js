@@ -42,4 +42,10 @@ describe('getSortedRoutes', () => {
       ])
     ).toThrowError(/different slug names/)
   })
+
+  it('catches reused param names', () => {
+    expect(() =>
+      getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
+    ).toThrowError(/the same slug name/)
+  })
 })
