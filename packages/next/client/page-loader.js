@@ -85,7 +85,7 @@ export default class PageLoader {
       if (!this.loadingRoutes[route]) {
         getDependencies(route).forEach(d => {
           if (!document.querySelector(`script[src^="${d}"]`)) {
-            this.loadScript(d, route)
+            this.loadScript(d, route, false)
           }
         })
         this.loadRoute(route)
@@ -132,14 +132,16 @@ export default class PageLoader {
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
     )}/pages${scriptRoute}`
-    this.loadScript(url, route)
+    this.loadScript(url, route, true)
   }
 
-  loadScript (url, route) {
+  loadScript (url, route, isPage) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
       script.type = 'module'
-      url = url.replace(/(?<!module)\.js$/, '.module.js')
+      // Only page bundle scripts need to have .module added to url,
+      // dependencies already have it added during build manifest creation
+      if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
     script.src = url
