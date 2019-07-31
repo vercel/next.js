@@ -1,17 +1,17 @@
 {
   "name": "with-mdx",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@mdx-js/mdx": "0.16.5",
+    "@mdx-js/mdx": "^1.1.0",
     "@zeit/next-mdx": "1.2.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
   },
   "devDependencies": {},
   "license": "ISC"
