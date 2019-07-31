@@ -197,7 +197,7 @@ workflows:
                 - canary
       - deploy:
           requires:
-            - test
+            - build
           filters:
             branches:
               only:
