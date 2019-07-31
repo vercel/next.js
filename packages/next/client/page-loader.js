@@ -12,7 +12,7 @@ function supportsPreload (el) {
 
 const hasPreload = supportsPreload(document.createElement('link'))
 
-function createPreloadLink (url) {
+function preloadScript (url) {
   const link = document.createElement('link')
   link.rel = 'preload'
   link.crossOrigin = process.crossOrigin
@@ -214,12 +214,10 @@ export default class PageLoader {
     }
 
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
-    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
-    if ('connection' in navigator) {
-      if (
-        (navigator.connection.effectiveType || '').indexOf('2g') !== -1 ||
-        navigator.connection.saveData
-      ) {
+    let cn
+    if ((cn = navigator.connection)) {
+      // Don't prefetch if the user is on 2G or if Save-Data is enabled.
+      if ((cn.effectiveType || '').indexOf('2g') !== -1 || cn.saveData) {
         return
       }
     }
@@ -234,7 +232,7 @@ export default class PageLoader {
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
-      createPreloadLink(url)
+      preloadScript(url)
       return
     }
 
@@ -252,17 +250,6 @@ export default class PageLoader {
           this.loadPage(route).then(() => resolve(), () => resolve())
         })
       })
-    }
-  }
-
-  clearCache (route) {
-    route = this.normalizeRoute(route)
-    delete this.pageCache[route]
-    delete this.loadingRoutes[route]
-
-    const script = document.getElementById(`__NEXT_PAGE__${route}`)
-    if (script) {
-      script.parentNode.removeChild(script)
     }
   }
 }
