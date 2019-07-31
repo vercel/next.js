@@ -2,7 +2,6 @@
 import React from 'react'
 import Router, { NextRouter } from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
-import { RequestContext } from 'next-server/dist/lib/request-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -116,10 +115,6 @@ export { default as withRouter } from './with-router'
 
 export function useRouter() {
   return React.useContext(RouterContext)
-}
-
-export function useRequest() {
-  return React.useContext(RequestContext)
 }
 
 // INTERNAL APIS
