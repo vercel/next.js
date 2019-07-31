@@ -47,7 +47,7 @@ export default App => {
         // and extract the resulting data
         try {
           // Run all GraphQL queries
-          await getDataFromTree(<AppTree apolloClient={apollo} {...appProps} />)
+          await getDataFromTree(<AppTree {...appProps} apolloClient={apollo} />)
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
           // Handle them in components via the data.error prop:
@@ -81,7 +81,7 @@ export default App => {
     }
 
     render () {
-      return <App {...this.props} apolloClient={this.apolloClient} />
+      return <App apolloClient={this.apolloClient} {...this.props} />
     }
   }
 }
