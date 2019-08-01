@@ -30,16 +30,16 @@ From:
 
 ```tsx
 import { NextContext } from 'next'
-import { NextAppContext } from 'next/app'
-import { NextDocumentContext } from 'next/document'
+import { NextAppContext, DefaultAppIProps } from 'next/app'
+import { NextDocumentContext, DefaultDocumentIProps } from 'next/document'
 ```
 
 to
 
 ```tsx
 import { NextPageContext } from 'next'
-import { AppContext } from 'next/app'
-import { DocumentContext } from 'next/document'
+import { AppContext, AppInitialProps } from 'next/app'
+import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
 #### The `config` key is now a special export on a page
