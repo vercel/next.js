@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import send from 'send'
 
 // since send doesn't support wasm yet
-send.mime.define({ 'application/wasm': ['wasm'] })
+send.mime.define({ 'application/wasm': ['wasm'], force: true })
 
 export function serveStatic(
   req: IncomingMessage,
