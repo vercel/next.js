@@ -150,13 +150,14 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
-      ...(config.experimental.modernOptimizations && !isServer
-        ? {
-            url$: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'url.js'),
-            querystring$: 'qss',
-            'querystring-es3$': 'qss',
-          }
-        : {}),
+      ...(config.experimental.modernOptimizations &&
+        (!isServer
+          ? {
+              url$: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'url.js'),
+              querystring$: 'qss',
+              'querystring-es3$': 'qss',
+            }
+          : { 'querystring-es3$': 'querystring' })),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
   }
