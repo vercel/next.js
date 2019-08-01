@@ -2,6 +2,7 @@ import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
@@ -95,6 +96,15 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
+        ...(config.experimental.modernOptimizations
+          ? {
+              [path.join(
+                CLIENT_STATIC_FILES_PATH,
+                buildId,
+                'polyfill.js'
+              )]: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'polyfill.js'),
+            }
+          : {}),
       }
     : undefined
 
@@ -140,6 +150,14 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
+      ...(config.experimental.modernOptimizations &&
+        (!isServer
+          ? {
+              url$: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'url.js'),
+              querystring$: 'qss',
+              'querystring-es3$': 'qss',
+            }
+          : { 'querystring-es3$': 'querystring' })),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
   }
@@ -477,6 +495,8 @@ export default async function getBaseWebpackConfig(
           config.exportTrailingSlash
         ),
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
+        'process.env.__NEXT_MODERN_OPTIMIZATIONS': !!config.experimental
+          .modernOptimizations,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
