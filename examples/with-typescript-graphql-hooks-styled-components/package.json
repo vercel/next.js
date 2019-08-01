@@ -1,0 +1,53 @@
+{
+  "name": "with-typescript-graphql-hooks-styled-components",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "now-build": "next build",
+    "type-check": "tsc --noEmit",
+    "fix": "eslint --ext ts,tsx --fix components lib pages",
+    "schema:download": "apollo client:download-schema _generated/schema.graphql",
+    "schema:generate": "apollo client:codegen --target typescript --outputFlat='_generated/schemaTypes.ts'",
+    "schema": "yarn schema:download && yarn schema:generate"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apollo-cache-inmemory": "^1.6.2",
+    "graphql-hooks": "^3.2.1",
+    "graphql-hooks-memcache": "^1.0.4",
+    "graphql-hooks-ssr": "^1.0.1",
+    "isomorphic-unfetch": "^3.0.0",
+    "next": "latest",
+    "prop-types": "^15.7.2",
+    "react": "^16.8.2",
+    "react-dom": "^16.8.2",
+    "styled-components": "^4.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "12.6.9",
+    "@types/react": "16.8.24",
+    "@types/react-dom": "16.8.5",
+    "@types/styled-components": "4.1.18",
+    "@typescript-eslint/eslint-plugin": "^1.13.0",
+    "@typescript-eslint/parser": "^1.13.0",
+    "apollo": "^2.16.3",
+    "babel-eslint": "10.0.2",
+    "babel-plugin-styled-components": "^1.10.0",
+    "eslint": "^5.16.0",
+    "eslint-config-react-app": "^4.0.1",
+    "eslint-plugin-flowtype": "3.12.2",
+    "eslint-plugin-import": "2.x",
+    "eslint-plugin-jsx-a11y": "6.x",
+    "eslint-plugin-react": "7.x",
+    "eslint-plugin-react-hooks": "1.6.1",
+    "typescript": "3.5.3"
+  },
+  "browser": {
+    "graphql-hooks-ssr": false
+  }
+}

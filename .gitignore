@@ -28,3 +28,4 @@ test/**/next-env.d.ts
 # example output
 examples/**/out
 
+/.vscode
