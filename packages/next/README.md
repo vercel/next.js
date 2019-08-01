@@ -318,12 +318,14 @@ As `href` is a filesystem path, it shouldn't change at runtime, instead, you wil
 dynamically according to your needs. Here's an example to create a list of links:
 
 ```jsx
-const pids = ['id1', 'id2', 'id3'];
-{pids.map(pid => (
-  <Link href="/post/[pid]" as={`/post/${pid}`}>
-    <a>Post {pid}</a>
-  </Link>
-))}
+const pids = ['id1', 'id2', 'id3']
+{
+  pids.map(pid => (
+    <Link href="/post/[pid]" as={`/post/${pid}`}>
+      <a>Post {pid}</a>
+    </Link>
+  ))
+}
 ```
 
 > You can [read more about `<Link>` here](#with-link).
@@ -1053,7 +1055,7 @@ export default withRouter(MyLink)
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
     <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
     <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
-    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>    
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>
   </ul>
 </details>
 
@@ -1158,7 +1160,7 @@ export const config = {
   api: {
     bodyParser: {
       sizeLimit: '1mb',
-    }
+    },
   },
 }
 ```
@@ -2193,38 +2195,41 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 
 ## TypeScript
 
-TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
+Next.js provides an integrated TypeScript experience out of the box, similar to an IDE.
 
-```js
-{
-  "compilerOptions": {
-    "allowJs": true, /* Allow JavaScript files to be type checked. */
-    "alwaysStrict": true, /* Parse in strict mode. */
-    "esModuleInterop": true, /* matches compilation setting */
-    "isolatedModules": true, /* to match webpack loader */
-    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
-    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
-    "module": "esnext", /* Specifies the type of module to type check. */
-    "moduleResolution": "node", /* Determine how modules get resolved. */
-    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
-
-    /* Strict Type-Checking Options, optional, but recommended. */
-    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-    "noUnusedLocals": true, /* Report errors on unused locals. */
-    "noUnusedParameters": true, /* Report errors on unused parameters. */
-    "strict": true, /* Enable all strict type-checking options. */
-    "target": "esnext" /* The type checking input. */
-  }
-}
-```
-
-After adding the `tsconfig.json` you need to install `@types` to get proper TypeScript typing.
+To get started, create a empty `tsconfig.json` file in the root of your project:
 
 ```bash
-npm install --save-dev @types/react @types/react-dom @types/node
+touch tsconfig.json
 ```
 
-Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+Next.js will automatically configure this file with default values if you (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+
+Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install typescript, @types/react, and @types/node by running:
+#
+#         yarn add --dev typescript @types/react @types/node
+#
+# ...
+```
+
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits TypeScript provides!
+
+To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+
+> **Note**: Next.js will create a file named `next-env.d.ts` in the root of your project.
+> This file ensures Next.js' types are picked up by the TypeScript compiler.
+>
+> **You cannot remove this file, however, you can edit it (but don't need to).**
+
+> **Note**: Next.js does not enable TypeScript's `strict` mode by default.
+> When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
 
 ### Exported types
 
