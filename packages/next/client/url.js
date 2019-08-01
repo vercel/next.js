@@ -1,8 +1,6 @@
 import { encode, decode } from 'querystring'
 
-const IS_BROWSER = typeof window !== 'undefined'
-
-const BASE_URL = IS_BROWSER ? window.location.href : 'http://baseurl'
+const BASE_URL = window.location.href
 
 module.exports = {
   parse (url) {
