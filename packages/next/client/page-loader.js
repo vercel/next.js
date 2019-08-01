@@ -2,19 +2,24 @@
 import mitt from 'next-server/dist/lib/mitt'
 import unfetch from 'unfetch'
 
-// smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
-function supportsPreload (list) {
-  if (!list || !list.supports) {
-    return false
-  }
+function supportsPreload (el) {
   try {
-    return list.supports('preload')
-  } catch (e) {
+    return el.relList.supports('preload')
+  } catch {
     return false
   }
 }
 
-const hasPreload = supportsPreload(document.createElement('link').relList)
+const hasPreload = supportsPreload(document.createElement('link'))
+
+function preloadScript (url) {
+  const link = document.createElement('link')
+  link.rel = 'preload'
+  link.crossOrigin = process.crossOrigin
+  link.href = url
+  link.as = 'script'
+  document.head.appendChild(link)
+}
 
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
@@ -189,12 +194,10 @@ export default class PageLoader {
     this.prefetchCache.add(scriptRoute)
 
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
-    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
-    if ('connection' in navigator) {
-      if (
-        (navigator.connection.effectiveType || '').indexOf('2g') !== -1 ||
-        navigator.connection.saveData
-      ) {
+    let cn
+    if ((cn = navigator.connection)) {
+      // Don't prefetch if the user is on 2G or if Save-Data is enabled.
+      if ((cn.effectiveType || '').indexOf('2g') !== -1 || cn.saveData) {
         return
       }
     }
@@ -205,14 +208,11 @@ export default class PageLoader {
     if (hasPreload) {
       await this.promisedBuildId
 
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.crossOrigin = process.crossOrigin
-      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${scriptRoute}`
-      link.as = 'script'
-      document.head.appendChild(link)
+      preloadScript(
+        `${this.assetPrefix}/_next/static/${encodeURIComponent(
+          this.buildId
+        )}/pages${scriptRoute}`
+      )
       return
     }
 
@@ -224,17 +224,6 @@ export default class PageLoader {
           this.loadPage(route).then(() => resolve(), () => resolve())
         })
       })
-    }
-  }
-
-  clearCache (route) {
-    route = this.normalizeRoute(route)
-    delete this.pageCache[route]
-    delete this.loadingRoutes[route]
-
-    const script = document.getElementById(`__NEXT_PAGE__${route}`)
-    if (script) {
-      script.parentNode.removeChild(script)
     }
   }
 }
