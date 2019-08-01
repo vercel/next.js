@@ -1,5 +1,15 @@
 # Migrating from v8 to v9
 
+## Preamble
+
+#### Production Deployment on ZEIT Now v2
+
+If you previously configured `routes` in your `now.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://github.com/zeit/next.js#dynamic-routing).
+
+Next.js 9's dynamic routes are **automatically configured on [Now](https://zeit.co/now)** and do not require any `now.json` customization.
+
+You can read more about [Dynamic Routing here](https://github.com/zeit/next.js#dynamic-routing).
+
 ## Breaking Changes
 
 #### `@zeit/next-typescript` is no longer necessary
@@ -111,7 +121,6 @@ module.exports = {
 
 Pages in `./pages/api/` are now considered [API Routes](https://nextjs.org/blog/next-9#api-routes).
 Pages in this directory will no longer contain a client-side bundle.
-
 
 ## Deprecated Features
 
