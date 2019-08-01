@@ -2208,7 +2208,7 @@ Next.js will automatically configure this file with default values if you (provi
 Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
 
 ```bash
-next dev
+npm run dev
 
 # You'll see instructions like these:
 #
