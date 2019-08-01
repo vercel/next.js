@@ -1,6 +1,9 @@
 const webpack = require('webpack')
 
 module.exports = {
+  experimental: {
+    publicDirectory: true
+  },
   webpack (config, { isServer, dev, buildId }) {
     // This is just was display purposes, not needed for Service Worker Setup
     config.plugins.push(
