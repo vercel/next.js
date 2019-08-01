@@ -340,6 +340,11 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 > After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 > If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
 
+> **Note**: If deploying to [ZEIT Now](https://zeit.co/now) dynamic routes will work out-of-the-box.
+> You do not need to configure custom routes in a `now.json` file.
+>
+> If you are new to ZEIT Now, you can learn how to deploy a Next.js app to it in the [_Deploying a Next.js App_ Learn section](https://nextjs.org/learn/basics/deploying-a-nextjs-app).
+
 ### Populating `<head>`
 
 <details>
@@ -2104,7 +2109,7 @@ next build
 next start
 ```
 
-To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js](https://zeit.co/guides/deploying-nextjs-with-now/) or the [Next.js Learn section about deploying on ZEIT Now](https://nextjs.org/learn/basics/deploying-a-nextjs-app/deploying-to-zeit-now).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
