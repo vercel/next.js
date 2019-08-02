@@ -270,6 +270,7 @@ export function isPageStatic(
     require('next-server/config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
     const Comp = mod.default || mod
+
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
