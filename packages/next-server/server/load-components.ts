@@ -5,23 +5,16 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-
+import { PageConfig } from 'next-server/types'
 import { requirePage } from './require'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
 }
 
-export interface IPageConfig {
-  amp?: boolean | 'hybrid'
-  api?: {
-    bodyParser?: boolean
-  }
-}
-
 export type LoadComponentsReturnType = {
   Component: any
-  PageConfig: IPageConfig
+  pageConfig: PageConfig
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -37,7 +30,7 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    return { Component, PageConfig: Component.config || {} }
+    return { Component, pageConfig: Component.config || {} }
   }
   const documentPath = join(
     distDir,
@@ -82,6 +75,6 @@ export async function loadComponents(
     buildManifest,
     DocumentMiddleware,
     reactLoadableManifest,
-    PageConfig: ComponentMod.config || {},
+    pageConfig: ComponentMod.config || {},
   }
 }
