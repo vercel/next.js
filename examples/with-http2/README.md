@@ -18,7 +18,7 @@ Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-http2
-cd hello-world
+cd with-http2
 ```
 
 Create the public and private keys:

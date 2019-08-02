@@ -8,7 +8,6 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
-import { promisify } from 'util'
 import webpack from 'webpack'
 
 import {
@@ -17,6 +16,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
+import { fileExists } from '../lib/file-exists'
 import { WebpackEntrypoints } from './entries'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -32,8 +32,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-
-const fileExists = promisify(fs.exists)
+import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -177,6 +176,61 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
+  // Contains various versions of the Webpack SplitChunksPlugin used in different build types
+  const splitChunksConfigs: {
+    [propName: string]: webpack.Options.SplitChunksOptions
+  } = {
+    dev: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+      },
+    },
+    selective: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        react: {
+          name: 'commons',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+        },
+      },
+    },
+    prod: {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
+        },
+        react: {
+          name: 'commons',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+        },
+      },
+    },
+  }
+
+  // Select appropriate SplitChunksPlugin config for this build
+  let splitChunksConfig: webpack.Options.SplitChunksOptions
+  if (dev) {
+    splitChunksConfig = splitChunksConfigs.dev
+  } else if (selectivePageBuilding) {
+    splitChunksConfig = splitChunksConfigs.selective
+  } else {
+    splitChunksConfig = splitChunksConfigs.prod
+  }
+
+  const crossOrigin =
+    !config.crossOrigin && config.experimental.modern
+      ? 'anonymous'
+      : config.crossOrigin
+
   let webpackConfig: webpack.Configuration = {
     devtool,
     mode: webpackMode,
@@ -249,7 +303,9 @@ export default async function getBaseWebpackConfig(
             ) {
               // if it's the Next.js' require mark it as external
               // since it's not used
-              if (context.includes('next-server/dist/server')) {
+              if (
+                context.replace(/\\/g, '/').includes('next-server/dist/server')
+              ) {
                 return callback(undefined, `commonjs ${request}`)
               }
             }
@@ -272,42 +328,7 @@ export default async function getBaseWebpackConfig(
               : {
                   name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
                 },
-            splitChunks: dev
-              ? {
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                  },
-                }
-              : selectivePageBuilding
-              ? {
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                    react: {
-                      name: 'commons',
-                      chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    },
-                  },
-                }
-              : {
-                  chunks: 'all',
-                  cacheGroups: {
-                    default: false,
-                    vendors: false,
-                    commons: {
-                      name: 'commons',
-                      chunks: 'all',
-                      minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
-                    },
-                    react: {
-                      name: 'commons',
-                      chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-                    },
-                  },
-                },
+            splitChunks: splitChunksConfig,
             minimize: !dev,
             minimizer: !dev
               ? [
@@ -365,7 +386,7 @@ export default async function getBaseWebpackConfig(
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
         : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
-      crossOriginLoading: config.crossOrigin,
+      crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
@@ -432,7 +453,7 @@ export default async function getBaseWebpackConfig(
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...Object.keys(config.env).reduce((acc, key) => {
-          if (/^(?:NODE_.+)|(?:__.+)$/i.test(key)) {
+          if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
               `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
             )
@@ -444,7 +465,7 @@ export default async function getBaseWebpackConfig(
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(config.crossOrigin),
+        'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
@@ -455,6 +476,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
+        'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
@@ -567,6 +589,23 @@ export default async function getBaseWebpackConfig(
           compilerOptions: { isolatedModules: true, noEmit: true },
           silent: true,
           formatter: 'codeframe',
+        }),
+      config.experimental.modern &&
+        !isServer &&
+        !dev &&
+        new NextEsmPlugin({
+          filename: (getFileName: Function | string) => (...args: any[]) => {
+            const name =
+              typeof getFileName === 'function'
+                ? getFileName(...args)
+                : getFileName
+
+            return name.includes('.js')
+              ? name.replace(/\.js$/, '.module.js')
+              : args[0].chunk.name.replace(/\.js$/, '.module.js')
+          },
+          chunkFilename: (inputChunkName: string) =>
+            inputChunkName.replace(/\.js$/, '.module.js'),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }

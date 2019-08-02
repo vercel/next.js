@@ -8,6 +8,7 @@ import path from 'path'
 import { promisify } from 'util'
 
 import { recursiveDelete } from '../lib/recursive-delete'
+import { fileExists } from '../lib/file-exists'
 import * as Log from './output/log'
 import { PageInfo } from './utils'
 
@@ -17,7 +18,6 @@ const DIR_FILES_NAME = 'files'
 const MAX_SHUTTLES = 3
 
 const mkdirp = promisify(mkdirpModule)
-const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const fsCopyFile = promisify(fs.copyFile)
@@ -196,7 +196,7 @@ export class FlyingShuttle {
 
     const found =
       this.shuttleBuildId &&
-      (await fsExists(path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)))
+      (await fileExists(path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)))
 
     if (found) {
       Log.info('flying shuttle is docked')
@@ -260,7 +260,7 @@ export class FlyingShuttle {
     await Promise.all(
       [...allFiles].map(async file => {
         const filePath = path.join(path.dirname(this.pagesDirectory), file)
-        const exists = await fsExists(filePath)
+        const exists = await fileExists(filePath)
         if (!exists) {
           fileChanged.set(file, true)
           return
@@ -310,7 +310,7 @@ export class FlyingShuttle {
       DIR_FILES_NAME,
       'serverless/pages-manifest.json'
     )
-    if (!(await fsExists(savedPagesManifest))) return
+    if (!(await fileExists(savedPagesManifest))) return
 
     const saved = JSON.parse(await fsReadFile(savedPagesManifest, 'utf8'))
     const currentPagesManifest = path.join(
@@ -355,7 +355,7 @@ export class FlyingShuttle {
       const filesExists = await Promise.all(
         files
           .map(f => path.join(this.shuttleDirectory, DIR_FILES_NAME, f))
-          .map(f => fsExists(f))
+          .map(f => fileExists(f))
       )
       if (!filesExists.every(Boolean)) {
         Log.warn(`unable to locate files for ${page} in shuttle`)
@@ -368,7 +368,7 @@ export class FlyingShuttle {
         files.map(async recallFileName => {
           if (!rewriteRegex.test(recallFileName)) {
             const recallPath = path.join(this.distDirectory, recallFileName)
-            const recallPathExists = await fsExists(recallPath)
+            const recallPathExists = await fileExists(recallPath)
 
             if (!recallPathExists) {
               await mkdirp(path.dirname(recallPath))
@@ -391,7 +391,7 @@ export class FlyingShuttle {
             `${this.buildId}/`
           )
           const recallPath = path.join(this.distDirectory, newFileName)
-          const recallPathExists = await fsExists(recallPath)
+          const recallPathExists = await fileExists(recallPath)
           if (!recallPathExists) {
             await mkdirp(path.dirname(recallPath))
             await fsCopyFile(
@@ -428,7 +428,7 @@ export class FlyingShuttle {
     await mkdirp(this.shuttleDirectory)
 
     const nextManifestPath = path.join(this.distDirectory, CHUNK_GRAPH_MANIFEST)
-    if (!(await fsExists(nextManifestPath))) {
+    if (!(await fileExists(nextManifestPath))) {
       Log.warn('could not find shuttle payload :: shuttle will not be docked')
       return
     }

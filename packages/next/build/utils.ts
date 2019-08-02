@@ -10,10 +10,10 @@ import { promisify } from 'util'
 import { isValidElementType } from 'react-is'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { fileExists } from '../lib/file-exists'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 
 const fsStat = promisify(fs.stat)
-const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 
 export function collectPages(
@@ -228,9 +228,9 @@ export async function getCacheIdentifier({
     const yarnLock = path.join(path.dirname(pkgPath), 'yarn.lock')
     const packageLock = path.join(path.dirname(pkgPath), 'package-lock.json')
 
-    if (await fsExists(yarnLock)) {
+    if (await fileExists(yarnLock)) {
       selectivePageBuildingCacheIdentifier += await fsReadFile(yarnLock, 'utf8')
-    } else if (await fsExists(packageLock)) {
+    } else if (await fileExists(packageLock)) {
       selectivePageBuildingCacheIdentifier += await fsReadFile(
         packageLock,
         'utf8'
@@ -265,7 +265,7 @@ export async function getPageSizeInKb(
 export function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
-): { static?: boolean; prerender?: boolean } {
+): { static?: boolean } {
   try {
     require('next-server/config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
@@ -277,7 +277,6 @@ export function isPageStatic(
 
     return {
       static: typeof (Comp as any).getInitialProps !== 'function',
-      prerender: mod.config && mod.config.experimentalPrerender,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

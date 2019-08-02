@@ -99,8 +99,9 @@ export interface NextPageContext {
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
-  router: R
+  AppTree: NextComponentType
   ctx: NextPageContext
+  router: R
 }
 
 export type AppInitialProps = {
@@ -215,7 +216,7 @@ export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
   P = {}
->(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP | null> {
+>(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
       const message = `"${getDisplayName(

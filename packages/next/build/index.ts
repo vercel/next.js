@@ -27,7 +27,6 @@ import {
   getSpecifiedPages,
   printTreeView,
   PageInfo,
-  isPageStatic,
   hasCustomAppGetInitialProps,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
@@ -362,10 +361,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           })
           staticCheckSema.release()
 
-          if (
-            (result.static && customAppGetInitialProps === false) ||
-            result.prerender
-          ) {
+          if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
           }

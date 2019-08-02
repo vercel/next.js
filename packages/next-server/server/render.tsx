@@ -20,7 +20,6 @@ import Head, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
-import { RequestContext } from '../lib/request-context'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
@@ -116,7 +115,7 @@ function render(
   try {
     html = renderElementToString(element)
   } finally {
-    head = Head.rewind() || defaultHead(undefined, isInAmpMode(ampMode))
+    head = Head.rewind() || defaultHead(isInAmpMode(ampMode))
   }
 
   return { html, head }
@@ -149,8 +148,6 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  isPrerender?: boolean
-  pageData?: any
 }
 
 function renderDocument(
@@ -258,7 +255,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
+  let isStaticPage = false
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -325,23 +322,33 @@ export async function renderToHTML(
   const reactLoadableModules: string[] = []
 
   const AppContainer = ({ children }: any) => (
-    <RequestContext.Provider value={req}>
-      <RouterContext.Provider value={router}>
-        <DataManagerContext.Provider value={dataManager}>
-          <AmpStateContext.Provider value={ampState}>
-            <LoadableContext.Provider
-              value={moduleName => reactLoadableModules.push(moduleName)}
-            >
-              {children}
-            </LoadableContext.Provider>
-          </AmpStateContext.Provider>
-        </DataManagerContext.Provider>
-      </RouterContext.Provider>
-    </RequestContext.Provider>
+    <RouterContext.Provider value={router}>
+      <DataManagerContext.Provider value={dataManager}>
+        <AmpStateContext.Provider value={ampState}>
+          <LoadableContext.Provider
+            value={moduleName => reactLoadableModules.push(moduleName)}
+          >
+            {children}
+          </LoadableContext.Provider>
+        </AmpStateContext.Provider>
+      </DataManagerContext.Provider>
+    </RouterContext.Provider>
   )
 
   try {
-    props = await loadGetInitialProps(App, { Component, router, ctx })
+    props = await loadGetInitialProps(App, {
+      Component,
+      AppTree: (props: any) => {
+        const appProps = { ...props, Component, router }
+        return (
+          <AppContainer>
+            <App {...appProps} />
+          </AppContainer>
+        )
+      },
+      router,
+      ctx,
+    })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -492,10 +499,6 @@ export async function renderToHTML(
   // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
-  renderOpts.pageData = props && props.pageProps
-  renderOpts.isPrerender =
-    pageConfig.experimentalPrerender === true ||
-    pageConfig.experimentalPrerender === 'inline'
 
   let html = renderDocument(Document, {
     ...renderOpts,
