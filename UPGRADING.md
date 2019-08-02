@@ -32,6 +32,7 @@ From:
 import { NextContext } from 'next'
 import { NextAppContext, DefaultAppIProps } from 'next/app'
 import { NextDocumentContext, DefaultDocumentIProps } from 'next/document'
+import { WithRouterProps } from 'next/router'
 ```
 
 to
@@ -40,6 +41,7 @@ to
 import { NextPageContext } from 'next'
 import { AppContext, AppInitialProps } from 'next/app'
 import { DocumentContext, DocumentInitialProps } from 'next/document'
+import { WithRouterProps } from "next/dist/client/with-router"
 ```
 
 #### The `config` key is now a special export on a page
