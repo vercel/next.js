@@ -27,7 +27,12 @@ export async function recursiveReadDir(
       const absolutePath = join(dir, part)
       if (ignore && ignore.test(part)) return
 
-      const pathStat = await stat(absolutePath)
+      const pathStat = await stat(absolutePath).catch(e => {
+        if (e.code !== 'ENOENT') throw e
+      })
+      if (!pathStat) {
+        return
+      }
 
       if (pathStat.isDirectory()) {
         await recursiveReadDir(absolutePath, filter, ignore, arr, rootDir)
