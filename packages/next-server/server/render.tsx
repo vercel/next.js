@@ -259,7 +259,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
+  let isStaticPage = pageConfig.experimentalPrerender === true
   let isSkeleton = false
 
   if (dev) {
