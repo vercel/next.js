@@ -148,8 +148,6 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  isPrerender?: boolean
-  pageData?: any
 }
 
 function renderDocument(
@@ -257,7 +255,7 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = Boolean(pageConfig.experimentalPrerender)
+  let isStaticPage = false
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -501,10 +499,6 @@ export async function renderToHTML(
   // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
-  renderOpts.pageData = props && props.pageProps
-  renderOpts.isPrerender =
-    pageConfig.experimentalPrerender === true ||
-    pageConfig.experimentalPrerender === 'inline'
 
   let html = renderDocument(Document, {
     ...renderOpts,
