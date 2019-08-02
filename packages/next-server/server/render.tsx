@@ -27,7 +27,7 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-import { IPageConfig } from './load-components'
+import { PageConfig } from 'next-server/types'
 
 export type ManifestItem = {
   id: number | string
@@ -141,7 +141,7 @@ type RenderOpts = {
   hybridAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  PageConfig: IPageConfig
+  pageConfig: PageConfig
   Component: React.ComponentType
   Document: DocumentType
   DocumentMiddleware: (ctx: NextPageContext) => void
@@ -314,9 +314,9 @@ export async function renderToHTML(
   }
 
   const ampState = {
-    ampFirst: PageConfig.amp === true,
+    ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
-    hybrid: PageConfig.amp === 'hybrid',
+    hybrid: pageConfig.amp === 'hybrid',
   }
 
   const reactLoadableModules: string[] = []
@@ -496,7 +496,7 @@ export async function renderToHTML(
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows it's AMP state
+  // update renderOpts so export knows its curent state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
 

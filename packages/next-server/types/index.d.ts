@@ -11,4 +11,3 @@ export type PageConfig = {
     bodyParser?: { sizeLimit?: number | string } | false
   }
 }
-declare module 'react-ssr-prepass'
