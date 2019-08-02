@@ -273,6 +273,7 @@ export function isPageStatic(
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
+
     return {
       static: typeof (Comp as any).getInitialProps !== 'function',
     }
