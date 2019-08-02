@@ -9,7 +9,7 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
-import webpack from 'webpack'
+import webpack, { Entry } from 'webpack'
 
 import {
   DOT_NEXT_ALIAS,
@@ -83,7 +83,7 @@ export default async function getBaseWebpackConfig(
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
-  const clientEntries = !isServer
+  const clientEntries: any = !isServer
     ? {
         // Backwards compatibility
         'main.js': [],
