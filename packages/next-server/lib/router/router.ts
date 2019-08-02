@@ -596,8 +596,8 @@ export default class Router implements BaseRouter {
       }
     } else {
       props = await loadGetInitialProps<AppContextType<Router>>(App, {
-        Component,
         AppTree: this._wrapApp(App),
+        Component,
         router: this,
         ctx,
       })

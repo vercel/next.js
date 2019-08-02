@@ -10,5 +10,5 @@ export type PageConfig = {
      */
     bodyParser?: { sizeLimit?: number | string } | false
   }
-  experimentalPrerender?: boolean | 'legacy'
+  experimentalPrerender?: boolean
 }

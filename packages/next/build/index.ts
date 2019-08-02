@@ -367,10 +367,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             sprPages.add(page)
           }
 
-          if (
-            (result.static && customAppGetInitialProps === false) ||
-            result.prerender === 'legacy'
-          ) {
+          if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
           }
