@@ -9,7 +9,7 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
-import webpack, { Entry } from 'webpack'
+import webpack from 'webpack'
 
 import {
   DOT_NEXT_ALIAS,
