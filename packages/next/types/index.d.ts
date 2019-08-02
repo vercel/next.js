@@ -49,14 +49,12 @@ export type NextPage<P = {}, IP = P> = {
   getInitialProps?(ctx: NextPageContext): Promise<IP>
 }
 
-/**
- * `Config` type, use it for export const config
- */
-export type PageConfig = {
-  amp?: boolean | 'hybrid'
-  api?: {
-    bodyParser?: boolean
-  }
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  PageConfig,
 }
 
 export default next
