@@ -361,7 +361,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
           })
           staticCheckSema.release()
 
-          if (result.static && customAppGetInitialProps === false) {
+          if (
+            (result.static && customAppGetInitialProps === false) ||
+            result.prerender
+          ) {
             staticPages.add(page)
             isStatic = true
           }

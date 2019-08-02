@@ -2,10 +2,11 @@ import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
-import { writeFile, access } from 'fs'
+import { writeFile, access, readFile } from 'fs'
 import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
+import { inlineGipIdentifier } from '../build/babel/plugins/next-page-config'
 import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher'
 import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex'
@@ -13,6 +14,7 @@ import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex'
 const envConfig = require('next-server/config')
 const mkdirp = promisify(mkdirpModule)
 const writeFileP = promisify(writeFile)
+const readFileP = promisify(readFile)
 const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {
@@ -122,6 +124,32 @@ process.on(
           } else {
             curRenderOpts = { ...components, ...renderOpts, ampPath }
             html = await renderMethod(req, res, page, query, curRenderOpts)
+          }
+        }
+
+        // inline pageData for getInitialProps
+        if (curRenderOpts.isPrerender && curRenderOpts.pageData) {
+          const dataStr = JSON.stringify(curRenderOpts.pageData)
+            .replace(/"/g, '\\"')
+            .replace(/'/g, "\\'")
+
+          for (const bundleExt of [
+            '.js',
+            renderOpts.isModern && '.module.js'
+          ].filter(Boolean)) {
+            const bundlePath = join(
+              distDir,
+              'static',
+              buildId,
+              'pages',
+              (path === '/' ? 'index' : path) + bundleExt
+            )
+
+            const bundleContent = await readFileP(bundlePath, 'utf8')
+            await writeFileP(
+              bundlePath,
+              bundleContent.replace(inlineGipIdentifier, dataStr)
+            )
           }
         }
 
