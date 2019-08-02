@@ -30,7 +30,6 @@ const singletonRouter: SingletonRouterBase = {
 
 // Create public properties and methods of the router in the singletonRouter
 const urlPropertyFields = ['pathname', 'route', 'query', 'asPath', 'components']
-const propertyFields = ['components']
 const routerEvents = [
   'routeChangeStart',
   'beforeHistoryChange',
