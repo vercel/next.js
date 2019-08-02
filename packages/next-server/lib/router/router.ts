@@ -400,7 +400,7 @@ export default class Router implements BaseRouter {
         }
 
         return new Promise((resolve, reject) => {
-          const ctx = { pathname, query, asPath: as }
+          const ctx = { pathname, query, asPath: as, AppTree: null as any }
           this.getInitialProps(Component, ctx).then(props => {
             routeInfo.props = props
             this.components[route] = routeInfo
@@ -434,7 +434,7 @@ export default class Router implements BaseRouter {
           resolve(
             this.fetchComponent('/_error').then(Component => {
               const routeInfo: RouteInfo = { Component, err }
-              const ctx = { err, pathname, query }
+              const ctx = { err, pathname, query, AppTree: null as any }
               return new Promise(resolve => {
                 this.getInitialProps(Component, ctx).then(
                   props => {
@@ -579,12 +579,16 @@ export default class Router implements BaseRouter {
     }
     this.clc = cancel
     const { Component: App } = this.components['/_app']
+    const AppTree = this._wrapApp(App)
 
     const props = await loadGetInitialProps<AppContextType<Router>>(App, {
-      AppTree: this._wrapApp(App),
+      AppTree,
       Component,
       router: this,
-      ctx,
+      ctx: {
+        ...ctx,
+        AppTree,
+      },
     })
 
     if (cancel === this.clc) {

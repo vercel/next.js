@@ -293,6 +293,15 @@ export async function renderToHTML(
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
+  const router = new ServerRouter(pathname, query, asPath)
+  const AppTree = (props: any) => {
+    const appProps = { ...props, Component, router }
+    return (
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    )
+  }
   const ctx = {
     err,
     req: isStaticPage ? undefined : req,
@@ -300,8 +309,8 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
+    AppTree,
   }
-  const router = new ServerRouter(pathname, query, asPath)
   let props: any
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
@@ -338,14 +347,7 @@ export async function renderToHTML(
   try {
     props = await loadGetInitialProps(App, {
       Component,
-      AppTree: (props: any) => {
-        const appProps = { ...props, Component, router }
-        return (
-          <AppContainer>
-            <App {...appProps} />
-          </AppContainer>
-        )
-      },
+      AppTree,
       router,
       ctx,
     })
