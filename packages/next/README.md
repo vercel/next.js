@@ -318,12 +318,14 @@ As `href` is a filesystem path, it shouldn't change at runtime, instead, you wil
 dynamically according to your needs. Here's an example to create a list of links:
 
 ```jsx
-const pids = ['id1', 'id2', 'id3'];
-{pids.map(pid => (
-  <Link href="/post/[pid]" as={`/post/${pid}`}>
-    <a>Post {pid}</a>
-  </Link>
-))}
+const pids = ['id1', 'id2', 'id3']
+{
+  pids.map(pid => (
+    <Link href="/post/[pid]" as={`/post/${pid}`}>
+      <a>Post {pid}</a>
+    </Link>
+  ))
+}
 ```
 
 > You can [read more about `<Link>` here](#with-link).
@@ -337,6 +339,11 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 > **Note**: Pages that are statically optimized by [automatic prerendering](#automatic-prerendering) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
 > After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 > If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
+
+> **Note**: If deploying to [ZEIT Now](https://zeit.co/now) dynamic routes will work out-of-the-box.
+> You do not need to configure custom routes in a `now.json` file.
+>
+> If you are new to ZEIT Now, you can learn how to deploy a Next.js app to it in the [_Deploying a Next.js App_ Learn section](https://nextjs.org/learn/basics/deploying-a-nextjs-app).
 
 ### Populating `<head>`
 
@@ -1053,7 +1060,7 @@ export default withRouter(MyLink)
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
     <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
     <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
-    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>    
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>
   </ul>
 </details>
 
@@ -1076,6 +1083,16 @@ export default (req, res) => {
 - `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
+}
+```
 
 To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
 
@@ -1148,7 +1165,7 @@ export const config = {
   api: {
     bodyParser: {
       sizeLimit: '1mb',
-    }
+    },
   },
 }
 ```
@@ -2053,7 +2070,7 @@ module.exports = {
 
 ## Automatic Prerendering
 
-Next.js automatically determines that a page is static (can be prerendered) if it has no has blocking data requirements.
+Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements.
 This determination is made by the absence of `getInitialProps` in the page.
 
 If `getInitialProps` is present, Next.js will not prerender the page.
@@ -2092,7 +2109,7 @@ next build
 next start
 ```
 
-To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js](https://zeit.co/guides/deploying-nextjs-with-now/) or the [Next.js Learn section about deploying on ZEIT Now](https://nextjs.org/learn/basics/deploying-a-nextjs-app/deploying-to-zeit-now).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
@@ -2183,38 +2200,41 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 
 ## TypeScript
 
-TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
+Next.js provides an integrated TypeScript experience out of the box, similar to an IDE.
 
-```js
-{
-  "compilerOptions": {
-    "allowJs": true, /* Allow JavaScript files to be type checked. */
-    "alwaysStrict": true, /* Parse in strict mode. */
-    "esModuleInterop": true, /* matches compilation setting */
-    "isolatedModules": true, /* to match webpack loader */
-    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
-    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
-    "module": "esnext", /* Specifies the type of module to type check. */
-    "moduleResolution": "node", /* Determine how modules get resolved. */
-    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
-
-    /* Strict Type-Checking Options, optional, but recommended. */
-    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-    "noUnusedLocals": true, /* Report errors on unused locals. */
-    "noUnusedParameters": true, /* Report errors on unused parameters. */
-    "strict": true /* Enable all strict type-checking options. */,
-    "target": "esnext" /* The type checking input. */
-  }
-}
-```
-
-After adding the `tsconfig.json` you need to install `@types` to get proper TypeScript typing.
+To get started, create a empty `tsconfig.json` file in the root of your project:
 
 ```bash
-npm install --save-dev @types/react @types/react-dom @types/node
+touch tsconfig.json
 ```
 
-Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+Next.js will automatically configure this file with default values if you (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+
+Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install typescript, @types/react, and @types/node by running:
+#
+#         yarn add --dev typescript @types/react @types/node
+#
+# ...
+```
+
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits TypeScript provides!
+
+To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+
+> **Note**: Next.js will create a file named `next-env.d.ts` in the root of your project.
+> This file ensures Next.js' types are picked up by the TypeScript compiler.
+>
+> **You cannot remove this file, however, you can edit it (but don't need to).**
+
+> **Note**: Next.js does not enable TypeScript's `strict` mode by default.
+> When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
 
 ### Exported types
 
@@ -2237,15 +2257,6 @@ Page.getInitialProps = async ({ req }) => {
 }
 
 export default Page
-```
-
-For [API routes](#api-routes) types, we provide `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
-
-```ts
-import { NextApiRequest, NextApiResponse } from 'next'
-
-export default (req: NextApiRequest, res: NextApiResponse) => {
-  res.status(200).json({ title: 'Next.js' })
 ```
 
 For `React.Component` you can use `NextPageContext`:
@@ -2722,7 +2733,3 @@ Please see our [contributing.md](/contributing.md).
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
-
-```
-
-```
