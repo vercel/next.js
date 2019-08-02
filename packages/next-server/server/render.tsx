@@ -246,7 +246,7 @@ export async function renderToHTML(
     ampPath = '',
     App,
     Document,
-    PageConfig,
+    pageConfig,
     DocumentMiddleware,
     Component,
     buildManifest,
@@ -496,7 +496,7 @@ export async function renderToHTML(
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows its curent state
+  // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
 
