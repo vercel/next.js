@@ -297,8 +297,7 @@ export async function renderToHTML(
   }
   // might want to change previewing of skeleton from `?skeleton=1`
   isSkeleton =
-    pageConfig.experimentalPrerender === true &&
-    ((req as any).skipGIP || query.skeleton)
+    pageConfig.experimentalPrerender === true && !!query.nextPreviewSkeleton
 
   // @ts-ignore url will always be set
   const asPath: string = req.url

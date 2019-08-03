@@ -76,7 +76,8 @@ process.on(
 
         if (sprPage && isDynamicRoute(page)) {
           // pass via `req` to avoid adding code to serverless bundle
-          req.skipGIP = true
+          req.url +=
+            (req.url.includes('?') ? '&' : '?') + 'nextPreviewSkeleton=1'
         }
 
         envConfig.setConfig({

@@ -92,21 +92,30 @@ const runTests = () => {
   })
 
   it('should generate skeleton without calling getInitialProps', async () => {
-    let html = await renderViaHTTP(appPort, '/blog/post-1?skeleton=1')
+    let html = await renderViaHTTP(
+      appPort,
+      '/blog/post-1?nextPreviewSkeleton=1'
+    )
     expect(html).not.toMatch(/Post:.*?SSR/)
 
-    html = await renderViaHTTP(appPort, '/blog/post-1/comment-1?skeleton=1')
+    html = await renderViaHTTP(
+      appPort,
+      '/blog/post-1/comment-1?nextPreviewSkeleton=1'
+    )
     expect(html).not.toMatch(/Comment:.*?SSR/)
   })
 
   it('should call getInitialProps client-side when viewing skeleton', async () => {
-    let browser = await webdriver(appPort, '/blog/post-1?skeleton=1')
+    let browser = await webdriver(appPort, '/blog/post-1?nextPreviewSkeleton=1')
     await waitFor(1000)
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/Post:.*?Skeleton/)
     await browser.close()
 
-    browser = await webdriver(appPort, '/blog/post-1/comment-1?skeleton=1')
+    browser = await webdriver(
+      appPort,
+      '/blog/post-1/comment-1?nextPreviewSkeleton=1'
+    )
     await waitFor(1000)
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/Comment:.*?Skeleton/)

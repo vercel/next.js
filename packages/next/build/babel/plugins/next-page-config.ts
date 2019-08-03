@@ -97,41 +97,21 @@ export default function nextPageConfig({
         },
       },
       ExportDefaultDeclaration(path, state: ConfigState) {
-        if (!state.isPrerender) return
-        const clonedNode = t.cloneDeep(path.node)
+        if (!state.isPrerender) {
+          return
+        }
+        const prev = t.cloneDeep(path.node.declaration)
 
-        // if it's a class we can just insert it before the
-        // default export to allow attaching the prerenderId
-        if (t.isClassDeclaration(path.node.declaration)) {
-          path.insertBefore(clonedNode.declaration)
-          path.insertBefore(
-            t.variableDeclaration('const', [
-              t.variableDeclarator(
-                t.identifier(pageComponentVar),
-                t.assignmentExpression(
-                  '=',
-                  t.identifier(pageComponentVar),
-                  (clonedNode.declaration as BabelTypes.ClassDeclaration).id!
-                )
-              ),
-            ])
-          )
-        } else {
-          path.insertBefore(
-            t.variableDeclaration('const', [
-              t.variableDeclarator(
-                t.identifier(pageComponentVar),
-                t.assignmentExpression(
-                  '=',
-                  t.identifier(pageComponentVar),
-                  clonedNode.declaration as any
-                )
-              ),
-            ])
-          )
+        // workaround to allow assigning a ClassDeclaration to a variable
+        // babel throws error without
+        if (prev.type.endsWith('Declaration')) {
+          prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
         }
 
-        path.insertBefore(
+        path.insertBefore([
+          t.variableDeclaration('const', [
+            t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
+          ]),
           t.assignmentExpression(
             '=',
             t.memberExpression(
@@ -139,8 +119,8 @@ export default function nextPageConfig({
               t.identifier(prerenderId)
             ),
             t.booleanLiteral(true)
-          )
-        )
+          ),
+        ])
 
         path.node.declaration = t.identifier(pageComponentVar)
       },
