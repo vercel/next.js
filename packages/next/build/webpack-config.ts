@@ -605,14 +605,14 @@ export default async function getBaseWebpackConfig(
                 ? getFileName(...args)
                 : getFileName
 
-            return escapePathVariables(
-              name.includes('.js')
-                ? name.replace(/\.js$/, '.module.js')
-                : args[0].chunk.name.replace(/\.js$/, '.module.js')
-            )
+            return name.includes('.js')
+              ? name.replace(/\.js$/, '.module.js')
+              : escapePathVariables(
+                  args[0].chunk.name.replace(/\.js$/, '.module.js')
+                )
           },
           chunkFilename: (inputChunkName: string) =>
-            escapePathVariables(inputChunkName.replace(/\.js$/, '.module.js')),
+            inputChunkName.replace(/\.js$/, '.module.js'),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
