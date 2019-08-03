@@ -72,7 +72,7 @@
     "babel-jest": "24.8.0",
     "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
-    "chromedriver": "76.0.0",
+    "chromedriver": "75.1.0",
     "clone": "2.1.2",
     "coveralls": "3.0.3",
     "cross-spawn": "6.0.5",
@@ -106,7 +106,7 @@
     "typescript": "3.5.1",
     "typescript-eslint-parser": "22.0.0",
     "wait-port": "0.2.2",
-    "wd": "1.11.2",
+    "wd": "1.11.3",
     "webpack-bundle-analyzer": "3.3.2"
   },
   "engines": {
