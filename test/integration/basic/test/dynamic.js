@@ -58,7 +58,7 @@ export default (context, render) => {
             /Browser hydrated/
           )
 
-          if (global.browserName !== 'chrome') {
+          if (global.browserName === 'chrome') {
             const logs = await browser.log('browser')
 
             logs.forEach(logItem => {
