@@ -110,7 +110,17 @@
 
 ### Setup
 
-Install it:
+#### Quick Start
+
+```bash
+npx create-next-app
+```
+
+_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher, see [instructions for older npm versions](https://gist.github.com/timer/833d9946fa8a05ba855729d05a38ac23))_
+
+#### Manual Setup
+
+Install it in your project:
 
 ```bash
 npm install --save next react react-dom

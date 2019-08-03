@@ -20,7 +20,7 @@
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "react-relay": "^2.0.0"
+    "react-relay": "^5.0.0"
   },
   "devDependencies": {
     "babel-plugin-relay": "^2.0.0",
