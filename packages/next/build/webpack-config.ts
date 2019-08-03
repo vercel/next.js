@@ -1,5 +1,4 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -35,6 +34,12 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
+
+const escapePathVariables = (value: any) => {
+  return typeof value === 'string'
+    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
+    : value
+}
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -600,12 +605,14 @@ export default async function getBaseWebpackConfig(
                 ? getFileName(...args)
                 : getFileName
 
-            return name.includes('.js')
-              ? name.replace(/\.js$/, '.module.js')
-              : args[0].chunk.name.replace(/\.js$/, '.module.js')
+            return escapePathVariables(
+              name.includes('.js')
+                ? name.replace(/\.js$/, '.module.js')
+                : args[0].chunk.name.replace(/\.js$/, '.module.js')
+            )
           },
           chunkFilename: (inputChunkName: string) =>
-            inputChunkName.replace(/\.js$/, '.module.js'),
+            escapePathVariables(inputChunkName.replace(/\.js$/, '.module.js')),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
