@@ -16,7 +16,11 @@
   </a>
 </p>
 
-**Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
+<p align="center">
+  <strong>
+    Visit  <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+  </strong>
+</p>
 
 ---
 
