@@ -363,13 +363,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
           })
           staticCheckSema.release()
 
-          if (result.prerender === true) {
-            sprPages.add(page)
-          }
-
           if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
+          } else if (result.prerender) {
+            sprPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err

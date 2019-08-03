@@ -1,4 +1,4 @@
-/* global location, __NEXT_DATA__ */
+/* global location */
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
@@ -176,7 +176,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const renderCtx = { App, Component, props, err: initialErr, emitter }
   render(renderCtx)
 
-  if (__NEXT_DATA__.skeleton && Component.getInitialProps) {
+  if (window.__NEXT_DATA__.skeleton && Component.getInitialProps) {
     props.pageProps = await Component.getInitialProps({
       pathname: page,
       asPath,
