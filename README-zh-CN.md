@@ -20,7 +20,7 @@ Next.js 是一个轻量级的 React 服务端渲染应用框架。
 
 **可访问 [nextjs.org/learn](https://nextjs.org/learn) 开始学习 Next.js.**
 
-[README in English](README.md)
+[README in English](https://github.com/zeit/next.js)
 
 ---
 
