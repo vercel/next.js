@@ -18,6 +18,7 @@ const defaultConfig: { [key: string]: any } = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
+  compress: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
