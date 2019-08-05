@@ -21,14 +21,6 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-function invalidHref(href: string) {
-  if (process.env.NODE_ENV !== 'production') {
-    throw new Error(
-      `Invalid href passed to router: ${href} https://err.sh/zeit/next.js/invalid-href-passed`
-    )
-  }
-}
-
 type Url = UrlObject | string
 
 export type BaseRouter = {
@@ -288,7 +280,11 @@ export default class Router implements BaseRouter {
       const { pathname, query, protocol } = parse(url, true)
 
       if (!pathname || protocol) {
-        invalidHref(url)
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
         return resolve(false)
       }
 
@@ -552,7 +548,11 @@ export default class Router implements BaseRouter {
       const { pathname, protocol } = parse(url)
 
       if (!pathname || protocol) {
-        invalidHref(url)
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
         return
       }
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
