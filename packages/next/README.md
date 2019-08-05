@@ -2143,7 +2143,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
-Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to speed up sending content.
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files.
 
 To disable **compression** in Next.js, set the `compression` to `false` in `next.config.js`:
 
