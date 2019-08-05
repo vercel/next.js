@@ -4,7 +4,9 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
-import loadConfig, { isTargetLikeServerless } from 'next-server/next-config'
+import loadConfig, {
+  isTargetLikeServerless
+} from 'next-server/dist/server/config'
 import {
   PHASE_EXPORT,
   SERVER_DIRECTORY,

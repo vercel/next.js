@@ -9,7 +9,9 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from 'next-server/constants'
-import loadConfig, { isTargetLikeServerless } from 'next-server/next-config'
+import loadConfig, {
+  isTargetLikeServerless,
+} from 'next-server/dist/server/config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
