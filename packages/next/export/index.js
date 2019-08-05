@@ -4,7 +4,9 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
-import loadConfig from 'next-server/next-config'
+import loadConfig, {
+  isTargetLikeServerless
+} from 'next-server/dist/server/config'
 import {
   PHASE_EXPORT,
   SERVER_DIRECTORY,
@@ -183,7 +185,7 @@ export default async function (dir, options, configuration) {
             serverRuntimeConfig,
             concurrency,
             subFolders,
-            serverless: nextConfig.target === 'serverless'
+            serverless: isTargetLikeServerless(nextConfig.target)
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {
