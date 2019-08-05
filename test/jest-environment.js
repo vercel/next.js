@@ -124,7 +124,7 @@ class CustomEnvironment extends NodeEnvironment {
         }
       }
     }
-    this.global.browserName = BROWSER_NAME
+    this.global.browserName = browserOptions.browserName
     this.global.isBrowserStack = isBrowserStack
     // Mock current browser set up
     this.global.bsWd = async (appPort, pathname) => {
