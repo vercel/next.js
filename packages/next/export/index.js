@@ -183,7 +183,9 @@ export default async function (dir, options, configuration) {
             serverRuntimeConfig,
             concurrency,
             subFolders,
-            serverless: nextConfig.target === 'serverless'
+            serverless:
+              nextConfig.target === 'serverless' ||
+              nextConfig.target === 'experimental-serverless-trace'
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {

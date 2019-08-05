@@ -45,7 +45,7 @@ type Entrypoints = {
 
 export function createEntrypoints(
   pages: PagesMapping,
-  target: 'server' | 'serverless',
+  target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   dynamicBuildId: boolean,
   config: any
@@ -72,7 +72,10 @@ export function createEntrypoints(
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
 
-    if (isApiRoute && target === 'serverless') {
+    if (
+      isApiRoute &&
+      (target === 'serverless' || target === 'experimental-serverless-trace')
+    ) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
@@ -84,7 +87,7 @@ export function createEntrypoints(
     } else if (isApiRoute || target === 'server') {
       server[bundlePath] = [absolutePagePath]
     } else if (
-      target === 'serverless' &&
+      (target === 'serverless' || target === 'experimental-serverless-trace') &&
       page !== '/_app' &&
       page !== '/_document'
     ) {

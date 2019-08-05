@@ -1,10 +1,10 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
@@ -79,7 +79,10 @@ export default async function getBaseWebpackConfig(
     .split(process.platform === 'win32' ? ';' : ':')
     .filter(p => !!p)
 
-  const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
+  const outputDir =
+    target === 'serverless' || target === 'experimental-serverless-trace'
+      ? SERVERLESS_DIRECTORY
+      : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
@@ -293,8 +296,8 @@ export default async function getBaseWebpackConfig(
           },
         ]
       : [
-          // When the serverless target is used all node_modules will be compiled into the output bundles
-          // So that the serverless bundles have 0 runtime dependencies
+          // When the 'serverless' target is used all node_modules will be compiled into the output bundles
+          // So that the 'serverless' bundles have 0 runtime dependencies
           'amp-toolbox-optimizer', // except this one
           (context, request, callback) => {
             if (
@@ -561,11 +564,17 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      target === 'serverless' &&
-        (isServer || selectivePageBuilding) &&
-        new ServerlessPlugin(buildId, { isServer }),
-      isServer && new PagesManifestPlugin(target === 'serverless'),
-      target !== 'serverless' &&
+      (target === 'serverless' || target === 'experimental-serverless-trace') &&
+        new ServerlessPlugin(buildId, {
+          isServer,
+          isFlyingShuttle: selectivePageBuilding,
+          isTrace: target === 'experimental-serverless-trace',
+        }),
+      isServer &&
+        new PagesManifestPlugin(
+          target === 'serverless' || target === 'experimental-serverless-trace'
+        ),
+      target === 'server' &&
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),

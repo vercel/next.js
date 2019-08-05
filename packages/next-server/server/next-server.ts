@@ -7,7 +7,6 @@ import compression from 'compression'
 
 import {
   BUILD_ID_FILE,
-  BUILD_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
@@ -98,7 +97,9 @@ export default class Server {
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.pagesManifest = join(
       this.distDir,
-      this.nextConfig.target || 'server',
+      this.nextConfig.target === 'server'
+        ? SERVER_DIRECTORY
+        : SERVERLESS_DIRECTORY,
       PAGES_MANIFEST
     )
 
@@ -131,7 +132,7 @@ export default class Server {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
-    if (compress && this.nextConfig.target !== 'serverless') {
+    if (compress && this.nextConfig.target === 'server') {
       this.compression = compression() as Middleware
     }
 
@@ -319,7 +320,11 @@ export default class Server {
       return this.render404(req, res)
     }
 
-    if (!this.renderOpts.dev && this.nextConfig.target === 'serverless') {
+    if (
+      !this.renderOpts.dev &&
+      (this.nextConfig.target === 'serverless' ||
+        this.nextConfig.target === 'experimental-serverless-trace')
+    ) {
       const mod = require(resolverFunction)
       if (typeof mod.default === 'function') {
         return mod.default(req, res)
@@ -342,7 +347,8 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless',
+      this.nextConfig.target === 'serverless' ||
+        this.nextConfig.target === 'experimental-serverless-trace',
       this.renderOpts.dev
     )
   }
@@ -352,7 +358,8 @@ export default class Server {
     const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(
       this.distDir,
-      this.nextConfig.target === 'serverless'
+      this.nextConfig.target === 'serverless' ||
+        this.nextConfig.target === 'experimental-serverless-trace'
         ? SERVERLESS_DIRECTORY
         : SERVER_DIRECTORY
     )
@@ -459,7 +466,9 @@ export default class Server {
     query: ParsedUrlQuery = {}
   ) {
     const serverless =
-      !this.renderOpts.dev && this.nextConfig.target === 'serverless'
+      !this.renderOpts.dev &&
+      (this.nextConfig.target === 'serverless' ||
+        this.nextConfig.target === 'experimental-serverless-trace')
     // try serving a static AMP version first
     if (query.amp) {
       try {
