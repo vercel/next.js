@@ -79,10 +79,11 @@ export default async function getBaseWebpackConfig(
     .split(process.platform === 'win32' ? ';' : ':')
     .filter(p => !!p)
 
-  const outputDir =
-    target === 'serverless' || target === 'experimental-serverless-trace'
-      ? SERVERLESS_DIRECTORY
-      : SERVER_DIRECTORY
+  const isServerless = target === 'serverless'
+  const isServerlessTrace = target === 'experimental-serverless-trace'
+  const isLikeServerless = isServerless || isServerlessTrace
+
+  const outputDir = isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
@@ -241,7 +242,7 @@ export default async function getBaseWebpackConfig(
     target: isServer ? 'node' : 'web',
     externals: !isServer
       ? undefined
-      : target !== 'serverless'
+      : !isServerless
       ? [
           (context, request, callback) => {
             const notExternalModules = [
@@ -564,16 +565,13 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      (target === 'serverless' || target === 'experimental-serverless-trace') &&
+      isLikeServerless &&
         new ServerlessPlugin(buildId, {
           isServer,
           isFlyingShuttle: selectivePageBuilding,
-          isTrace: target === 'experimental-serverless-trace',
+          isTrace: isServerlessTrace,
         }),
-      isServer &&
-        new PagesManifestPlugin(
-          target === 'serverless' || target === 'experimental-serverless-trace'
-        ),
+      isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
