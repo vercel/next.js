@@ -1,15 +1,26 @@
-<img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
+[![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
-[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
-[![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
+<p align="center">
+  <a aria-label="ZEIT logo" href="https://github.com/zeit">
+    <img src="https://img.shields.io/badge/ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+  </a>
+  <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
+    <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
+    <img alt="" src=
+  "https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
+    <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
+  </a>
+</p>
 
 Next.js 是一个轻量级的 React 服务端渲染应用框架。
 
 **可访问 [nextjs.org/learn](https://nextjs.org/learn) 开始学习 Next.js.**
 
-[README in English](README.md)
+[README in English](https://github.com/zeit/next.js)
 
 ---
 
