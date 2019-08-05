@@ -83,8 +83,6 @@ export default async function getBaseWebpackConfig(
   const isServerlessTrace = target === 'experimental-serverless-trace'
   const isLikeServerless = isServerless || isServerlessTrace
 
-  const isProductionServerlessTrace = isServerlessTrace && !dev && isServer
-
   const outputDir = isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
@@ -405,40 +403,10 @@ export default async function getBaseWebpackConfig(
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
     },
-    ...(isProductionServerlessTrace
-      ? {
-          // `@zeit/webpack-asset-relocator-loader` will relocated all assets
-          // so we can't let webpack mock this to `/` & `/index.js`.
-          //
-          // This is not enabled for `target: 'serverless'` for backwards
-          // compatibility reasons.
-          node: { __dirname: false, __filename: false },
-        }
-      : undefined),
     // @ts-ignore this is filtered
     module: {
       strictExportPresence: true,
       rules: [
-        // This loader relocates all build assets into a new folder since we
-        // change the emitted path structure during bundling.
-        //
-        // This is not enabled for `target: 'serverless'` for backwards
-        // compatibility reasons.
-        isProductionServerlessTrace && {
-          // These extensions have been transformed into traditional JavaScript
-          // by prior loaders.
-          test: /\.(tsx|ts|js|mjs|jsx|node)$/,
-          parser: { amd: false },
-          use: {
-            loader: '@zeit/webpack-asset-relocator-loader',
-            options: {
-              outputAssetBase: 'assets',
-              existingAssetNames: [],
-              wrapperCompatibility: false,
-              production: true,
-            },
-          },
-        },
         (selectivePageBuilding || config.experimental.terserLoader) &&
           !isServer && {
             test: /\.(js|mjs|jsx)$/,

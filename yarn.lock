@@ -2576,13 +2576,6 @@
   dependencies:
     "@babel/preset-typescript" "^7.0.0"
 
-"@zeit/webpack-asset-relocator-loader@0.6.2":
-  version "0.6.2"
-  resolved "https://registry.yarnpkg.com/@zeit/webpack-asset-relocator-loader/-/webpack-asset-relocator-loader-0.6.2.tgz#b15353d8578562f299eddb94d4b771297acc0487"
-  integrity sha512-IUz2YvFAv03LHP4dhjHqG549ecZhdp7KU8B+vGfJRgcDzvlCmc9CA1YcYfJHVO96U8dU5z85RIysr2whYUXmgQ==
-  dependencies:
-    sourcemap-codec "^1.4.4"
-
 JSONStream@^1.0.4, JSONStream@^1.3.4:
   version "1.3.5"
   resolved "https://registry.yarnpkg.com/JSONStream/-/JSONStream-1.3.5.tgz#3208c1f08d3a4d99261ab64f92302bc15e111ca0"
@@ -12648,11 +12641,6 @@ source-map@^0.5.0, source-map@^0.5.3, source-map@^0.5.6:
   version "0.5.7"
   resolved "https://registry.yarnpkg.com/source-map/-/source-map-0.5.7.tgz#8a039d2d1021d22d1ea14c80d8ea468ba2ef3fcc"
   integrity sha1-igOdLRAh0i0eoUyA2OpGi6LvP8w=
-
-sourcemap-codec@^1.4.4:
-  version "1.4.6"
-  resolved "https://registry.yarnpkg.com/sourcemap-codec/-/sourcemap-codec-1.4.6.tgz#e30a74f0402bad09807640d39e971090a08ce1e9"
-  integrity sha512-1ZooVLYFxC448piVLBbtOxFcXwnymH9oUF8nRd3CuYDVvkRBxRl6pB4Mtas5a4drtL+E8LDgFkQNcgIw6tc8Hg==
 
 spawn-sync@^1.0.15:
   version "1.0.15"
