@@ -58,6 +58,9 @@ export default class ServiceWorkerRegistrar extends React.Component<
     const wb = new Workbox('/sw.js')
     this.wb = wb
     this.registration = await wb.register()
+    if (this.registration && this.registration.waiting) {
+      this.onSWWaiting()
+    }
     wb.addEventListener('activated', this.onSWActivated)
     wb.addEventListener('waiting', this.onSWWaiting)
     setTimeout(this.checkForUpdates, HOUR_IN_MS)
