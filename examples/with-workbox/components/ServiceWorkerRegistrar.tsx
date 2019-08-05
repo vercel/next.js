@@ -14,6 +14,8 @@ interface State {
   swUpdateWaiting: boolean
 }
 
+const HOUR_IN_MS = 60 * 60 * 1000
+
 export default class ServiceWorkerRegistrar extends React.Component<
   Props,
   State
@@ -24,6 +26,7 @@ export default class ServiceWorkerRegistrar extends React.Component<
 
   wb: Workbox | undefined
   registration: ServiceWorkerRegistration | undefined
+  navigateUrl: string | undefined
 
   async componentDidMount() {
     if (!navigator.serviceWorker) return
@@ -31,11 +34,15 @@ export default class ServiceWorkerRegistrar extends React.Component<
     const wb = new Workbox('/sw.js')
     this.wb = wb
     this.registration = await wb.register()
-    wb.addEventListener('activated', (ev: WorkboxEvent) => {
+    wb.addEventListener('activated', ev => {
       // @ts-ignore
       if (ev.isUpdate) {
         // New Service Worker has been activated.
         // You will need to refresh the page.
+        if (this.navigateUrl) {
+          window.location.href = this.navigateUrl
+          return
+        }
         return window.location.reload()
       }
       const { showSnackMessage } = this.props
@@ -47,15 +54,11 @@ export default class ServiceWorkerRegistrar extends React.Component<
       )
     })
     wb.addEventListener('waiting', this.onSWWaiting)
-
-    Router.events.on('routeChangeStart', e => {
-      if (this.state.swUpdateWaiting && this.wb) {
-        window.location.reload()
-      }
-    })
+    setTimeout(this.checkForUpdates, HOUR_IN_MS)
   }
 
   private onSWWaiting = () => {
+    Router.events.on('routeChangeStart', this.onRouteChange)
     this.setState({
       swUpdateWaiting: true,
     })
@@ -83,13 +86,18 @@ export default class ServiceWorkerRegistrar extends React.Component<
     )
   }
 
+  private onRouteChange = async (url: string) => {
+    const count = await this.clientCount()
+    if (count > 1) return
+    this.navigateUrl = url
+    this.upgradeServiceWorker()
+  }
+
   private onReloadClick = async () => {
     if (!this.registration || !this.registration.active) return
     const { showSnackMessage } = this.props
-    const clientCount = await messageSW(this.registration.active, {
-      type: 'CLIENTS_COUNT',
-    })
-    if (clientCount > 1) {
+    const count = await this.clientCount()
+    if (count > 1) {
       return showSnackMessage(
         generateSnackMessage(
           {
@@ -113,6 +121,13 @@ export default class ServiceWorkerRegistrar extends React.Component<
     this.upgradeServiceWorker()
   }
 
+  private async clientCount(): Promise<number> {
+    if (!this.registration || !this.registration.active) return 1
+    return await messageSW(this.registration.active, {
+      type: 'CLIENTS_COUNT',
+    })
+  }
+
   private upgradeServiceWorker = () => {
     const { showSnackMessage } = this.props
     showSnackMessage({ open: false })
@@ -121,6 +136,12 @@ export default class ServiceWorkerRegistrar extends React.Component<
         type: 'SKIP_WAITING',
       })
     }
+  }
+
+  private checkForUpdates = async () => {
+    if (!this.wb) return
+    await this.wb.update()
+    setTimeout(this.checkForUpdates, HOUR_IN_MS)
   }
 
   render() {
