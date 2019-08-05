@@ -149,7 +149,6 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  pageData?: any
 }
 
 function renderDocument(
@@ -295,7 +294,7 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
-  // might want to change previewing of skeleton from `?skeleton=1`
+  // might want to change previewing of skeleton from `?nextPreviewSkeleton=(truthy)`
   isSkeleton =
     pageConfig.experimentalPrerender === true && !!query.nextPreviewSkeleton
 
@@ -518,7 +517,6 @@ export async function renderToHTML(
   // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
-  renderOpts.pageData = props && props.pageProps
   if (isSkeleton) renderOpts.skeleton = true
 
   let html = renderDocument(Document, {
