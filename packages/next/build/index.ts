@@ -75,7 +75,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
-  if (selectivePageBuilding && target !== 'serverless') {
+  const isServerless = target === 'serverless'
+  const isServerlessTrace = target === 'experimental-serverless-trace'
+  const isLikeServerless = isServerless || isServerlessTrace
+
+  if (selectivePageBuilding && !isServerless) {
     throw new Error(
       `Cannot use ${
         isFlyingShuttle ? 'flying shuttle' : '`now dev`'
@@ -200,7 +204,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   let result: CompilerResult = { warnings: [], errors: [] }
   // TODO: why do we need this??
-  if (target === 'serverless' || target === 'experimental-serverless-trace') {
+  if (isLikeServerless) {
     const clientResult = await runCompiler(configs[0])
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
@@ -274,9 +278,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
-    target === 'serverless' || target === 'experimental-serverless-trace'
-      ? SERVERLESS_DIRECTORY
-      : SERVER_DIRECTORY,
+    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
     PAGES_MANIFEST
   )
 
@@ -306,16 +308,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const actualPage = page === '/' ? '/index' : page
       const size = await getPageSizeInKb(actualPage, distPath, buildId)
       const bundleRelative = path.join(
-        target === 'serverless' || target === 'experimental-serverless-trace'
-          ? 'pages'
-          : `static/${buildId}/pages`,
+        isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
       )
       const serverBundle = path.join(
         distPath,
-        target === 'serverless' || target === 'experimental-serverless-trace'
-          ? SERVERLESS_DIRECTORY
-          : SERVER_DIRECTORY,
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         bundleRelative
       )
 
@@ -331,7 +329,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomAppGetInitialProps(
-          target === 'serverless' || target === 'experimental-serverless-trace'
+          isLikeServerless
             ? serverBundle
             : path.join(
                 distPath,
@@ -444,8 +442,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const file of toMove) {
       const orig = path.join(exportOptions.outdir, file)
       const dest = path.join(serverDir, file)
-      const relativeDest = (target === 'serverless' ||
-      target === 'experimental-serverless-trace'
+      const relativeDest = (isLikeServerless
         ? path.join('pages', file)
         : path.join('static', buildId, 'pages', file)
       ).replace(/\\/g, '/')
@@ -473,9 +470,5 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 
-  printTreeView(
-    Object.keys(allMappedPages),
-    allPageInfos,
-    target === 'serverless' || target === 'experimental-serverless-trace'
-  )
+  printTreeView(Object.keys(allMappedPages), allPageInfos, isLikeServerless)
 }
