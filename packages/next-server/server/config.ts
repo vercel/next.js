@@ -120,7 +120,7 @@ export default function loadConfig(
     }
 
     if (
-      userConfig.target != null &&
+      userConfig.target &&
       userConfig.target !== 'server' &&
       userConfig.publicRuntimeConfig &&
       Object.keys(userConfig.publicRuntimeConfig).length !== 0
