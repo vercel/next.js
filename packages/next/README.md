@@ -2148,7 +2148,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 ### Compression
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with `server` target. In general you will want to enable compression on a HTTP proxy like nginx, to offload load from `Node.js` process.  
 
-To disable **compression** in Next.js, set the `compression` to `false` in `next.config.js`:
+To disable **compression** in Next.js, set `compression` as `false` in `next.config.js`:
 
 ```js
 // next.config.js
