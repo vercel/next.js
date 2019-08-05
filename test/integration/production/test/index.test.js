@@ -453,7 +453,7 @@ describe('Production Usage', () => {
 
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
-        if (!browser.log) return
+        if (global.browserName !== 'chrome') return
         const counter = await browser
           .elementByCss('#increase')
           .click()
