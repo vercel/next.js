@@ -1,13 +1,12 @@
+import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import compression from 'compression'
 
 import {
   BUILD_ID_FILE,
-  BUILD_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
@@ -25,12 +24,12 @@ import {
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
-import loadConfig from './config'
+import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route, RouteMatch, Params } from './router'
+import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -98,7 +97,9 @@ export default class Server {
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.pagesManifest = join(
       this.distDir,
-      this.nextConfig.target || 'server',
+      this.nextConfig.target === 'server'
+        ? SERVER_DIRECTORY
+        : SERVERLESS_DIRECTORY,
       PAGES_MANIFEST
     )
 
@@ -131,7 +132,7 @@ export default class Server {
       this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
-    if (compress && this.nextConfig.target !== 'serverless') {
+    if (compress && this.nextConfig.target === 'server') {
       this.compression = compression() as Middleware
     }
 
@@ -319,7 +320,7 @@ export default class Server {
       return this.render404(req, res)
     }
 
-    if (!this.renderOpts.dev && this.nextConfig.target === 'serverless') {
+    if (!this.renderOpts.dev && this._isLikeServerless) {
       const mod = require(resolverFunction)
       if (typeof mod.default === 'function') {
         return mod.default(req, res)
@@ -342,7 +343,7 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless',
+      this._isLikeServerless,
       this.renderOpts.dev
     )
   }
@@ -352,9 +353,7 @@ export default class Server {
     const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(
       this.distDir,
-      this.nextConfig.target === 'serverless'
-        ? SERVERLESS_DIRECTORY
-        : SERVER_DIRECTORY
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
@@ -458,8 +457,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const serverless =
-      !this.renderOpts.dev && this.nextConfig.target === 'serverless'
+    const serverless = !this.renderOpts.dev && this._isLikeServerless
     // try serving a static AMP version first
     if (query.amp) {
       try {
@@ -707,5 +705,9 @@ export default class Server {
 
       throw err
     }
+  }
+
+  private get _isLikeServerless(): boolean {
+    return isTargetLikeServerless(this.nextConfig.target)
   }
 }
