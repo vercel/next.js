@@ -591,7 +591,7 @@ export default class Router implements BaseRouter {
       })
       props = {
         pageProps: res.ok
-          ? await res.json()
+          ? await res.json().catch(err => ({ error: err.message }))
           : { error: 'failed to load prerender', statusCode: res.status },
       }
     } else {
