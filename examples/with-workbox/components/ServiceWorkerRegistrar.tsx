@@ -169,8 +169,11 @@ export default class ServiceWorkerRegistrar extends React.Component<
 
   private checkForUpdates = async () => {
     if (!this.wb) return
-    await this.wb.update()
-    setTimeout(this.checkForUpdates, HOUR_IN_MS)
+    try {
+      await this.wb.update()
+    } finally {
+      setTimeout(this.checkForUpdates, HOUR_IN_MS)
+    }
   }
 
   render() {
