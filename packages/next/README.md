@@ -1,11 +1,26 @@
 [![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
-[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
-[![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
+<p align="center">
+  <a aria-label="ZEIT logo" href="https://github.com/zeit">
+    <img src="https://img.shields.io/badge/ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+  </a>
+  <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
+    <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
+    <img alt="" src=
+  "https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
+    <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
+  </a>
+</p>
 
-**Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
+<p align="center">
+  <strong>
+    Visit  <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+  </strong>
+</p>
 
 ---
 
@@ -110,7 +125,17 @@
 
 ### Setup
 
-Install it:
+#### Quick Start
+
+```bash
+npx create-next-app
+```
+
+_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher, see [instructions for older npm versions](https://gist.github.com/timer/833d9946fa8a05ba855729d05a38ac23))_
+
+#### Manual Setup
+
+Install it in your project:
 
 ```bash
 npm install --save next react react-dom
@@ -318,12 +343,14 @@ As `href` is a filesystem path, it shouldn't change at runtime, instead, you wil
 dynamically according to your needs. Here's an example to create a list of links:
 
 ```jsx
-const pids = ['id1', 'id2', 'id3'];
-{pids.map(pid => (
-  <Link href="/post/[pid]" as={`/post/${pid}`}>
-    <a>Post {pid}</a>
-  </Link>
-))}
+const pids = ['id1', 'id2', 'id3']
+{
+  pids.map(pid => (
+    <Link href="/post/[pid]" as={`/post/${pid}`}>
+      <a>Post {pid}</a>
+    </Link>
+  ))
+}
 ```
 
 > You can [read more about `<Link>` here](#with-link).
@@ -337,6 +364,11 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 > **Note**: Pages that are statically optimized by [automatic prerendering](#automatic-prerendering) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
 > After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 > If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
+
+> **Note**: If deploying to [ZEIT Now](https://zeit.co/now) dynamic routes will work out-of-the-box.
+> You do not need to configure custom routes in a `now.json` file.
+>
+> If you are new to ZEIT Now, you can learn how to deploy a Next.js app to it in the [_Deploying a Next.js App_ Learn section](https://nextjs.org/learn/basics/deploying-a-nextjs-app).
 
 ### Populating `<head>`
 
@@ -1053,7 +1085,7 @@ export default withRouter(MyLink)
     <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
     <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
     <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
-    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>    
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>
   </ul>
 </details>
 
@@ -1158,7 +1190,7 @@ export const config = {
   api: {
     bodyParser: {
       sizeLimit: '1mb',
-    }
+    },
   },
 }
 ```
@@ -2063,7 +2095,7 @@ module.exports = {
 
 ## Automatic Prerendering
 
-Next.js automatically determines that a page is static (can be prerendered) if it has no has blocking data requirements.
+Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements.
 This determination is made by the absence of `getInitialProps` in the page.
 
 If `getInitialProps` is present, Next.js will not prerender the page.
@@ -2102,7 +2134,7 @@ next build
 next start
 ```
 
-To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js](https://zeit.co/guides/deploying-nextjs-with-now/) or the [Next.js Learn section about deploying on ZEIT Now](https://nextjs.org/learn/basics/deploying-a-nextjs-app/deploying-to-zeit-now).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
@@ -2193,38 +2225,41 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 
 ## TypeScript
 
-TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
+Next.js provides an integrated TypeScript experience out of the box, similar to an IDE.
 
-```js
-{
-  "compilerOptions": {
-    "allowJs": true, /* Allow JavaScript files to be type checked. */
-    "alwaysStrict": true, /* Parse in strict mode. */
-    "esModuleInterop": true, /* matches compilation setting */
-    "isolatedModules": true, /* to match webpack loader */
-    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
-    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
-    "module": "esnext", /* Specifies the type of module to type check. */
-    "moduleResolution": "node", /* Determine how modules get resolved. */
-    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
-
-    /* Strict Type-Checking Options, optional, but recommended. */
-    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-    "noUnusedLocals": true, /* Report errors on unused locals. */
-    "noUnusedParameters": true, /* Report errors on unused parameters. */
-    "strict": true, /* Enable all strict type-checking options. */
-    "target": "esnext" /* The type checking input. */
-  }
-}
-```
-
-After adding the `tsconfig.json` you need to install `@types` to get proper TypeScript typing.
+To get started, create a empty `tsconfig.json` file in the root of your project:
 
 ```bash
-npm install --save-dev @types/react @types/react-dom @types/node
+touch tsconfig.json
 ```
 
-Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+Next.js will automatically configure this file with default values if you (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+
+Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install typescript, @types/react, and @types/node by running:
+#
+#         yarn add --dev typescript @types/react @types/node
+#
+# ...
+```
+
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits TypeScript provides!
+
+To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+
+> **Note**: Next.js will create a file named `next-env.d.ts` in the root of your project.
+> This file ensures Next.js' types are picked up by the TypeScript compiler.
+>
+> **You cannot remove this file, however, you can edit it (but don't need to).**
+
+> **Note**: Next.js does not enable TypeScript's `strict` mode by default.
+> When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
 
 ### Exported types
 
@@ -2723,7 +2758,3 @@ Please see our [contributing.md](/contributing.md).
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
-
-```
-
-```

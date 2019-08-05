@@ -22,7 +22,7 @@ let appPort
 let server
 const appDir = join(__dirname, '../')
 
-function runTests () {
+function runTests (dev) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -187,6 +187,29 @@ function runTests () {
     const scrollPosition = await browser.eval('window.pageYOffset')
     expect(scrollPosition).toBe(7232)
   })
+
+  if (dev) {
+    it('should work with HMR correctly', async () => {
+      const browser = await webdriver(appPort, '/post-1/comments')
+      let text = await browser.eval(`document.documentElement.innerHTML`)
+      expect(text).toMatch(/comments for.*post-1/)
+
+      const page = join(appDir, 'pages/[name]/comments.js')
+      const origContent = await fs.readFile(page, 'utf8')
+      const newContent = origContent.replace(/comments/, 'commentss')
+
+      try {
+        await fs.writeFile(page, newContent, 'utf8')
+        await waitFor(3 * 1000)
+
+        let text = await browser.eval(`document.documentElement.innerHTML`)
+        expect(text).toMatch(/commentss for.*post-1/)
+      } finally {
+        await fs.writeFile(page, origContent, 'utf8')
+        if (browser) await browser.close()
+      }
+    })
+  }
 }
 
 const nextConfig = join(appDir, 'next.config.js')
