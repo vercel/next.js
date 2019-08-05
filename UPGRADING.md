@@ -1,5 +1,15 @@
 # Migrating from v8 to v9
 
+## Preamble
+
+#### Production Deployment on ZEIT Now v2
+
+If you previously configured `routes` in your `now.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://github.com/zeit/next.js#dynamic-routing).
+
+Next.js 9's dynamic routes are **automatically configured on [Now](https://zeit.co/now)** and do not require any `now.json` customization.
+
+You can read more about [Dynamic Routing here](https://github.com/zeit/next.js#dynamic-routing).
+
 ## Breaking Changes
 
 #### `@zeit/next-typescript` is no longer necessary
@@ -20,16 +30,16 @@ From:
 
 ```tsx
 import { NextContext } from 'next'
-import { NextAppContext } from 'next/app'
-import { NextDocumentContext } from 'next/document'
+import { NextAppContext, DefaultAppIProps } from 'next/app'
+import { NextDocumentContext, DefaultDocumentIProps } from 'next/document'
 ```
 
 to
 
 ```tsx
 import { NextPageContext } from 'next'
-import { AppContext } from 'next/app'
-import { DocumentContext } from 'next/document'
+import { AppContext, AppInitialProps } from 'next/app'
+import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
 #### The `config` key is now a special export on a page
@@ -106,6 +116,11 @@ module.exports = {
   exportTrailingSlash: true,
 }
 ```
+
+#### `./pages/api/` is treated differently
+
+Pages in `./pages/api/` are now considered [API Routes](https://nextjs.org/blog/next-9#api-routes).
+Pages in this directory will no longer contain a client-side bundle.
 
 ## Deprecated Features
 
