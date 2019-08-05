@@ -1,9 +1,9 @@
+import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import compression from 'compression'
 
 import {
   BUILD_ID_FILE,
@@ -24,12 +24,12 @@ import {
 import * as envConfig from '../lib/runtime-config'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
-import loadConfig from './config'
+import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route, RouteMatch, Params } from './router'
+import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -708,9 +708,6 @@ export default class Server {
   }
 
   private get _isLikeServerless(): boolean {
-    const isServerless = this.nextConfig.target === 'serverless'
-    const isServerlessTrace =
-      this.nextConfig.target === 'experimental-serverless-trace'
-    return isServerless || isServerlessTrace
+    return isTargetLikeServerless(this.nextConfig.target)
   }
 }

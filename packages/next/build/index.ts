@@ -1,18 +1,23 @@
+import { Sema } from 'async-sema'
 import chalk from 'chalk'
+import fs from 'fs'
+import mkdirpOrig from 'mkdirp'
 import {
+  CHUNK_GRAPH_MANIFEST,
+  PAGES_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  PAGES_MANIFEST,
-  CHUNK_GRAPH_MANIFEST,
-  PHASE_PRODUCTION_BUILD,
 } from 'next-server/constants'
-import loadConfig from 'next-server/next-config'
+import loadConfig, { isTargetLikeServerless } from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import fs from 'fs'
 import { promisify } from 'util'
+import workerFarm from 'worker-farm'
+
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
@@ -25,9 +30,9 @@ import {
   getFileForPage,
   getPageSizeInKb,
   getSpecifiedPages,
-  printTreeView,
-  PageInfo,
   hasCustomAppGetInitialProps,
+  PageInfo,
+  printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import {
@@ -35,10 +40,6 @@ import {
   getPageChunks,
 } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import mkdirpOrig from 'mkdirp'
-import workerFarm from 'worker-farm'
-import { Sema } from 'async-sema'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -75,11 +76,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  const isLikeServerless = isServerless || isServerlessTrace
+  const isLikeServerless = isTargetLikeServerless(target)
 
-  if (selectivePageBuilding && !isServerless) {
+  if (selectivePageBuilding && target !== 'serverless') {
     throw new Error(
       `Cannot use ${
         isFlyingShuttle ? 'flying shuttle' : '`now dev`'
