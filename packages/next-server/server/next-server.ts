@@ -320,11 +320,7 @@ export default class Server {
       return this.render404(req, res)
     }
 
-    if (
-      !this.renderOpts.dev &&
-      (this.nextConfig.target === 'serverless' ||
-        this.nextConfig.target === 'experimental-serverless-trace')
-    ) {
+    if (!this.renderOpts.dev && this._isLikeServerless) {
       const mod = require(resolverFunction)
       if (typeof mod.default === 'function') {
         return mod.default(req, res)
@@ -347,8 +343,7 @@ export default class Server {
     return getPagePath(
       pathname,
       this.distDir,
-      this.nextConfig.target === 'serverless' ||
-        this.nextConfig.target === 'experimental-serverless-trace',
+      this._isLikeServerless,
       this.renderOpts.dev
     )
   }
@@ -358,10 +353,7 @@ export default class Server {
     const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(
       this.distDir,
-      this.nextConfig.target === 'serverless' ||
-        this.nextConfig.target === 'experimental-serverless-trace'
-        ? SERVERLESS_DIRECTORY
-        : SERVER_DIRECTORY
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
@@ -465,10 +457,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const serverless =
-      !this.renderOpts.dev &&
-      (this.nextConfig.target === 'serverless' ||
-        this.nextConfig.target === 'experimental-serverless-trace')
+    const serverless = !this.renderOpts.dev && this._isLikeServerless
     // try serving a static AMP version first
     if (query.amp) {
       try {
@@ -716,5 +705,12 @@ export default class Server {
 
       throw err
     }
+  }
+
+  private get _isLikeServerless(): boolean {
+    const isServerless = this.nextConfig.target === 'serverless'
+    const isServerlessTrace =
+      this.nextConfig.target === 'experimental-serverless-trace'
+    return isServerless || isServerlessTrace
   }
 }
