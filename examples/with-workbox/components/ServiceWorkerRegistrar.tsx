@@ -91,7 +91,7 @@ export default class ServiceWorkerRegistrar extends React.Component<
     })
     // There is a new version of Service Worker.
     // And now there are two of them.
-    // Show the user that he has to reload
+    // Show the user that he can upgrade
     const { showSnackMessage } = this.props
     showSnackMessage(
       generateSnackMessage(

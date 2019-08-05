@@ -27,4 +27,25 @@ self.addEventListener('message', event => {
   }
 })
 
-precacheAndRoute(self.__WB_MANIFEST, {})
+precacheAndRoute(self.__WB_MANIFEST)
+
+// Make sure this is the last fetch event listener
+self.addEventListener('fetch', event => {
+  if (
+    event.request.mode !== 'navigate' ||
+    event.request.method !== 'GET' ||
+    !self.registration.waiting
+  ) {
+    return
+  }
+
+  event.respondWith(
+    self.clients.matchAll().then(clients => {
+      if (clients.length < 2 && self.registration.waiting) {
+        self.registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+        return new Response('', { headers: { Refresh: '0' } })
+      }
+      return fetch(event.request)
+    })
+  )
+})
