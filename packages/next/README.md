@@ -34,6 +34,8 @@
 
 - [How to use](#how-to-use)
   - [Setup](#setup)
+    - [Quick Start](#quick-start)
+    - [Manual Setup](#manual-setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
     - [Built-in CSS support](#built-in-css-support)
@@ -93,6 +95,7 @@
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Automatic Prerendering](#automatic-prerendering)
 - [Production deployment](#production-deployment)
+  - [Compression](#compression)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
@@ -2143,7 +2146,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
-Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files.
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with `server` target. In general you will want to enable compression on a HTTP proxy like nginx, to offload load from `Node.js` process.  
 
 To disable **compression** in Next.js, set the `compression` to `false` in `next.config.js`:
 
