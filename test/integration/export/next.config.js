@@ -37,8 +37,8 @@ module.exports = phase => {
           query: { text: 'this file has an extension' }
         },
         '/query': { page: '/query', query: { a: 'blue' } },
-        '/blog/nextjs/comment/test': { page: '/blog/[post]/comment/[id]' }
         // API route
+        '/blog/nextjs/comment/test': { page: '/blog/[post]/comment/[id]' }
       }
     } // end exportPathMap
   }
