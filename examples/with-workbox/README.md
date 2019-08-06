@@ -62,6 +62,7 @@ This example features:
 - Reload all existing tabs when Service Worker is updated to avoid state mismatch.
 - Update service worker when user navigates (by clicking on link or some action)
 - Update service worker when user refreshes the page
+- How to use assetPrefix when assets are uploaded to CDN
 
 Further Reading:
 
