@@ -1,6 +1,10 @@
 const webpack = require('webpack')
 
+// https://github.com/zeit/next.js/#cdn-support-with-asset-prefix
+const CDN_ASSET_PREFIX = ''
+
 module.exports = {
+  assetPrefix: CDN_ASSET_PREFIX,
   experimental: {
     publicDirectory: true
   },
@@ -30,7 +34,7 @@ module.exports = {
                 )
                 .map(entry => ({
                   ...entry,
-                  url: `_next/${entry.url}`
+                  url: `${CDN_ASSET_PREFIX}/_next/${entry.url}`
                 }))
 
               return {
