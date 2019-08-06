@@ -162,7 +162,8 @@ export default class BuildManifestPlugin {
             `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
               assetMap,
               false
-            )}')`
+            )}')
+            self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
           )
 
           if (this.modern) {
@@ -174,7 +175,8 @@ export default class BuildManifestPlugin {
               `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
                 assetMap,
                 true
-              )}')`
+              )}')
+              self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
             )
           }
         }

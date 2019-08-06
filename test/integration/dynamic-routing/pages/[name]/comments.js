@@ -2,15 +2,8 @@ import { useRouter } from 'next/router'
 
 const Page = () => {
   const router = useRouter()
-  const { post, id } = router.query
-
-  return (
-    <>
-      <p>
-        Blog post {post} comment {id || '(all)'}
-      </p>
-    </>
-  )
+  const { query } = router
+  return <p>Show comments for {query.name} here</p>
 }
 
 Page.getInitialProps = () => ({})

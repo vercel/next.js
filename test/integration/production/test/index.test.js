@@ -453,7 +453,7 @@ describe('Production Usage', () => {
 
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
-        if (!browser.log) return
+        if (global.browserName !== 'chrome') return
         const counter = await browser
           .elementByCss('#increase')
           .click()
@@ -544,26 +544,6 @@ describe('Production Usage', () => {
       expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
       expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
     }
-  })
-
-  it('should prerender pages with data correctly', async () => {
-    const toSomething = await renderViaHTTP(appPort, '/to-something')
-    expect(toSomething).toMatch(/some interesting title/)
-
-    const something = await renderViaHTTP(appPort, '/something')
-    expect(something).toMatch(/this is some data to be inlined/)
-  })
-
-  it('should have inlined the data correctly in prerender', async () => {
-    const browser = await webdriver(appPort, '/to-something')
-    await browser.elementByCss('#something').click()
-
-    let text = await browser.elementByCss('h3').text()
-    expect(text).toMatch(/this is some data to be inlined/)
-
-    await browser.elementByCss('#to-something').click()
-    text = await browser.elementByCss('h3').text()
-    expect(text).toMatch(/some interesting title/)
   })
 
   it('should handle AMP correctly in IE', async () => {
