@@ -264,9 +264,12 @@ export default async function getBaseWebpackConfig(
             return crypto
               .createHash('sha1')
               .update(
-                chunks.reduce((acc: string, chunk: any) => {
-                  return acc + chunk.name
-                }, '')
+                chunks.reduce(
+                  (acc: string, chunk: webpack.compilation.Chunk) => {
+                    return acc + chunk.name
+                  },
+                  ''
+                )
               )
               .digest('base64')
               .replace(/\//g, '')
