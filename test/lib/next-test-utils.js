@@ -216,7 +216,11 @@ export async function killApp (instance) {
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, err => {
       if (err) {
-        if (process.platform === 'win32') {
+        if (
+          process.platform === 'win32' &&
+          typeof err.message === 'string' &&
+          err.message.includes(`no running instance of the task`)
+        ) {
           // Windows throws an error if the process is already dead
           //
           // Command failed: taskkill /pid 6924 /T /F
