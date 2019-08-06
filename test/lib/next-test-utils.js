@@ -215,7 +215,18 @@ export function buildTS (args = [], cwd, env = {}) {
 export async function killApp (instance) {
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, err => {
-      if (err) return reject(err)
+      if (err) {
+        if (process.platform === 'win32') {
+          // Windows throws an error if the process is already dead
+          //
+          // Command failed: taskkill /pid 6924 /T /F
+          // ERROR: The process with PID 6924 (child process of PID 6736) could not be terminated.
+          // Reason: There is no running instance of the task.
+          return resolve()
+        }
+        return reject(err)
+      }
+
       resolve()
     })
   })
