@@ -3,8 +3,7 @@ import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
 
-const configKeys = new Set(['amp', 'experimentalPrerender'])
-export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'
+const configKeys = new Set(['amp'])
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
 
 // replace progam path with just a variable with the drop identifier
@@ -29,7 +28,6 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 }
 
 interface ConfigState {
-  setupInlining?: boolean
   bundleDropped?: boolean
 }
 
@@ -86,54 +84,11 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
-
-                if (
-                  config.experimentalPrerender === true ||
-                  config.experimentalPrerender === 'inline'
-                ) {
-                  state.setupInlining = true
-                }
               },
             },
             state
           )
         },
-      },
-      // handles Page.getInitialProps = () => {}
-      AssignmentExpression(path, state: ConfigState) {
-        if (!state.setupInlining) return
-        const { property } = (path.node.left || {}) as any
-        const { name } = property
-        if (name !== 'getInitialProps') return
-        // replace the getInitialProps function with an identifier for replacing
-        path.node.right = t.functionExpression(
-          null,
-          [],
-          t.blockStatement([
-            t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-          ])
-        )
-      },
-      // handles class { static async getInitialProps() {} }
-      FunctionDeclaration(path, state: ConfigState) {
-        if (!state.setupInlining) return
-        if ((path.node.id && path.node.id.name) !== 'getInitialProps') return
-        path.node.body = t.blockStatement([
-          t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-        ])
-      },
-      // handles class { static async getInitialProps() {} }
-      ClassMethod(path, state: ConfigState) {
-        if (!state.setupInlining) return
-        if (
-          (path.node.key && (path.node.key as BabelTypes.Identifier).name) !==
-          'getInitialProps'
-        )
-          return
-
-        path.node.body = t.blockStatement([
-          t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-        ])
       },
     },
   }
