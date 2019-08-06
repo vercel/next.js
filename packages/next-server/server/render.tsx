@@ -294,9 +294,11 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
-  // might want to change previewing of skeleton from `?nextPreviewSkeleton=(truthy)`
+  // might want to change previewing of skeleton from `?_nextPreviewSkeleton=(truthy)`
   isSkeleton =
-    pageConfig.experimentalPrerender === true && !!query.nextPreviewSkeleton
+    pageConfig.experimentalPrerender === true && !!query._nextPreviewSkeleton
+  // remove from query so it doesn't end up in document
+  delete query._nextPreviewSkeleton
 
   // @ts-ignore url will always be set
   const asPath: string = req.url

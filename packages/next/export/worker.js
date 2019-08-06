@@ -75,10 +75,10 @@ process.on(
         }
 
         if (sprPage && isDynamicRoute(page)) {
-          query.nextPreviewSkeleton = 1
+          query._nextPreviewSkeleton = 1
           // pass via `req` to avoid adding code to serverless bundle
           req.url +=
-            (req.url.includes('?') ? '&' : '?') + 'nextPreviewSkeleton=1'
+            (req.url.includes('?') ? '&' : '?') + '_nextPreviewSkeleton=1'
         }
 
         envConfig.setConfig({
