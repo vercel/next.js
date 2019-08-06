@@ -4,6 +4,7 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
+import chalk from 'chalk'
 import loadConfig, {
   isTargetLikeServerless
 } from 'next-server/dist/server/config'
@@ -36,7 +37,6 @@ export default async function (dir, options, configuration) {
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.exportTrailingSlash
-  let apiPage = false
 
   if (!options.buildExport && nextConfig.target !== 'server') {
     throw new Error(
@@ -62,19 +62,12 @@ export default async function (dir, options, configuration) {
   for (const page of pages) {
     // _document and _app are not real pages
     // _error is exported as 404.html later on
-    const isApiRoute = page.match(API_ROUTE)
-
-    // Warn about API pages export
-    if (isApiRoute && !apiPage) {
-      apiPage = true
-      log(`  API pages are not supported in export`)
-    }
-
+    // API Routes are Node.js functions
     if (
       page === '/_document' ||
       page === '/_app' ||
       page === '/_error' ||
-      isApiRoute
+      page.match(API_ROUTE)
     ) {
       continue
     }
@@ -149,6 +142,18 @@ export default async function (dir, options, configuration) {
   })
   exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
+  const hasApiPage = exportPaths.some(route =>
+    exportPathMap[route].page.match(API_ROUTE)
+  )
+
+  // Throw if the user defines a path for an API page
+  if (hasApiPage) {
+    throw new Error(
+      chalk.red(
+        'API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
+      )
+    )
+  }
 
   const progress = !options.silent && createProgress(exportPaths.length)
 

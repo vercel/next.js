@@ -286,6 +286,7 @@ function runTests (serverless = false) {
     }
   })
 
+  // next export requires the server target
   if (!serverless) {
     it('should warn about API export', async () => {
       const { stdout } = await runNextCommand(['export', appDir], {
