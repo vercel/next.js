@@ -400,7 +400,8 @@ export default class Router implements BaseRouter {
         }
 
         return new Promise((resolve, reject) => {
-          const ctx = { pathname, query, asPath: as, AppTree: null as any }
+          // we provide AppTree later so this needs to be `any`
+          const ctx = { pathname, query, asPath: as } as any
           this.getInitialProps(Component, ctx).then(props => {
             routeInfo.props = props
             this.components[route] = routeInfo
@@ -434,7 +435,8 @@ export default class Router implements BaseRouter {
           resolve(
             this.fetchComponent('/_error').then(Component => {
               const routeInfo: RouteInfo = { Component, err }
-              const ctx = { err, pathname, query, AppTree: null as any }
+              // AppTree provided later
+              const ctx = { err, pathname, query } as any
               return new Promise(resolve => {
                 this.getInitialProps(Component, ctx).then(
                   props => {
