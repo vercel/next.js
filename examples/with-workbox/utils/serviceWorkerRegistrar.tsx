@@ -43,26 +43,30 @@ export default async function registerServiceWorker(showSnack: ShowSnack) {
     onSWWaiting()
   }
   wb.addEventListener('activated', onSWActivated)
-  wb.addEventListener('externalactivated', onSWActivated)
+  wb.addEventListener('externalactivated', onSWUpdated)
   wb.addEventListener('externalwaiting', onSWWaiting)
   wb.addEventListener('waiting', onSWWaiting)
   setTimeout(checkForUpdates, HOUR_IN_MS)
 
   function onSWActivated(ev: WorkboxLifecycleEvent) {
     if (ev.isUpdate) {
-      if (refreshing) return
-      // New Service Worker has been activated.
-      // You will need to refresh the page.
-      refreshing = true
-      if (navigateUrl) {
-        return (window.location.href = navigateUrl)
-      }
-      return window.location.reload()
+      return onSWUpdated()
     }
 
     showSnack(
       generateSnackMessage({ message: 'Service Worker Installed' }, showSnack)
     )
+  }
+
+  function onSWUpdated() {
+    if (refreshing) return
+    // New Service Worker has been activated.
+    // You will need to refresh the page.
+    refreshing = true
+    if (navigateUrl) {
+      return (window.location.href = navigateUrl)
+    }
+    return window.location.reload()
   }
 
   function onSWWaiting() {
