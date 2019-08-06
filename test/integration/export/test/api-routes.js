@@ -7,7 +7,7 @@ export default function (context) {
     const nextConfig = new File(join(context.appDir, 'next.config.js'))
 
     beforeEach(() => {
-      nextConfig.replace('// API route', `'/data': { page: '/api/data' }`)
+      nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
     })
     afterEach(() => {
       nextConfig.restore()
