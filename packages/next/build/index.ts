@@ -6,6 +6,7 @@ import {
   CHUNK_GRAPH_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from 'next-server/constants'
@@ -50,7 +51,13 @@ const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
+const sprPages = new Set<string>()
 const staticCheckWorker = require.resolve('./static-checker')
+
+export type PrerenderRoute = {
+  path: string
+  contentTypes: string[]
+}
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -370,6 +377,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
+          } else if (result.prerender) {
+            sprPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -411,12 +420,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 
-  if (staticPages.size > 0) {
+  if (staticPages.size > 0 || sprPages.size > 0) {
+    const combinedPages = [...staticPages, ...sprPages]
     const exportApp = require('../export').default
     const exportOptions = {
+      sprPages,
       silent: true,
       buildExport: true,
-      pages: Array.from(staticPages),
+      pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }
     const exportConfig = {
@@ -425,49 +436,78 @@ export default async function build(dir: string, conf = null): Promise<void> {
       exportTrailingSlash: false,
     }
     await exportApp(dir, exportOptions, exportConfig)
-    const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
 
-    let serverDir: string = ''
     // remove server bundles that were exported
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
-      if (!serverDir) {
-        serverDir = path.join(
-          serverBundle.split(/(\/|\\)pages/).shift()!,
-          'pages'
-        )
-      }
       await fsUnlink(serverBundle)
     }
 
-    for (const file of toMove) {
+    const exportedFiles = new Set(
+      await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
+    )
+
+    const moveExportedPage = async (page: string, file: string) => {
+      const isSpr = sprPages.has(page)
+      file = `${file}.html`
       const orig = path.join(exportOptions.outdir, file)
-      const dest = path.join(serverDir, file)
       const relativeDest = (isLikeServerless
         ? path.join('pages', file)
         : path.join('static', buildId, 'pages', file)
       ).replace(/\\/g, '/')
 
-      let page = file.split('.html')[0].replace(/\\/g, '/')
-      pagesManifest[page] = relativeDest
-      page = page === '/index' ? '/' : page
-      pagesManifest[page] = relativeDest
-      staticPages.add(page)
+      const dest = path.join(
+        distDir,
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        relativeDest
+      )
+
+      if (!isSpr) {
+        pagesManifest[page] = relativeDest
+        if (page === '/') pagesManifest['/index'] = relativeDest
+        if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
+      }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
     }
+
+    for (const page of combinedPages) {
+      let file = page === '/' ? '/index' : page
+      await moveExportedPage(page, file)
+      const hasAmp = exportedFiles.has(`${file}.amp.html`)
+      if (hasAmp) await moveExportedPage(`${page}.amp`, `${file}.amp`)
+    }
+
     // remove temporary export folder
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+
+  if (sprPages.size > 0) {
+    const prerenderRoutes: PrerenderRoute[] = []
+
+    sprPages.forEach(pg => {
+      prerenderRoutes.push({
+        path: pg,
+        contentTypes: ['application/json', 'text/html'],
+      })
+    })
+
+    await fsWriteFile(
+      path.join(distDir, PRERENDER_MANIFEST),
+      JSON.stringify({ prerenderRoutes }),
+      'utf8'
+    )
+  }
+
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {
     allPageInfos.set(key, info)
   })
 
   if (flyingShuttle) {
-    await flyingShuttle.mergePagesManifest()
+    await flyingShuttle.mergeManifests()
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 

@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject } from 'url'
+import { parse, UrlObject, format } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -579,13 +579,29 @@ export default class Router implements BaseRouter {
     }
     this.clc = cancel
     const { Component: App } = this.components['/_app']
+    let props
 
-    const props = await loadGetInitialProps<AppContextType<Router>>(App, {
-      AppTree: this._wrapApp(App),
-      Component,
-      router: this,
-      ctx,
-    })
+    if ((Component as any).__NEXT_PRERENDER) {
+      const url = format({
+        pathname: ctx.asPath,
+        query: ctx.query,
+      })
+      const res = await fetch(url, {
+        headers: { 'content-type': 'application/json' },
+      })
+      props = {
+        pageProps: res.ok
+          ? await res.json().catch(err => ({ error: err.message }))
+          : { error: 'failed to load prerender', statusCode: res.status },
+      }
+    } else {
+      props = await loadGetInitialProps<AppContextType<Router>>(App, {
+        AppTree: this._wrapApp(App),
+        Component,
+        router: this,
+        ctx,
+      })
+    }
 
     if (cancel === this.clc) {
       this.clc = null

@@ -173,8 +173,19 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       render({ App, Component, props, err, emitter })
     }
   })
+  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  render(renderCtx)
 
-  render({ App, Component, props, err: initialErr, emitter })
+  if (window.__NEXT_DATA__.skeleton && Component.getInitialProps) {
+    const appCtx = {
+      router,
+      AppTree: wrapApp(App),
+      Component: Component,
+      ctx: { pathname: page, asPath, query }
+    }
+    props.pageProps = (await App.getInitialProps(appCtx)).pageProps
+    render(renderCtx)
+  }
 
   return emitter
 }
