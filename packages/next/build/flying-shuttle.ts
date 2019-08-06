@@ -11,6 +11,7 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import { fileExists } from '../lib/file-exists'
 import * as Log from './output/log'
 import { PageInfo } from './utils'
+import { PrerenderRoute } from '.'
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
 const FILE_UPDATED_AT = 'UPDATED_AT'
@@ -322,16 +323,16 @@ export class FlyingShuttle {
       const current = JSON.parse(await fsReadFile(currentPagesManifest, 'utf8'))
 
       if (manifestPath === PRERENDER_MANIFEST) {
-        const prerenderRoutes = new Map<string, any>()
+        const prerenderRoutes = new Map<string, PrerenderRoute>()
 
         if (Array.isArray(saved.prerenderRoutes)) {
-          saved.prerenderRoutes.forEach((route: any) => {
+          saved.prerenderRoutes.forEach((route: PrerenderRoute) => {
             prerenderRoutes.set(route.path, route)
           })
         }
 
         if (Array.isArray(current.prerenderRoutes)) {
-          current.prerenderRoutes.forEach((route: any) => {
+          current.prerenderRoutes.forEach((route: PrerenderRoute) => {
             prerenderRoutes.set(route.path, route)
           })
         }

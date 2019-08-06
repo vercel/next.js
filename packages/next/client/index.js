@@ -177,11 +177,13 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   render(renderCtx)
 
   if (window.__NEXT_DATA__.skeleton && Component.getInitialProps) {
-    props.pageProps = await Component.getInitialProps({
-      pathname: page,
-      asPath,
-      query
-    })
+    const appCtx = {
+      router,
+      AppTree: wrapApp(App),
+      Component: Component,
+      ctx: { pathname: page, asPath, query }
+    }
+    props.pageProps = (await App.getInitialProps(appCtx)).pageProps
     render(renderCtx)
   }
 

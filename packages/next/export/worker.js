@@ -75,6 +75,7 @@ process.on(
         }
 
         if (sprPage && isDynamicRoute(page)) {
+          query.nextPreviewSkeleton = 1
           // pass via `req` to avoid adding code to serverless bundle
           req.url +=
             (req.url.includes('?') ? '&' : '?') + 'nextPreviewSkeleton=1'
@@ -97,10 +98,6 @@ process.on(
         } else if (path === '/') {
           // If the path is the root, just use index.html
           htmlFilename = 'index.html'
-        }
-
-        if (sprPage) {
-          htmlFilename = htmlFilename.replace(/\.html$/, '.prerender.html')
         }
 
         const baseDir = join(outDir, dirname(htmlFilename))
