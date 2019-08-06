@@ -4,7 +4,9 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
-import loadConfig from 'next-server/next-config'
+import loadConfig, {
+  isTargetLikeServerless
+} from 'next-server/dist/server/config'
 import {
   PHASE_EXPORT,
   SERVER_DIRECTORY,
@@ -17,6 +19,7 @@ import {
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { API_ROUTE } from '../lib/constants'
 import { formatAmpMessages } from '../build/output/index'
 
 const mkdirp = promisify(mkdirpModule)
@@ -33,6 +36,7 @@ export default async function (dir, options, configuration) {
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.exportTrailingSlash
+  let apiPage = false
 
   if (!options.buildExport && nextConfig.target !== 'server') {
     throw new Error(
@@ -58,7 +62,20 @@ export default async function (dir, options, configuration) {
   for (const page of pages) {
     // _document and _app are not real pages
     // _error is exported as 404.html later on
-    if (page === '/_document' || page === '/_app' || page === '/_error') {
+    const isApiRoute = page.match(API_ROUTE)
+
+    // Warn about API pages export
+    if (isApiRoute && !apiPage) {
+      apiPage = true
+      log(`  API pages are not supported in export`)
+    }
+
+    if (
+      page === '/_document' ||
+      page === '/_app' ||
+      page === '/_error' ||
+      isApiRoute
+    ) {
       continue
     }
 
@@ -183,7 +200,7 @@ export default async function (dir, options, configuration) {
             serverRuntimeConfig,
             concurrency,
             subFolders,
-            serverless: nextConfig.target === 'serverless'
+            serverless: isTargetLikeServerless(nextConfig.target)
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {

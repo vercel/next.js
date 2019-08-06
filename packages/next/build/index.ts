@@ -1,18 +1,25 @@
+import { Sema } from 'async-sema'
 import chalk from 'chalk'
+import fs from 'fs'
+import mkdirpOrig from 'mkdirp'
 import {
+  CHUNK_GRAPH_MANIFEST,
+  PAGES_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  PAGES_MANIFEST,
-  CHUNK_GRAPH_MANIFEST,
-  PHASE_PRODUCTION_BUILD,
 } from 'next-server/constants'
-import loadConfig from 'next-server/next-config'
+import loadConfig, {
+  isTargetLikeServerless,
+} from 'next-server/dist/server/config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import fs from 'fs'
 import { promisify } from 'util'
+import workerFarm from 'worker-farm'
+
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
@@ -25,9 +32,9 @@ import {
   getFileForPage,
   getPageSizeInKb,
   getSpecifiedPages,
-  printTreeView,
-  PageInfo,
   hasCustomAppGetInitialProps,
+  PageInfo,
+  printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import {
@@ -35,10 +42,6 @@ import {
   getPageChunks,
 } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import mkdirpOrig from 'mkdirp'
-import workerFarm from 'worker-farm'
-import { Sema } from 'async-sema'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -75,11 +78,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
+  const isLikeServerless = isTargetLikeServerless(target)
+
   if (selectivePageBuilding && target !== 'serverless') {
     throw new Error(
       `Cannot use ${
         isFlyingShuttle ? 'flying shuttle' : '`now dev`'
-      } without the serverless target.`
+      } without the \`serverless\` target.`
     )
   }
 
@@ -199,7 +204,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   ])
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  if (target === 'serverless') {
+  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
+  if (isLikeServerless) {
     const clientResult = await runCompiler(configs[0])
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
@@ -273,7 +279,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
-    target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
     PAGES_MANIFEST
   )
 
@@ -303,12 +309,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const actualPage = page === '/' ? '/index' : page
       const size = await getPageSizeInKb(actualPage, distPath, buildId)
       const bundleRelative = path.join(
-        target === 'serverless' ? 'pages' : `static/${buildId}/pages`,
+        isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
       )
       const serverBundle = path.join(
         distPath,
-        target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         bundleRelative
       )
 
@@ -324,7 +330,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomAppGetInitialProps(
-          target === 'serverless'
+          isLikeServerless
             ? serverBundle
             : path.join(
                 distPath,
@@ -437,7 +443,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const file of toMove) {
       const orig = path.join(exportOptions.outdir, file)
       const dest = path.join(serverDir, file)
-      const relativeDest = (target === 'serverless'
+      const relativeDest = (isLikeServerless
         ? path.join('pages', file)
         : path.join('static', buildId, 'pages', file)
       ).replace(/\\/g, '/')
@@ -465,9 +471,5 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 
-  printTreeView(
-    Object.keys(allMappedPages),
-    allPageInfos,
-    target === 'serverless'
-  )
+  printTreeView(Object.keys(allMappedPages), allPageInfos, isLikeServerless)
 }
