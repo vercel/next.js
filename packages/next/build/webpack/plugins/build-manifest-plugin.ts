@@ -28,13 +28,13 @@ const generateClientManifest = (
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
-    const a = dependencies.filter(
+    const filteredDeps = dependencies.filter(
       dep => !appDependencies.has(dep) && /\.module\.js$/.test(dep) === isModern
     )
 
     // The manifest can omit the page if it has no requirements
-    if (a.length) {
-      clientManifest[page] = a
+    if (filteredDeps.length) {
+      clientManifest[page] = filteredDeps
     }
   })
   return JSON.stringify(clientManifest)
