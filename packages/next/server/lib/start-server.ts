@@ -11,7 +11,7 @@ export default async function start(
   await new Promise((resolve, reject) => {
     // This code catches EADDRINUSE error if the port is already in use
     srv.on('error', reject)
-    srv.on('listening', () => resolve())
+    srv.on('listening', resolve)
     srv.listen(port, hostname)
   })
   // It's up to caller to run `app.prepare()`, so it can notify that the server
