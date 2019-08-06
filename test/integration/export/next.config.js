@@ -38,6 +38,7 @@ module.exports = phase => {
         },
         '/query': { page: '/query', query: { a: 'blue' } },
         '/blog/nextjs/comment/test': { page: '/blog/[post]/comment/[id]' }
+        // API route
       }
     } // end exportPathMap
   }
