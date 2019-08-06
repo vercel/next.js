@@ -15,5 +15,10 @@
     "jsx": "preserve"
   },
   "exclude": ["utils/service-worker"],
-  "include": ["next-env.d.ts", "./**/*.ts", "./**/*.tsx"]
+  "include": ["next-env.d.ts", "./**/*.ts", "./**/*.tsx"],
+  "references": [
+    {
+      "path": "utils/service-worker/tsconfig.json"
+    }
+  ]
 }

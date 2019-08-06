@@ -3,6 +3,8 @@
   "include": ["sw.ts"],
   "exclude": [],
   "compilerOptions": {
+    "isolatedModules": false,
+    "composite": true,
     "lib": ["esnext", "webworker"]
   }
 }
