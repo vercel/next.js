@@ -1,29 +1,39 @@
 import NextApp from 'next/app'
-import {
-  SnackbarProvider,
-  Snackbar,
-  SnackbarMessageContext,
-} from '../components/SnackBar'
-import ServiceWorkerRegistrar from '../components/ServiceWorkerRegistrar'
+import MaterialSnackbar, { SnackbarProps } from '../components/SnackBar'
+import registerServiceWorker from '../utils/serviceWorkerRegistrar'
 
 interface State {
-  swUpdateWaiting: boolean
+  snackbarProps: SnackbarProps
 }
 
 export default class App extends NextApp<{}, State> {
+  state: Readonly<State> = {
+    snackbarProps: {
+      open: false,
+    },
+  }
+  async componentDidMount() {
+    // Keep all non essential to your app below await Promise.resolve
+    await Promise.resolve()
+
+    // Service Worker is an enhancement.
+    // If it errors, your App should still function.
+    if (process.env.NODE_ENV === 'production') {
+      registerServiceWorker(this.showSnack)
+    }
+  }
+
+  showSnack = (snackbarProps: SnackbarProps) => {
+    this.setState({ snackbarProps })
+  }
+
   render() {
+    const { snackbarProps } = this.state
     return (
-      <SnackbarProvider>
+      <>
         {super.render()}
-        <Snackbar open={false} />
-        {process.env.NODE_ENV === 'production' && (
-          <SnackbarMessageContext.Consumer>
-            {({ showSnackMessage }) => (
-              <ServiceWorkerRegistrar showSnackMessage={showSnackMessage} />
-            )}
-          </SnackbarMessageContext.Consumer>
-        )}
-      </SnackbarProvider>
+        <MaterialSnackbar {...snackbarProps} />
+      </>
     )
   }
 }

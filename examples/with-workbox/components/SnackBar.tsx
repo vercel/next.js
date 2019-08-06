@@ -1,3 +1,4 @@
+// This file can be changed to use any other Toast Component.
 import React from 'react'
 import MaterialSnackbar, {
   SnackbarProps as _SnackbarProps,
@@ -5,47 +6,11 @@ import MaterialSnackbar, {
 import IconButton from '@material-ui/core/IconButton'
 import CloseIcon from '@material-ui/icons/Close'
 
-interface SnackbarProps extends _SnackbarProps {
+export interface SnackbarProps extends _SnackbarProps {
   key?: string
 }
 
-export const SnackbarMessageContext = React.createContext<SnackbarWrapperState>(
-  {
-    options: null,
-    showSnackMessage: () => {},
-  }
-)
-
-export interface SnackbarWrapperState {
-  options: SnackbarProps | null
-  showSnackMessage: (options: SnackbarProps) => void
-}
-
-export class SnackbarProvider extends React.PureComponent {
-  state: SnackbarWrapperState = {
-    options: null,
-    showSnackMessage: options => {
-      this.setState({ options })
-    },
-  }
-  render() {
-    return (
-      <SnackbarMessageContext.Provider value={this.state}>
-        {this.props.children}
-      </SnackbarMessageContext.Provider>
-    )
-  }
-}
-
-export class Snackbar extends React.PureComponent<SnackbarProps> {
-  render() {
-    return (
-      <SnackbarMessageContext.Consumer>
-        {({ options }) => <MaterialSnackbar {...this.props} {...options} />}
-      </SnackbarMessageContext.Consumer>
-    )
-  }
-}
+export default MaterialSnackbar
 
 let key = 1
 export function generateSnackMessage(
@@ -56,7 +21,7 @@ export function generateSnackMessage(
     message: React.ReactNode
     action?: React.ReactNode
   },
-  showSnackMessage: SnackbarWrapperState['showSnackMessage']
+  showSnackMessage: (props: SnackbarProps) => void
 ): SnackbarProps {
   return {
     key: (key++).toString(10),
