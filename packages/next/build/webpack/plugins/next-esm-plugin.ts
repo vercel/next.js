@@ -43,7 +43,6 @@ const MultiEntryPlugin = require('webpack/lib/MultiEntryPlugin')
 const JsonpTemplatePlugin = require('webpack/lib/web/JsonpTemplatePlugin')
 const SplitChunksPlugin = require('webpack/lib/optimize/SplitChunksPlugin')
 const RuntimeChunkPlugin = require('webpack/lib/optimize/RuntimeChunkPlugin')
-const util = require('util')
 
 const PLUGIN_NAME = 'NextEsmPlugin'
 
@@ -251,9 +250,6 @@ export default class NextEsmPlugin implements Plugin {
         ).apply(childCompiler)
       }
     }
-    console.log('IN NEXT ESM PLUGIN')
-    console.log('COMPILER IS: ' + util.inspect(compiler))
-    console.log('CHILD COMPILER IS: ' + util.inspect(childCompiler))
 
     compilation.hooks.additionalAssets.tapAsync(
       PLUGIN_NAME,

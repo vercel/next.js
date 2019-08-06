@@ -21,6 +21,14 @@ function preloadScript (url) {
   document.head.appendChild(link)
 }
 
+// Retrieve a list of dependencies for a given route from the build manifest
+function getDependencies (route, _m) {
+  if ((_m = window.__BUILD_MANIFEST) && (_m = _m[route])) {
+    return _m.map(url => `/_next/${url}`)
+  }
+  return []
+}
+
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
     this.buildId = buildId
@@ -30,22 +38,6 @@ export default class PageLoader {
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     this.promisedBuildId = Promise.resolve()
-    this.promisedBuildManifest = new Promise(resolve => {
-      if (window.__BUILD_MANIFEST) {
-        resolve(window.__BUILD_MANIFEST)
-      } else {
-        window.__BUILD_MANIFEST_CB = () => {
-          resolve(window.__BUILD_MANIFEST)
-        }
-      }
-    })
-  }
-
-  // Returns a promise for the dependencies for a particular route
-  getDependencies (route) {
-    return this.promisedBuildManifest.then(
-      man => (man[route] && man.map(url => `/_next/${url}`)) || []
-    )
   }
 
   normalizeRoute (route) {
@@ -91,15 +83,13 @@ export default class PageLoader {
       }
 
       if (!this.loadingRoutes[route]) {
-        this.getDependencies(route).then(deps => {
-          deps.forEach(d => {
-            if (!document.querySelector(`script[src^="${d}"]`)) {
-              this.loadScript(d, route, false)
-            }
-          })
-          this.loadRoute(route)
-          this.loadingRoutes[route] = true
+        getDependencies(route).forEach(d => {
+          if (!document.querySelector(`script[src^="${d}"]`)) {
+            this.loadScript(d, route, false)
+          }
         })
+        this.loadRoute(route)
+        this.loadingRoutes[route] = true
       }
     })
   }
@@ -235,7 +225,7 @@ export default class PageLoader {
     }
 
     if (!isDependency) {
-      ;(await this.getDependencies(route)).forEach(url => {
+      getDependencies(route).forEach(url => {
         this.prefetch(url, true)
       })
     }
