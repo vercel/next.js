@@ -131,7 +131,10 @@ export default class NextEsmPlugin implements Plugin {
     )
 
     const childChunkFileMap = childCompilation.chunks.reduce(
-      (chunkMap: { [key: string]: any[] }, chunk: compilation.Chunk) => {
+      (
+        chunkMap: { [key: string]: compilation.Chunk },
+        chunk: compilation.Chunk
+      ) => {
         chunkMap[chunk.name] = chunk
         return chunkMap
       },
@@ -157,7 +160,7 @@ export default class NextEsmPlugin implements Plugin {
     compilation.entrypoints.forEach((entryPoint, entryPointName) => {
       const childEntryPoint = childCompilation.entrypoints.get(entryPointName)
 
-      childEntryPoint.chunks.forEach(chunk => {
+      childEntryPoint.chunks.forEach((chunk: compilation.Chunk) => {
         if (childChunkFileMap.hasOwnProperty(chunk.name)) {
           entryPoint.chunks.push(chunk)
         }
