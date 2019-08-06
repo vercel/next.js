@@ -49,6 +49,41 @@ yarn tsc -p ./utils/service-worker/tsconfig.json
 Then delete all `.ts`, `.tsx` and `tsconfig.json` files
 Remove `typescript` and `@types/*` from dependencies.
 
+## Usage with [Static HTML Export](https://github.com/zeit/next.js/#static-html-export)
+
+Install serve, workbox-cli
+
+```
+npm install serve workbox-cli
+```
+
+or
+
+```
+yarn add serve workbox-cli
+```
+
+Create file workbox-config.js
+
+```js
+module.exports = {
+  globDirectory: 'out',
+  globPatterns: ['**/*.html'],
+  swSrc: 'public/sw.js',
+  injectionPoint: 'self.__WB_INJECT_MANIFEST',
+  swDest: 'out/sw.js',
+}
+```
+
+Modify scripts in package.json:
+
+```
+"build": "next build && next export && workbox injectManifest workbox-config.js"
+"start": "serve ./out"
+```
+
+In sw.ts modify `precacheAndRoute(self.__WB_MANIFEST);` to `precacheAndRoute(self.__WB_MANIFEST.concat(self.__WB_INJECT_MANIFEST));` (You will have to modify type definition).
+
 ## The idea behind the example
 
 Implementation of https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
@@ -66,4 +101,6 @@ This example features:
 
 Further Reading:
 
-- https://classroom.udacity.com/courses/ud899
+- https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
+- next-offline: https://github.com/hanford/next-offline
+- Udacity Course: https://classroom.udacity.com/courses/ud899
