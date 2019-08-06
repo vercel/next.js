@@ -44,7 +44,7 @@ export default class PageLoader {
   // Returns a promise for the dependencies for a particular route
   getDependencies (route) {
     return this.promisedBuildManifest.then(
-      man => (man[route] && man.map(url => `/_next/${url}`)) || []
+      man => (man[route] && man[route].map(url => `/_next/${url}`)) || []
     )
   }
 
