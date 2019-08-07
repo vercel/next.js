@@ -91,15 +91,20 @@ export default class PageLoader {
       }
 
       if (!this.loadingRoutes[route]) {
-        this.getDependencies(route).then(deps => {
-          deps.forEach(d => {
-            if (!document.querySelector(`script[src^="${d}"]`)) {
-              this.loadScript(d, route, false)
-            }
+        if (process.env.__NEXT_GRANULAR_CHUNKS) {
+          this.getDependencies(route).then(deps => {
+            deps.forEach(d => {
+              if (!document.querySelector(`script[src^="${d}"]`)) {
+                this.loadScript(d, route, false)
+              }
+            })
+            this.loadRoute(route)
+            this.loadingRoutes[route] = true
           })
+        } else {
           this.loadRoute(route)
           this.loadingRoutes[route] = true
-        })
+        }
       }
     })
   }
@@ -234,7 +239,7 @@ export default class PageLoader {
       }
     }
 
-    if (!isDependency) {
+    if (process.env.__NEXT_GRANULAR_CHUNKS && !isDependency) {
       ;(await this.getDependencies(route)).forEach(url => {
         this.prefetch(url, true)
       })
