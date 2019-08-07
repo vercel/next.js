@@ -277,7 +277,16 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      const { pathname, query } = parse(url, true)
+      const { pathname, query, protocol } = parse(url, true)
+
+      if (!pathname || protocol) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
+        return resolve(false)
+      }
 
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
@@ -326,7 +335,7 @@ export default class Router implements BaseRouter {
           const appComp: any = this.components['/_app'].Component
           ;(window as any).next.isPrerendered =
             appComp.getInitialProps === appComp.origGetInitialProps &&
-            !routeInfo.Component.getInitialProps
+            !(routeInfo.Component as any).getInitialProps
         }
 
         // @ts-ignore pathname is always defined
@@ -536,10 +545,18 @@ export default class Router implements BaseRouter {
    */
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      const { pathname, protocol } = parse(url)
+
+      if (!pathname || protocol) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
+        return
+      }
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') return
-
-      const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
       const route = toRoute(pathname)
       this.pageLoader.prefetch(route).then(resolve, reject)
