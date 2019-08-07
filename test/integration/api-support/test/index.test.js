@@ -10,6 +10,7 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
+  runNextCommand,
   File
 } from 'next-test-utils'
 import json from '../big.json'
@@ -284,6 +285,17 @@ function runTests (serverless = false) {
       ).toBeTruthy()
     }
   })
+
+  if (!serverless) {
+    it('should warn about API export', async () => {
+      const { stdout } = await runNextCommand(['export', appDir], {
+        stdout: true,
+        stderr: true
+      })
+
+      expect(stdout).toContain('API pages are not supported in export')
+    })
+  }
 
   it('should return data on dynamic optional nested route', async () => {
     const data = await fetchViaHTTP(

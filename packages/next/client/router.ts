@@ -29,8 +29,7 @@ const singletonRouter: SingletonRouterBase = {
 }
 
 // Create public properties and methods of the router in the singletonRouter
-const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
-const propertyFields = ['components']
+const urlPropertyFields = ['pathname', 'route', 'query', 'asPath', 'components']
 const routerEvents = [
   'routeChangeStart',
   'beforeHistoryChange',
@@ -55,7 +54,7 @@ Object.defineProperty(singletonRouter, 'events', {
   },
 })
 
-propertyFields.concat(urlPropertyFields).forEach(field => {
+urlPropertyFields.forEach(field => {
   // Here we need to use Object.defineProperty because, we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
@@ -148,18 +147,6 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   // Events is a static property on the router, the router doesn't have to be initialized to use it
   instance.events = Router.events
-
-  propertyFields.forEach(field => {
-    // Here we need to use Object.defineProperty because, we need to return
-    // the property assigned to the actual router
-    // The value might get changed as we change routes and this is the
-    // proper way to access it
-    Object.defineProperty(instance, field, {
-      get() {
-        return _router[field]
-      },
-    })
-  })
 
   coreMethodFields.forEach(field => {
     instance[field] = (...args: any[]) => {
