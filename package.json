@@ -81,6 +81,7 @@
     "execa": "2.0.3",
     "express": "4.17.0",
     "faunadb": "2.6.1",
+    "firebase": "6.3.4",
     "fs-extra": "7.0.1",
     "get-port": "5.0.0",
     "isomorphic-unfetch": "3.0.0",
