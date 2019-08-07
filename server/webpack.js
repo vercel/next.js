@@ -13,12 +13,14 @@ export default async function createCompiler (dir, { buildId = '-', dev = false 
         buildId: `${buildId}/${site}`,
         define: { 'process.env.SITE': JSON.stringify(site) }
       })
-      sites.push({
-        name: `${site}-legacy`,
-        buildId: `${buildId}/${site}`,
-        isLegacy: true,
-        define: { 'process.env.SITE': JSON.stringify(site) }
-      })
+      if (!process.env.SKIP_LEGACY) {
+        sites.push({
+          name: `${site}-legacy`,
+          buildId: `${buildId}/${site}`,
+          isLegacy: true,
+          define: { 'process.env.SITE': JSON.stringify(site) }
+        })
+      }
     })
   } else {
     sites = [ { name: 'default', buildId }, { name: 'default', buildId, isLegacy: true } ]
