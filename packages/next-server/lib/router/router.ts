@@ -246,7 +246,11 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      performance.mark('routeChange') // marking route changes as a navigation start entry
+      // marking route changes as a navigation start entry
+      if (typeof performance !== 'undefined') {
+        performance.mark('routeChange')
+      }
+
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
       const url = typeof _url === 'object' ? formatWithValidation(_url) : _url

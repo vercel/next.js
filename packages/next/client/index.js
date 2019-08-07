@@ -240,7 +240,10 @@ export async function renderError (props) {
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
-  performance.mark('beforeRender') // mark start of hydrate/render
+  // mark start of hydrate/render
+  if (typeof performance !== 'undefined') {
+    performance.mark('beforeRender')
+  }
 
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
@@ -252,6 +255,8 @@ function renderReactElement (reactEl, domEl) {
 }
 
 function markHydrateComplete () {
+  if (typeof performance === 'undefined') return
+
   performance.mark('afterHydrate') // mark end of hydration
 
   performance.measure('Next.js-before-hydration', null, 'beforeRender')
@@ -261,6 +266,8 @@ function markHydrateComplete () {
 }
 
 function markRenderComplete () {
+  if (typeof performance === 'undefined') return
+
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
 
