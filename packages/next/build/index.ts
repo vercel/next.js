@@ -444,7 +444,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
 
     const exportedFiles = new Set(
-      await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
+      (await recursiveReadDir(exportOptions.outdir, /.*\.html$/)).map(p =>
+        p.replace(/\\/g, '/')
+      )
     )
 
     const moveExportedPage = async (page: string, file: string) => {
