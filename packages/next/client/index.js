@@ -4,7 +4,11 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
-import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
+import {
+  loadGetInitialProps,
+  getURL,
+  SUPPORTS_PERFORMANCE_USER_TIMING
+} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
@@ -241,7 +245,7 @@ export async function renderError (props) {
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
   // mark start of hydrate/render
-  if (typeof performance !== 'undefined') {
+  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
     performance.mark('beforeRender')
   }
 
@@ -255,7 +259,7 @@ function renderReactElement (reactEl, domEl) {
 }
 
 function markHydrateComplete () {
-  if (typeof performance === 'undefined') return
+  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
 
   performance.mark('afterHydrate') // mark end of hydration
 
@@ -266,7 +270,7 @@ function markHydrateComplete () {
 }
 
 function markRenderComplete () {
-  if (typeof performance === 'undefined') return
+  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
 
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
