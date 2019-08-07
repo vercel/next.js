@@ -417,7 +417,7 @@ describe('Production Usage', () => {
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
-        await waitFor(50)
+        await waitFor(2000)
         const elements = await browser.elementsByCss('link[rel=preload]')
 
         expect(elements.length).toBe(9)
