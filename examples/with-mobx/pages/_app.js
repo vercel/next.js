@@ -8,15 +8,18 @@ class MyMobxApp extends App {
     store: new Store(),
   }
 
+  // Fetching serialized(JSON) store state
   static async getInitialProps(appContext) {
-    let appProps = await App.getInitialProps(appContext)
+    const appProps = await App.getInitialProps(appContext)
+    const initialStoreState = await fetchInitialStoreState()
 
     return {
       ...appProps,
-      initialStoreState: fetchInitialStoreState(),
+      initialStoreState,
     }
   }
 
+  // Hydrate serialized state to store
   static getDerivedStateFromProps(props, state) {
     state.store.hydrate(props.initialStoreState)
     return state

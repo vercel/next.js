@@ -26,6 +26,7 @@ export class Store {
   stop = () => clearInterval(this.timer)
 }
 
-export function fetchInitialStoreState() {
+export async function fetchInitialStoreState() {
+  // You can do anything to fetch initial store state
   return {}
 }
