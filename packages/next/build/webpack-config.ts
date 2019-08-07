@@ -300,7 +300,7 @@ export default async function getBaseWebpackConfig(
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
-          'amp-toolbox-optimizer', // except this one
+          '@ampproject/toolbox-optimizer', // except this one
           (context, request, callback) => {
             if (
               request === 'react-ssr-prepass' &&
