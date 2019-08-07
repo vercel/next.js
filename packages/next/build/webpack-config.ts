@@ -552,7 +552,7 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         'process.env.__NEXT_GRANULAR_CHUNKS':
-          config.experimental.granularChunks && !dev,
+          config.experimental.granularChunks && !selectivePageBuilding && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
