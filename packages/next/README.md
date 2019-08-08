@@ -2248,7 +2248,7 @@ To get started, create a empty `tsconfig.json` file in the root of your project:
 touch tsconfig.json
 ```
 
-Next.js will automatically configure this file with default values if you (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+Next.js will automatically configure this file with default values (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
 
 Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
 

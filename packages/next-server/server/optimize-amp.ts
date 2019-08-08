@@ -1,7 +1,7 @@
 export default async function optimize(html: string): Promise<string> {
   let AmpOptimizer
   try {
-    AmpOptimizer = require('amp-toolbox-optimizer')
+    AmpOptimizer = require('@ampproject/toolbox-optimizer')
   } catch (_) {
     return html
   }

@@ -39,7 +39,7 @@
     ]
   },
   "dependencies": {
-    "amp-toolbox-optimizer": "1.2.0-alpha.1",
+    "@ampproject/toolbox-optimizer": "1.0.1",
     "content-type": "1.0.4",
     "cookie": "0.4.0",
     "etag": "1.8.1",

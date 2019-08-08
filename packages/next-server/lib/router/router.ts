@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject } from 'url'
+import { parse, UrlObject, format } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -277,7 +277,16 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      const { pathname, query } = parse(url, true)
+      const { pathname, query, protocol } = parse(url, true)
+
+      if (!pathname || protocol) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
+        return resolve(false)
+      }
 
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
@@ -326,7 +335,7 @@ export default class Router implements BaseRouter {
           const appComp: any = this.components['/_app'].Component
           ;(window as any).next.isPrerendered =
             appComp.getInitialProps === appComp.origGetInitialProps &&
-            !routeInfo.Component.getInitialProps
+            !(routeInfo.Component as any).getInitialProps
         }
 
         // @ts-ignore pathname is always defined
@@ -538,10 +547,18 @@ export default class Router implements BaseRouter {
    */
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      const { pathname, protocol } = parse(url)
+
+      if (!pathname || protocol) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
+        return
+      }
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') return
-
-      const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
       const route = toRoute(pathname)
       this.pageLoader.prefetch(route).then(resolve, reject)
@@ -581,17 +598,33 @@ export default class Router implements BaseRouter {
     }
     this.clc = cancel
     const { Component: App } = this.components['/_app']
-    const AppTree = this._wrapApp(App)
+    let props
 
-    const props = await loadGetInitialProps<AppContextType<Router>>(App, {
-      AppTree,
-      Component,
-      router: this,
-      ctx: {
-        ...ctx,
+    if ((Component as any).__NEXT_PRERENDER) {
+      const url = format({
+        pathname: ctx.asPath,
+        query: ctx.query,
+      })
+      const res = await fetch(url, {
+        headers: { 'content-type': 'application/json' },
+      })
+      props = {
+        pageProps: res.ok
+          ? await res.json().catch(err => ({ error: err.message }))
+          : { error: 'failed to load prerender', statusCode: res.status },
+      }
+    } else {
+      const AppTree = this._wrapApp(App)
+      props = await loadGetInitialProps<AppContextType<Router>>(App, {
         AppTree,
-      },
-    })
+        Component,
+        router: this,
+        ctx: {
+          ...ctx,
+          AppTree,
+        },
+      })
+    }
 
     if (cancel === this.clc) {
       this.clc = null
