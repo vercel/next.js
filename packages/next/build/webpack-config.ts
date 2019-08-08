@@ -8,6 +8,7 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
+import crypto from 'crypto'
 import webpack from 'webpack'
 
 import {
@@ -219,6 +220,72 @@ export default async function getBaseWebpackConfig(
         },
       },
     },
+    prodGranular: {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        framework: {
+          name: 'framework',
+          chunks: 'all',
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          priority: 40,
+        },
+        lib: {
+          test(module: { size: Function; identifier: Function }): boolean {
+            return (
+              module.size() > 160000 &&
+              /node_modules[/\\]/.test(module.identifier())
+            )
+          },
+          name(module: { identifier: Function; rawRequest: string }): string {
+            const rawRequest =
+              module.rawRequest &&
+              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
+            if (rawRequest) return rawRequest
+
+            const identifier = module.identifier()
+            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
+              identifier
+            )
+            const processedIdentifier =
+              trimmedIdentifier &&
+              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
+
+            return processedIdentifier || identifier
+          },
+          priority: 30,
+          minChunks: 1,
+          reuseExistingChunk: true,
+        },
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: totalPages,
+          priority: 20,
+        },
+        shared: {
+          name(module, chunks) {
+            return crypto
+              .createHash('sha1')
+              .update(
+                chunks.reduce(
+                  (acc: string, chunk: webpack.compilation.Chunk) => {
+                    return acc + chunk.name
+                  },
+                  ''
+                )
+              )
+              .digest('base64')
+              .replace(/\//g, '')
+          },
+          priority: 10,
+          minChunks: 2,
+          reuseExistingChunk: true,
+        },
+      },
+      maxInitialRequests: 20,
+    },
   }
 
   // Select appropriate SplitChunksPlugin config for this build
@@ -228,7 +295,9 @@ export default async function getBaseWebpackConfig(
   } else if (selectivePageBuilding) {
     splitChunksConfig = splitChunksConfigs.selective
   } else {
-    splitChunksConfig = splitChunksConfigs.prod
+    splitChunksConfig = config.experimental.granularChunks
+      ? splitChunksConfigs.prodGranular
+      : splitChunksConfigs.prod
   }
 
   const crossOrigin =
@@ -482,6 +551,8 @@ export default async function getBaseWebpackConfig(
           config.exportTrailingSlash
         ),
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
+        'process.env.__NEXT_GRANULAR_CHUNKS':
+          config.experimental.granularChunks && !selectivePageBuilding && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
@@ -577,7 +648,12 @@ export default async function getBaseWebpackConfig(
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
-      !isServer && new BuildManifestPlugin(),
+      !isServer &&
+        new BuildManifestPlugin({
+          buildId,
+          clientManifest: config.experimental.granularChunks,
+          modern: config.experimental.modern,
+        }),
       config.experimental.profiling &&
         new webpack.debug.ProfilingPlugin({
           outputPath: path.join(
