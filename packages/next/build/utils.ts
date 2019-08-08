@@ -265,7 +265,7 @@ export async function getPageSizeInKb(
 export function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
-): { static?: boolean } {
+): { static?: boolean; prerender?: boolean } {
   try {
     require('next-server/config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
@@ -277,6 +277,7 @@ export function isPageStatic(
 
     return {
       static: typeof (Comp as any).getInitialProps !== 'function',
+      prerender: mod.config && mod.config.experimentalPrerender === true,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

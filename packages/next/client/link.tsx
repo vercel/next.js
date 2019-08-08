@@ -152,7 +152,7 @@ class Link extends Component<LinkProps> {
     let { href, as } = this.formatUrls(this.props.href, this.props.as)
 
     if (!isLocal(href)) {
-      // ignore click if it's outside our scope
+      // ignore click if it's outside our scope (e.g. https://google.com)
       return
     }
 

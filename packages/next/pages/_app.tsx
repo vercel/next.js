@@ -27,8 +27,9 @@ async function appGetInitialProps({
   return { pageProps }
 }
 
-export default class App<P = {}, CP = {}> extends React.Component<
-  P & AppProps<CP>
+export default class App<P = {}, CP = {}, S = {}> extends React.Component<
+  P & AppProps<CP>,
+  S
 > {
   static childContextTypes = {
     router: PropTypes.object,
