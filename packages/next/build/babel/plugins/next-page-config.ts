@@ -4,6 +4,7 @@ import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
 
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
+export const sprStatus = { used: false }
 
 const configKeys = new Set(['amp', 'experimentalPrerender'])
 const pageComponentVar = '__NEXT_COMP'
@@ -91,6 +92,7 @@ export default function nextPageConfig({
                 }
 
                 state.isPrerender = config.experimentalPrerender === true
+                sprStatus.used = sprStatus.used || state.isPrerender
               },
             },
             state
