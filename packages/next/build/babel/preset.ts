@@ -73,7 +73,11 @@ module.exports = (
   // if not explicitly specified:
   if (
     (isServer || isTest) &&
-    (!presetEnvConfig.targets || !('node' in presetEnvConfig.targets))
+    (!presetEnvConfig.targets ||
+      !(
+        typeof presetEnvConfig.targets === 'object' &&
+        'node' in presetEnvConfig.targets
+      ))
   ) {
     presetEnvConfig.targets = {
       // Targets the current process' version of Node. This requires apps be
