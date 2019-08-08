@@ -578,6 +578,8 @@ function About() {
 export default About
 ```
 
+Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
+
 **Custom routes (using props from URL)**
 
 If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
