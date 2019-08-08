@@ -55,7 +55,11 @@ const experimentalWarning = execOnce(() => {
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   Object.keys(userConfig).forEach((key: string) => {
-    if (key === 'experimental' && userConfig[key]) {
+    if (
+      key === 'experimental' &&
+      userConfig[key] &&
+      userConfig[key] !== defaultConfig.experimental
+    ) {
       experimentalWarning()
     }
 
