@@ -7,7 +7,8 @@ export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
 
 const configKeys = new Set(['amp', 'experimentalPrerender'])
 const pageComponentVar = '__NEXT_COMP'
-const prerenderId = '__NEXT_PRERENDER'
+// this value can't be optimized by terser so the shorter the better
+const prerenderId = '__NEXT_SPR'
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
