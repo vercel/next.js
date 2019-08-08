@@ -30,15 +30,17 @@ export default class PageLoader {
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     this.promisedBuildId = Promise.resolve()
-    this.promisedBuildManifest = new Promise(resolve => {
-      if (window.__BUILD_MANIFEST) {
-        resolve(window.__BUILD_MANIFEST)
-      } else {
-        window.__BUILD_MANIFEST_CB = () => {
+    if (process.env.__NEXT_GRANULAR_CHUNKS) {
+      this.promisedBuildManifest = new Promise(resolve => {
+        if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
+        } else {
+          window.__BUILD_MANIFEST_CB = () => {
+            resolve(window.__BUILD_MANIFEST)
+          }
         }
-      }
-    })
+      })
+    }
   }
 
   // Returns a promise for the dependencies for a particular route
