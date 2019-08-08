@@ -142,22 +142,24 @@ export default async function (dir, options, configuration) {
   })
   exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
-  const hasApiPage = exportPaths.some(route =>
-    exportPathMap[route].page.match(API_ROUTE)
+  const filteredPaths = exportPaths.filter(
+    // Remove API routes
+    route => !exportPathMap[route].page.match(API_ROUTE)
   )
+  const hasApiRoutes = exportPaths.length !== filteredPaths.length
 
-  // Throw if the user defines a path for an API page
-  if (hasApiPage) {
-    throw new Error(
-      chalk.red(
-        'API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
+  // Warn if the user defines a path for an API page
+  if (hasApiRoutes) {
+    log(
+      chalk.yellow(
+        '  API pages are not supported by next export. https://err.sh/zeit/next.js/api-routes-static-export'
       )
     )
   }
 
-  const progress = !options.silent && createProgress(exportPaths.length)
+  const progress = !options.silent && createProgress(filteredPaths.length)
 
-  const chunks = exportPaths.reduce((result, route, i) => {
+  const chunks = filteredPaths.reduce((result, route, i) => {
     const worker = i % threads
     if (!result[worker]) {
       result[worker] = { paths: [], pathMap: {} }

@@ -15,12 +15,12 @@ export default function (context) {
 
     it('Should throw if a route is matched', async () => {
       const outdir = join(context.appDir, 'outApi')
-      const { stderr } = await runNextCommand(
+      const { stdout } = await runNextCommand(
         ['export', context.appDir, '--outdir', outdir],
-        { stderr: true }
+        { stdout: true }
       )
 
-      expect(stderr).toContain(
+      expect(stdout).toContain(
         'https://err.sh/zeit/next.js/api-routes-static-export'
       )
     })

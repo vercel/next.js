@@ -1,6 +1,6 @@
 # API routes in Static export
 
-#### Why This Error Occurred
+#### Why This Warning Occurred
 
 An `exportPathMap` path was matched to an API route. `next export` will not prerender API routes to HTML.
 
