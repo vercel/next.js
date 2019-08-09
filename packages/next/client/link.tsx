@@ -123,6 +123,14 @@ class Link extends Component<LinkProps> {
         this.prefetch()
       })
     }
+
+    const child = this.getChild()
+    if (child && typeof child === 'object' && child.ref) {
+      if (typeof child.ref === 'function') child.ref(ref)
+      else if (typeof child.ref === 'object') {
+        child.ref.current = ref
+      }
+    }
   }
 
   // The function is memoized so that no extra lifecycles are needed
@@ -190,9 +198,9 @@ class Link extends Component<LinkProps> {
     Router.prefetch(href)
   }
 
-  render() {
+  getChild = () => {
     let { children } = this.props
-    const { href, as } = this.formatUrls(this.props.href, this.props.as)
+
     // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>
@@ -200,36 +208,43 @@ class Link extends Component<LinkProps> {
 
     // This will return the first child, if multiple are provided it will throw an error
     const child: any = Children.only(children)
+
+    return child
+  }
+
+  onMouseEnter = (e: React.MouseEvent) => {
+    const child = this.getChild()
+
+    if (child.props && typeof child.props.onMouseEnter === 'function') {
+      child.props.onMouseEnter(e)
+    }
+    this.prefetch()
+  }
+
+  onClick = (e: React.MouseEvent) => {
+    const child = this.getChild()
+
+    if (child.props && typeof child.props.onClick === 'function') {
+      child.props.onClick(e)
+    }
+    if (!e.defaultPrevented) {
+      this.linkClicked(e)
+    }
+  }
+
+  render() {
+    const child = this.getChild()
+    const { href, as } = this.formatUrls(this.props.href, this.props.as)
+
     const props: {
       onMouseEnter: React.MouseEventHandler
       onClick: React.MouseEventHandler
       href?: string
       ref?: any
     } = {
-      ref: (el: any) => {
-        this.handleRef(el)
-
-        if (child && typeof child === 'object' && child.ref) {
-          if (typeof child.ref === 'function') child.ref(el)
-          else if (typeof child.ref === 'object') {
-            child.ref.current = el
-          }
-        }
-      },
-      onMouseEnter: (e: React.MouseEvent) => {
-        if (child.props && typeof child.props.onMouseEnter === 'function') {
-          child.props.onMouseEnter(e)
-        }
-        this.prefetch()
-      },
-      onClick: (e: React.MouseEvent) => {
-        if (child.props && typeof child.props.onClick === 'function') {
-          child.props.onClick(e)
-        }
-        if (!e.defaultPrevented) {
-          this.linkClicked(e)
-        }
-      },
+      ref: this.handleRef,
+      onMouseEnter: this.onMouseEnter,
+      onClick: this.onClick,
     }
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
