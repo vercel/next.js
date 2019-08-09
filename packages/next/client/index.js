@@ -4,7 +4,11 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
-import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
+import {
+  loadGetInitialProps,
+  getURL,
+  SUPPORTS_PERFORMANCE_USER_TIMING
+} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
@@ -240,13 +244,54 @@ export async function renderError (props) {
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
+  // mark start of hydrate/render
+  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+    performance.mark('beforeRender')
+  }
+
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl)
+    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl)
+    ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
+}
+
+function markHydrateComplete () {
+  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+
+  performance.mark('afterHydrate') // mark end of hydration
+
+  performance.measure('Next.js-before-hydration', null, 'beforeRender')
+  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
+  clearMarks()
+}
+
+function markRenderComplete () {
+  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+
+  performance.mark('afterRender') // mark end of render
+  const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
+
+  if (!navStartEntries.length) {
+    return
+  }
+
+  performance.measure(
+    'Next.js-route-change-to-render',
+    navStartEntries[0].name,
+    'beforeRender'
+  )
+  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
+
+  clearMarks()
+}
+
+function clearMarks () {
+  performance.clearMarks()
+  performance.clearMeasures()
 }
 
 function AppContainer ({ children }) {

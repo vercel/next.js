@@ -11,6 +11,7 @@ import {
   getURL,
   loadGetInitialProps,
   NextPageContext,
+  SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -246,6 +247,11 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
+      // marking route changes as a navigation start entry
+      if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+        performance.mark('routeChange')
+      }
+
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
       const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
