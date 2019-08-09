@@ -221,13 +221,12 @@ export default async function getBaseWebpackConfig(
       },
     },
     prodGranular: {
-      chunks: 'all',
+      chunks: 'initial',
       cacheGroups: {
         default: false,
         vendors: false,
         framework: {
           name: 'framework',
-          chunks: 'all',
           test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
         },
@@ -260,7 +259,6 @@ export default async function getBaseWebpackConfig(
         },
         commons: {
           name: 'commons',
-          chunks: 'all',
           minChunks: totalPages,
           priority: 20,
         },
