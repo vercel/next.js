@@ -2,6 +2,31 @@
 # yarn lockfile v1
 
 
+"@ampproject/toolbox-core@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-core/-/toolbox-core-1.0.1.tgz#e32b7d9e84a3bd0a3e1bd40ebdcdc7dd37bf3e55"
+  integrity sha512-8aONoeOAVujavLUezSCtpUjg9khkVndpArbn25cLab6/UG+ZgrFPvU3A7z1TjBvB31bte4pXxH6U004BC0VdfA==
+  dependencies:
+    node-fetch "2.6.0"
+
+"@ampproject/toolbox-optimizer@1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-optimizer/-/toolbox-optimizer-1.0.1.tgz#5eeda7bc84c23237479c35442d4696c4bdbeb1d3"
+  integrity sha512-zz1cJsQWBvfg2h1ce2/bbgNdSkTjIY7PaF7QhWMzYVcfvdxGSAykA+Ajt+F13H6adNAtIn09s96z/+6pn7XiXQ==
+  dependencies:
+    "@ampproject/toolbox-core" "^1.0.1"
+    "@ampproject/toolbox-runtime-version" "^1.0.1"
+    css "2.2.4"
+    parse5 "5.1.0"
+    parse5-htmlparser2-tree-adapter "5.1.0"
+
+"@ampproject/toolbox-runtime-version@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-runtime-version/-/toolbox-runtime-version-1.0.1.tgz#2c13a17c08d1376ef55f44ef6679c25ff03828e0"
+  integrity sha512-OFky5rUfP9Hw/NlvEH+/8LqeSZ5DiXY2/RUvWSnY0r0/Uk4ooPyRCWEcVgRF7Y+wY+K1oro5UBZfE9MRYz+hpA==
+  dependencies:
+    "@ampproject/toolbox-core" "^1.0.1"
+
 "@babel/code-frame@^7.0.0":
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.0.0.tgz#06e2ab19bdb535385559aabb5ba59729482800f8"
@@ -2715,31 +2740,6 @@ amdefine@>=0.0.4:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/amdefine/-/amdefine-1.0.1.tgz#4a5282ac164729e93619bcfd3ad151f817ce91f5"
   integrity sha1-SlKCrBZHKek2Gbz9OtFR+BfOkfU=
-
-amp-toolbox-core@^1.2.0-alpha.1:
-  version "1.2.0-alpha.1"
-  resolved "https://registry.yarnpkg.com/amp-toolbox-core/-/amp-toolbox-core-1.2.0-alpha.1.tgz#a327b55c14332a8c26e8d3e7dd576ef3c1cba2dc"
-  integrity sha512-b9hJSMwHO2N5o2rtgwxggx/vVtY3P+hygBicGnxREmQHVW+Li5AmUim7eaKYUxTZiYz8pn4ZcO5CiC9cQunBUg==
-  dependencies:
-    node-fetch "2.6.0"
-
-amp-toolbox-optimizer@1.2.0-alpha.1:
-  version "1.2.0-alpha.1"
-  resolved "https://registry.yarnpkg.com/amp-toolbox-optimizer/-/amp-toolbox-optimizer-1.2.0-alpha.1.tgz#20a1c2a28bfe2e46179f43084db727634eb0e68a"
-  integrity sha512-H8divkzDAsI9p5cAJF8TCMD75AnWnTfSPgT7N8SctUzxeCh4jquDS03kl8mjCwbRSvnMrogh0/twQjoSjjIjpg==
-  dependencies:
-    amp-toolbox-core "^1.2.0-alpha.1"
-    amp-toolbox-runtime-version "^1.2.0-alpha.1"
-    css "2.2.4"
-    parse5 "5.1.0"
-    parse5-htmlparser2-tree-adapter "5.1.0"
-
-amp-toolbox-runtime-version@^1.2.0-alpha.1:
-  version "1.2.0-alpha.1"
-  resolved "https://registry.yarnpkg.com/amp-toolbox-runtime-version/-/amp-toolbox-runtime-version-1.2.0-alpha.1.tgz#8908762cfe72a1c233aa7c2eeab00f4656b32a8c"
-  integrity sha512-PFvsGgnpiSrObkGJyd5PFQjIdgPsVgnueruXOvsjz24BndMNy6xt9JZcx8iiKKjLHIQe/NXITiLtZhK80FQ6Xw==
-  dependencies:
-    amp-toolbox-core "^1.2.0-alpha.1"
 
 amphtml-validator@1.0.23:
   version "1.0.23"

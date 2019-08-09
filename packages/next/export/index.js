@@ -159,6 +159,10 @@ export default async function (dir, options, configuration) {
     }
     result[worker].pathMap[route] = exportPathMap[route]
     result[worker].paths.push(route)
+
+    if (options.sprPages && options.sprPages.has(route)) {
+      result[worker].pathMap[route].sprPage = true
+    }
     return result
   }, [])
 

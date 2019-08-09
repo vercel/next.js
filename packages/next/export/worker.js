@@ -37,9 +37,10 @@ process.on(
     try {
       const work = async path => {
         await sema.acquire()
-        const ampPath = `${path === '/' ? '/index' : path}.amp`
-        const { page } = exportPathMap[path]
         let { query = {} } = exportPathMap[path]
+        const { page, sprPage } = exportPathMap[path]
+        const filePath = path === '/' ? '/index' : path
+        const ampPath = `${filePath}.amp`
 
         // Check if the page is a specified dynamic route
         if (isDynamicRoute(page) && page !== path) {
@@ -73,14 +74,20 @@ process.on(
           ...headerMocks
         }
 
+        if (sprPage && isDynamicRoute(page)) {
+          query._nextPreviewSkeleton = 1
+          // pass via `req` to avoid adding code to serverless bundle
+          req.url +=
+            (req.url.includes('?') ? '&' : '?') + '_nextPreviewSkeleton=1'
+        }
+
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
 
-        let htmlFilename = `${path}${sep}index.html`
-
-        if (!subFolders) htmlFilename = `${path}.html`
+        let htmlFilename = `${filePath}${sep}index.html`
+        if (!subFolders) htmlFilename = `${filePath}.html`
 
         const pageExt = extname(page)
         const pathExt = extname(path)
@@ -92,6 +99,7 @@ process.on(
           // If the path is the root, just use index.html
           htmlFilename = 'index.html'
         }
+
         const baseDir = join(outDir, dirname(htmlFilename))
         const htmlFilepath = join(outDir, htmlFilename)
 
