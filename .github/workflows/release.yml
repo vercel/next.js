@@ -1,0 +1,13 @@
+on: release
+name: Generate release stats
+jobs:
+  pRStats:
+    name: PR Stats
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: PR Stats
+      uses: zeit/next-stats-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_STATS_TEMP_TOKEN: ${{ secrets.PR_STATS_TEMP_TOKEN }}
