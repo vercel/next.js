@@ -1374,6 +1374,17 @@ app.prepare().then(() => {
 })
 ```
 
+#### Changing x-powered-by
+
+By default Next.js will add `x-powered-by` to the request headers. There's an optional way to opt-out of this:
+
+```js
+// next.config.js
+module.exports = {
+  poweredByHeader: false,
+}
+```
+
 ### Dynamic Import
 
 <details>
