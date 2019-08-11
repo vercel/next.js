@@ -193,7 +193,7 @@ class Link extends Component<LinkProps> {
   render() {
     let { children } = this.props
     const { href, as } = this.formatUrls(this.props.href, this.props.as)
-    // Deprecated. Warning shown by propType check. If the childen provided is a string (<Link>example</Link>) we wrap it in an <a> tag
+    // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>
     }
@@ -206,7 +206,16 @@ class Link extends Component<LinkProps> {
       href?: string
       ref?: any
     } = {
-      ref: (el: any) => this.handleRef(el),
+      ref: (el: any) => {
+        this.handleRef(el)
+
+        if (child && typeof child === 'object' && child.ref) {
+          if (typeof child.ref === 'function') child.ref(el)
+          else if (typeof child.ref === 'object') {
+            child.ref.current = el
+          }
+        }
+      },
       onMouseEnter: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
