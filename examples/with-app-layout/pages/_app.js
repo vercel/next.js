@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 
 class Layout extends React.Component {
   render () {
@@ -12,11 +12,9 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
-      </Container>
+      <Layout>
+        <Component {...pageProps} />
+      </Layout>
     )
   }
 }

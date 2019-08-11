@@ -578,6 +578,8 @@ function About() {
 export default About
 ```
 
+Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
+
 **Custom routes (using props from URL)**
 
 If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
@@ -1372,6 +1374,17 @@ app.prepare().then(() => {
 })
 ```
 
+#### Changing x-powered-by
+
+By default Next.js will add `x-powered-by` to the request headers. There's an optional way to opt-out of this:
+
+```js
+// next.config.js
+module.exports = {
+  poweredByHeader: false,
+}
+```
+
 ### Dynamic Import
 
 <details>
@@ -1505,7 +1518,7 @@ To override, create the `./pages/_app.js` file and override the App class as sho
 
 ```js
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 
 class MyApp extends App {
   // Only uncomment this method if you have blocking data requirements for
@@ -1525,12 +1538,7 @@ class MyApp extends App {
 
   render() {
     const { Component, pageProps } = this.props
-
-    return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
-    )
+    return <Component {...pageProps} />
   }
 }
 
