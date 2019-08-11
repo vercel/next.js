@@ -1,4 +1,4 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 import { Provider } from 'unstated'
 import { counterStore } from '../containers/CounterContainer'
@@ -27,11 +27,9 @@ class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Provider inject={[counterStore]}>
-          <Component {...pageProps} />
-        </Provider>
-      </Container>
+      <Provider inject={[counterStore]}>
+        <Component {...pageProps} />
+      </Provider>
     )
   }
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import Helmet from 'react-helmet'
 
 export default class MyApp extends App {
@@ -17,7 +17,7 @@ export default class MyApp extends App {
     const { Component, pageProps } = this.props
 
     return (
-      <Container>
+      <>
         <Helmet
           htmlAttributes={{ lang: 'en' }}
           title='Hello next.js!'
@@ -30,7 +30,7 @@ export default class MyApp extends App {
           ]}
         />
         <Component {...pageProps} />
-      </Container>
+      </>
     )
   }
 }
