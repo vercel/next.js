@@ -1,20 +1,25 @@
-/* global document */
+/* global document, window */
 import mitt from 'next-server/dist/lib/mitt'
 import unfetch from 'unfetch'
 
-// smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
-function supportsPreload (list) {
-  if (!list || !list.supports) {
-    return false
-  }
+function supportsPreload (el) {
   try {
-    return list.supports('preload')
-  } catch (e) {
+    return el.relList.supports('preload')
+  } catch {
     return false
   }
 }
 
-const hasPreload = supportsPreload(document.createElement('link').relList)
+const hasPreload = supportsPreload(document.createElement('link'))
+
+function preloadScript (url) {
+  const link = document.createElement('link')
+  link.rel = 'preload'
+  link.crossOrigin = process.crossOrigin
+  link.href = url
+  link.as = 'script'
+  document.head.appendChild(link)
+}
 
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
@@ -22,10 +27,27 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.prefetchCache = new Set()
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     this.promisedBuildId = Promise.resolve()
+    if (process.env.__NEXT_GRANULAR_CHUNKS) {
+      this.promisedBuildManifest = new Promise(resolve => {
+        if (window.__BUILD_MANIFEST) {
+          resolve(window.__BUILD_MANIFEST)
+        } else {
+          window.__BUILD_MANIFEST_CB = () => {
+            resolve(window.__BUILD_MANIFEST)
+          }
+        }
+      })
+    }
+  }
+
+  // Returns a promise for the dependencies for a particular route
+  getDependencies (route) {
+    return this.promisedBuildManifest.then(
+      man => (man[route] && man[route].map(url => `/_next/${url}`)) || []
+    )
   }
 
   normalizeRoute (route) {
@@ -70,10 +92,21 @@ export default class PageLoader {
         return
       }
 
-      // Load the script if not asked to load yet.
       if (!this.loadingRoutes[route]) {
-        this.loadScript(route)
-        this.loadingRoutes[route] = true
+        if (process.env.__NEXT_GRANULAR_CHUNKS) {
+          this.getDependencies(route).then(deps => {
+            deps.forEach(d => {
+              if (!document.querySelector(`script[src^="${d}"]`)) {
+                this.loadScript(d, route, false)
+              }
+            })
+            this.loadRoute(route)
+            this.loadingRoutes[route] = true
+          })
+        } else {
+          this.loadRoute(route)
+          this.loadingRoutes[route] = true
+        }
       }
     })
   }
@@ -107,22 +140,26 @@ export default class PageLoader {
     })
   }
 
-  async loadScript (route) {
+  async loadRoute (route) {
     await this.promisedBuildId
 
     route = this.normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
-    const script = document.createElement('script')
-
-    if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
-      script.type = 'module'
-      scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
-    }
-
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
     )}/pages${scriptRoute}`
+    this.loadScript(url, route, true)
+  }
+
+  loadScript (url, route, isPage) {
+    const script = document.createElement('script')
+    if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
+      script.type = 'module'
+      // Only page bundle scripts need to have .module added to url,
+      // dependencies already have it added during build manifest creation
+      if (isPage) url = url.replace(/\.js$/, '.module.js')
+    }
     script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
@@ -130,7 +167,6 @@ export default class PageLoader {
       error.code = 'PAGE_LOAD_ERROR'
       this.pageRegisterEvents.emit(route, { error })
     }
-
     document.body.appendChild(script)
   }
 
@@ -169,7 +205,9 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch (route) {
+  async prefetch (route, isDependency) {
+    await this.promisedBuildId
+
     route = this.normalizeRoute(route)
     let scriptRoute = `${route === '/' ? '/index' : route}.js`
 
@@ -179,40 +217,47 @@ export default class PageLoader {
     ) {
       scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
+    const url = isDependency
+      ? route
+      : `${this.assetPrefix}/_next/static/${encodeURIComponent(
+        this.buildId
+      )}/pages${scriptRoute}`
 
+    // n.b. If preload is not supported, we fall back to `loadPage` which has
+    // its own deduping mechanism.
     if (
-      this.prefetchCache.has(scriptRoute) ||
+      document.querySelector(`link[rel="preload"][href^="${url}"]`) ||
       document.getElementById(`__NEXT_PAGE__${route}`)
     ) {
       return
     }
-    this.prefetchCache.add(scriptRoute)
 
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
-    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
-    if ('connection' in navigator) {
-      if (
-        (navigator.connection.effectiveType || '').indexOf('2g') !== -1 ||
-        navigator.connection.saveData
-      ) {
+    let cn
+    if ((cn = navigator.connection)) {
+      // Don't prefetch if the user is on 2G or if Save-Data is enabled.
+      if ((cn.effectiveType || '').indexOf('2g') !== -1 || cn.saveData) {
         return
       }
+    }
+
+    if (process.env.__NEXT_GRANULAR_CHUNKS && !isDependency) {
+      ;(await this.getDependencies(route)).forEach(url => {
+        this.prefetch(url, true)
+      })
     }
 
     // Feature detection is used to see if preload is supported
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
-      await this.promisedBuildId
+      preloadScript(url)
+      return
+    }
 
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.crossOrigin = process.crossOrigin
-      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${scriptRoute}`
-      link.as = 'script'
-      document.head.appendChild(link)
+    if (isDependency) {
+      // loadPage will automatically handle depencies, so no need to
+      // preload them manually
       return
     }
 
@@ -224,17 +269,6 @@ export default class PageLoader {
           this.loadPage(route).then(() => resolve(), () => resolve())
         })
       })
-    }
-  }
-
-  clearCache (route) {
-    route = this.normalizeRoute(route)
-    delete this.pageCache[route]
-    delete this.loadingRoutes[route]
-
-    const script = document.getElementById(`__NEXT_PAGE__${route}`)
-    if (script) {
-      script.parentNode.removeChild(script)
     }
   }
 }

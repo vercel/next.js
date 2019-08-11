@@ -27,8 +27,9 @@ async function appGetInitialProps({
   return { pageProps }
 }
 
-export default class App<P = {}, CP = {}> extends React.Component<
-  P & AppProps<CP>
+export default class App<P = {}, CP = {}, S = {}> extends React.Component<
+  P & AppProps<CP>,
+  S
 > {
   static childContextTypes = {
     router: PropTypes.object,
@@ -52,11 +53,7 @@ export default class App<P = {}, CP = {}> extends React.Component<
   render() {
     const { router, Component, pageProps } = this.props as AppProps<CP>
     const url = createUrl(router)
-    return (
-      <Container>
-        <Component {...pageProps} url={url} />
-      </Container>
-    )
+    return <Component {...pageProps} url={url} />
   }
 }
 
