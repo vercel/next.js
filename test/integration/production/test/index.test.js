@@ -80,13 +80,6 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 405 for POST on page', async () => {
-      const res = await fetch(`http://localhost:${appPort}/about`, {
-        method: 'POST'
-      })
-      expect(res.status).toBe(405)
-    })
-
     it('should render 404 for POST on missing page', async () => {
       const res = await fetch(`http://localhost:${appPort}/fake-page`, {
         method: 'POST'
