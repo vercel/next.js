@@ -162,8 +162,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  if (dynamicBuildId === true) {
-    pageLoader.onDynamicBuildId()
+  if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+    if (dynamicBuildId === true) {
+      pageLoader.onDynamicBuildId()
+    }
   }
 
   router = createRouter(page, query, asPath, {
