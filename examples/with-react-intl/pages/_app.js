@@ -1,4 +1,4 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 import { IntlProvider, addLocaleData } from 'react-intl'
 
@@ -32,15 +32,9 @@ export default class MyApp extends App {
     const { Component, pageProps, locale, messages, initialNow } = this.props
 
     return (
-      <Container>
-        <IntlProvider
-          locale={locale}
-          messages={messages}
-          initialNow={initialNow}
-        >
-          <Component {...pageProps} />
-        </IntlProvider>
-      </Container>
+      <IntlProvider locale={locale} messages={messages} initialNow={initialNow}>
+        <Component {...pageProps} />
+      </IntlProvider>
     )
   }
 }

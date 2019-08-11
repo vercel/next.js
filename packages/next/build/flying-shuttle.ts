@@ -2,7 +2,7 @@ import { Sema } from 'async-sema'
 import crypto from 'crypto'
 import fs from 'fs'
 import mkdirpModule from 'mkdirp'
-import { CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
+import { CHUNK_GRAPH_MANIFEST, PRERENDER_MANIFEST } from 'next-server/constants'
 import { EOL } from 'os'
 import path from 'path'
 import { promisify } from 'util'
@@ -11,11 +11,16 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import { fileExists } from '../lib/file-exists'
 import * as Log from './output/log'
 import { PageInfo } from './utils'
+import { PrerenderRoute } from '.'
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
 const FILE_UPDATED_AT = 'UPDATED_AT'
 const DIR_FILES_NAME = 'files'
 const MAX_SHUTTLES = 3
+const SAVED_MANIFESTS = [
+  'serverless/pages-manifest.json',
+  'prerender-manifest.json',
+]
 
 const mkdirp = promisify(mkdirpModule)
 const fsReadFile = promisify(fs.readFile)
@@ -304,28 +309,50 @@ export class FlyingShuttle {
     return unchangedPages
   }
 
-  mergePagesManifest = async (): Promise<void> => {
-    const savedPagesManifest = path.join(
-      this.shuttleDirectory,
-      DIR_FILES_NAME,
-      'serverless/pages-manifest.json'
-    )
-    if (!(await fileExists(savedPagesManifest))) return
+  mergeManifests = async (): Promise<void> => {
+    for (const manifestPath of SAVED_MANIFESTS) {
+      const savedPagesManifest = path.join(
+        this.shuttleDirectory,
+        DIR_FILES_NAME,
+        manifestPath
+      )
+      if (!(await fileExists(savedPagesManifest))) return
 
-    const saved = JSON.parse(await fsReadFile(savedPagesManifest, 'utf8'))
-    const currentPagesManifest = path.join(
-      this.distDirectory,
-      'serverless/pages-manifest.json'
-    )
-    const current = JSON.parse(await fsReadFile(currentPagesManifest, 'utf8'))
+      const saved = JSON.parse(await fsReadFile(savedPagesManifest, 'utf8'))
+      const currentPagesManifest = path.join(this.distDirectory, manifestPath)
+      const current = JSON.parse(await fsReadFile(currentPagesManifest, 'utf8'))
 
-    await fsWriteFile(
-      currentPagesManifest,
-      JSON.stringify({
-        ...saved,
-        ...current,
-      })
-    )
+      if (manifestPath === PRERENDER_MANIFEST) {
+        const prerenderRoutes = new Map<string, PrerenderRoute>()
+
+        if (Array.isArray(saved.prerenderRoutes)) {
+          saved.prerenderRoutes.forEach((route: PrerenderRoute) => {
+            prerenderRoutes.set(route.path, route)
+          })
+        }
+
+        if (Array.isArray(current.prerenderRoutes)) {
+          current.prerenderRoutes.forEach((route: PrerenderRoute) => {
+            prerenderRoutes.set(route.path, route)
+          })
+        }
+
+        await fsWriteFile(
+          currentPagesManifest,
+          JSON.stringify({
+            prerenderRoutes: [...prerenderRoutes.values()],
+          })
+        )
+      } else {
+        await fsWriteFile(
+          currentPagesManifest,
+          JSON.stringify({
+            ...saved,
+            ...current,
+          })
+        )
+      }
+    }
   }
 
   restorePage = async (
@@ -518,14 +545,12 @@ export class FlyingShuttle {
       })
     )
 
-    await fsCopyFile(
-      path.join(this.distDirectory, 'serverless/pages-manifest.json'),
-      path.join(
-        this.shuttleDirectory,
-        DIR_FILES_NAME,
-        'serverless/pages-manifest.json'
+    for (const manifestPath of SAVED_MANIFESTS) {
+      await fsCopyFile(
+        path.join(this.distDirectory, manifestPath),
+        path.join(this.shuttleDirectory, DIR_FILES_NAME, manifestPath)
       )
-    )
+    }
 
     Log.info(`flying shuttle payload: ${usedChunks.size + 2} files`)
     Log.ready('flying shuttle docked')

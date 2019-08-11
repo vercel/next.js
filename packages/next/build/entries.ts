@@ -1,6 +1,8 @@
+import { isTargetLikeServerless } from 'next-server/dist/server/config'
 import { join } from 'path'
 import { stringify } from 'querystring'
-import { PAGES_DIR_ALIAS, DOT_NEXT_ALIAS, API_ROUTE } from '../lib/constants'
+
+import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 
 type PagesMapping = {
@@ -45,7 +47,7 @@ type Entrypoints = {
 
 export function createEntrypoints(
   pages: PagesMapping,
-  target: 'server' | 'serverless',
+  target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   dynamicBuildId: boolean,
   config: any
@@ -72,7 +74,9 @@ export function createEntrypoints(
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
 
-    if (isApiRoute && target === 'serverless') {
+    const isLikeServerless = isTargetLikeServerless(target)
+
+    if (isApiRoute && isLikeServerless) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
@@ -83,11 +87,7 @@ export function createEntrypoints(
       )}!`
     } else if (isApiRoute || target === 'server') {
       server[bundlePath] = [absolutePagePath]
-    } else if (
-      target === 'serverless' &&
-      page !== '/_app' &&
-      page !== '/_document'
-    ) {
+    } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
