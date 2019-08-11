@@ -1,6 +1,6 @@
 import React from 'react'
 import { QueryRenderer, fetchQuery } from 'react-relay'
-import NextApp, { Container } from 'next/app'
+import NextApp from 'next/app'
 
 import { initEnvironment, createEnvironment } from '../lib/createEnvironment'
 
@@ -41,18 +41,16 @@ export default class App extends NextApp {
     )
 
     return (
-      <Container>
-        <QueryRenderer
-          environment={environment}
-          query={Component.query}
-          variables={variables}
-          render={({ error, props }) => {
-            if (error) return <div>{error.message}</div>
-            else if (props) return <Component {...props} />
-            return <div>Loading</div>
-          }}
-        />
-      </Container>
+      <QueryRenderer
+        environment={environment}
+        query={Component.query}
+        variables={variables}
+        render={({ error, props }) => {
+          if (error) return <div>{error.message}</div>
+          else if (props) return <Component {...props} />
+          return <div>Loading</div>
+        }}
+      />
     )
   }
 }

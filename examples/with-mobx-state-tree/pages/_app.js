@@ -1,7 +1,7 @@
 import React from 'react'
 import { Provider } from 'mobx-react'
 import { getSnapshot } from 'mobx-state-tree'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import { initializeStore } from '../stores/store'
 
 export default class MyApp extends App {
@@ -35,11 +35,9 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Provider store={this.store}>
-          <Component {...pageProps} />
-        </Provider>
-      </Container>
+      <Provider store={this.store}>
+        <Component {...pageProps} />
+      </Provider>
     )
   }
 }
