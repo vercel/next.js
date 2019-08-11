@@ -4,14 +4,16 @@ import { useStaticRendering } from 'mobx-react'
 const isServer = typeof window === 'undefined'
 useStaticRendering(isServer)
 
-class Store {
+export class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor(isServer, initialData = {}) {
+  hydrate(serializedStore) {
     this.lastUpdate =
-      initialData.lastUpdate != null ? initialData.lastUpdate : Date.now()
-    this.light = !!initialData.light
+      serializedStore.lastUpdate != null
+        ? serializedStore.lastUpdate
+        : Date.now()
+    this.light = !!serializedStore.light
   }
 
   @action start = () => {
@@ -24,15 +26,7 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-let store = null
-
-export function initializeStore(initialData) {
-  // Always make a new store if server, otherwise state is shared between requests
-  if (isServer) {
-    return new Store(isServer, initialData)
-  }
-  if (store === null) {
-    store = new Store(isServer, initialData)
-  }
-  return store
+export async function fetchInitialStoreState() {
+  // You can do anything to fetch initial store state
+  return {}
 }

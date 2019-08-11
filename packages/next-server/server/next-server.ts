@@ -524,12 +524,6 @@ export default class Server {
     return this.findPageComponents(pathname, query)
       .then(
         result => {
-          if (!(req.method === 'GET' || req.method === 'HEAD')) {
-            res.statusCode = 405
-            res.setHeader('Allow', ['GET', 'HEAD'])
-            return this.renderError(null, req, res, pathname, query)
-          }
-
           return this.renderToHTMLWithComponents(
             req,
             res,
@@ -552,12 +546,6 @@ export default class Server {
 
             return this.findPageComponents(dynamicRoute.page, query).then(
               result => {
-                if (!(req.method === 'GET' || req.method === 'HEAD')) {
-                  res.statusCode = 405
-                  res.setHeader('Allow', ['GET', 'HEAD'])
-                  return this.renderError(null, req, res, pathname, query)
-                }
-
                 return this.renderToHTMLWithComponents(
                   req,
                   res,
