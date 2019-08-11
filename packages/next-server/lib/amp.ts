@@ -10,7 +10,6 @@ export function isInAmpMode({
 }
 
 export function useAmp() {
-  const ampState = React.useContext(AmpStateContext)
-  // un-comment below to not be considered AMP in dirty mode
-  return isInAmpMode(ampState) // && ampMode.hasQuery
+  // Don't assign the context value to a variable to save bytes
+  return isInAmpMode(React.useContext(AmpStateContext))
 }
