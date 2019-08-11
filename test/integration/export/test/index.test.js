@@ -19,6 +19,7 @@ import dev from './dev'
 import { promisify } from 'util'
 import fs from 'fs'
 import dynamic from './dynamic'
+import apiRoutes from './api-routes'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -96,4 +97,5 @@ describe('Static Export', () => {
   browser(context)
   dev(devContext)
   dynamic(context)
+  apiRoutes(context)
 })

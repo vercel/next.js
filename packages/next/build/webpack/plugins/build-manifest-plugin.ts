@@ -4,21 +4,65 @@ import {
   BUILD_MANIFEST,
   ROUTE_NAME_REGEX,
   IS_BUNDLED_PAGE_REGEX,
+  CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
 } from 'next-server/constants'
+
+interface AssetMap {
+  devFiles: string[]
+  pages: {
+    '/_app': string[]
+    [s: string]: string[]
+  }
+}
+
+// This function takes the asset map generated in BuildManifestPlugin and creates a
+// reduced version to send to the client.
+const generateClientManifest = (
+  assetMap: AssetMap,
+  isModern: boolean
+): string => {
+  const clientManifest: { [s: string]: string[] } = {}
+  const appDependencies = new Set(assetMap.pages['/_app'])
+  delete assetMap.pages['/_app']
+  Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
+    // Filter out dependencies in the _app entry, because those will have already
+    // been loaded by the client prior to a navigation event
+    const filteredDeps = dependencies.filter(
+      dep => !appDependencies.has(dep) && /\.module\.js$/.test(dep) === isModern
+    )
+
+    // The manifest can omit the page if it has no requirements
+    if (filteredDeps.length) {
+      clientManifest[page] = filteredDeps
+    }
+  })
+  return JSON.stringify(clientManifest)
+}
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
+  private buildId: string
+  private clientManifest: boolean
+  private modern: boolean
+
+  constructor(options: {
+    buildId: string
+    clientManifest: boolean
+    modern: boolean
+  }) {
+    this.buildId = options.buildId
+    this.clientManifest = options.clientManifest
+    this.modern = options.modern
+  }
+
   apply(compiler: Compiler) {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
       (compilation, callback) => {
         const { chunks } = compilation
-        const assetMap: {
-          devFiles: string[]
-          pages: { [page: string]: string[] }
-        } = { devFiles: [], pages: {} }
+        const assetMap: AssetMap = { devFiles: [], pages: { '/_app': [] } }
 
         const mainJsChunk = chunks.find(
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
@@ -84,6 +128,22 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
+        // Add the runtime build manifest file (generated later in this file)
+        // as a dependency for the app. If the flag is false, the file won't be
+        // downloaded by the client.
+        if (this.clientManifest) {
+          assetMap.pages['/_app'].push(
+            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+          )
+          if (this.modern) {
+            assetMap.pages['/_app'].push(
+              `${CLIENT_STATIC_FILES_PATH}/${
+                this.buildId
+              }/_buildManifest.module.js`
+            )
+          }
+        }
+
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
@@ -92,6 +152,34 @@ export default class BuildManifestPlugin {
         compilation.assets[BUILD_MANIFEST] = new RawSource(
           JSON.stringify(assetMap, null, 2)
         )
+
+        if (this.clientManifest) {
+          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
+            this.buildId
+          }/_buildManifest.js`
+
+          compilation.assets[clientManifestPath] = new RawSource(
+            `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
+              assetMap,
+              false
+            )}')
+            self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+          )
+
+          if (this.modern) {
+            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
+              this.buildId
+            }/_buildManifest.module.js`
+
+            compilation.assets[modernClientManifestPath] = new RawSource(
+              `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
+                assetMap,
+                true
+              )}')
+              self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+            )
+          }
+        }
         callback()
       }
     )
