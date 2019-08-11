@@ -59,7 +59,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       key === 'experimental' &&
       userConfig[key] &&
-      userConfig[key] !== defaultConfig.experimental
+      userConfig[key] !== defaultConfig[key]
     ) {
       experimentalWarning()
     }
