@@ -736,7 +736,7 @@ export default async function getBaseWebpackConfig(
 
     if (foundTsRule) {
       console.warn(
-        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js\n'
+        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
       )
     }
   }

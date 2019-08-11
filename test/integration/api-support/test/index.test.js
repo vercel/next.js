@@ -197,12 +197,12 @@ function runTests (serverless = false) {
     expect(data).toEqual({ nextjs: 'cool' })
   })
 
-  it('should return 405 on POST on pages', async () => {
+  it('should return 200 on POST on pages', async () => {
     const res = await fetchViaHTTP(appPort, '/user', null, {
       method: 'POST'
     })
 
-    expect(res.status).toEqual(405)
+    expect(res.status).toEqual(200)
   })
 
   it('should return JSON on post on API', async () => {
