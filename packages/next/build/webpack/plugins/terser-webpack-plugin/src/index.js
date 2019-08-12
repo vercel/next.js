@@ -175,8 +175,12 @@ export class TerserPlugin {
             }
 
             // force dead-code elimination for SPR related code if not used
-            if (!sprStatus.used && file.match(/(runtime|chunks)/)) {
-              input = input.replace('Component.__NEXT_SPR', 'false')
+            const { compress } = this.options.terserOptions
+            if (compress) {
+              if (!compress.global_defs) {
+                compress.global_defs = {}
+              }
+              compress.global_defs['self.__HAS_SPR'] = !!sprStatus.used
             }
 
             const task = {
