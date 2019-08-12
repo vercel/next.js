@@ -1,0 +1,11 @@
+{
+  "name": "stats-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "next": "latest",
+    "react": "16.9.0",
+    "react-dom": "16.9.0"
+  }
+}
