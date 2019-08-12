@@ -13,11 +13,3 @@ Be sure your `next.config.js` has not modified `optimization.minimize` or `optim
 
 You can file an issue on our GitHub if you do not understand why minification is being disabled by your `next.config.js`.
 
-```js
-module.exports = {
-  webpack: config => {
-    config.optimization.minimize = true
-    return config
-  }
-}
-```
