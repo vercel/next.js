@@ -1,12 +1,10 @@
 import * as React from 'react';
 import SingleImage from "../../components/SingleImage";
 
-import useInitialRouter from '../../hooks/useInitialRouter';
+import useId from '../../hooks/useId';
 
 const Page = () => {
-    const router = useInitialRouter();
-    const id = router && router.query.id;
-
+    const id = useId();
     return <SingleImage id={id} />;
 }
 export default Page;
