@@ -1,0 +1,46 @@
+/* eslint-env jest */
+/* global jasmine */
+import webdriver from 'next-webdriver'
+import { join } from 'path'
+import {
+  nextBuild,
+  nextServer,
+  startApp,
+  stopApp,
+  renderViaHTTP,
+  waitFor
+} from 'next-test-utils'
+
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+
+let appDir = join(__dirname, '..')
+let server
+let appPort
+
+describe('experimental.optimizeLibraries', () => {
+  beforeAll(async () => {
+    await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true
+    })
+    const app = nextServer({
+      dir: appDir,
+      port: appPort,
+      dev: false,
+      quiet: true
+    })
+    server = await startApp(app)
+    appPort = server.address().port
+    // wait for it to start up:
+    await renderViaHTTP(appPort, '/')
+  })
+  afterAll(() => stopApp(server))
+
+  it('should load momentjs', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(5000)
+    expect(await browser.elementByCss('h1').text()).toMatch(/current time/i)
+    expect(await browser.eval('moment.locales()')).toBe(['en'])
+    await browser.close()
+  })
+})

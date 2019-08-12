@@ -625,7 +625,19 @@ export default async function getBaseWebpackConfig(
 
             return devPlugins
           })()
-        : []),
+        : (() => {
+            const prodPlugins = []
+            if (config.experimental.optimizeLibraries) {
+              prodPlugins.push(
+                // Moment.js is an extremely popular library that bundles large locale files
+                // by default due to how Webpack interprets its code. This is a practical
+                // solution that requires the user to opt into importing specific locales.
+                // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
+                new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
+              )
+            }
+            return prodPlugins
+          })()),
       !dev && new webpack.HashedModuleIdsPlugin(),
       // This must come after HashedModuleIdsPlugin (it sets any modules that
       // were missed by HashedModuleIdsPlugin)
