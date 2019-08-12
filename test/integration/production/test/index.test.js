@@ -553,6 +553,7 @@ describe('Production Usage', () => {
   })
 
   it('should warn when prefetch is true', async () => {
+    if (global.browserName !== 'chrome') return
     let browser
     try {
       browser = await webdriver(appPort, '/development-logs')
