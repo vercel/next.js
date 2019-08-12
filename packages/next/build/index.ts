@@ -219,7 +219,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn(
       chalk.bold.yellow(`Warning: `) +
         chalk.yellow(
-          `You have disabled minification, this degrades your performance by a large margin.`
+          `You have disabled minification, this degrades your performance by a large margin. https://err.sh/zeit/next.js/minification=disabled`
         )
     )
   }
