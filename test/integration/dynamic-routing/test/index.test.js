@@ -9,18 +9,17 @@ import {
   launchApp,
   killApp,
   waitFor,
-  runNextCommand,
-  nextServer,
-  startApp,
-  stopApp
+  nextBuild,
+  nextStart
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 let app
 let appPort
-let server
+let buildId
 const appDir = join(__dirname, '../')
+const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests (dev) {
   it('should render normal route', async () => {
@@ -209,6 +208,18 @@ function runTests (dev) {
         if (browser) await browser.close()
       }
     })
+  } else {
+    it('should output modern bundles with dynamic route correctly', async () => {
+      const bundlePath = join(
+        appDir,
+        '.next/static/',
+        buildId,
+        'pages/blog/[name]/comment/[id]'
+      )
+
+      await fs.access(bundlePath + '.js', fs.constants.F_OK)
+      await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
+    })
   }
 }
 
@@ -227,50 +238,50 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await runNextCommand(['build', appDir])
+      const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true
-      })
+      if (curConfig.includes('target')) {
+        await fs.writeFile(
+          nextConfig,
+          `
+          module.exports = {
+            experimental: { modern: true }
+          }
+        `
+        )
+      }
+      await nextBuild(appDir)
+      buildId = await fs.readFile(buildIdPath, 'utf8')
 
-      server = await startApp(app)
-      appPort = server.address().port
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
-    afterAll(() => stopApp(server))
+    afterAll(() => killApp(app))
 
     runTests()
   })
 
   describe('SSR production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await fs.writeFile(
         nextConfig,
         `
         module.exports = {
-          target: 'serverless'
+          target: 'serverless',
+          experimental: {
+            modern: true
+          }
         }
       `
       )
 
-      await runNextCommand(['build', appDir])
+      await nextBuild(appDir)
+      buildId = await fs.readFile(buildIdPath, 'utf8')
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true
-      })
-
-      server = await startApp(app)
-      appPort = server.address().port
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
-    afterAll(async () => {
-      await stopApp(server)
-      await fs.remove(nextConfig)
-    })
-
+    afterAll(() => killApp(app))
     runTests()
   })
 })

@@ -37,6 +37,12 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
+const escapePathVariables = (value: any) => {
+  return typeof value === 'string'
+    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
+    : value
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -689,7 +695,9 @@ export default async function getBaseWebpackConfig(
 
             return name.includes('.js')
               ? name.replace(/\.js$/, '.module.js')
-              : args[0].chunk.name.replace(/\.js$/, '.module.js')
+              : escapePathVariables(
+                  args[0].chunk.name.replace(/\.js$/, '.module.js')
+                )
           },
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
