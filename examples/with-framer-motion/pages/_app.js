@@ -3,12 +3,25 @@ import App, { Container } from 'next/app'
 import { AnimatePresence } from 'framer-motion';
 
 export default class MyApp extends App {
+
+  /** 
+   * Handle scrolling gracefully, since next/router scrolls to top
+   * before exit animation is complete.
+   * 
+   * Note that next/link components should also be using `scroll={false}`
+   **/
+  onExitComplete() {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0 });
+    }
+  }
+
   render () {
     const { Component, pageProps, router } = this.props
     return (
       <>
         <Container>
-          <AnimatePresence exitBeforeEnter>
+          <AnimatePresence exitBeforeEnter onExitComplete={this.onExitComplete}>
             <Component {...pageProps} key={router.route}/>
           </AnimatePresence>
         </Container>
