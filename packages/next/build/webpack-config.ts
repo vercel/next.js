@@ -511,8 +511,6 @@ export default async function getBaseWebpackConfig(
             loader: '@zeit/webpack-asset-relocator-loader',
             options: {
               filterAssetBase: dir,
-              emitDirnameAll: false,
-              emitFilterAssetBaseAll: false,
               production: !dev,
               debugLog: false,
             },
