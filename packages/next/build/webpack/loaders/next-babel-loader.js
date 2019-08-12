@@ -38,6 +38,10 @@ module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset'
   })
+  const applyCommonJs = babel.createConfigItem(
+    require('../../babel/plugins/commonjs'),
+    { type: 'plugin' }
+  )
   const commonJsItem = babel.createConfigItem(
     require('@babel/plugin-transform-modules-commonjs'),
     { type: 'plugin' }
@@ -50,7 +54,8 @@ module.exports = babelLoader.custom(babel => {
       const custom = {
         isServer: opts.isServer,
         asyncToPromises: opts.asyncToPromises,
-        isModern: opts.isModern
+        isModern: opts.isModern,
+        hasModern: opts.hasModern
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -62,6 +67,7 @@ module.exports = babelLoader.custom(babel => {
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
+                (opts.hasModern ? '-has-modern' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -81,13 +87,14 @@ module.exports = babelLoader.custom(babel => {
       delete loader.cache
       delete loader.distDir
       delete loader.isModern
+      delete loader.hasModern
       return { loader, custom }
     },
     config (
       cfg,
       {
         source,
-        customOptions: { isServer, asyncToPromises, isModern }
+        customOptions: { isServer, asyncToPromises, isModern, hasModern }
       }
     ) {
       const { cwd } = cfg.options
@@ -183,6 +190,13 @@ module.exports = babelLoader.custom(babel => {
             'transform-async-to-generator'
           ])
         }
+      }
+
+      // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
+      // That break webpack, since webpack doesn't support combining commonjs and esmodules
+      if (!hasModern && source.indexOf('module.exports') !== -1) {
+        options.plugins = options.plugins || []
+        options.plugins.push(applyCommonJs)
       }
 
       // As next-server/lib has stateful modules we have to transpile commonjs
