@@ -41,6 +41,22 @@ function writePackageManifest (packageName) {
   let typesFile = types || typings
   if (typesFile) {
     typesFile = require.resolve(join(packageName, typesFile))
+  } else {
+    try {
+      const typesPackage = `@types/${packageName}`
+
+      const { types, typings } = require(join(typesPackage, `package.json`))
+      typesFile = types || typings
+      if (typesFile) {
+        if (!typesFile.endsWith('.d.ts')) {
+          typesFile += '.d.ts'
+        }
+
+        typesFile = require.resolve(join(typesPackage, typesFile))
+      }
+    } catch (_) {
+      typesFile = undefined
+    }
   }
 
   const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
