@@ -63,7 +63,6 @@ export default async function getBaseWebpackConfig(
     selectivePageBuilding?: boolean
   }
 ): Promise<webpack.Configuration> {
-  console.log(dir)
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
