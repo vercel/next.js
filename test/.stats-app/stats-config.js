@@ -59,7 +59,7 @@ module.exports = {
   commentHeading: 'Stats from current PR',
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'yarn next build',
-  appStartCommand: 'yarn next start',
+  appStartCommand: 'yarn next start --port $PORT',
   mainRepo: 'zeit/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
@@ -100,9 +100,9 @@ module.exports = {
       ],
       filesToTrack: clientGlobs,
       pagesToFetch: [
-        'http://localhost:3000/link',
-        'http://localhost:3000/index',
-        'http://localhost:3000/withRouter'
+        'http://localhost:$PORT/link',
+        'http://localhost:$PORT/index',
+        'http://localhost:$PORT/withRouter'
       ]
     },
     {
