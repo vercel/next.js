@@ -69,6 +69,7 @@ export default async function getBaseWebpackConfig(
       loader: 'next-babel-loader',
       options: {
         isServer,
+        hasModern: !!config.experimental.modern,
         distDir,
         cwd: dir,
         cache: !selectivePageBuilding,
