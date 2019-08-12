@@ -212,13 +212,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (
     clientConfig.optimization &&
-    (clientConfig.optimization.minimize == false ||
+    (clientConfig.optimization.minimize !== true ||
       (clientConfig.optimization.minimizer &&
         clientConfig.optimization.minimizer.length === 0))
   ) {
     console.warn(
       chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
+        chalk.bold(
           `You have disabled minification, this degrades your performance by a large margin. https://err.sh/zeit/next.js/minification=disabled`
         )
     )
