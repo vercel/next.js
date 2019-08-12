@@ -6,7 +6,7 @@ export const config = { experimentalPrerender: true }
 export default class Post extends React.Component {
   static async getInitialProps () {
     return {
-      data: typeof window === 'undefined' ? 'SSR' : 'Skeleton'
+      data: typeof window === 'undefined' ? 'SSR' : 'CSR'
     }
   }
 

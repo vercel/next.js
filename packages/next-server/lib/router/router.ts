@@ -605,19 +605,35 @@ export default class Router implements BaseRouter {
     const { Component: App } = this.components['/_app']
     let props
 
-    if ((Component as any).__NEXT_PRERENDER) {
-      const url = format({
-        pathname: ctx.asPath,
-        query: ctx.query,
-      })
-      const res = await fetch(url, {
+    if (
+      // @ts-ignore workaround for dead-code elimination
+      (self.__HAS_SPR || process.env.NODE_ENV !== 'production') &&
+      (Component as any).__NEXT_SPR
+    ) {
+      let status: any
+      const url = ctx.asPath
+        ? ctx.asPath
+        : format({
+            pathname: ctx.pathname,
+            query: ctx.query,
+          })
+
+      props = await fetch(url, {
         headers: { 'content-type': 'application/json' },
       })
-      props = {
-        pageProps: res.ok
-          ? await res.json().catch(err => ({ error: err.message }))
-          : { error: 'failed to load prerender', statusCode: res.status },
-      }
+        .then(res => {
+          if (!res.ok) {
+            status = res.status
+            throw new Error('failed to load prerender data')
+          }
+          return res.json()
+        })
+        .then((pageProps: any) => {
+          return { pageProps }
+        })
+        .catch((err: Error) => {
+          return { error: err.message, status }
+        })
     } else {
       props = await loadGetInitialProps<AppContextType<Router>>(App, {
         AppTree: this._wrapApp(App),
