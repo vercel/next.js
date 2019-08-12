@@ -258,13 +258,26 @@ function runTests (serverless = false) {
   })
 
   it('should work with __dirname and re-compile', async () => {
-    const dirname = new File(join(appDir, 'pages/api/dirname.js'))
-
     const data = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
       res => res.ok && res.text()
     )
 
     expect(data).toContain('export default () => <div>API - support</div>')
+
+    // const index = new File(join(appDir, 'pages/index.js'))
+
+    // index.replace('API', 'IPA')
+
+    // await waitFor(500)
+
+    // const change = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+    //   res => res.ok && res.text()
+    // )
+    // expect(change).toContain('export default () => <div>IPA - support</div>')
+
+    // index.restore()
+
+    const dirname = new File(join(appDir, 'pages/api/dirname.js'))
 
     dirname.replace('index.js', 'user.js')
 
