@@ -10,7 +10,8 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
-  File
+  File,
+  waitFor
 } from 'next-test-utils'
 import json from '../big.json'
 import { createServer } from 'http'
@@ -254,6 +255,28 @@ function runTests (serverless = false) {
     )
 
     expect(data).toContain('export default () => <div>API - support</div>')
+  })
+
+  it('should work with __dirname and re-compile', async () => {
+    const dirname = new File(join(appDir, 'pages/api/dirname.js'))
+
+    const data = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+      res => res.ok && res.text()
+    )
+
+    expect(data).toContain('export default () => <div>API - support</div>')
+
+    dirname.replace('index.js', 'user.js')
+
+    await waitFor(500)
+
+    const user = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+      res => res.ok && res.text()
+    )
+
+    expect(user).toContain('export default () => <div>User</div>')
+
+    dirname.restore()
   })
 
   it('should build api routes', async () => {
