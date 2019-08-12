@@ -265,7 +265,7 @@ export async function getPageSizeInKb(
 export function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
-): { static?: boolean; prerender?: boolean } {
+): { static?: boolean; prerender?: boolean; isHybridAmp?: boolean } {
   try {
     require('next-server/config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
@@ -274,10 +274,12 @@ export function isPageStatic(
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
+    const config = mod.config || {}
 
     return {
       static: typeof (Comp as any).getInitialProps !== 'function',
-      prerender: mod.config && mod.config.experimentalPrerender === true,
+      prerender: config.experimentalPrerender === true,
+      isHybridAmp: config.amp === 'hybrid',
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

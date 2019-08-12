@@ -1,6 +1,5 @@
 /* global document, window */
 import mitt from 'next-server/dist/lib/mitt'
-import unfetch from 'unfetch'
 
 function supportsPreload (el) {
   try {
@@ -40,6 +39,39 @@ export default class PageLoader {
           }
         }
       })
+    }
+
+    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+      this.promisedBuildId = Promise.resolve()
+      this.onDynamicBuildId = () => {
+        this.promisedBuildId = new Promise(resolve => {
+          const unfetch = require('unfetch')
+          unfetch(`${this.assetPrefix}/_next/static/HEAD_BUILD_ID`)
+            .then(res => {
+              if (res.ok) {
+                return res
+              }
+
+              const err = new Error('Failed to fetch HEAD buildId')
+              err.res = res
+              throw err
+            })
+            .then(res => res.text())
+            .then(buildId => {
+              this.buildId = buildId.trim()
+            })
+            .catch(() => {
+              // When this fails it's not a _huge_ deal, preload wont work and page
+              // navigation will 404, triggering a SSR refresh
+              console.warn(
+                'Failed to load BUILD_ID from server. ' +
+                  'The following client-side page transition will likely 404 and cause a SSR.\n' +
+                  'http://err.sh/zeit/next.js/head-build-id'
+              )
+            })
+            .then(resolve, resolve)
+        })
+      }
     }
   }
 
@@ -111,37 +143,10 @@ export default class PageLoader {
     })
   }
 
-  onDynamicBuildId () {
-    this.promisedBuildId = new Promise(resolve => {
-      unfetch(`${this.assetPrefix}/_next/static/HEAD_BUILD_ID`)
-        .then(res => {
-          if (res.ok) {
-            return res
-          }
-
-          const err = new Error('Failed to fetch HEAD buildId')
-          err.res = res
-          throw err
-        })
-        .then(res => res.text())
-        .then(buildId => {
-          this.buildId = buildId.trim()
-        })
-        .catch(() => {
-          // When this fails it's not a _huge_ deal, preload wont work and page
-          // navigation will 404, triggering a SSR refresh
-          console.warn(
-            'Failed to load BUILD_ID from server. ' +
-              'The following client-side page transition will likely 404 and cause a SSR.\n' +
-              'http://err.sh/zeit/next.js/head-build-id'
-          )
-        })
-        .then(resolve, resolve)
-    })
-  }
-
   async loadRoute (route) {
-    await this.promisedBuildId
+    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+      await this.promisedBuildId
+    }
 
     route = this.normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
@@ -206,7 +211,9 @@ export default class PageLoader {
   }
 
   async prefetch (route, isDependency) {
-    await this.promisedBuildId
+    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+      await this.promisedBuildId
+    }
 
     route = this.normalizeRoute(route)
     let scriptRoute = `${route === '/' ? '/index' : route}.js`

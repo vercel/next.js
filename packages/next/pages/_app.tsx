@@ -53,11 +53,7 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   render() {
     const { router, Component, pageProps } = this.props as AppProps<CP>
     const url = createUrl(router)
-    return (
-      <Container>
-        <Component {...pageProps} url={url} />
-      </Container>
-    )
+    return <Component {...pageProps} url={url} />
   }
 }
 
