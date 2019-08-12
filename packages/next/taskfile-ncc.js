@@ -9,6 +9,7 @@ module.exports = function (task) {
     return ncc(join(__dirname, file.dir, file.base), {
       // cannot bundle
       externals: ['chokidar'],
+      minify: true,
       ...options
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach(key =>
