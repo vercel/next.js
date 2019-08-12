@@ -13,10 +13,28 @@ const appDir = join(__dirname, '../')
 const outDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
+let buildOutput
+
 describe('AMP Validation on Export', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
+    const { stdout = '', stderr = '' } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true
+    })
     await nextExport(appDir, { outdir: outDir })
+    buildOutput = stdout + stderr
+  })
+
+  it('should have shown errors during build', async () => {
+    expect(buildOutput).toMatch(
+      /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
+    )
+    expect(buildOutput).toMatch(
+      /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
+    )
+    expect(buildOutput).toMatch(
+      /warn.*The tag 'amp-video extension \.js script' is missing/
+    )
   })
 
   it('should export AMP pages', async () => {
