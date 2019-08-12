@@ -63,6 +63,7 @@ export default async function getBaseWebpackConfig(
     selectivePageBuilding?: boolean
   }
 ): Promise<webpack.Configuration> {
+  console.log(dir)
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -504,6 +505,20 @@ export default async function getBaseWebpackConfig(
             include: [path.join(dir, 'data')],
             use: 'next-data-loader',
           },
+        isServer && {
+          test: /\.(tsx|ts|js|mjs|jsx|node)$/,
+          parser: { amd: false },
+          use: {
+            loader: '@zeit/webpack-asset-relocator-loader',
+            options: {
+              filterAssetBase: dir,
+              emitDirnameAll: false,
+              emitFilterAssetBaseAll: false,
+              production: !dev,
+              debugLog: false,
+            },
+          },
+        },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [

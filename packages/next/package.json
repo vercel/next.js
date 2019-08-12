@@ -67,6 +67,7 @@
     "@babel/preset-typescript": "7.3.3",
     "@babel/runtime": "7.4.5",
     "@babel/runtime-corejs2": "7.4.5",
+    "@zeit/webpack-asset-relocator-loader": "0.6.2",
     "amphtml-validator": "1.0.23",
     "async-sema": "3.0.0",
     "autodll-webpack-plugin": "0.4.2",

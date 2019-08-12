@@ -248,6 +248,14 @@ function runTests (serverless = false) {
     expect(res.status).toBe(404)
   })
 
+  it('should work with __dirname', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+      res => res.ok && res.text()
+    )
+
+    expect(data).toContain('export default () => <div>API - support</div>')
+  })
+
   it('should build api routes', async () => {
     await nextBuild(appDir, [], { stdout: true })
     if (serverless) {
