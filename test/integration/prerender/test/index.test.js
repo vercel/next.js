@@ -105,14 +105,14 @@ const runTests = () => {
     expect(html).not.toMatch(/Comment:.*?SSR/)
   })
 
-  it('should call getInitialProps client-side when viewing skeleton', async () => {
+  it('should call getInitialProps when viewing skeleton', async () => {
     let browser = await webdriver(
       appPort,
       '/blog/post-1?_nextPreviewSkeleton=1'
     )
     await waitFor(1000)
     let text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Post:.*?Skeleton/)
+    expect(text).toMatch(/Post:.*?SSR/)
     await browser.close()
 
     browser = await webdriver(
@@ -121,7 +121,7 @@ const runTests = () => {
     )
     await waitFor(1000)
     text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Comment:.*?Skeleton/)
+    expect(text).toMatch(/Comment:.*?SSR/)
     await browser.close()
   })
 }

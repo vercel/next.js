@@ -38,7 +38,7 @@ const renames = [
   },
   {
     srcGlob: '.next/static/chunks/commons!(*.module.js)',
-    dest: 'next/static/chunks/commons-HASH.js'
+    dest: '.next/static/chunks/commons.HASH.js'
   },
   // modern
   {
@@ -51,7 +51,7 @@ const renames = [
   },
   {
     srcGlob: '.next/static/chunks/commons*.module.js',
-    dest: 'next/static/chunks/commons.HASH.module.js'
+    dest: '.next/static/chunks/commons.HASH.module.js'
   }
 ]
 

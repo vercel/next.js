@@ -88,7 +88,7 @@ class Container extends React.Component {
     // If it's a dynamic route or has a querystring
     if (
       data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search)
+      (isDynamicRoute(router.pathname) || location.search || data.skeleton)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -181,17 +181,6 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   })
   const renderCtx = { App, Component, props, err: initialErr, emitter }
   render(renderCtx)
-
-  if (window.__NEXT_DATA__.skeleton && Component.getInitialProps) {
-    const appCtx = {
-      router,
-      AppTree: wrapApp(App),
-      Component: Component,
-      ctx: { pathname: page, asPath, query }
-    }
-    props.pageProps = (await App.getInitialProps(appCtx)).pageProps
-    render(renderCtx)
-  }
 
   return emitter
 }

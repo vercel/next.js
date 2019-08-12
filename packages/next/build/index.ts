@@ -20,7 +20,6 @@ import workerFarm from 'worker-farm'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
@@ -51,7 +50,6 @@ const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
-const sprPages = new Set<string>()
 const staticCheckWorker = require.resolve('./static-checker')
 
 export type PrerenderRoute = {
@@ -290,8 +288,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     PAGES_MANIFEST
   )
 
+  const sprPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
+  const hybridAmpPages = new Set<string>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   let customAppGetInitialProps: boolean | undefined
@@ -374,6 +374,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
           })
           staticCheckSema.release()
 
+          if (result.isHybridAmp) {
+            hybridAmpPages.add(page)
+          }
+
           if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
@@ -443,12 +447,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsUnlink(serverBundle)
     }
 
-    const exportedFiles = new Set(
-      (await recursiveReadDir(exportOptions.outdir, /.*\.html$/)).map(p =>
-        p.replace(/\\/g, '/')
-      )
-    )
-
     const moveExportedPage = async (page: string, file: string) => {
       const isSpr = sprPages.has(page)
       file = `${file}.html`
@@ -476,7 +474,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const page of combinedPages) {
       let file = page === '/' ? '/index' : page
       await moveExportedPage(page, file)
-      const hasAmp = exportedFiles.has(`${file}.amp.html`)
+      const hasAmp = hybridAmpPages.has(page)
       if (hasAmp) await moveExportedPage(`${page}.amp`, `${file}.amp`)
     }
 

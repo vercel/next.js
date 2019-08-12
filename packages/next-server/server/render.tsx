@@ -299,6 +299,7 @@ export async function renderToHTML(
     pageConfig.experimentalPrerender === true && !!query._nextPreviewSkeleton
   // remove from query so it doesn't end up in document
   delete query._nextPreviewSkeleton
+  if (isSkeleton) renderOpts.nextExport = true
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
@@ -319,6 +320,9 @@ export async function renderToHTML(
     },
   }
   let props: any
+  const isDataPrerender =
+    pageConfig.experimentalPrerender === true &&
+    req.headers['content-type'] === 'application/json'
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
@@ -352,24 +356,29 @@ export async function renderToHTML(
   )
 
   try {
-    props = isSkeleton
-      ? { pageProps: {} }
-      : (props = await loadGetInitialProps(App, {
-          Component,
-          AppTree: ctx.AppTree,
-          router,
-          ctx,
-        }))
+    props =
+      isSkeleton && !isDataPrerender
+        ? { pageProps: {} }
+        : await loadGetInitialProps(App, {
+            Component,
+            AppTree: (props: any) => {
+              const appProps = { ...props, Component, router }
+              return (
+                <AppContainer>
+                  <App {...appProps} />
+                </AppContainer>
+              )
+            },
+            router,
+            ctx,
+          })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
   }
 
-  if (
-    pageConfig.experimentalPrerender === true &&
-    req.headers['content-type'] === 'application/json'
-  ) {
+  if (isDataPrerender) {
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(props.pageProps || {}))
     return null

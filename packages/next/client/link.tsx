@@ -106,8 +106,17 @@ const listenToIntersections = (el: any, cb: any) => {
 
 class Link extends Component<LinkProps> {
   static propTypes?: any
-  static defaultProps: Partial<LinkProps> = {
-    prefetch: true,
+  p: boolean
+  constructor(props: LinkProps) {
+    super(props)
+    if (process.env.NODE_ENV !== 'production') {
+      if (props.prefetch) {
+        console.warn(
+          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/zeit/next.js/prefetch-true-deprecated'
+        )
+      }
+    }
+    this.p = props.prefetch !== false
   }
 
   cleanUpListeners = () => {}
@@ -117,7 +126,7 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: Element) {
-    if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
+    if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
@@ -181,7 +190,7 @@ class Link extends Component<LinkProps> {
   }
 
   prefetch() {
-    if (!this.props.prefetch || typeof window === 'undefined') return
+    if (!this.p || typeof window === 'undefined') return
 
     // Prefetch the JSON page if asked (only in the client)
     const { pathname } = window.location

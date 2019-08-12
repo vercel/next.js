@@ -47,6 +47,15 @@ export default class HeadManager {
   updateElements (type, components) {
     const headEl = document.getElementsByTagName('head')[0]
     const headCountEl = headEl.querySelector('meta[name=next-head-count]')
+    if (process.env.NODE_ENV !== 'production') {
+      if (!headCountEl) {
+        console.error(
+          'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+        )
+        return
+      }
+    }
+
     const headCount = Number(headCountEl.content)
     const oldTags = []
 
