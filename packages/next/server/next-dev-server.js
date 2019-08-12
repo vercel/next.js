@@ -9,6 +9,7 @@ import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
+import { recordVersion } from '../telemetry/events'
 import fs from 'fs'
 import {
   getRouteMatcher,
@@ -177,6 +178,8 @@ export default class DevServer extends Server {
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady()
+
+    recordVersion({ isDev: true })
   }
 
   async close () {
