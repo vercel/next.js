@@ -15,6 +15,17 @@ export type AppContext = AppContextType<Router>
 
 export type AppProps<P = {}> = AppPropsType<Router, P>
 
+export interface PerformanceMarker {
+  name: string
+  startTime?: number
+  value: number
+}
+
+export function relayPerformanceData(data: PerformanceMarker): void {
+  // user code to send marker value to analytics
+  console.log({ data })
+}
+
 /**
  * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
  * This allows for keeping state between navigation, custom error handling, injecting additional data.

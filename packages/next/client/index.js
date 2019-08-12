@@ -17,6 +17,7 @@ import { RouterContext } from 'next-server/dist/lib/router-context'
 import { DataManager } from 'next-server/dist/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
+import { relayPerformanceData } from 'next/app'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -256,6 +257,13 @@ function markHydrateComplete () {
 
   performance.measure('Next.js-before-hydration', null, 'beforeRender')
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+  performance.getEntriesByType('measure').forEach(entry => {
+    relayPerformanceData({
+      name: entry.name,
+      startTime: entry.startTime,
+      value: entry.duration
+    })
+  })
 
   clearMarks()
 }
