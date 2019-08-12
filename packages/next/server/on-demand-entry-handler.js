@@ -29,17 +29,7 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (
   devMiddleware,
   multiCompiler,
-  {
-    buildId,
-    dir,
-    distDir,
-    reload,
-    pageExtensions,
-    maxInactiveAge,
-    pagesBufferLength,
-    publicRuntimeConfig,
-    serverRuntimeConfig
-  }
+  { buildId, dir, reload, pageExtensions, maxInactiveAge, pagesBufferLength }
 ) {
   const pagesDir = join(dir, 'pages')
   const { compilers } = multiCompiler

@@ -70,10 +70,15 @@ module.exports = (
     ...options['preset-env'],
   }
 
-  // When transpiling for the server, target the current Node version if not explicitly specified:
+  // When transpiling for the server or tests, target the current Node version
+  // if not explicitly specified:
   if (
-    isServer &&
-    (!presetEnvConfig.targets || !('node' in presetEnvConfig.targets))
+    (isServer || isTest) &&
+    (!presetEnvConfig.targets ||
+      !(
+        typeof presetEnvConfig.targets === 'object' &&
+        'node' in presetEnvConfig.targets
+      ))
   ) {
     presetEnvConfig.targets = {
       // Targets the current process' version of Node. This requires apps be

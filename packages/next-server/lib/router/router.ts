@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject } from 'url'
+import { parse, UrlObject, format } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -11,6 +11,7 @@ import {
   getURL,
   loadGetInitialProps,
   NextPageContext,
+  SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -69,6 +70,7 @@ export default class Router implements BaseRouter {
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
+  _wrapApp: (App: ComponentType) => any
 
   static events: MittEmitter = mitt()
 
@@ -80,6 +82,7 @@ export default class Router implements BaseRouter {
       initialProps,
       pageLoader,
       App,
+      wrapApp,
       Component,
       err,
       subscription,
@@ -89,6 +92,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: ComponentType
+      wrapApp: (App: ComponentType) => any
       err?: Error
     }
   ) {
@@ -117,6 +121,7 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.sub = subscription
     this.clc = null
+    this._wrapApp = wrapApp
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -142,6 +147,7 @@ export default class Router implements BaseRouter {
     }
   }
 
+  // @deprecated backwards compatibility even though it's a private method.
   static _rewriteUrlForNextExport(url: string): string {
     return rewriteUrlForNextExport(url)
   }
@@ -242,6 +248,11 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
+      // marking route changes as a navigation start entry
+      if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+        performance.mark('routeChange')
+      }
+
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
       const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
@@ -273,7 +284,16 @@ export default class Router implements BaseRouter {
         return resolve(true)
       }
 
-      const { pathname, query } = parse(url, true)
+      const { pathname, query, protocol } = parse(url, true)
+
+      if (!pathname || protocol) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
+        return resolve(false)
+      }
 
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
@@ -322,7 +342,7 @@ export default class Router implements BaseRouter {
           const appComp: any = this.components['/_app'].Component
           ;(window as any).next.isPrerendered =
             appComp.getInitialProps === appComp.origGetInitialProps &&
-            !routeInfo.Component.getInitialProps
+            !(routeInfo.Component as any).getInitialProps
         }
 
         // @ts-ignore pathname is always defined
@@ -398,10 +418,6 @@ export default class Router implements BaseRouter {
         return new Promise((resolve, reject) => {
           const ctx = { pathname, query, asPath: as }
           this.getInitialProps(Component, ctx).then(props => {
-            // if data is inlined during prerender it is a string
-            if (props && typeof props.pageProps === 'string') {
-              props.pageProps = JSON.parse(props.pageProps)
-            }
             routeInfo.props = props
             this.components[route] = routeInfo
             resolve(routeInfo)
@@ -536,10 +552,18 @@ export default class Router implements BaseRouter {
    */
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      const { pathname, protocol } = parse(url)
+
+      if (!pathname || protocol) {
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(
+            `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
+          )
+        }
+        return
+      }
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') return
-
-      const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
       const route = toRoute(pathname)
       this.pageLoader.prefetch(route).then(resolve, reject)
@@ -579,12 +603,45 @@ export default class Router implements BaseRouter {
     }
     this.clc = cancel
     const { Component: App } = this.components['/_app']
+    let props
 
-    const props = await loadGetInitialProps<AppContextType<Router>>(App, {
-      Component,
-      router: this,
-      ctx,
-    })
+    if (
+      // @ts-ignore workaround for dead-code elimination
+      (self.__HAS_SPR || process.env.NODE_ENV !== 'production') &&
+      (Component as any).__NEXT_SPR
+    ) {
+      let status: any
+      const url = ctx.asPath
+        ? ctx.asPath
+        : format({
+            pathname: ctx.pathname,
+            query: ctx.query,
+          })
+
+      props = await fetch(url, {
+        headers: { 'content-type': 'application/json' },
+      })
+        .then(res => {
+          if (!res.ok) {
+            status = res.status
+            throw new Error('failed to load prerender data')
+          }
+          return res.json()
+        })
+        .then((pageProps: any) => {
+          return { pageProps }
+        })
+        .catch((err: Error) => {
+          return { error: err.message, status }
+        })
+    } else {
+      props = await loadGetInitialProps<AppContextType<Router>>(App, {
+        AppTree: this._wrapApp(App),
+        Component,
+        router: this,
+        ctx,
+      })
+    }
 
     if (cancel === this.clc) {
       this.clc = null

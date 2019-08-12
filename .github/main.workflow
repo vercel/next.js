@@ -10,5 +10,5 @@ workflow "Generate release stats" {
 
 action "PR Stats" {
   uses = "zeit/next-stats-action@master"
-  secrets = ["GITHUB_TOKEN"]
+  secrets = ["GITHUB_TOKEN", "PR_STATS_TEMP_TOKEN"]
 }

@@ -4,7 +4,11 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
-import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
+import {
+  loadGetInitialProps,
+  getURL,
+  SUPPORTS_PERFORMANCE_USER_TIMING
+} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
@@ -84,7 +88,7 @@ class Container extends React.Component {
     // If it's a dynamic route or has a querystring
     if (
       data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search)
+      (isDynamicRoute(router.pathname) || location.search || data.skeleton)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -158,8 +162,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  if (dynamicBuildId === true) {
-    pageLoader.onDynamicBuildId()
+  if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
+    if (dynamicBuildId === true) {
+      pageLoader.onDynamicBuildId()
+    }
   }
 
   router = createRouter(page, query, asPath, {
@@ -167,13 +173,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     pageLoader,
     App,
     Component,
+    wrapApp,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
       render({ App, Component, props, err, emitter })
     }
   })
-
-  render({ App, Component, props, err: initialErr, emitter })
+  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  render(renderCtx)
 
   return emitter
 }
@@ -211,13 +218,16 @@ export async function renderError (props) {
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const appCtx = {
+    AppTree: wrapApp(App),
+    Component: ErrorComponent,
+    router,
+    ctx: { err, pathname: page, query, asPath }
+  }
+
   const initProps = props.props
     ? props.props
-    : await loadGetInitialProps(App, {
-      Component: ErrorComponent,
-      router,
-      ctx: { err, pathname: page, query, asPath }
-    })
+    : await loadGetInitialProps(App, appCtx)
 
   await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
 }
@@ -225,13 +235,54 @@ export async function renderError (props) {
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
+  // mark start of hydrate/render
+  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+    performance.mark('beforeRender')
+  }
+
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl)
+    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl)
+    ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
+}
+
+function markHydrateComplete () {
+  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+
+  performance.mark('afterHydrate') // mark end of hydration
+
+  performance.measure('Next.js-before-hydration', null, 'beforeRender')
+  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
+  clearMarks()
+}
+
+function markRenderComplete () {
+  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+
+  performance.mark('afterRender') // mark end of render
+  const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
+
+  if (!navStartEntries.length) {
+    return
+  }
+
+  performance.measure(
+    'Next.js-route-change-to-render',
+    navStartEntries[0].name,
+    'beforeRender'
+  )
+  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
+
+  clearMarks()
+}
+
+function clearMarks () {
+  performance.clearMarks()
+  performance.clearMeasures()
 }
 
 function AppContainer ({ children }) {
@@ -256,6 +307,15 @@ function AppContainer ({ children }) {
   )
 }
 
+const wrapApp = App => props => {
+  const appProps = { ...props, Component, err, router }
+  return (
+    <AppContainer>
+      <App {...appProps} />
+    </AppContainer>
+  )
+}
+
 async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
@@ -266,17 +326,19 @@ async function doRender ({ App, Component, props, err }) {
     lastAppProps.Component === ErrorComponent
   ) {
     const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(App, {
-      Component,
+    const appCtx = {
       router,
+      AppTree: wrapApp(App),
+      Component: ErrorComponent,
       ctx: { err, pathname, query, asPath }
-    })
+    }
+    props = await loadGetInitialProps(App, appCtx)
   }
 
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, err, router, ...props }
+  const appProps = { ...props, Component, err, router }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 

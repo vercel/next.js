@@ -1,9 +1,10 @@
-import os from 'os'
 import findUp from 'find-up'
+import os from 'os'
+
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 
-const targets = ['server', 'serverless']
+const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
 const defaultConfig: { [key: string]: any } = {
   env: [],
@@ -18,6 +19,7 @@ const defaultConfig: { [key: string]: any } = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
+  compress: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
@@ -38,6 +40,7 @@ const defaultConfig: { [key: string]: any } = {
     flyingShuttle: false,
     asyncToPromises: false,
     documentMiddleware: false,
+    granularChunks: false,
     publicDirectory: false,
     modern: false,
   },
@@ -53,7 +56,11 @@ const experimentalWarning = execOnce(() => {
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   Object.keys(userConfig).forEach((key: string) => {
-    if (key === 'experimental' && userConfig[key]) {
+    if (
+      key === 'experimental' &&
+      userConfig[key] &&
+      userConfig[key] !== defaultConfig[key]
+    ) {
       experimentalWarning()
     }
 
@@ -119,10 +126,12 @@ export default function loadConfig(
     }
 
     if (
-      userConfig.target === 'serverless' &&
+      userConfig.target &&
+      userConfig.target !== 'server' &&
       userConfig.publicRuntimeConfig &&
       Object.keys(userConfig.publicRuntimeConfig).length !== 0
     ) {
+      // TODO: change error message tone to "Only compatible with [fat] server mode"
       throw new Error(
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
@@ -132,4 +141,10 @@ export default function loadConfig(
   }
 
   return defaultConfig
+}
+
+export function isTargetLikeServerless(target: string) {
+  const isServerless = target === 'serverless'
+  const isServerlessTrace = target === 'experimental-serverless-trace'
+  return isServerless || isServerlessTrace
 }
