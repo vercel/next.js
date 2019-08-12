@@ -12,7 +12,7 @@ const Comment = ({ data }) => (
 )
 
 Comment.getInitialProps = () => ({
-  data: typeof window === 'undefined' ? 'SSR' : 'Skeleton'
+  data: typeof window === 'undefined' ? 'SSR' : 'CSR'
 })
 
 export default Comment
