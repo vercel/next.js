@@ -97,7 +97,7 @@ export interface NextPageContext {
    */
   asPath?: string
   /**
-   * `Component` the tree of the App to use if needing to render separately (Apollo)
+   * `Component` the tree of the App to use if needing to render separately
    */
   AppTree: NextComponentType
 }
