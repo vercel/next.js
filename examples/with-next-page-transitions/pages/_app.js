@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import { PageTransition } from 'next-page-transitions'
 
 import Loader from '../components/Loader'
@@ -20,7 +20,7 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
     return (
-      <Container>
+      <>
         <PageTransition
           timeout={TIMEOUT}
           classNames='page-transition'
@@ -61,7 +61,7 @@ export default class MyApp extends App {
             transition: opacity ${TIMEOUT}ms;
           }
         `}</style>
-      </Container>
+      </>
     )
   }
 }

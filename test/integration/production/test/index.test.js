@@ -80,11 +80,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 405 for POST on page', async () => {
+    it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'
       })
-      expect(res.status).toBe(405)
+      expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
@@ -417,7 +417,9 @@ describe('Production Usage', () => {
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
+        await waitFor(2000)
         const elements = await browser.elementsByCss('link[rel=preload]')
+
         expect(elements.length).toBe(9)
         await Promise.all(
           elements.map(async element => {
@@ -453,7 +455,7 @@ describe('Production Usage', () => {
 
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
-        if (!browser.log) return
+        if (global.browserName !== 'chrome') return
         const counter = await browser
           .elementByCss('#increase')
           .click()

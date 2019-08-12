@@ -3,10 +3,15 @@ import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next-server/types'
 
-const configKeys = new Set(['amp'])
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
+export const sprStatus = { used: false }
 
-// replace progam path with just a variable with the drop identifier
+const configKeys = new Set(['amp', 'experimentalPrerender'])
+const pageComponentVar = '__NEXT_COMP'
+// this value can't be optimized by terser so the shorter the better
+const prerenderId = '__NEXT_SPR'
+
+// replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
   path.parentPath.replaceWith(
     t.program(
@@ -28,6 +33,7 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 }
 
 interface ConfigState {
+  isPrerender?: boolean
   bundleDropped?: boolean
 }
 
@@ -84,11 +90,42 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
+
+                state.isPrerender = config.experimentalPrerender === true
+                sprStatus.used = sprStatus.used || state.isPrerender
               },
             },
             state
           )
         },
+      },
+      ExportDefaultDeclaration(path, state: ConfigState) {
+        if (!state.isPrerender) {
+          return
+        }
+        const prev = t.cloneDeep(path.node.declaration)
+
+        // workaround to allow assigning a ClassDeclaration to a variable
+        // babel throws error without
+        if (prev.type.endsWith('Declaration')) {
+          prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
+        }
+
+        path.insertBefore([
+          t.variableDeclaration('const', [
+            t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
+          ]),
+          t.assignmentExpression(
+            '=',
+            t.memberExpression(
+              t.identifier(pageComponentVar),
+              t.identifier(prerenderId)
+            ),
+            t.booleanLiteral(true)
+          ),
+        ])
+
+        path.node.declaration = t.identifier(pageComponentVar)
       },
     },
   }

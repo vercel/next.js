@@ -130,21 +130,40 @@ export default class NextEsmPlugin implements Plugin {
     )
 
     const childChunkFileMap = childCompilation.chunks.reduce(
-      (chunkMap: { [key: string]: any[] }, chunk: compilation.Chunk) => {
-        chunkMap[chunk.name] = chunk.files
+      (
+        chunkMap: { [key: string]: compilation.Chunk },
+        chunk: compilation.Chunk
+      ) => {
+        chunkMap[chunk.name] = chunk
         return chunkMap
       },
       {}
     )
 
+    // Merge files from similar chunks
     compilation.chunks.forEach((chunk: compilation.Chunk) => {
-      const childChunkFiles = childChunkFileMap[chunk.name]
+      const childChunk = childChunkFileMap[chunk.name]
 
-      if (childChunkFiles) {
+      if (childChunk && childChunk.files) {
+        delete childChunkFileMap[chunk.name]
         chunk.files.push(
-          ...childChunkFiles.filter((v: any) => !chunk.files.includes(v))
+          ...childChunk.files.filter((v: any) => !chunk.files.includes(v))
         )
       }
+    })
+
+    // Add modern only chunks
+    compilation.chunks.push(...Object.values(childChunkFileMap))
+
+    // Place modern only chunk inside the right entry point
+    compilation.entrypoints.forEach((entryPoint, entryPointName) => {
+      const childEntryPoint = childCompilation.entrypoints.get(entryPointName)
+
+      childEntryPoint.chunks.forEach((chunk: compilation.Chunk) => {
+        if (childChunkFileMap.hasOwnProperty(chunk.name)) {
+          entryPoint.chunks.push(chunk)
+        }
+      })
     })
   }
 

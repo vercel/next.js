@@ -1,11 +1,26 @@
 [![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
-[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
-[![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
+<p align="center">
+  <a aria-label="ZEIT logo" href="https://github.com/zeit">
+    <img src="https://img.shields.io/badge/ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+  </a>
+  <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
+    <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
+    <img alt="" src=
+  "https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
+    <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
+  </a>
+</p>
 
-**Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
+<p align="center">
+  <strong>
+    Visit  <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+  </strong>
+</p>
 
 ---
 
@@ -19,6 +34,8 @@
 
 - [How to use](#how-to-use)
   - [Setup](#setup)
+    - [Quick Start](#quick-start)
+    - [Manual Setup](#manual-setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
     - [Built-in CSS support](#built-in-css-support)
@@ -78,6 +95,7 @@
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Automatic Prerendering](#automatic-prerendering)
 - [Production deployment](#production-deployment)
+  - [Compression](#compression)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
@@ -559,6 +577,8 @@ function About() {
 
 export default About
 ```
+
+Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
 
 **Custom routes (using props from URL)**
 
@@ -1354,6 +1374,17 @@ app.prepare().then(() => {
 })
 ```
 
+#### Changing x-powered-by
+
+By default Next.js will add `x-powered-by` to the request headers. There's an optional way to opt-out of this:
+
+```js
+// next.config.js
+module.exports = {
+  poweredByHeader: false,
+}
+```
+
 ### Dynamic Import
 
 <details>
@@ -1487,7 +1518,7 @@ To override, create the `./pages/_app.js` file and override the App class as sho
 
 ```js
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 
 class MyApp extends App {
   // Only uncomment this method if you have blocking data requirements for
@@ -1495,24 +1526,16 @@ class MyApp extends App {
   // perform automatic static optimization, causing every page in your app to
   // be server-side rendered.
   //
-  // static async getInitialProps({ Component, ctx }) {
-  //   let pageProps = {}
+  // static async getInitialProps(appContext) {
+  //   // calls page's `getInitialProps` and fills `appProps.pageProps`
+  //   const appProps = await App.getInitialProps(appContext);
   //
-  //   if (Component.getInitialProps) {
-  //     pageProps = await Component.getInitialProps(ctx)
-  //   }
-  //
-  //   return { pageProps }
+  //   return { ...appProps }
   // }
 
   render() {
     const { Component, pageProps } = this.props
-
-    return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
-    )
+    return <Component {...pageProps} />
   }
 }
 
@@ -2127,6 +2150,18 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
+### Compression
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.  
+
+To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  compression: false,
+}
+```
+
 ### Serverless deployment
 
 <details>
@@ -2218,7 +2253,7 @@ To get started, create a empty `tsconfig.json` file in the root of your project:
 touch tsconfig.json
 ```
 
-Next.js will automatically configure this file with default values if you (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+Next.js will automatically configure this file with default values (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
 
 Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
 
