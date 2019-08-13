@@ -9,6 +9,7 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
+import crypto from 'crypto'
 import webpack from 'webpack'
 
 import {
@@ -37,6 +38,12 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
+const escapePathVariables = (value: any) => {
+  return typeof value === 'string'
+    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
+    : value
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -63,10 +70,10 @@ export default async function getBaseWebpackConfig(
       loader: 'next-babel-loader',
       options: {
         isServer,
+        hasModern: !!config.experimental.modern,
         distDir,
         cwd: dir,
         cache: !selectivePageBuilding,
-        asyncToPromises: config.experimental.asyncToPromises,
       },
     },
     // Backwards compat
@@ -150,7 +157,7 @@ export default async function getBaseWebpackConfig(
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
       'next/head': 'next-server/dist/lib/head.js',
       'next/router': 'next/dist/client/router.js',
-      'next/config': 'next-server/dist/lib/runtime-config.js',
+      'next/config': 'next-servegit sr/dist/lib/runtime-config.js',
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
@@ -237,6 +244,70 @@ export default async function getBaseWebpackConfig(
         },
       },
     },
+    prodGranular: {
+      chunks: 'initial',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        framework: {
+          name: 'framework',
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          priority: 40,
+        },
+        lib: {
+          test(module: { size: Function; identifier: Function }): boolean {
+            return (
+              module.size() > 160000 &&
+              /node_modules[/\\]/.test(module.identifier())
+            )
+          },
+          name(module: { identifier: Function; rawRequest: string }): string {
+            const rawRequest =
+              module.rawRequest &&
+              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
+            if (rawRequest) return rawRequest
+
+            const identifier = module.identifier()
+            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
+              identifier
+            )
+            const processedIdentifier =
+              trimmedIdentifier &&
+              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
+
+            return processedIdentifier || identifier
+          },
+          priority: 30,
+          minChunks: 1,
+          reuseExistingChunk: true,
+        },
+        commons: {
+          name: 'commons',
+          minChunks: totalPages,
+          priority: 20,
+        },
+        shared: {
+          name(module, chunks) {
+            return crypto
+              .createHash('sha1')
+              .update(
+                chunks.reduce(
+                  (acc: string, chunk: webpack.compilation.Chunk) => {
+                    return acc + chunk.name
+                  },
+                  ''
+                )
+              )
+              .digest('base64')
+              .replace(/\//g, '')
+          },
+          priority: 10,
+          minChunks: 2,
+          reuseExistingChunk: true,
+        },
+      },
+      maxInitialRequests: 20,
+    },
   }
 
   // Select appropriate SplitChunksPlugin config for this build
@@ -246,7 +317,9 @@ export default async function getBaseWebpackConfig(
   } else if (selectivePageBuilding) {
     splitChunksConfig = splitChunksConfigs.selective
   } else {
-    splitChunksConfig = splitChunksConfigs.prod
+    splitChunksConfig = config.experimental.granularChunks
+      ? splitChunksConfigs.prodGranular
+      : splitChunksConfigs.prod
   }
 
   const crossOrigin =
@@ -318,7 +391,7 @@ export default async function getBaseWebpackConfig(
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
-          'amp-toolbox-optimizer', // except this one
+          '@ampproject/toolbox-optimizer', // except this one
           (context, request, callback) => {
             if (
               request === 'react-ssr-prepass' &&
@@ -490,6 +563,9 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
         'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
+        'process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING': JSON.stringify(
+          selectivePageBuilding
+        ),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
           ? {
@@ -502,6 +578,8 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         'process.env.__NEXT_MODERN_OPTIMIZATIONS': !!config.experimental
           .modernOptimizations,
+        'process.env.__NEXT_GRANULAR_CHUNKS':
+          config.experimental.granularChunks && !selectivePageBuilding && !dev,
         ...(isServer
           ? {
               // Allow browser-only code to be eliminated
@@ -597,7 +675,12 @@ export default async function getBaseWebpackConfig(
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
-      !isServer && new BuildManifestPlugin(),
+      !isServer &&
+        new BuildManifestPlugin({
+          buildId,
+          clientManifest: config.experimental.granularChunks,
+          modern: config.experimental.modern,
+        }),
       config.experimental.profiling &&
         new webpack.debug.ProfilingPlugin({
           outputPath: path.join(
@@ -630,7 +713,9 @@ export default async function getBaseWebpackConfig(
 
             return name.includes('.js')
               ? name.replace(/\.js$/, '.module.js')
-              : args[0].chunk.name.replace(/\.js$/, '.module.js')
+              : escapePathVariables(
+                  args[0].chunk.name.replace(/\.js$/, '.module.js')
+                )
           },
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
@@ -680,7 +765,7 @@ export default async function getBaseWebpackConfig(
 
     if (foundTsRule) {
       console.warn(
-        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js\n'
+        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
       )
     }
   }

@@ -133,6 +133,7 @@ type RenderOpts = {
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
+  skeleton?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
@@ -164,6 +165,7 @@ function renderDocument(
     assetPrefix,
     runtimeConfig,
     nextExport,
+    skeleton,
     dynamicImportsIds,
     dangerousAsPath,
     err,
@@ -208,6 +210,7 @@ function renderDocument(
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
+            skeleton, // If this is a skeleton page for experimentalPrerender
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -255,7 +258,8 @@ export async function renderToHTML(
   } = renderOpts
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-  let isStaticPage = false
+  let isStaticPage = pageConfig.experimentalPrerender === true
+  let isSkeleton = false
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -290,9 +294,16 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
+  // might want to change previewing of skeleton from `?_nextPreviewSkeleton=(truthy)`
+  isSkeleton =
+    pageConfig.experimentalPrerender === true && !!query._nextPreviewSkeleton
+  // remove from query so it doesn't end up in document
+  delete query._nextPreviewSkeleton
+  if (isSkeleton) renderOpts.nextExport = true
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
+  const router = new ServerRouter(pathname, query, asPath)
   const ctx = {
     err,
     req: isStaticPage ? undefined : req,
@@ -300,9 +311,18 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
+    AppTree: (props: any) => {
+      return (
+        <AppContainer>
+          <App {...props} Component={Component} router={router} />
+        </AppContainer>
+      )
+    },
   }
-  const router = new ServerRouter(pathname, query, asPath)
   let props: any
+  const isDataPrerender =
+    pageConfig.experimentalPrerender === true &&
+    req.headers['content-type'] === 'application/json'
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
@@ -336,23 +356,32 @@ export async function renderToHTML(
   )
 
   try {
-    props = await loadGetInitialProps(App, {
-      Component,
-      AppTree: (props: any) => {
-        const appProps = { ...props, Component, router }
-        return (
-          <AppContainer>
-            <App {...appProps} />
-          </AppContainer>
-        )
-      },
-      router,
-      ctx,
-    })
+    props =
+      isSkeleton && !isDataPrerender
+        ? { pageProps: {} }
+        : await loadGetInitialProps(App, {
+            Component,
+            AppTree: (props: any) => {
+              const appProps = { ...props, Component, router }
+              return (
+                <AppContainer>
+                  <App {...appProps} />
+                </AppContainer>
+              )
+            },
+            router,
+            ctx,
+          })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
+  }
+
+  if (isDataPrerender) {
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify(props.pageProps || {}))
+    return null
   }
 
   // the response might be finished on the getInitialProps call
@@ -499,6 +528,7 @@ export async function renderToHTML(
   // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
+  if (isSkeleton) renderOpts.skeleton = true
 
   let html = renderDocument(Document, {
     ...renderOpts,

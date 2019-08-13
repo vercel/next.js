@@ -6,6 +6,7 @@ import { SourceMapConsumer } from 'source-map'
 import { SourceMapSource, RawSource } from 'webpack-sources'
 import { RequestShortener } from 'webpack'
 import TaskRunner from './TaskRunner'
+import { sprStatus } from '../../../../babel/plugins/next-page-config'
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/
 
@@ -171,6 +172,15 @@ export class TerserPlugin {
             } else {
               input = asset.source()
               inputSourceMap = null
+            }
+
+            // force dead-code elimination for SPR related code if not used
+            const { compress } = this.options.terserOptions
+            if (compress) {
+              if (!compress.global_defs) {
+                compress.global_defs = {}
+              }
+              compress.global_defs['self.__HAS_SPR'] = !!sprStatus.used
             }
 
             const task = {

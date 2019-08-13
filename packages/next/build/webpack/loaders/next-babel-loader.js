@@ -2,8 +2,8 @@ import hash from 'string-hash'
 import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
 
-// increment 'c' to invalidate cache
-const cacheKey = 'babel-cache-' + 'c' + '-'
+// increment 'd' to invalidate cache
+const cacheKey = 'babel-cache-' + 'd' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -53,8 +53,8 @@ module.exports = babelLoader.custom(babel => {
     customOptions (opts) {
       const custom = {
         isServer: opts.isServer,
-        asyncToPromises: opts.asyncToPromises,
-        isModern: opts.isModern
+        isModern: opts.isModern,
+        hasModern: opts.hasModern
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -66,6 +66,7 @@ module.exports = babelLoader.custom(babel => {
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
+                (opts.hasModern ? '-has-modern' : '') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -81,17 +82,17 @@ module.exports = babelLoader.custom(babel => {
       )
 
       delete loader.isServer
-      delete loader.asyncToPromises
       delete loader.cache
       delete loader.distDir
       delete loader.isModern
+      delete loader.hasModern
       return { loader, custom }
     },
     config (
       cfg,
       {
         source,
-        customOptions: { isServer, asyncToPromises, isModern }
+        customOptions: { isServer, isModern, hasModern }
       }
     ) {
       const { cwd } = cfg.options
@@ -155,43 +156,9 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...additionalPresets, presetItemModern]
       }
 
-      if (!isModern && asyncToPromises) {
-        const asyncToPromisesPlugin = babel.createConfigItem(
-          [
-            'babel-plugin-transform-async-to-promises',
-            {
-              inlineHelpers: true
-            }
-          ],
-          { type: 'plugin' }
-        )
-        options.plugins = options.plugins || []
-        options.plugins.push(asyncToPromisesPlugin)
-
-        const regeneratorPlugin = options.plugins.find(plugin => {
-          return plugin[0] === require('@babel/plugin-transform-runtime')
-        })
-        if (regeneratorPlugin) {
-          regeneratorPlugin[1].regenerator = false
-        }
-
-        const babelPresetEnv = (options.presets || []).find((preset = []) => {
-          return preset[0] === require('@babel/preset-env').default
-        })
-        if (babelPresetEnv) {
-          babelPresetEnv[1].exclude = (
-            options.presets[0][1].exclude || []
-          ).concat([
-            'transform-typeof-symbol',
-            'transform-regenerator',
-            'transform-async-to-generator'
-          ])
-        }
-      }
-
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
       // That break webpack, since webpack doesn't support combining commonjs and esmodules
-      if (source.indexOf('module.exports') !== -1) {
+      if (!hasModern && source.indexOf('module.exports') !== -1) {
         options.plugins = options.plugins || []
         options.plugins.push(applyCommonJs)
       }

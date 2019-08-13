@@ -106,8 +106,17 @@ const listenToIntersections = (el: any, cb: any) => {
 
 class Link extends Component<LinkProps> {
   static propTypes?: any
-  static defaultProps: Partial<LinkProps> = {
-    prefetch: true,
+  p: boolean
+  constructor(props: LinkProps) {
+    super(props)
+    if (process.env.NODE_ENV !== 'production') {
+      if (props.prefetch) {
+        console.warn(
+          'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/zeit/next.js/prefetch-true-deprecated'
+        )
+      }
+    }
+    this.p = props.prefetch !== false
   }
 
   cleanUpListeners = () => {}
@@ -117,7 +126,7 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: Element) {
-    if (this.props.prefetch && IntersectionObserver && ref && ref.tagName) {
+    if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
@@ -152,7 +161,7 @@ class Link extends Component<LinkProps> {
     let { href, as } = this.formatUrls(this.props.href, this.props.as)
 
     if (!isLocal(href)) {
-      // ignore click if it's outside our scope
+      // ignore click if it's outside our scope (e.g. https://google.com)
       return
     }
 
@@ -181,7 +190,7 @@ class Link extends Component<LinkProps> {
   }
 
   prefetch() {
-    if (!this.props.prefetch || typeof window === 'undefined') return
+    if (!this.p || typeof window === 'undefined') return
 
     // Prefetch the JSON page if asked (only in the client)
     const { pathname } = window.location
@@ -193,7 +202,7 @@ class Link extends Component<LinkProps> {
   render() {
     let { children } = this.props
     const { href, as } = this.formatUrls(this.props.href, this.props.as)
-    // Deprecated. Warning shown by propType check. If the childen provided is a string (<Link>example</Link>) we wrap it in an <a> tag
+    // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>
     }
@@ -206,7 +215,16 @@ class Link extends Component<LinkProps> {
       href?: string
       ref?: any
     } = {
-      ref: (el: any) => this.handleRef(el),
+      ref: (el: any) => {
+        this.handleRef(el)
+
+        if (child && typeof child === 'object' && child.ref) {
+          if (typeof child.ref === 'function') child.ref(el)
+          else if (typeof child.ref === 'object') {
+            child.ref.current = el
+          }
+        }
+      },
       onMouseEnter: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)

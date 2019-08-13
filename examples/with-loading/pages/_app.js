@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import Link from 'next/link'
 import NProgress from 'nprogress'
 import Router from 'next/router'
@@ -29,7 +29,7 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
     return (
-      <Container>
+      <>
         <div style={{ marginBottom: 20 }}>
           <Link href='/'>
             <a style={linkStyle}>Home</a>
@@ -46,7 +46,7 @@ export default class MyApp extends App {
         </div>
 
         <Component {...pageProps} />
-      </Container>
+      </>
     )
   }
 }

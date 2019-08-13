@@ -62,6 +62,7 @@ export type NEXT_DATA = {
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
+  skeleton?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
 }
@@ -95,11 +96,15 @@ export interface NextPageContext {
    * `String` of the actual path including query.
    */
   asPath?: string
+  /**
+   * `Component` the tree of the App to use if needing to render separately
+   */
+  AppTree: AppType
 }
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
-  AppTree: NextComponentType
+  AppTree: AppType
   ctx: NextPageContext
   router: R
 }
@@ -281,3 +286,9 @@ export function formatWithValidation(
 
   return format(url as any, options)
 }
+
+export const SUPPORTS_PERFORMANCE = typeof performance !== 'undefined'
+export const SUPPORTS_PERFORMANCE_USER_TIMING =
+  SUPPORTS_PERFORMANCE &&
+  typeof performance.mark === 'function' &&
+  typeof performance.measure === 'function'

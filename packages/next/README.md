@@ -578,6 +578,8 @@ function About() {
 export default About
 ```
 
+Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
+
 **Custom routes (using props from URL)**
 
 If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
@@ -1372,6 +1374,17 @@ app.prepare().then(() => {
 })
 ```
 
+#### Changing x-powered-by
+
+By default Next.js will add `x-powered-by` to the request headers. There's an optional way to opt-out of this:
+
+```js
+// next.config.js
+module.exports = {
+  poweredByHeader: false,
+}
+```
+
 ### Dynamic Import
 
 <details>
@@ -1505,7 +1518,7 @@ To override, create the `./pages/_app.js` file and override the App class as sho
 
 ```js
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 
 class MyApp extends App {
   // Only uncomment this method if you have blocking data requirements for
@@ -1513,24 +1526,16 @@ class MyApp extends App {
   // perform automatic static optimization, causing every page in your app to
   // be server-side rendered.
   //
-  // static async getInitialProps({ Component, ctx }) {
-  //   let pageProps = {}
+  // static async getInitialProps(appContext) {
+  //   // calls page's `getInitialProps` and fills `appProps.pageProps`
+  //   const appProps = await App.getInitialProps(appContext);
   //
-  //   if (Component.getInitialProps) {
-  //     pageProps = await Component.getInitialProps(ctx)
-  //   }
-  //
-  //   return { pageProps }
+  //   return { ...appProps }
   // }
 
   render() {
     const { Component, pageProps } = this.props
-
-    return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
-    )
+    return <Component {...pageProps} />
   }
 }
 
@@ -2104,7 +2109,7 @@ This determination is made by the absence of `getInitialProps` in the page.
 If `getInitialProps` is present, Next.js will not prerender the page.
 Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
-If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client side after hydration.
 
 This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
 This ensures Next.js always emits applications that are **fast by default**.
@@ -2146,7 +2151,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
-Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.  
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
 
@@ -2248,7 +2253,7 @@ To get started, create a empty `tsconfig.json` file in the root of your project:
 touch tsconfig.json
 ```
 
-Next.js will automatically configure this file with default values if you (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+Next.js will automatically configure this file with default values (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
 
 Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
 
