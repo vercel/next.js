@@ -1,3 +1,5 @@
-const Page = () => <div class='top-div'>Hello World</div>
+const Page = () => {
+  return <div>index</div>
+}
 
 export default Page
