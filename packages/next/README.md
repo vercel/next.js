@@ -325,7 +325,7 @@ const Post = () => {
 export default Post
 ```
 
-Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
+Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js` (nested routes work the same way -  `pages/post/[pid]/[comment].js` will be matched by `pages/post/[pid]/[comment].js`). 
 The matched path parameter will be sent as a query parameter to the page.
 
 For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
