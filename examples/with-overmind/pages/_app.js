@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import { createOvermind, createOvermindSSR, rehydrate } from 'overmind'
 import { Provider } from 'overmind-react'
 import { config } from '../overmind'
@@ -48,11 +48,9 @@ class MyApp extends App {
     const { Component } = this.props
 
     return (
-      <Container>
-        <Provider value={this.overmind}>
-          <Component />
-        </Provider>
-      </Container>
+      <Provider value={this.overmind}>
+        <Component />
+      </Provider>
     )
   }
 }

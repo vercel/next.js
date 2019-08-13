@@ -96,6 +96,10 @@ export interface NextPageContext {
    * `String` of the actual path including query.
    */
   asPath?: string
+  /**
+   * `Component` the tree of the App to use if needing to render separately
+   */
+  AppTree: NextComponentType
 }
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
@@ -282,3 +286,9 @@ export function formatWithValidation(
 
   return format(url as any, options)
 }
+
+export const SUPPORTS_PERFORMANCE = typeof performance !== 'undefined'
+export const SUPPORTS_PERFORMANCE_USER_TIMING =
+  SUPPORTS_PERFORMANCE &&
+  typeof performance.mark === 'function' &&
+  typeof performance.measure === 'function'

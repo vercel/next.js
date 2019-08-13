@@ -10,7 +10,6 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
-  runNextCommand,
   File
 } from 'next-test-utils'
 import json from '../big.json'
@@ -197,12 +196,12 @@ function runTests (serverless = false) {
     expect(data).toEqual({ nextjs: 'cool' })
   })
 
-  it('should return 405 on POST on pages', async () => {
+  it('should return 200 on POST on pages', async () => {
     const res = await fetchViaHTTP(appPort, '/user', null, {
       method: 'POST'
     })
 
-    expect(res.status).toEqual(405)
+    expect(res.status).toEqual(200)
   })
 
   it('should return JSON on post on API', async () => {
@@ -285,17 +284,6 @@ function runTests (serverless = false) {
       ).toBeTruthy()
     }
   })
-
-  if (!serverless) {
-    it('should warn about API export', async () => {
-      const { stdout } = await runNextCommand(['export', appDir], {
-        stdout: true,
-        stderr: true
-      })
-
-      expect(stdout).toContain('API pages are not supported in export')
-    })
-  }
 
   it('should return data on dynamic optional nested route', async () => {
     const data = await fetchViaHTTP(

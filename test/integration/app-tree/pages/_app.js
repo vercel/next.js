@@ -39,7 +39,7 @@ class MyApp extends App {
     const { Component, pageProps, html, router } = this.props
     const href = router.pathname === '/' ? '/another' : '/'
 
-    return html ? (
+    return html && router.pathname !== '/hello' ? (
       <>
         <div dangerouslySetInnerHTML={{ __html: html }} />
         <Link href={href}>
@@ -48,7 +48,7 @@ class MyApp extends App {
       </>
     ) : (
       <Container>
-        <Component {...pageProps} {...{ html }} />
+        <Component {...pageProps} />
       </Container>
     )
   }

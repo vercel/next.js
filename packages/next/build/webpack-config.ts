@@ -37,6 +37,12 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
+const escapePathVariables = (value: any) => {
+  return typeof value === 'string'
+    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
+    : value
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -63,6 +69,7 @@ export default async function getBaseWebpackConfig(
       loader: 'next-babel-loader',
       options: {
         isServer,
+        hasModern: !!config.experimental.modern,
         distDir,
         cwd: dir,
         cache: !selectivePageBuilding,
@@ -221,13 +228,12 @@ export default async function getBaseWebpackConfig(
       },
     },
     prodGranular: {
-      chunks: 'all',
+      chunks: 'initial',
       cacheGroups: {
         default: false,
         vendors: false,
         framework: {
           name: 'framework',
-          chunks: 'all',
           test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
         },
@@ -260,7 +266,6 @@ export default async function getBaseWebpackConfig(
         },
         commons: {
           name: 'commons',
-          chunks: 'all',
           minChunks: totalPages,
           priority: 20,
         },
@@ -541,6 +546,9 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
         'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
+        'process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING': JSON.stringify(
+          selectivePageBuilding
+        ),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
           ? {
@@ -686,7 +694,9 @@ export default async function getBaseWebpackConfig(
 
             return name.includes('.js')
               ? name.replace(/\.js$/, '.module.js')
-              : args[0].chunk.name.replace(/\.js$/, '.module.js')
+              : escapePathVariables(
+                  args[0].chunk.name.replace(/\.js$/, '.module.js')
+                )
           },
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
@@ -736,7 +746,7 @@ export default async function getBaseWebpackConfig(
 
     if (foundTsRule) {
       console.warn(
-        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js\n'
+        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
       )
     }
   }

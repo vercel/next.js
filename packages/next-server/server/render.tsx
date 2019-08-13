@@ -299,9 +299,11 @@ export async function renderToHTML(
     pageConfig.experimentalPrerender === true && !!query._nextPreviewSkeleton
   // remove from query so it doesn't end up in document
   delete query._nextPreviewSkeleton
+  if (isSkeleton) renderOpts.nextExport = true
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
+  const router = new ServerRouter(pathname, query, asPath)
   const ctx = {
     err,
     req: isStaticPage ? undefined : req,
@@ -309,9 +311,18 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
+    AppTree: (props: any) => {
+      return (
+        <AppContainer>
+          <App {...props} Component={Component} router={router} />
+        </AppContainer>
+      )
+    },
   }
-  const router = new ServerRouter(pathname, query, asPath)
   let props: any
+  const isDataPrerender =
+    pageConfig.experimentalPrerender === true &&
+    req.headers['content-type'] === 'application/json'
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
@@ -345,31 +356,29 @@ export async function renderToHTML(
   )
 
   try {
-    props = isSkeleton
-      ? { pageProps: {} }
-      : await loadGetInitialProps(App, {
-          Component,
-          AppTree: (props: any) => {
-            const appProps = { ...props, Component, router }
-            return (
-              <AppContainer>
-                <App {...appProps} />
-              </AppContainer>
-            )
-          },
-          router,
-          ctx,
-        })
+    props =
+      isSkeleton && !isDataPrerender
+        ? { pageProps: {} }
+        : await loadGetInitialProps(App, {
+            Component,
+            AppTree: (props: any) => {
+              const appProps = { ...props, Component, router }
+              return (
+                <AppContainer>
+                  <App {...appProps} />
+                </AppContainer>
+              )
+            },
+            router,
+            ctx,
+          })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
   }
 
-  if (
-    pageConfig.experimentalPrerender === true &&
-    req.headers['content-type'] === 'application/json'
-  ) {
+  if (isDataPrerender) {
     res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(props.pageProps || {}))
     return null
