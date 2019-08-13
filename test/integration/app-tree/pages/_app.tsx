@@ -1,11 +1,16 @@
 import React from 'react'
 import Link from 'next/link'
 import { render } from 'react-dom'
-import App, { Container } from 'next/app'
+import App, { Container, AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
-class MyApp extends App {
-  static async getInitialProps ({ Component, AppTree, router, ctx }) {
+class MyApp<P = {}> extends App<P & { html: string }> {
+  static async getInitialProps({
+    Component,
+    AppTree,
+    router,
+    ctx,
+  }: AppContext) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -17,7 +22,9 @@ class MyApp extends App {
       <AppTree
         {...{
           router,
-          Component
+          Component,
+          pageProps,
+          another: 'hello',
         }}
       />
     )
@@ -35,7 +42,7 @@ class MyApp extends App {
     return { pageProps, html }
   }
 
-  render () {
+  render() {
     const { Component, pageProps, html, router } = this.props
     const href = router.pathname === '/' ? '/another' : '/'
 
