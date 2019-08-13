@@ -170,8 +170,8 @@ function createLoadableComponent (loadFn, options) {
     }
 
     static contextType = LoadableContext
-
-    componentWillMount () {
+    // TODO: change it before next major React release
+    UNSAFE_componentWillMount () {
       this._mounted = true
       this._loadModule()
     }
