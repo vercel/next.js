@@ -100,14 +100,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
       })
     : 'noop'
 
+  if (!config.keepPastBuilds) {
+    await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
+    await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
+    await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
+  }
+
   let flyingShuttle: FlyingShuttle | undefined
   if (isFlyingShuttle) {
     console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
     console.log()
-
-    await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
-    await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
-    await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
 
     flyingShuttle = new FlyingShuttle({
       buildId,

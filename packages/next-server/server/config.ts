@@ -20,6 +20,7 @@ const defaultConfig: { [key: string]: any } = {
   target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
   poweredByHeader: true,
   compress: true,
+  keepPastBuilds: false,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
