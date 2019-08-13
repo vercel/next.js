@@ -303,6 +303,7 @@ export async function renderToHTML(
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
+  const router = new ServerRouter(pathname, query, asPath)
   const ctx = {
     err,
     req: isStaticPage ? undefined : req,
@@ -310,12 +311,18 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
+    AppTree: (props: any) => {
+      return (
+        <AppContainer>
+          <App {...props} Component={Component} router={router} />
+        </AppContainer>
+      )
+    },
   }
+  let props: any
   const isDataPrerender =
     pageConfig.experimentalPrerender === true &&
     req.headers['content-type'] === 'application/json'
-  const router = new ServerRouter(pathname, query, asPath)
-  let props: any
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
