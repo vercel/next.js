@@ -96,6 +96,10 @@ export interface NextPageContext {
    * `String` of the actual path including query.
    */
   asPath?: string
+  /**
+   * `Component` the tree of the App to use if needing to render separately
+   */
+  AppTree: NextComponentType
 }
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
