@@ -53,7 +53,6 @@ module.exports = babelLoader.custom(babel => {
     customOptions (opts) {
       const custom = {
         isServer: opts.isServer,
-        asyncToPromises: opts.asyncToPromises,
         isModern: opts.isModern,
         hasModern: opts.hasModern
       }
@@ -83,7 +82,6 @@ module.exports = babelLoader.custom(babel => {
       )
 
       delete loader.isServer
-      delete loader.asyncToPromises
       delete loader.cache
       delete loader.distDir
       delete loader.isModern
@@ -94,7 +92,7 @@ module.exports = babelLoader.custom(babel => {
       cfg,
       {
         source,
-        customOptions: { isServer, asyncToPromises, isModern, hasModern }
+        customOptions: { isServer, isModern, hasModern }
       }
     ) {
       const { cwd } = cfg.options
@@ -156,40 +154,6 @@ module.exports = babelLoader.custom(babel => {
         )
 
         options.presets = [...additionalPresets, presetItemModern]
-      }
-
-      if (!isModern && asyncToPromises) {
-        const asyncToPromisesPlugin = babel.createConfigItem(
-          [
-            'babel-plugin-transform-async-to-promises',
-            {
-              inlineHelpers: true
-            }
-          ],
-          { type: 'plugin' }
-        )
-        options.plugins = options.plugins || []
-        options.plugins.push(asyncToPromisesPlugin)
-
-        const regeneratorPlugin = options.plugins.find(plugin => {
-          return plugin[0] === require('@babel/plugin-transform-runtime')
-        })
-        if (regeneratorPlugin) {
-          regeneratorPlugin[1].regenerator = false
-        }
-
-        const babelPresetEnv = (options.presets || []).find((preset = []) => {
-          return preset[0] === require('@babel/preset-env').default
-        })
-        if (babelPresetEnv) {
-          babelPresetEnv[1].exclude = (
-            options.presets[0][1].exclude || []
-          ).concat([
-            'transform-typeof-symbol',
-            'transform-regenerator',
-            'transform-async-to-generator'
-          ])
-        }
       }
 
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
