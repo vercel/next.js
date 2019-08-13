@@ -208,10 +208,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }),
   ])
 
+  const clientConfig = configs[0]
+
+  if (
+    clientConfig.optimization &&
+    (clientConfig.optimization.minimize !== true ||
+      (clientConfig.optimization.minimizer &&
+        clientConfig.optimization.minimizer.length === 0))
+  ) {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `Production code optimization has been disabled in your project. Read more: https://err.sh/zeit/next.js/minification-disabled`
+        )
+    )
+  }
+
   let result: CompilerResult = { warnings: [], errors: [] }
   // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
   if (isLikeServerless) {
-    const clientResult = await runCompiler(configs[0])
+    const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
       result = {
