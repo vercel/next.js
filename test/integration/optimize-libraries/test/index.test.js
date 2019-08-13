@@ -13,19 +13,15 @@ import {
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-let appDir = join(__dirname, '..')
+let appDir = join(__dirname, '../')
 let server
 let appPort
 
 describe('experimental.optimizeLibraries', () => {
   beforeAll(async () => {
-    await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true
-    })
+    await nextBuild(appDir)
     const app = nextServer({
       dir: appDir,
-      port: appPort,
       dev: false,
       quiet: true
     })
