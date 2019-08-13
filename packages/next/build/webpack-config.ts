@@ -317,6 +317,7 @@ export default async function getBaseWebpackConfig(
     mode: webpackMode,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
+    cache: isServer && dev ? false : true,
     externals: !isServer
       ? undefined
       : !isServerless

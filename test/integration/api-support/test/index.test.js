@@ -264,18 +264,18 @@ function runTests (serverless = false) {
 
     expect(data).toContain('export default () => <div>API - support</div>')
 
-    // const index = new File(join(appDir, 'pages/index.js'))
+    const index = new File(join(appDir, 'pages/index.js'))
 
-    // index.replace('API', 'IPA')
+    index.replace('API', 'IPA')
 
-    // await waitFor(500)
+    await waitFor(500)
 
-    // const change = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
-    //   res => res.ok && res.text()
-    // )
-    // expect(change).toContain('export default () => <div>IPA - support</div>')
+    const change = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+      res => res.ok && res.text()
+    )
+    expect(change).toContain('export default () => <div>IPA - support</div>')
 
-    // index.restore()
+    index.restore()
 
     const dirname = new File(join(appDir, 'pages/api/dirname.js'))
 
