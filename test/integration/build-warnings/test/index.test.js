@@ -9,7 +9,7 @@ const appDir = join(__dirname, '../')
 describe('Build warnings', () => {
   it('should not shown warning about minification withou any modification', async () => {
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).not.toContain('You have disabled minification')
+    expect(stderr).not.toContain('optimization has been disabled')
   })
 
   it('should shown warning about minification for minimize', async () => {
@@ -21,7 +21,7 @@ describe('Build warnings', () => {
 
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
 
-    expect(stderr).toContain('You have disabled minification')
+    expect(stderr).toContain('optimization has been disabled')
 
     nextConfig.restore()
   })
@@ -38,7 +38,7 @@ describe('Build warnings', () => {
 
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
 
-    expect(stderr).toContain('You have disabled minification')
+    expect(stderr).toContain('optimization has been disabled')
 
     nextConfig.restore()
   })
