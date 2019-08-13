@@ -80,11 +80,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 405 for POST on page', async () => {
+    it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'
       })
-      expect(res.status).toBe(405)
+      expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
@@ -417,7 +417,9 @@ describe('Production Usage', () => {
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
+        await waitFor(2000)
         const elements = await browser.elementsByCss('link[rel=preload]')
+
         expect(elements.length).toBe(9)
         await Promise.all(
           elements.map(async element => {
@@ -473,7 +475,6 @@ describe('Production Usage', () => {
             foundLog = true
           }
         })
-
         expect(foundLog).toBe(true)
 
         // When we go to the 404 page, it'll do a hard reload.
@@ -551,6 +552,26 @@ describe('Production Usage', () => {
     await waitFor(1000)
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('Not AMP')
+  })
+
+  it('should warn when prefetch is true', async () => {
+    if (global.browserName !== 'chrome') return
+    let browser
+    try {
+      browser = await webdriver(appPort, '/development-logs')
+      const browserLogs = await browser.log('browser')
+      let found = false
+      browserLogs.forEach(log => {
+        if (log.message.includes('Next.js auto-prefetches automatically')) {
+          found = true
+        }
+      })
+      expect(found).toBe(false)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

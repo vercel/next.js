@@ -54,18 +54,47 @@ function interceptFileWrites(
 export class ServerlessPlugin {
   private buildId: string
   private isServer: boolean
+  private isTrace: boolean
+  private isFlyingShuttle: boolean
 
-  constructor(buildId: string, { isServer = false } = {}) {
+  constructor(
+    buildId: string,
+    {
+      isServer,
+      isTrace,
+      isFlyingShuttle,
+    }: { isServer: boolean; isTrace: boolean; isFlyingShuttle: boolean }
+  ) {
     this.buildId = buildId
     this.isServer = isServer
+    this.isTrace = isTrace
+    this.isFlyingShuttle = isFlyingShuttle
   }
 
   apply(compiler: Compiler) {
-    if (this.isServer) {
-      interceptFileWrites(compiler, content =>
-        replaceInBuffer(content, NEXT_REPLACE_BUILD_ID, this.buildId)
-      )
+    if (!this.isServer) {
+      if (this.isFlyingShuttle) {
+        compiler.hooks.emit.tap('ServerlessPlugin', compilation => {
+          const assetNames = Object.keys(compilation.assets).filter(f =>
+            f.includes(this.buildId)
+          )
+          for (const name of assetNames) {
+            compilation.assets[
+              name
+                .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
+                .replace(/[.]js$/, `.${this.buildId}.js`)
+            ] = compilation.assets[name]
+          }
+        })
+      }
+      return
+    }
 
+    interceptFileWrites(compiler, content =>
+      replaceInBuffer(content, NEXT_REPLACE_BUILD_ID, this.buildId)
+    )
+
+    if (!this.isTrace) {
       compiler.hooks.compilation.tap('ServerlessPlugin', compilation => {
         compilation.hooks.optimizeChunksBasic.tap(
           'ServerlessPlugin',
@@ -85,19 +114,6 @@ export class ServerlessPlugin {
             })
           }
         )
-      })
-    } else {
-      compiler.hooks.emit.tap('ServerlessPlugin', compilation => {
-        const assetNames = Object.keys(compilation.assets).filter(f =>
-          f.includes(this.buildId)
-        )
-        for (const name of assetNames) {
-          compilation.assets[
-            name
-              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
-              .replace(/[.]js$/, `.${this.buildId}.js`)
-          ] = compilation.assets[name]
-        }
       })
     }
   }
