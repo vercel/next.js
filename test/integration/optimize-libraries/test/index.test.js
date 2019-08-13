@@ -36,7 +36,7 @@ describe('experimental.optimizeLibraries', () => {
     const browser = await webdriver(appPort, '/')
     await waitFor(5000)
     expect(await browser.elementByCss('h1').text()).toMatch(/current time/i)
-    expect(await browser.eval('moment.locales()')).toBe(['en'])
+    expect(await browser.eval('moment.locales()')).toStrictEqual(['en'])
     await browser.close()
   })
 })
