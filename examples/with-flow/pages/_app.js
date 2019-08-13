@@ -1,4 +1,4 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import Link from 'next/link'
 import React from 'react'
 
@@ -16,7 +16,7 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
     return (
-      <Container>
+      <>
         <header>
           <nav>
             <Link href='/'>
@@ -36,7 +36,7 @@ export default class MyApp extends App {
         <Component {...pageProps} />
 
         <footer>I`m here to stay</footer>
-      </Container>
+      </>
     )
   }
 }

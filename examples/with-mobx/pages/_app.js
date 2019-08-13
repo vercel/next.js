@@ -1,4 +1,4 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 import { fetchInitialStoreState, Store } from '../store'
 import { Provider } from 'mobx-react'
@@ -28,11 +28,9 @@ class MyMobxApp extends App {
   render() {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Provider store={this.state.store}>
-          <Component {...pageProps} />
-        </Provider>
-      </Container>
+      <Provider store={this.state.store}>
+        <Component {...pageProps} />
+      </Provider>
     )
   }
 }

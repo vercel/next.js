@@ -192,6 +192,14 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
       path.dirname(tsConfigPath)
     )
 
+    if (result.errors) {
+      result.errors = result.errors.filter(
+        ({ code }) =>
+          // No inputs were found in config file
+          code !== 18003
+      )
+    }
+
     if (result.errors && result.errors.length) {
       throw new Error(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticHost)

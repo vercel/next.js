@@ -11,6 +11,7 @@ import {
   getURL,
   loadGetInitialProps,
   NextPageContext,
+  SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -146,6 +147,7 @@ export default class Router implements BaseRouter {
     }
   }
 
+  // @deprecated backwards compatibility even though it's a private method.
   static _rewriteUrlForNextExport(url: string): string {
     return rewriteUrlForNextExport(url)
   }
@@ -246,6 +248,11 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
+      // marking route changes as a navigation start entry
+      if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+        performance.mark('routeChange')
+      }
+
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
       const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
@@ -598,19 +605,35 @@ export default class Router implements BaseRouter {
     const { Component: App } = this.components['/_app']
     let props
 
-    if ((Component as any).__NEXT_PRERENDER) {
-      const url = format({
-        pathname: ctx.asPath,
-        query: ctx.query,
-      })
-      const res = await fetch(url, {
+    if (
+      // @ts-ignore workaround for dead-code elimination
+      (self.__HAS_SPR || process.env.NODE_ENV !== 'production') &&
+      (Component as any).__NEXT_SPR
+    ) {
+      let status: any
+      const url = ctx.asPath
+        ? ctx.asPath
+        : format({
+            pathname: ctx.pathname,
+            query: ctx.query,
+          })
+
+      props = await fetch(url, {
         headers: { 'content-type': 'application/json' },
       })
-      props = {
-        pageProps: res.ok
-          ? await res.json().catch(err => ({ error: err.message }))
-          : { error: 'failed to load prerender', statusCode: res.status },
-      }
+        .then(res => {
+          if (!res.ok) {
+            status = res.status
+            throw new Error('failed to load prerender data')
+          }
+          return res.json()
+        })
+        .then((pageProps: any) => {
+          return { pageProps }
+        })
+        .catch((err: Error) => {
+          return { error: err.message, status }
+        })
     } else {
       props = await loadGetInitialProps<AppContextType<Router>>(App, {
         AppTree: this._wrapApp(App),

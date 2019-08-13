@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import * as Sentry from '@sentry/browser'
 
 Sentry.init({
@@ -22,11 +22,7 @@ class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
 
-    return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
-    )
+    return <Component {...pageProps} />
   }
 }
 

@@ -41,7 +41,7 @@ module.exports = function (task) {
 
 function setNextVersion (code) {
   return code.replace(
-    /process\.env\.__NEXT_VERSION/,
+    /process\.env\.__NEXT_VERSION/g,
     `"${require('./package.json').version}"`
   )
 }
