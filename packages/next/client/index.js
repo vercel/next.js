@@ -255,7 +255,11 @@ function markHydrateComplete () {
 
   performance.mark('afterHydrate') // mark end of hydration
 
-  performance.measure('Next.js-before-hydration', null, 'beforeRender')
+  performance.measure(
+    'Next.js-before-hydration',
+    'navigationStart',
+    'beforeRender'
+  )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
   clearMarks()
