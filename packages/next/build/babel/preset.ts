@@ -104,7 +104,6 @@ module.exports = (
       require('@babel/preset-typescript'),
     ],
     plugins: [
-      require('babel-plugin-react-require'),
       [
         require('./plugins/jsx-pragma'),
         {

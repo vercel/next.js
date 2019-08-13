@@ -8,12 +8,15 @@ const trim = s =>
     .replace(/^\s+/gm, '')
 
 // avoid generating __source annotations in JSX during testing:
+const NODE_ENV = process.env.NODE_ENV
 process.env.NODE_ENV = 'production'
+const preset = require('next/dist/build/babel/preset')
+process.env.NODE_ENV = NODE_ENV
 
 const babel = (code, esm = false) =>
   transform(code, {
     filename: 'noop.js',
-    presets: [require('next/dist/build/babel/preset')],
+    presets: [preset],
     babelrc: false,
     configFile: false,
     sourceType: 'module',
@@ -38,7 +41,7 @@ describe('next/babel', () => {
     expect(
       babel(`const a = ()=><a href="/">home</a>`, true)
     ).toMatchInlineSnapshot(
-      `"import React from\\"react\\";var __jsx=React.createElement;import React from\\"react\\";var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+      `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
     )
   })
 
