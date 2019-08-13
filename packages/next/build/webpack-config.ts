@@ -73,7 +73,6 @@ export default async function getBaseWebpackConfig(
         distDir,
         cwd: dir,
         cache: !selectivePageBuilding,
-        asyncToPromises: config.experimental.asyncToPromises,
       },
     },
     // Backwards compat
