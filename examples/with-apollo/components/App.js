@@ -29,10 +29,13 @@ export default ({ children }) => (
         color: white;
         display: flex;
         padding: 5px 7px;
+        transition: background-color 0.3s;
       }
       button:active {
         background-color: #1b9db7;
-        transition: background-color 0.3s;
+      }
+      button:disabled {
+        background-color: #b5bebf;
       }
       button:focus {
         outline: none;
