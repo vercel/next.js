@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@ampproject/toolbox-optimizer": "1.0.1",
+    "compression": "1.7.4",
     "content-type": "1.0.4",
     "cookie": "0.4.0",
     "etag": "1.8.1",
