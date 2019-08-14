@@ -1,7 +1,7 @@
 import React from 'react'
 import initApollo from './init-apollo'
 import Head from 'next/head'
-import { getDataFromTree } from 'react-apollo'
+import { getDataFromTree } from '@apollo/react-ssr'
 
 export default App => {
   return class Apollo extends React.Component {

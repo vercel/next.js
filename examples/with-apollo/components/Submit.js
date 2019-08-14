@@ -1,4 +1,4 @@
-import { ApolloConsumer } from 'react-apollo'
+import { ApolloConsumer } from '@apollo/react-hooks'
 import gql from 'graphql-tag'
 import { allPostsQuery, allPostsQueryVars } from './PostList'
 

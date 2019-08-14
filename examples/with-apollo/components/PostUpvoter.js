@@ -1,5 +1,5 @@
 import React from 'react'
-import { ApolloConsumer } from 'react-apollo'
+import { ApolloConsumer } from '@apollo/react-hooks'
 import gql from 'graphql-tag'
 
 export default function PostUpvoter ({ votes, id }) {
