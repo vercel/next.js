@@ -1,11 +1,10 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, deleteBuild } from 'next-test-utils'
 import fs from 'fs'
 import { promisify } from 'util'
 const readdir = promisify(fs.readdir)
 const readFile = promisify(fs.readFile)
-const unlink = promisify(fs.unlink)
 const access = promisify(fs.access)
 
 const appDir = join(__dirname, '../')
@@ -19,17 +18,7 @@ const existsChunkNamed = name => {
 
 describe('Chunking', () => {
   beforeAll(async () => {
-    try {
-      // If a previous build has left chunks behind, delete them
-      const oldChunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
-      await Promise.all(
-        oldChunks.map(chunk => {
-          return unlink(join(appDir, '.next', 'static', 'chunks', chunk))
-        })
-      )
-    } catch (e) {
-      // Error here means old chunks don't exist, so we don't need to do anything
-    }
+    await deleteBuild(appDir)
     await nextBuild(appDir)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))

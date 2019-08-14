@@ -5,14 +5,18 @@ import express from 'express'
 import path from 'path'
 import getPort from 'get-port'
 import spawn from 'cross-spawn'
+import { promisify } from 'util'
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import treeKill from 'tree-kill'
+import rimraf from 'rimraf'
 
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
+
+const rimrafPromise = promisify(rimraf)
 
 export const nextServer = server
 export const pkg = _pkg
@@ -371,4 +375,10 @@ export async function getReactErrorOverlayContent (browser) {
 
 export function getBrowserBodyText (browser) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
+}
+
+export async function deleteBuild (appDir) {
+  try {
+    await rimrafPromise(path.join(appDir, '.next'))
+  } catch (e) {}
 }
