@@ -157,7 +157,9 @@ export default async function (dir, options, configuration) {
     )
   }
 
-  const progress = !options.silent && createProgress(filteredPaths.length)
+  const progress =
+    !options.silent &&
+    createProgress(filteredPaths.length, { stream: process.stdout })
 
   const chunks = filteredPaths.reduce((result, route, i) => {
     const worker = i % threads

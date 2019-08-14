@@ -42,7 +42,6 @@ import {
   getPageChunks,
 } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-// @ts-ignore
 import createProgress from 'tty-aware-progress'
 
 const fsUnlink = promisify(fs.unlink)
@@ -328,7 +327,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     staticCheckWorker,
     ['default']
   )
-  const staticCheckProgress = createProgress(pageKeys.length)
+  const staticCheckProgress = createProgress(pageKeys.length, {
+    stream: process.stdout,
+  })
 
   await Promise.all(
     pageKeys.map(async page => {
