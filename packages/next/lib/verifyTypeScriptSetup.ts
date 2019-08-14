@@ -98,12 +98,10 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
 
   const hasTsConfig = await fileExists(tsConfigPath)
   const isYarn = await fileExists(yarnLockFile)
-  const hasTypeScriptFiles = await hasTypeScript(dir)
-  let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
 
-  if (!(hasTsConfig || hasTypeScriptFiles)) {
-    return
-  }
+  let firstTimeSetup = !hasTsConfig && (await hasTypeScript(dir))
+
+  if (!hasTsConfig && !firstTimeSetup) return
 
   await checkDependencies({ dir, isYarn })
 
