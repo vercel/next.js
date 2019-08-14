@@ -116,12 +116,13 @@ module.exports = babelLoader.custom(babel => {
 
       options.caller.isServer = isServer
 
+      options.plugins = options.plugins || []
+
       if (!isServer && isPageFile) {
         const pageConfigPlugin = babel.createConfigItem(
           [require('../../babel/plugins/next-page-config')],
           { type: 'plugin' }
         )
-        options.plugins = options.plugins || []
         options.plugins.push(pageConfigPlugin)
       }
 
@@ -133,7 +134,6 @@ module.exports = babelLoader.custom(babel => {
           ],
           { type: 'plugin' }
         )
-        options.plugins = options.plugins || []
         options.plugins.push(nextDataPlugin)
       }
 
@@ -159,9 +159,13 @@ module.exports = babelLoader.custom(babel => {
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
       // That break webpack, since webpack doesn't support combining commonjs and esmodules
       if (!hasModern && source.indexOf('module.exports') !== -1) {
-        options.plugins = options.plugins || []
         options.plugins.push(applyCommonJs)
       }
+
+      options.plugins.push([
+        'transform-define',
+        { 'typeof window': isServer ? 'undefined' : 'object' }
+      ])
 
       // As next-server/lib has stateful modules we have to transpile commonjs
       options.overrides = [
