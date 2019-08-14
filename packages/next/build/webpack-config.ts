@@ -584,7 +584,7 @@ export default async function getBaseWebpackConfig(
         distDir,
         isServer,
       }),
-      ...(config.experimental.optimizeLibraries
+      ...(config.future.excludeDefaultMomentLocales
         ? [
             // Moment.js is an extremely popular library that bundles large locale files
             // by default due to how Webpack interprets its code. This is a practical

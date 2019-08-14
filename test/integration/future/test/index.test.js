@@ -17,7 +17,7 @@ let appDir = join(__dirname, '../')
 let server
 let appPort
 
-describe('experimental.optimizeLibraries', () => {
+describe('future.excludeDefaultMomentLocales', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     const app = nextServer({
