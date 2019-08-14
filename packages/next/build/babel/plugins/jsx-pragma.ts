@@ -14,6 +14,12 @@ export default function({
         state.set('jsx', true)
       },
 
+      // Fragment syntax is still JSX since it compiles to createElement(),
+      // but JSXFragment is not a JSXElement
+      JSXFragment(path, state) {
+        state.set('jsx', true)
+      },
+
       Program: {
         exit(path: NodePath<BabelTypes.Program>, state) {
           if (state.get('jsx')) {

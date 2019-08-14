@@ -71,4 +71,14 @@ describe('next/babel', () => {
       `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime-corejs2/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
     )
   })
+
+  it('should support Fragment syntax', () => {
+    const output = babel(`const a = () => <>hello</>;`, true)
+
+    expect(output).toMatch(`React.Fragment`)
+
+    expect(babel(`const a = () => <>hello</>;`, true)).toMatchInlineSnapshot(
+      `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(React.Fragment,null,\\"hello\\");};"`
+    )
+  })
 })
