@@ -2109,7 +2109,7 @@ This determination is made by the absence of `getInitialProps` in the page.
 If `getInitialProps` is present, Next.js will not prerender the page.
 Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
-If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client side after hydration.
 
 This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
 This ensures Next.js always emits applications that are **fast by default**.
@@ -2151,7 +2151,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
-Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.  
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
 
