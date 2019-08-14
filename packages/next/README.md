@@ -331,6 +331,11 @@ The matched path parameter will be sent as a query parameter to the page.
 For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
 
+> Note: Multiple dynamic route segments work the same way.
+>
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`. 
+> Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
+
 A `<Link>` for `/post/abc` looks like so:
 
 ```jsx
