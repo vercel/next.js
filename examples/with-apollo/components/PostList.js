@@ -62,8 +62,7 @@ export default function PostList () {
       </ul>
       {areMorePosts ? (
         <button onClick={() => loadMorePosts()}>
-          {' '}
-          {loading ? 'Loading...' : 'Show More'}{' '}
+          {loading ? 'Loading...' : 'Show More'}
         </button>
       ) : (
         ''

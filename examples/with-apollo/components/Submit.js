@@ -15,7 +15,7 @@ const CREATE_POST_MUTATION = gql`
 `
 
 export default function Submit () {
-  const [createPost] = useMutation(CREATE_POST_MUTATION)
+  const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -50,7 +50,7 @@ export default function Submit () {
       <h1>Submit</h1>
       <input placeholder='title' name='title' type='text' required />
       <input placeholder='url' name='url' type='url' required />
-      <button type='submit'>Submit</button>
+      <button type='submit' disabled={loading}>Submit</button>
       <style jsx>{`
         form {
           border-bottom: 1px solid #ececec;
