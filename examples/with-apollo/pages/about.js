@@ -16,7 +16,7 @@ export default () => (
       </p>
       <p>
         In this simple example, we integrate Apollo seamlessly with{' '}
-        <a href='https://github.com/zeit/next.js'>Next</a> by wrapping our pages
+        <a href='https://github.com/zeit/next.js'>Next</a> by wrapping our App component
         inside a{' '}
         <a href='https://facebook.github.io/react/docs/higher-order-components.html'>
           higher-order component (HOC)
@@ -28,7 +28,7 @@ export default () => (
       <p>
         On initial page load, while on the server and inside getInitialProps, we
         invoke the Apollo method,{' '}
-        <a href='https://www.apollographql.com/docs/react/features/server-side-rendering.html#getDataFromTree'>
+        <a href='https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree'>
           getDataFromTree
         </a>
         . This method returns a promise; at the point in which the promise
