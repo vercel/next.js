@@ -101,7 +101,9 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
 
   let firstTimeSetup = !hasTsConfig && (await hasTypeScript(dir))
 
-  if (!hasTsConfig && !firstTimeSetup) return
+  if (!(hasTsConfig || firstTimeSetup)) {
+    return
+  }
 
   await checkDependencies({ dir, isYarn })
 
