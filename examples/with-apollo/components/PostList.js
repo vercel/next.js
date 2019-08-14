@@ -1,4 +1,5 @@
 import { useQuery } from '@apollo/react-hooks'
+import { NetworkStatus } from 'apollo-boost'
 import gql from 'graphql-tag'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
@@ -23,8 +24,18 @@ export const allPostsQueryVars = {
 }
 
 export default function PostList () {
-  const { loading, error, data, fetchMore } = useQuery(allPostsQuery, { variables: allPostsQueryVars });
-  const { allPosts, _allPostsMeta } = data;
+  const { loading, error, data, fetchMore, networkStatus } = useQuery(
+    allPostsQuery,
+    {
+      variables: allPostsQueryVars,
+      // Setting this value to true will make the component rerender when
+      // the "networkStatus" changes, so we are able to know if it is fetching
+      // more data
+      notifyOnNetworkStatusChange: true
+    }
+  )
+  
+  const loadingMorePosts = networkStatus === NetworkStatus.fetchMore
 
   const loadMorePosts = () => {
     fetchMore({
@@ -44,9 +55,11 @@ export default function PostList () {
   }
 
   if (error) return <ErrorMessage message='Error loading posts.' />
-  if (loading) return <div>Loading</div>
+  if (loading && !loadingMorePosts) return <div>Loading</div>
 
+  const { allPosts, _allPostsMeta } = data
   const areMorePosts = allPosts.length < _allPostsMeta.count
+
   return (
     <section>
       <ul>
@@ -61,8 +74,8 @@ export default function PostList () {
         ))}
       </ul>
       {areMorePosts ? (
-        <button onClick={() => loadMorePosts()}>
-          {loading ? 'Loading...' : 'Show More'}
+        <button onClick={() => loadMorePosts()} disabled={loadingMorePosts}>
+          {loadingMorePosts ? 'Loading...' : 'Show More'}
         </button>
       ) : (
         ''
