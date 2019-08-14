@@ -31,5 +31,11 @@ describe('typeof window replace', () => {
     expect(content).toMatch(/Hello.*?,.*?("|')undefined("|')/)
   })
 
-  it('Does not replace `typeof window` for `node_modules` code', async () => {})
+  it('Does not replace `typeof window` for `node_modules` code', async () => {
+    const content = await fs.readFile(
+      path.join(appDir, '.next/static/', buildId, 'pages/index.js'),
+      'utf8'
+    )
+    expect(content).toMatch(/MyComp:.*?,.*?typeof window/)
+  })
 })
