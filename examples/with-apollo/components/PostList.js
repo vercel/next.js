@@ -26,6 +26,23 @@ export default function PostList () {
   const { loading, error, data, fetchMore } = useQuery(allPostsQuery, { variables: allPostsQueryVars });
   const { allPosts, _allPostsMeta } = data;
 
+  const loadMorePosts = () => {
+    fetchMore({
+      variables: {
+        skip: allPosts.length
+      },
+      updateQuery: (previousResult, { fetchMoreResult }) => {
+        if (!fetchMoreResult) {
+          return previousResult
+        }
+        return Object.assign({}, previousResult, {
+          // Append the new posts results to the old one
+          allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
+        })
+      }
+    })
+  }
+
   if (error) return <ErrorMessage message='Error loading posts.' />
   if (loading) return <div>Loading</div>
 
@@ -44,7 +61,7 @@ export default function PostList () {
         ))}
       </ul>
       {areMorePosts ? (
-        <button onClick={() => loadMorePosts(allPosts, fetchMore)}>
+        <button onClick={() => loadMorePosts()}>
           {' '}
           {loading ? 'Loading...' : 'Show More'}{' '}
         </button>
@@ -91,23 +108,4 @@ export default function PostList () {
       `}</style>
     </section>
   )
-}
-
-function loadMorePosts (allPosts, fetchMore) {
-  console.log('LOAD MORE')
-  fetchMore({
-    variables: {
-      skip: allPosts.length
-    },
-    updateQuery: (previousResult, { fetchMoreResult }) => {
-      console.log('got it!')
-      if (!fetchMoreResult) {
-        return previousResult
-      }
-      return Object.assign({}, previousResult, {
-        // Append the new posts results to the old one
-        allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
-      })
-    }
-  })
 }
