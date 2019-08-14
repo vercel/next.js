@@ -164,7 +164,8 @@ module.exports = babelLoader.custom(babel => {
 
       options.plugins.push([
         'transform-define',
-        { 'typeof window': isServer ? 'undefined' : 'object' }
+        { 'typeof window': isServer ? 'undefined' : 'object' },
+        'next-js-transform-define-instance'
       ])
 
       // As next-server/lib has stateful modules we have to transpile commonjs
