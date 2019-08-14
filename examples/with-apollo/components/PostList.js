@@ -34,7 +34,7 @@ export default function PostList () {
       notifyOnNetworkStatusChange: true
     }
   )
-  
+
   const loadingMorePosts = networkStatus === NetworkStatus.fetchMore
 
   const loadMorePosts = () => {

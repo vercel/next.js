@@ -17,14 +17,14 @@ const CREATE_POST_MUTATION = gql`
 export default function Submit () {
   const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = event => {
     event.preventDefault()
     const form = event.target
     const formData = new window.FormData(form)
     const title = formData.get('title')
     const url = formData.get('url')
     form.reset()
-  
+
     createPost({
       variables: { title, url },
       update: (proxy, { data: { createPost } }) => {
@@ -50,7 +50,9 @@ export default function Submit () {
       <h1>Submit</h1>
       <input placeholder='title' name='title' type='text' required />
       <input placeholder='url' name='url' type='url' required />
-      <button type='submit' disabled={loading}>Submit</button>
+      <button type='submit' disabled={loading}>
+        Submit
+      </button>
       <style jsx>{`
         form {
           border-bottom: 1px solid #ececec;

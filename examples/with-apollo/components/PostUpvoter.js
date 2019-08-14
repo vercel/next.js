@@ -10,7 +10,7 @@ const UPDATE_POST_MUTATION = gql`
       votes
     }
   }
-`;
+`
 
 export default function PostUpvoter ({ votes, id }) {
   const [updatePost] = useMutation(UPDATE_POST_MUTATION)
