@@ -16,16 +16,6 @@ function writeJson(fileName: string, object: object): Promise<void> {
   )
 }
 
-async function hasTypeScript(dir: string): Promise<boolean> {
-  const typescriptFiles = await recursiveReadDir(
-    dir,
-    /.*\.(ts|tsx)$/,
-    /(node_modules|.*\.d\.ts)/
-  )
-
-  return typescriptFiles.length > 0
-}
-
 async function checkDependencies({
   dir,
   isYarn,
@@ -99,9 +89,9 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const hasTsConfig = await fileExists(tsConfigPath)
   const isYarn = await fileExists(yarnLockFile)
 
-  let firstTimeSetup = !hasTsConfig && (await hasTypeScript(dir))
+  let firstTimeSetup = false
 
-  if (!hasTsConfig && !firstTimeSetup) return
+  if (!hasTsConfig) return
 
   await checkDependencies({ dir, isYarn })
 
