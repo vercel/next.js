@@ -170,8 +170,9 @@ function createLoadableComponent (loadFn, options) {
     }
 
     static contextType = LoadableContext
-
-    componentWillMount () {
+    // TODO: change it before next major React release
+    // eslint-disable-next-line
+    UNSAFE_componentWillMount() {
       this._mounted = true
       this._loadModule()
     }
