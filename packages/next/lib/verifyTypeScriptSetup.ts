@@ -3,7 +3,6 @@ import os from 'os'
 import path from 'path'
 import chalk from 'chalk'
 import { promisify } from 'util'
-import { recursiveReadDir } from './recursive-readdir'
 import { fileExists } from './file-exists'
 import resolve from 'next/dist/compiled/resolve/index.js'
 
