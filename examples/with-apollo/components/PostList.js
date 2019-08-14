@@ -4,7 +4,7 @@ import gql from 'graphql-tag'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
-export const allPostsQuery = gql`
+export const ALL_POSTS_QUERY = gql`
   query allPosts($first: Int!, $skip: Int!) {
     allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
       id
@@ -25,7 +25,7 @@ export const allPostsQueryVars = {
 
 export default function PostList () {
   const { loading, error, data, fetchMore, networkStatus } = useQuery(
-    allPostsQuery,
+    ALL_POSTS_QUERY,
     {
       variables: allPostsQueryVars,
       // Setting this value to true will make the component rerender when
@@ -73,12 +73,10 @@ export default function PostList () {
           </li>
         ))}
       </ul>
-      {areMorePosts ? (
+      {areMorePosts && (
         <button onClick={() => loadMorePosts()} disabled={loadingMorePosts}>
           {loadingMorePosts ? 'Loading...' : 'Show More'}
         </button>
-      ) : (
-        ''
       )}
       <style jsx>{`
         section {
