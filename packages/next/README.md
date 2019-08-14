@@ -325,11 +325,16 @@ const Post = () => {
 export default Post
 ```
 
-Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js` (nested routes work the same way -  `pages/post/[pid]/[comment].js` matches `/post/1/a-comment`). 
+Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
 The matched path parameter will be sent as a query parameter to the page.
 
 For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
+
+> Note: Multiple dynamic route segments work the same way.
+>
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`. 
+> Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
 
 A `<Link>` for `/post/abc` looks like so:
 
