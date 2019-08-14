@@ -27,7 +27,7 @@ const mkdirp = promisify(mkdirpModule)
 
 export default async function (dir, options, configuration) {
   function log (message) {
-    if (options.silent) return
+    if (options.silent || options.buildExport) return
     console.log(message)
   }
 
