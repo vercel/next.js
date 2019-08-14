@@ -54,7 +54,9 @@
       "examples/with-mobx/**",
       "test/integration/client-navigation/pages/throw-undefined.js"
     ],
-    "globals": [ "performance" ]
+    "globals": [
+      "performance"
+    ]
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.4.4",
