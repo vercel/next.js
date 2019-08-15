@@ -614,7 +614,7 @@ export class NextScript extends Component<OriginProps> {
     const pageScript = [
       <script
         async
-        id={`__NEXT_PAGE__${page}`}
+        data-next-page={page}
         key={page}
         src={
           assetPrefix +
@@ -630,7 +630,7 @@ export class NextScript extends Component<OriginProps> {
       process.env.__NEXT_MODERN_BUILD && (
         <script
           async
-          id={`__NEXT_PAGE__${page}`}
+          data-next-page={page}
           key={`${page}-modern`}
           src={
             assetPrefix +
@@ -651,7 +651,7 @@ export class NextScript extends Component<OriginProps> {
     const appScript = [
       <script
         async
-        id={`__NEXT_PAGE__/_app`}
+        data-next-page="/_app"
         src={
           assetPrefix +
           (dynamicBuildId
@@ -667,7 +667,7 @@ export class NextScript extends Component<OriginProps> {
       process.env.__NEXT_MODERN_BUILD && (
         <script
           async
-          id={`__NEXT_PAGE__/_app`}
+          data-next-page="/_app"
           src={
             assetPrefix +
             (dynamicBuildId
