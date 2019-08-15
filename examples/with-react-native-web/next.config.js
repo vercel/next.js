@@ -1,11 +1,10 @@
 module.exports = {
   webpack: config => {
-    // Alias all `react-native` imports to `react-native-web`
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      'react-native$': 'react-native-web'
+      // Transform all direct `react-native` imports to `react-native-web`
+      'react-native$': 'react-native-web',
     }
-
     return config
-  }
+  },
 }
