@@ -7,13 +7,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "apollo-boost": "^0.1.16",
+    "@apollo/react-hooks": "3.0.0",
+    "@apollo/react-ssr": "3.0.0",
+    "apollo-boost": "0.4.4",
     "graphql": "^14.0.2",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
     "prop-types": "^15.6.2",
     "react": "^16.7.0",
-    "react-apollo": "^2.1.11",
     "react-dom": "^16.7.0"
   },
   "author": "",

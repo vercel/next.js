@@ -1,7 +1,7 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 import React from 'react'
 import { AppRegistry } from 'react-native-web'
-
+import config from '../app.json'
 // Force Next-generated DOM elements to fill their parent's height
 const normalizeNextElements = `
   #__next {
@@ -13,8 +13,8 @@ const normalizeNextElements = `
 
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
-    AppRegistry.registerComponent('Main', () => Main)
-    const { getStyleElement } = AppRegistry.getApplication('Main')
+    AppRegistry.registerComponent(config.name, () => Main)
+    const { getStyleElement } = AppRegistry.getApplication(config.name)
     const page = renderPage()
     const styles = [
       <style dangerouslySetInnerHTML={{ __html: normalizeNextElements }} />,
