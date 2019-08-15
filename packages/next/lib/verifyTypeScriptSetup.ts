@@ -93,10 +93,11 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     return
   }
 
-  const tsConfig = await readFile(tsConfigPath)
-  const tsConfigContent = tsConfig.toString().trim()
+  const tsConfig = await readFile(tsConfigPath).then(val =>
+    val.toString().trim()
+  )
 
-  let firstTimeSetup = tsConfigContent === '' || tsConfigContent === '{}'
+  let firstTimeSetup = tsConfig === '' || tsConfig === '{}'
 
   await checkDependencies({ dir, isYarn })
 
