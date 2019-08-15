@@ -7,6 +7,7 @@ import { fileExists } from './file-exists'
 import resolve from 'next/dist/compiled/resolve/index.js'
 
 const writeFile = promisify(fs.writeFile)
+const readFile = promisify(fs.readFile)
 
 function writeJson(fileName: string, object: object): Promise<void> {
   return writeFile(
@@ -88,11 +89,14 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const hasTsConfig = await fileExists(tsConfigPath)
   const isYarn = await fileExists(yarnLockFile)
 
-  let firstTimeSetup = false
-
   if (!hasTsConfig) {
     return
   }
+
+  const tsConfig = await readFile(tsConfigPath)
+  const tsConfigContent = tsConfig.toString().trim()
+
+  let firstTimeSetup = tsConfigContent === '' || tsConfigContent === '{}'
 
   await checkDependencies({ dir, isYarn })
 
