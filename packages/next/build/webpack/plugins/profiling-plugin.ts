@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Copy of https://github.com/webpack/webpack/blob/master/lib/debug/ProfilingPlugin.js
 // License:
 /*
