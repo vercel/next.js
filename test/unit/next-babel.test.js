@@ -82,9 +82,23 @@ describe('next/babel', () => {
         `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(React.Fragment,null,\\"hello\\");};"`
       )
     })
+
+    it('should support commonjs', () => {
+      const output = babel(
+        trim`
+        const React = require('react');
+        module.exports = () => <div>test2</div>;
+      `,
+        true
+      )
+
+      expect(output).toMatchInlineSnapshot(
+        `"var React=require('react');var __jsx=React.createElement;module.exports=function(){return __jsx(\\"div\\",null,\\"test2\\");};"`
+      )
+    })
   })
 
-  describe('hook-optimization', () => {
+  describe('optimize-hook-destructuring', () => {
     it('should transform Array-destructured hook return values use object destructuring', () => {
       const output = babel(
         trim`
@@ -102,19 +116,5 @@ describe('next/babel', () => {
         `"import{useState}from'react';var _useState=useState(0),count=_useState[0],setCount=_useState[1];"`
       )
     })
-  })
-
-  it('should support commonjs', () => {
-    const output = babel(
-      trim`
-      const React = require('react');
-      module.exports = () => <div>test2</div>;
-    `,
-      true
-    )
-
-    expect(output).toMatchInlineSnapshot(
-      `"var React=require('react');var __jsx=React.createElement;module.exports=function(){return __jsx(\\"div\\",null,\\"test2\\");};"`
-    )
   })
 })
