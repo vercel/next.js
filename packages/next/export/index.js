@@ -17,13 +17,55 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH
 } from 'next-server/constants'
-import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { API_ROUTE } from '../lib/constants'
 import { formatAmpMessages } from '../build/output/index'
+import createSpinner from '../build/spinner'
 
 const mkdirp = promisify(mkdirpModule)
+
+const createProgress = (total, label = 'Exporting') => {
+  let curProgress = 0
+  let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
+    spinner: {
+      frames: [
+        '[    ]',
+        '[=   ]',
+        '[==  ]',
+        '[=== ]',
+        '[ ===]',
+        '[  ==]',
+        '[   =]',
+        '[    ]',
+        '[   =]',
+        '[  ==]',
+        '[ ===]',
+        '[====]',
+        '[=== ]',
+        '[==  ]',
+        '[=   ]'
+      ],
+      interval: 80
+    }
+  })
+
+  return () => {
+    curProgress++
+
+    const newText = `${label} (${curProgress}/${total})`
+    if (progressSpinner) {
+      progressSpinner.text = newText
+    } else {
+      console.log(newText)
+    }
+
+    if (curProgress === total && progressSpinner) {
+      progressSpinner.stop()
+      console.log(newText)
+    }
+  }
+}
 
 export default async function (dir, options, configuration) {
   function log (message) {
@@ -159,7 +201,7 @@ export default async function (dir, options, configuration) {
 
   const progress =
     !options.silent &&
-    createProgress(filteredPaths.length, { stream: process.stdout })
+    createProgress(filteredPaths.length, options.buildExport && 'Prerendering')
 
   const chunks = filteredPaths.reduce((result, route, i) => {
     const worker = i % threads

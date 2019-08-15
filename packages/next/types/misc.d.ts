@@ -5,11 +5,6 @@ declare module 'webpack/lib/GraphHelpers'
 declare module 'unfetch'
 declare module 'styled-jsx/server'
 
-declare module 'tty-aware-progress' {
-  import createProgress from 'tty-aware-progress/src'
-  export = createProgress
-}
-
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
 

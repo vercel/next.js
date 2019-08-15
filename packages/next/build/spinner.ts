@@ -1,113 +1,58 @@
 import ora from 'ora'
 
-// if it's a tty show fancy spinner if not :shrug:
-// process.stderr.isTTY
+const dotsSpinner = {
+  frames: ['.', '..', '...'],
+  interval: 200,
+}
 
-const frames = [
-  // '▲.....',
-  // '.▲....',
-  // '..▲...',
-  // '...▲..',
-  // '....▲.',
-  // '.....▲',
+export default function createSpinner(
+  text: string | { prefixText: string },
+  options: ora.Options = {}
+) {
+  let spinner: undefined | ora.Ora
+  let prefixText = text && typeof text === 'object' && text.prefixText
 
-  // '◭',
-  // '◮',
-  // '▴',
+  if (process.stdout.isTTY) {
+    spinner = ora({
+      text: typeof text === 'string' ? text : undefined,
+      prefixText: typeof prefixText === 'string' ? prefixText : undefined,
+      spinner: dotsSpinner,
+      stream: process.stdout,
+      ...options,
+    }).start()
 
-  // '▲______',
-  // '_▲_____',
-  // '__▲____',
-  // '___▲___',
-  // '____▲__',
-  // '_____▲_',
-  // '______▲',
+    const origLog = console.log
+    const origWarn = console.warn
+    const origError = console.error
+    const origStop = spinner.stop.bind(spinner)
+    const origStopAndPersist = spinner.stopAndPersist.bind(spinner)
 
-  // '▴',
-  // '▵',
-  // '▲',
+    const logHandle = (method: any, args: any[]) => {
+      origStop()
+      method(...args)
+      spinner!.start()
+    }
 
-  // '▲△△△△△',
-  // '△▲△△△△',
-  // '△△▲△△△',
-  // '△△△▲△△',
-  // '△△△△▲△',
-  // '△△△△△▲',
+    console.log = (...args: any) => logHandle(origLog, args)
+    console.warn = (...args: any) => logHandle(origWarn, args)
+    console.error = (...args: any) => logHandle(origError, args)
 
-  // '[/________]',
-  // '[_/_______]',
-  // '[__/______]',
-  // '[___/_____]',
-  // '[____/____]',
-  // '[_____/___]',
-  // '[______/__]',
-  // '[_______/_]',
-  // '[________/]',
-  // '[________\\]',
-  // '[_______\\_]',
-  // '[______\\__]',
-  // '[_____\\___]',
-  // '[____\\____]',
-  // '[___\\_____]',
-  // '[__\\______]',
-  // '[_\\_______]',
-  // '[\\________]',
+    const resetLog = () => {
+      console.log = origLog
+    }
+    spinner.stop = (): ora.Ora => {
+      origStop()
+      resetLog()
+      return spinner!
+    }
+    spinner.stopAndPersist = (): ora.Ora => {
+      origStopAndPersist()
+      resetLog()
+      return spinner!
+    }
+  } else if (prefixText || text) {
+    console.log(prefixText || text)
+  }
 
-  // '[△        ]',
-  // '[ △       ]',
-  // '[  △      ]',
-  // '[   △     ]',
-  // '[    △    ]',
-  // '[     △   ]',
-  // '[      △  ]',
-  // '[       △ ]',
-  // '[        △]',
-  // '[        ▲]',
-  // '[       ▲ ]',
-  // '[      ▲  ]',
-  // '[     ▲   ]',
-  // '[    ▲    ]',
-  // '[   ▲     ]',
-  // '[  ▲      ]',
-  // '[ ▲       ]',
-  // '[▲        ]',
-
-  // "◢",
-  // "◣",
-  // "◤",
-  // "◥"
-
-  '[▲       ]',
-  '[ ▲      ]',
-  '[  ▲     ]',
-  '[   ▲    ]',
-  '[    ▲   ]',
-  '[     ▲  ]',
-  '[      ▲ ]',
-  '[       ▲]',
-  '[      ▲ ]',
-  '[     ▲  ]',
-  '[    ▲   ]',
-  '[   ▲    ]',
-  '[  ▲     ]',
-  '[ ▲      ]',
-  '[▲       ]',
-]
-
-const spinner = ora({
-  text: 'Analyzing for post-build optimizations',
-  stream: process.stdout,
-  spinner: {
-    interval: 80,
-    frames: frames,
-  },
-}).start()
-
-setTimeout(() => {
-  spinner.text = 'Applying post-build optimizations'
-}, 1000)
-
-setTimeout(() => {
-  spinner.stop()
-  console.log('done')
-}, 5 * 1000)
+  return spinner
+}

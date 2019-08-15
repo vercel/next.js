@@ -42,7 +42,7 @@ import {
   getPageChunks,
 } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import createProgress from 'tty-aware-progress'
+import createSpinner from './spinner'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -67,8 +67,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir)
 
-  console.log('Creating an optimized production build ...')
-  console.log()
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -246,6 +247,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     result = await runCompiler(configs)
   }
 
+  if (buildSpinner) {
+    buildSpinner.stopAndPersist()
+  }
+  console.log()
+
   result = formatWebpackMessages(result)
 
   if (isFlyingShuttle) {
@@ -297,6 +303,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
+  const postBuildSpinner = createSpinner({
+    prefixText: 'Analyzing pages',
+  })
+
   const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
@@ -315,8 +325,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  console.log('Analyzing pages')
-
   const staticCheckSema = new Sema(config.experimental.cpus, {
     capacity: pageKeys.length,
   })
@@ -327,9 +335,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     staticCheckWorker,
     ['default']
   )
-  const staticCheckProgress = createProgress(pageKeys.length, {
-    stream: process.stdout,
-  })
 
   await Promise.all(
     pageKeys.map(async page => {
@@ -413,13 +418,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      staticCheckProgress()
       pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
     })
   )
 
   workerFarm.end(staticCheckWorkers)
-  console.log() // add new line after progress
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -449,7 +452,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 
   if (staticPages.size > 0 || sprPages.size > 0) {
-    console.log('Auto-prerendering eligible pages')
+    const autoPrerenderText = 'Auto-prerendering static pages'
+
+    if (postBuildSpinner) {
+      postBuildSpinner.prefixText = autoPrerenderText
+      postBuildSpinner.stopAndPersist()
+    } else {
+      console.log(autoPrerenderText)
+    }
 
     const combinedPages = [...staticPages, ...sprPages]
     const exportApp = require('../export').default
@@ -507,8 +517,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
-    console.log() // add new line after prerender progress
   }
+  console.log()
 
   if (sprPages.size > 0) {
     const prerenderRoutes: PrerenderRoute[] = []
