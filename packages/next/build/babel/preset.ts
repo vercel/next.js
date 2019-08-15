@@ -117,7 +117,7 @@ module.exports = (
         },
       ],
       [
-        require('babel-plugin-optimize-hook-destructuring'),
+        require('./plugins/optimize-hook-destructuring'),
         {
           // only optimize React-provided hooks
           onlyBuiltIns: true,
