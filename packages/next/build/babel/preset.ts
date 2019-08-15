@@ -119,8 +119,6 @@ module.exports = (
       [
         require('./plugins/optimize-hook-destructuring'),
         {
-          // only optimize React-provided hooks
-          onlyBuiltIns: true,
           // only optimize hook functions imported from React/Preact
           lib: true,
         },
