@@ -34,6 +34,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+// @ts-ignore: JS file
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
