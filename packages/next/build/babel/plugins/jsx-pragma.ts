@@ -26,6 +26,12 @@ export default function({
             const pragma = t.identifier(state.opts.pragma)
             let importAs = pragma
 
+            // if there's already a React in scope, use that instead of adding an import
+            const existingBinding =
+              state.opts.reuseImport !== false &&
+              state.opts.importAs &&
+              path.scope.getBinding(state.opts.importAs)
+
             // var _jsx = _pragma.createElement;
             if (state.opts.property) {
               if (state.opts.importAs) {
@@ -44,15 +50,21 @@ export default function({
                 ),
               ])
 
-              // @ts-ignore
-              path.unshiftContainer('body', mapping)
+              // if the React binding came from a require('react'),
+              // make sure that our usage comes after it.
+              if (
+                existingBinding &&
+                t.isVariableDeclarator(existingBinding.path.node) &&
+                t.isCallExpression(existingBinding.path.node.init) &&
+                t.isIdentifier(existingBinding.path.node.init.callee) &&
+                existingBinding.path.node.init.callee.name === 'require'
+              ) {
+                existingBinding.path.parentPath.insertAfter(mapping)
+              } else {
+                // @ts-ignore
+                path.unshiftContainer('body', mapping)
+              }
             }
-
-            // if there's already a React in scope, use that instead of adding an import
-            const existingBinding =
-              state.opts.reuseImport !== false &&
-              state.opts.importAs &&
-              path.scope.hasBinding(state.opts.importAs)
 
             if (!existingBinding) {
               const importSpecifier = t.importDeclaration(
