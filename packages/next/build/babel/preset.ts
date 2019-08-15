@@ -116,6 +116,13 @@ module.exports = (
           property: 'createElement',
         },
       ],
+      [
+        require('./plugins/optimize-hook-destructuring'),
+        {
+          // only optimize hook functions imported from React/Preact
+          lib: true,
+        },
+      ],
       require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
