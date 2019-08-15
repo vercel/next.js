@@ -304,7 +304,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   const postBuildSpinner = createSpinner({
-    prefixText: 'Analyzing pages',
+    prefixText: 'Automatically optimizing pages',
   })
 
   const distPath = path.join(dir, config.distDir)
@@ -452,19 +452,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 
   if (staticPages.size > 0 || sprPages.size > 0) {
-    const autoPrerenderText = 'Auto-prerendering static pages'
-
-    if (postBuildSpinner) {
-      postBuildSpinner.prefixText = autoPrerenderText
-      postBuildSpinner.stopAndPersist()
-    } else {
-      console.log(autoPrerenderText)
-    }
-
     const combinedPages = [...staticPages, ...sprPages]
     const exportApp = require('../export').default
     const exportOptions = {
       sprPages,
+      silent: true,
       buildExport: true,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
@@ -518,6 +510,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
 
   if (sprPages.size > 0) {

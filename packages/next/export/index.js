@@ -69,7 +69,7 @@ const createProgress = (total, label = 'Exporting') => {
 
 export default async function (dir, options, configuration) {
   function log (message) {
-    if (options.silent || options.buildExport) return
+    if (options.silent) return
     console.log(message)
   }
 
@@ -199,9 +199,7 @@ export default async function (dir, options, configuration) {
     )
   }
 
-  const progress =
-    !options.silent &&
-    createProgress(filteredPaths.length, options.buildExport && 'Prerendering')
+  const progress = !options.silent && createProgress(filteredPaths.length)
 
   const chunks = filteredPaths.reduce((result, route, i) => {
     const worker = i % threads
