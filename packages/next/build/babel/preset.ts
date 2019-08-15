@@ -97,13 +97,25 @@ module.exports = (
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
+          pragma: '__jsx',
           ...options['preset-react'],
         },
       ],
       require('@babel/preset-typescript'),
     ],
     plugins: [
-      require('babel-plugin-react-require'),
+      [
+        require('./plugins/jsx-pragma'),
+        {
+          // This produces the following injected import for modules containing JSX:
+          //   import React from 'react';
+          //   var __jsx = React.createElement;
+          module: 'react',
+          importAs: 'React',
+          pragma: '__jsx',
+          property: 'createElement',
+        },
+      ],
       require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
