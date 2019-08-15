@@ -66,6 +66,7 @@ module.exports = (
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
+    loose: true,
     exclude: ['transform-typeof-symbol'],
     ...options['preset-env'],
   }
@@ -114,6 +115,15 @@ module.exports = (
           importAs: 'React',
           pragma: '__jsx',
           property: 'createElement',
+        },
+      ],
+      [
+        require('babel-plugin-optimize-hook-destructuring'),
+        {
+          // only optimize React-provided hooks
+          onlyBuiltIns: true,
+          // only optimize hook functions imported from React/Preact
+          lib: true,
         },
       ],
       require('@babel/plugin-syntax-dynamic-import'),

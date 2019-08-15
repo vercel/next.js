@@ -74,6 +74,7 @@
     "babel-loader": "8.0.6",
     "babel-plugin-transform-define": "1.3.1",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
+    "babel-plugin-optimize-hook-destructuring": "developit/babel-plugin-optimize-hook-destructuring#29c84a7523645bd381b71ab668fd624068a876d4",
     "chalk": "2.4.2",
     "find-up": "4.0.0",
     "fork-ts-checker-webpack-plugin": "1.3.4",
