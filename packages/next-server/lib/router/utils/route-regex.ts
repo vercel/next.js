@@ -18,12 +18,12 @@ export function getRouteRegex(
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
       ] = groupIndex++),
-      '/([^/]+?)'
+      '/([^/?]+?)'
     )
   )
 
   return {
-    re: new RegExp('^' + parameterizedRoute + '(?:/)?$', 'i'),
+    re: new RegExp('^' + parameterizedRoute + '(?:/)?(?:\\?.*)?$', 'i'),
     groups,
   }
 }
