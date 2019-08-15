@@ -93,9 +93,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     return
   }
 
-  const tsConfig = await readFile(tsConfigPath).then(val =>
-    val.toString().trim()
-  )
+  const tsConfig = await readFile(tsConfigPath, 'utf8').then(val => val.trim())
 
   let firstTimeSetup = tsConfig === '' || tsConfig === '{}'
 
