@@ -45,6 +45,11 @@ const runTests = () => {
     html = await browser.eval(`document.documentElement.innerHTML`)
     expect(html).toMatch(/page:.*?\/another/)
   })
+
+  it('should pass AppTree to NextPageContext', async () => {
+    const html = await renderViaHTTP(appPort, '/hello')
+    expect(html).toMatch(/saved:.*?Hello world/)
+  })
 }
 
 describe('Auto Export', () => {
