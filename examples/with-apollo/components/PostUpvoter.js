@@ -1,60 +1,32 @@
-import React from 'react'
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import React from "react";
+import { gql } from "apollo-boost";
+import { useMutation } from "@apollo/react-hooks";
 
-const UPDATE_POST_MUTATION = gql`
+const UPVOTE_POST_MUTATION = gql`
   mutation updatePost($id: ID!, $votes: Int) {
     updatePost(id: $id, votes: $votes) {
-      __typename
       id
+      __typename
       votes
     }
   }
-`
+`;
 
-export default function PostUpvoter ({ votes, id }) {
-  const [updatePost] = useMutation(UPDATE_POST_MUTATION)
-
-  const upvotePost = () => {
-    updatePost({
-      variables: {
-        id,
-        votes: votes + 1
-      },
-      optimisticResponse: {
-        __typename: 'Mutation',
-        updatePost: {
-          __typename: 'Post',
-          id,
-          votes: votes + 1
-        }
-      }
-    })
-  }
+export default function PostUpvoter({ votes, id }) {
+  const [upvotePost] = useMutation(UPVOTE_POST_MUTATION);
 
   return (
-    <button onClick={() => upvotePost()}>
+    <button
+      onClick={() => {
+        upvotePost({
+          variables: {
+            id,
+            votes: votes + 1
+          }
+        });
+      }}
+    >
       {votes}
-      <style jsx>{`
-        button {
-          background-color: transparent;
-          border: 1px solid #e4e4e4;
-          color: #000;
-        }
-        button:active {
-          background-color: transparent;
-        }
-        button:before {
-          align-self: center;
-          border-color: transparent transparent #000000 transparent;
-          border-style: solid;
-          border-width: 0 4px 6px 4px;
-          content: '';
-          height: 0;
-          margin-right: 5px;
-          width: 0;
-        }
-      `}</style>
     </button>
-  )
+  );
 }

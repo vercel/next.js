@@ -1,8 +1,9 @@
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
-import { ALL_POSTS_QUERY, allPostsQueryVars } from './PostList'
+import { useState } from "react";
+import { gql } from "apollo-boost";
+import { useMutation } from "@apollo/react-hooks";
+import { allPostsQuery, allPostsQueryVars } from "./PostList";
 
-const CREATE_POST_MUTATION = gql`
+const SUBMIT_FORM_MUTATION = gql`
   mutation createPost($title: String!, $url: String!) {
     createPost(title: $title, url: $url) {
       id
@@ -12,47 +13,45 @@ const CREATE_POST_MUTATION = gql`
       createdAt
     }
   }
-`
+`;
 
-export default function Submit () {
-  const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
-
-  const handleSubmit = event => {
-    event.preventDefault()
-    const form = event.target
-    const formData = new window.FormData(form)
-    const title = formData.get('title')
-    const url = formData.get('url')
-    form.reset()
-
-    createPost({
-      variables: { title, url },
-      update: (proxy, { data: { createPost } }) => {
-        const data = proxy.readQuery({
-          query: ALL_POSTS_QUERY,
-          variables: allPostsQueryVars
-        })
-        // Update the cache with the new post at the top of the
-        proxy.writeQuery({
-          query: ALL_POSTS_QUERY,
-          data: {
-            ...data,
-            allPosts: [createPost, ...data.allPosts]
-          },
-          variables: allPostsQueryVars
-        })
-      }
-    })
-  }
+export default function Submit() {
+  const [title, setTitle] = useState("");
+  const [url, setURL] = useState("");
+  const [submitPost] = useMutation(SUBMIT_FORM_MUTATION);
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        submitPost({
+          variables: { title, url },
+          refetchQueries: [
+            { query: allPostsQuery, variables: allPostsQueryVars }
+          ]
+        });
+        setTitle("");
+        setURL("");
+      }}
+    >
       <h1>Submit</h1>
-      <input placeholder='title' name='title' type='text' required />
-      <input placeholder='url' name='url' type='url' required />
-      <button type='submit' disabled={loading}>
-        Submit
-      </button>
+      <input
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="title"
+        name="title"
+        type="text"
+        required
+      />
+      <input
+        value={url}
+        onChange={e => setURL(e.target.value)}
+        placeholder="url"
+        name="url"
+        type="url"
+        required
+      />
+      <button type="submit">Submit</button>
       <style jsx>{`
         form {
           border-bottom: 1px solid #ececec;
@@ -68,5 +67,5 @@ export default function Submit () {
         }
       `}</style>
     </form>
-  )
+  );
 }
