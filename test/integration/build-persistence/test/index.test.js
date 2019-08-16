@@ -1,10 +1,7 @@
 /* eslint-env jest */
 import { nextBuild, deleteBuild } from 'next-test-utils'
 import { join } from 'path'
-import fs from 'fs'
-import { promisify } from 'util'
-const readdir = promisify(fs.readdir)
-const writeFile = promisify(fs.writeFile)
+import { readdir, writeFile } from 'fs-extra'
 
 // AppA has keepPastBuilds: true
 const appDirA = join(__dirname, '../', 'appA')
