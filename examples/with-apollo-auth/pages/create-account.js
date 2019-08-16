@@ -21,7 +21,7 @@ export default class CreateAccount extends React.Component {
 
   render () {
     return (
-      <React.Fragment>
+      <>
         {/* RegisterBox handles all register logic. */}
         <RegisterBox />
         <hr />
@@ -29,7 +29,7 @@ export default class CreateAccount extends React.Component {
         <Link prefetch href='/signin'>
           <a>Sign in</a>
         </Link>
-      </React.Fragment>
+      </>
     )
   }
 }
