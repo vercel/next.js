@@ -100,7 +100,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       })
     : 'noop'
 
-  if (!config.keepPastBuilds) {
+  if (!config.keepPastBuilds || isFlyingShuttle) {
     await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
     await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
     await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
