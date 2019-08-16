@@ -13,6 +13,13 @@ function parseCookies (req, options = {}) {
 export default App => {
   return class WithData extends React.Component {
     static displayName = `WithData(${App.displayName})`
+
+    // Since apolloState is required but it is missed before this method returns the new props,
+    // so it is needed to provide defaults
+    static defaultProps = {
+      apolloState: {}
+    }
+
     static propTypes = {
       apolloState: PropTypes.object.isRequired
     }
@@ -62,7 +69,7 @@ export default App => {
 
       // Extract query data from the Apollo's store
       const apolloState = apollo.cache.extract()
-
+      
       return {
         ...appProps,
         apolloState
