@@ -39,7 +39,6 @@ const defaultConfig: { [key: string]: any } = {
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
-    asyncToPromises: false,
     documentMiddleware: false,
     granularChunks: false,
     publicDirectory: false,

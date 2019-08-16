@@ -218,11 +218,12 @@ export async function renderError (props) {
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const AppTree = wrapApp(App)
   const appCtx = {
-    AppTree: wrapApp(App),
     Component: ErrorComponent,
+    AppTree,
     router,
-    ctx: { err, pathname: page, query, asPath }
+    ctx: { err, pathname: page, query, asPath, AppTree }
   }
 
   const initProps = props.props
@@ -254,7 +255,11 @@ function markHydrateComplete () {
 
   performance.mark('afterHydrate') // mark end of hydration
 
-  performance.measure('Next.js-before-hydration', null, 'beforeRender')
+  performance.measure(
+    'Next.js-before-hydration',
+    'navigationStart',
+    'beforeRender'
+  )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
   clearMarks()
@@ -282,7 +287,11 @@ function markRenderComplete () {
 
 function clearMarks () {
   performance.clearMarks()
-  performance.clearMeasures()
+  /*
+   * TODO: uncomment the following line when we have a way to
+   * expose this to user code.
+   */
+  // performance.clearMeasures()
 }
 
 function AppContainer ({ children }) {
@@ -326,11 +335,12 @@ async function doRender ({ App, Component, props, err }) {
     lastAppProps.Component === ErrorComponent
   ) {
     const { pathname, query, asPath } = router
+    const AppTree = wrapApp(App)
     const appCtx = {
       router,
-      AppTree: wrapApp(App),
+      AppTree,
       Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath }
+      ctx: { err, pathname, query, asPath, AppTree }
     }
     props = await loadGetInitialProps(App, appCtx)
   }

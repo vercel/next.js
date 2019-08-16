@@ -331,6 +331,11 @@ The matched path parameter will be sent as a query parameter to the page.
 For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
 Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
 
+> Note: Multiple dynamic route segments work the same way.
+>
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`. 
+> Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
+
 A `<Link>` for `/post/abc` looks like so:
 
 ```jsx
@@ -626,7 +631,7 @@ Client-side routing behaves exactly like the browser:
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered.
 3. After 1 and 2 complete, `pushState` is performed and the new component is rendered.
 
-To inject the `pathname`, `query` or `asPath` in your component, you can use the [useRouter](#useRouter) hook, or [withRouter](#using-a-higher-order-component) for class components.
+To inject the `pathname`, `query` or `asPath` in your component, you can use the [useRouter](#userouter) hook, or [withRouter](#using-a-higher-order-component) for class components.
 
 ##### With URL object
 
@@ -772,7 +777,7 @@ import Router from 'next/router'
 
 Router.beforePopState(({ url, as, options }) => {
   // I only want to allow these two routes!
-  if (as !== '/' || as !== '/other') {
+  if (as !== '/' && as !== '/other') {
     // Have SSR render bad routes as a 404.
     window.location.href = as
     return false
@@ -890,7 +895,7 @@ Router.events.on('routeChangeError', (err, url) => {
   </ul>
 </details>
 
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected by using [`useRouter`](#useRouter) or [`withRouter`](#using-a-higher-order-component)), without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected by using [`useRouter`](#userouter) or [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -970,7 +975,7 @@ The above `router` object comes with an API similar to [`next/router`](#imperati
   </ul>
 </details>
 
-If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same `router` object to any component, here's how to use it:
+If [useRouter](#userouter) is not the best fit for you, `withRouter` can also add the same `router` object to any component, here's how to use it:
 
 ```jsx
 import { withRouter } from 'next/router'
@@ -2109,7 +2114,7 @@ This determination is made by the absence of `getInitialProps` in the page.
 If `getInitialProps` is present, Next.js will not prerender the page.
 Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
-If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML.
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client side after hydration.
 
 This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
 This ensures Next.js always emits applications that are **fast by default**.
@@ -2151,7 +2156,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
-Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.  
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
 

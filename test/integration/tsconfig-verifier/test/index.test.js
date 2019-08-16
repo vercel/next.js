@@ -30,27 +30,16 @@ describe('Fork ts checker plugin', () => {
     await remove(tsConfig)
   })
 
-  it('Creates a default tsconfig.json when one is missing', async () => {
-    expect(await exists(tsConfig)).toBe(true)
-
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
-
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
-  })
-
   it('Works with an empty tsconfig.json (docs)', async () => {
-    await killApp(app)
-
-    await remove(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
     expect(await exists(tsConfig)).toBe(false)
+
     await createFile(tsConfig)
     await new Promise(resolve => setTimeout(resolve, 500))
+
     expect(await readFile(tsConfig, 'utf8')).toBe('')
+
+    await killApp(app)
+    await new Promise(resolve => setTimeout(resolve, 500))
 
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
