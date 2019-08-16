@@ -233,8 +233,9 @@ export default class PageLoader {
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.
     if (
-      document.querySelector(`link[rel="preload"][href^="${url}"]`) ||
-      document.querySelector(`script[data-next-page="${route}"]`)
+      document.querySelector(
+        `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
+      )
     ) {
       return
     }
