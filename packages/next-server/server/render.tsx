@@ -291,6 +291,7 @@ export async function renderToHTML(
       query = {
         amp: query.amp,
       }
+      req.url = pathname
       renderOpts.nextExport = true
     }
   }
