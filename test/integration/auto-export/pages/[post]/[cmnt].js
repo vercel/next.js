@@ -15,7 +15,5 @@ if (typeof window !== 'undefined') {
 }
 
 export default () => {
-  const { query, asPath } = useRouter()
-  const { cmnt } = query
-  return <p>{cmnt || asPath}</p>
+  return <p>{useRouter().asPath}</p>
 }
