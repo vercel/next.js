@@ -23,7 +23,7 @@ const RegisterBox = () => {
   const onCompleted = data => {
     // Store the token in cookie
     document.cookie = cookie.serialize('token', data.signinUser.token, {
-      maxAge: 30 * 24 * 60 * 60, // 30 days
+      maxAge: 30 * 24 * 60 * 60 // 30 days
     })
     // Force a reload of all the current queries now that the user is
     // logged in
@@ -48,8 +48,8 @@ const RegisterBox = () => {
           variables: {
             name: name.value,
             email: email.value,
-            password: password.value,
-          },
+            password: password.value
+          }
         })
 
         name.value = email.value = password.value = ''
@@ -57,28 +57,28 @@ const RegisterBox = () => {
     >
       {error && <p>Issue occurred while registering :(</p>}
       <input
-        name="name"
-        placeholder="Name"
+        name='name'
+        placeholder='Name'
         ref={node => {
           name = node
         }}
       />
       <br />
       <input
-        name="email"
-        placeholder="Email"
+        name='email'
+        placeholder='Email'
         ref={node => {
           email = node
         }}
       />
       <br />
       <input
-        name="password"
-        placeholder="Password"
+        name='password'
+        placeholder='Password'
         ref={node => {
           password = node
         }}
-        type="password"
+        type='password'
       />
       <br />
       <button>Register</button>

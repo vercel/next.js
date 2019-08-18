@@ -5,7 +5,7 @@ import withApollo from '../lib/withApollo'
 
 class MyApp extends App {
   static displayName = 'MyApp'
-  
+
   render () {
     const { Component, pageProps, apolloClient } = this.props
     return (

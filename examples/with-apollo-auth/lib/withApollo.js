@@ -69,7 +69,7 @@ export default App => {
 
       // Extract query data from the Apollo's store
       const apolloState = apollo.cache.extract()
-      
+
       return {
         ...appProps,
         apolloState
