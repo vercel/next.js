@@ -333,7 +333,7 @@ Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: '
 
 > Note: Multiple dynamic route segments work the same way.
 >
-> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`. 
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`.
 > Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
 
 A `<Link>` for `/post/abc` looks like so:
@@ -2158,12 +2158,12 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 ### Compression
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
-To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
+To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
 
 ```js
 // next.config.js
 module.exports = {
-  compression: false,
+  compress: false,
 }
 ```
 
