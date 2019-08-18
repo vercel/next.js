@@ -32,11 +32,11 @@ export class ProfilingPlugin {
   /**
    * @param {ProfilingPluginOptions=} opts options object
    */
-  constructor (opts: { tracer: any }) {
+  constructor(opts: { tracer: any }) {
     this.tracer = opts.tracer
   }
 
-  apply (compiler: any) {
+  apply(compiler: any) {
     const tracer = this.tracer
 
     // Compiler Hooks
@@ -54,7 +54,10 @@ export class ProfilingPlugin {
 
     compiler.hooks.compilation.tap(
       pluginName,
-      (compilation, { normalModuleFactory, contextModuleFactory }) => {
+      (
+        compilation: any,
+        { normalModuleFactory, contextModuleFactory }: any
+      ) => {
         interceptAllHooksFor(compilation, tracer, 'Compilation')
         interceptAllHooksFor(
           normalModuleFactory,
@@ -73,36 +76,36 @@ export class ProfilingPlugin {
   }
 }
 
-const interceptTemplateInstancesFrom = (compilation, tracer) => {
+const interceptTemplateInstancesFrom = (compilation: any, tracer: any) => {
   const {
     mainTemplate,
     chunkTemplate,
     hotUpdateChunkTemplate,
-    moduleTemplates
+    moduleTemplates,
   } = compilation
 
   const { javascript, webassembly } = moduleTemplates
   ;[
     {
       instance: mainTemplate,
-      name: 'MainTemplate'
+      name: 'MainTemplate',
     },
     {
       instance: chunkTemplate,
-      name: 'ChunkTemplate'
+      name: 'ChunkTemplate',
     },
     {
       instance: hotUpdateChunkTemplate,
-      name: 'HotUpdateChunkTemplate'
+      name: 'HotUpdateChunkTemplate',
     },
     {
       instance: javascript,
-      name: 'JavaScriptModuleTemplate'
+      name: 'JavaScriptModuleTemplate',
     },
     {
       instance: webassembly,
-      name: 'WebAssemblyModuleTemplate'
-    }
+      name: 'WebAssemblyModuleTemplate',
+    },
   ].forEach(templateObject => {
     Object.keys(templateObject.instance.hooks).forEach(hookName => {
       templateObject.instance.hooks[hookName].intercept(
@@ -112,7 +115,7 @@ const interceptTemplateInstancesFrom = (compilation, tracer) => {
   })
 }
 
-const interceptAllHooksFor = (instance, tracer, logLabel) => {
+const interceptAllHooksFor = (instance: any, tracer: any, logLabel: any) => {
   if (Reflect.has(instance, 'hooks')) {
     Object.keys(instance.hooks).forEach(hookName => {
       instance.hooks[hookName].intercept(
@@ -122,38 +125,38 @@ const interceptAllHooksFor = (instance, tracer, logLabel) => {
   }
 }
 
-const interceptAllParserHooks = (moduleFactory, tracer) => {
+const interceptAllParserHooks = (moduleFactory: any, tracer: any) => {
   const moduleTypes = [
     'javascript/auto',
     'javascript/dynamic',
     'javascript/esm',
     'json',
-    'webassembly/experimental'
+    'webassembly/experimental',
   ]
 
   moduleTypes.forEach(moduleType => {
     moduleFactory.hooks.parser
       .for(moduleType)
-      .tap('ProfilingPlugin', (parser, parserOpts) => {
+      .tap('ProfilingPlugin', (parser: any, parserOpts: any) => {
         interceptAllHooksFor(parser, tracer, 'Parser')
       })
   })
 }
 
-const makeInterceptorFor = (instance, tracer) => hookName => ({
-  register: ({ name, type, context, fn }) => {
+const makeInterceptorFor = (instance: any, tracer: any) => (hookName: any) => ({
+  register: ({ name, type, context, fn }: any) => {
     const newFn = makeNewProfiledTapFn(hookName, tracer, {
       name,
       type,
-      fn
+      fn,
     })
     return {
       name,
       type,
       context,
-      fn: newFn
+      fn: newFn,
     }
-  }
+  },
 })
 
 // TODO improve typing
@@ -168,40 +171,44 @@ const makeInterceptorFor = (instance, tracer) => hookName => ({
  * @param {PluginFunction} options.fn Plugin function
  * @returns {PluginFunction} Chainable hooked function.
  */
-const makeNewProfiledTapFn = (hookName, tracer, { name, type, fn }) => {
+const makeNewProfiledTapFn = (
+  hookName: any,
+  tracer: any,
+  { name, type, fn }: any
+) => {
   const defaultCategory = ['blink.user_timing']
 
   switch (type) {
     case 'promise':
-      return (...args) => {
+      return (...args: any) => {
         const id = ++tracer.counter
         tracer.trace.begin({
           name,
           id,
-          cat: defaultCategory
+          cat: defaultCategory,
         })
         const promise = /** @type {Promise<*>} */ fn(...args)
         return promise.then(r => {
           tracer.trace.end({
             name,
             id,
-            cat: defaultCategory
+            cat: defaultCategory,
           })
           return r
         })
       }
     case 'async':
-      return (...args) => {
+      return (...args: any) => {
         const id = ++tracer.counter
         tracer.trace.begin({
           name,
           id,
-          cat: defaultCategory
+          cat: defaultCategory,
         })
         const callback = args.pop()
         /* eslint-disable */
 
-        fn(...args, (...r) => {
+        fn(...args, (...r: any) => {
           tracer.trace.end({
             name,
             id,
@@ -212,7 +219,7 @@ const makeNewProfiledTapFn = (hookName, tracer, { name, type, fn }) => {
         /* eslint-enable */
       }
     case 'sync':
-      return (...args) => {
+      return (...args: any) => {
         const id = ++tracer.counter
         // Do not instrument ourself due to the CPU
         // profile needing to be the last event in the trace.
@@ -223,7 +230,7 @@ const makeNewProfiledTapFn = (hookName, tracer, { name, type, fn }) => {
         tracer.trace.begin({
           name,
           id,
-          cat: defaultCategory
+          cat: defaultCategory,
         })
         let r
         try {
@@ -232,14 +239,14 @@ const makeNewProfiledTapFn = (hookName, tracer, { name, type, fn }) => {
           tracer.trace.end({
             name,
             id,
-            cat: defaultCategory
+            cat: defaultCategory,
           })
           throw error
         }
         tracer.trace.end({
           name,
           id,
-          cat: defaultCategory
+          cat: defaultCategory,
         })
         return r
       }
