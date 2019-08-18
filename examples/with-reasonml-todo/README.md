@@ -1,6 +1,6 @@
 # Example app using ReasonML & ReasonReact components
 
-This example builds upon the original `with-reasonml` example to sho how a
+This example builds upon the original `with-reasonml` example to show how a
 global state object can be used to track state across page within the application.
 
 It is intended to show how to build a simple, stateful application using hooks
