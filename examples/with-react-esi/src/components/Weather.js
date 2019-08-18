@@ -3,7 +3,7 @@ import React from 'react'
 /**
  * Return the weather. This component is not loaded on the homepage, to test that getInitialProps works client-side too.
  */
-export default class TopArticles extends React.Component {
+export default class Weather extends React.Component {
   static async getInitialProps ({ props, req, res }) {
     // Fetch the weather from a remote API, it may take some time...
     return new Promise(resolve => {
