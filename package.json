@@ -68,7 +68,6 @@
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
     "@zeit/next-typescript": "1.1.2-canary.0",
-    "@zeit/tracing-js": "0.4.3",
     "abort-controller": "3.0.0",
     "amphtml-validator": "1.0.23",
     "babel-core": "7.0.0-bridge.0",
