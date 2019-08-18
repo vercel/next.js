@@ -188,7 +188,7 @@ const makeNewProfiledTapFn = (
           cat: defaultCategory,
         })
         const promise = /** @type {Promise<*>} */ fn(...args)
-        return promise.then(r => {
+        return promise.then((r: any) => {
           tracer.trace.end({
             name,
             id,
