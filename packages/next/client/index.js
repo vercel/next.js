@@ -287,7 +287,11 @@ function markRenderComplete () {
 
 function clearMarks () {
   performance.clearMarks()
-  performance.clearMeasures()
+  /*
+   * TODO: uncomment the following line when we have a way to
+   * expose this to user code.
+   */
+  // performance.clearMeasures()
 }
 
 function AppContainer ({ children }) {
