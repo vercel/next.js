@@ -4,10 +4,10 @@ import Counter from './counter'
 
 const clockSelector = state => ({
   lastUpdate: state.lastUpdate,
-  light: state.light,
+  light: state.light
 })
 
-function Examples() {
+function Examples () {
   const { lastUpdate, light } = useSelector(clockSelector, shallowEqual)
   return (
     <div>

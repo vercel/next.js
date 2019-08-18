@@ -19,7 +19,7 @@ const useCounter = () => {
   return { increment, decrement, reset }
 }
 
-function Counter() {
+function Counter () {
   const count = useSelector(countSelector)
   const { increment, decrement, reset } = useCounter()
   return (
