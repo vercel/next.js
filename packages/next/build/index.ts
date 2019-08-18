@@ -85,7 +85,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const isLikeServerless = isTargetLikeServerless(target)
 
-  if (selectivePageBuilding && target !== 'serverless') {
+  if (selectivePageBuilding && !isLikeServerless) {
     throw new Error(
       `Cannot use ${
         isFlyingShuttle ? 'flying shuttle' : '`now dev`'
