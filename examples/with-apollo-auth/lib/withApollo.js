@@ -12,6 +12,7 @@ function parseCookies (req, options = {}) {
 
 export default App => {
   return class WithData extends React.Component {
+    // It is needed for better devtools experience. Check how react devtools shows it: "MyApp WithData"
     static displayName = `WithData(${App.displayName})`
 
     // Since apolloState is required but it is missed before this method returns the new props,
