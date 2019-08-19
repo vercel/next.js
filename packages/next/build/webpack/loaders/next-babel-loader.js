@@ -20,8 +20,8 @@ const getModernOptions = (babelOptions = {}) => {
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
     // Blacklist accidental inclusions
-    'transform-regenerator',
-    'transform-async-to-generator'
+    require.resolve('@babel/plugin-transform-regenerator'),
+    require.resolve('@babel/plugin-transform-async-to-generator')
   ]
 
   return {
@@ -163,7 +163,7 @@ module.exports = babelLoader.custom(babel => {
       }
 
       options.plugins.push([
-        'transform-define',
+        require.resolve('babel-plugin-transform-define'),
         { 'typeof window': isServer ? 'undefined' : 'object' },
         'next-js-transform-define-instance'
       ])

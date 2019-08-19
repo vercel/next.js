@@ -142,6 +142,7 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
+          absoluteRuntime: process.versions.pnp ? __dirname : undefined,
           ...options['transform-runtime'],
         },
       ],
