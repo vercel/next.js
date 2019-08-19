@@ -50,12 +50,13 @@ const nextServerlessLoader: loader.Loader = function() {
       `
         : ``
     }
+      import { parse } from 'url'
       import { apiResolver } from 'next-server/dist/server/api-utils'
 
       export default (req, res) => {
         const params = ${
           isDynamicRoute(page)
-            ? `getRouteMatcher(getRouteRegex('${page}'))(req.url)`
+            ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
             : `{}`
         }
         const resolver = require('${absolutePagePath}')
