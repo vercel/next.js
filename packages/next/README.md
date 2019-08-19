@@ -585,6 +585,29 @@ export default About
 
 Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
 
+**Example with `React.forwardRef`**
+
+```jsx
+import React from 'react'
+import Link from 'next/link'
+
+// `onClick`, `href`, and `ref` need to be passed to the DOM element
+// for proper handling
+const MyButton = React.forwardRef(({ onClick, href }, ref) => (
+  <a href={href} onClick={onClick} ref={ref}>
+    Click Me
+  </a>
+))
+
+export default () => (
+  <>
+    <Link href='/another'>
+      <MyButton />
+    </Link>
+  </>
+)
+```
+
 **Custom routes (using props from URL)**
 
 If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
