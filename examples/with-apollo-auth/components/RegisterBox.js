@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useMutation, useApolloClient } from '@apollo/react-hooks'
 import gql from 'graphql-tag'
 import cookie from 'cookie'
@@ -36,7 +37,10 @@ const RegisterBox = () => {
     console.error(error)
   }
   const [create, { error }] = useMutation(CREATE_USER, { onCompleted, onError })
-  let name, email, password
+
+  const name = useRef(null)
+  const email = useRef(null)
+  const password = useRef(null)
 
   return (
     <form
@@ -46,38 +50,24 @@ const RegisterBox = () => {
 
         create({
           variables: {
-            name: name.value,
-            email: email.value,
-            password: password.value
+            name: name.current.value,
+            email: email.current.value,
+            password: password.current.value
           }
         })
 
-        name.value = email.value = password.value = ''
+        name.current.value = email.current.value = password.current.value = ''
       }}
     >
       {error && <p>Issue occurred while registering :(</p>}
-      <input
-        name='name'
-        placeholder='Name'
-        ref={node => {
-          name = node
-        }}
-      />
+      <input name='name' placeholder='Name' ref={name} />
       <br />
-      <input
-        name='email'
-        placeholder='Email'
-        ref={node => {
-          email = node
-        }}
-      />
+      <input name='email' placeholder='Email' ref={email} />
       <br />
       <input
         name='password'
         placeholder='Password'
-        ref={node => {
-          password = node
-        }}
+        ref={password}
         type='password'
       />
       <br />

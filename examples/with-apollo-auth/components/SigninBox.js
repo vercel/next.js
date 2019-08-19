@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useMutation, useApolloClient } from '@apollo/react-hooks'
 import gql from 'graphql-tag'
 import cookie from 'cookie'
@@ -37,7 +38,8 @@ const SigninBox = () => {
     onError
   })
 
-  let email, password
+  const email = useRef(null)
+  const password = useRef(null)
 
   return (
     <form
@@ -47,29 +49,21 @@ const SigninBox = () => {
 
         signinUser({
           variables: {
-            email: email.value,
-            password: password.value
+            email: email.current.value,
+            password: password.current.value
           }
         })
 
-        email.value = password.value = ''
+        email.current.value = password.current.value = ''
       }}
     >
       {error && <p>No user found with that information.</p>}
-      <input
-        name='email'
-        placeholder='Email'
-        ref={node => {
-          email = node
-        }}
-      />
+      <input name='email' placeholder='Email' ref={email} />
       <br />
       <input
         name='password'
         placeholder='Password'
-        ref={node => {
-          password = node
-        }}
+        ref={password}
         type='password'
       />
       <br />
