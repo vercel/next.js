@@ -2628,7 +2628,7 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
   ],
   "routes": [
     { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
-    { "src": "(.*)", "dest": "home$1", "continue": true }
+    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
   ]
 }
 ```
