@@ -2650,9 +2650,8 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
     { "src": "home/next.config.js", "use": "@now/next" }
   ],
   "routes": [
-    { "src": "/docs/_next(.*)", "dest": "docs/_next$1" },
-    { "src": "/docs(.*)", "dest": "docs/docs$1" },
-    { "src": "(.*)", "dest": "home$1" }
+    { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
+    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
   ]
 }
 ```
