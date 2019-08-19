@@ -574,6 +574,10 @@ describe('Production Usage', () => {
     }
   })
 
+  it('should not emit profiling events', async () => {
+    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
