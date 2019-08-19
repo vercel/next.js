@@ -140,7 +140,9 @@ export default async function (dir, options, configuration) {
     distDir,
     buildId
   })
-  exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
+  if (!exportPathMap['/404']) {
+    exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
+  }
   const exportPaths = Object.keys(exportPathMap)
   const filteredPaths = exportPaths.filter(
     // Remove API routes
