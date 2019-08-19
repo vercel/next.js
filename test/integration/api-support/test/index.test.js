@@ -220,6 +220,17 @@ function runTests (serverless = false) {
     expect(data).toEqual({ post: 'post-1' })
   })
 
+  it('should work with dynamic params and search string', async () => {
+    const data = await fetchViaHTTP(
+      appPort,
+      '/api/post-1?val=1',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+
+    expect(data).toEqual({ val: '1', post: 'post-1' })
+  })
+
   it('should prioritize a non-dynamic page', async () => {
     const data = await fetchViaHTTP(
       appPort,
@@ -262,15 +273,15 @@ function runTests (serverless = false) {
       const port = await findPort()
       const resolver = require(join(
         appDir,
-        '.next/serverless/pages/api/blog.js'
+        '.next/serverless/pages/api/[post].js'
       )).default
 
       const server = createServer(resolver).listen(port)
-      const res = await fetchViaHTTP(port, '/api/nextjs')
+      const res = await fetchViaHTTP(port, '/api/post-1?val=1')
       const json = await res.json()
       server.close()
 
-      expect(json).toEqual([{ title: 'Cool Post!' }])
+      expect(json).toEqual({ val: '1', post: 'post-1' })
     } else {
       expect(
         existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
