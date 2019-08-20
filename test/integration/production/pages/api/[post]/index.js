@@ -1,3 +1,3 @@
 export default ({ query }, res) => {
-  res.json(query)
+  res.status(200).json(query)
 }
