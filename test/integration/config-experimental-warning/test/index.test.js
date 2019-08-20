@@ -21,7 +21,7 @@ describe('Promise in next config', () => {
     `)
 
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch(/Found experimental config:/)
+    expect(stderr).not.toMatch(/experimental feature/)
   })
 
   it('should not show warning with config from object', async () => {
@@ -31,7 +31,7 @@ describe('Promise in next config', () => {
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch(/Found experimental config:/)
+    expect(stderr).not.toMatch(/experimental feature/)
   })
 
   it('should show warning with config from object with experimental', async () => {
@@ -44,7 +44,7 @@ describe('Promise in next config', () => {
       }
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(/Found experimental config:/)
+    expect(stderr).toMatch(/experimental feature/)
   })
 
   it('should show warning with config from function with experimental', async () => {
@@ -57,6 +57,6 @@ describe('Promise in next config', () => {
       })
     `)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(/Found experimental config:/)
+    expect(stderr).toMatch(/experimental feature/)
   })
 })
