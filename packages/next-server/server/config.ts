@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import findUp from 'find-up'
 import os from 'os'
 
@@ -49,8 +50,14 @@ const defaultConfig: { [key: string]: any } = {
 
 const experimentalWarning = execOnce(() => {
   console.warn(
-    `\nFound experimental config:\nExperimental features can change at anytime and aren't officially supported (use at your own risk).\n`
+    chalk.yellow.bold('Warning: ') +
+      chalk.bold('You have enabled experimental feature(s).')
   )
+  console.warn(
+    `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
+      `Use them at your own risk.`
+  )
+  console.warn()
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
