@@ -12,10 +12,10 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
+  buildId: string
   assetPrefix: string
   ampBindInitData: boolean | string
   generateEtags: string
-  dynamicBuildId?: string | boolean
   canonicalBase: string
 }
 
@@ -24,6 +24,7 @@ const nextServerlessLoader: loader.Loader = function() {
     distDir,
     absolutePagePath,
     page,
+    buildId,
     canonicalBase,
     assetPrefix,
     ampBindInitData,
@@ -31,7 +32,6 @@ const nextServerlessLoader: loader.Loader = function() {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
-    dynamicBuildId,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
@@ -50,12 +50,13 @@ const nextServerlessLoader: loader.Loader = function() {
       `
         : ``
     }
+      import { parse } from 'url'
       import { apiResolver } from 'next-server/dist/server/api-utils'
 
       export default (req, res) => {
         const params = ${
           isDynamicRoute(page)
-            ? `getRouteMatcher(getRouteRegex('${page}'))(req.url)`
+            ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
             : `{}`
         }
         const resolver = require('${absolutePagePath}')
@@ -89,8 +90,7 @@ const nextServerlessLoader: loader.Loader = function() {
         buildManifest,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
-        buildId: "__NEXT_REPLACE__BUILD_ID__",
-        dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
+        buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${ampBindInitData === true ||
           ampBindInitData === 'true'}

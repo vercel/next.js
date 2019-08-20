@@ -233,6 +233,14 @@ describe('Production Usage', () => {
       const body = await res.text()
       expect(body).toEqual('API hello works')
     })
+
+    it('should work with dynamic params and search string', async () => {
+      const url = `http://localhost:${appPort}/api/post-1?val=1`
+      const res = await fetch(url)
+      const body = await res.json()
+
+      expect(body).toEqual({ val: '1', post: 'post-1' })
+    })
   })
 
   describe('With navigation', () => {
@@ -572,6 +580,10 @@ describe('Production Usage', () => {
         await browser.close()
       }
     }
+  })
+
+  it('should not emit profiling events', async () => {
+    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

@@ -19,12 +19,10 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { WebpackEntrypoints } from './entries'
-import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
-import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -32,8 +30,9 @@ import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cach
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+// @ts-ignore: JS file
+import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -52,15 +51,15 @@ export default async function getBaseWebpackConfig(
     config,
     target = 'server',
     entrypoints,
-    selectivePageBuilding = false,
+    tracer,
   }: {
+    tracer?: any
     dev?: boolean
     isServer?: boolean
     buildId: string
     config: any
     target?: string
     entrypoints: WebpackEntrypoints
-    selectivePageBuilding?: boolean
   }
 ): Promise<webpack.Configuration> {
   const distDir = path.join(dir, config.distDir)
@@ -72,7 +71,7 @@ export default async function getBaseWebpackConfig(
         hasModern: !!config.experimental.modern,
         distDir,
         cwd: dir,
-        cache: !selectivePageBuilding,
+        cache: true,
       },
     },
     // Backwards compat
@@ -161,7 +160,7 @@ export default async function getBaseWebpackConfig(
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: !selectivePageBuilding,
+    cache: true,
     cpus: config.experimental.cpus,
     distDir: distDir,
   }
@@ -196,17 +195,6 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
-      },
-    },
-    selective: {
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        react: {
-          name: 'commons',
-          chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
-        },
       },
     },
     prod: {
@@ -296,8 +284,6 @@ export default async function getBaseWebpackConfig(
   let splitChunksConfig: webpack.Options.SplitChunksOptions
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
-  } else if (selectivePageBuilding) {
-    splitChunksConfig = splitChunksConfigs.selective
   } else {
     splitChunksConfig = config.experimental.granularChunks
       ? splitChunksConfigs.prodGranular
@@ -390,51 +376,22 @@ export default async function getBaseWebpackConfig(
             return callback()
           },
         ],
-    optimization: Object.assign(
-      {
-        checkWasmTypes: false,
-        nodeEnv: false,
-      },
-      isServer
-        ? {
-            splitChunks: false,
-            minimize: false,
-          }
-        : {
-            runtimeChunk: selectivePageBuilding
-              ? false
-              : {
-                  name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-                },
-            splitChunks: splitChunksConfig,
-            minimize: !dev,
-            minimizer: !dev
-              ? [
-                  new TerserPlugin({
-                    ...terserPluginConfig,
-                    terserOptions: {
-                      ...terserOptions,
-                      // Disable compress when using terser loader
-                      ...(selectivePageBuilding ||
-                      config.experimental.terserLoader
-                        ? { compress: false }
-                        : undefined),
-                    },
-                  }),
-                ]
-              : undefined,
-          },
-      selectivePageBuilding
-        ? {
-            providedExports: false,
-            usedExports: false,
-            concatenateModules: false,
-          }
-        : undefined
-    ),
-    recordsPath: selectivePageBuilding
-      ? undefined
-      : path.join(outputPath, 'records.json'),
+    optimization: {
+      checkWasmTypes: false,
+      nodeEnv: false,
+      splitChunks: isServer ? false : splitChunksConfig,
+      runtimeChunk: isServer
+        ? undefined
+        : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
+      minimize: !(dev || isServer),
+      minimizer: [
+        new TerserPlugin({
+          ...terserPluginConfig,
+          terserOptions,
+        }),
+      ],
+    },
+    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
@@ -481,20 +438,6 @@ export default async function getBaseWebpackConfig(
     module: {
       strictExportPresence: true,
       rules: [
-        (selectivePageBuilding || config.experimental.terserLoader) &&
-          !isServer && {
-            test: /\.(js|mjs|jsx)$/,
-            exclude: /\.min\.(js|mjs|jsx)$/,
-            use: {
-              loader: 'next-minify-loader',
-              options: {
-                terserOptions: {
-                  ...terserOptions,
-                  mangle: false,
-                },
-              },
-            },
-          },
         config.experimental.ampBindInitData &&
           !isServer && {
             test: /\.(tsx|ts|js|mjs|jsx)$/,
@@ -545,9 +488,6 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
         'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
-        'process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING': JSON.stringify(
-          selectivePageBuilding
-        ),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
           ? {
@@ -559,20 +499,15 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         'process.env.__NEXT_GRANULAR_CHUNKS':
-          config.experimental.granularChunks && !selectivePageBuilding && !dev,
+          config.experimental.granularChunks && !dev,
         ...(isServer
           ? {
-              // Allow browser-only code to be eliminated
-              'typeof window': JSON.stringify('undefined'),
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
               // This is typically found in unmaintained modules from the
               // pre-webpack era (common in server-side code)
               'global.GENTLY': JSON.stringify(false),
             }
-          : {
-              // Allow server-only code to be eliminated
-              'typeof window': JSON.stringify('object'),
-            }),
+          : undefined),
       }),
       !isServer &&
         new ReactLoadablePlugin({
@@ -630,14 +565,6 @@ export default async function getBaseWebpackConfig(
           })()
         : []),
       !dev && new webpack.HashedModuleIdsPlugin(),
-      // This must come after HashedModuleIdsPlugin (it sets any modules that
-      // were missed by HashedModuleIdsPlugin)
-      !dev && selectivePageBuilding && new AllModulesIdentifiedPlugin(dir),
-      // This sets chunk ids to be hashed versions of their names to reduce
-      // bundle churn
-      !dev && selectivePageBuilding && new HashedChunkIdsPlugin(buildId),
-      // On the client we want to share the same runtime cache
-      !isServer && selectivePageBuilding && new SharedRuntimePlugin(),
       !dev &&
         new webpack.IgnorePlugin({
           checkResource: (resource: string) => {
@@ -650,12 +577,7 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      isLikeServerless &&
-        new ServerlessPlugin(buildId, {
-          isServer,
-          isFlyingShuttle: selectivePageBuilding,
-          isTrace: isServerlessTrace,
-        }),
+      isServerless && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&
@@ -667,12 +589,9 @@ export default async function getBaseWebpackConfig(
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
-      config.experimental.profiling &&
-        new webpack.debug.ProfilingPlugin({
-          outputPath: path.join(
-            distDir,
-            `profile-events-${isServer ? 'server' : 'client'}.json`
-          ),
+      tracer &&
+        new ProfilingPlugin({
+          tracer,
         }),
       !isServer &&
         useTypeScript &&
