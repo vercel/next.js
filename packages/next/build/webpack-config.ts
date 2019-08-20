@@ -584,15 +584,12 @@ export default async function getBaseWebpackConfig(
         distDir,
         isServer,
       }),
-      ...(config.future.excludeDefaultMomentLocales
-        ? [
-            // Moment.js is an extremely popular library that bundles large locale files
-            // by default due to how Webpack interprets its code. This is a practical
-            // solution that requires the user to opt into importing specific locales.
-            // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
-            new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
-          ]
-        : []),
+      // Moment.js is an extremely popular library that bundles large locale files
+      // by default due to how Webpack interprets its code. This is a practical
+      // solution that requires the user to opt into importing specific locales.
+      // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
+      config.future.excludeDefaultMomentLocales &&
+        new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
       ...(dev
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations
