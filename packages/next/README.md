@@ -333,7 +333,7 @@ Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: '
 
 > Note: Multiple dynamic route segments work the same way.
 >
-> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`. 
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`.
 > Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
 
 A `<Link>` for `/post/abc` looks like so:
@@ -584,6 +584,29 @@ export default About
 ```
 
 Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
+
+**Example with `React.forwardRef`**
+
+```jsx
+import React from 'react'
+import Link from 'next/link'
+
+// `onClick`, `href`, and `ref` need to be passed to the DOM element
+// for proper handling
+const MyButton = React.forwardRef(({ onClick, href }, ref) => (
+  <a href={href} onClick={onClick} ref={ref}>
+    Click Me
+  </a>
+))
+
+export default () => (
+  <>
+    <Link href='/another'>
+      <MyButton />
+    </Link>
+  </>
+)
+```
 
 **Custom routes (using props from URL)**
 
@@ -2158,12 +2181,12 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 ### Compression
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
-To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
+To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
 
 ```js
 // next.config.js
 module.exports = {
-  compression: false,
+  compress: false,
 }
 ```
 
@@ -2627,9 +2650,8 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
     { "src": "home/next.config.js", "use": "@now/next" }
   ],
   "routes": [
-    { "src": "/docs/_next(.*)", "dest": "docs/_next$1" },
-    { "src": "/docs(.*)", "dest": "docs/docs$1" },
-    { "src": "(.*)", "dest": "home$1" }
+    { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
+    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
   ]
 }
 ```
