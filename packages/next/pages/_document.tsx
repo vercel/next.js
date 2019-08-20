@@ -47,12 +47,6 @@ function getOptionalModernScriptVariant(path: string) {
   return path
 }
 
-function encodeFileName(file: string) {
-  return file.replace(/\[|\]/g, function(_) {
-    return _ == '[' ? '%5B' : '%5D'
-  })
-}
-
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -159,7 +153,7 @@ export class Head extends Component<
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
-          href={`${assetPrefix}/_next/${encodeFileName(file)}`}
+          href={`${assetPrefix}/_next/${encodeURI(file)}`}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
       )
@@ -184,7 +178,7 @@ export class Head extends Component<
             <link
               rel="preload"
               key={bundle.file}
-              href={`${assetPrefix}/_next/${encodeFileName(
+              href={`${assetPrefix}/_next/${encodeURI(
                 bundle.file
               )}${_devOnlyInvalidateCacheQueryString}`}
               as="script"
@@ -220,7 +214,7 @@ export class Head extends Component<
             key={file}
             nonce={this.props.nonce}
             rel="preload"
-            href={`${assetPrefix}/_next/${encodeFileName(
+            href={`${assetPrefix}/_next/${encodeURI(
               file
             )}${_devOnlyInvalidateCacheQueryString}`}
             as="script"
@@ -498,7 +492,7 @@ export class NextScript extends Component<OriginProps> {
         <script
           async
           key={bundle.file}
-          src={`${assetPrefix}/_next/${encodeFileName(
+          src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
@@ -532,7 +526,7 @@ export class NextScript extends Component<OriginProps> {
       return (
         <script
           key={file}
-          src={`${assetPrefix}/_next/${encodeFileName(
+          src={`${assetPrefix}/_next/${encodeURI(
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
@@ -700,7 +694,7 @@ export class NextScript extends Component<OriginProps> {
                 !file.match(/\.js\.map/) && (
                   <script
                     key={file}
-                    src={`${assetPrefix}/_next/${encodeFileName(
+                    src={`${assetPrefix}/_next/${encodeURI(
                       file
                     )}${_devOnlyInvalidateCacheQueryString}`}
                     nonce={this.props.nonce}
@@ -750,5 +744,5 @@ function getPageFile(page: string, buildId?: string) {
     return buildId ? `/index.${buildId}.js` : '/index.js'
   }
 
-  return encodeFileName(buildId ? `${page}.${buildId}.js` : `${page}.js`)
+  return encodeURI(buildId ? `${page}.${buildId}.js` : `${page}.js`)
 }
