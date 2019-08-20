@@ -27,4 +27,3 @@ export const IS_BUNDLED_PAGE_REGEX = /^static[/\\][^/\\]+[/\\]pages.*\.js$/
 // matches static/<buildid>/pages/:page*.js
 export const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
 export const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
-export const HEAD_BUILD_ID_FILE = `${CLIENT_STATIC_FILES_PATH}/HEAD_BUILD_ID`
