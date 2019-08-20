@@ -59,8 +59,12 @@ const renames = [
   },
   // misc
   {
-    srcGlob: '.next/static/*/_buildManifest*',
-    dest: '.next/static/BUILD_ID'
+    srcGlob: '.next/static/*/_buildManifest.js',
+    dest: '.next/static/BUILD_ID/_buildManifest.js'
+  },
+  {
+    srcGlob: '.next/static/*/_buildManifest.module.js',
+    dest: '.next/static/BUILD_ID/_buildManifest.module.js'
   }
 ]
 
