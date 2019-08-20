@@ -55,38 +55,18 @@ export class ServerlessPlugin {
   private buildId: string
   private isServer: boolean
   private isTrace: boolean
-  private isFlyingShuttle: boolean
 
   constructor(
     buildId: string,
-    {
-      isServer,
-      isTrace,
-      isFlyingShuttle,
-    }: { isServer: boolean; isTrace: boolean; isFlyingShuttle: boolean }
+    { isServer, isTrace }: { isServer: boolean; isTrace: boolean }
   ) {
     this.buildId = buildId
     this.isServer = isServer
     this.isTrace = isTrace
-    this.isFlyingShuttle = isFlyingShuttle
   }
 
   apply(compiler: Compiler) {
     if (!this.isServer) {
-      if (this.isFlyingShuttle) {
-        compiler.hooks.emit.tap('ServerlessPlugin', compilation => {
-          const assetNames = Object.keys(compilation.assets).filter(f =>
-            f.includes(this.buildId)
-          )
-          for (const name of assetNames) {
-            compilation.assets[
-              name
-                .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
-                .replace(/[.]js$/, `.${this.buildId}.js`)
-            ] = compilation.assets[name]
-          }
-        })
-      }
       return
     }
 

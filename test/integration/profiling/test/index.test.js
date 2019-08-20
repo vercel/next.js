@@ -13,12 +13,9 @@ describe('Profiling Usage', () => {
 
   describe('Profiling the build', () => {
     it('should emit files', async () => {
-      expect(
-        fs.existsSync(join(appDir, '.next', 'profile-events-server.json'))
-      ).toBe(true)
-      expect(
-        fs.existsSync(join(appDir, '.next', 'profile-events-client.json'))
-      ).toBe(true)
+      expect(fs.existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(
+        true
+      )
     })
   })
 })

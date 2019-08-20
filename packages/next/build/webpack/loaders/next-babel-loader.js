@@ -163,7 +163,7 @@ module.exports = babelLoader.custom(babel => {
       }
 
       options.plugins.push([
-        'transform-define',
+        require.resolve('babel-plugin-transform-define'),
         { 'typeof window': isServer ? 'undefined' : 'object' },
         'next-js-transform-define-instance'
       ])

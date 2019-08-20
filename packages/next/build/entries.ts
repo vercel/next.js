@@ -49,7 +49,6 @@ export function createEntrypoints(
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
-  dynamicBuildId: boolean,
   config: any
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
@@ -64,7 +63,6 @@ export function createEntrypoints(
     generateEtags: config.generateEtags,
     ampBindInitData: config.experimental.ampBindInitData,
     canonicalBase: config.canonicalBase,
-    dynamicBuildId,
   }
 
   Object.keys(pages).forEach(page => {
