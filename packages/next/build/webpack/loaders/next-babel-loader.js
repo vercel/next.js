@@ -20,8 +20,8 @@ const getModernOptions = (babelOptions = {}) => {
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
     // Blacklist accidental inclusions
-    require.resolve('@babel/plugin-transform-regenerator'),
-    require.resolve('@babel/plugin-transform-async-to-generator')
+    'transform-regenerator',
+    'transform-async-to-generator'
   ]
 
   return {
