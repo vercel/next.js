@@ -1,0 +1,21 @@
+{
+  "name": "with-auth0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "cookie": "0.4.0",
+    "express": "4.17.1",
+    "isomorphic-unfetch": "^3.0.0",
+    "js-cookie": "2.2.1",
+    "jsonwebtoken": "8.5.1",
+    "jwt-decode": "2.2.0",
+    "next": "latest",
+    "passport": "0.4.0",
+    "passport-github": "1.1.0",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0"
+  }
+}

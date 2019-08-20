@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "env": {
+    "ROOT_URL": "https://mysite.com",
+    "ACCESS_TOKEN_SECRET": "@access-token-secret",
+    "GITHUB_CLIENT_ID": "@github-client-id",
+    "GITHUB_CLIENT_SECRET": "@github-client-secret"
+  }
+}
