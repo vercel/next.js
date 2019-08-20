@@ -571,11 +571,7 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      isLikeServerless &&
-        new ServerlessPlugin(buildId, {
-          isServer,
-          isTrace: isServerlessTrace,
-        }),
+      isServerless && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&

@@ -12,6 +12,7 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
+  buildId: string
   assetPrefix: string
   ampBindInitData: boolean | string
   generateEtags: string
@@ -23,6 +24,7 @@ const nextServerlessLoader: loader.Loader = function() {
     distDir,
     absolutePagePath,
     page,
+    buildId,
     canonicalBase,
     assetPrefix,
     ampBindInitData,
@@ -88,7 +90,7 @@ const nextServerlessLoader: loader.Loader = function() {
         buildManifest,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
-        buildId: "__NEXT_REPLACE__BUILD_ID__",
+        buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${ampBindInitData === true ||
           ampBindInitData === 'true'}
