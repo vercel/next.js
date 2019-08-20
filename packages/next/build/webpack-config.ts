@@ -153,6 +153,7 @@ export default async function getBaseWebpackConfig(
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next-server/dist/lib/runtime-config.js',
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
+      'react-dom': path.resolve(path.join(dir, 'node_modules', 'react-dom')),
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
@@ -236,6 +237,7 @@ export default async function getBaseWebpackConfig(
         default: false,
         vendors: false,
         framework: {
+          chunks: 'all',
           name: 'framework',
           test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
@@ -248,20 +250,22 @@ export default async function getBaseWebpackConfig(
             )
           },
           name(module: { identifier: Function; rawRequest: string }): string {
-            const rawRequest =
-              module.rawRequest &&
-              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
-            if (rawRequest) return rawRequest
-
             const identifier = module.identifier()
+            // Remove everything up through '/node_modules/'
             const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
               identifier
             )
             const processedIdentifier =
               trimmedIdentifier &&
-              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
+              // Remove the file extension(s)
+              /[\w-\/]+/.exec(trimmedIdentifier[1])
 
-            return processedIdentifier || identifier
+            let finalName = processedIdentifier && processedIdentifier[0]
+
+            finalName = finalName && finalName.split('/').join('~')
+            const backupName = identifier.split('/').join('~')
+
+            return finalName || backupName
           },
           priority: 30,
           minChunks: 1,
