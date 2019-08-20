@@ -20,6 +20,10 @@ const clientGlobs = [
   {
     name: 'Client Pages Modern',
     globs: ['.next/static/*/pages/**/*.module.js']
+  },
+  {
+    name: 'Client Build Manifests',
+    globs: ['.next/static/*/_buildManifest*']
   }
 ]
 
@@ -52,6 +56,11 @@ const renames = [
   {
     srcGlob: '.next/static/chunks/commons*.module.js',
     dest: '.next/static/chunks/commons.HASH.module.js'
+  },
+  // misc
+  {
+    srcGlob: '.next/static/*/_buildManifest*',
+    dest: '.next/static/BUILD_ID'
   }
 ]
 
