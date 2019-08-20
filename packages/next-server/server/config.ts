@@ -42,6 +42,9 @@ const defaultConfig: { [key: string]: any } = {
     publicDirectory: false,
     modern: false,
   },
+  future: {
+    excludeDefaultMomentLocales: false,
+  },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
 }
