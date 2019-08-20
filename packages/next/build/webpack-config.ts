@@ -153,7 +153,6 @@ export default async function getBaseWebpackConfig(
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next-server/dist/lib/runtime-config.js',
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
-      'react-dom': path.resolve(path.join(dir, 'node_modules', 'react-dom')),
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
@@ -258,12 +257,12 @@ export default async function getBaseWebpackConfig(
             const processedIdentifier =
               trimmedIdentifier &&
               // Remove the file extension(s)
-              /[\w-\/]+/.exec(trimmedIdentifier[1])
+              /[\w-\/\\]+/.exec(trimmedIdentifier[1])
 
             let finalName = processedIdentifier && processedIdentifier[0]
 
-            finalName = finalName && finalName.split('/').join('~')
-            const backupName = identifier.split('/').join('~')
+            finalName = finalName && finalName.replace(/[\\\/]/g, '~')
+            const backupName = identifier.replace(/[\\\/]/g, '~')
 
             return finalName || backupName
           },
