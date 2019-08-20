@@ -121,8 +121,28 @@ describe('Serverless', () => {
 
   it('should reply on dynamic API request successfully', async () => {
     const result = await renderViaHTTP(appPort, '/api/posts/post-1')
-    const { post } = JSON.parse(result)
-    expect(post).toBe('post-1')
+    const { id } = JSON.parse(result)
+    expect(id).toBe('post-1')
+  })
+
+  it('should reply on dynamic API request successfully with query parameters', async () => {
+    const result = await renderViaHTTP(appPort, '/api/posts/post-1?param=val')
+    const { id, param } = JSON.parse(result)
+    expect(id).toBe('post-1')
+    expect(param).toBe('val')
+  })
+
+  it('should reply on dynamic API index request successfully', async () => {
+    const result = await renderViaHTTP(appPort, '/api/dynamic/post-1')
+    const { path } = JSON.parse(result)
+    expect(path).toBe('post-1')
+  })
+
+  it('should reply on dynamic API index request successfully with query parameters', async () => {
+    const result = await renderViaHTTP(appPort, '/api/dynamic/post-1?param=val')
+    const { path, param } = JSON.parse(result)
+    expect(path).toBe('post-1')
+    expect(param).toBe('val')
   })
 
   it('should 404 on API request with trailing slash', async () => {

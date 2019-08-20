@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "build": "next build renderer && next export renderer",
-    "dist": "npm run build && build --dir"
+    "dist": "npm run build && electron-builder --dir"
   },
   "build": {
     "asar": false,
@@ -18,8 +18,8 @@
     ]
   },
   "devDependencies": {
-    "electron": "^4.1.0",
-    "electron-builder": "^20.39.0",
+    "electron": "^6.0.2",
+    "electron-builder": "^21.2.0",
     "next": "latest",
     "react": "^16.8.4",
     "react-dom": "^16.8.4"

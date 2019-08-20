@@ -75,6 +75,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
+  let tracer: any = null
+  if (config.experimental.profiling) {
+    const { createTrace } = require('./profiler/profiler.js')
+    tracer = createTrace(path.join(distDir, `profile-events.json`))
+    tracer.profiler.startProfiling()
+  }
+
   const isFlyingShuttle = Boolean(
     config.experimental.flyingShuttle &&
       !process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
@@ -191,6 +198,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
+      tracer,
       buildId,
       isServer: false,
       config,
@@ -199,6 +207,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
+      tracer,
       buildId,
       isServer: true,
       config,
@@ -528,4 +537,62 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   printTreeView(Object.keys(allMappedPages), allPageInfos, isLikeServerless)
+
+  if (tracer) {
+    const parsedResults = await tracer.profiler.stopProfiling()
+    await new Promise(resolve => {
+      if (parsedResults === undefined) {
+        tracer.profiler.destroy()
+        tracer.trace.flush()
+        tracer.end(resolve)
+        return
+      }
+
+      const cpuStartTime = parsedResults.profile.startTime
+      const cpuEndTime = parsedResults.profile.endTime
+
+      tracer.trace.completeEvent({
+        name: 'TaskQueueManager::ProcessTaskFromWorkQueue',
+        id: ++tracer.counter,
+        cat: ['toplevel'],
+        ts: cpuStartTime,
+        args: {
+          src_file: '../../ipc/ipc_moji_bootstrap.cc',
+          src_func: 'Accept',
+        },
+      })
+
+      tracer.trace.completeEvent({
+        name: 'EvaluateScript',
+        id: ++tracer.counter,
+        cat: ['devtools.timeline'],
+        ts: cpuStartTime,
+        dur: cpuEndTime - cpuStartTime,
+        args: {
+          data: {
+            url: 'webpack',
+            lineNumber: 1,
+            columnNumber: 1,
+            frame: '0xFFF',
+          },
+        },
+      })
+
+      tracer.trace.instantEvent({
+        name: 'CpuProfile',
+        id: ++tracer.counter,
+        cat: ['disabled-by-default-devtools.timeline'],
+        ts: cpuEndTime,
+        args: {
+          data: {
+            cpuProfile: parsedResults.profile,
+          },
+        },
+      })
+
+      tracer.profiler.destroy()
+      tracer.trace.flush()
+      tracer.end(resolve)
+    })
+  }
 }
