@@ -1,12 +1,10 @@
 /* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
-import fs from 'fs'
-import { promisify } from 'util'
-const readdir = promisify(fs.readdir)
-const readFile = promisify(fs.readFile)
-const unlink = promisify(fs.unlink)
-const access = promisify(fs.access)
+import { readdir, readFile, unlink, access } from 'fs-extra'
+
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
 const appDir = join(__dirname, '../')
 
@@ -33,7 +31,7 @@ describe('Chunking', () => {
     await nextBuild(appDir)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
-  }, 10000) /* Timeout increased because this test builds a large library */
+  })
 
   it('should create a framework chunk', () => {
     expect(existsChunkNamed('framework')).toBe(true)
