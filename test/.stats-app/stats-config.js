@@ -78,7 +78,8 @@ module.exports = {
                 return config
               },
               experimental: {
-                modern: true
+                modern: true,
+                granularChunks: true
               }
             }
           `
@@ -92,7 +93,8 @@ module.exports = {
           content: `
             module.exports = {
               experimental: {
-                modern: true
+                modern: true,
+                granularChunks: true
               }
             }
           `
@@ -116,7 +118,8 @@ module.exports = {
             module.exports = {
               target: 'serverless',
               experimental: {
-                modern: true
+                modern: true,
+                granularChunks: true
               }
             }
           `
