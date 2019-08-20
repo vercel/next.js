@@ -218,7 +218,6 @@ export default class HotReloader {
       pages,
       'server',
       this.buildId,
-      false,
       this.config
     )
 

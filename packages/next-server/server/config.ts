@@ -36,9 +36,7 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     ampBindInitData: false,
-    terserLoader: false,
     profiling: false,
-    flyingShuttle: false,
     documentMiddleware: false,
     granularChunks: false,
     publicDirectory: false,
