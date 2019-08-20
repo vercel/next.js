@@ -5,4 +5,3 @@ Page.getInitialProps = ({ query }) => {
 }
 
 export default Page
-  
