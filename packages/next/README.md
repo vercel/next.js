@@ -69,6 +69,7 @@
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
+    - [Changing x-powered-by](#changing-x-powered-by)
   - [Dynamic Import](#dynamic-import)
     - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
     - [With named exports](#with-named-exports)
@@ -2739,9 +2740,9 @@ As a result, we were able to introduce a very simple approach to routing that co
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
+Next.js provide [dynamic routing](#dynamic-routing) solution out of the box. This allows to use pretty links in url.
 
-On the client side, we have a parameter call `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
+You can check an [exmaple](https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing) how it works.
 
 </details>
 
