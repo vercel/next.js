@@ -236,6 +236,8 @@ export default async function getBaseWebpackConfig(
         default: false,
         vendors: false,
         framework: {
+          // Framework chunk applies to modules in dynamic chunks, unlike shared chunks
+          // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
           test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
