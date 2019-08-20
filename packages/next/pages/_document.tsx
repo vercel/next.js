@@ -47,6 +47,12 @@ function getOptionalModernScriptVariant(path: string) {
   return path
 }
 
+function encodeFileName(file: string) {
+  return file.replace(/\[|\]/g, function(_) {
+    return _ == '[' ? '%5B' : '%5D'
+  })
+}
+
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -153,7 +159,7 @@ export class Head extends Component<
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
-          href={`${assetPrefix}/_next/${file}`}
+          href={`${assetPrefix}/_next/${encodeFileName(file)}`}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
       )
@@ -178,9 +184,9 @@ export class Head extends Component<
             <link
               rel="preload"
               key={bundle.file}
-              href={`${assetPrefix}/_next/${
+              href={`${assetPrefix}/_next/${encodeFileName(
                 bundle.file
-              }${_devOnlyInvalidateCacheQueryString}`}
+              )}${_devOnlyInvalidateCacheQueryString}`}
               as="script"
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -214,7 +220,9 @@ export class Head extends Component<
             key={file}
             nonce={this.props.nonce}
             rel="preload"
-            href={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+            href={`${assetPrefix}/_next/${encodeFileName(
+              file
+            )}${_devOnlyInvalidateCacheQueryString}`}
             as="script"
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
           />
@@ -490,9 +498,9 @@ export class NextScript extends Component<OriginProps> {
         <script
           async
           key={bundle.file}
-          src={`${assetPrefix}/_next/${
+          src={`${assetPrefix}/_next/${encodeFileName(
             bundle.file
-          }${_devOnlyInvalidateCacheQueryString}`}
+          )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           {...modernProps}
@@ -524,7 +532,9 @@ export class NextScript extends Component<OriginProps> {
       return (
         <script
           key={file}
-          src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+          src={`${assetPrefix}/_next/${encodeFileName(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           async
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -617,11 +627,10 @@ export class NextScript extends Component<OriginProps> {
         data-next-page={page}
         key={page}
         src={
-          assetPrefix +
-          (dynamicBuildId
+          assetPrefix + dynamicBuildId
             ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-            : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
-          _devOnlyInvalidateCacheQueryString
+            : `/_next/static/${buildId}/pages${getPageFile(page)}` +
+              _devOnlyInvalidateCacheQueryString
         }
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -691,7 +700,9 @@ export class NextScript extends Component<OriginProps> {
                 !file.match(/\.js\.map/) && (
                   <script
                     key={file}
-                    src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+                    src={`${assetPrefix}/_next/${encodeFileName(
+                      file
+                    )}${_devOnlyInvalidateCacheQueryString}`}
                     nonce={this.props.nonce}
                     crossOrigin={this.props.crossOrigin || process.crossOrigin}
                   />
@@ -739,5 +750,5 @@ function getPageFile(page: string, buildId?: string) {
     return buildId ? `/index.${buildId}.js` : '/index.js'
   }
 
-  return buildId ? `${page}.${buildId}.js` : `${page}.js`
+  return encodeFileName(buildId ? `${page}.${buildId}.js` : `${page}.js`)
 }
