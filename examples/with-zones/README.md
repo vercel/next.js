@@ -104,6 +104,42 @@ module.exports = {
 }
 ```
 
+## Making `/static` assets work
+
+The 'home' app runs from a root and can do simply this:
+
+```jsx
+<img src='/static/nextjs.png' />
+```
+
+However, the 'blog' app needs to use an URL like `/blog/static/image.png` and `assetPrefix` does **not** automatically prefix `src` (how could it, right?). So we need to prefix it manually like this:
+
+```jsx
+<img src={`${assetPrefix}/static/nextjs.png`} />
+```
+
+The question is where to get `assetPrefix` and the answer is to pass it down from `next.config.js` as an environment variable (that is inlined by webpack during build so that it's also available on the client-side).
+
+Let's update our `next.config.js` to this:
+
+```js
+const assetPrefix = process.env.BUILDING_FOR_NOW ? '/blog' : ''
+
+module.exports = {
+  target: 'serverless',
+  assetPrefix,
+  env: {
+    ASSET_PREFIX: assetPrefix
+  }
+}
+```
+
+Then in a React component, we can do this:
+
+```jsx
+<img src={`${process.env.ASSET_PREFIX}/static/nextjs.png`} />
+```
+
 ## Production Deployment
 
 Just run:

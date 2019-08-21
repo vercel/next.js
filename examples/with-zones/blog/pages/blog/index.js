@@ -16,5 +16,8 @@ export default () => (
       </li>
     </ul>
     <a href='/'>Home</a>
+    <div>
+      <img width={200} src={`${process.env.ASSET_PREFIX}/static/nextjs2.png`} />
+    </div>
   </div>
 )
