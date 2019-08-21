@@ -46,8 +46,11 @@ const nextServerlessLoader: loader.Loader = function() {
     curDistDir = curDistDir.join('/')
   }
 
-  const buildManifest = join(curDistDir, BUILD_MANIFEST)
-  const reactLoadableManifest = join(curDistDir, REACT_LOADABLE_MANIFEST)
+  const addDistDir = (file: string) =>
+    join(curDistDir as string, file).replace(/\\/g, '/')
+
+  const buildManifest = addDistDir(BUILD_MANIFEST)
+  const reactLoadableManifest = addDistDir(REACT_LOADABLE_MANIFEST)
 
   if (page.match(API_ROUTE)) {
     return `
