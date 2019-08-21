@@ -1,14 +1,13 @@
 // This is not production ready, (except with providers that ensure a secure host, like Now)
-// For production consider the usage of environment variables and NODE_ENV
-function getHost (req) {
-  if (!req) return ''
+// For production consider setting the host in an environment variable
+export default function getHost (req) {
+  if (typeof window === 'undefined') {
+    const { host } = req.headers
 
-  const { host } = req.headers
-
-  if (host.startsWith('localhost')) {
+    if (process.env.NODE_ENV === 'production') {
+      return `https://${host}`
+    }
     return `http://${host}`
   }
-  return `https://${host}`
+  return ''
 }
-
-export default getHost
