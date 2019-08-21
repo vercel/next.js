@@ -72,8 +72,6 @@ now secrets add @auth0_redirect_uri VALUE
 
 To get the secrets from above follow the same steps for creating an Auth0 application in [Run Locally](#run-locally). The recommended approach is to create 2 apps, one for production and another one for localhost, for production we use [now secrets](https://zeit.co/docs/v2/environment-variables-and-secrets) and for localhost a local `.env` file.
 
-> Make sure `ROOT_URL` in `now.json` is set to the domain the app will use in production, in development it always defaults to `http://localhost:3000`
-
 Then deploy it:
 
 ```bash

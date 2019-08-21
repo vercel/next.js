@@ -2,7 +2,6 @@ import qs from 'qs'
 import cookie from 'cookie'
 import jwt from 'jsonwebtoken'
 import fetch from 'isomorphic-unfetch'
-import { ROOT_URL } from '../../../lib/configs'
 import { getCookieOptions } from '../../../lib/api/auth-utils'
 
 const url = `https://${process.env.AUTH0_DOMAIN}/oauth/token`
@@ -59,7 +58,7 @@ export default async (req, res) => {
         cookie.serialize('nonce', '', { maxAge: 0, path: '/' })
       ])
 
-      res.writeHead(302, { Location: ROOT_URL })
+      res.writeHead(302, { Location: '/' })
       res.end()
     } else {
       const error = new Error(response.statusText)
