@@ -151,6 +151,18 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
+      // Transparently alias common libraries to more optimized versions
+      ...(isServer
+        ? {
+            // Alias client-side modules with built-in Node equivalents.
+            'querystring-es3$': 'querystring',
+            qss$: 'querystring',
+          }
+        : {
+            // Replace heavy query string implementations with a small version.
+            querystring$: 'qss',
+            'querystring-es3$': 'qss',
+          }),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
   }

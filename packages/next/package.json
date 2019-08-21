@@ -86,6 +86,7 @@
     "next-server": "9.0.5-canary.0",
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
+    "qss": "2.0.3",
     "react-error-overlay": "5.1.6",
     "react-is": "16.8.6",
     "serialize-javascript": "1.7.0",
