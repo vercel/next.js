@@ -1,7 +1,7 @@
 import React from 'react'
 import cookie from 'cookie'
 import PropTypes from 'prop-types'
-import { getDataFromTree } from 'react-apollo'
+import { getDataFromTree } from '@apollo/react-ssr'
 import Head from 'next/head'
 
 import initApollo from './initApollo'
@@ -12,7 +12,15 @@ function parseCookies (req, options = {}) {
 
 export default App => {
   return class WithData extends React.Component {
+    // It is needed for better devtools experience. Check how react devtools shows it: "MyApp WithData"
     static displayName = `WithData(${App.displayName})`
+
+    // Since apolloState is required but it is missed before this method returns the new props,
+    // so it is needed to provide defaults
+    static defaultProps = {
+      apolloState: {}
+    }
+
     static propTypes = {
       apolloState: PropTypes.object.isRequired
     }
