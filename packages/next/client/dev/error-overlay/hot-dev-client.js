@@ -72,7 +72,7 @@ export default function connect (options) {
   // change).
   // See https://github.com/facebook/create-react-app/issues/3096
   ErrorOverlay.startReportingRuntimeErrors({
-    onError: function () {
+    onError: function (idk) {
       hadRuntimeError = true
     }
   })
