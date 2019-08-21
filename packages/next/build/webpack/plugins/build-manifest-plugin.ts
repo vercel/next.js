@@ -25,8 +25,9 @@ const generateClientManifest = (
 ): string => {
   const clientManifest: { [s: string]: string[] } = {}
   const appDependencies = new Set(assetMap.pages['/_app'])
-  delete assetMap.pages['/_app']
+
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
+    if (page === '/_app') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
     const filteredDeps = dependencies.filter(
