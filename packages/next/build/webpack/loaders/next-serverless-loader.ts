@@ -38,7 +38,9 @@ const nextServerlessLoader: loader.Loader = function() {
   let curDistDir =
     distDir === DOT_NEXT_ALIAS
       ? distDir
-      : relative(join(distDir, 'serverless/pages', page), distDir).split('/')
+      : relative(join(distDir, 'serverless/pages', page), distDir)
+          .replace(/\\/g, '/')
+          .split('/')
 
   if (Array.isArray(curDistDir)) {
     // remove extra level up
