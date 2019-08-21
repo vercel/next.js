@@ -5,6 +5,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  BUILD_MANIFEST,
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
@@ -35,6 +36,10 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
+
+const manifestsRegex = new RegExp(
+  `(${BUILD_MANIFEST}|${REACT_LOADABLE_MANIFEST})`
+)
 
 const escapePathVariables = (value: any) => {
   return typeof value === 'string'
@@ -316,6 +321,10 @@ export default async function getBaseWebpackConfig(
 
             if (notExternalModules.indexOf(request) !== -1) {
               return callback()
+            }
+
+            if (isServerlessTrace && request.match(manifestsRegex)) {
+              return callback(undefined, `commonjs ${request}`)
             }
 
             resolve(

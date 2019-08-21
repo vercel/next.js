@@ -49,16 +49,18 @@ export function createEntrypoints(
   pages: PagesMapping,
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
-  config: any
+  config: any,
+  distDir: string
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
+  const isServerlessTrace = target === 'experimental-serverless-trace'
 
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
-    distDir: DOT_NEXT_ALIAS,
+    distDir: isServerlessTrace ? distDir : DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,

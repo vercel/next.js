@@ -89,7 +89,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const allMappedPages = createPagesMapping(allPagePaths, config.pageExtensions)
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const entrypoints = createEntrypoints(
+    mappedPages,
+    target,
+    buildId,
+    config,
+    distDir
+  )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       tracer,
@@ -126,8 +132,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
-  if (isLikeServerless) {
+
+  // the serverless build needs to run after since it relies on
+  // manifests produced in the client build
+  if (target === 'serverless') {
     const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
