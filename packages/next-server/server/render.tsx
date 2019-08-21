@@ -58,7 +58,6 @@ class ServerRouter implements NextRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.pathname = pathname
   }
   push(): any {
     noRouter()
@@ -127,7 +126,6 @@ type RenderOpts = {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
-  dynamicBuildId?: boolean
   runtimeConfig?: { [key: string]: any }
   dangerousAsPath: string
   assetPrefix?: string
@@ -161,7 +159,6 @@ function renderDocument(
     query,
     buildId,
     canonicalBase,
-    dynamicBuildId = false,
     assetPrefix,
     runtimeConfig,
     nextExport,
@@ -206,7 +203,6 @@ function renderDocument(
             page: pathname, // The rendered page
             query, // querystring parsed / passed by the user
             buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-            dynamicBuildId, // Specifies if the buildId should by dynamically fetched
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
