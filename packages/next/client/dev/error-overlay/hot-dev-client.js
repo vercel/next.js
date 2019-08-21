@@ -77,6 +77,32 @@ export default function connect (options) {
     }
   })
 
+  const attachToConsole = (type, callback) => {
+    const orig = console[type]
+    console[type] = function (...args) {
+      callback(args)
+      orig.apply(this, args)
+    }
+  }
+
+  // attach to console.error to catch hydration errors since the
+  // ErrorOverlay ignores the console.error if `reactStack` is empty
+  attachToConsole('error', args => {
+    if (!(args[0] || '').match(/did not match.*?Server/)) return
+    let message = args[0]
+
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i]
+      message = message.replace('%s', arg)
+    }
+    ErrorOverlay.reportRuntimeError(
+      new Error(
+        message +
+          ` See here for more info: https://err.sh/zeit/next.js/hydration-error`
+      )
+    )
+  })
+
   if (module.hot && typeof module.hot.dispose === 'function') {
     module.hot.dispose(function () {
       // TODO: why do we need this?

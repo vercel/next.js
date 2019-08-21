@@ -16,7 +16,6 @@ import {
   getSortedRoutes,
   isDynamicRoute
 } from 'next-server/dist/lib/router/utils'
-import diffHandler from './diff-handler'
 import React from 'react'
 
 if (typeof React.Suspense === 'undefined') {
@@ -187,12 +186,11 @@ export default class DevServer extends Server {
 
   async run (req, res, parsedUrl) {
     await this.devReady
-    if (await diffHandler(req, res, this.distDir)) return
-
     const { finished } = await this.hotReloader.run(req, res, parsedUrl)
     if (finished) {
       return
     }
+
     return super.run(req, res, parsedUrl)
   }
 

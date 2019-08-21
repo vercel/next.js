@@ -15,8 +15,5 @@ if (typeof window !== 'undefined') {
 }
 
 export default () => {
-  return <>
-    <h3>hello world</h3>
-    <p>{useRouter().asPath}</p>
-  </>
+  return <p>{useRouter().asPath}</p>
 }

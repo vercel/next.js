@@ -1,5 +1,4 @@
 import initNext, * as next from './'
-import './dev/hydration-error-overlay'
 import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
