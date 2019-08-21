@@ -1,12 +1,13 @@
-import { Compiler } from 'webpack'
-import { RawSource } from 'webpack-sources'
+import devalue from 'devalue'
 import {
   BUILD_MANIFEST,
-  ROUTE_NAME_REGEX,
-  IS_BUNDLED_PAGE_REGEX,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  IS_BUNDLED_PAGE_REGEX,
+  ROUTE_NAME_REGEX,
 } from 'next-server/constants'
+import { Compiler } from 'webpack'
+import { RawSource } from 'webpack-sources'
 
 interface AssetMap {
   devFiles: string[]
@@ -37,7 +38,7 @@ const generateClientManifest = (
       clientManifest[page] = filteredDeps
     }
   })
-  return JSON.stringify(clientManifest)
+  return devalue(clientManifest)
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
@@ -159,11 +160,10 @@ export default class BuildManifestPlugin {
           }/_buildManifest.js`
 
           compilation.assets[clientManifestPath] = new RawSource(
-            `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
+            `self.__BUILD_MANIFEST = ${generateClientManifest(
               assetMap,
               false
-            )}')
-            self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+            )};` + `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
           )
 
           if (this.modern) {
@@ -172,11 +172,10 @@ export default class BuildManifestPlugin {
             }/_buildManifest.module.js`
 
             compilation.assets[modernClientManifestPath] = new RawSource(
-              `self.__BUILD_MANIFEST = JSON.parse('${generateClientManifest(
+              `self.__BUILD_MANIFEST = ${generateClientManifest(
                 assetMap,
                 true
-              )}')
-              self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+              )};` + `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
             )
           }
         }

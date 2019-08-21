@@ -36,7 +36,6 @@ const {
   page,
   query,
   buildId,
-  dynamicBuildId,
   assetPrefix,
   runtimeConfig,
   dynamicIds
@@ -162,12 +161,6 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
-    if (dynamicBuildId === true) {
-      pageLoader.onDynamicBuildId()
-    }
-  }
-
   router = createRouter(page, query, asPath, {
     initialProps: props,
     pageLoader,
@@ -287,7 +280,11 @@ function markRenderComplete () {
 
 function clearMarks () {
   performance.clearMarks()
-  performance.clearMeasures()
+  /*
+   * TODO: uncomment the following line when we have a way to
+   * expose this to user code.
+   */
+  // performance.clearMeasures()
 }
 
 function AppContainer ({ children }) {

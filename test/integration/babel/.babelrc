@@ -1,6 +1,4 @@
 {
-  "presets": [
-    "next/babel",
-    "@babel/preset-flow"
-  ]
+  "presets": ["next/babel", "@babel/preset-flow"],
+  "plugins": [["transform-define", { "TEST_VAR": "hello" }]]
 }

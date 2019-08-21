@@ -9,6 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@apollo/react-hooks": "^3.0.1",
+    "@apollo/react-ssr": "^3.0.1",
     "apollo-boost": "^0.1.6",
     "apollo-link-context": "^1.0.8",
     "cookie": "^0.3.1",
@@ -18,7 +20,6 @@
     "next": "latest",
     "prop-types": "^15.6.1",
     "react": "^16.7.0",
-    "react-apollo": "^2.1.4",
     "react-dom": "^16.7.0"
   }
 }

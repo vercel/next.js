@@ -1,4 +1,5 @@
-import { Mutation, withApollo } from 'react-apollo'
+import { useRef } from 'react'
+import { useMutation, useApolloClient } from '@apollo/react-hooks'
 import gql from 'graphql-tag'
 import cookie from 'cookie'
 import redirect from '../lib/redirect'
@@ -17,76 +18,62 @@ const CREATE_USER = gql`
   }
 `
 
-const RegisterBox = ({ client }) => {
-  let name, email, password
+const RegisterBox = () => {
+  const client = useApolloClient()
+
+  const onCompleted = data => {
+    // Store the token in cookie
+    document.cookie = cookie.serialize('token', data.signinUser.token, {
+      maxAge: 30 * 24 * 60 * 60 // 30 days
+    })
+    // Force a reload of all the current queries now that the user is
+    // logged in
+    client.cache.reset().then(() => {
+      redirect({}, '/')
+    })
+  }
+  const onError = error => {
+    // If you want to send error to external service?
+    console.error(error)
+  }
+  const [create, { error }] = useMutation(CREATE_USER, { onCompleted, onError })
+
+  const name = useRef(null)
+  const email = useRef(null)
+  const password = useRef(null)
 
   return (
-    <Mutation
-      mutation={CREATE_USER}
-      onCompleted={data => {
-        // Store the token in cookie
-        document.cookie = cookie.serialize('token', data.signinUser.token, {
-          maxAge: 30 * 24 * 60 * 60 // 30 days
+    <form
+      onSubmit={e => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        create({
+          variables: {
+            name: name.current.value,
+            email: email.current.value,
+            password: password.current.value
+          }
         })
-        // Force a reload of all the current queries now that the user is
-        // logged in
-        client.cache.reset().then(() => {
-          redirect({}, '/')
-        })
-      }}
-      onError={error => {
-        // If you want to send error to external service?
-        console.log(error)
+
+        name.current.value = email.current.value = password.current.value = ''
       }}
     >
-      {(create, { data, error }) => (
-        <form
-          onSubmit={e => {
-            e.preventDefault()
-            e.stopPropagation()
-
-            create({
-              variables: {
-                name: name.value,
-                email: email.value,
-                password: password.value
-              }
-            })
-
-            name.value = email.value = password.value = ''
-          }}
-        >
-          {error && <p>Issue occurred while registering :(</p>}
-          <input
-            name='name'
-            placeholder='Name'
-            ref={node => {
-              name = node
-            }}
-          />
-          <br />
-          <input
-            name='email'
-            placeholder='Email'
-            ref={node => {
-              email = node
-            }}
-          />
-          <br />
-          <input
-            name='password'
-            placeholder='Password'
-            ref={node => {
-              password = node
-            }}
-            type='password'
-          />
-          <br />
-          <button>Register</button>
-        </form>
-      )}
-    </Mutation>
+      {error && <p>Issue occurred while registering :(</p>}
+      <input name='name' placeholder='Name' ref={name} />
+      <br />
+      <input name='email' placeholder='Email' ref={email} />
+      <br />
+      <input
+        name='password'
+        placeholder='Password'
+        ref={password}
+        type='password'
+      />
+      <br />
+      <button>Register</button>
+    </form>
   )
 }
 
-export default withApollo(RegisterBox)
+export default RegisterBox

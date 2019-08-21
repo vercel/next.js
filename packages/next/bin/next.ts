@@ -60,7 +60,7 @@ if (!foundCommand && args['--help']) {
       ${Object.keys(commands).join(', ')}
 
     Options
-      --version, -p   Version number
+      --version, -v   Version number
       --inspect       Enable the Node.js inspector
       --help, -h      Displays this message
 
