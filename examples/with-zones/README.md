@@ -140,6 +140,18 @@ Then in a React component, we can do this:
 <img src={`${process.env.ASSET_PREFIX}/static/nextjs.png`} />
 ```
 
+For Now deployment, we need to add a routing rule as well:
+
+```json
+{
+  "routes": [
+    { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
+    { "src": "/blog/static(.*)", "dest": "blog/static$1" },
+    { "src": "/blog(.*)", "dest": "blog/blog$1" }
+  ]
+}
+```
+
 ## Production Deployment
 
 Just run:

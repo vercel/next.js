@@ -7,6 +7,7 @@
   ],
   "routes": [
     { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
+    { "src": "/blog/static(.*)", "dest": "blog/static$1" },
     { "src": "/blog(.*)", "dest": "blog/blog$1" },
     { "src": "(.*)", "dest": "home$1" }
   ],
