@@ -7,7 +7,12 @@
   ],
   "routes": [
     { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
-    { "src": "/blog", "dest": "blog/blog" },
+    { "src": "/blog(.*)", "dest": "blog/blog$1" },
     { "src": "(.*)", "dest": "home$1" }
-  ]
+  ],
+  "build": {
+    "env": {
+      "BUILDING_FOR_NOW": "true"
+    }
+  }
 }

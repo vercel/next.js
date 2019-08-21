@@ -1,4 +1,4 @@
 module.exports = {
   target: 'serverless',
-  assetPrefix: '/blog'
+  assetPrefix: process.env.BUILDING_FOR_NOW ? '/blog' : '',
 }
