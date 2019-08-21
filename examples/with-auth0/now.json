@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "env": {
+    "ROOT_URL": "https://mysite.com",
+    "AUTH0_DOMAIN": "@auth0_domain",
+    "AUTH0_CLIENT_ID": "@auth0_client_id",
+    "AUTH0_CLIENT_SECRET": "@auth0_client_secret",
+    "AUTH0_AUDIENCE": "@auth0_audience",
+    "AUTH0_REDIRECT_URI": "@auth0_redirect_uri"
+  }
+}
