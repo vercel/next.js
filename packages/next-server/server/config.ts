@@ -42,7 +42,7 @@ const defaultConfig: { [key: string]: any } = {
     granularChunks: false,
     publicDirectory: false,
     modern: false,
-    modernOptimizations: false,
+    modernOptimizations: true,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
