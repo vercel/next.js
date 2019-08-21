@@ -1,4 +1,4 @@
-# Example app utilizing cookie-based authentication
+# Passport.js Example
 
 ## How to use
 
@@ -49,6 +49,8 @@ now secrets add @github-client-secret YOUR_CLIENT_SECRET
 ```
 
 To get the secrets from above you'll have to create an OAuth app in GitHub, you can see how to do it [here](https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/), the recommended approach is to create 2 apps, one for production and another one for localhost, for production we use [now secrets](https://zeit.co/docs/v2/environment-variables-and-secrets) and for localhost a local [.env](./.env) file
+
+> Make sure `ROOT_URL` in `now.json` is set to the domain the app will use in production, in development it always defaults to `http://localhost:3000`
 
 Then deploy it:
 

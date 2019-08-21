@@ -16,7 +16,7 @@ app.get('/api/login/github', (req, res) => {
   const { redirectPath } = req.query
   const redirectTo = url.parse(callbackURL, true)
 
-  redirectTo.query.redirectPath = url.format(redirectPath)
+  redirectTo.query.redirectPath = redirectPath
 
   passport.authenticate('github', { callbackURL: url.format(redirectTo) })(
     req,

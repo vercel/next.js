@@ -16,13 +16,14 @@ export default async (req, res) => {
 
     if (response.ok) {
       const data = await response.json()
-      return res.status(200).json(parseUser(data))
+      res.status(200).json(parseUser(data))
     } else {
       const error = new Error(response.statusText)
       error.status = response.status
       throw error
     }
   } catch (error) {
-    res.status(error.status || 400).json({ message: error.message })
+    console.error(error)
+    res.status(error.status || 400).end(error.message)
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "with-auth0",
+  "name": "with-passport",
   "scripts": {
     "dev": "next",
     "build": "next build",
