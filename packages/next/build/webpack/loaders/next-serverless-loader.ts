@@ -1,9 +1,9 @@
 import { loader } from 'webpack'
-import { join } from 'path'
+import { join, relative } from 'path'
 import { parse } from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
-import { API_ROUTE } from '../../../lib/constants'
+import { API_ROUTE, DOT_NEXT_ALIAS } from '../../../lib/constants'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -34,11 +34,20 @@ const nextServerlessLoader: loader.Loader = function() {
     generateEtags,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
-  const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
-  const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
-    /\\/g,
-    '/'
-  )
+
+  let curDistDir =
+    distDir === DOT_NEXT_ALIAS
+      ? distDir
+      : relative(join(distDir, 'serverless/pages', page), distDir).split('/')
+
+  if (Array.isArray(curDistDir)) {
+    // remove extra level up
+    if (page !== '/') curDistDir.shift()
+    curDistDir = curDistDir.join('/')
+  }
+
+  const buildManifest = join(curDistDir, BUILD_MANIFEST)
+  const reactLoadableManifest = join(curDistDir, REACT_LOADABLE_MANIFEST)
 
   if (page.match(API_ROUTE)) {
     return `
