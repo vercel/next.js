@@ -643,7 +643,7 @@ export default async function getBaseWebpackConfig(
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
     }
   }
