@@ -46,7 +46,6 @@ AUTH0_CLIENT_ID = client_id
 AUTH0_CLIENT_SECRET = client_secret
 # Available in dashboard -> APIs -> copy the API Audience
 AUTH0_AUDIENCE = https://user.auth0.com/api/v2/
-# Don't need to change this one
 AUTH0_REDIRECT_URI = http://localhost:3000/api/login/callback
 ```
 
