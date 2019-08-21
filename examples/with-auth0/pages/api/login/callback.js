@@ -3,7 +3,7 @@ import cookie from 'cookie'
 import jwt from 'jsonwebtoken'
 import fetch from 'isomorphic-unfetch'
 import { ROOT_URL } from '../../../lib/configs'
-import { isValidPath, getCookieOptions } from '../../../lib/api/auth-utils'
+import { getCookieOptions } from '../../../lib/api/auth-utils'
 
 const url = `https://${process.env.AUTH0_DOMAIN}/oauth/token`
 const fetchOptions = code => ({
@@ -27,7 +27,7 @@ function validateTokens (data) {
 
 export default async (req, res) => {
   const { state, nonce } = req.cookies
-  const { state: incomingState, code, redirectPath } = req.query
+  const { state: incomingState, code } = req.query
 
   try {
     // confirm state match to mitigate CSRF
@@ -59,12 +59,7 @@ export default async (req, res) => {
         cookie.serialize('nonce', '', { maxAge: 0, path: '/' })
       ])
 
-      // Redirect the user to a selected path
-      const redirectTo = isValidPath(redirectPath)
-        ? ROOT_URL + redirectPath
-        : ROOT_URL
-
-      res.writeHead(302, { Location: redirectTo })
+      res.writeHead(302, { Location: ROOT_URL })
       res.end()
     } else {
       const error = new Error(response.statusText)

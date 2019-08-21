@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { loginUrl } from '../lib/auth'
 import { useHasUser, useLogout } from '../lib/user'
 
 const Header = ({ user }) => {
@@ -33,7 +32,7 @@ const Header = ({ user }) => {
             </>
           ) : (
             <li>
-              <a href={loginUrl('/profile')}>Login</a>
+              <a href='/api/login'>Login</a>
             </li>
           )}
         </ul>

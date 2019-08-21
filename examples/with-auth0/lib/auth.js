@@ -22,7 +22,3 @@ export function removeToken (res = {}) {
     Cookies.remove('id_token', { path: '/' })
   }
 }
-
-export function loginUrl (redirectPath = '/') {
-  return `/api/login?redirectPath=${encodeURIComponent(redirectPath)}`
-}
