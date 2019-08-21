@@ -8,7 +8,8 @@ import {
   findPort,
   killApp,
   launchApp,
-  waitFor
+  waitFor,
+  getReactErrorOverlayContent
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -72,6 +73,16 @@ describe('Auto Export', () => {
 
       const numCaught = await browser.eval(`window.caughtWarns.length`)
       expect(numCaught).toBe(1)
+    })
+
+    it('should trigger the React Error Overlay for hydration error', async () => {
+      const browser = await webdriver(appPort, '/zeit/cmnt-1')
+      await waitFor(1000)
+
+      const content = await getReactErrorOverlayContent(browser)
+      expect(content).toMatch(
+        /See here for more info: https:\/\/err\.sh\/zeit\/next\.js\/hydration-error/
+      )
     })
   })
 })
