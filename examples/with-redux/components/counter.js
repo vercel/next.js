@@ -1,47 +1,37 @@
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux'
+import React from 'react'
+import { useSelector, useDispatch } from 'react-redux'
 import { incrementCount, decrementCount, resetCount } from '../store'
 
-class Counter extends Component {
-  increment = () => {
-    const { incrementCount } = this.props
-    incrementCount()
+const countSelector = state => state.count
+
+const useCounter = () => {
+  const dispatch = useDispatch()
+  const increment = () => {
+    dispatch(incrementCount())
+  }
+  const decrement = () => {
+    dispatch(decrementCount())
+  }
+  const reset = () => {
+    dispatch(resetCount())
   }
 
-  decrement = () => {
-    const { decrementCount } = this.props
-    decrementCount()
-  }
-
-  reset = () => {
-    const { resetCount } = this.props
-    resetCount()
-  }
-
-  render () {
-    const { count } = this.props
-    return (
-      <div>
-        <h1>
-          Count: <span>{count}</span>
-        </h1>
-        <button onClick={this.increment}>+1</button>
-        <button onClick={this.decrement}>-1</button>
-        <button onClick={this.reset}>Reset</button>
-      </div>
-    )
-  }
+  return { increment, decrement, reset }
 }
 
-function mapStateToProps (state) {
-  const { count } = state
-  return { count }
+function Counter () {
+  const count = useSelector(countSelector)
+  const { increment, decrement, reset } = useCounter()
+  return (
+    <div>
+      <h1>
+        Count: <span>{count}</span>
+      </h1>
+      <button onClick={increment}>+1</button>
+      <button onClick={decrement}>-1</button>
+      <button onClick={reset}>Reset</button>
+    </div>
+  )
 }
-const mapDispatchToProps = dispatch =>
-  bindActionCreators({ incrementCount, decrementCount, resetCount }, dispatch)
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Counter)
+export default Counter

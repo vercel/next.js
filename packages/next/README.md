@@ -8,8 +8,7 @@
     <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
-    <img alt="" src=
-  "https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+    <img alt="" src="https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
     <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
@@ -2742,7 +2741,7 @@ As a result, we were able to introduce a very simple approach to routing that co
 
 Next.js provide [dynamic routing](#dynamic-routing) solution out of the box. This allows to use pretty links in url.
 
-You can check an [exmaple](https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing) how it works.
+You can check an [example](https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing) to see how it works.
 
 </details>
 

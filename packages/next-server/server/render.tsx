@@ -58,7 +58,6 @@ class ServerRouter implements NextRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.pathname = pathname
   }
   push(): any {
     noRouter()
