@@ -3,13 +3,13 @@ import { withRouter } from 'next/router'
 
 const Header = ({ router: { pathname } }) => (
   <header>
-    <Link prefetch href='/'>
+    <Link href='/'>
       <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
     </Link>
-    <Link prefetch href='/apollo'>
+    <Link href='/apollo'>
       <a className={pathname === '/apollo' ? 'is-active' : ''}>Apollo</a>
     </Link>
-    <Link prefetch href='/redux'>
+    <Link href='/redux'>
       <a className={pathname === '/redux' ? 'is-active' : ''}>Redux</a>
     </Link>
     <style jsx>{`
