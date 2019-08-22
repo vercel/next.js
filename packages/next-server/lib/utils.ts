@@ -58,7 +58,6 @@ export type NEXT_DATA = {
   page: string
   query: ParsedUrlQuery
   buildId: string
-  dynamicBuildId: boolean
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean

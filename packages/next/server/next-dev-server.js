@@ -1,5 +1,5 @@
 import Server from 'next-server/dist/server/next-server'
-import { join, relative, extname } from 'path'
+import { join, relative } from 'path'
 import HotReloader from './hot-reloader'
 import { route } from 'next-server/dist/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
@@ -129,8 +129,10 @@ export default class DevServer extends Server {
 
           let pageName = '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
 
-          const pageExt = extname(pageName)
-          pageName = pageName.slice(0, -pageExt.length)
+          pageName = pageName.replace(
+            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
+            ''
+          )
 
           pageName = pageName.replace(/\/index$/, '') || '/'
 

@@ -47,7 +47,8 @@ In the first example we are going to display a digital clock that updates every 
 
 The Redux `Provider` is implemented in `pages/_app.js`. Since the `MyApp` component is wrapped in `withReduxStore` the redux store will be automatically initialized and provided to `MyApp`, which in turn passes it off to `react-redux`'s `Provider` component.
 
-All pages have access to the redux store using `connect` from `react-redux`.
+`index.js` have access to the redux store using `connect` from `react-redux`.
+`counter.js` and `examples.js` have access to the redux store using `useSelector` and `useDispatch` from `react-redux@^7.1.0`
 
 On the server side every request initializes a new store, because otherwise different user data can be mixed up. On the client side the same store is used, even between page changes.
 

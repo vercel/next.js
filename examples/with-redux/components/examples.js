@@ -1,8 +1,14 @@
-import { connect } from 'react-redux'
+import { useSelector, shallowEqual } from 'react-redux'
 import Clock from './clock'
 import Counter from './counter'
 
-function Examples ({ lastUpdate, light }) {
+const clockSelector = state => ({
+  lastUpdate: state.lastUpdate,
+  light: state.light
+})
+
+function Examples () {
+  const { lastUpdate, light } = useSelector(clockSelector, shallowEqual)
   return (
     <div>
       <Clock lastUpdate={lastUpdate} light={light} />
@@ -11,9 +17,4 @@ function Examples ({ lastUpdate, light }) {
   )
 }
 
-function mapStateToProps (state) {
-  const { lastUpdate, light } = state
-  return { lastUpdate, light }
-}
-
-export default connect(mapStateToProps)(Examples)
+export default Examples

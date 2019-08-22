@@ -93,6 +93,7 @@
     "lerna": "3.14.1",
     "lint-staged": "8.1.7",
     "mkdirp": "0.5.1",
+    "moment": "^2.24.0",
     "node-fetch": "2.6.0",
     "node-notifier": "5.4.0",
     "node-sass": "4.12.0",
