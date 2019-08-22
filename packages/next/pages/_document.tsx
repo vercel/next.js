@@ -713,9 +713,7 @@ export class NextScript extends Component<OriginProps> {
             noModule={true}
             src={
               assetPrefix +
-              (dynamicBuildId
-                ? `/_next/static/client/polyfill.${buildId}.js`
-                : `/_next/static/${buildId}/polyfill.js`) +
+              `/_next/static/${buildId}/polyfill.js` +
               _devOnlyInvalidateCacheQueryString
             }
           />

@@ -164,11 +164,11 @@ export default async function getBaseWebpackConfig(
       ...(config.experimental.modernOptimizations &&
         (!isServer
           ? {
-              url$: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'url.js'),
-              querystring$: 'qss',
-              'querystring-es3$': 'qss',
+              url: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'url.js'),
+              querystring: 'qss',
+              'querystring-es3': 'qss',
             }
-          : { 'querystring-es3$': 'querystring' })),
+          : { 'querystring-es3': 'querystring' })),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
   }
