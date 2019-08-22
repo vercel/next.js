@@ -9,14 +9,14 @@ let appPort
 let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-describe('AMP Bind Initial Data', () => {
+describe('Analytics relayer', () => {
   beforeAll(async () => {
     appPort = await findPort()
     server = await launchApp(appDir, appPort)
   })
   afterAll(() => killApp(server))
 
-  it('relays the data to analytics', async () => {
+  it('Relays the data to user code', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.waitForElementByCss('h1')
     const h1Text = await browser.elementByCss('h1').text()
