@@ -357,15 +357,8 @@ export async function renderToHTML(
       isSkeleton && !isDataPrerender
         ? { pageProps: {} }
         : await loadGetInitialProps(App, {
+            AppTree: ctx.AppTree,
             Component,
-            AppTree: (props: any) => {
-              const appProps = { ...props, Component, router }
-              return (
-                <AppContainer>
-                  <App {...appProps} />
-                </AppContainer>
-              )
-            },
             router,
             ctx,
           })
