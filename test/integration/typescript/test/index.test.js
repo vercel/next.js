@@ -7,7 +7,7 @@ import hmr from './hmr'
 import typescript from './typescript'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 describe('TypeScript Features', () => {
   beforeAll(async () => {

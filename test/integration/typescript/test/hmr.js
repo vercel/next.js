@@ -46,17 +46,19 @@ export default (context, renderViaHTTP) => {
       try {
         browser = await webdriver(context.appPort, '/type-error-recover')
         const errContent = origContent.replace('() =>', '(): boolean =>')
-
+        const errRegex = /Type 'Element' is not assignable to type 'boolean'/
         writeFileSync(pagePath, errContent)
-        await check(
-          () => getReactErrorOverlayContent(browser),
-          /Type 'Element' is not assignable to type 'boolean'/
-        )
 
+        await check(() => getReactErrorOverlayContent(browser), errRegex)
         writeFileSync(pagePath, origContent)
+
         await check(async () => {
-          const html = await browser.eval('document.documentElement.innerHTML')
-          return html.match(/iframe/) ? 'fail' : 'success'
+          const hasIframe = await browser.hasElementByCssSelector('iframe')
+          if (!hasIframe) return 'success'
+          const html = await browser.eval(
+            `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+          )
+          return html.match(errRegex) ? 'fail' : 'success'
         }, /success/)
       } finally {
         if (browser) browser.close()

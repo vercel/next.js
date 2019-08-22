@@ -13,7 +13,7 @@ export default (context, render) => {
   describe('TypeScript', () => {
     describe('default behavior', () => {
       it('should render the page', async () => {
-        const $ = await get$('/hello')
+        const $ = await get$('/another')
         expect($('body').text()).toMatch(/Hello World/)
       })
 
