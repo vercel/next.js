@@ -75,7 +75,7 @@ let webpackHMR
 export let router
 export let ErrorComponent
 let Component
-let App
+let App, perfDataRelayer
 
 class Container extends React.Component {
   componentDidCatch (err, info) {
@@ -139,7 +139,11 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  App = await pageLoader.loadPage('/_app')
+  const { pageExports, page: app } = await pageLoader.loadPageScript('/_app')
+  App = app
+  if (pageExports && pageExports.relayPerformanceData) {
+    perfDataRelayer = pageExports.relayPerformanceData
+  }
 
   let initialErr = err
 
@@ -260,7 +264,23 @@ function markHydrateComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+  if (perfDataRelayer) {
+    performance.getEntriesByName('Next.js-hydration').forEach(entry => {
+      perfDataRelayer({
+        name: entry.name,
+        startTime: entry.startTime,
+        value: entry.duration
+      })
+    })
 
+    performance.getEntriesByName('beforeRender').forEach(entry => {
+      perfDataRelayer({
+        name: entry.name,
+        startTime: entry.startTime,
+        value: entry.duration
+      })
+    })
+  }
   clearMarks()
 }
 
@@ -280,7 +300,23 @@ function markRenderComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-render', 'beforeRender', 'afterRender')
+  if (perfDataRelayer) {
+    performance.getEntriesByName('Next.js-render').forEach(entry => {
+      perfDataRelayer({
+        name: entry.name,
+        startTime: entry.startTime,
+        value: entry.duration
+      })
+    })
 
+    performance.getEntriesByName('beforeRender').forEach(entry => {
+      perfDataRelayer({
+        name: entry.name,
+        startTime: entry.startTime,
+        value: entry.duration
+      })
+    })
+  }
   clearMarks()
 }
 
