@@ -57,8 +57,17 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   }
 }
 
+const warnContainer = execOnce(() => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      `Warning: the \`Container\` in \`_app\` has been deprecated and should be removed. https://err.sh/zeit/next.js/app-container-deprecated`
+    )
+  }
+})
+
 // @deprecated noop for now until removal
 export function Container(p: any) {
+  if (process.env.NODE_ENV !== 'production') warnContainer()
   return p.children
 }
 
@@ -75,38 +84,38 @@ export function createUrl(router: Router) {
   const { pathname, asPath, query } = router
   return {
     get query() {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return query
     },
     get pathname() {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return pathname
     },
     get asPath() {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return asPath
     },
     back: () => {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       router.back()
     },
     push: (url: string, as?: string) => {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return router.push(url, as)
     },
     pushTo: (href: string, as?: string) => {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       const pushRoute = as ? href : ''
       const pushUrl = as || href
 
       return router.push(pushRoute, pushUrl)
     },
     replace: (url: string, as?: string) => {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       return router.replace(url, as)
     },
     replaceTo: (href: string, as?: string) => {
-      warnUrl()
+      if (process.env.NODE_ENV !== 'production') warnUrl()
       const replaceRoute = as ? href : ''
       const replaceUrl = as || href
 
