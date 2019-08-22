@@ -14,7 +14,7 @@ export default async ({ assetPrefix }) => {
   setupPing(assetPrefix, () => Router.pathname, currentPage)
 
   // prevent HMR connection from being closed when running tests
-  if (process.env.NODE_ENV !== 'test') {
+  if (!process.env.__NEXT_TEST_MODE) {
     document.addEventListener('visibilitychange', event => {
       const state = document.visibilityState
       if (state === 'visible') {
