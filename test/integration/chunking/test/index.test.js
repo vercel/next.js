@@ -40,12 +40,6 @@ describe('Chunking', () => {
     expect(existsChunkNamed('framework')).toBe(true)
   })
 
-  it('should create a library chunk for lodash', () => {
-    // This test app has an import on all of lodash in page2.js. Because it is
-    // a large library, it should be chunked out into its own library chunk
-    expect(existsChunkNamed('lodash')).toBe(true)
-  })
-
   it('should not create a commons chunk', () => {
     // This app has no dependency that is required by ALL pages, and should
     // therefore not have a commons chunk
