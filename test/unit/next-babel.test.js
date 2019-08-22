@@ -116,5 +116,23 @@ describe('next/babel', () => {
         `"import{useState}from'react';var _useState=useState(0),count=_useState[0],setCount=_useState[1];"`
       )
     })
+
+    it('should be able to ignore some Array-destructured hook return values', () => {
+      const output = babel(
+        trim`
+        import { useState } from 'react';
+        const [, setCount] = useState(0);
+      `,
+        true
+      )
+
+      expect(output).toMatch(trim`
+        var _useState=useState(0),setCount=_useState[1];
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"import{useState}from'react';var _useState=useState(0),setCount=_useState[1];"`
+      )
+    })
   })
 })
