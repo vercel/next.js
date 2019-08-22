@@ -10,6 +10,7 @@ const appDir = join(__dirname, '../')
 
 let buildId
 let chunks
+let stats
 
 const existsChunkNamed = name => {
   return chunks.some(chunk => new RegExp(name).test(chunk))
@@ -29,6 +30,8 @@ describe('Chunking', () => {
       // Error here means old chunks don't exist, so we don't need to do anything
     }
     await nextBuild(appDir)
+    stats = await readFile(join(appDir, '.next', 'stats.json'), 'utf8')
+    stats = JSON.parse(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
   })
@@ -61,5 +64,18 @@ describe('Chunking', () => {
         join(appDir, '.next', 'static', buildId, '_buildManifest.js')
       )
     ).toBe(undefined) /* fs.access callback returns undefined if file exists */
+  })
+
+  it('should not include more than one instance of react-dom', async () => {
+    const misplacedReactDom = stats.chunks.some(chunk => {
+      if (chunk.names.includes('framework')) {
+        // disregard react-dom in framework--it's supposed to be there
+        return false
+      }
+      return chunk.modules.some(module => {
+        return /react-dom/.test(module.name)
+      })
+    })
+    expect(misplacedReactDom).toBe(false)
   })
 })
