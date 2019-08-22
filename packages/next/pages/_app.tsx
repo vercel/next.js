@@ -57,27 +57,28 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   }
 }
 
-const warnContainer = execOnce(() => {
-  if (process.env.NODE_ENV !== 'production') {
+let warnContainer: () => void
+let warnUrl: () => void
+
+if (process.env.NODE_ENV !== 'production') {
+  warnContainer = execOnce(() => {
     console.warn(
-      `Warning: the \`<Container>\` component in \`_app\` has been deprecated and should be removed. https://err.sh/zeit/next.js/app-container-deprecated`
+      `Warning: the \`Container\` in \`_app\` has been deprecated and should be removed. https://err.sh/zeit/next.js/app-container-deprecated`
     )
-  }
-})
+  })
+
+  warnUrl = execOnce(() => {
+    console.error(
+      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`
+    )
+  })
+}
 
 // @deprecated noop for now until removal
 export function Container(p: any) {
   if (process.env.NODE_ENV !== 'production') warnContainer()
   return p.children
 }
-
-const warnUrl = execOnce(() => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(
-      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`
-    )
-  }
-})
 
 export function createUrl(router: Router) {
   // This is to make sure we don't references the router object at call time
