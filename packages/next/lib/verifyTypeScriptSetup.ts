@@ -102,7 +102,12 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const isYarn = await fileExists(yarnLockFile)
 
   let firstTimeSetup = false
-  if (!hasTsConfig) {
+  if (hasTsConfig) {
+    const tsConfig = await readFile(tsConfigPath, 'utf8').then(val =>
+      val.trim()
+    )
+    firstTimeSetup = tsConfig === '' || tsConfig === '{}'
+  } else {
     const hasTypeScriptFiles = await hasTypeScript(dir)
     if (hasTypeScriptFiles) {
       firstTimeSetup = true
@@ -110,10 +115,6 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
       return
     }
   }
-
-  const tsConfig = await readFile(tsConfigPath, 'utf8').then(val => val.trim())
-
-  firstTimeSetup = firstTimeSetup || tsConfig === '' || tsConfig === '{}'
 
   await checkDependencies({ dir, isYarn })
 
