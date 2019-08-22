@@ -10,7 +10,7 @@ export default function Nav () {
     <nav>
       <ul className='flex justify-between items-center p-8'>
         <li>
-          <Link prefetch href='/'>
+          <Link href='/'>
             <a className='text-blue-500 no-underline'>Home</a>
           </Link>
         </li>
