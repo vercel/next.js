@@ -58,7 +58,6 @@ class ServerRouter implements NextRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.pathname = pathname
   }
   push(): any {
     noRouter()
@@ -358,15 +357,8 @@ export async function renderToHTML(
       isSkeleton && !isDataPrerender
         ? { pageProps: {} }
         : await loadGetInitialProps(App, {
+            AppTree: ctx.AppTree,
             Component,
-            AppTree: (props: any) => {
-              const appProps = { ...props, Component, router }
-              return (
-                <AppContainer>
-                  <App {...appProps} />
-                </AppContainer>
-              )
-            },
             router,
             ctx,
           })

@@ -238,6 +238,9 @@ export default async function getBaseWebpackConfig(
         default: false,
         vendors: false,
         framework: {
+          // Framework chunk applies to modules in dynamic chunks, unlike shared chunks
+          // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
+          chunks: 'all',
           name: 'framework',
           test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
@@ -250,20 +253,22 @@ export default async function getBaseWebpackConfig(
             )
           },
           name(module: { identifier: Function; rawRequest: string }): string {
-            const rawRequest =
-              module.rawRequest &&
-              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
-            if (rawRequest) return rawRequest
-
             const identifier = module.identifier()
+            // Remove everything up through '/node_modules/'
             const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
               identifier
             )
             const processedIdentifier =
               trimmedIdentifier &&
-              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
+              // Remove the file extension(s)
+              /[\w-\/\\]+/.exec(trimmedIdentifier[1])
 
-            return processedIdentifier || identifier
+            let finalName = processedIdentifier && processedIdentifier[0]
+
+            finalName = finalName && finalName.replace(/[\\\/]/g, '~')
+            const backupName = identifier.replace(/[\\\/]/g, '~')
+
+            return finalName || backupName
           },
           priority: 30,
           minChunks: 1,
@@ -663,7 +668,7 @@ export default async function getBaseWebpackConfig(
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
     }
   }
