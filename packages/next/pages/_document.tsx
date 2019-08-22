@@ -237,7 +237,7 @@ export class Head extends Component<
       dangerousAsPath,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
-    const { page, buildId, dynamicBuildId } = __NEXT_DATA__
+    const { page, buildId } = __NEXT_DATA__
 
     let { head } = this.context._documentProps
     let children = this.props.children
@@ -404,12 +404,7 @@ export class Head extends Component<
                 href={
                   assetPrefix +
                   getOptionalModernScriptVariant(
-                    dynamicBuildId
-                      ? `/_next/static/client/pages${getPageFile(
-                          page,
-                          buildId
-                        )}`
-                      : `/_next/static/${buildId}/pages${getPageFile(page)}`
+                    `/_next/static/${buildId}/pages${getPageFile(page)}`
                   ) +
                   _devOnlyInvalidateCacheQueryString
                 }
@@ -423,9 +418,7 @@ export class Head extends Component<
               href={
                 assetPrefix +
                 getOptionalModernScriptVariant(
-                  dynamicBuildId
-                    ? `/_next/static/client/pages/_app.${buildId}.js`
-                    : `/_next/static/${buildId}/pages/_app.js`
+                  `/_next/static/${buildId}/pages/_app.js`
                 ) +
                 _devOnlyInvalidateCacheQueryString
               }
@@ -606,7 +599,7 @@ export class NextScript extends Component<OriginProps> {
       )
     }
 
-    const { page, buildId, dynamicBuildId } = __NEXT_DATA__
+    const { page, buildId } = __NEXT_DATA__
 
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
@@ -637,9 +630,7 @@ export class NextScript extends Component<OriginProps> {
           src={
             assetPrefix +
             getOptionalModernScriptVariant(
-              dynamicBuildId
-                ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-                : `/_next/static/${buildId}/pages${getPageFile(page)}`
+              `/_next/static/${buildId}/pages${getPageFile(page)}`
             ) +
             _devOnlyInvalidateCacheQueryString
           }
@@ -656,9 +647,7 @@ export class NextScript extends Component<OriginProps> {
         data-next-page="/_app"
         src={
           assetPrefix +
-          (dynamicBuildId
-            ? `/_next/static/client/pages/_app.${buildId}.js`
-            : `/_next/static/${buildId}/pages/_app.js`) +
+          `/_next/static/${buildId}/pages/_app.js` +
           _devOnlyInvalidateCacheQueryString
         }
         key="_app"
@@ -672,9 +661,7 @@ export class NextScript extends Component<OriginProps> {
           data-next-page="/_app"
           src={
             assetPrefix +
-            (dynamicBuildId
-              ? `/_next/static/client/pages/_app.${buildId}.module.js`
-              : `/_next/static/${buildId}/pages/_app.module.js`) +
+            `/_next/static/${buildId}/pages/_app.module.js` +
             _devOnlyInvalidateCacheQueryString
           }
           key="_app-modern"
