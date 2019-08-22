@@ -8,8 +8,7 @@
     <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
-    <img alt="" src=
-  "https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+    <img alt="" src="https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
     <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
@@ -69,6 +68,7 @@
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
+    - [Changing x-powered-by](#changing-x-powered-by)
   - [Dynamic Import](#dynamic-import)
     - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
     - [With named exports](#with-named-exports)
@@ -2650,9 +2650,8 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
     { "src": "home/next.config.js", "use": "@now/next" }
   ],
   "routes": [
-    { "src": "/docs/_next(.*)", "dest": "docs/_next$1" },
-    { "src": "/docs(.*)", "dest": "docs/docs$1" },
-    { "src": "(.*)", "dest": "home$1" }
+    { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
+    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
   ]
 }
 ```
@@ -2740,9 +2739,9 @@ As a result, we were able to introduce a very simple approach to routing that co
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
+Next.js provide [dynamic routing](#dynamic-routing) solution out of the box. This allows to use pretty links in url.
 
-On the client side, we have a parameter call `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
+You can check an [example](https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing) to see how it works.
 
 </details>
 

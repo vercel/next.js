@@ -21,14 +21,6 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-zones
 ```
 
-Install it and run:
-
-```bash
-npm install
-# or
-yarn
-```
-
 ## The idea behind this example
 
 With Next.js you can use multiple apps as a single app using it's multi-zones feature.

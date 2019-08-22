@@ -1,7 +1,4 @@
-import { createHash } from 'crypto'
-import fs from 'fs'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
-import { EOL } from 'os'
 import path from 'path'
 import { parse } from 'querystring'
 import { Compiler, Plugin } from 'webpack'
@@ -78,45 +75,6 @@ export function getPageChunks(
     external,
     internal,
   }
-}
-
-export function exportManifest({
-  dir,
-  fileName,
-  selectivePageBuildingCacheIdentifier,
-}: {
-  dir: string
-  fileName: string
-  selectivePageBuildingCacheIdentifier: string
-}) {
-  const finalManifest = {
-    ...manifest,
-    hashes: {} as { [pageName: string]: string },
-  }
-
-  const allFiles = new Set<string>(manifest.sharedFiles)
-  for (const page of Object.keys(finalManifest.pages)) {
-    finalManifest.pages[page].forEach(f => allFiles.add(f))
-  }
-
-  finalManifest.hashes = [...allFiles].sort().reduce(
-    (acc, cur) =>
-      Object.assign(
-        acc,
-        fs.existsSync(path.join(dir, cur))
-          ? {
-              [cur]: createHash('sha1')
-                .update(selectivePageBuildingCacheIdentifier)
-                .update(fs.readFileSync(path.join(dir, cur)))
-                .digest('hex'),
-            }
-          : undefined
-      ),
-    {}
-  )
-
-  const json = JSON.stringify(finalManifest, null, 2) + EOL
-  fs.writeFileSync(fileName, json)
 }
 
 function getFiles(dir: string, modules: any[]): string[] {
