@@ -2,13 +2,12 @@
 
 #### Why This Error Occurred
 
-In versions prior to v9.0.4-canary.3 the `Container` component was used in `_app` to handle scrolling to hashes. Now this handling has been moved up the tree so `Container` is no longer needed in `_app`.
-
-You should remove the `Container` component from your `_app` since it a no-op now and will be removed in future versions.
+In versions prior to v9.0.4 the `<Container>` component was used in `./pages/_app.js` to handle scrolling to hashes.
+This handling has been moved up the tree so the `<Container>` component is no longer needed in your custom `<App>`!
 
 #### Possible Ways to Fix It
 
-Remove the `Container` component from `_app`
+Remove the `<Container>` component from your Custom `<App>` (`./pages/_app.js`).
 
 **Before**
 ```jsx

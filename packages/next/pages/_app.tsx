@@ -60,7 +60,7 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
 const warnContainer = execOnce(() => {
   if (process.env.NODE_ENV !== 'production') {
     console.warn(
-      `Warning: the \`Container\` in \`_app\` has been deprecated and should be removed. https://err.sh/zeit/next.js/app-container-deprecated`
+      `Warning: the \`<Container>\` component in \`_app\` has been deprecated and should be removed. https://err.sh/zeit/next.js/app-container-deprecated`
     )
   }
 })
