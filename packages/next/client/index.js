@@ -251,6 +251,19 @@ function renderReactElement (reactEl, domEl) {
   } else {
     ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
+  relayPaintMetrics()
+}
+
+function relayPaintMetrics () {
+  if (perfDataRelayer) {
+    performance.getEntriesByType('paint').forEach(entry => {
+      perfDataRelayer({
+        name: entry.name,
+        startTime: entry.startTime,
+        value: entry.duration
+      })
+    })
+  }
 }
 
 function markHydrateComplete () {
@@ -324,12 +337,12 @@ function clearMarks () {
   ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
     mark => performance.clearMarks(mark)
   )
-
-  /*
-   * TODO: uncomment the following line when we have a way to
-   * expose this to user code.
-   */
-  // performance.clearMeasures()
+  ;[
+    'Next.js-before-hydration',
+    'Next.js-hydration',
+    'Next.js-route-change-to-render',
+    'Next.js-render'
+  ].forEach(measure => performance.clearMeasures(measure))
 }
 
 function AppContainer ({ children }) {
