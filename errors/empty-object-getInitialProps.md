@@ -6,7 +6,7 @@ In one of your page components you added a `getInitialProps` that returned an em
 
 #### Possible Ways to Fix It
 
-Look for any page's using `getInitialProps` that return an empty object `{}`. You might also need to update higher order components (HOCs) to not only add `getInitialProps` if they are present on the passed component.
+Look for any page's using `getInitialProps` that return an empty object `{}`. You might also need to update higher order components (HOCs) to only add `getInitialProps` if they are present on the passed component.
 
 ### Useful Links
 
