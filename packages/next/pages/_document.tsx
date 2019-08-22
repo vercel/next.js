@@ -621,10 +621,9 @@ export class NextScript extends Component<OriginProps> {
         data-next-page={page}
         key={page}
         src={
-          assetPrefix + dynamicBuildId
-            ? `/_next/static/client/pages${getPageFile(page, buildId)}`
-            : `/_next/static/${buildId}/pages${getPageFile(page)}` +
-              _devOnlyInvalidateCacheQueryString
+          assetPrefix +
+          `/_next/static/${buildId}/pages${getPageFile(page)}` +
+          _devOnlyInvalidateCacheQueryString
         }
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
