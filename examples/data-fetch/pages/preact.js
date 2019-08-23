@@ -1,10 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
-import 'isomorphic-unfetch'
+import fetch from 'isomorphic-unfetch'
 
 export default class Preact extends React.Component {
   static async getInitialProps () {
-    // eslint-disable-next-line no-undef
     const res = await fetch('https://api.github.com/repos/developit/preact')
     const json = await res.json()
     return { stars: json.stargazers_count }
