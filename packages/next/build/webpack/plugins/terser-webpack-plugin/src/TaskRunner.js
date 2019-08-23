@@ -29,14 +29,8 @@ export default class TaskRunner {
     }
 
     if (this.maxConcurrentWorkers > 1) {
-      let enableWorkerThreads = false
-      try {
-        require('worker_threads')
-        enableWorkerThreads = true
-      } catch (_) {}
-
       this.workers = new Worker(worker, {
-        enableWorkerThreads,
+        enableWorkerThreads: true,
         numWorkers: this.maxConcurrentWorkers,
       })
       this.boundWorkers = options => this.workers.default(options)
