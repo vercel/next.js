@@ -404,7 +404,9 @@ export class Head extends Component<
                 href={
                   assetPrefix +
                   getOptionalModernScriptVariant(
-                    `/_next/static/${buildId}/pages${getPageFile(page)}`
+                    encodeURI(
+                      `/_next/static/${buildId}/pages${getPageFile(page)}`
+                    )
                   ) +
                   _devOnlyInvalidateCacheQueryString
                 }
@@ -418,7 +420,7 @@ export class Head extends Component<
               href={
                 assetPrefix +
                 getOptionalModernScriptVariant(
-                  `/_next/static/${buildId}/pages/_app.js`
+                  encodeURI(`/_next/static/${buildId}/pages/_app.js`)
                 ) +
                 _devOnlyInvalidateCacheQueryString
               }
@@ -615,7 +617,7 @@ export class NextScript extends Component<OriginProps> {
         key={page}
         src={
           assetPrefix +
-          `/_next/static/${buildId}/pages${getPageFile(page)}` +
+          encodeURI(`/_next/static/${buildId}/pages${getPageFile(page)}`) +
           _devOnlyInvalidateCacheQueryString
         }
         nonce={this.props.nonce}
@@ -630,7 +632,7 @@ export class NextScript extends Component<OriginProps> {
           src={
             assetPrefix +
             getOptionalModernScriptVariant(
-              `/_next/static/${buildId}/pages${getPageFile(page)}`
+              encodeURI(`/_next/static/${buildId}/pages${getPageFile(page)}`)
             ) +
             _devOnlyInvalidateCacheQueryString
           }
@@ -730,5 +732,5 @@ function getPageFile(page: string, buildId?: string) {
     return buildId ? `/index.${buildId}.js` : '/index.js'
   }
 
-  return encodeURI(buildId ? `${page}.${buildId}.js` : `${page}.js`)
+  return buildId ? `${page}.${buildId}.js` : `${page}.js`
 }
