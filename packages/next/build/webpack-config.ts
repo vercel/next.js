@@ -234,23 +234,12 @@ export default async function getBaseWebpackConfig(
               /node_modules[/\\]/.test(module.identifier())
             )
           },
-          name(module: { identifier: Function; rawRequest: string }): string {
-            const identifier = module.identifier()
-            // Remove everything up through '/node_modules/'
-            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
-              identifier
-            )
-            const processedIdentifier =
-              trimmedIdentifier &&
-              // Remove the file extension(s)
-              /[\w-\/\\]+/.exec(trimmedIdentifier[1])
-
-            let finalName = processedIdentifier && processedIdentifier[0]
-
-            finalName = finalName && finalName.replace(/[\\\/]/g, '~')
-            const backupName = identifier.replace(/[\\\/]/g, '~')
-
-            return finalName || backupName
+          name(module: { libIdent: Function }): string {
+            return crypto
+              .createHash('sha1')
+              .update(module.libIdent({ context: dir }))
+              .digest('hex')
+              .substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
