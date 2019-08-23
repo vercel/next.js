@@ -26,7 +26,7 @@ export default class Signin extends React.Component {
         <SigninBox />
         <hr />
         New?{' '}
-        <Link prefetch href='/create-account'>
+        <Link href='/create-account'>
           <a>Create account</a>
         </Link>
       </React.Fragment>
