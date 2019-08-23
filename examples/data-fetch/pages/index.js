@@ -14,7 +14,7 @@ export default class Index extends React.Component {
     return (
       <div>
         <p>Next.js has {this.props.stars} ⭐️</p>
-        <Link prefetch href='/preact'>
+        <Link href='/preact'>
           <a>How about preact?</a>
         </Link>
       </div>
