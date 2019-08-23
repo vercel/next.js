@@ -551,7 +551,7 @@ export class NextScript extends Component<OriginProps> {
   render() {
     const {
       staticMarkup,
-      assetPrefix = '',
+      assetPrefix,
       inAmpMode,
       devFiles,
       __NEXT_DATA__,
