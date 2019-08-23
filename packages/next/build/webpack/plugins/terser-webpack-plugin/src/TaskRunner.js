@@ -1,9 +1,8 @@
 import { join } from 'path'
 import minify from './minify'
 import { promisify } from 'util'
-import workerFarm from 'worker-farm'
+import Worker from 'jest-worker'
 import { writeFile, readFile } from 'fs'
-import serialize from 'serialize-javascript'
 import { Sema } from 'async-sema'
 import mkdirp from 'mkdirp'
 
@@ -16,7 +15,6 @@ export default class TaskRunner {
     if (cache) {
       mkdirp.sync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
     }
-
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     this.maxConcurrentWorkers = cpus
@@ -31,30 +29,19 @@ export default class TaskRunner {
     }
 
     if (this.maxConcurrentWorkers > 1) {
-      const workerOptions =
-        process.platform === 'win32'
-          ? {
-              maxConcurrentWorkers: this.maxConcurrentWorkers,
-              maxConcurrentCallsPerWorker: 1,
-            }
-          : { maxConcurrentWorkers: this.maxConcurrentWorkers }
-      this.workers = workerFarm(workerOptions, worker)
-      this.boundWorkers = (options, cb) => {
-        try {
-          this.workers(serialize(options), cb)
-        } catch (error) {
-          // worker-farm can fail with ENOMEM or something else
-          cb(error)
-        }
-      }
+      let enableWorkerThreads = false
+      try {
+        require('worker_threads')
+        enableWorkerThreads = true
+      } catch (_) {}
+
+      this.workers = new Worker(worker, {
+        enableWorkerThreads,
+        numWorkers: this.maxConcurrentWorkers,
+      })
+      this.boundWorkers = options => this.workers.default(options)
     } else {
-      this.boundWorkers = (options, cb) => {
-        try {
-          cb(null, minify(options))
-        } catch (error) {
-          cb(error)
-        }
-      }
+      this.boundWorkers = async options => minify(options)
     }
 
     let toRun = tasks.length
@@ -71,20 +58,19 @@ export default class TaskRunner {
 
     tasks.forEach((task, index) => {
       const cachePath = this.cacheDir && join(this.cacheDir, task.cacheKey)
-
-      const enqueue = () => {
-        this.boundWorkers(task, (error, data) => {
-          const result = error ? { error } : data
+      const enqueue = async () => {
+        try {
+          const result = await this.boundWorkers(task)
           const done = () => step(index, result)
-
-          if (this.cacheDir && !result.error) {
-            writeFileP(cachePath, JSON.stringify(data), 'utf8')
+          if (cachePath) {
+            writeFileP(cachePath, JSON.stringify(result), 'utf8')
               .then(done)
               .catch(done)
-          } else {
-            done()
           }
-        })
+        } catch (error) {
+          console.error('Error occurred minifying', error)
+          step(index, error)
+        }
       }
 
       this.sema.acquire().then(() => {
@@ -101,7 +87,7 @@ export default class TaskRunner {
 
   exit() {
     if (this.workers) {
-      workerFarm.end(this.workers)
+      this.workers.end()
     }
   }
 }
