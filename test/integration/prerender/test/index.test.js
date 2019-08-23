@@ -149,17 +149,19 @@ describe('SPR Prerender', () => {
 
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
-      const pages = manifest.prerenderRoutes.map(route => route.path)
+      const prerenderablePaths = Object.keys(manifest.prerenderFiles)
 
-      expect(JSON.stringify(pages.sort())).toBe(
+      expect(JSON.stringify(prerenderablePaths.sort())).toBe(
         JSON.stringify(
           [
-            '/',
-            '/another',
-            '/something',
-            '/blog/[post]',
-            '/blog/[post]/[comment]'
-          ].sort()
+            '/index.html',
+            '/another.html',
+            '/something.html',
+            '/blog/[post].html',
+            '/blog/[post]/[comment].html'
+          ]
+            .map(pg => join('.next/serverless/pages/', pg))
+            .sort()
         )
       )
     })

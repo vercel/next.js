@@ -44,8 +44,8 @@ const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./static-checker')
 
-export type PrerenderRoute = {
-  path: string
+export type PrerenderFile = {
+  lambda: string
   contentTypes: string[]
 }
 
@@ -187,7 +187,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
@@ -221,13 +220,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const chunks = getPageChunks(page)
 
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(actualPage, distPath, buildId)
+      const size = await getPageSizeInKb(actualPage, distDir, buildId)
       const bundleRelative = path.join(
         isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
       )
       const serverBundle = path.join(
-        distPath,
+        distDir,
         isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         bundleRelative
       )
@@ -247,7 +246,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           isLikeServerless
             ? serverBundle
             : path.join(
-                distPath,
+                distDir,
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
@@ -330,6 +329,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
+  const prerenderFiles: { [path: string]: PrerenderFile } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -369,7 +369,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
         relativeDest
       )
 
-      if (!isSpr) {
+      if (isSpr) {
+        const projectRelativeDest = path.join(
+          config.distDir,
+          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+          relativeDest
+        )
+        prerenderFiles[projectRelativeDest] = {
+          lambda: projectRelativeDest.replace(/\.html$/, '.js'),
+          contentTypes: ['application/json', 'text/html'],
+        }
+      } else {
         pagesManifest[page] = relativeDest
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
@@ -392,18 +402,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   if (sprPages.size > 0) {
-    const prerenderRoutes: PrerenderRoute[] = []
-
-    sprPages.forEach(pg => {
-      prerenderRoutes.push({
-        path: pg,
-        contentTypes: ['application/json', 'text/html'],
-      })
-    })
-
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify({ prerenderRoutes }),
+      JSON.stringify({ prerenderFiles }),
       'utf8'
     )
   }
