@@ -9,7 +9,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = join(__dirname, '../')
 let buildId
 
-xdescribe('Chunking (minimal)', () => {
+describe('Chunking (minimal)', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
