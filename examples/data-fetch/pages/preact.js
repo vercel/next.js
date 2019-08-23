@@ -14,7 +14,7 @@ export default class Preact extends React.Component {
       <div>
         <p>Preact has {this.props.stars} ⭐</p>
         <Link href='/'>
-          <a>I bet next has more stars (?)</a>
+          <a>I bet Next.js has more stars (?)</a>
         </Link>
       </div>
     )
