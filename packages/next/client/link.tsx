@@ -184,6 +184,9 @@ class Link extends Component<LinkProps> {
       if (!success) return
       if (scroll) {
         window.scrollTo(0, 0)
+        if (!document.body.hasAttribute('tabindex')) {
+          document.body.setAttribute('tabindex', '-1')
+        }
         document.body.focus()
       }
     })
