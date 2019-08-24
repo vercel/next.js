@@ -128,7 +128,12 @@ export function runNextCommand (argv, options = {}) {
 
 export function runNextCommandDev (argv, stdOut, opts = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
-  const env = { ...process.env, NODE_ENV: undefined, ...opts.env }
+  const env = {
+    ...process.env,
+    NODE_ENV: undefined,
+    __NEXT_TEST_MODE: 'true',
+    ...opts.env
+  }
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
@@ -219,7 +224,8 @@ export async function killApp (instance) {
         if (
           process.platform === 'win32' &&
           typeof err.message === 'string' &&
-          err.message.includes(`no running instance of the task`)
+          (err.message.includes(`no running instance of the task`) ||
+            err.message.includes(`not found`))
         ) {
           // Windows throws an error if the process is already dead
           //

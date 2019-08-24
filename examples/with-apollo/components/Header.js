@@ -3,10 +3,10 @@ import { withRouter } from 'next/router'
 
 const Header = ({ router: { pathname } }) => (
   <header>
-    <Link prefetch href='/'>
+    <Link href='/'>
       <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
     </Link>
-    <Link prefetch href='/about'>
+    <Link href='/about'>
       <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
     </Link>
     <style jsx>{`

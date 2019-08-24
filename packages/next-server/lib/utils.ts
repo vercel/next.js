@@ -58,7 +58,6 @@ export type NEXT_DATA = {
   page: string
   query: ParsedUrlQuery
   buildId: string
-  dynamicBuildId: boolean
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
@@ -248,6 +247,16 @@ export async function loadGetInitialProps<
       Component
     )}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
     throw new Error(message)
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (Object.keys(props).length === 0 && !ctx.ctx) {
+      console.warn(
+        `${getDisplayName(
+          Component
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic prerendering. https://err.sh/zeit/next.js/empty-object-getInitialProps`
+      )
+    }
   }
 
   return props

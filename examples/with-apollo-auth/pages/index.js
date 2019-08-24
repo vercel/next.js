@@ -1,23 +1,14 @@
 import React from 'react'
 import cookie from 'cookie'
-import { ApolloConsumer } from 'react-apollo'
+import { useApolloClient } from '@apollo/react-hooks'
 
 import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
 
-export default class Index extends React.Component {
-  static async getInitialProps (context, apolloClient) {
-    const { loggedInUser } = await checkLoggedIn(context.apolloClient)
+const Index = ({ loggedInUser }) => {
+  const apolloClient = useApolloClient()
 
-    if (!loggedInUser.user) {
-      // If not signed in, send them somewhere more useful
-      redirect(context, '/signin')
-    }
-
-    return { loggedInUser }
-  }
-
-  signout = apolloClient => () => {
+  const signout = () => {
     document.cookie = cookie.serialize('token', '', {
       maxAge: -1 // Expire the cookie immediately
     })
@@ -30,16 +21,23 @@ export default class Index extends React.Component {
     })
   }
 
-  render () {
-    return (
-      <ApolloConsumer>
-        {client => (
-          <div>
-            Hello {this.props.loggedInUser.user.name}!<br />
-            <button onClick={this.signout(client)}>Sign out</button>
-          </div>
-        )}
-      </ApolloConsumer>
-    )
-  }
+  return (
+    <div>
+      Hello {loggedInUser.user.name}!<br />
+      <button onClick={signout}>Sign out</button>
+    </div>
+  )
 }
+
+Index.getInitialProps = async context => {
+  const { loggedInUser } = await checkLoggedIn(context.apolloClient)
+
+  if (!loggedInUser.user) {
+    // If not signed in, send them somewhere more useful
+    redirect(context, '/signin')
+  }
+
+  return { loggedInUser }
+}
+
+export default Index

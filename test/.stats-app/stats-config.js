@@ -20,6 +20,14 @@ const clientGlobs = [
   {
     name: 'Client Pages Modern',
     globs: ['.next/static/*/pages/**/*.module.js']
+  },
+  {
+    name: 'Client Build Manifests',
+    globs: ['.next/static/*/_buildManifest*']
+  },
+  {
+    name: 'Rendered Page Sizes',
+    globs: ['fetched-pages/**/*.html']
   }
 ]
 
@@ -52,6 +60,15 @@ const renames = [
   {
     srcGlob: '.next/static/chunks/commons*.module.js',
     dest: '.next/static/chunks/commons.HASH.module.js'
+  },
+  // misc
+  {
+    srcGlob: '.next/static/*/_buildManifest.js',
+    dest: '.next/static/BUILD_ID/_buildManifest.js'
+  },
+  {
+    srcGlob: '.next/static/*/_buildManifest.module.js',
+    dest: '.next/static/BUILD_ID/_buildManifest.module.js'
   }
 ]
 
@@ -78,7 +95,8 @@ module.exports = {
                 return config
               },
               experimental: {
-                modern: true
+                modern: true,
+                granularChunks: true
               }
             }
           `
@@ -92,16 +110,18 @@ module.exports = {
           content: `
             module.exports = {
               experimental: {
-                modern: true
+                modern: true,
+                granularChunks: true
               }
             }
           `
         }
       ],
       filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
       pagesToFetch: [
+        'http://localhost:$PORT/',
         'http://localhost:$PORT/link',
-        'http://localhost:$PORT/index',
         'http://localhost:$PORT/withRouter'
       ]
     },
@@ -116,7 +136,8 @@ module.exports = {
             module.exports = {
               target: 'serverless',
               experimental: {
-                modern: true
+                modern: true,
+                granularChunks: true
               }
             }
           `

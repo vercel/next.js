@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { render } from 'react-dom'
-import App, { Container, AppContext } from 'next/app'
+import App, { AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
 class MyApp<P = {}> extends App<P & { html: string }> {
@@ -54,9 +54,7 @@ class MyApp<P = {}> extends App<P & { html: string }> {
         </Link>
       </>
     ) : (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
+      <Component {...pageProps} />
     )
   }
 }

@@ -36,7 +36,10 @@ export function install(
       ].filter(Boolean) as string[]).concat(dependencies || [])
     }
 
-    const child = spawn(command, args, { stdio: 'inherit' })
+    const child = spawn(command, args, {
+      stdio: 'inherit',
+      env: { ...process.env, ADBLOCK: '1', DISABLE_OPENCOLLECTIVE: '1' },
+    })
     child.on('close', code => {
       if (code !== 0) {
         reject({ command: `${command} ${args.join(' ')}` })
