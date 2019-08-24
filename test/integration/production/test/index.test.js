@@ -578,7 +578,7 @@ describe('Production Usage', () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
-  fit('should contain the Next.js version in window export', async () => {
+  it('should contain the Next.js version in window export', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/about')
