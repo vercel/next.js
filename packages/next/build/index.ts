@@ -205,6 +205,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
+    enableWorkerThreads: true,
   })
 
   await Promise.all(
