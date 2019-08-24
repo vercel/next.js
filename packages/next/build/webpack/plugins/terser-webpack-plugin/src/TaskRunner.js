@@ -3,10 +3,9 @@ import minify from './minify'
 import { promisify } from 'util'
 import Worker from 'jest-worker'
 import { writeFile, readFile } from 'fs'
-import { Sema } from 'async-sema'
 import mkdirp from 'mkdirp'
 
-const worker = require.resolve('./worker')
+const worker = require.resolve('./minify')
 const writeFileP = promisify(writeFile)
 const readFileP = promisify(readFile)
 
@@ -18,7 +17,6 @@ export default class TaskRunner {
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     this.maxConcurrentWorkers = cpus
-    this.sema = new Sema(cpus * 3)
   }
 
   run(tasks, callback) {
@@ -47,7 +45,6 @@ export default class TaskRunner {
     let toRun = tasks.length
     const results = []
     const step = (index, data) => {
-      this.sema.release()
       toRun -= 1
       results[index] = data
 
@@ -68,20 +65,17 @@ export default class TaskRunner {
               .catch(done)
           }
         } catch (error) {
-          console.error('Error occurred minifying', error)
-          step(index, error)
+          step(index, { error })
         }
       }
 
-      this.sema.acquire().then(() => {
-        if (this.cacheDir) {
-          readFileP(cachePath, 'utf8')
-            .then(data => step(index, JSON.parse(data)))
-            .catch(() => enqueue())
-        } else {
-          enqueue()
-        }
-      })
+      if (this.cacheDir) {
+        readFileP(cachePath, 'utf8')
+          .then(data => step(index, JSON.parse(data)))
+          .catch(() => enqueue())
+      } else {
+        enqueue()
+      }
     })
   }
 

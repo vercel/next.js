@@ -1,4 +1,3 @@
-import { Sema } from 'async-sema'
 import chalk from 'chalk'
 import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
@@ -204,9 +203,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(config.experimental.cpus, {
-    capacity: pageKeys.length,
-  })
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
   })
@@ -264,12 +260,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          await staticCheckSema.acquire()
           let result: any = await (staticCheckWorkers as any).default({
             serverBundle,
             runtimeEnvConfig,
           })
-          staticCheckSema.release()
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
@@ -284,7 +278,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
-          staticCheckSema.release()
         }
       }
 
