@@ -161,6 +161,8 @@ After that, the file-system is the main API. Every `.js` file becomes a route th
 Populate `./pages/index.js` inside your project:
 
 ```jsx
+import React from 'react';
+
 function Home() {
   return <div>Welcome to Next.js!</div>
 }
