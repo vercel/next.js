@@ -25,7 +25,7 @@ const withStomp = (url, topic, headers = {}) => WrappedComponent => {
     useEffect(() => {
       subscribe()
       return unSubscribe
-    }, 0)
+    }, [])
 
     const newProps = {
       ...props,

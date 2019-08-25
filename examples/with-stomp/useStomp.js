@@ -24,7 +24,7 @@ const useStomp = (url, topic, headers = {}) => {
   useEffect(() => {
     subscribe()
     return unSubscribe
-  }, 0)
+  }, [])
 
   return message
 }
