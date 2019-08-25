@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Stomp } from '@stomp/stompjs'
 
 const useStomp = (stompClient, topic) => {
   const [message, setMessage] = useState({})
