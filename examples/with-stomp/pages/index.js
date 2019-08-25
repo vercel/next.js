@@ -4,9 +4,9 @@ import useStomp from '../useStomp'
 /**
  * In this example you can easily connect to an Stomp Websocket server, and subscribe to a topic by a custom Hook.
  */
-const Index = () => {
+const Index = props => {
   // get message
-  const message = useStomp('ws://some.server', '/any/topic')
+  const message = useStomp(props.stompClient, '/any/topic')
 
   // Check inside The message
   console.log('##### new message : ', message)

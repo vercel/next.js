@@ -17,4 +17,4 @@ class StockPrice extends Component {
   }
 }
 
-export default withStomp('ws://some.server', '/any/topic')(StockPrice)
+export default withStomp('/any/topic')(StockPrice)
