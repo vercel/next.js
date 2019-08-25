@@ -6,6 +6,7 @@
     { "src": "home/next.config.js", "use": "@now/next" }
   ],
   "routes": [
+    { "src": "/blog/(_next|static)(.*)", "dest": "blog/$1$2" },
     { "src": "/blog(.*)", "dest": "blog/blog$1", "continue": true },
     { "src": "(?!/?blog)(.*)", "dest": "home$1", "continue": true }
   ],
