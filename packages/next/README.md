@@ -17,7 +17,7 @@
 
 <p align="center">
   <strong>
-    Visit  <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+    Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
   </strong>
 </p>
 
@@ -297,7 +297,7 @@ export default MyImage
 To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
 -->
 
-_Note: Don't name the `static` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
+_Note: Don't name the `static` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
 ### Dynamic Routing
 

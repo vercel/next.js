@@ -30,6 +30,8 @@ if (!window.Promise) {
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 window.__NEXT_DATA__ = data
 
+export const version = process.env.__NEXT_VERSION
+
 const {
   props,
   err,

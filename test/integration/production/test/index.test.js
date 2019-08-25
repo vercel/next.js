@@ -586,6 +586,20 @@ describe('Production Usage', () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
+  it('should contain the Next.js version in window export', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const version = await browser.eval('window.next.version')
+      expect(version).toBeTruthy()
+      expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
