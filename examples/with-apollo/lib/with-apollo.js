@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import Head from 'next/head'
 import { getDataFromTree } from '@apollo/react-ssr'
 import { getDisplayName } from 'next-server/dist/lib/utils'
@@ -13,12 +13,23 @@ let apolloClient = null
  * to a next.js PageTree. Use it by wrapping
  * your page component via HOC pattern.
  * @param {Function|Class} PageComponent
+ * @param {Object} [config]
+ * @param {Boolean} [config.ssr=true]
  */
-function withApollo (PageComponent) {
-  return class extends React.Component {
-    static displayName = `withApollo(${getDisplayName(PageComponent)})`
+function withApollo (PageComponent, { ssr = true } = {}) {
+  const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
+    const client = useMemo(() => apolloClient || initApollo(apolloState), [])
+    return (
+      <ApolloProvider client={client}>
+        <PageComponent {...pageProps} />
+      </ApolloProvider>
+    )
+  }
 
-    static async getInitialProps (ctx) {
+  WithApollo.displayName = `withApollo(${getDisplayName(PageComponent)})`
+
+  if (ssr) {
+    WithApollo.getInitialProps = async ctx => {
       const { AppTree } = ctx
 
       let pageProps = {}
@@ -60,21 +71,9 @@ function withApollo (PageComponent) {
         apolloState
       }
     }
-
-    constructor (props) {
-      super(props)
-      this.apolloClient = props.apolloClient || initApollo(props.apolloState)
-    }
-
-    render () {
-      const { apolloClient, apolloState, ...pageProps } = this.props
-      return (
-        <ApolloProvider client={this.apolloClient}>
-          <PageComponent {...pageProps} />
-        </ApolloProvider>
-      )
-    }
   }
+
+  return WithApollo
 }
 
 /**
