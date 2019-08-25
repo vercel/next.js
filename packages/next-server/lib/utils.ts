@@ -249,6 +249,16 @@ export async function loadGetInitialProps<
     throw new Error(message)
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    if (Object.keys(props).length === 0 && !ctx.ctx) {
+      console.warn(
+        `${getDisplayName(
+          Component
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic prerendering. https://err.sh/zeit/next.js/empty-object-getInitialProps`
+      )
+    }
+  }
+
   return props
 }
 

@@ -1,4 +1,3 @@
-import { Sema } from 'async-sema'
 import chalk from 'chalk'
 import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
@@ -15,7 +14,7 @@ import loadConfig, {
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-import workerFarm from 'worker-farm'
+import Worker from 'jest-worker'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -44,8 +43,8 @@ const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./static-checker')
 
-export type PrerenderRoute = {
-  path: string
+export type PrerenderFile = {
+  lambda: string
   contentTypes: string[]
 }
 
@@ -187,7 +186,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
@@ -205,29 +203,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(config.experimental.cpus, {
-    capacity: pageKeys.length,
+  const staticCheckWorkers = new Worker(staticCheckWorker, {
+    numWorkers: config.experimental.cpus,
+    enableWorkerThreads: true,
   })
-  const staticCheckWorkers = workerFarm(
-    {
-      maxConcurrentWorkers: config.experimental.cpus,
-    },
-    staticCheckWorker,
-    ['default']
-  )
 
   await Promise.all(
     pageKeys.map(async page => {
       const chunks = getPageChunks(page)
 
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(actualPage, distPath, buildId)
+      const size = await getPageSizeInKb(actualPage, distDir, buildId)
       const bundleRelative = path.join(
         isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
       )
       const serverBundle = path.join(
-        distPath,
+        distDir,
         isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         bundleRelative
       )
@@ -247,7 +239,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           isLikeServerless
             ? serverBundle
             : path.join(
-                distPath,
+                distDir,
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
@@ -269,17 +261,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          await staticCheckSema.acquire()
-          const result: any = await new Promise((resolve, reject) => {
-            staticCheckWorkers.default(
-              { serverBundle, runtimeEnvConfig },
-              (error: Error | null, result: any) => {
-                if (error) return reject(error)
-                resolve(result || {})
-              }
-            )
+          let result: any = await (staticCheckWorkers as any).default({
+            serverBundle,
+            runtimeEnvConfig,
           })
-          staticCheckSema.release()
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
@@ -294,15 +279,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
-          staticCheckSema.release()
         }
       }
 
       pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
     })
   )
-
-  workerFarm.end(staticCheckWorkers)
+  staticCheckWorkers.end()
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -330,6 +313,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
+  const prerenderFiles: { [path: string]: PrerenderFile } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -369,7 +353,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
         relativeDest
       )
 
-      if (!isSpr) {
+      if (isSpr) {
+        const projectRelativeDest = path.join(
+          config.distDir,
+          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+          relativeDest
+        )
+        prerenderFiles[projectRelativeDest] = {
+          lambda: projectRelativeDest.replace(/\.html$/, '.js'),
+          contentTypes: ['application/json', 'text/html'],
+        }
+      } else {
         pagesManifest[page] = relativeDest
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
@@ -392,18 +386,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   if (sprPages.size > 0) {
-    const prerenderRoutes: PrerenderRoute[] = []
-
-    sprPages.forEach(pg => {
-      prerenderRoutes.push({
-        path: pg,
-        contentTypes: ['application/json', 'text/html'],
-      })
-    })
-
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify({ prerenderRoutes }),
+      JSON.stringify({ prerenderFiles }),
       'utf8'
     )
   }

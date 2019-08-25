@@ -1,10 +1,12 @@
+import chalk from 'chalk'
 import fs from 'fs'
+import resolve from 'next/dist/compiled/resolve/index.js'
 import os from 'os'
 import path from 'path'
-import chalk from 'chalk'
 import { promisify } from 'util'
+
 import { fileExists } from './file-exists'
-import resolve from 'next/dist/compiled/resolve/index.js'
+import { recursiveReadDir } from './recursive-readdir'
 
 const writeFile = promisify(fs.writeFile)
 const readFile = promisify(fs.readFile)
@@ -14,6 +16,16 @@ function writeJson(fileName: string, object: object): Promise<void> {
     fileName,
     JSON.stringify(object, null, 2).replace(/\n/g, os.EOL) + os.EOL
   )
+}
+
+async function hasTypeScript(dir: string): Promise<boolean> {
+  const typescriptFiles = await recursiveReadDir(
+    path.join(dir, 'pages'),
+    /.*\.(ts|tsx)$/,
+    /(node_modules|.*\.d\.ts)/
+  )
+
+  return typescriptFiles.length > 0
 }
 
 async function checkDependencies({
@@ -89,13 +101,20 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   const hasTsConfig = await fileExists(tsConfigPath)
   const isYarn = await fileExists(yarnLockFile)
 
-  if (!hasTsConfig) {
-    return
+  let firstTimeSetup = false
+  if (hasTsConfig) {
+    const tsConfig = await readFile(tsConfigPath, 'utf8').then(val =>
+      val.trim()
+    )
+    firstTimeSetup = tsConfig === '' || tsConfig === '{}'
+  } else {
+    const hasTypeScriptFiles = await hasTypeScript(dir)
+    if (hasTypeScriptFiles) {
+      firstTimeSetup = true
+    } else {
+      return
+    }
   }
-
-  const tsConfig = await readFile(tsConfigPath, 'utf8').then(val => val.trim())
-
-  let firstTimeSetup = tsConfig === '' || tsConfig === '{}'
 
   await checkDependencies({ dir, isYarn })
 

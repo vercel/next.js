@@ -2,25 +2,35 @@ import React from 'react'
 import initApollo from './init-apollo'
 import Head from 'next/head'
 import { getDataFromTree } from '@apollo/react-ssr'
+import { getDisplayName } from 'next-server/dist/lib/utils'
+import { ApolloProvider } from '@apollo/react-hooks'
 
-export default App => {
-  return class Apollo extends React.Component {
-    static displayName = 'withApollo(App)'
+const withApollo = PageComponent => {
+  return class extends React.Component {
+    static displayName = `withApollo(${getDisplayName(PageComponent)})`
+
     static async getInitialProps (ctx) {
       const { AppTree } = ctx
 
-      let appProps = {}
-      if (App.getInitialProps) {
-        appProps = await App.getInitialProps(ctx)
+      let pageProps = {}
+      if (PageComponent.getInitialProps) {
+        pageProps = await PageComponent.getInitialProps(ctx)
       }
 
       // Run all GraphQL queries in the component tree
       // and extract the resulting data
-      const apollo = initApollo()
+      const apolloClient = initApollo()
       if (typeof window === 'undefined') {
         try {
           // Run all GraphQL queries
-          await getDataFromTree(<AppTree {...appProps} apolloClient={apollo} />)
+          await getDataFromTree(
+            <AppTree
+              pageProps={{
+                ...pageProps,
+                apolloClient
+              }}
+            />
+          )
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
           // Handle them in components via the data.error prop:
@@ -34,21 +44,28 @@ export default App => {
       }
 
       // Extract query data from the Apollo store
-      const apolloState = apollo.cache.extract()
+      const apolloState = apolloClient.cache.extract()
 
       return {
-        ...appProps,
+        ...pageProps,
         apolloState
       }
     }
 
     constructor (props) {
       super(props)
-      this.apolloClient = initApollo(props.apolloState)
+      this.apolloClient = props.apolloClient || initApollo(props.apolloState)
     }
 
     render () {
-      return <App apolloClient={this.apolloClient} {...this.props} />
+      const { apolloClient, apolloState, ...pageProps } = this.props
+      return (
+        <ApolloProvider client={this.apolloClient}>
+          <PageComponent {...pageProps} />
+        </ApolloProvider>
+      )
     }
   }
 }
+
+export default withApollo
