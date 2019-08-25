@@ -7,7 +7,7 @@
   ],
   "routes": [
     { "src": "/blog(.*)", "dest": "blog/blog$1", "continue": true },
-     { "src": "(?!/?blog)(.*)", "dest": "home$1", "continue": true }
+    { "src": "(?!/?blog)(.*)", "dest": "home$1", "continue": true }
   ],
   "build": {
     "env": {
