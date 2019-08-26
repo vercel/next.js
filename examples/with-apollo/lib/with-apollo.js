@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import Head from 'next/head'
-import { getDataFromTree } from '@apollo/react-ssr'
 import { getDisplayName } from 'next-server/dist/lib/utils'
 import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
@@ -43,7 +42,7 @@ function withApollo (PageComponent, { ssr = true } = {}) {
       if (typeof window === 'undefined') {
         try {
           // Run all GraphQL queries
-          await getDataFromTree(
+          await require('@apollo/react-ssr').getDataFromTree(
             <AppTree
               pageProps={{
                 ...pageProps,
