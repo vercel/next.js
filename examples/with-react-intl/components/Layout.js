@@ -1,5 +1,4 @@
-import React from 'react'
-import { defineMessages, injectIntl } from 'react-intl'
+import { defineMessages, useIntl } from 'react-intl'
 import Head from 'next/head'
 import Nav from './Nav'
 
@@ -10,17 +9,21 @@ const messages = defineMessages({
   }
 })
 
-export default injectIntl(({ intl, title, children }) => (
-  <div>
-    <Head>
-      <meta name='viewport' content='width=device-width, initial-scale=1' />
-      <title>{title || intl.formatMessage(messages.title)}</title>
-    </Head>
+export default ({ title, children }) => {
+  const intl = useIntl()
 
-    <header>
-      <Nav />
-    </header>
+  return (
+    <div>
+      <Head>
+        <meta name='viewport' content='width=device-width, initial-scale=1' />
+        <title>{title || intl.formatMessage(messages.title)}</title>
+      </Head>
 
-    {children}
-  </div>
-))
+      <header>
+        <Nav />
+      </header>
+
+      {children}
+    </div>
+  )
+}
