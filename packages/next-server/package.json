@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "9.0.4",
+  "version": "9.0.5",
   "main": "./index.js",
   "license": "MIT",
   "repository": "zeit/next.js",
@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@ampproject/toolbox-optimizer": "1.0.1",
+    "chalk": "2.4.2",
     "compression": "1.7.4",
     "content-type": "1.0.4",
     "cookie": "0.4.0",
