@@ -281,7 +281,7 @@ function markRenderComplete () {
 }
 
 function clearMarks () {
-  performance.clearMarks()
+  ['beforeRender', 'afterHydrate', 'afterRender'].forEach(function(mark){performance.clearMarks(mark)})
   /*
    * TODO: uncomment the following line when we have a way to
    * expose this to user code.
