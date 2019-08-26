@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   waitFor
 } from 'next-test-utils'
+import { PERF_MARKS } from 'next-server/dist/lib/utils'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
@@ -593,6 +594,26 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should clear all performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+
+      Object.keys(PERF_MARKS).forEach(key =>
+        expect(currentPerfMarks).not.toContainEqual(
+          expect.objectContaining({ name: PERF_MARKS[key] })
+        )
+      )
     } finally {
       if (browser) {
         await browser.close()

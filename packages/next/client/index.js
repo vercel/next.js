@@ -290,7 +290,9 @@ function markRenderComplete () {
 }
 
 function clearMarks () {
-  Object.keys(PERF_MARKS).forEach(mark => performance.clearMarks(mark))
+  Object.keys(PERF_MARKS).forEach(key =>
+    performance.clearMarks(PERF_MARKS[key])
+  )
   /*
    * TODO: uncomment the following line when we have a way to
    * expose this to user code.
