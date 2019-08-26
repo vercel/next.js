@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import Head from 'next/head'
-import { getDisplayName } from 'next-server/dist/lib/utils'
 import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
 import fetch from 'isomorphic-unfetch'
@@ -25,7 +24,12 @@ function withApollo (PageComponent, { ssr = true } = {}) {
     )
   }
 
-  WithApollo.displayName = `withApollo(${getDisplayName(PageComponent)})`
+  // Set the correct displayName in devmode
+  if (process.env !== 'production') {
+    WithApollo.displayName = `withApollo(${PageComponent.displayName ||
+      PageComponent.name ||
+      'Component'})`
+  }
 
   // Allow Next.js to remove getInitialProps from the browser build
   if (typeof window === 'undefined') {
