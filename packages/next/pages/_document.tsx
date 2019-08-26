@@ -113,7 +113,15 @@ export class Html extends Component<
 
   render() {
     const { inAmpMode } = this.context._documentProps
-    return <html {...this.props} amp={inAmpMode ? '' : undefined} />
+    return (
+      <html
+        {...this.props}
+        amp={inAmpMode ? '' : undefined}
+        data-ampdevmode={
+          inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+        }
+      />
+    )
   }
 }
 
@@ -577,7 +585,7 @@ export class NextScript extends Component<OriginProps> {
                   this.context._documentProps
                 ),
               }}
-              data-amp-development-mode-only
+              data-ampdevmode
             />
           )}
           {devFiles
@@ -587,7 +595,7 @@ export class NextScript extends Component<OriginProps> {
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
                   nonce={this.props.nonce}
                   crossOrigin={this.props.crossOrigin || process.crossOrigin}
-                  data-amp-development-mode-only
+                  data-ampdevmode
                 />
               ))
             : null}
