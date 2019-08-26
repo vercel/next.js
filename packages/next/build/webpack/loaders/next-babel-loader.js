@@ -115,6 +115,7 @@ module.exports = babelLoader.custom(babel => {
       }
 
       options.caller.isServer = isServer
+      options.caller.isModern = isModern
 
       options.plugins = options.plugins || []
 
