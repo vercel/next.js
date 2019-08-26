@@ -286,6 +286,24 @@ export default class Router implements BaseRouter {
 
       const { pathname, query, protocol } = parse(url, true)
 
+      if (process.env.NODE_ENV !== 'production') {
+        const { query: asQuery } = parse(as, true)
+        const keys = Object.keys(asQuery).reduce(
+          (acc, key) => {
+            if (!query[key]) {
+              acc.push(key)
+            }
+            return acc
+          },
+          [] as string[]
+        )
+        if (keys.length > 0) {
+          console.warn(
+            `Warrning: your 'as' query parameter includes keys: ${keys}, what are missing in 'href' query https://err.sh/zeit/next.js/missing-query-params`
+          )
+        }
+      }
+
       if (!pathname || protocol) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
