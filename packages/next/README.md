@@ -1676,21 +1676,19 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-class Error extends React.Component {
-  static getInitialProps({ res, err }) {
-    const statusCode = res ? res.statusCode : err ? err.statusCode : null
-    return { statusCode }
-  }
+const Error = ({ statusCode }) => {
+  return (
+    <p>
+      {statusCode
+        ? `An error ${statusCode} occurred on server`
+        : "An error occurred on client"}
+    </p>
+  )
+}
 
-  render() {
-    return (
-      <p>
-        {this.props.statusCode
-          ? `An error ${this.props.statusCode} occurred on server`
-          : 'An error occurred on client'}
-      </p>
-    )
-  }
+Error.getInitialProps = ({ res, err }) => {
+  const statusCode = res ? res.statusCode : err ? err.statusCode : null
+  return { statusCode }
 }
 
 export default Error
@@ -1701,26 +1699,24 @@ export default Error
 If you want to render the built-in error page you can by using `next/error`:
 
 ```jsx
-import React from 'react'
-import Error from 'next/error'
-import fetch from 'isomorphic-unfetch'
+import React from "react"
+import Error from "next/error"
+import fetch from "isomorphic-unfetch"
 
-class Page extends React.Component {
-  static async getInitialProps() {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const errorCode = res.statusCode > 200 ? res.statusCode : false
-    const json = await res.json()
-
-    return { errorCode, stars: json.stargazers_count }
+const Page = ({ errorCode, stars }) => {
+  if (errorCode) {
+    return <Error statusCode={errorCode} />
   }
 
-  render() {
-    if (this.props.errorCode) {
-      return <Error statusCode={this.props.errorCode} />
-    }
+  return <div>Next stars: {stars}</div>
+}
 
-    return <div>Next stars: {this.props.stars}</div>
-  }
+Page.getInitialProps = async () => {
+  const res = await fetch("https://api.github.com/repos/zeit/next.js")
+  const errorCode = res.statusCode > 200 ? res.statusCode : false
+  const json = await res.json()
+
+  return { errorCode, stars: json.stargazers_count }
 }
 
 export default Page
