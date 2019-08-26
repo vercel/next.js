@@ -27,19 +27,21 @@ function withApollo (PageComponent, { ssr = true } = {}) {
 
   WithApollo.displayName = `withApollo(${getDisplayName(PageComponent)})`
 
-  if (ssr) {
-    WithApollo.getInitialProps = async ctx => {
-      const { AppTree } = ctx
+  // Allow Next.js to remove getInitialProps from the browser build
+  if (typeof window === 'undefined') {
+    if (ssr) {
+      WithApollo.getInitialProps = async ctx => {
+        const { AppTree } = ctx
 
-      let pageProps = {}
-      if (PageComponent.getInitialProps) {
-        pageProps = await PageComponent.getInitialProps(ctx)
-      }
+        let pageProps = {}
+        if (PageComponent.getInitialProps) {
+          pageProps = await PageComponent.getInitialProps(ctx)
+        }
 
-      // Run all GraphQL queries in the component tree
-      // and extract the resulting data
-      const apolloClient = initApollo()
-      if (typeof window === 'undefined') {
+        // Run all GraphQL queries in the component tree
+        // and extract the resulting data
+        const apolloClient = initApollo()
+
         try {
           // Run all GraphQL queries
           await require('@apollo/react-ssr').getDataFromTree(
@@ -60,14 +62,14 @@ function withApollo (PageComponent, { ssr = true } = {}) {
         // getDataFromTree does not call componentWillUnmount
         // head side effect therefore need to be cleared manually
         Head.rewind()
-      }
 
-      // Extract query data from the Apollo store
-      const apolloState = apolloClient.cache.extract()
+        // Extract query data from the Apollo store
+        const apolloState = apolloClient.cache.extract()
 
-      return {
-        ...pageProps,
-        apolloState
+        return {
+          ...pageProps,
+          apolloState
+        }
       }
     }
   }
