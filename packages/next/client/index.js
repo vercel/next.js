@@ -322,13 +322,15 @@ function markRenderComplete () {
       })
     })
 
-    performance.getEntriesByName('beforeRender').forEach(entry => {
-      perfDataRelayer({
-        name: entry.name,
-        startTime: entry.startTime,
-        value: entry.duration
+    performance
+      .getEntriesByName('Next.js-route-change-to-render')
+      .forEach(entry => {
+        perfDataRelayer({
+          name: entry.name,
+          startTime: entry.startTime,
+          value: entry.duration
+        })
       })
-    })
   }
   clearMarks()
 }
