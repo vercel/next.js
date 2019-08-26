@@ -125,8 +125,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
-  if (isLikeServerless) {
+  if (target === 'serverless') {
     const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {

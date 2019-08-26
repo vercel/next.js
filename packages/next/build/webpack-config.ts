@@ -1,5 +1,6 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import {
+  BUILD_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
@@ -299,6 +300,24 @@ export default async function getBaseWebpackConfig(
       : !isServerless
       ? [
           (context, request, callback) => {
+            // Files which are required from the build output (DOT_NEXT_ALIAS)
+            // must be externalized; they're only available at runtime.
+            if (
+              request.includes(DOT_NEXT_ALIAS) &&
+              (request.includes(BUILD_MANIFEST) ||
+                request.includes(REACT_LOADABLE_MANIFEST))
+            ) {
+              // Manually compute the `require` path since `resolve()` doesn't
+              // work due to file not existing.
+              let formedRequest = ''
+              const arr = request.split(DOT_NEXT_ALIAS)
+              for (let i = 0; i < arr.length - 1; i++) {
+                formedRequest = path.join(formedRequest, arr[i], distDir)
+              }
+              formedRequest = path.join(formedRequest, arr.pop())
+              return callback(undefined, `commonjs ${formedRequest}`)
+            }
+
             const notExternalModules = [
               'next/app',
               'next/document',
