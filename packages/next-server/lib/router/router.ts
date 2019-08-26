@@ -11,6 +11,7 @@ import {
   getURL,
   loadGetInitialProps,
   NextPageContext,
+  PERF_MARKS,
   SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
@@ -250,7 +251,7 @@ export default class Router implements BaseRouter {
     return new Promise((resolve, reject) => {
       // marking route changes as a navigation start entry
       if (SUPPORTS_PERFORMANCE_USER_TIMING) {
-        performance.mark('routeChange')
+        performance.mark(PERF_MARKS.routeChange)
       }
 
       // If url and as provided as an object representation,
