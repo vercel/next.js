@@ -1,4 +1,3 @@
-import { Sema } from 'async-sema'
 import chalk from 'chalk'
 import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
@@ -15,7 +14,7 @@ import loadConfig, {
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-import workerFarm from 'worker-farm'
+import Worker from 'jest-worker'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -204,16 +203,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(config.experimental.cpus, {
-    capacity: pageKeys.length,
+  const staticCheckWorkers = new Worker(staticCheckWorker, {
+    numWorkers: config.experimental.cpus,
+    enableWorkerThreads: true,
   })
-  const staticCheckWorkers = workerFarm(
-    {
-      maxConcurrentWorkers: config.experimental.cpus,
-    },
-    staticCheckWorker,
-    ['default']
-  )
 
   await Promise.all(
     pageKeys.map(async page => {
@@ -268,17 +261,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          await staticCheckSema.acquire()
-          const result: any = await new Promise((resolve, reject) => {
-            staticCheckWorkers.default(
-              { serverBundle, runtimeEnvConfig },
-              (error: Error | null, result: any) => {
-                if (error) return reject(error)
-                resolve(result || {})
-              }
-            )
+          let result: any = await (staticCheckWorkers as any).default({
+            serverBundle,
+            runtimeEnvConfig,
           })
-          staticCheckSema.release()
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
@@ -293,15 +279,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
-          staticCheckSema.release()
         }
       }
 
       pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
     })
   )
-
-  workerFarm.end(staticCheckWorkers)
+  staticCheckWorkers.end()
 
   if (invalidPages.size > 0) {
     throw new Error(

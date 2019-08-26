@@ -80,6 +80,7 @@
     "find-up": "4.0.0",
     "fork-ts-checker-webpack-plugin": "1.3.4",
     "fresh": "0.5.2",
+    "jest-worker": "24.9.0",
     "launch-editor": "2.2.1",
     "loader-utils": "1.2.3",
     "mkdirp": "0.5.1",
@@ -88,7 +89,6 @@
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.6",
     "react-is": "16.8.6",
-    "serialize-javascript": "1.7.0",
     "source-map": "0.6.1",
     "string-hash": "1.1.3",
     "strip-ansi": "5.2.0",
@@ -101,8 +101,7 @@
     "webpack": "4.39.0",
     "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0",
-    "webpack-sources": "1.3.0",
-    "worker-farm": "1.7.0"
+    "webpack-sources": "1.3.0"
   },
   "peerDependencies": {
     "react": "^16.6.0",
