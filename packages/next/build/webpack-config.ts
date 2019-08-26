@@ -314,7 +314,10 @@ export default async function getBaseWebpackConfig(
               for (let i = 0; i < arr.length - 1; i++) {
                 formedRequest = path.join(formedRequest, arr[i], distDir)
               }
-              formedRequest = path.join(formedRequest, arr.pop())
+              formedRequest =
+                '.' +
+                path.sep +
+                path.relative(context, path.join(formedRequest, arr.pop()))
               return callback(undefined, `commonjs ${formedRequest}`)
             }
 
