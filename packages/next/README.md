@@ -1676,7 +1676,7 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-const Error = ({ statusCode }) => {
+function Error ({ statusCode }) {
   return (
     <p>
       {statusCode
