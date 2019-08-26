@@ -1,4 +1,3 @@
-import React, { Component } from 'react'
 import { FormattedRelativeTime } from 'react-intl'
 import { selectUnit } from '@formatjs/intl-utils'
 import Layout from '../components/Layout'
@@ -9,7 +8,7 @@ export default () => {
     <Layout>
       <p>
         <FormattedRelativeTime
-          numeric="auto"
+          numeric='auto'
           value={value}
           unit={unit}
           updateIntervalInSeconds={1}
