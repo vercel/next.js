@@ -299,7 +299,7 @@ export default class Router implements BaseRouter {
         )
         if (keys.length > 0) {
           console.warn(
-            `Warrning: your 'as' query parameter includes keys: ${keys}, what are missing in 'href' query https://err.sh/zeit/next.js/missing-query-params`
+            `Warning: the 'as' query value includes keys: ${keys}, that are missing in the 'href' query https://err.sh/zeit/next.js/missing-query-params`
           )
         }
       }

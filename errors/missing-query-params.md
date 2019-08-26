@@ -2,11 +2,11 @@
 
 #### Why This Error Occurred
 
-During your page transition, there was miss-match between `href` and `as`, what results in inconsistent behavior. Your `as` query provided extra query parameters what are not part of `href` query. 
+During your page transition, there was a mismatch between `href` and `as`, that results in inconsistent behavior. The `as` query provided extra query values that are not present in the `href` query. 
 
 #### Possible Ways to Fix It
 
-Check your `Link` component or `Router.push` event if your `href` query parameters have the same keys like your `as` query. 
+Check `next/link`, `Router#push`, or `Router#replace` usage for any `as` query values not being provided in the `href` query. 
 
 ### Useful Links
 
