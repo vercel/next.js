@@ -24,8 +24,8 @@ function withApollo (PageComponent, { ssr = true } = {}) {
     )
   }
 
-  // Set the correct displayName in devmode
-  if (process.env !== 'production') {
+  // Set the correct displayName in development
+  if (process.env.NODE_ENV !== 'production') {
     WithApollo.displayName = `withApollo(${PageComponent.displayName ||
       PageComponent.name ||
       'Component'})`
