@@ -133,7 +133,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  const buildStart = process.hrtime()
+  const webpackBuildStart = process.hrtime()
 
   let result: CompilerResult = { warnings: [], errors: [] }
   // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
@@ -156,7 +156,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     result = await runCompiler(configs)
   }
 
-  const buildEnd = process.hrtime(buildStart)
+  const webpackBuildEnd = process.hrtime(webpackBuildStart)
 
   result = formatWebpackMessages(result)
 
@@ -200,7 +200,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     backgroundWork.push(
       recordBuildDuration({
         numberOfPages: allPagePaths.length,
-        durationInSeconds: buildEnd[0],
+        durationInSeconds: webpackBuildEnd[0],
       })
     )
   }
