@@ -136,7 +136,7 @@ describe('next/babel', () => {
     })
   })
 
-  describe('modern-preset', () => {
+  describe('experimental-modern-preset', () => {
     it('should allow passing a custom Babel preset', () => {
       const code = trim`
         const [, b, c] = [...[1,2,3]];
@@ -149,7 +149,7 @@ describe('next/babel', () => {
           }
         },
         // our modern preset is no preset at all
-        'modern-preset': () => ({})
+        'experimental-modern-preset': () => ({})
       })
 
       expect(output).toMatch(trim`

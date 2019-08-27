@@ -41,7 +41,7 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
-  'modern-preset'?: string | [string, any?]
+  'experimental-modern-preset'?: string | [string, any?]
   'styled-jsx'?: StyledJsxBabelOptions
 }
 
@@ -95,7 +95,8 @@ module.exports = (
   }
 
   // spefify a preset to use instead of @babel/preset-env:
-  const customModernPreset = isLaxModern && options['modern-preset']
+  const customModernPreset =
+    isLaxModern && options['experimental-modern-preset']
 
   return {
     sourceType: 'unambiguous',
