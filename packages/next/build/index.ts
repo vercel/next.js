@@ -63,7 +63,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir)
 
-  let backgroundWork: (Promise<void> | undefined)[] = []
+  let backgroundWork: (Promise<any> | undefined)[] = []
   backgroundWork.push(recordVersion(), recordNextPlugins(path.resolve(dir)))
 
   console.log('Creating an optimized production build ...')
