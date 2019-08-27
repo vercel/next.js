@@ -9,7 +9,7 @@ export function _postPayload(endpoint: string, body: object) {
           method: 'POST',
           body: JSON.stringify(body),
           headers: { 'content-type': 'application/json' },
-          timeout: 2000,
+          timeout: 5000,
         }).then(res => {
           if (!res.ok) {
             const err = new Error(res.statusText)
@@ -17,7 +17,7 @@ export function _postPayload(endpoint: string, body: object) {
             throw err
           }
         }),
-      { minTimeout: 20, retries: 2, factor: 5 }
+      { minTimeout: 500, retries: 1, factor: 1 }
     )
       .catch(() => {
         // We swallow errors when telemetry cannot be sent
