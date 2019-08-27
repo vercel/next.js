@@ -37,7 +37,6 @@ This example show how to use [STOMP](http://stomp.github.io/) inside a Next.js a
 
 STOMP is a simple text-orientated messaging protocol. It defines an interoperable wire format so that any of the available STOMP clients can communicate with any STOMP message broker.
 
-This is intended to show how to use Stomp by Hook or HOC inside a Next.js Application.
 
 ## Note
 Read more about [STOMP](http://jmesnil.net/stomp-websocket/doc/) protocol.
