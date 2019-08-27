@@ -19,7 +19,7 @@ class MyApp extends App {
 
   componentDidMount () {
     // connect to Websocket only once.
-    const client = Stomp.client('ws://some.stomp.server')
+    const client = Stomp.client(process.env.SOME_STOMP_SERVER)
     client.connect({}, () => {
       this.setState({ stompClient: client })
     })
