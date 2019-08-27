@@ -7,7 +7,6 @@ import mitt from 'next-server/dist/lib/mitt'
 import {
   loadGetInitialProps,
   getURL,
-  PERF_MARKS,
   SUPPORTS_PERFORMANCE_USER_TIMING
 } from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
@@ -234,7 +233,7 @@ let isInitialRender = typeof ReactDOM.hydrate === 'function'
 function renderReactElement (reactEl, domEl) {
   // mark start of hydrate/render
   if (SUPPORTS_PERFORMANCE_USER_TIMING) {
-    performance.mark(PERF_MARKS.beforeRender)
+    performance.mark('beforeRender')
   }
 
   // The check for `.hydrate` is there to support React alternatives like preact
@@ -249,18 +248,14 @@ function renderReactElement (reactEl, domEl) {
 function markHydrateComplete () {
   if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
 
-  performance.mark(PERF_MARKS.afterHydrate) // mark end of hydration
+  performance.mark('afterHydrate') // mark end of hydration
 
   performance.measure(
     'Next.js-before-hydration',
     'navigationStart',
-    PERF_MARKS.beforeRender
+    'beforeRender'
   )
-  performance.measure(
-    'Next.js-hydration',
-    PERF_MARKS.beforeRender,
-    PERF_MARKS.afterHydrate
-  )
+  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
 
   clearMarks()
 }
@@ -268,7 +263,7 @@ function markHydrateComplete () {
 function markRenderComplete () {
   if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
 
-  performance.mark(PERF_MARKS.afterRender) // mark end of render
+  performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
 
   if (!navStartEntries.length) {
@@ -278,21 +273,18 @@ function markRenderComplete () {
   performance.measure(
     'Next.js-route-change-to-render',
     navStartEntries[0].name,
-    PERF_MARKS.beforeRender
+    'beforeRender'
   )
-  performance.measure(
-    'Next.js-render',
-    PERF_MARKS.beforeRender,
-    PERF_MARKS.afterRender
-  )
+  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
 
   clearMarks()
 }
 
 function clearMarks () {
-  Object.keys(PERF_MARKS).forEach(key =>
-    performance.clearMarks(PERF_MARKS[key])
+  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
+    mark => performance.clearMarks(mark)
   )
+
   /*
    * TODO: uncomment the following line when we have a way to
    * expose this to user code.

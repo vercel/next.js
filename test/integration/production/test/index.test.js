@@ -11,7 +11,6 @@ import {
   renderViaHTTP,
   waitFor
 } from 'next-test-utils'
-import { PERF_MARKS } from 'next-server/dist/lib/utils'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
@@ -608,10 +607,16 @@ describe('Production Usage', () => {
       const currentPerfMarks = await browser.eval(
         `window.performance.getEntriesByType('mark')`
       )
+      const allPerfMarks = [
+        'beforeRender',
+        'afterHydrate',
+        'afterRender',
+        'routeChange'
+      ]
 
-      Object.keys(PERF_MARKS).forEach(key =>
+      allPerfMarks.forEach(name =>
         expect(currentPerfMarks).not.toContainEqual(
-          expect.objectContaining({ name: PERF_MARKS[key] })
+          expect.objectContaining({ name })
         )
       )
     } finally {
