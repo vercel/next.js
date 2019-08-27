@@ -65,6 +65,7 @@ module.exports = (
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
   const isLaxModern =
+    options['preset-env'] &&
     options['preset-env'].targets &&
     options['preset-env'].targets.modules === true
 
