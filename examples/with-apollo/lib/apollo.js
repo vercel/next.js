@@ -29,9 +29,14 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
 
   // Set the correct displayName in development
   if (process.env.NODE_ENV !== 'production') {
-    WithApollo.displayName = `withApollo(${PageComponent.displayName ||
-      PageComponent.name ||
-      'Component'})`
+    const displayName =
+      PageComponent.displayName || PageComponent.name || 'Component'
+
+    if (displayName === 'App') {
+      console.warn('This withApollo HOC only works with PageComponents.')
+    }
+
+    WithApollo.displayName = `withApollo(${displayName})`
   }
 
   // Allow Next.js to remove getInitialProps from the browser build
