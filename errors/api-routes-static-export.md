@@ -10,4 +10,4 @@ Remove any paths using API routes from your `exportPathMap` in `next.config.js`.
 
 ### Useful Links
 
-- [Static HTML export](https://github.com/zeit/next.js#static-html-export)
+- [Static HTML export](https://nextjs.org/docs#static-html-export)

@@ -17,7 +17,7 @@ export default class IntlDocument extends Document {
 
   render () {
     // Polyfill Intl API for older browsers
-    const polyfill = `https://cdn.polyfill.io/v2/polyfill.min.js?features=Intl.~locale.${
+    const polyfill = `https://cdn.polyfill.io/v3/polyfill.min.js?features=Intl.~locale.${
       this.props.locale
     }`
 
