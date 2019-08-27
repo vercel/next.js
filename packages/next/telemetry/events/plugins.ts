@@ -8,6 +8,17 @@ type PluginPresentEventShape = {
 }
 
 const plugins = [
+  // CSS-in-JS solutions
+  'styled-components',
+  'radium',
+  'aphrodite',
+  'emotion',
+  'glamorous',
+  'glamor',
+  'fela',
+  'react-jss',
+  'linaria',
+  'typestyle',
   // Modern Plugins
   '@next/bundle-analyzer',
   '@next/mdx',
