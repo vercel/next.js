@@ -422,8 +422,46 @@ export default async function getBaseWebpackConfig(
     performance: false,
     resolve: resolveConfig,
     resolveLoader: {
+      alias: {
+        // The loaders Next.js provides
+        'emit-file-loader': path.join(
+          __dirname,
+          'webpack',
+          'loaders',
+          'emit-file-loader'
+        ),
+        'next-babel-loader': path.join(
+          __dirname,
+          'webpack',
+          'loaders',
+          'next-babel-loader'
+        ),
+        'next-client-pages-loader': path.join(
+          __dirname,
+          'webpack',
+          'loaders',
+          'next-client-pages-loader'
+        ),
+        'next-data-loader': path.join(
+          __dirname,
+          'webpack',
+          'loaders',
+          'next-data-loader'
+        ),
+        'next-serverless-loader': path.join(
+          __dirname,
+          'webpack',
+          'loaders',
+          'next-serverless-loader'
+        ),
+        'noop-loader': path.join(
+          __dirname,
+          'webpack',
+          'loaders',
+          'noop-loader'
+        ),
+      },
       modules: [
-        path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
