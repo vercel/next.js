@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
+import useClient from './useClient'
 
-const useStomp = (stompClient, topic) => {
+const useStomp = topic => {
   const [message, setMessage] = useState({})
+  const client = useClient()
 
   // subscribe to a channel, then listen to the messages.
   const subscribe = () => {
-    stompClient.subscribe(topic, msg => {
+    client.subscribe(topic, msg => {
       const change = JSON.parse(msg.body)
       setMessage(change)
     })
@@ -13,7 +15,7 @@ const useStomp = (stompClient, topic) => {
 
   // unsubscribe on unmount
   const unSubscribe = () => {
-    stompClient.unsubscribe()
+    client.unsubscribe()
   }
 
   useEffect(() => {
