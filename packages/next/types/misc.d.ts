@@ -5,7 +5,6 @@ declare module 'webpack/lib/GraphHelpers'
 declare module 'unfetch'
 declare module 'styled-jsx/server'
 declare module 'async-retry'
-declare module 'semver'
 
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string

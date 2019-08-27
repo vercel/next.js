@@ -1,6 +1,5 @@
 import { record } from '../storage'
 import findUp from 'find-up'
-import semver from 'semver'
 
 const EVENT_PLUGIN_PRESENT = 'NEXT_PLUGIN_PRESENT'
 type PluginPresentEventShape = {
@@ -158,15 +157,7 @@ export async function recordNextPlugins(dir: string) {
         .map(plugin => {
           const version = dependencies[plugin] || devDependencies[plugin]
           if (version) {
-            let parsed
-            try {
-              parsed = semver.coerce(version)
-            } catch (_) {}
-            return {
-              pluginName: plugin,
-              pluginVersion:
-                parsed && parsed.version ? parsed.version : 'unknown',
-            }
+            return { pluginName: plugin, pluginVersion: version }
           }
         })
         .filter(Boolean) as {
