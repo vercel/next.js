@@ -31,7 +31,7 @@ In this example, we have two apps: 'home' and 'blog'. We'll start both apps with
 now dev
 ```
 
-Now you can visit <http://localhost:3000> and develop for both apps as a single app.
+Then, you can visit <http://localhost:3000> and develop for both apps as a single app.
 
 You can also start the apps separately, for example:
 
@@ -45,7 +45,7 @@ yarn dev
 - All pages should be unique across zones. For example, the 'home' app should not have a `pages/blog/index.js` page.
 - The 'blog' app sets `assetPrefix` so that generated JS bundles are within the `/blog` subfolder.
     - To also support the plain `next dev` scenario, `assetPrefix` is set dynamically based on the `BUILDING_FOR_NOW` environment variable, see [`now.json`](now.json) and [`blog/next.config.js`](blog/next.config.js).
-    - Images and other `/static` assets has to be prefixed manually, e.g., ``<img src={`${process.env.ASSET_PREFIX}/static/image.png`} />``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
+    - Images and other `/static` assets have to be prefixed manually, e.g., ``<img src={`${process.env.ASSET_PREFIX}/static/image.png`} />``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
 
 ## Production Deployment
 
