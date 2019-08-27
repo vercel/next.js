@@ -9,14 +9,17 @@ let apolloClient = null
 /**
  * Creates and provides the apolloContext
  * to a next.js PageTree. Use it by wrapping
- * your page component via HOC pattern.
+ * your PageComponent via HOC pattern.
  * @param {Function|Class} PageComponent
  * @param {Object} [config]
  * @param {Boolean} [config.ssr=true]
  */
-function withApollo (PageComponent, { ssr = true } = {}) {
+export function withApollo (PageComponent, { ssr = true } = {}) {
   const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
-    const client = useMemo(() => apolloClient || initApollo(apolloState), [])
+    const client = useMemo(
+      () => apolloClient || initApolloClient(apolloState),
+      []
+    )
     return (
       <ApolloProvider client={client}>
         <PageComponent {...pageProps} />
@@ -44,7 +47,7 @@ function withApollo (PageComponent, { ssr = true } = {}) {
 
         // Run all GraphQL queries in the component tree
         // and extract the resulting data
-        const apolloClient = initApollo()
+        const apolloClient = initApolloClient()
 
         try {
           // Run all GraphQL queries
@@ -86,7 +89,7 @@ function withApollo (PageComponent, { ssr = true } = {}) {
  * Creates or reuses apollo client in the browser.
  * @param  {Object} initialState
  */
-function initApollo (initialState) {
+function initApolloClient (initialState) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (typeof window === 'undefined') {
@@ -120,5 +123,3 @@ function createApolloClient (initialState = {}) {
     cache: new InMemoryCache().restore(initialState)
   })
 }
-
-export default withApollo
