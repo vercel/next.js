@@ -140,7 +140,7 @@ describe('next/babel', () => {
     it('should allow passing a custom Babel preset', () => {
       const code = trim`
         const [, b, c] = [...[1,2,3]];
-        a => a;
+        ({a}) => a;
       `
       const output = babel(code, true, {
         'preset-env': {
@@ -153,7 +153,7 @@ describe('next/babel', () => {
       })
 
       expect(output).toMatch(trim`
-        const[,b,c]=[...[1,2,3]];a=>a;
+        const[,b,c]=[...[1,2,3]];({a})=>a;
       `)
     })
   })

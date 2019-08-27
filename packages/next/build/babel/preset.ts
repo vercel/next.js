@@ -41,7 +41,7 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
-  'experimental-modern-preset'?: string | [string, any?]
+  'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
 }
 
@@ -65,9 +65,10 @@ module.exports = (
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
   const isLaxModern =
-    options['preset-env'] &&
-    options['preset-env'].targets &&
-    options['preset-env'].targets.modules === true
+    isModern ||
+    (options['preset-env'] &&
+      options['preset-env'].targets &&
+      options['preset-env'].targets.esmodules === true)
 
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
