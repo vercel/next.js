@@ -1,12 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
-
+import { withApollo } from '../lib/apollo'
 import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
-
 import SigninBox from '../components/SigninBox'
 
-export default class Signin extends React.Component {
+class SigninPage extends React.Component {
   static async getInitialProps (context) {
     const { loggedInUser } = await checkLoggedIn(context.apolloClient)
 
@@ -33,3 +32,5 @@ export default class Signin extends React.Component {
     )
   }
 }
+
+export default withApollo(SigninPage)
