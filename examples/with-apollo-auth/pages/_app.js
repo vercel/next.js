@@ -1,7 +1,7 @@
 import App from 'next/app'
 import React from 'react'
 import { ApolloProvider } from '@apollo/react-hooks'
-import withApollo from '../lib/withApollo'
+import { withApollo } from '../lib/apollo'
 
 class MyApp extends App {
   static displayName = 'MyApp'

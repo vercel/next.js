@@ -3,8 +3,9 @@ import cookie from 'cookie'
 import PropTypes from 'prop-types'
 import { getDataFromTree } from '@apollo/react-ssr'
 import Head from 'next/head'
-
-import initApollo from './initApollo'
+import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
+import { setContext } from 'apollo-link-context'
+import fetch from 'isomorphic-unfetch'
 
 function parseCookies (req, options = {}) {
   return cookie.parse(req ? req.headers.cookie || '' : document.cookie, options)
@@ -30,7 +31,7 @@ export default App => {
         AppTree,
         ctx: { req, res }
       } = ctx
-      const apollo = initApollo(
+      const apollo = initApolloClient(
         {},
         {
           getToken: () => parseCookies(req).token
@@ -81,7 +82,7 @@ export default App => {
       super(props)
       // `getDataFromTree` renders the component first, the client is passed off as a property.
       // After that rendering is done using Next's normal rendering pipeline
-      this.apolloClient = initApollo(props.apolloState, {
+      this.apolloClient = initApolloClient(props.apolloState, {
         getToken: () => {
           return parseCookies().token
         }
@@ -92,4 +93,69 @@ export default App => {
       return <App apolloClient={this.apolloClient} {...this.props} />
     }
   }
+}
+
+let apolloClient = null
+
+/**
+ * Always creates a new apollo client on the server
+ * Creates or reuses apollo client in the browser.
+ */
+function initApolloClient (...args) {
+  // Make sure to create a new client for every server-side request so that data
+  // isn't shared between connections (which would be bad)
+  if (typeof window === 'undefined') {
+    return createApolloClient(...args)
+  }
+
+  // Reuse client on the client-side
+  if (!apolloClient) {
+    apolloClient = createApolloClient(...args)
+  }
+
+  return apolloClient
+}
+
+/**
+ * Creates and configures the ApolloClient
+ * @param  {Object} [initialState={}]
+ */
+function createApolloClient (initialState = {}, { getToken }) {
+  const fetchOptions = {}
+
+  // If you are using a https_proxy, add fetchOptions with 'https-proxy-agent' agent instance
+  // 'https-proxy-agent' is required here because it's a sever-side only module
+  if (typeof window === 'undefined') {
+    if (process.env.https_proxy) {
+      fetchOptions.agent = new (require('https-proxy-agent'))(
+        process.env.https_proxy
+      )
+    }
+  }
+
+  const httpLink = new HttpLink({
+    uri: 'https://api.graph.cool/simple/v1/cj5geu3slxl7t0127y8sity9r', // Server URL (must be absolute)
+    credentials: 'same-origin',
+    fetch,
+    fetchOptions
+  })
+
+  const authLink = setContext((_, { headers }) => {
+    const token = getToken()
+    return {
+      headers: {
+        ...headers,
+        authorization: token ? `Bearer ${token}` : ''
+      }
+    }
+  })
+
+  // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
+  const isBrowser = typeof window !== 'undefined'
+  return new ApolloClient({
+    connectToDevTools: isBrowser,
+    ssrMode: !isBrowser, // Disables forceFetch on the server (so queries are only run once)
+    link: authLink.concat(httpLink),
+    cache: new InMemoryCache().restore(initialState)
+  })
 }
