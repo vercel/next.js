@@ -276,13 +276,6 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="/examples/public-file-serving">Public file serving</a></li>
-  </ul>
-</details>
-
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
