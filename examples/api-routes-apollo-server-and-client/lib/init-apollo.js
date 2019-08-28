@@ -3,6 +3,7 @@ import { SchemaLink } from 'apollo-link-schema'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
 import { schema } from '../apollo/schema'
+import gql from 'graphql-tag'
 
 let apolloClient = null
 
@@ -17,11 +18,25 @@ function create (initialState) {
     })
     : new SchemaLink({ schema })
 
+  const cache = new InMemoryCache().restore(initialState || {})
+
   return new ApolloClient({
     connectToDevTools: isBrowser,
     ssrMode: !isBrowser, // Disables forceFetch on the server (so queries are only run once)
     link,
-    cache: new InMemoryCache().restore(initialState || {})
+    typeDefs: gql`
+      extend type User {
+        status: String!
+      }
+    `,
+    resolvers: {
+      User: {
+        status () {
+          return 'cached'
+        }
+      }
+    },
+    cache
   })
 }
 
