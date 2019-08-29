@@ -3,6 +3,7 @@ import App from 'next/app'
 import Link from 'next/link'
 import NProgress from 'nprogress'
 import Router from 'next/router'
+import Head from 'next/head'
 
 Router.events.on('routeChangeStart', url => {
   console.log(`Loading: ${url}`)
@@ -16,6 +17,10 @@ export default class MyApp extends App {
     const { Component, pageProps } = this.props
     return (
       <>
+        <Head>
+          {/* Import CSS for nprogress */}
+          <link rel='stylesheet' type='text/css' href='/static/nprogress.css' />
+        </Head>
         <div style={{ marginBottom: 20 }}>
           <style jsx>{`
             a {
