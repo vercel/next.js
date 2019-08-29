@@ -4,10 +4,6 @@ import Link from 'next/link'
 import NProgress from 'nprogress'
 import Router from 'next/router'
 
-const linkStyle = {
-  margin: '0 10px 0 0'
-}
-
 Router.events.on('routeChangeStart', url => {
   console.log(`Loading: ${url}`)
   NProgress.start()
@@ -31,18 +27,21 @@ export default class MyApp extends App {
     return (
       <>
         <div style={{ marginBottom: 20 }}>
+          <style jsx>{`
+            a {
+              margin: 0 10px 0 0;
+            }
+          `}</style>
           <Link href='/'>
-            <a style={linkStyle}>Home</a>
+            <a>Home</a>
           </Link>
           <Link href='/about'>
-            <a style={linkStyle}>About</a>
+            <a>About</a>
           </Link>
           <Link href='/forever'>
-            <a style={linkStyle}>Forever</a>
+            <a>Forever</a>
           </Link>
-          <a href='/non-existing' style={linkStyle}>
-            Non Existing Page
-          </a>
+          <a href='/non-existing'>Non Existing Page</a>
         </div>
 
         <Component {...pageProps} />
