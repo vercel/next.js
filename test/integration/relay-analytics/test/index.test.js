@@ -23,9 +23,19 @@ describe('Analytics relayer', () => {
     const data = parseFloat(
       await browser.eval('localStorage.getItem("Next.js-hydration")')
     )
+    const firstPaint = parseFloat(
+      await browser.eval('localStorage.getItem("first-paint")')
+    )
+    const firstContentfulPaint = parseFloat(
+      await browser.eval('localStorage.getItem("first-contentful-paint")')
+    )
     expect(h1Text).toMatch(/Hello!/)
     expect(data).not.toBeNaN()
     expect(data).toBeGreaterThan(0)
+    expect(firstPaint).not.toBeNaN()
+    expect(firstPaint).toBeGreaterThan(0)
+    expect(firstContentfulPaint).not.toBeNaN()
+    expect(firstContentfulPaint).toBeGreaterThan(0)
     await browser.close()
   })
 })
