@@ -447,9 +447,9 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-When you need state, lifecycle hooks or **initial data population** you can export a [React.Component](https://reactjs.org/docs/react-component.html) or use a stateless function and [Hooks](https://reactjs.org/docs/hooks-intro.html).
+When you need state, lifecycle hooks or **initial data population** you can export a [Class-Component](https://reactjs.org/docs/react-component.html) or use a Functional-Component [(a.k.a. Hooks)](https://reactjs.org/docs/hooks-intro.html).
 
-Using a stateless function:
+Using a Functional-Component:
 
 ```jsx
 import fetch from 'isomorphic-unfetch'
@@ -467,7 +467,7 @@ Page.getInitialProps = async ({ req }) => {
 export default Page
 ```
 
-Using `React.Component`:
+Using a Class-Component:
 
 ```jsx
 import React from 'react'
@@ -486,7 +486,7 @@ class HelloUA extends React.Component {
 export default HelloUA
 ```
 
-Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
+Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
 Data returned from `getInitialProps` is serialized when server rendering, similar to a `JSON.stringify`. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
