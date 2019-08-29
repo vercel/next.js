@@ -4,6 +4,8 @@
 
 Somewhere you are utilizing the `next/link` component, `Router#push`, or `Router#replace` with a dynamic route in your `href` that has an incompatible `as` value. The `as` value is incompatible when the path doesn't provide only the expected parameters for the dynamic route.
 
+Note: this error will only show when the `next/link` component is clicked not when only rendered.
+
 **Incompatible `href` and `as`**
 ```jsx
 import Link from 'next/link'
