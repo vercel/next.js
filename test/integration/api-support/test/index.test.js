@@ -249,16 +249,16 @@ function runTests (serverless = false) {
     expect(res.status).toBe(404)
   })
 
-  it('should work with __dirname', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+  it('should work with __dirname read', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
       res => res.ok && res.text()
     )
 
     expect(data).toContain('export default () => <div>API - support</div>')
   })
 
-  it('should work with __dirname and re-compile', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+  it('should work with __dirname read and re-compile', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
       res => res.ok && res.text()
     )
 
@@ -270,20 +270,20 @@ function runTests (serverless = false) {
 
     await waitFor(500)
 
-    const change = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+    const change = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
       res => res.ok && res.text()
     )
     expect(change).toContain('export default () => <div>IPA - support</div>')
 
     index.restore()
 
-    const dirname = new File(join(appDir, 'pages/api/dirname.js'))
+    const dirname = new File(join(appDir, 'pages/api/read.js'))
 
     dirname.replace('index.js', 'user.js')
 
     await waitFor(500)
 
-    const user = await fetchViaHTTP(appPort, '/api/dirname', null, {}).then(
+    const user = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
       res => res.ok && res.text()
     )
 
@@ -291,6 +291,8 @@ function runTests (serverless = false) {
 
     dirname.restore()
   })
+
+  // it('should ')
 
   it('should build api routes', async () => {
     await nextBuild(appDir, [], { stdout: true })
