@@ -21,7 +21,7 @@ export default class MyApp extends App {
           {/* Import CSS for nprogress */}
           <link rel='stylesheet' type='text/css' href='/static/nprogress.css' />
         </Head>
-        <div style={{ marginBottom: 20 }}>
+        <nav>
           <style jsx>{`
             a {
               margin: 0 10px 0 0;
@@ -37,8 +37,7 @@ export default class MyApp extends App {
             <a>Forever</a>
           </Link>
           <a href='/non-existing'>Non Existing Page</a>
-        </div>
-
+        </nav>
         <Component {...pageProps} />
       </>
     )

@@ -1,3 +1,5 @@
 import React from 'react'
 
-export default () => <p>Hello Next!</p>
+const IndexPage = () => <p>Hello Next.js!</p>
+
+export default IndexPage
