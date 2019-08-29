@@ -52,6 +52,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/This page could not be found/)
   })
 
+  it('should render 404 for /_next/static', async () => {
+    const html = await renderViaHTTP(appPort, '/_next/static')
+    expect(html).toMatch(/This page could not be found/)
+  })
+
   it('should render an AMP page', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
     expect(html).toMatch(/Hi Im an AMP page/)
