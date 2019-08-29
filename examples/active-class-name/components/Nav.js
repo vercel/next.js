@@ -1,30 +1,29 @@
-import Link from './Link'
+import ActiveLink from './ActiveLink'
 
-export default () => (
+const Nav = () => (
   <nav>
     <style jsx>{`
+      .nav-link {
+        text-decoration: none;
+      }
+
       .active:after {
         content: ' (current page)';
       }
-
-      .nav-link {
-        text-decoration: none;
-        padding: 10px;
-        display: block;
-      }
     `}</style>
-
-    <ul>
+    <ul className='nav'>
       <li>
-        <Link activeClassName='active' href='/'>
-          <a className='nav-link home-link'>Home</a>
-        </Link>
+        <ActiveLink activeClassName='active' href='/'>
+          <a className='nav-link'>Home</a>
+        </ActiveLink>
       </li>
       <li>
-        <Link activeClassName='active' href='/about'>
+        <ActiveLink activeClassName='active' href='/about'>
           <a className='nav-link'>About</a>
-        </Link>
+        </ActiveLink>
       </li>
     </ul>
   </nav>
 )
+
+export default Nav
