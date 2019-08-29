@@ -234,23 +234,12 @@ export default async function getBaseWebpackConfig(
               /node_modules[/\\]/.test(module.identifier())
             )
           },
-          name(module: { identifier: Function; rawRequest: string }): string {
-            const identifier = module.identifier()
-            // Remove everything up through '/node_modules/'
-            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
-              identifier
-            )
-            const processedIdentifier =
-              trimmedIdentifier &&
-              // Remove the file extension(s)
-              /[\w-\/\\]+/.exec(trimmedIdentifier[1])
-
-            let finalName = processedIdentifier && processedIdentifier[0]
-
-            finalName = finalName && finalName.replace(/[\\\/]/g, '~')
-            const backupName = identifier.replace(/[\\\/]/g, '~')
-
-            return finalName || backupName
+          name(module: { libIdent: Function }): string {
+            return crypto
+              .createHash('sha1')
+              .update(module.libIdent({ context: dir }))
+              .digest('hex')
+              .substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
@@ -433,8 +422,24 @@ export default async function getBaseWebpackConfig(
     performance: false,
     resolve: resolveConfig,
     resolveLoader: {
+      // The loaders Next.js provides
+      alias: [
+        'emit-file-loader',
+        'next-babel-loader',
+        'next-client-pages-loader',
+        'next-data-loader',
+        'next-serverless-loader',
+        'noop-loader',
+      ].reduce(
+        (alias, loader) => {
+          // using multiple aliases to replace `resolveLoader.modules`
+          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+
+          return alias
+        },
+        {} as Record<string, string>
+      ),
       modules: [
-        path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],

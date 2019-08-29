@@ -24,7 +24,7 @@ describe('Promise in next config', () => {
     )
 
     expect(stderr).toMatch(
-      /Error: > Promise returned in next config\. https:\/\/err\.sh\/zeit\/next\.js\/promise-in-next-config\.md/
+      /Error: > Promise returned in next config\. https:\/\/err\.sh\/zeit\/next\.js\/promise-in-next-config/
     )
   })
 

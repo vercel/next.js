@@ -24,6 +24,10 @@ const clientGlobs = [
   {
     name: 'Client Build Manifests',
     globs: ['.next/static/*/_buildManifest*']
+  },
+  {
+    name: 'Rendered Page Sizes',
+    globs: ['fetched-pages/**/*.html']
   }
 ]
 
@@ -114,9 +118,10 @@ module.exports = {
         }
       ],
       filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
       pagesToFetch: [
+        'http://localhost:$PORT/',
         'http://localhost:$PORT/link',
-        'http://localhost:$PORT/index',
         'http://localhost:$PORT/withRouter'
       ]
     },

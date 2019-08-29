@@ -89,7 +89,7 @@ function normalizeConfig(phase: string, config: any) {
 
     if (typeof config.then === 'function') {
       throw new Error(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
     }
   }
