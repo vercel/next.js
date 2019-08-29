@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import PropTypes from 'prop-types'
 import cookie from 'cookie'
 import { ApolloProvider } from '@apollo/react-hooks'
 import Head from 'next/head'
@@ -36,16 +37,26 @@ export function withApollo (PageComponent) {
     )
   }
 
-  // Set the correct displayName in development
   if (process.env.NODE_ENV !== 'production') {
+    // Find correct display name
     const displayName =
       PageComponent.displayName || PageComponent.name || 'Component'
 
+    // Warn if old way of installing apollo is used
     if (displayName === 'App') {
       console.warn('This withApollo HOC only works with PageComponents.')
     }
 
+    // Set correct display name for devtools
     WithApollo.displayName = `withApollo(${displayName})`
+
+    // Add some prop types
+    WithApollo.propTypes = {
+      // Used for getDataFromTree rendering
+      apolloClient: PropTypes.object,
+      // Used for client/server rendering
+      apolloState: PropTypes.object
+    }
   }
 
   WithApollo.getInitialProps = async ctx => {
