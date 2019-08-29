@@ -139,10 +139,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  const { pageExports, page: app } = await pageLoader.loadPageScript('/_app')
+  const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
-  if (pageExports && pageExports.relayPerformanceData) {
-    perfDataRelayer = pageExports.relayPerformanceData
+  if (mod && mod.relayPerformanceData) {
+    perfDataRelayer = mod.relayPerformanceData
   }
 
   let initialErr = err
