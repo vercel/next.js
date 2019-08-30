@@ -600,7 +600,7 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should clear all performance marks', async () => {
+  it('should clear all core performance marks', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/about')
@@ -618,6 +618,25 @@ describe('Production Usage', () => {
         expect(currentPerfMarks).not.toContainEqual(
           expect.objectContaining({ name })
         )
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not clear custom performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/mark-in-head')
+
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+
+      expect(currentPerfMarks).toContainEqual(
+        expect.objectContaining({ name: 'custom-mark' })
       )
     } finally {
       if (browser) {
