@@ -590,7 +590,7 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      isServerless && new ServerlessPlugin(),
+      isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&
