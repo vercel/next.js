@@ -1072,8 +1072,6 @@ export default function MyLink() {
     </a>
   )
 }
-
-export default MyLink
 ```
 
 You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
