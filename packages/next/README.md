@@ -1073,7 +1073,7 @@ export default function MyLink() {
   )
 }
 
-export default withRouter(MyLink)
+export default MyLink
 ```
 
 You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
