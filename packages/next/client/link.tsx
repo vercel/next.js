@@ -1,7 +1,7 @@
 /* global __NEXT_DATA__ */
 declare const __NEXT_DATA__: any
 
-import { resolve, parse, UrlObject } from 'url'
+import { resolve, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
 import Router from './router'
@@ -9,17 +9,8 @@ import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url
 import {
   execOnce,
   formatWithValidation,
-  getLocationOrigin,
+  isLocal,
 } from 'next-server/dist/lib/utils'
-
-function isLocal(href: string) {
-  const url = parse(href, false, true)
-  const origin = parse(getLocationOrigin(), false, true)
-
-  return (
-    !url.host || (url.protocol === origin.protocol && url.host === origin.host)
-  )
-}
 
 type Url = string | UrlObject
 type FormatResult = { href: string; as?: string }

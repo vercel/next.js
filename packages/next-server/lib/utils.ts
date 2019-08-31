@@ -1,4 +1,4 @@
-import { format, UrlObject, URLFormatOptions } from 'url'
+import { format, UrlObject, URLFormatOptions, parse } from 'url'
 import { ServerResponse, IncomingMessage } from 'http'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -198,6 +198,15 @@ export function execOnce(this: any, fn: (...args: any) => any) {
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
   return `${protocol}//${hostname}${port ? ':' + port : ''}`
+}
+
+export function isLocal(href: string) {
+  const url = parse(href, false, true)
+  const origin = parse(getLocationOrigin(), false, true)
+
+  return (
+    !url.host || (url.protocol === origin.protocol && url.host === origin.host)
+  )
 }
 
 export function getURL() {

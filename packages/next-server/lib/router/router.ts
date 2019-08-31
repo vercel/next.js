@@ -12,6 +12,8 @@ import {
   loadGetInitialProps,
   NextPageContext,
   SUPPORTS_PERFORMANCE_USER_TIMING,
+  getLocationOrigin,
+  isLocal,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { getRouteMatcher } from './utils/route-matcher'
@@ -559,9 +561,8 @@ export default class Router implements BaseRouter {
    */
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const { pathname, protocol } = parse(url)
-
-      if (!pathname || protocol) {
+      const { pathname } = parse(url)
+      if (!pathname || !isLocal(url)) {
         if (process.env.NODE_ENV !== 'production') {
           throw new Error(
             `Invalid href passed to router: ${url} https://err.sh/zeit/next.js/invalid-href-passed`
