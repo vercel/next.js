@@ -80,6 +80,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 404 for /_next/static route', async () => {
+      const html = await renderViaHTTP(appPort, '/_next/static')
+      expect(html).toMatch(/This page could not be found/)
+    })
+
     it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'
@@ -593,6 +598,51 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should clear all core performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+      const allPerfMarks = [
+        'beforeRender',
+        'afterHydrate',
+        'afterRender',
+        'routeChange'
+      ]
+
+      allPerfMarks.forEach(name =>
+        expect(currentPerfMarks).not.toContainEqual(
+          expect.objectContaining({ name })
+        )
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not clear custom performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/mark-in-head')
+
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+
+      expect(currentPerfMarks).toContainEqual(
+        expect.objectContaining({ name: 'custom-mark' })
+      )
     } finally {
       if (browser) {
         await browser.close()
