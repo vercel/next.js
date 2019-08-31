@@ -97,7 +97,7 @@
     "source-map": "0.6.1",
     "string-hash": "1.1.3",
     "strip-ansi": "5.2.0",
-    "styled-jsx": "3.2.1",
+    "styled-jsx": "3.2.2",
     "terser": "4.0.0",
     "tty-aware-progress": "1.0.4",
     "unfetch": "4.1.0",
