@@ -13035,10 +13035,10 @@ strong-log-transformer@^2.0.0:
     minimist "^1.2.0"
     through "^2.3.4"
 
-styled-jsx@3.2.1:
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-3.2.1.tgz#452051fe50df5e9c7c7f3dd20fa46c3060ac65b0"
-  integrity sha512-gM/WOrWYRpWReivzQqetEGohUc/TJSvUoZ5T/UJxJZIsVIPlRQLnp7R8Oue4q49sI08EBRQjQl2oBL3sfdrw2g==
+styled-jsx@3.2.2:
+  version "3.2.2"
+  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-3.2.2.tgz#03d02d26725195d17b6a979eb8d7c34761a16bf8"
+  integrity sha512-Xb9TPFY2REShznvHt/fw78wk+nxejTr8poepDeS5fRvkQ7lW49CDIWWGLzzALCLcKBIRFK/1Wi4PDZNetpig4w==
   dependencies:
     babel-plugin-syntax-jsx "6.18.0"
     babel-types "6.26.0"
