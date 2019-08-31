@@ -314,7 +314,7 @@ export default class Router implements BaseRouter {
         const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
           console.error(
-            "Your `<Link>`'s `as` value is incompatible with the `href` value. This is invalid."
+            'The provided `as` value is incompatible with the `href` value. This is invalid. https://err.sh/zeit/next.js/incompatible-href-as'
           )
           return resolve(false)
         }
