@@ -187,6 +187,9 @@ class Link extends Component<LinkProps> {
     const { pathname } = window.location
     const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
     const href = resolve(pathname, parsedHref)
+
+    if (!isLocal(href)) return
+
     Router.prefetch(href)
   }
 
