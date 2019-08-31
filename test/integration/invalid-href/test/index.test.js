@@ -59,8 +59,8 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp(app))
 
-    it('shows error when mailto: is used as href on Link', async () => {
-      await showsError('/first', firstErrorRegex)
+    it('does not show error when mailto: is used as href on Link', async () => {
+      await noError('/first')
     })
 
     it('shows error when mailto: is used as href on router.push', async () => {
@@ -92,7 +92,7 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp())
 
-    it('shows error when mailto: is used as href on Link', async () => {
+    it('does not show error when mailto: is used as href on Link', async () => {
       await noError('/first')
     })
 
