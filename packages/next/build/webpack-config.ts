@@ -422,8 +422,24 @@ export default async function getBaseWebpackConfig(
     performance: false,
     resolve: resolveConfig,
     resolveLoader: {
+      // The loaders Next.js provides
+      alias: [
+        'emit-file-loader',
+        'next-babel-loader',
+        'next-client-pages-loader',
+        'next-data-loader',
+        'next-serverless-loader',
+        'noop-loader',
+      ].reduce(
+        (alias, loader) => {
+          // using multiple aliases to replace `resolveLoader.modules`
+          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+
+          return alias
+        },
+        {} as Record<string, string>
+      ),
       modules: [
-        path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
@@ -574,7 +590,7 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      isServerless && new ServerlessPlugin(),
+      isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&
