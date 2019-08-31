@@ -20,6 +20,8 @@ const commands: { [command: string]: () => Promise<cliCommand> } = {
   export: async () =>
     await import('../cli/next-export').then(i => i.nextExport),
   dev: async () => await import('../cli/next-dev').then(i => i.nextDev),
+  telemetry: async () =>
+    await import('../cli/next-telemetry').then(i => i.nextTelemetry),
 }
 
 const args = arg(

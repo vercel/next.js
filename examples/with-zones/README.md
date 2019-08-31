@@ -23,44 +23,29 @@ cd with-zones
 
 ## The idea behind this example
 
-With Next.js you can use multiple apps as a single app using it's multi-zones feature.
-This is an example showing how to use it.
+With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs#multi-zones). This is an example showing how to use it.
 
-In this example, we've two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
-We also have a set of builders and routes defined in `now.json`.
+In this example, we have two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
 
 ```bash
 now dev
 ```
 
-Now you can visit http://localhost:3000 and develop for both apps as a single app.
+Then, you can visit <http://localhost:3000> and develop for both apps as a single app.
 
-### Now config
+You can also start the apps separately, for example:
 
-`now.json` allows us to create a single dev server for any builders and routes we add to it, with `now dev` we can easily create a dev server for multiple apps without having to deploy or setup anything else:
-
-```json
-{
-  "name": "with-zones",
-  "version": 2,
-  "builds": [
-    { "src": "blog/next.config.js", "use": "@now/next" },
-    { "src": "home/next.config.js", "use": "@now/next" }
-  ],
-  "routes": [
-    { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
-    { "src": "/blog", "dest": "blog/blog" },
-    { "src": "(.*)", "dest": "home$1" }
-  ]
-}
+```bash
+cd blog
+yarn dev
 ```
-
-The previous file is based in the [@now/next](https://zeit.co/docs/v2/deployments/official-builders/next-js-now-next/) builder and [Now Routes](https://zeit.co/docs/v2/deployments/routes/) from Now V2.
 
 ## Special Notes
 
-- All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviours in client side navigation.
-  - According to the above example, a page named `blog` should not be exist in the `home` zone.
+- All pages should be unique across zones. For example, the 'home' app should not have a `pages/blog/index.js` page.
+- The 'blog' app sets `assetPrefix` so that generated JS bundles are within the `/blog` subfolder.
+    - To also support the plain `next dev` scenario, `assetPrefix` is set dynamically based on the `BUILDING_FOR_NOW` environment variable, see [`now.json`](now.json) and [`blog/next.config.js`](blog/next.config.js).
+    - Images and other `/static` assets have to be prefixed manually, e.g., ``<img src={`${process.env.ASSET_PREFIX}/static/image.png`} />``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
 
 ## Production Deployment
 

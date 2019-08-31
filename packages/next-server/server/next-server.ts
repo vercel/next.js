@@ -208,6 +208,10 @@ export default class Server {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
           // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
+
+          // make sure to 404 for /_next/static itself
+          if (!params.path) return this.render404(req, res, parsedUrl)
+
           if (
             params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
             params.path[0] === 'chunks' ||

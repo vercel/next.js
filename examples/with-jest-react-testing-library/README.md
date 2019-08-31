@@ -17,7 +17,7 @@ yarn create next-app --example with-jest-react-testing-library with-rtl-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-jest
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-jest-react-testing-library
 cd with-jest-react-testing-library
 ```
 

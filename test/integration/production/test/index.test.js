@@ -80,6 +80,11 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 404 for /_next/static route', async () => {
+      const html = await renderViaHTTP(appPort, '/_next/static')
+      expect(html).toMatch(/This page could not be found/)
+    })
+
     it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'

@@ -18,7 +18,7 @@ const defaultConfig: { [key: string]: any } = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || 'server',
+  target: 'server',
   poweredByHeader: true,
   compress: true,
   onDemandEntries: {
