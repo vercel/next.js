@@ -111,6 +111,7 @@ export default class Server {
       assetPrefix,
       generateEtags,
       compress,
+      compressor,
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
@@ -133,7 +134,12 @@ export default class Server {
     }
 
     if (compress && this.nextConfig.target === 'server') {
-      this.compression = compression() as Middleware
+      if (typeof compressor !== 'undefined' && compressor.middleware) {
+        const args = compressor.args || []
+        this.compression = compressor.middleware(...args) as Middleware
+      } else {
+        this.compression = compression() as Middleware
+      }
     }
 
     // Initialize next/config with the environment configuration

@@ -2170,7 +2170,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
-Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files which uses a Node.js [compression middleware](https://www.npmjs.com/package/compression). Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
 
@@ -2178,6 +2178,25 @@ To disable **compression** in Next.js, set `compress` to `false` in `next.config
 // next.config.js
 module.exports = {
   compress: false,
+}
+```
+
+Alternatively, it might use others Node.js compression middleware like for instance [shrink-ray-current](https://www.npmjs.com/package/shrink-ray-current), which supports [brotli](https://github.com/google/brotli) compression.
+
+```js
+// next.config.js
+const shrinkRay = require("shrink-ray-current");
+module.exports = {
+  compressor: {
+    middleware: shrinkRay,
+    args: [
+      {
+        filter: (req, res) =>  true
+      },
+      arg2,
+      argN,
+    ]
+  }
 }
 ```
 
