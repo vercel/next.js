@@ -71,8 +71,8 @@ describe('Invalid hrefs', () => {
       await showsError('/first?method=replace', firstErrorRegex, true)
     })
 
-    it('shows error when https://google.com is used as href on Link', async () => {
-      await showsError('/second', secondErrorRegex)
+    it('does not show error when https://google.com is used as href on Link', async () => {
+      await noError('/second')
     })
 
     it('shows error when http://google.com is used as href on router.push', async () => {
@@ -104,7 +104,7 @@ describe('Invalid hrefs', () => {
       await noError('/first?method=replace', true)
     })
 
-    it('shows error when https://google.com is used as href on Link', async () => {
+    it('does not show error when https://google.com is used as href on Link', async () => {
       await noError('/second')
     })
 
