@@ -135,12 +135,15 @@ export default function loadConfig(
     if (
       userConfig.target &&
       userConfig.target !== 'server' &&
-      userConfig.publicRuntimeConfig &&
+      userConfig.publicRuntimeConfig === undefined &&
+      userConfig.publicRuntimeConfig === null &&
       Object.keys(userConfig.publicRuntimeConfig).length !== 0
     ) {
       // TODO: change error message tone to "Only compatible with [fat] server mode"
       throw new Error(
-        'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+        'Cannot use publicRuntimeConfig with target=serverless. ' +
+        'If you are trying to do a serverless deployment, set publicRuntimeConfig as false. ' +
+        'https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
     }
 
