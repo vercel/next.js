@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import fetch from 'isomorphic-unfetch'
 
-const Preact = props => {
+function Preact (props) {
   return (
     <div>
       <p>Preact has {props.stars} ⭐</p>

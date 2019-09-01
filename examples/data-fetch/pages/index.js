@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import fetch from 'isomorphic-unfetch'
 
-const Index = props => {
+function Index (props) {
   return (
     <div>
       <p>Next.js has {props.stars} ⭐️</p>
