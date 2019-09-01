@@ -2,7 +2,7 @@
 
 <p align="center">
   <a aria-label="ZEIT logo" href="https://github.com/zeit">
-    <img src="https://img.shields.io/badge/ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+    <img src="https://img.shields.io/badge/MADE%20BY%20ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
   </a>
   <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
     <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
