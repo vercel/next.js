@@ -467,7 +467,7 @@ Page.getInitialProps = async ({ req }) => {
 export default Page
 ```
 
-Using a Class-Component:
+Using a class component:
 
 ```jsx
 import React from 'react'
