@@ -3,9 +3,9 @@ import { join } from 'path'
 import { format } from 'url'
 
 // Packages
-const { BrowserWindow, app, ipcMain } = require('electron')
-const isDev = require('electron-is-dev')
-const prepareNext = require('electron-next')
+import { BrowserWindow, app, ipcMain, IpcMainEvent } from 'electron'
+import isDev from 'electron-is-dev'
+import prepareNext from 'electron-next'
 
 // Prepare the renderer once the app is ready
 app.on('ready', async () => {
@@ -21,9 +21,9 @@ app.on('ready', async () => {
   })
 
   const url = isDev
-    ? 'http://localhost:8000/start'
+    ? 'http://localhost:8000/'
     : format({
-      pathname: join(__dirname, '../renderer/start.html'),
+      pathname: join(__dirname, '../renderer/index.html'),
       protocol: 'file:',
       slashes: true
     })
@@ -35,6 +35,6 @@ app.on('ready', async () => {
 app.on('window-all-closed', app.quit)
 
 // listen the channel `message` and resend the received message to the renderer process
-ipcMain.on('message', (event: any, message: any) => {
+ipcMain.on('message', (event: IpcMainEvent, message: any) => {
   event.sender.send('message', message)
 })

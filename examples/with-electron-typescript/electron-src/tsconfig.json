@@ -8,9 +8,7 @@
     "jsx": "preserve",
     "lib": [
       "dom",
-      "es5",
-      "scripthost",
-      "es2015.promise"
+      "es2017"
     ],
     "module": "commonjs",
     "moduleResolution": "node",
@@ -21,8 +19,8 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "es5",
-    "outDir": "../main"
+    "target": "esnext",
+    "outDir": "../main",
   },
   "exclude": [
     "node_modules"

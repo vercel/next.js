@@ -1,9 +1,9 @@
-import { ipcRenderer } from 'electron'
+import { ipcRenderer, IpcRenderer } from 'electron'
 
 declare global {
   namespace NodeJS {
       interface  Global {
-        ipcRenderer: any;
+        ipcRenderer: IpcRenderer;
       }
   }
 }
