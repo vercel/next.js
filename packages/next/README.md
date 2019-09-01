@@ -449,7 +449,7 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
 
 When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or [class component](https://reactjs.org/docs/react-component.html).
 
-Using a Functional-Component:
+Using a function component:
 
 ```jsx
 import fetch from 'isomorphic-unfetch'
