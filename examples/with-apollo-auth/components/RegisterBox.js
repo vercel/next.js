@@ -24,7 +24,8 @@ const RegisterBox = () => {
   const onCompleted = data => {
     // Store the token in cookie
     document.cookie = cookie.serialize('token', data.signinUser.token, {
-      maxAge: 30 * 24 * 60 * 60 // 30 days
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/' // make cookie available for all routes underneath "/"
     })
     // Force a reload of all the current queries now that the user is
     // logged in
