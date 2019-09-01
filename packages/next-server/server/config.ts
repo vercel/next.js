@@ -135,9 +135,7 @@ export default function loadConfig(
     if (
       userConfig.target &&
       userConfig.target !== 'server' &&
-      userConfig.publicRuntimeConfig === undefined &&
-      userConfig.publicRuntimeConfig === null &&
-      Object.keys(userConfig.publicRuntimeConfig).length !== 0
+      userConfig.publicRuntimeConfig !== false
     ) {
       // TODO: change error message tone to "Only compatible with [fat] server mode"
       throw new Error(
