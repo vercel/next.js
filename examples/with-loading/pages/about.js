@@ -1,15 +1,12 @@
-import React, { Component } from 'react'
+import React from 'react'
 
-export default class About extends Component {
-  // Add some delay
-  static async getInitialProps () {
-    await new Promise(resolve => {
-      setTimeout(resolve, 500)
-    })
-    return {}
-  }
+const AboutPage = () => <p>This is about Next.js!</p>
 
-  render () {
-    return <p>This is about Next!</p>
-  }
+AboutPage.getInitialProps = async () => {
+  await new Promise(resolve => {
+    setTimeout(resolve, 500)
+  })
+  return {}
 }
+
+export default AboutPage
