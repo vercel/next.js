@@ -18,7 +18,7 @@ export function getRouteRegex(
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$2')
       ] = groupIndex++),
-      `/${$1.replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')}([^/]+?)`
+      `/${$1}([^/]+?)`
     )
   )
 
