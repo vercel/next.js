@@ -42,6 +42,16 @@ function runTests (dev) {
     expect(html).toMatch(/show comments for.*post-1.*here/i)
   })
 
+  it('should prioritize a page which has matched prefix', async () => {
+    const html = await renderViaHTTP(appPort, '/post-1/recommend')
+    expect(html).toMatch(/i .*commend.*on.*post-1/i)
+  })
+
+  it('should prioritize a non-dynamic page 2', async () => {
+    const html = await renderViaHTTP(appPort, '/post-1/review')
+    expect(html).toMatch(/show review for.*post-1.*here/i)
+  })
+
   it('should render nested dynamic page', async () => {
     const html = await renderViaHTTP(appPort, '/post-1/comment-1')
     expect(html).toMatch(/i am.*comment-1.*on.*post-1/i)
