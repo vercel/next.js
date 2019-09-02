@@ -276,7 +276,7 @@ export function watchCompilers(
 
       const typePromise = tsMessagesPromise
 
-      if (!hasErrors && typePromise) {
+      if (!hasErrors && !hasWarnings && typePromise) {
         typePromise.then(typeMessages => {
           if (typePromise !== tsMessagesPromise) {
             // a new compilation started so we don't care about this
