@@ -447,9 +447,9 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-When you need state, lifecycle hooks or **initial data population** you can export a [React.Component](https://reactjs.org/docs/react-component.html) or use a stateless function and [Hooks](https://reactjs.org/docs/hooks-intro.html).
+When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or a [class component](https://reactjs.org/docs/react-component.html).
 
-Using a stateless function:
+Using a function component:
 
 ```jsx
 import fetch from 'isomorphic-unfetch'
@@ -467,7 +467,7 @@ Page.getInitialProps = async ({ req }) => {
 export default Page
 ```
 
-Using `React.Component`:
+Using a class component:
 
 ```jsx
 import React from 'react'
