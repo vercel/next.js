@@ -246,6 +246,14 @@ describe('Production Usage', () => {
 
       expect(body).toEqual({ val: '1', post: 'post-1' })
     })
+
+    it('should work with dynamic params, which have a prefix', async () => {
+      const url = `http://localhost:${appPort}/api/@alice`
+      const res = await fetch(url)
+      const body = await res.json()
+
+      expect(body).toEqual({ user: 'alice' })
+    })
   })
 
   describe('With navigation', () => {
