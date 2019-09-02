@@ -2,9 +2,14 @@ class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
+  slugPrefix: string = ''
 
   hasSlug() {
     return this.slugName != null
+  }
+
+  hasSlugPrefix() {
+    return this.slugPrefix != ''
   }
 
   insert(urlPath: string): void {
@@ -16,20 +21,22 @@ class UrlNode {
   }
 
   private _smoosh(prefix: string = '/'): string[] {
-    const childrenPaths = [...this.children.keys()].sort()
-    if (this.hasSlug()) {
-      childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
+    // When sorting paths, dynamic paths must be behind others.
+    // In addition, z[foo] must be behind a[foo], b[foo], and zz[foo].
+    // Hence, should sort paths with the lowest priority of `[`
+    const keys = this.children.keys()
+    let childrenPaths: string[] = []
+    for (let key of keys) {
+      childrenPaths.push(key.replace('[', String.fromCharCode(127)))
     }
+    childrenPaths = childrenPaths.sort()
+    childrenPaths = childrenPaths.map(path =>
+      path.replace(String.fromCharCode(127), '[')
+    )
 
     const routes = childrenPaths
       .map(c => this.children.get(c)!._smoosh(`${prefix}${c}/`))
       .reduce((prev, curr) => [...prev, ...curr], [])
-
-    if (this.hasSlug()) {
-      routes.push(
-        ...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`)
-      )
-    }
 
     if (!this.placeholder) {
       routes.unshift(prefix === '/' ? '/' : prefix.slice(0, -1))
@@ -47,17 +54,22 @@ class UrlNode {
     // The next segment in the urlPaths list
     let nextSegment = urlPaths[0]
 
-    // Check if the segment matches `[something]`
-    if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
-      // Strip `[` and `]`, leaving only `something`
-      const slugName = nextSegment.slice(1, -1)
-
+    // Check if the segment matches `[something]` or `prefix[something]`
+    if (/[^\/]*?\[[^\/]+?\]/g.test(nextSegment)) {
+      // Strip `[` and `]`, leaving only `something` and `prefix`
+      const slugName = nextSegment.replace(/([^\/]*?)\[([^\/]+?)\]/g, '$2')
+      const slugPrefix = nextSegment.replace(/([^\/]*?)\[([^\/]+?)\]/g, '$1')
       // If the specific segment already has a slug but the slug is not `something`
       // This prevents collisions like:
       // pages/[post]/index.js
       // pages/[id]/index.js
       // Because currently multiple dynamic params on the same segment level are not supported
-      if (this.hasSlug() && slugName !== this.slugName) {
+      if (
+        this.hasSlug() &&
+        slugName !== this.slugName &&
+        ((slugPrefix == '' && !this.hasSlugPrefix()) ||
+          slugPrefix == this.slugPrefix)
+      ) {
         // TODO: This error seems to be confusing for users, needs an err.sh link, the description can be based on above comment.
         throw new Error(
           'You cannot use different slug names for the same dynamic path.'
@@ -73,8 +85,7 @@ class UrlNode {
       slugNames.push(slugName)
       // slugName is kept as it can only be one particular slugName
       this.slugName = slugName
-      // nextSegment is overwritten to [] so that it can later be sorted specifically
-      nextSegment = '[]'
+      this.slugPrefix = slugPrefix
     }
 
     // If this UrlNode doesn't have the nextSegment yet we create a new child UrlNode
@@ -99,7 +110,6 @@ export function getSortedRoutes(normalizedPages: string[]): string[] {
   // And since your PR passed through `slugName` as an array basically it'd including it in too many possibilities
   // Instead what has to be passed through is the upwards path's dynamic names
   const root = new UrlNode()
-
   // Here the `root` gets injected multiple paths, and insert will break them up into sublevels
   normalizedPages.forEach(pagePath => root.insert(pagePath))
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
