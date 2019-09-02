@@ -447,7 +447,7 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or [class component](https://reactjs.org/docs/react-component.html).
+When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or a [class component](https://reactjs.org/docs/react-component.html).
 
 Using a function component:
 
