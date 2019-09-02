@@ -7,6 +7,9 @@
     "react-dom": "^16.7.0",
     "@stomp/stompjs": "^5.4.2"
   },
+  "devDependencies": {
+    "cross-env": "^5.2.1"
+  },
   "scripts": {
     "dev": "next",
     "build": "next build",
