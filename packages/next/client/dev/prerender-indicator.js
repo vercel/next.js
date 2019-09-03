@@ -11,7 +11,6 @@ export default function initializeBuildWatcher () {
   shadowHost.style.height = 0
   shadowHost.style.zIndex = 99998
   shadowHost.style.transition = 'all 100ms ease'
-  shadowHost.title = 'Click to hide for page'
 
   document.body.appendChild(shadowHost)
 
@@ -47,10 +46,6 @@ export default function initializeBuildWatcher () {
     }
   }
 
-  shadowHost.addEventListener('click', () => {
-    shadowHost.style.opacity = 0
-    shadowHost.style.pointerEvents = 'none'
-  })
   shadowHost.addEventListener('mouseenter', () => {
     container.classList.add(`${prefix}expanded`)
   })
@@ -70,16 +65,17 @@ function createContainer (prefix) {
   const container = document.createElement('div')
   container.id = `${prefix}container`
   container.innerHTML = `
-    <div id="${prefix}icon-wrapper">
-      <svg width="15" height="20" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M36 3L30.74 41H8L36 3Z" fill="black"/>
-      <path d="M25 77L30.26 39H53L25 77Z" fill="black"/>
-      <path d="M13.5 33.5L53 39L47.5 46.5L7 41.25L13.5 33.5Z" fill="black"/>
-      </svg>
-      Prerendered Page
-    </div>
+    <a href="https://nextjs.org/docs#automatic-prerender-indicator" target="_blank">
+      <div id="${prefix}icon-wrapper">
+          <svg width="15" height="20" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M36 3L30.74 41H8L36 3Z" fill="black"/>
+          <path d="M25 77L30.26 39H53L25 77Z" fill="black"/>
+          <path d="M13.5 33.5L53 39L47.5 46.5L7 41.25L13.5 33.5Z" fill="black"/>
+          </svg>
+          Prerendered Page
+      </div>
+    </a>
   `
-
   return container
 }
 
@@ -116,12 +112,18 @@ function createCss (prefix) {
       animation: ${prefix}fade-in 0.1s ease-in-out;
     }
 
+    #${prefix}container a {
+      color: inherit;
+      text-decoration: none;
+    }
+
     #${prefix}icon-wrapper {
       width: 140px;
       height: 20px;
       display: flex;
       flex-shrink: 0;
       align-items: center;
+      position: relative;
     }
 
     #${prefix}icon-wrapper svg {
@@ -130,7 +132,7 @@ function createCss (prefix) {
     }
 
     #${prefix}container.${prefix}expanded {
-      width: 140px;
+      width: 135px;
     }
 
     #${prefix}container.${prefix}visible {
