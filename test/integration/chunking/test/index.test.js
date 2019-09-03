@@ -40,6 +40,10 @@ describe('Chunking', () => {
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
   })
 
+  it('should use all url friendly names', () => {
+    expect(chunks).toEqual(chunks.map(name => encodeURIComponent(name)))
+  })
+
   it('should create a framework chunk', () => {
     expect(existsChunkNamed('framework')).toBe(true)
   })
