@@ -5,12 +5,12 @@ import { resolve, parse, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
 import Router from './router'
-import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url-for-export'
+import { rewriteUrlForNextExport } from '../next-server/lib/router/rewrite-url-for-export'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
-} from 'next-server/dist/lib/utils'
+} from '../next-server/lib/utils'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)

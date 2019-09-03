@@ -1,18 +1,18 @@
 /* eslint-disable */
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
-import { cleanAmpPath } from 'next-server/dist/server/utils'
+import { cleanAmpPath } from '../next-server/server/utils'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-} from 'next-server/dist/lib/utils'
+} from '../next-server/lib/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 

@@ -1,8 +1,11 @@
 import { loader } from 'webpack'
 import { join } from 'path'
 import { parse } from 'querystring'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
+import {
+  BUILD_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from '../../../next-server/lib/constants'
+import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { API_ROUTE } from '../../../lib/constants'
 
 export type ServerlessLoaderQuery = {

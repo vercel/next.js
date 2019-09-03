@@ -150,7 +150,7 @@ export function isPageStatic(
   runtimeEnvConfig: any
 ): { static?: boolean; prerender?: boolean; isHybridAmp?: boolean } {
   try {
-    require('next-server/config').setConfig(runtimeEnvConfig)
+    require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
     const Comp = mod.default || mod
 
@@ -174,7 +174,7 @@ export function hasCustomAppGetInitialProps(
   _appBundle: string,
   runtimeEnvConfig: any
 ): boolean {
-  require('next-server/config').setConfig(runtimeEnvConfig)
+  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   let mod = require(_appBundle)
 
   if (_appBundle.endsWith('_app.js')) {

@@ -219,7 +219,7 @@ export async function nextserverlib (task, opts) {
   await task
     .source(opts.src || 'next-server/lib/**/*.+(js|ts|tsx)')
     .typescript({ module: 'commonjs' })
-    .target('next-server/dist/lib')
+    .target('dist/next-server/lib')
   notify('Compiled lib files')
 }
 
@@ -227,7 +227,7 @@ export async function nextserverserver (task, opts) {
   await task
     .source(opts.src || 'next-server/server/**/*.+(js|ts|tsx)')
     .typescript({ module: 'commonjs' })
-    .target('next-server/dist/server')
+    .target('dist/next-server/server')
   notify('Compiled server files')
 }
 
@@ -237,7 +237,7 @@ export async function nextserverbuild (task) {
 
 export async function release (task) {
   await task.clear('dist').start('build')
-  await task.clear('next-server/dist').start('nextserverbuild')
+  await task.clear('dist/next-server').start('nextserverbuild')
 }
 
 // notification helper

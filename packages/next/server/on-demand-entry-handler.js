@@ -4,7 +4,10 @@ import { join, posix } from 'path'
 import { parse } from 'url'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
-import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
+import {
+  ROUTE_NAME_REGEX,
+  IS_BUNDLED_PAGE_REGEX
+} from 'next-server/lib/constants'
 import { stringify } from 'querystring'
 import { findPageFile } from './lib/find-page-file'
 import { isWriteable } from '../build/is-writeable'

@@ -5,7 +5,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
-} from 'next-server/constants'
+} from '../../../next-server/lib/constants'
 import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
 
