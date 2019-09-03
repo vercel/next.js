@@ -1,5 +1,5 @@
 /* global document, window */
-import mitt from 'next-server/dist/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 
 function supportsPreload (el) {
   try {

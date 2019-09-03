@@ -14,8 +14,7 @@ function createServer(options: NextServerConstructor): Server {
     return new Server(options)
   }
 
-  const next = require('next-server')
-  return next(options)
+  return new Server(options)
 }
 
 // Support commonjs `require('next')`

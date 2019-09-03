@@ -1,16 +1,16 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
-import { renderToHTML } from 'next-server/dist/server/render'
+import { renderToHTML } from '../next-server/server/render'
 import { writeFile, access } from 'fs'
 import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
-import { loadComponents } from 'next-server/dist/server/load-components'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
-import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher'
-import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex'
+import { loadComponents } from '../next-server/server/load-components'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 
-const envConfig = require('next-server/config')
+const envConfig = require('../next-server/lib/runtime-config')
 const mkdirp = promisify(mkdirpModule)
 const writeFileP = promisify(writeFile)
 const accessP = promisify(access)

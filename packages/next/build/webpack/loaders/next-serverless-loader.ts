@@ -48,13 +48,13 @@ const nextServerlessLoader: loader.Loader = function() {
     ${
       isDynamicRoute(page)
         ? `
-      import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher';
-      import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex';
+      import { getRouteMatcher } from 'next/dist/next-server/lib/router/utils/route-matcher';
+      import { getRouteRegex } from 'next/dist/next-server/lib/router/utils/route-regex';
       `
         : ``
     }
       import { parse } from 'url'
-      import { apiResolver } from 'next-server/dist/server/api-utils'
+      import { apiResolver } from 'next/dist/next-server/server/api-utils'
 
       export default (req, res) => {
         const params = ${
@@ -69,11 +69,11 @@ const nextServerlessLoader: loader.Loader = function() {
   } else {
     return `
     import {parse} from 'url'
-    import {renderToHTML} from 'next-server/dist/server/render';
-    import {sendHTML} from 'next-server/dist/server/send-html';
+    import {renderToHTML} from 'next/dist/next-server/server/render';
+    import {sendHTML} from 'next/dist/next-server/server/send-html';
     ${
       isDynamicRoute(page)
-        ? `import {getRouteMatcher, getRouteRegex} from 'next-server/dist/lib/router/utils';`
+        ? `import {getRouteMatcher, getRouteRegex} from 'next/dist/next-server/lib/router/utils';`
         : ''
     }
     import buildManifest from '${buildManifest}';
