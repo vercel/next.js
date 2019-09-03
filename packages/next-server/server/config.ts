@@ -23,7 +23,7 @@ const defaultConfig: { [key: string]: any } = {
   compress: true,
   devIndicators: {
     buildActivity: true,
-    autoPrerender: !('electron' in process.versions),
+    autoPrerender: true,
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
