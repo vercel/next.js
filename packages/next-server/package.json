@@ -52,7 +52,7 @@
     "raw-body": "2.4.0",
     "react-is": "16.8.6",
     "send": "0.17.1",
-    "styled-jsx": "3.2.1",
+    "styled-jsx": "3.2.2",
     "url": "0.11.0"
   },
   "peerDependencies": {
