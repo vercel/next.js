@@ -90,7 +90,10 @@ export function formatAmpMessages(amp: AmpPageStatus) {
     const devOnlyFilter = (err: AmpStatus) => err.code !== 'DEV_MODE_ONLY'
     errors = errors.filter(devOnlyFilter)
     warnings = warnings.filter(devOnlyFilter)
-    if (!errors.length && !warnings.length) continue
+    if (!(errors.length || warnings.length)) {
+      // Skip page with no non-dev warnings
+      continue
+    }
 
     if (errors.length) {
       ampError(page, errors[0])
@@ -107,7 +110,9 @@ export function formatAmpMessages(amp: AmpPageStatus) {
     messages.push(['', '', '', ''])
   }
 
-  if (!messages.length) return []
+  if (!messages.length) {
+    return ''
+  }
 
   output += textTable(messages, {
     align: ['l', 'l', 'l', 'l'],
