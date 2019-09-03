@@ -246,6 +246,13 @@ describe('AMP Usage', () => {
       expect(await browser.elementByCss('#only-amp').text()).toMatch(/Only AMP/)
     })
 
+    it('should add data-ampdevmode to development script tags', async () => {
+      const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
+      const $ = cheerio.load(html)
+      expect($('html').attr('data-ampdevmode')).toBe('')
+      expect($('script[data-ampdevmode]').length).toBe(3)
+    })
+
     it('should detect the changes and display it', async () => {
       let browser
       try {
