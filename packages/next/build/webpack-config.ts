@@ -458,14 +458,14 @@ export default async function getBaseWebpackConfig(
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [
             dir,
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
             /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
-              /next-server[\\/]dist[\\/]lib/.test(path) ||
+              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
               /next[\\/]dist[\\/]pages/.test(path) ||
               /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
