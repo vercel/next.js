@@ -3,14 +3,14 @@ const clientGlobs = [
     name: 'Client Bundles (main, webpack, commons)',
     globs: [
       '.next/static/runtime/+(main|webpack)-!(*.module.js)',
-      '.next/static/chunks/commons!(*.module.js)'
+      '.next/static/chunks/!(*.module.js)'
     ]
   },
   {
     name: 'Client Bundles (main, webpack, commons) Modern',
     globs: [
       '.next/static/runtime/+(main|webpack)-*.module.js',
-      '.next/static/chunks/commons.*.module.js'
+      '.next/static/chunks/*.module.js'
     ]
   },
   {
