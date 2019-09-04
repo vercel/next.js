@@ -179,7 +179,7 @@ export default class DevServer extends Server {
     await this.startWatcher()
     this.setDevReady()
 
-    recordVersion({ isDev: true })
+    recordVersion({ cliCommand: 'dev' })
   }
 
   async close () {

@@ -64,7 +64,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await verifyTypeScriptSetup(dir)
 
   let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(recordVersion(), recordNextPlugins(path.resolve(dir)))
+  backgroundWork.push(
+    recordVersion({ cliCommand: 'build' }),
+    recordNextPlugins(path.resolve(dir))
+  )
 
   console.log('Creating an optimized production build ...')
   console.log()
@@ -199,7 +202,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
     backgroundWork.push(
       recordBuildDuration({
-        numberOfPages: allPagePaths.length,
+        totalPageCount: allPagePaths.length,
         durationInSeconds: webpackBuildEnd[0],
       })
     )
@@ -410,7 +413,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     recordBuildOptimize({
       durationInSeconds: analysisEnd[0],
       totalPageCount: allPagePaths.length,
-      staticOptimizedPages: staticPages.size,
+      staticPageCount: staticPages.size,
+      ssrPageCount: allPagePaths.length - staticPages.size,
     })
   )
 
