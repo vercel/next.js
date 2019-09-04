@@ -39,50 +39,55 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
     WithApollo.displayName = `withApollo(${displayName})`
   }
 
-  // Allow Next.js to remove getInitialProps from the browser build
-  if (typeof window === 'undefined') {
-    if (ssr) {
-      WithApollo.getInitialProps = async ctx => {
-        const { AppTree } = ctx
+  if (ssr || PageComponent.getInitialProps) {
+    WithApollo.getInitialProps = async ctx => {
+      const { AppTree } = ctx
 
-        let pageProps = {}
-        if (PageComponent.getInitialProps) {
-          pageProps = await PageComponent.getInitialProps(ctx)
+      // Initialize ApolloClient, add it to the ctx object so
+      // we can use it in `PageComponent.getInitialProp`.
+      const apolloClient = (ctx.apolloClient = initApolloClient())
+
+      let pageProps = {}
+      if (PageComponent.getInitialProps) {
+        pageProps = await PageComponent.getInitialProps(ctx)
+      }
+
+      // Run all GraphQL queries in the component tree
+      // and extract the resulting data:
+      if (typeof window === 'undefined') {
+        // Only on the server
+        if (ssr) {
+          // Only if ssr is enabled
+          try {
+            // Run all GraphQL queries
+            const { getDataFromTree } = await import('@apollo/react-ssr')
+            await getDataFromTree(
+              <AppTree
+                pageProps={{
+                  ...pageProps,
+                  apolloClient
+                }}
+              />
+            )
+          } catch (error) {
+            // Prevent Apollo Client GraphQL errors from crashing SSR.
+            // Handle them in components via the data.error prop:
+            // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
+            console.error('Error while running `getDataFromTree`', error)
+          }
+
+          // getDataFromTree does not call componentWillUnmount
+          // head side effect therefore need to be cleared manually
+          Head.rewind()
         }
+      }
 
-        // Run all GraphQL queries in the component tree
-        // and extract the resulting data
-        const apolloClient = initApolloClient()
+      // Extract query data from the Apollo store
+      const apolloState = apolloClient.cache.extract()
 
-        try {
-          // Run all GraphQL queries
-          const { getDataFromTree } = await import('@apollo/react-ssr')
-          await getDataFromTree(
-            <AppTree
-              pageProps={{
-                ...pageProps,
-                apolloClient
-              }}
-            />
-          )
-        } catch (error) {
-          // Prevent Apollo Client GraphQL errors from crashing SSR.
-          // Handle them in components via the data.error prop:
-          // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
-          console.error('Error while running `getDataFromTree`', error)
-        }
-
-        // getDataFromTree does not call componentWillUnmount
-        // head side effect therefore need to be cleared manually
-        Head.rewind()
-
-        // Extract query data from the Apollo store
-        const apolloState = apolloClient.cache.extract()
-
-        return {
-          ...pageProps,
-          apolloState
-        }
+      return {
+        ...pageProps,
+        apolloState
       }
     }
   }
