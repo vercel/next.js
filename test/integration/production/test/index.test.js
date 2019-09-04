@@ -636,13 +636,12 @@ describe('Production Usage', () => {
     try {
       browser = await webdriver(appPort, '/mark-in-head')
 
-      const currentPerfMarks = await browser.eval(
-        `window.performance.getEntriesByType('mark')`
+      const customMarkFound = await browser.eval(
+        `window.performance.getEntriesByType('mark').filter(function(e) {
+          return e.name === 'custom-mark'
+        }).length === 1`
       )
-
-      expect(currentPerfMarks).toContainEqual(
-        expect.objectContaining({ name: 'custom-mark' })
-      )
+      expect(customMarkFound).toBe(true)
     } finally {
       if (browser) {
         await browser.close()
