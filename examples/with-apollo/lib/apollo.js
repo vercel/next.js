@@ -55,18 +55,16 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
         pageProps = await PageComponent.getInitialProps(ctx)
       }
 
-      // When redirecting, the response is finished.
-      // No point in continuing to render
-      if (ctx.res && ctx.res.finished) {
-        return pageProps
-      }
-
-      // Run all GraphQL queries in the component tree
-      // and extract the resulting data:
+      // Only on the server:
       if (typeof window === 'undefined') {
-        // Only on the server
+        // When redirecting, the response is finished.
+        // No point in continuing to render
+        if (ctx.res && ctx.res.finished) {
+          return pageProps
+        }
+
+        // Only if ssr is enabled
         if (ssr) {
-          // Only if ssr is enabled
           try {
             // Run all GraphQL queries
             const { getDataFromTree } = await import('@apollo/react-ssr')
