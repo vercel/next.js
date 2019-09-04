@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.0.5",
+  "version": "9.0.6-canary.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -88,7 +88,7 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.2.3",
     "mkdirp": "0.5.1",
-    "next-server": "9.0.5",
+    "next-server": "9.0.6-canary.0",
     "node-fetch": "2.6.0",
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
