@@ -47,6 +47,7 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
       // we can use it in `PageComponent.getInitialProp`.
       const apolloClient = (ctx.apolloClient = initApolloClient())
 
+      // Run wrapped getInitialProps methods
       let pageProps = {}
       if (PageComponent.getInitialProps) {
         pageProps = await PageComponent.getInitialProps(ctx)
