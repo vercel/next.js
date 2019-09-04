@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
-import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
+import { ApolloClient } from 'apollo-client'
+import { InMemoryCache } from 'apollo-cache-inmemory'
+import { HttpLink } from 'apollo-link-http'
 import fetch from 'isomorphic-unfetch'
 
 let apolloClient = null
@@ -39,50 +41,60 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
     WithApollo.displayName = `withApollo(${displayName})`
   }
 
-  // Allow Next.js to remove getInitialProps from the browser build
-  if (typeof window === 'undefined') {
-    if (ssr) {
-      WithApollo.getInitialProps = async ctx => {
-        const { AppTree } = ctx
+  if (ssr || PageComponent.getInitialProps) {
+    WithApollo.getInitialProps = async ctx => {
+      const { AppTree } = ctx
 
-        let pageProps = {}
-        if (PageComponent.getInitialProps) {
-          pageProps = await PageComponent.getInitialProps(ctx)
+      // Initialize ApolloClient, add it to the ctx object so
+      // we can use it in `PageComponent.getInitialProp`.
+      const apolloClient = (ctx.apolloClient = initApolloClient())
+
+      // Run wrapped getInitialProps methods
+      let pageProps = {}
+      if (PageComponent.getInitialProps) {
+        pageProps = await PageComponent.getInitialProps(ctx)
+      }
+
+      // Only on the server:
+      if (typeof window === 'undefined') {
+        // When redirecting, the response is finished.
+        // No point in continuing to render
+        if (ctx.res && ctx.res.finished) {
+          return pageProps
         }
 
-        // Run all GraphQL queries in the component tree
-        // and extract the resulting data
-        const apolloClient = initApolloClient()
+        // Only if ssr is enabled
+        if (ssr) {
+          try {
+            // Run all GraphQL queries
+            const { getDataFromTree } = await import('@apollo/react-ssr')
+            await getDataFromTree(
+              <AppTree
+                pageProps={{
+                  ...pageProps,
+                  apolloClient
+                }}
+              />
+            )
+          } catch (error) {
+            // Prevent Apollo Client GraphQL errors from crashing SSR.
+            // Handle them in components via the data.error prop:
+            // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
+            console.error('Error while running `getDataFromTree`', error)
+          }
 
-        try {
-          // Run all GraphQL queries
-          const { getDataFromTree } = await import('@apollo/react-ssr')
-          await getDataFromTree(
-            <AppTree
-              pageProps={{
-                ...pageProps,
-                apolloClient
-              }}
-            />
-          )
-        } catch (error) {
-          // Prevent Apollo Client GraphQL errors from crashing SSR.
-          // Handle them in components via the data.error prop:
-          // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
-          console.error('Error while running `getDataFromTree`', error)
+          // getDataFromTree does not call componentWillUnmount
+          // head side effect therefore need to be cleared manually
+          Head.rewind()
         }
+      }
 
-        // getDataFromTree does not call componentWillUnmount
-        // head side effect therefore need to be cleared manually
-        Head.rewind()
+      // Extract query data from the Apollo store
+      const apolloState = apolloClient.cache.extract()
 
-        // Extract query data from the Apollo store
-        const apolloState = apolloClient.cache.extract()
-
-        return {
-          ...pageProps,
-          apolloState
-        }
+      return {
+        ...pageProps,
+        apolloState
       }
     }
   }
@@ -116,15 +128,12 @@ function initApolloClient (initialState) {
  */
 function createApolloClient (initialState = {}) {
   // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
-  const isBrowser = typeof window !== 'undefined'
   return new ApolloClient({
-    connectToDevTools: isBrowser,
-    ssrMode: !isBrowser, // Disables forceFetch on the server (so queries are only run once)
+    ssrMode: typeof window === 'undefined', // Disables forceFetch on the server (so queries are only run once)
     link: new HttpLink({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
-      // Use fetch() polyfill on the server
-      fetch: !isBrowser && fetch
+      fetch
     }),
     cache: new InMemoryCache().restore(initialState)
   })
