@@ -195,8 +195,8 @@ function _record(_events: TelemetryEvent | TelemetryEvent[]): Promise<any> {
 
   const context: EventContext = {
     anonymousId: anonymousId,
-    projectId: projectId || '',
-    sessionId: randomRunId || '',
+    projectId: projectId!,
+    sessionId: randomRunId!,
   }
   return _postPayload(`https://telemetry.nextjs.org/api/v1/record`, {
     context,
