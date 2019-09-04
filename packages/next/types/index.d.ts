@@ -9,9 +9,10 @@ import {
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
-} from '../next-server/lib/utils'
+  // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/next-server/lib/utils'
 
-// @ts-ignore
+// @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
 // Extend the React types with missing properties
