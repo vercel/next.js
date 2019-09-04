@@ -1,10 +1,15 @@
 import { cpus } from 'os'
-import { fork } from 'child_process'
-import { recursiveCopy } from '../lib/recursive-copy'
+import chalk from 'chalk'
+import Worker from 'jest-worker'
+import { promisify } from 'util'
 import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
+import { API_ROUTE } from '../lib/constants'
 import { existsSync, readFileSync } from 'fs'
-import chalk from 'chalk'
+import createProgress from 'tty-aware-progress'
+import { recursiveCopy } from '../lib/recursive-copy'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { formatAmpMessages } from '../build/output/index'
 import loadConfig, {
   isTargetLikeServerless
 } from '../next-server/server/config'
@@ -17,11 +22,6 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH
 } from '../next-server/lib/constants'
-import createProgress from 'tty-aware-progress'
-import { promisify } from 'util'
-import { recursiveDelete } from '../lib/recursive-delete'
-import { API_ROUTE } from '../lib/constants'
-import { formatAmpMessages } from '../build/output/index'
 
 const mkdirp = promisify(mkdirpModule)
 
@@ -33,7 +33,6 @@ export default async function (dir, options, configuration) {
 
   dir = resolve(dir)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
-  const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.exportTrailingSlash
@@ -130,9 +129,7 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
-  log(
-    `  launching ${threads} threads with concurrency of ${concurrency} per thread`
-  )
+  log(`  launching ${threads} workers`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {
     dev: false,
     dir,
@@ -163,20 +160,6 @@ export default async function (dir, options, configuration) {
 
   const progress = !options.silent && createProgress(filteredPaths.length)
 
-  const chunks = filteredPaths.reduce((result, route, i) => {
-    const worker = i % threads
-    if (!result[worker]) {
-      result[worker] = { paths: [], pathMap: {} }
-    }
-    result[worker].pathMap[route] = exportPathMap[route]
-    result[worker].paths.push(route)
-
-    if (options.sprPages && options.sprPages.has(route)) {
-      result[worker].pathMap[route].sprPage = true
-    }
-    return result
-  }, [])
-
   const ampValidations = {}
   let hadValidationError = false
 
@@ -195,46 +178,45 @@ export default async function (dir, options, configuration) {
       }
     })
   }
-  const workers = new Set()
+
+  const worker = new Worker(require.resolve('./worker'), {
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: true,
+    exposedMethods: ['default']
+  })
+
+  worker.getStdout().pipe(process.stdout)
+  worker.getStderr().pipe(process.stderr)
+
+  let renderError = false
 
   await Promise.all(
-    chunks.map(
-      chunk =>
-        new Promise((resolve, reject) => {
-          const worker = fork(require.resolve('./worker'), [], {
-            env: process.env
-          })
-          workers.add(worker)
-          worker.send({
-            distDir,
-            buildId,
-            exportPaths: chunk.paths,
-            exportPathMap: chunk.pathMap,
-            outDir,
-            renderOpts,
-            serverRuntimeConfig,
-            concurrency,
-            subFolders,
-            serverless: isTargetLikeServerless(nextConfig.target)
-          })
-          worker.on('message', ({ type, payload }) => {
-            if (type === 'progress' && progress) {
-              progress()
-            } else if (type === 'error') {
-              reject(payload)
-            } else if (type === 'done') {
-              resolve()
-            } else if (type === 'amp-validation') {
-              ampValidations[payload.page] = payload.result
-              hadValidationError =
-                hadValidationError || payload.result.errors.length
-            }
-          })
-        })
-    )
+    filteredPaths.map(async path => {
+      const result = await worker.default({
+        path,
+        pathMap: exportPathMap[path],
+        distDir,
+        buildId,
+        outDir,
+        renderOpts,
+        serverRuntimeConfig,
+        subFolders,
+        serverless: isTargetLikeServerless(nextConfig.target)
+      })
+
+      for (const validation of result.ampValidations || []) {
+        const { page, result } = validation
+        ampValidations[page] = result
+        hadValidationError |=
+          Array.isArray(result && result.errors) && result.errors.length > 0
+      }
+      renderError |= result.error
+      if (progress) progress()
+    })
   )
 
-  workers.forEach(worker => worker.kill())
+  worker.end()
 
   if (Object.keys(ampValidations).length) {
     console.log(formatAmpMessages(ampValidations))
@@ -245,6 +227,9 @@ export default async function (dir, options, configuration) {
     )
   }
 
+  if (renderError) {
+    throw new Error(`Export encountered errors`)
+  }
   // Add an empty line to the console for the better readability.
   log('')
 }
