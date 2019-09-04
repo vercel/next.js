@@ -1,11 +1,11 @@
 import React from 'react'
 import cookie from 'cookie'
 import { useApolloClient } from '@apollo/react-hooks'
-
+import { withApollo } from '../lib/apollo'
 import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
 
-const Index = ({ loggedInUser }) => {
+const IndexPage = ({ loggedInUser }) => {
   const apolloClient = useApolloClient()
 
   const signout = () => {
@@ -29,7 +29,7 @@ const Index = ({ loggedInUser }) => {
   )
 }
 
-Index.getInitialProps = async context => {
+IndexPage.getInitialProps = async context => {
   const { loggedInUser } = await checkLoggedIn(context.apolloClient)
 
   if (!loggedInUser.user) {
@@ -40,4 +40,4 @@ Index.getInitialProps = async context => {
   return { loggedInUser }
 }
 
-export default Index
+export default withApollo(IndexPage)

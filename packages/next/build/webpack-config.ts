@@ -262,8 +262,7 @@ export default async function getBaseWebpackConfig(
                   ''
                 )
               )
-              .digest('base64')
-              .replace(/\//g, '')
+              .digest('hex')
           },
           priority: 10,
           minChunks: 2,

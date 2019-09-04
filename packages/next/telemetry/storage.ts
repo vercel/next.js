@@ -32,7 +32,7 @@ const TELEMETRY_KEY_SALT = `telemetry.salt`
 
 const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
 
-let isDisabled: boolean = !!NEXT_TELEMETRY_DISABLED
+let isDisabled: boolean = true || !!NEXT_TELEMETRY_DISABLED
 
 function notify() {
   // No notification needed if telemetry is not enabled
