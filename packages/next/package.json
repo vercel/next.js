@@ -46,16 +46,25 @@
     "build": "taskr",
     "release": "taskr release",
     "prepublish": "npm run release && yarn types",
-    "typescript": "tsc --noEmit --declaration",
-    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
+    "typescript": "tsc --noEmit --declaration"
   },
   "taskr": {
     "requires": [
       "./taskfile-ncc.js",
-      "./taskfile-babel.js"
+      "./taskfile-babel.js",
+      "./taskfile-typescript.js"
     ]
   },
   "dependencies": {
+    "@ampproject/toolbox-optimizer": "1.0.1",
+    "compression": "1.7.4",
+    "content-type": "1.0.4",
+    "cookie": "0.4.0",
+    "etag": "1.8.1",
+    "path-to-regexp": "2.1.0",
+    "raw-body": "2.4.0",
+    "send": "0.17.1",
     "@babel/core": "7.4.5",
     "@babel/plugin-proposal-class-properties": "7.4.4",
     "@babel/plugin-proposal-object-rest-spread": "7.4.4",
@@ -88,7 +97,6 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.2.3",
     "mkdirp": "0.5.1",
-    "next-server": "9.0.6-canary.0",
     "node-fetch": "2.6.0",
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
@@ -113,6 +121,12 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
+    "@types/content-type": "1.1.3",
+    "@types/cookie": "0.3.2",
+    "@types/react": "16.8.18",
+    "@types/react-dom": "16.8.4",
+    "@types/react-is": "16.7.1",
+    "@types/send": "0.14.4",
     "@babel/parser": "7.4.5",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",

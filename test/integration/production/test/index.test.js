@@ -19,7 +19,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   PAGES_MANIFEST
-} from 'next-server/constants'
+} from 'next/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir

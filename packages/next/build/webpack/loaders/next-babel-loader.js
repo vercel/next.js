@@ -174,7 +174,7 @@ module.exports = babelLoader.custom(babel => {
         ...(options.overrides || []),
         {
           test: [
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/
           ],

@@ -7,10 +7,10 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
-} from 'next-server/dist/server/config'
+} from '../next-server/server/config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'

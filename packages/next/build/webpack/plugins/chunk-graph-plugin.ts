@@ -1,4 +1,4 @@
-import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
+import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from '../../../next-server/lib/constants'
 import path from 'path'
 import { parse } from 'querystring'
 import { Compiler, Plugin } from 'webpack'

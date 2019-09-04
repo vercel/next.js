@@ -1,6 +1,6 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { NextComponentType, NextPageContext } from 'next-server/dist/lib/utils'
+import { NextComponentType, NextPageContext } from '../next-server/lib/utils'
 import { NextRouter } from './router'
 
 export type WithRouterProps = {

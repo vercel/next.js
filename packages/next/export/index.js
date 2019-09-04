@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from 'fs'
 import chalk from 'chalk'
 import loadConfig, {
   isTargetLikeServerless
-} from 'next-server/dist/server/config'
+} from '../next-server/server/config'
 import {
   PHASE_EXPORT,
   SERVER_DIRECTORY,
@@ -16,7 +16,7 @@ import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -141,7 +141,9 @@ export default async function (dir, options, configuration) {
     buildId
   })
   if (!exportPathMap['/404']) {
-    exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
+    exportPathMap['/404.html'] = exportPathMap['/404.html'] || {
+      page: '/_error'
+    }
   }
   const exportPaths = Object.keys(exportPathMap)
   const filteredPaths = exportPaths.filter(
