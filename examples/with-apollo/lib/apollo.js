@@ -128,14 +128,12 @@ function initApolloClient (initialState) {
  */
 function createApolloClient (initialState = {}) {
   // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
-  const isBrowser = typeof window !== 'undefined'
   return new ApolloClient({
-    ssrMode: !isBrowser, // Disables forceFetch on the server (so queries are only run once)
+    ssrMode: typeof window === 'undefined', // Disables forceFetch on the server (so queries are only run once)
     link: new HttpLink({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
-      // Use fetch() polyfill on the server
-      fetch: !isBrowser && fetch
+      fetch
     }),
     cache: new InMemoryCache().restore(initialState)
   })
