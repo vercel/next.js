@@ -157,11 +157,11 @@ export default class Server {
     // tslint:disable-next-line
     console.error(...args)
   }
-
-  private handleRequest(
+  private async handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery
+    parsedUrl?: UrlWithParsedQuery,
+    onError?: (err: Error) => Promise<any>
   ): Promise<void> {
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -175,11 +175,18 @@ export default class Server {
     }
 
     res.statusCode = 200
-    return this.run(req, res, parsedUrl).catch(err => {
-      this.logError(err)
-      res.statusCode = 500
-      res.end('Internal Server Error')
-    })
+    try {
+      return await this.run(req, res, parsedUrl)
+    } catch (err) {
+      if (onError) {
+        onError(err)
+      } else {
+        this.logError(err)
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
+      throw err
+    }
   }
 
   public getRequestHandler() {
