@@ -20,5 +20,9 @@ steps:
     displayName: 'Install dependencies'
 
   - script: |
-      yarn test
+      yarn check
+    displayName: 'Yarn check'
+
+  - script: /
+      node concurrent-tests.js
     displayName: 'Run tests'
