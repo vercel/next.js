@@ -60,14 +60,14 @@ export function withApollo (PageComponent) {
   }
 
   WithApollo.getInitialProps = async ctx => {
-    const { AppTree, req, res } = ctx
+    const { AppTree } = ctx
 
     // Run all GraphQL queries in the component tree
     // and extract the resulting data
     const apolloClient = (ctx.apolloClient = initApolloClient(
       {},
       {
-        getToken: () => parseCookies(req).token
+        getToken: () => parseCookies(ctx.req).token
       }
     ))
 
@@ -75,14 +75,14 @@ export function withApollo (PageComponent) {
       ? await PageComponent.getInitialProps(ctx)
       : {}
 
-    if (res && res.finished) {
+    // Only on the server
+    if (typeof window === 'undefined') {
       // When redirecting, the response is finished.
       // No point in continuing to render
-      return {}
-    }
+      if (ctx.res && ctx.res.finished) {
+        return {}
+      }
 
-    // Get apolloState on the server (needed for ssr)
-    if (typeof window === 'undefined') {
       try {
         // Run all GraphQL queries
         const { getDataFromTree } = await import('@apollo/react-ssr')
@@ -164,7 +164,7 @@ function createApolloClient (initialState = {}, { getToken }) {
     fetchOptions
   })
 
-  const authLink = setContext((_, { headers }) => {
+  const authLink = setContext((request, { headers }) => {
     const token = getToken()
     return {
       headers: {
