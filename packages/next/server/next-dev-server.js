@@ -1,5 +1,6 @@
 import Server from '../next-server/server/next-server'
 import { join, relative } from 'path'
+import { promisify } from 'util'
 import HotReloader from './hot-reloader'
 import { route } from '../next-server/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
@@ -24,6 +25,9 @@ if (typeof React.Suspense === 'undefined') {
     `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
   )
 }
+
+// eslint-disable-next-line
+const fsExists = promisify(fs.exists)
 
 export default class DevServer extends Server {
   constructor (options) {
@@ -272,9 +276,15 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname).catch(err => {
+      await this.hotReloader.ensurePage(pathname).catch(async err => {
         if (err.code !== 'ENOENT') {
           return Promise.reject(err)
+        }
+
+        // check for a public file before dynamic route since
+        // it has higher priority
+        if (await this.hasPublicFile(pathname)) {
+          return this.servePublic(req, res, pathname)
         }
 
         for (const dynamicRoute of this.dynamicRoutes) {
@@ -347,6 +357,10 @@ export default class DevServer extends Server {
   servePublic (req, res, path) {
     const p = join(this.publicDir, path)
     return this.serveStatic(req, res, p)
+  }
+
+  hasPublicFile (path) {
+    return fsExists(join(this.publicDir, path))
   }
 
   async getCompilationError (page) {
