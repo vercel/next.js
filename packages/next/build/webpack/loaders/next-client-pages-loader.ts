@@ -13,7 +13,7 @@ const nextClientPagesLoader: loader.Loader = function() {
 
   return `
     (window.__NEXT_P=window.__NEXT_P||[]).push([${stringifiedPage}, function() {
-      var page = require(${stringifiedAbsolutePagePath})
+      var mod = require(${stringifiedAbsolutePagePath})
       if(module.hot) {
         module.hot.accept(${stringifiedAbsolutePagePath}, function() {
           if(!next.router.components[${stringifiedPage}]) return
@@ -21,7 +21,7 @@ const nextClientPagesLoader: loader.Loader = function() {
           next.router.update(${stringifiedPage}, updatedPage.default || updatedPage)
         })
       }
-      return { page: page.default || page }
+      return mod
     }]);
   `
 }
