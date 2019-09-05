@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react'
 import PropTypes from 'prop-types'
 import cookie from 'cookie'
-import { ApolloProvider } from '@apollo/react-hooks'
 import Head from 'next/head'
-import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
+import { ApolloClient } from 'apollo-client'
+import { InMemoryCache } from 'apollo-cache-inmemory'
+import { HttpLink } from 'apollo-link-http'
 import { setContext } from 'apollo-link-context'
+import { ApolloProvider } from '@apollo/react-hooks'
 import fetch from 'isomorphic-unfetch'
 
 /**
