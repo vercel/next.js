@@ -10,9 +10,9 @@ import {
   ROUTE_NAME_REGEX,
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
-import { route } from 'next-server/dist/server/router'
+import { route } from '../next-server/server/router'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
