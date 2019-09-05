@@ -18,7 +18,7 @@ const nextClientPagesLoader: loader.Loader = function() {
         module.hot.accept(${stringifiedAbsolutePagePath}, function() {
           if(!next.router.components[${stringifiedPage}]) return
           var updatedPage = require(${stringifiedAbsolutePagePath})
-          next.router.update(${stringifiedPage}, updatedPage.default || updatedPage)
+          next.router.update(${stringifiedPage}, updatedPage)
         })
       }
       return mod
