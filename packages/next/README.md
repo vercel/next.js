@@ -1133,7 +1133,7 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
-For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+For [API routes](#api-routes) there are built-in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
 
 ```ts
 import { NextApiRequest, NextApiResponse } from 'next'
