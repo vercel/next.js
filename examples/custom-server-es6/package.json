@@ -1,0 +1,21 @@
+{
+  "name": "custom-server-es6",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "nodemon --exec babel-node server.js",
+    "build": "next build",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "next": "^9.0.5",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/node": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "nodemon": "^1.19.2"
+  }
+}
