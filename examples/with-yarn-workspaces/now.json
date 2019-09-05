@@ -4,6 +4,6 @@
     { "src": "packages/web-app/package.json", "use": "@now/next" }
   ],
   "routes": [
-    { "src": "(.*)", "dest": "packages/web-app/$1" }
+    { "src": "/(.*)", "dest": "packages/web-app/$1" }
   ]
 }
