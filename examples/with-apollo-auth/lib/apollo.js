@@ -25,9 +25,7 @@ export function withApollo (PageComponent) {
 
       // Otherwise initClient using apolloState
       return initApolloClient(apolloState, {
-        getToken: () => {
-          return parseCookies().token
-        }
+        getToken: () => parseCookies().token
       })
     }, [])
     return (
