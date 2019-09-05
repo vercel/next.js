@@ -148,7 +148,15 @@ export function isTelemetryEnabled(): boolean {
 }
 
 type TelemetryEvent = { eventName: string; payload: object }
-
+type EventContext = {
+  anonymousId: string
+  projectId: string
+  sessionId: string
+}
+type EventBatchShape = {
+  eventName: string
+  fields: object
+}
 function _record(_events: TelemetryEvent | TelemetryEvent[]): Promise<any> {
   let events: TelemetryEvent[]
   if (Array.isArray(_events)) {
@@ -185,14 +193,17 @@ function _record(_events: TelemetryEvent | TelemetryEvent[]): Promise<any> {
     return Promise.resolve()
   }
 
-  const context = { anonymousProjectId: projectId, runId: randomRunId }
+  const context: EventContext = {
+    anonymousId: anonymousId,
+    projectId: projectId!,
+    sessionId: randomRunId!,
+  }
   return _postPayload(`https://telemetry.nextjs.org/api/v1/record`, {
-    anonymousId,
     context,
     events: events.map(({ eventName, payload }) => ({
       eventName,
       fields: payload,
-    })),
+    })) as Array<EventBatchShape>,
   })
 }
 
