@@ -185,7 +185,6 @@ export default class Server {
         res.statusCode = 500
         res.end('Internal Server Error')
       }
-      throw err
     }
   }
 
