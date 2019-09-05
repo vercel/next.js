@@ -23,6 +23,6 @@ steps:
       yarn check
     displayName: 'Yarn check'
 
-  - script: /
+  - script: |
       node concurrent-tests.js
     displayName: 'Run tests'
