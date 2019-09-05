@@ -26,9 +26,7 @@ export function withApollo (PageComponent) {
       }
 
       // Otherwise initClient using apolloState
-      return initApolloClient(apolloState, {
-        getToken: () => parseCookies().token
-      })
+      return initApolloClient(apolloState, { getToken })
     }, [])
     return (
       <ApolloProvider client={client}>
@@ -67,7 +65,7 @@ export function withApollo (PageComponent) {
     const apolloClient = (ctx.apolloClient = initApolloClient(
       {},
       {
-        getToken: () => parseCookies(ctx.req).token
+        getToken: () => getToken(ctx.req)
       }
     ))
 
@@ -183,11 +181,10 @@ function createApolloClient (initialState = {}, { getToken }) {
 }
 
 /**
- * Cookie parser that works on the
- * server and on the client
+ * Get the user token from cookie
  * @param {Object} req
- * @param {Object} config
  */
-function parseCookies (req, config = {}) {
-  return cookie.parse(req ? req.headers.cookie || '' : document.cookie, config)
+function getToken (req) {
+  const cookies = cookie.parse(req ? req.headers.cookie || '' : document.cookie)
+  return cookies.token
 }
