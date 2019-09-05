@@ -45,7 +45,6 @@ const SigninBox = () => {
     <form
       onSubmit={e => {
         e.preventDefault()
-        e.stopPropagation()
 
         signinUser({
           variables: {
