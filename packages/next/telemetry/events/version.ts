@@ -1,8 +1,16 @@
 import { record } from '../storage'
 
-const EVENT_VERSION = 'NEXT_VERSION'
+const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 
-export function recordVersion({ isDev = false } = {}) {
+type EventCliSessionStarted = {
+  nextVersion: string
+  nodeVersion: string
+  cliCommand: string
+}
+
+export function recordVersion(
+  event: Omit<EventCliSessionStarted, 'nextVersion' | 'nodeVersion'>
+) {
   // This should be an invariant, if it fails our build tooling is broken.
   if (typeof process.env.__NEXT_VERSION !== 'string') {
     return Promise.resolve()
@@ -11,9 +19,9 @@ export function recordVersion({ isDev = false } = {}) {
   return record({
     eventName: EVENT_VERSION,
     payload: {
-      version: process.env.__NEXT_VERSION,
+      nextVersion: process.env.__NEXT_VERSION,
       nodeVersion: process.version,
-      isDevelopment: isDev,
-    },
+      cliCommand: event.cliCommand,
+    } as EventCliSessionStarted,
   })
 }

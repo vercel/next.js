@@ -32,7 +32,7 @@ const TELEMETRY_KEY_SALT = `telemetry.salt`
 
 const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
 
-let isDisabled: boolean = !!NEXT_TELEMETRY_DISABLED
+let isDisabled: boolean = true || !!NEXT_TELEMETRY_DISABLED
 
 function notify() {
   // No notification needed if telemetry is not enabled
@@ -148,7 +148,15 @@ export function isTelemetryEnabled(): boolean {
 }
 
 type TelemetryEvent = { eventName: string; payload: object }
-
+type EventContext = {
+  anonymousId: string
+  projectId: string
+  sessionId: string
+}
+type EventBatchShape = {
+  eventName: string
+  fields: object
+}
 function _record(_events: TelemetryEvent | TelemetryEvent[]): Promise<any> {
   let events: TelemetryEvent[]
   if (Array.isArray(_events)) {
@@ -185,14 +193,17 @@ function _record(_events: TelemetryEvent | TelemetryEvent[]): Promise<any> {
     return Promise.resolve()
   }
 
-  const context = { anonymousProjectId: projectId, runId: randomRunId }
+  const context: EventContext = {
+    anonymousId: anonymousId,
+    projectId: projectId!,
+    sessionId: randomRunId!,
+  }
   return _postPayload(`https://telemetry.nextjs.org/api/v1/record`, {
-    anonymousId,
     context,
     events: events.map(({ eventName, payload }) => ({
       eventName,
       fields: payload,
-    })),
+    })) as Array<EventBatchShape>,
   })
 }
 

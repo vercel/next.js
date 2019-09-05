@@ -1,4 +1,4 @@
-import { isTargetLikeServerless } from 'next-server/dist/server/config'
+import { isTargetLikeServerless } from '../next-server/server/config'
 import { join } from 'path'
 import { stringify } from 'querystring'
 

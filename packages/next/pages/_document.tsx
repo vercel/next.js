@@ -1,18 +1,18 @@
 /* eslint-disable */
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
-import { cleanAmpPath } from 'next-server/dist/server/utils'
+import { cleanAmpPath } from '../next-server/server/utils'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-} from 'next-server/dist/lib/utils'
+} from '../next-server/lib/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -113,7 +113,15 @@ export class Html extends Component<
 
   render() {
     const { inAmpMode } = this.context._documentProps
-    return <html {...this.props} amp={inAmpMode ? '' : undefined} />
+    return (
+      <html
+        {...this.props}
+        amp={inAmpMode ? '' : undefined}
+        data-ampdevmode={
+          inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
+        }
+      />
+    )
   }
 }
 
@@ -583,7 +591,7 @@ export class NextScript extends Component<OriginProps> {
                   this.context._documentProps
                 ),
               }}
-              data-amp-development-mode-only
+              data-ampdevmode
             />
           )}
           {devFiles
@@ -593,7 +601,7 @@ export class NextScript extends Component<OriginProps> {
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
                   nonce={this.props.nonce}
                   crossOrigin={this.props.crossOrigin || process.crossOrigin}
-                  data-amp-development-mode-only
+                  data-ampdevmode
                 />
               ))
             : null}

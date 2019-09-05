@@ -1,2 +1,2 @@
-export * from 'next-server/amp'
-export { default } from 'next-server/amp'
+export * from './dist/next-server/lib/amp'
+export { default } from './dist/next-server/lib/amp'

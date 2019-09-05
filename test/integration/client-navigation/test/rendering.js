@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 
 export default function (render, fetch) {
