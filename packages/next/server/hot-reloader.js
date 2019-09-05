@@ -212,7 +212,8 @@ export default class HotReloader {
 
     const pages = createPagesMapping(
       pagePaths.filter(i => i !== null),
-      this.config.pageExtensions
+      this.config.pageExtensions,
+      false
     )
     const entrypoints = createEntrypoints(
       pages,
