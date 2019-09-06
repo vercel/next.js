@@ -96,6 +96,7 @@
     "mkdirp": "0.5.1",
     "node-fetch": "2.6.0",
     "path-to-regexp": "2.1.0",
+    "pnp-webpack-plugin": "1.5.0",
     "prop-types": "15.7.2",
     "prop-types-exact": "1.2.0",
     "raw-body": "2.4.0",
