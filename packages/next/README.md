@@ -955,7 +955,7 @@ componentDidUpdate(prevProps) {
   </ul>
 </details>
 
-If you want to access the `router` object inside any component in your app, you can use the `useRouter` hook, here's how to use it:
+If you want to access the `router` object inside any functional component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -979,6 +979,9 @@ export default function ActiveLink({ children, href }) {
   )
 }
 ```
+
+> **Note**: `useRouter` is a React hook, meaning it cannot be used with classes.
+> You can either use [`withRouter`](#using-a-higher-order-component) (a higher order component) or wrap your class in a functional component.
 
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
 
