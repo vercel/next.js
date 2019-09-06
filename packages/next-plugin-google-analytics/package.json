@@ -1,0 +1,6 @@
+{
+  "name": "@next/plugin-google-analytics",
+  "nextjs": {
+    "name": "Google Analytics"
+  }
+}
