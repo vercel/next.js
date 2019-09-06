@@ -16,6 +16,9 @@ const DEFAULT_CONCURRENCY = 3
   const concurrency =
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
 
+  const groupIdx = process.argv.indexOf('-g')
+  const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
+
   console.log('Running tests with concurrency:', concurrency)
   let tests = process.argv.filter(arg => arg.endsWith('.test.js'))
 
@@ -26,7 +29,7 @@ const DEFAULT_CONCURRENCY = 3
     })
   }
 
-  const testNames = [
+  let testNames = [
     ...new Set(
       tests.map(f => {
         let name = `${path
@@ -39,7 +42,17 @@ const DEFAULT_CONCURRENCY = 3
     )
   ]
 
-  console.log('Found tests:', testNames)
+  if (groupArg) {
+    const groupParts = groupArg.split('/')
+    const groupPos = parseInt(groupParts[0], 10)
+    const groupTotal = parseInt(groupParts[1], 10)
+    const numPerGroup = Math.ceil(testNames.length / groupTotal)
+    let offset = groupPos === 1 ? 0 : (groupPos - 1) * numPerGroup - 1
+    // if there's an odd number of suites give the first group the extra
+    if (testNames.length % 2 !== 0 && groupPos !== 1) offset++
+    testNames = testNames.splice(offset, numPerGroup)
+  }
+
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
     path.dirname(require.resolve('jest-cli/package')),
