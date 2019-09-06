@@ -39,7 +39,6 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     documentMiddleware: false,
     granularChunks: false,
-    publicDirectory: false,
     modern: false,
   },
   future: {
