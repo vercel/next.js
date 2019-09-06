@@ -4,9 +4,14 @@ pool:
 strategy:
   maxParallel: 10
   matrix:
+    node-10-2:
+      group: 1
+      node_version: ^10.10.0
     node-10:
+      group: 2
       node_version: ^10.10.0
     node-8:
+      group: 1
       node_version: ^8.12.0
 
 steps:
@@ -14,6 +19,10 @@ steps:
     inputs:
       versionSpec: $(node_version)
     displayName: 'Install Node.js'
+
+  - script: |
+      echo $(group)
+    displayName: 'Echo group'
 
   - script: |
       yarn install
