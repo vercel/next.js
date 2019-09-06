@@ -5,7 +5,7 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-import { PageConfig } from 'next-server/types'
+import { PageConfig } from '../../types'
 import { requirePage } from './require'
 
 export function interopDefault(mod: any) {

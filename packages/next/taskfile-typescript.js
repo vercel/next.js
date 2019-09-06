@@ -2,7 +2,19 @@
 try {
   const ts = require('typescript')
   const extname = require('path').extname
-  const config = require('./tsconfig.json')
+
+  // previously next-server/tsconfig.json
+  const config = {
+    compilerOptions: {
+      strict: true,
+      module: 'esnext',
+      target: 'ES2017',
+      esModuleInterop: true,
+      moduleResolution: 'node',
+      jsx: 'react'
+    },
+    exclude: ['./dist/**', './*.d.ts', './constants.d.ts']
+  }
 
   module.exports = function (task) {
     task.plugin('typescript', { every: true }, function * (file, options) {

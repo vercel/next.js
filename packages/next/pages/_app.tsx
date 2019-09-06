@@ -6,7 +6,7 @@ import {
   AppContextType,
   AppInitialProps,
   AppPropsType,
-} from 'next-server/dist/lib/utils'
+} from '../next-server/lib/utils'
 import { Router, makePublicRouterInstance } from '../client/router'
 
 export { AppInitialProps }

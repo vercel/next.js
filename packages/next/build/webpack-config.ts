@@ -5,11 +5,13 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
+// @ts-ignore: Currently missing types
+import PnpWebpackPlugin from 'pnp-webpack-plugin'
 
 import {
   DOT_NEXT_ALIAS,
@@ -144,15 +146,16 @@ export default async function getBaseWebpackConfig(
     alias: {
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
-      'next/head': 'next-server/dist/lib/head.js',
+      'next/head': 'next/dist/next-server/lib/head.js',
       'next/router': 'next/dist/client/router.js',
-      'next/config': 'next-server/dist/lib/runtime-config.js',
-      'next/dynamic': 'next-server/dist/lib/dynamic.js',
+      'next/config': 'next/dist/next-server/lib/runtime-config.js',
+      'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    plugins: [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -325,9 +328,12 @@ export default async function getBaseWebpackConfig(
 
                 // Default pages have to be transpiled
                 if (
-                  res.match(/next[/\\]dist[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)
+                  !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+                  (res.match(/next[/\\]dist[/\\]/) ||
+                    res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                    res.match(
+                      /node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/
+                    ))
                 ) {
                   return callback()
                 }
@@ -360,9 +366,7 @@ export default async function getBaseWebpackConfig(
             ) {
               // if it's the Next.js' require mark it as external
               // since it's not used
-              if (
-                context.replace(/\\/g, '/').includes('next-server/dist/server')
-              ) {
+              if (context.replace(/\\/g, '/').includes('next-server/server')) {
                 return callback(undefined, `commonjs ${request}`)
               }
             }
@@ -442,6 +446,7 @@ export default async function getBaseWebpackConfig(
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
+      plugins: [PnpWebpackPlugin],
     },
     // @ts-ignore this is filtered
     module: {
@@ -457,14 +462,14 @@ export default async function getBaseWebpackConfig(
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [
             dir,
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
             /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
-              /next-server[\\/]dist[\\/]lib/.test(path) ||
+              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
               /next[\\/]dist[\\/]pages/.test(path) ||
               /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
@@ -707,6 +712,7 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,

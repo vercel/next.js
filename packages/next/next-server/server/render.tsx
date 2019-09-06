@@ -27,7 +27,8 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-import { PageConfig } from 'next-server/types'
+// Uses a module path because of the compiled output directory location
+import { PageConfig } from 'next/types'
 
 export type ManifestItem = {
   id: number | string

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { promisify } from 'util'
 import { join } from 'path'
-import { BUILD_ID_FILE } from 'next-server/constants'
+import { BUILD_ID_FILE } from '../next-server/lib/constants'
 
 const writeFile = promisify(fs.writeFile)
 

@@ -1,35 +1,29 @@
 import { record } from '../storage'
 
-const EVENT_BUILD_DURATION = 'NEXT_BUILD_DURATION'
-type BuildDurationEventShape = {
+const EVENT_BUILD_DURATION = 'NEXT_BUILD_COMPLETED'
+type EventBuildCompleted = {
   durationInSeconds: number
-  numberOfPages: number
+  totalPageCount: number
 }
 
-export function recordBuildDuration(event: BuildDurationEventShape) {
+export function recordBuildDuration(event: EventBuildCompleted) {
   return record({
     eventName: EVENT_BUILD_DURATION,
-    payload: {
-      seconds: event.durationInSeconds,
-      pageCount: event.numberOfPages,
-    },
+    payload: event,
   })
 }
 
-const EVENT_BUILD_OPTIMIZE = 'NEXT_BUILD_OPTIMIZE'
-type BuildAnalysisEventShape = {
+const EVENT_BUILD_OPTIMIZE = 'NEXT_BUILD_OPTIMIZED'
+type EventBuildOptimized = {
   durationInSeconds: number
   totalPageCount: number
-  staticOptimizedPages: number
+  staticPageCount: number
+  ssrPageCount: number
 }
 
-export function recordBuildOptimize(event: BuildAnalysisEventShape) {
+export function recordBuildOptimize(event: EventBuildOptimized) {
   return record({
     eventName: EVENT_BUILD_OPTIMIZE,
-    payload: {
-      seconds: event.durationInSeconds,
-      pageCount: event.totalPageCount,
-      pageAutomaticPrerenderedCount: event.staticOptimizedPages,
-    },
+    payload: event,
   })
 }
