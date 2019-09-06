@@ -76,6 +76,13 @@ export default async function (dir, options, configuration) {
 
   // Initialize the output directory
   const outDir = options.outdir
+
+  if (outDir === join(dir, 'public')) {
+    throw new Error(
+      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/zeit/next.js/can-not-output-to-public`
+    )
+  }
+
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
 
