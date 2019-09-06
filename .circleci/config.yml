@@ -48,7 +48,7 @@ commands:
           command: |
             node concurrent-tests.js $(
               circleci tests glob "test/**/*.test.*" | \
-              circleci tests split --split-by=timings --timings-type=classname
+              circleci tests split
             )
   test_browser:
     parameters:
