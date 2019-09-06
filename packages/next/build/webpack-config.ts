@@ -10,7 +10,8 @@ import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
-import pnpWebpackPlugin from 'pnp-webpack-plugin'
+// @ts-ignore: Currently missing types
+import PnpWebpackPlugin from 'pnp-webpack-plugin'
 
 import {
   DOT_NEXT_ALIAS,
