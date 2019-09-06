@@ -98,7 +98,7 @@ export interface NextPageContext {
   /**
    * `Component` the tree of the App to use if needing to render separately
    */
-  AppTree: AppType
+  AppTree: NextComponentType<NextPageContext, AppInitialProps, AppInitialProps>
 }
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
