@@ -10,6 +10,7 @@ import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
+import pnpWebpackPlugin from 'pnp-webpack-plugin'
 
 import {
   DOT_NEXT_ALIAS,
@@ -153,6 +154,7 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    plugins: [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
