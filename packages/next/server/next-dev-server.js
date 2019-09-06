@@ -278,13 +278,15 @@ export default class DevServer extends Server {
     try {
       await this.hotReloader.ensurePage(pathname).catch(async err => {
         if (err.code !== 'ENOENT') {
-          return Promise.reject(err)
+          throw err
         }
 
         // check for a public file before dynamic route since
         // it has higher priority
-        if (await this.hasPublicFile(pathname)) {
-          return this.servePublic(req, res, pathname)
+        if (this.nextConfig.experimental.publicDirectory) {
+          if (await this.hasPublicFile(pathname)) {
+            return this.servePublic(req, res, pathname)
+          }
         }
 
         for (const dynamicRoute of this.dynamicRoutes) {
@@ -299,18 +301,12 @@ export default class DevServer extends Server {
           })
         }
 
-        return Promise.reject(err)
+        throw err
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
-        if (this.nextConfig.experimental.publicDirectory) {
-          // Try to send a public file and let servePublic handle the request from here
-          await this.servePublic(req, res, pathname)
-          return null
-        } else {
-          res.statusCode = 404
-          return this.renderErrorToHTML(null, req, res, pathname, query)
-        }
+        res.statusCode = 404
+        return this.renderErrorToHTML(null, req, res, pathname, query)
       }
       if (!this.quiet) console.error(err)
     }
