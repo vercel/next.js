@@ -10,6 +10,8 @@ import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
+// @ts-ignore: Currently missing types
+import PnpWebpackPlugin from 'pnp-webpack-plugin'
 
 import {
   DOT_NEXT_ALIAS,
@@ -153,6 +155,7 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    plugins: [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -443,6 +446,7 @@ export default async function getBaseWebpackConfig(
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
+      plugins: [PnpWebpackPlugin],
     },
     // @ts-ignore this is filtered
     module: {
