@@ -1,3 +1,4 @@
+import React from 'react'
 import { render } from 'react-dom'
 import { renderToString } from 'react-dom/server'
 
@@ -11,11 +12,9 @@ const Page = ({ html }) =>
     <p>Hello world</p>
   )
 
-Page.getInitialProps = async ({ AppTree, pathname, query, asPath }) => {
+Page.getInitialProps = async ({ AppTree }) => {
   let html
-  const toRender = (
-    <AppTree router={{ pathname, query, asPath }} Component={Page} />
-  )
+  const toRender = <AppTree />
 
   if (typeof window !== 'undefined') {
     const el = document.createElement('div')
