@@ -250,7 +250,10 @@ describe('Dynamic Routing', () => {
           nextConfig,
           `
           module.exports = {
-            experimental: { modern: true }
+            experimental: {
+              modern: true,
+              publicDirectory: true
+            }
           }
         `
         )
@@ -274,7 +277,8 @@ describe('Dynamic Routing', () => {
         module.exports = {
           target: 'serverless',
           experimental: {
-            modern: true
+            modern: true,
+            publicDirectory: true
           }
         }
       `
