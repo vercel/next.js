@@ -187,12 +187,12 @@ function runTests (dev) {
     expect(scrollPosition).toBe(7232)
   })
 
-  if (dev) {
-    it('should prioritize public files over dynamic route', async () => {
-      const data = await renderViaHTTP(appPort, '/hello.txt')
-      expect(data).toMatch(/hello world/)
-    })
+  it('should prioritize public files over dynamic route', async () => {
+    const data = await renderViaHTTP(appPort, '/hello.txt')
+    expect(data).toMatch(/hello world/)
+  })
 
+  if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
       let text = await browser.eval(`document.documentElement.innerHTML`)
