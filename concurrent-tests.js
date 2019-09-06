@@ -9,7 +9,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const NUM_RETRIES = 2
-const DEFAULT_CONCURRENCY = 2
+const DEFAULT_CONCURRENCY = 3
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -76,13 +76,13 @@ const DEFAULT_CONCURRENCY = 2
         })
       const testFiles = new Set(await getTestFiles())
 
-      for (let i = 0; i < NUM_RETRIES; i++) {
+      for (let i = 0; i < NUM_RETRIES + 1; i++) {
         try {
           await runTest(test)
           passed = true
           break
         } catch (err) {
-          if (i < NUM_RETRIES - 1) {
+          if (i < NUM_RETRIES) {
             try {
               console.log('Cleaning test files for', test)
               const curFiles = await getTestFiles()
