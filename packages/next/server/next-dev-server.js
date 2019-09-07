@@ -19,6 +19,8 @@ import {
   isDynamicRoute
 } from '../next-server/lib/router/utils'
 import React from 'react'
+import { findPageFile } from './lib/find-page-file'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -26,8 +28,7 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
-// eslint-disable-next-line
-const fsExists = promisify(fs.exists)
+const fsStat = promisify(fs.stat)
 
 export default class DevServer extends Server {
   constructor (options) {
@@ -49,6 +50,7 @@ export default class DevServer extends Server {
         )
       })
     }
+    this.pagesDir = join(this.dir, 'pages')
   }
 
   currentPhase () {
@@ -199,6 +201,28 @@ export default class DevServer extends Server {
     if (finished) {
       return
     }
+    const { pathname } = parsedUrl
+
+    // check for a public file, throwing error if there's a
+    // conflicting page
+    if (this.nextConfig.experimental.publicDirectory) {
+      if (await this.hasPublicFile(pathname)) {
+        const pageFile = await findPageFile(
+          this.pagesDir,
+          normalizePagePath(pathname),
+          this.nextConfig.pageExtensions
+        )
+
+        if (pageFile) {
+          const err = new Error(
+            `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
+          )
+          res.statusCode = 500
+          return this.renderError(err, req, res, pathname, {})
+        }
+        return this.servePublic(req, res, pathname)
+      }
+    }
 
     return super.run(req, res, parsedUrl)
   }
@@ -281,14 +305,6 @@ export default class DevServer extends Server {
           throw err
         }
 
-        // check for a public file before dynamic route since
-        // it has higher priority
-        if (this.nextConfig.experimental.publicDirectory) {
-          if (await this.hasPublicFile(pathname)) {
-            return this.servePublic(req, res, pathname)
-          }
-        }
-
         for (const dynamicRoute of this.dynamicRoutes) {
           const params = dynamicRoute.match(pathname)
           if (!params) {
@@ -355,8 +371,13 @@ export default class DevServer extends Server {
     return this.serveStatic(req, res, p)
   }
 
-  hasPublicFile (path) {
-    return fsExists(join(this.publicDir, path))
+  async hasPublicFile (path) {
+    try {
+      const info = await fsStat(join(this.publicDir, path))
+      return info.isFile()
+    } catch (_) {
+      return false
+    }
   }
 
   async getCompilationError (page) {
