@@ -5,8 +5,9 @@ import { BinaryLike, createHash, randomBytes } from 'crypto'
 import findUp from 'find-up'
 import isDockerFunction from 'is-docker'
 import path from 'path'
+
+import { getAnonymousMeta } from './anonymous-meta'
 import { _postPayload } from './post-payload'
-import { getAnonymousTraits } from './anonymous-traits'
 import { getProjectId } from './project-id'
 
 let config: Conf<any> | undefined
@@ -65,14 +66,6 @@ function notify() {
   console.log()
 }
 
-function register(anonymousId: string) {
-  const traits = getAnonymousTraits()
-  _postPayload(`https://telemetry.nextjs.org/api/v1/register`, {
-    anonymousId: anonymousId,
-    fields: traits,
-  })
-}
-
 function setup() {
   if (config) {
     return
@@ -107,10 +100,6 @@ function setup() {
   }
 
   notify()
-
-  if (!isDisabled) {
-    register(anonymousId)
-  }
 }
 
 export function computeHash(payload: BinaryLike): string | null {
@@ -153,6 +142,7 @@ type EventContext = {
   projectId: string
   sessionId: string
 }
+type EventMeta = { [key: string]: unknown }
 type EventBatchShape = {
   eventName: string
   fields: object
@@ -198,8 +188,10 @@ function _record(_events: TelemetryEvent | TelemetryEvent[]): Promise<any> {
     projectId: projectId!,
     sessionId: randomRunId!,
   }
+  const meta: EventMeta = getAnonymousMeta()
   return _postPayload(`https://telemetry.nextjs.org/api/v1/record`, {
     context,
+    meta,
     events: events.map(({ eventName, payload }) => ({
       eventName,
       fields: payload,
