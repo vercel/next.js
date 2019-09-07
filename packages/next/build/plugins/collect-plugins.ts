@@ -8,10 +8,22 @@ type PluginMetaData = {
 
 function collectPluginMeta(pluginPath: string): PluginMetaData {
   const pluginPackageJson = require(path.join(pluginPath, 'package.json'))
-  const pluginMetaData = pluginPackageJson.nextjs
+  const pluginMetaData: PluginMetaData = pluginPackageJson.nextjs
   if (!pluginMetaData) {
     throw new Error(
       'Next.js plugins need to have a "nextjs" key in package.json'
+    )
+  }
+
+  if (!pluginMetaData.name) {
+    throw new Error(
+      'Next.js plugins need to have a "nextjs.name" key in package.json'
+    )
+  }
+
+  if (!pluginMetaData.features) {
+    throw new Error(
+      'Next.js plugins need to have a "nextjs.features" key in package.json'
     )
   }
 
