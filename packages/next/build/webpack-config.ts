@@ -6,7 +6,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../next-server/lib/constants'
-import resolve from 'next/dist/compiled/resolve/index.js'
+import { resolveRequest } from '../lib/resolve-request'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
@@ -113,7 +113,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath
   try {
-    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+    typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -314,69 +314,40 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            let resolveFn: (
-              req: string,
-              basedir: string,
-              cb: (err: Error | null, resolution?: string) => void
-            ) => void
-
-            // The `resolve` package is prebuilt through ncc, which prevents
-            // PnP from being able to inject itself into it. To circumvent
-            // this, we simply use PnP directly when available.
-            // @ts-ignore
-            if (process.versions.pnp) {
-              resolveFn = (request, basedir, cb) => {
-                let res
-                try {
-                  res = require('pnpapi').resolveRequest(
-                    request,
-                    `${basedir}/`,
-                    { considerBuiltins: false }
-                  )
-                } catch (error) {
-                  return cb(error)
-                }
-                return cb(null, res)
-              }
-            } else {
-              resolveFn = (req, basedir, cb) => {
-                return resolve(req, { basedir, preserveSymlinks: true }, cb)
-              }
+            let res
+            try {
+              res = resolveRequest(request, context)
+            } catch (err) {
+              return callback()
             }
 
-            resolveFn(request, context, (err, res) => {
-              if (err) {
-                return callback()
-              }
+            if (!res) {
+              return callback()
+            }
 
-              if (!res) {
-                return callback()
-              }
+            // Default pages have to be transpiled
+            if (
+              !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+              (res.match(/next[/\\]dist[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+            ) {
+              return callback()
+            }
 
-              // Default pages have to be transpiled
-              if (
-                !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-                (res.match(/next[/\\]dist[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
-              ) {
-                return callback()
-              }
+            // Webpack itself has to be compiled because it doesn't always use module relative paths
+            if (
+              res.match(/node_modules[/\\]webpack/) ||
+              res.match(/node_modules[/\\]css-loader/)
+            ) {
+              return callback()
+            }
 
-              // Webpack itself has to be compiled because it doesn't always use module relative paths
-              if (
-                res.match(/node_modules[/\\]webpack/) ||
-                res.match(/node_modules[/\\]css-loader/)
-              ) {
-                return callback()
-              }
+            if (res.match(/node_modules[/\\].*\.js$/)) {
+              return callback(undefined, `commonjs ${request}`)
+            }
 
-              if (res.match(/node_modules[/\\].*\.js$/)) {
-                return callback(undefined, `commonjs ${request}`)
-              }
-
-              callback()
-            })
+            callback()
           },
         ]
       : [
