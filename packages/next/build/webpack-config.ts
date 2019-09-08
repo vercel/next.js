@@ -311,45 +311,69 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            resolve(
-              request,
-              { basedir: dir, preserveSymlinks: true },
-              (err, res) => {
-                if (err) {
-                  return callback()
-                }
+            let resolveFn: (
+              req: string,
+              basedir: string,
+              cb: (err: Error | null, resolution?: string) => void
+            ) => void
 
-                if (!res) {
-                  return callback()
+            // The `resolve` package is prebuilt through ncc, which prevents
+            // PnP from being able to inject itself into it. To circumvent
+            // this, we simply use PnP directly when available.
+            // @ts-ignore
+            if (process.versions.pnp) {
+              resolveFn = (request, basedir, cb) => {
+                let res
+                try {
+                  res = require('pnpapi').resolveRequest(
+                    request,
+                    `${basedir}/`,
+                    { considerBuiltins: false }
+                  )
+                } catch (error) {
+                  return cb(error)
                 }
-
-                // Default pages have to be transpiled
-                if (
-                  !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-                  (res.match(/next[/\\]dist[/\\]/) ||
-                    res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                    res.match(
-                      /node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/
-                    ))
-                ) {
-                  return callback()
-                }
-
-                // Webpack itself has to be compiled because it doesn't always use module relative paths
-                if (
-                  res.match(/node_modules[/\\]webpack/) ||
-                  res.match(/node_modules[/\\]css-loader/)
-                ) {
-                  return callback()
-                }
-
-                if (res.match(/node_modules[/\\].*\.js$/)) {
-                  return callback(undefined, `commonjs ${request}`)
-                }
-
-                callback()
+                return cb(null, res)
               }
-            )
+            } else {
+              resolveFn = (req, basedir, cb) => {
+                return resolve(req, { basedir, preserveSymlinks: true }, cb)
+              }
+            }
+
+            resolveFn(request, dir, (err, res) => {
+              if (err) {
+                return callback()
+              }
+
+              if (!res) {
+                return callback()
+              }
+
+              // Default pages have to be transpiled
+              if (
+                !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+                (res.match(/next[/\\]dist[/\\]/) ||
+                  res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                  res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+              ) {
+                return callback()
+              }
+
+              // Webpack itself has to be compiled because it doesn't always use module relative paths
+              if (
+                res.match(/node_modules[/\\]webpack/) ||
+                res.match(/node_modules[/\\]css-loader/)
+              ) {
+                return callback()
+              }
+
+              if (res.match(/node_modules[/\\].*\.js$/)) {
+                return callback(undefined, `commonjs ${request}`)
+              }
+
+              callback()
+            })
           },
         ]
       : [
