@@ -16,7 +16,7 @@ const Page: NextPage<{ html: string }> = ({ html }) =>
 Page.getInitialProps = async ({ AppTree }) => {
   let html: string
 
-  const toRender = <AppTree />
+  const toRender = <AppTree pageProps={{}} />
 
   if (typeof window !== 'undefined') {
     const el = document.createElement('div')

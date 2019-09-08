@@ -28,7 +28,7 @@ export type AppType = NextComponentType<
   AppPropsType
 >
 
-export type AppTreeType = NextComponentType<AppContextType, {}, any>
+export type AppTreeType = ComponentType<AppInitialProps>
 
 export type Enhancer<C> = (Component: C) => C
 
