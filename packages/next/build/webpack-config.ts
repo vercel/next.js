@@ -316,7 +316,7 @@ export default async function getBaseWebpackConfig(
 
             resolve(
               request,
-              { basedir: dir, preserveSymlinks: true },
+              { basedir: context, preserveSymlinks: true },
               (err, res) => {
                 if (err) {
                   return callback()
