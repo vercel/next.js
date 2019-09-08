@@ -100,7 +100,6 @@ export interface NextPageContext {
   /**
    * `Component` the tree of the App to use if needing to render separately
    */
-  // AppTree: NextComponentType<NextPageContext, AppInitialProps, AppInitialProps>
   AppTree: AppTreeType
 }
 
