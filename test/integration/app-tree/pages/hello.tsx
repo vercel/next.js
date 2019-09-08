@@ -1,8 +1,9 @@
 import React from 'react'
 import { render } from 'react-dom'
 import { renderToString } from 'react-dom/server'
+import { NextPage } from 'next'
 
-const Page = ({ html }) =>
+const Page: NextPage<{ html: string }> = ({ html }) =>
   html ? (
     <>
       <p>saved:</p>
@@ -13,7 +14,8 @@ const Page = ({ html }) =>
   )
 
 Page.getInitialProps = async ({ AppTree }) => {
-  let html
+  let html: string
+
   const toRender = <AppTree />
 
   if (typeof window !== 'undefined') {
