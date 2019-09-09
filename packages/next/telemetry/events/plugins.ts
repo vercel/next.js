@@ -153,6 +153,10 @@ const plugins = [
   'amplify-next',
   'create-next-app',
   'neutron',
+  'react-intl',
+  'react-intl-universal',
+  '@lingui/react',
+  '@apollo/react-ssr',
 ]
 
 export async function recordNextPlugins(dir: string) {
