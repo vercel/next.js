@@ -5,29 +5,15 @@ import App, { AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
 class MyApp<P = {}> extends App<P & { html: string }> {
-  static async getInitialProps({
-    Component,
-    AppTree,
-    router,
-    ctx,
-  }: AppContext) {
+  static async getInitialProps({ Component, AppTree, ctx }: AppContext) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
       pageProps = await Component.getInitialProps(ctx)
     }
 
-    let html
-    const toRender = (
-      <AppTree
-        {...{
-          router,
-          Component,
-          pageProps,
-          another: 'hello',
-        }}
-      />
-    )
+    let html: string
+    const toRender = <AppTree pageProps={pageProps} another="prop" />
 
     if (typeof window !== 'undefined') {
       const el = document.createElement('div')
