@@ -153,7 +153,7 @@ module.exports = (
       [
         require('@babel/plugin-transform-runtime'),
         {
-          corejs: 2,
+          corejs: 3,
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
