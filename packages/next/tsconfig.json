@@ -7,5 +7,5 @@
     "moduleResolution": "node",
     "jsx": "react"
   },
-  "exclude": ["dist", "./*.d.ts", "./router.d.ts"]
+  "exclude": ["dist", "./*.d.ts"]
 }

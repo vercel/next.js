@@ -33,6 +33,7 @@ type AmpStatus = {
   line: number
   col: number
   specUrl: string | null
+  code: string
 }
 
 type AmpPageStatus = {
@@ -84,7 +85,16 @@ export function formatAmpMessages(amp: AmpPageStatus) {
   }
 
   for (const page in amp) {
-    const { errors, warnings } = amp[page]
+    let { errors, warnings } = amp[page]
+
+    const devOnlyFilter = (err: AmpStatus) => err.code !== 'DEV_MODE_ONLY'
+    errors = errors.filter(devOnlyFilter)
+    warnings = warnings.filter(devOnlyFilter)
+    if (!(errors.length || warnings.length)) {
+      // Skip page with no non-dev warnings
+      continue
+    }
+
     if (errors.length) {
       ampError(page, errors[0])
       for (let index = 1; index < errors.length; ++index) {
@@ -98,6 +108,10 @@ export function formatAmpMessages(amp: AmpPageStatus) {
       }
     }
     messages.push(['', '', '', ''])
+  }
+
+  if (!messages.length) {
+    return ''
   }
 
   output += textTable(messages, {
@@ -155,6 +169,7 @@ buildStore.subscribe(state => {
 
       if (Object.keys(amp).length > 0) {
         warnings = (warnings || []).concat(formatAmpMessages(amp))
+        if (!warnings.length) warnings = null
       }
     }
 

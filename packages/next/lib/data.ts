@@ -1,6 +1,6 @@
 import { useContext } from 'react'
-import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
-import { RouterContext } from 'next-server/dist/lib/router-context'
+import { DataManagerContext } from '../next-server/lib/data-manager-context'
+import { RouterContext } from '../next-server/lib/router-context'
 import fetch from 'unfetch'
 import { stringify } from 'querystring'
 
@@ -26,10 +26,10 @@ export function createHook(
     throw new Error('key not provided to createHook options.')
   }
   return function useData(...args: Array<string | number>) {
-    const router: import('next-server/lib/router/router').NextRouter = useContext(
+    const router: import('../next-server/lib/router/router').NextRouter = useContext(
       RouterContext
     )
-    const dataManager: import('next-server/lib/data-manager').DataManager = useContext(
+    const dataManager: import('../next-server/lib/data-manager').DataManager = useContext(
       DataManagerContext
     )
     const key = `${options.key}${generateArgsKey(args)}`

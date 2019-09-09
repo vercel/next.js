@@ -1,15 +1,6 @@
 import App from 'next/app'
 import React from 'react'
-import { IntlProvider, addLocaleData } from 'react-intl'
-
-// Register React Intl's locale data for the user's locale in the browser. This
-// locale data was added to the page by `pages/_document.js`. This only happens
-// once, on initial page load in the browser.
-if (typeof window !== 'undefined' && window.ReactIntlLocaleData) {
-  Object.keys(window.ReactIntlLocaleData).forEach(lang => {
-    addLocaleData(window.ReactIntlLocaleData[lang])
-  })
-}
+import { IntlProvider } from 'react-intl'
 
 export default class MyApp extends App {
   static async getInitialProps ({ Component, router, ctx }) {
@@ -23,16 +14,15 @@ export default class MyApp extends App {
     // In the browser, use the same values that the server serialized.
     const { req } = ctx
     const { locale, messages } = req || window.__NEXT_DATA__.props
-    const initialNow = Date.now()
 
-    return { pageProps, locale, messages, initialNow }
+    return { pageProps, locale, messages }
   }
 
   render () {
-    const { Component, pageProps, locale, messages, initialNow } = this.props
+    const { Component, pageProps, locale, messages } = this.props
 
     return (
-      <IntlProvider locale={locale} messages={messages} initialNow={initialNow}>
+      <IntlProvider locale={locale} messages={messages}>
         <Component {...pageProps} />
       </IntlProvider>
     )

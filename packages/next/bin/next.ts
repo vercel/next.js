@@ -20,6 +20,8 @@ const commands: { [command: string]: () => Promise<cliCommand> } = {
   export: async () =>
     await import('../cli/next-export').then(i => i.nextExport),
   dev: async () => await import('../cli/next-dev').then(i => i.nextDev),
+  telemetry: async () =>
+    await import('../cli/next-telemetry').then(i => i.nextTelemetry),
 }
 
 const args = arg(
@@ -99,7 +101,7 @@ if (typeof React.Suspense === 'undefined') {
 commands[command]().then(exec => exec(forwardedArgs))
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('next-server/constants')
+  const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
