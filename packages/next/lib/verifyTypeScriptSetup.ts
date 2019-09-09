@@ -1,12 +1,12 @@
 import chalk from 'chalk'
 import fs from 'fs'
-import resolve from 'next/dist/compiled/resolve/index.js'
 import os from 'os'
 import path from 'path'
 import { promisify } from 'util'
 
 import { fileExists } from './file-exists'
 import { recursiveReadDir } from './recursive-readdir'
+import { resolveRequest } from './resolve-request'
 
 const writeFile = promisify(fs.writeFile)
 const readFile = promisify(fs.readFile)
@@ -43,7 +43,7 @@ async function checkDependencies({
 
   const missingPackages = requiredPackages.filter(p => {
     try {
-      resolve.sync(p.file, { basedir: dir })
+      resolveRequest(p.file, `${dir}/`)
     } catch (_) {
       return true
     }
