@@ -13,7 +13,7 @@ class MyApp<P = {}> extends App<P & { html: string }> {
     }
 
     let html: string
-    const toRender = <AppTree pageProps={pageProps} />
+    const toRender = <AppTree pageProps={pageProps} another="prop" />
 
     if (typeof window !== 'undefined') {
       const el = document.createElement('div')
