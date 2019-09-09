@@ -59,8 +59,10 @@ const Index = () => (
       <ul>
         <li>
           getInitialProps throws an Error. This should cause _error.js to render
-          and record Error('Client Test 1') in Sentry. Note that for some reason
-          Sentry detects and reports this error twice.
+          and record Error('Client Test 1') in Sentry. Note Sentry will double
+          count this exception. Once from an unhandledrejection and again in
+          _error.js. Could be a bug in Next.js or Sentry, requires more
+          debugging.
           {' '}
           <Link href="/client/test1">
             <a>
@@ -70,8 +72,8 @@ const Index = () => (
         </li>
         <li>
           getInitialProps returns a Promise that rejects. This should cause
-          _error.js to render and record Error('Client Test 2') in Sentry. Note
-          that for some reason Sentry detects and repots this error twice.
+          _error.js to render and record Error('Client Test 2') in Sentry. As
+          above, Sentry will double count this exception.
           {' '}
           <Link href="/client/test2">
             <a>
@@ -108,7 +110,7 @@ const Index = () => (
         </li>
         <li>
           There is a top-of-module exception. _error.js should render and record
-          Error('Client Test 5') in Sentry.
+          ReferenceError('process is not defined') in Sentry.
           {' '}
           <Link href="/client/test5">
             <a>
@@ -159,8 +161,7 @@ const Index = () => (
         </li>
         <li>
           An Error is thrown from an event handler. Sentry should record
-          Error('Client Test 8'). Note that Sentry seems to have a bug here
-          where the exception is recorded twice.
+          Error('Client Test 8').
           {' '}
           <Link href="/client/test8">
             <a>
