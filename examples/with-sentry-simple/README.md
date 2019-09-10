@@ -53,7 +53,9 @@ This is a simple example showing how to use [Sentry](https://sentry.io) to catch
 - `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overriden so those exceptions can be passed along to Sentry
 - `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
 
-**Note**: Source maps will not be sent to Sentry when running locally (because Sentry cannot access your localhost). To accurately client side test source maps, please deploy to Now.
+**Note**: Source maps will not be sent to Sentry when running locally (because Sentry cannot access your `localhost`). To accurately test client-side source maps, please deploy to Now.
+
+**Note**: Server-side source maps will not work unless you [manually upload them to Sentry](https://docs.sentry.io/platforms/node/sourcemaps/#making-source-maps-available-to-sentry).
 
 **Note**: Error handling [works differently in production](https://nextjs.org/docs#custom-error-handling). Some exceptions will not be sent to Sentry in development mode (i.e. `npm run dev`).
 
