@@ -46,20 +46,10 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            yarn testall $(
+            node run-tests.js $(
               circleci tests glob "test/**/*.test.*" | \
-              circleci tests split --split-by=timings --timings-type=classname
-            ) || (
-              yarn git-clean
-              yarn git-reset
-              yarn testall $(
-                circleci tests glob "test/**/*.test.*" | \
-                circleci tests split --split-by=timings --timings-type=classname
-              )
+              circleci tests split
             )
-          environment:
-            JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
-            JEST_JUNIT_CLASSNAME: '{filepath}'
   test_browser:
     parameters:
       browser:

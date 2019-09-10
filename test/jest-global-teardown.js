@@ -1,13 +1,10 @@
 'use strict'
 
-let globalTeardown
+let globalTeardown = () => {}
 const browser = global.bsBrowser
 
 if (process.env.BROWSERSTACK) {
   globalTeardown = () => global.browserStackLocal.killAllProcesses(() => {})
-} else {
-  const chromedriver = require('chromedriver')
-  globalTeardown = () => chromedriver.stop()
 }
 
 module.exports = async () => {
