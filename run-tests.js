@@ -1,6 +1,5 @@
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs-extra')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -81,13 +80,6 @@ const DEFAULT_CONCURRENCY = 3
     testNames.map(async test => {
       await sema.acquire()
       let passed = false
-      const getTestFiles = () =>
-        glob('**/*', {
-          nodir: true,
-          cwd: path.join(__dirname, test),
-          dot: true
-        })
-      const testFiles = new Set(await getTestFiles())
 
       for (let i = 0; i < NUM_RETRIES + 1; i++) {
         try {
@@ -98,20 +90,8 @@ const DEFAULT_CONCURRENCY = 3
           if (i < NUM_RETRIES) {
             try {
               console.log('Cleaning test files for', test)
-              const curFiles = await getTestFiles()
-
-              for (const file of curFiles) {
-                if (!testFiles.has(file)) {
-                  await fs.remove(path.join(__dirname, test, file))
-                }
-              }
-              for (const file of testFiles) {
-                try {
-                  await exec(
-                    `git checkout "${path.join(__dirname, test, file)}"`
-                  )
-                } catch (err) {}
-              }
+              await exec(`git clean -fdx "${path.join(__dirname, test)}"`)
+              await exec(`git checkout "${path.join(__dirname, test)}"`)
             } catch (err) {}
           }
         }
