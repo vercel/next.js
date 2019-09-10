@@ -1,35 +1,32 @@
 import React from 'react'
 import Link from 'next/link'
-
+import { withApollo } from '../lib/apollo'
 import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
-
 import RegisterBox from '../components/RegisterBox'
 
-export default class CreateAccount extends React.Component {
-  static async getInitialProps (context) {
-    const { loggedInUser } = await checkLoggedIn(context.apolloClient)
+const CreateAccountPage = () => (
+  <>
+    {/* RegisterBox handles all register logic. */}
+    <RegisterBox />
+    <hr />
+    Already have an account?{' '}
+    <Link href='/signin'>
+      <a>Sign in</a>
+    </Link>
+  </>
+)
 
-    if (loggedInUser.user) {
-      // Already signed in? No need to continue.
-      // Throw them back to the main page
-      redirect(context, '/')
-    }
+CreateAccountPage.getInitialProps = async context => {
+  const { loggedInUser } = await checkLoggedIn(context.apolloClient)
 
-    return {}
+  if (loggedInUser.user) {
+    // Already signed in? No need to continue.
+    // Throw them back to the main page
+    redirect(context, '/')
   }
 
-  render () {
-    return (
-      <>
-        {/* RegisterBox handles all register logic. */}
-        <RegisterBox />
-        <hr />
-        Already have an account?{' '}
-        <Link href='/signin'>
-          <a>Sign in</a>
-        </Link>
-      </>
-    )
-  }
+  return {}
 }
+
+export default withApollo(CreateAccountPage)

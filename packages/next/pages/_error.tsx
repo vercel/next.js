@@ -1,6 +1,6 @@
 import React from 'react'
-import Head from 'next-server/head'
-import { NextPageContext } from 'next-server/dist/lib/utils'
+import Head from '../next-server/lib/head'
+import { NextPageContext } from '../next-server/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',

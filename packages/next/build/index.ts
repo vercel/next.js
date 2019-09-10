@@ -1,4 +1,3 @@
-import { Sema } from 'async-sema'
 import chalk from 'chalk'
 import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
@@ -8,18 +7,24 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
-} from 'next-server/dist/server/config'
+} from '../next-server/server/config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-import workerFarm from 'worker-farm'
+import Worker from 'jest-worker'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import {
+  recordBuildDuration,
+  recordBuildOptimize,
+  recordNextPlugins,
+  recordVersion,
+} from '../telemetry/events'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
@@ -57,6 +62,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await verifyTypeScriptSetup(dir)
+
+  let backgroundWork: (Promise<any> | undefined)[] = []
+  backgroundWork.push(
+    recordVersion({ cliCommand: 'build' }),
+    recordNextPlugins(path.resolve(dir))
+  )
 
   console.log('Creating an optimized production build ...')
   console.log()
@@ -125,6 +136,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  const webpackBuildStart = process.hrtime()
+
   let result: CompilerResult = { warnings: [], errors: [] }
   // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
   if (isLikeServerless) {
@@ -145,6 +158,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     result = await runCompiler(configs)
   }
+
+  const webpackBuildEnd = process.hrtime(webpackBuildStart)
 
   result = formatWebpackMessages(result)
 
@@ -185,6 +200,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn()
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
+    backgroundWork.push(
+      recordBuildDuration({
+        totalPageCount: allPagePaths.length,
+        durationInSeconds: webpackBuildEnd[0],
+      })
+    )
   }
 
   const pageKeys = Object.keys(mappedPages)
@@ -204,17 +225,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(config.experimental.cpus, {
-    capacity: pageKeys.length,
+  const staticCheckWorkers = new Worker(staticCheckWorker, {
+    numWorkers: config.experimental.cpus,
+    enableWorkerThreads: true,
   })
-  const staticCheckWorkers = workerFarm(
-    {
-      maxConcurrentWorkers: config.experimental.cpus,
-    },
-    staticCheckWorker,
-    ['default']
-  )
 
+  const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
       const chunks = getPageChunks(page)
@@ -268,17 +284,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          await staticCheckSema.acquire()
-          const result: any = await new Promise((resolve, reject) => {
-            staticCheckWorkers.default(
-              { serverBundle, runtimeEnvConfig },
-              (error: Error | null, result: any) => {
-                if (error) return reject(error)
-                resolve(result || {})
-              }
-            )
+          let result: any = await (staticCheckWorkers as any).default({
+            serverBundle,
+            runtimeEnvConfig,
           })
-          staticCheckSema.release()
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
@@ -293,15 +302,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
-          staticCheckSema.release()
         }
       }
 
       pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
     })
   )
-
-  workerFarm.end(staticCheckWorkers)
+  staticCheckWorkers.end()
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -401,6 +408,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
 
+  const analysisEnd = process.hrtime(analysisBegin)
+  backgroundWork.push(
+    recordBuildOptimize({
+      durationInSeconds: analysisEnd[0],
+      totalPageCount: allPagePaths.length,
+      staticPageCount: staticPages.size,
+      ssrPageCount: allPagePaths.length - staticPages.size,
+    })
+  )
+
   if (sprPages.size > 0) {
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
@@ -473,4 +490,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       tracer.end(resolve)
     })
   }
+
+  await Promise.all(backgroundWork).catch(() => {})
 }

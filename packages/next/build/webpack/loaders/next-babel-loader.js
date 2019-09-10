@@ -115,6 +115,7 @@ module.exports = babelLoader.custom(babel => {
       }
 
       options.caller.isServer = isServer
+      options.caller.isModern = isModern
 
       options.plugins = options.plugins || []
 
@@ -173,7 +174,7 @@ module.exports = babelLoader.custom(babel => {
         ...(options.overrides || []),
         {
           test: [
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/
           ],

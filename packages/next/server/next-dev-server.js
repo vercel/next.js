@@ -1,21 +1,22 @@
-import Server from 'next-server/dist/server/next-server'
+import Server from '../next-server/server/next-server'
 import { join, relative } from 'path'
 import HotReloader from './hot-reloader'
-import { route } from 'next-server/dist/server/router'
-import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
+import { route } from '../next-server/server/router'
+import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
 import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
+import { recordVersion } from '../telemetry/events'
 import fs from 'fs'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute
-} from 'next-server/dist/lib/router/utils'
+} from '../next-server/lib/router/utils'
 import React from 'react'
 
 if (typeof React.Suspense === 'undefined') {
@@ -177,6 +178,8 @@ export default class DevServer extends Server {
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady()
+
+    recordVersion({ cliCommand: 'dev' })
   }
 
   async close () {

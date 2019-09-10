@@ -41,6 +41,7 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
+  'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
 }
 
@@ -62,6 +63,13 @@ module.exports = (
 ): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
+  const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+  const isLaxModern =
+    isModern ||
+    (options['preset-env'] &&
+      options['preset-env'].targets &&
+      options['preset-env'].targets.esmodules === true)
+
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
@@ -87,10 +95,17 @@ module.exports = (
     }
   }
 
+  // spefify a preset to use instead of @babel/preset-env:
+  const customModernPreset =
+    isLaxModern && options['experimental-modern-preset']
+
   return {
     sourceType: 'unambiguous',
     presets: [
-      [require('@babel/preset-env').default, presetEnvConfig],
+      customModernPreset || [
+        require('@babel/preset-env').default,
+        presetEnvConfig,
+      ],
       [
         require('@babel/preset-react'),
         {
@@ -142,7 +157,9 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: (process.versions as any).pnp ? __dirname : undefined,
+          absoluteRuntime: (process.versions as any).pnp
+            ? __dirname
+            : undefined,
           ...options['transform-runtime'],
         },
       ],

@@ -3,14 +3,14 @@ const clientGlobs = [
     name: 'Client Bundles (main, webpack, commons)',
     globs: [
       '.next/static/runtime/+(main|webpack)-!(*.module.js)',
-      '.next/static/chunks/commons!(*.module.js)'
+      '.next/static/chunks/!(*.module.js)'
     ]
   },
   {
     name: 'Client Bundles (main, webpack, commons) Modern',
     globs: [
       '.next/static/runtime/+(main|webpack)-*.module.js',
-      '.next/static/chunks/commons.*.module.js'
+      '.next/static/chunks/*.module.js'
     ]
   },
   {
@@ -89,6 +89,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -109,6 +110,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID',
               experimental: {
                 modern: true,
                 granularChunks: true
@@ -134,6 +136,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID',
               target: 'serverless',
               experimental: {
                 modern: true,

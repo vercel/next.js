@@ -2,7 +2,7 @@
 
 <p align="center">
   <a aria-label="ZEIT logo" href="https://github.com/zeit">
-    <img src="https://img.shields.io/badge/ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+    <img src="https://img.shields.io/badge/MADE%20BY%20ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
   </a>
   <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
     <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
@@ -276,13 +276,6 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="/examples/public-file-serving">Public file serving</a></li>
-  </ul>
-</details>
-
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
@@ -454,9 +447,9 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-When you need state, lifecycle hooks or **initial data population** you can export a [React.Component](https://reactjs.org/docs/react-component.html) or use a stateless function and [Hooks](https://reactjs.org/docs/hooks-intro.html).
+When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or a [class component](https://reactjs.org/docs/react-component.html).
 
-Using a stateless function:
+Using a function component:
 
 ```jsx
 import fetch from 'isomorphic-unfetch'
@@ -474,7 +467,7 @@ Page.getInitialProps = async ({ req }) => {
 export default Page
 ```
 
-Using `React.Component`:
+Using a class component:
 
 ```jsx
 import React from 'react'
@@ -962,7 +955,7 @@ componentDidUpdate(prevProps) {
   </ul>
 </details>
 
-If you want to access the `router` object inside any component in your app, you can use the `useRouter` hook, here's how to use it:
+If you want to access the `router` object inside any functional component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -986,6 +979,9 @@ export default function ActiveLink({ children, href }) {
   )
 }
 ```
+
+> **Note**: `useRouter` is a React hook, meaning it cannot be used with classes.
+> You can either use [`withRouter`](#using-a-higher-order-component) (a higher order component) or wrap your class in a functional component.
 
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
 
@@ -1079,8 +1075,6 @@ export default function MyLink() {
     </a>
   )
 }
-
-export default withRouter(MyLink)
 ```
 
 You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
@@ -1142,7 +1136,7 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
-For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+For [API routes](#api-routes) there are built-in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
 
 ```ts
 import { NextApiRequest, NextApiResponse } from 'next'
