@@ -25,9 +25,9 @@ const nextTelemetry: cliCommand = argv => {
         Allows you to control Next.js' telemetry collection
 
       Usage
-        $ next telemetry [--enable] [--disable]
+        $ next telemetry [enable/disable]
 
-      You may pass the '--enable' or '--disable' flag to turn Next.js' telemetry collection on or off.
+      You may pass the 'enable' or 'disable' argument to turn Next.js' telemetry collection on or off.
 
       Learn more: ${chalk.cyan('https://nextjs.org/telemetry')}
     `
@@ -35,20 +35,31 @@ const nextTelemetry: cliCommand = argv => {
     return
   }
 
-  if (args['--enable']) {
+  let isEnabled = isTelemetryEnabled()
+
+  if (args['--enable'] || args._[0] === 'enable') {
     setTelemetryEnabled(true)
     console.log(chalk.cyan('Success!'))
     console.log()
-  } else if (args['--disable']) {
+
+    isEnabled = true
+  } else if (args['--disable'] || args._[0] === 'disable') {
     setTelemetryEnabled(false)
-    console.log(chalk.cyan('Your preference has been saved.'))
+    if (isEnabled) {
+      console.log(chalk.cyan('Your preference has been saved.'))
+    } else {
+      console.log(
+        chalk.yellow(`Next.js' telemetry collection is already disabled.`)
+      )
+    }
     console.log()
+
+    isEnabled = false
   } else {
     console.log(chalk.bold('Next.js Telemetry'))
     console.log()
   }
 
-  const isEnabled = isTelemetryEnabled()
   console.log(
     `Status: ${
       isEnabled ? chalk.bold.green('Enabled') : chalk.bold.red('Disabled')

@@ -1,4 +1,5 @@
 module.exports = {
+  id: 'viewer',
   blogPosts: [
     {
       id: 'p1',
