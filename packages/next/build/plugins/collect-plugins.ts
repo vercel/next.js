@@ -1,13 +1,14 @@
 import findUp from 'find-up'
 import path from 'path'
+import resolve from 'next/dist/compiled/resolve/index.js'
 
 type PluginMetaData = {
+  directory: string
   name: string
-  features: string[]
 }
 
-function collectPluginMeta(pluginPath: string): PluginMetaData {
-  const pluginPackageJson = require(path.join(pluginPath, 'package.json'))
+function collectPluginMeta(pluginPackagePath: string): PluginMetaData {
+  const pluginPackageJson = require(pluginPackagePath)
   const pluginMetaData: PluginMetaData = pluginPackageJson.nextjs
   if (!pluginMetaData) {
     throw new Error(
@@ -21,15 +22,9 @@ function collectPluginMeta(pluginPath: string): PluginMetaData {
     )
   }
 
-  if (!pluginMetaData.features) {
-    throw new Error(
-      'Next.js plugins need to have a "nextjs.features" key in package.json'
-    )
-  }
-
   return {
-    name: '',
-    features: [],
+    directory: path.dirname(pluginPackagePath),
+    name: pluginMetaData.name,
   }
 }
 
@@ -56,6 +51,19 @@ export async function collectPlugins(dir: string): Promise<PluginMetaData[]> {
   const nextPluginNames = dependencies.filter(name => {
     return name.startsWith('next-plugin-') || name.startsWith('@next/plugin-')
   })
+
+  const nextPluginMetaData = await Promise.all(
+    nextPluginNames.map(name =>
+      collectPluginMeta(
+        resolve.sync(path.join(name, 'package.json'), {
+          basedir: dir,
+          preserveSymlinks: true,
+        })
+      )
+    )
+  )
+
+  console.log(nextPluginMetaData)
 
   return []
 }

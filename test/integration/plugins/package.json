@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@next/plugin-google-analytics": "file:../../../packages/next-plugin-google-analytics"
+  }
+}
