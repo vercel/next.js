@@ -2,7 +2,6 @@ const withSourceMaps = require('@zeit/next-source-maps')()
 
 module.exports = withSourceMaps({
   webpack: (config, options) => {
-
     // In `pages/_app.js`, Sentry is imported from @sentry/node. While
     // @sentry/browser will run in a Node.js environment, @sentry/node will use
     // Node.js-only APIs to catch even more unhandled exceptions.
@@ -18,9 +17,9 @@ module.exports = withSourceMaps({
     // So ask Webpack to replace @sentry/node imports with @sentry/browser when
     // building the browser's bundle
     if (!options.isServer) {
-      config.resolve.alias["@sentry/node"] = "@sentry/browser"
+      config.resolve.alias['@sentry/node'] = '@sentry/browser'
     }
 
     return config
   }
-});
+})
