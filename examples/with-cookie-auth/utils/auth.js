@@ -74,7 +74,7 @@ function auth (ctx) {
   }
 
   // We already checked for server. This should only happen on client.
-  if (!token) {
+  if (!ctx.req && !token) {
     Router.push('/login')
   }
 
