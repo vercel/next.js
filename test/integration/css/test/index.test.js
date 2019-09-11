@@ -116,4 +116,5 @@ describe('CSS Support', () => {
   // TODO: test prefixing behavior
   // TODO: test server-side response inclusion of CSS scripts
   // TODO: test client-side hydration CSS validity for single & multi
+  // TODO: test client-side transitions between pages
 })
