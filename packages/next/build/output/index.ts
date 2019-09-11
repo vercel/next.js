@@ -16,6 +16,11 @@ export function startedDevelopmentServer(appUrl: string) {
 let previousClient: any = null
 let previousServer: any = null
 
+type CompilerDiagnosticsWithFile = {
+  errors: { file: string | undefined; message: string }[] | null
+  warnings: { file: string | undefined; message: string }[] | null
+}
+
 type CompilerDiagnostics = {
   errors: string[] | null
   warnings: string[] | null
@@ -231,8 +236,8 @@ export function watchCompilers(
     hasTypeChecking: boolean,
     onEvent: (status: WebpackStatus) => void
   ) {
-    let tsMessagesPromise: Promise<CompilerDiagnostics> | undefined
-    let tsMessagesResolver: (diagnostics: CompilerDiagnostics) => void
+    let tsMessagesPromise: Promise<CompilerDiagnosticsWithFile> | undefined
+    let tsMessagesResolver: (diagnostics: CompilerDiagnosticsWithFile) => void
 
     compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
       tsMessagesPromise = undefined
@@ -259,10 +264,16 @@ export function watchCompilers(
 
             const errors = allMsgs
               .filter(msg => msg.severity === 'error')
-              .map(format)
+              .map(d => ({
+                file: d.file,
+                message: format(d),
+              }))
             const warnings = allMsgs
               .filter(msg => msg.severity === 'warning')
-              .map(format)
+              .map(d => ({
+                file: d.file,
+                message: format(d),
+              }))
 
             tsMessagesResolver({
               errors: errors.length ? errors : null,
@@ -298,8 +309,29 @@ export function watchCompilers(
             return
           }
 
-          stats.compilation.errors.push(...(typeMessages.errors || []))
-          stats.compilation.warnings.push(...(typeMessages.warnings || []))
+          const reportFiles = stats.compilation.modules
+            .map((m: any) => m.resource)
+            .filter(Boolean)
+
+          let filteredErrors = typeMessages.errors
+            ? typeMessages.errors
+                .filter(({ file }) => file && reportFiles.includes(file))
+                .map(({ message }) => message)
+            : null
+          if (filteredErrors && filteredErrors.length < 1) {
+            filteredErrors = null
+          }
+          let filteredWarnings = typeMessages.warnings
+            ? typeMessages.warnings
+                .filter(({ file }) => file && reportFiles.includes(file))
+                .map(({ message }) => message)
+            : null
+          if (filteredWarnings && filteredWarnings.length < 1) {
+            filteredWarnings = null
+          }
+
+          stats.compilation.errors.push(...(filteredErrors || []))
+          stats.compilation.warnings.push(...(filteredWarnings || []))
           onTypeChecked({
             errors: stats.compilation.errors.length
               ? stats.compilation.errors
@@ -312,10 +344,10 @@ export function watchCompilers(
           onEvent({
             loading: false,
             typeChecking: false,
-            errors: typeMessages.errors,
+            errors: filteredErrors,
             warnings: hasWarnings
-              ? [...warnings, ...(typeMessages.warnings || [])]
-              : typeMessages.warnings,
+              ? [...warnings, ...(filteredWarnings || [])]
+              : filteredWarnings,
           })
         })
       }
