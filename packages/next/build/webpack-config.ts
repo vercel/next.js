@@ -461,8 +461,6 @@ export default async function getBaseWebpackConfig(
             options: {
               filterAssetBase: dir,
               production: !dev,
-              writeMode: true,
-              relativeToSource: true,
             },
           },
         },

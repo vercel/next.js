@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { existsSync, readFileSync, unlinkSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import {
   killApp,
   findPort,
@@ -322,20 +322,20 @@ function runTests (serverless = false) {
     dirname.restore()
   })
 
-  it('should save file with __dirname', async () => {
-    const target = `server${serverless ? 'less' : ''}`
-    const data = await fetchViaHTTP(
-      appPort,
-      `/api/save?target=${target}`,
-      null,
-      {}
-    ).then(res => res.ok && res.text())
-    const filePath = join(appDir, `pages/api/${target}.js`)
-    const file = readFileSync(filePath, 'utf8')
-    expect(data).toBe(target)
-    expect(file).toBe(target)
-    unlinkSync(filePath)
-  })
+  // it('should save file with __dirname', async () => {
+  //   const target = `server${serverless ? 'less' : ''}`
+  //   const data = await fetchViaHTTP(
+  //     appPort,
+  //     `/api/save?target=${target}`,
+  //     null,
+  //     {}
+  //   ).then(res => res.ok && res.text())
+  //   const filePath = join(appDir, `pages/api/${target}.js`)
+  //   const file = readFileSync(filePath, 'utf8')
+  //   expect(data).toBe(target)
+  //   expect(file).toBe(target)
+  //   unlinkSync(filePath)
+  // })
 
   it('should build api routes', async () => {
     await nextBuild(appDir, [], { stdout: true })
