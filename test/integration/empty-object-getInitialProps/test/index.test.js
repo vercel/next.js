@@ -40,7 +40,7 @@ describe('Empty Project', () => {
 
   it('It should not show empty object warning for page without `getInitialProps`', async () => {
     output = ''
-    await renderViaHTTP(appPort, '/static')
+    await renderViaHTTP(appPort, '/static-page')
     await waitFor(100)
     expect(output).not.toMatch(
       /returned an empty object from `getInitialProps`/
@@ -48,7 +48,7 @@ describe('Empty Project', () => {
   })
 
   it('should show empty object warning during client transition', async () => {
-    const browser = await webdriver(appPort, '/static')
+    const browser = await webdriver(appPort, '/static-page')
     await browser.eval(`(function() {
       window.gotWarn = false
       const origWarn = console.warn
