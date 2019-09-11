@@ -1,17 +1,11 @@
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import {
-  CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-  REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY,
-  SERVERLESS_DIRECTORY,
-} from '../next-server/lib/constants'
-import { resolveRequest } from '../lib/resolve-request'
-import path from 'path'
 import crypto from 'crypto'
-import webpack from 'webpack'
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import MiniCssExtractPlugin from 'mini-css-extract-plugin'
+import OptimizeCssAssetsPlugin from 'optimize-css-assets-webpack-plugin'
+import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
+import webpack from 'webpack'
 
 import {
   DOT_NEXT_ALIAS,
@@ -20,6 +14,14 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { resolveRequest } from '../lib/resolve-request'
+import {
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  REACT_LOADABLE_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+} from '../next-server/lib/constants'
 import { WebpackEntrypoints } from './entries'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
@@ -30,11 +32,12 @@ import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
+// @ts-ignore: JS file
+import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-// @ts-ignore: JS file
-import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
+import { findPageFile } from '../server/lib/find-page-file'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -291,6 +294,12 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
+  const customAppFile = await findPageFile(
+    path.join(dir, 'pages'),
+    '/_app',
+    config.pageExtensions
+  )
+
   let webpackConfig: webpack.Configuration = {
     devtool,
     mode: webpackMode,
@@ -377,10 +386,25 @@ export default async function getBaseWebpackConfig(
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
+        // Minify JavaScript
         new TerserPlugin({
           ...terserPluginConfig,
           terserOptions,
         }),
+        // Minify CSS
+        config.experimental.css &&
+          new OptimizeCssAssetsPlugin({
+            cssProcessorOptions: {
+              map: {
+                // `inline: false` generates the source map in a separate file.
+                // Otherwise, the CSS file is needlessly large.
+                inline: false,
+                // `annotation: true` appends the `sourceMappingURL` to the end
+                // of the CSS file for DevTools to find them.
+                annotation: true,
+              },
+            },
+          }),
       ],
     },
     recordsPath: path.join(outputPath, 'records.json'),
@@ -476,6 +500,65 @@ export default async function getBaseWebpackConfig(
           },
           use: defaultLoaders.babel,
         },
+        config.experimental.css &&
+          // Support CSS imports
+          ({
+            oneOf: [
+              {
+                test: /\.css$/,
+                issuer: { include: [customAppFile] },
+                use: isServer
+                  ? // Global CSS is ignored on the server because it's only needed
+                    // on the client-side.
+                    require.resolve('null-loader')
+                  : [
+                      // During development we load CSS via JavaScript so we can
+                      // hot reload it without refreshing the page.
+                      dev && require.resolve('style-loader'),
+                      // When building for production we extract CSS into
+                      // separate files.
+                      !dev && {
+                        loader: MiniCssExtractPlugin.loader,
+                        options: {},
+                      },
+
+                      // Resolve CSS `@import`s and `url()`s
+                      {
+                        loader: require.resolve('css-loader'),
+                        options: { importLoaders: 1, sourceMap: !dev },
+                      },
+
+                      // Compile CSS
+                      {
+                        loader: require.resolve('postcss-loader'),
+                        options: {
+                          ident: 'postcss',
+                          plugins: () => [
+                            // Make Flexbox behave like the spec cross-browser.
+                            require('postcss-flexbugs-fixes'),
+                            // Run Autoprefixer and compile new CSS features.
+                            require('postcss-preset-env')({
+                              autoprefixer: {
+                                // Disable legacy flexbox support
+                                flexbox: 'no-2009',
+                              },
+                              // Enable CSS features that have shipped to the
+                              // web platform, i.e. in 2+ browsers unflagged.
+                              stage: 3,
+                            }),
+                          ],
+                          sourceMap: !dev,
+                        },
+                      },
+                    ].filter(Boolean),
+                // A global CSS import always has side effects. Webpack will tree
+                // shake the CSS without this option if the issuer claims to have
+                // no side-effects.
+                // See https://github.com/webpack/webpack/issues/6571
+                sideEffects: true,
+              },
+            ],
+          } as webpack.RuleSetRule),
       ].filter(Boolean),
     },
     plugins: [
@@ -600,6 +683,14 @@ export default async function getBaseWebpackConfig(
           buildId,
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
+        }),
+      // Extract CSS as CSS file(s) in the client-side production bundle.
+      config.experimental.css &&
+        !isServer &&
+        !dev &&
+        new MiniCssExtractPlugin({
+          filename: 'static/css/[name].[contenthash:8].css',
+          chunkFilename: 'static/css/[name].[contenthash:8].chunk.css',
         }),
       tracer &&
         new ProfilingPlugin({
