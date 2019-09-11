@@ -506,61 +506,57 @@ export default async function getBaseWebpackConfig(
         config.experimental.css &&
           // Support CSS imports
           ({
-            oneOf: [
-              {
-                test: /\.css$/,
-                issuer: { include: [customAppFile].filter(Boolean) },
-                use: isServer
-                  ? // Global CSS is ignored on the server because it's only needed
-                    // on the client-side.
-                    require.resolve('null-loader')
-                  : [
-                      // During development we load CSS via JavaScript so we can
-                      // hot reload it without refreshing the page.
-                      dev && require.resolve('style-loader'),
-                      // When building for production we extract CSS into
-                      // separate files.
-                      !dev && {
-                        loader: MiniCssExtractPlugin.loader,
-                        options: {},
-                      },
+            test: /\.css$/,
+            issuer: { include: [customAppFile].filter(Boolean) },
+            use: isServer
+              ? // Global CSS is ignored on the server because it's only needed
+                // on the client-side.
+                require.resolve('null-loader')
+              : [
+                  // During development we load CSS via JavaScript so we can
+                  // hot reload it without refreshing the page.
+                  dev && require.resolve('style-loader'),
+                  // When building for production we extract CSS into
+                  // separate files.
+                  !dev && {
+                    loader: MiniCssExtractPlugin.loader,
+                    options: {},
+                  },
 
-                      // Resolve CSS `@import`s and `url()`s
-                      {
-                        loader: require.resolve('css-loader'),
-                        options: { importLoaders: 1, sourceMap: !dev },
-                      },
+                  // Resolve CSS `@import`s and `url()`s
+                  {
+                    loader: require.resolve('css-loader'),
+                    options: { importLoaders: 1, sourceMap: !dev },
+                  },
 
-                      // Compile CSS
-                      {
-                        loader: require.resolve('postcss-loader'),
-                        options: {
-                          ident: 'postcss',
-                          plugins: () => [
-                            // Make Flexbox behave like the spec cross-browser.
-                            require('postcss-flexbugs-fixes'),
-                            // Run Autoprefixer and compile new CSS features.
-                            require('postcss-preset-env')({
-                              autoprefixer: {
-                                // Disable legacy flexbox support
-                                flexbox: 'no-2009',
-                              },
-                              // Enable CSS features that have shipped to the
-                              // web platform, i.e. in 2+ browsers unflagged.
-                              stage: 3,
-                            }),
-                          ],
-                          sourceMap: !dev,
-                        },
-                      },
-                    ].filter(Boolean),
-                // A global CSS import always has side effects. Webpack will tree
-                // shake the CSS without this option if the issuer claims to have
-                // no side-effects.
-                // See https://github.com/webpack/webpack/issues/6571
-                sideEffects: true,
-              },
-            ],
+                  // Compile CSS
+                  {
+                    loader: require.resolve('postcss-loader'),
+                    options: {
+                      ident: 'postcss',
+                      plugins: () => [
+                        // Make Flexbox behave like the spec cross-browser.
+                        require('postcss-flexbugs-fixes'),
+                        // Run Autoprefixer and compile new CSS features.
+                        require('postcss-preset-env')({
+                          autoprefixer: {
+                            // Disable legacy flexbox support
+                            flexbox: 'no-2009',
+                          },
+                          // Enable CSS features that have shipped to the
+                          // web platform, i.e. in 2+ browsers unflagged.
+                          stage: 3,
+                        }),
+                      ],
+                      sourceMap: !dev,
+                    },
+                  },
+                ].filter(Boolean),
+            // A global CSS import always has side effects. Webpack will tree
+            // shake the CSS without this option if the issuer claims to have
+            // no side-effects.
+            // See https://github.com/webpack/webpack/issues/6571
+            sideEffects: true,
           } as webpack.RuleSetRule),
       ].filter(Boolean),
     },
