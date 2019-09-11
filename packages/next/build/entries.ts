@@ -27,17 +27,13 @@ export function createPagesMapping(
       const pageKey = page === '' ? '/' : page
 
       if (pageKey in result) {
-        const errorMessage =
-          `Duplicate page detected. The following files both resolve to ${chalk.cyan(
-            pageKey
-          )}:\n` +
-          `- ${chalk.cyan(join('pages', previousPages[pageKey]))}\n` +
-          `- ${chalk.cyan(join('pages', pagePath))}\n`
-        if (errorOnDuplicates) {
-          throw new Error(errorMessage)
-        } else {
-          warn(errorMessage)
-        }
+        warn(
+          `Duplicate page detected. ${chalk.cyan(
+            join('pages', previousPages[pageKey])
+          )} and ${chalk.cyan(
+            join('pages', pagePath)
+          )} both resolve to  ${chalk.cyan(pageKey)}.`
+        )
       } else {
         previousPages[pageKey] = pagePath
       }
