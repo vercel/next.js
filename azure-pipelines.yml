@@ -4,9 +4,17 @@ pool:
 strategy:
   maxParallel: 10
   matrix:
-    node-10:
+    node-10-1:
+      group: 1/2
       node_version: ^10.10.0
-    node-8:
+    node-10-2:
+      group: 2/2
+      node_version: ^10.10.0
+    node-8-1:
+      group: 1/2
+      node_version: ^8.12.0
+    node-8-2:
+      group: 2/2
       node_version: ^8.12.0
 
 steps:
@@ -20,5 +28,9 @@ steps:
     displayName: 'Install dependencies'
 
   - script: |
-      yarn test
+      yarn check
+    displayName: 'Yarn check'
+
+  - script: |
+      node run-tests.js -c 2 -g $(group)
     displayName: 'Run tests'

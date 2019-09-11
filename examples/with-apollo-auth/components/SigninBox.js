@@ -19,6 +19,8 @@ const SigninBox = () => {
   const onCompleted = data => {
     // Store the token in cookie
     document.cookie = cookie.serialize('token', data.signinUser.token, {
+      sameSite: true,
+      path: '/',
       maxAge: 30 * 24 * 60 * 60 // 30 days
     })
     // Force a reload of all the current queries now that the user is
@@ -45,7 +47,6 @@ const SigninBox = () => {
     <form
       onSubmit={e => {
         e.preventDefault()
-        e.stopPropagation()
 
         signinUser({
           variables: {

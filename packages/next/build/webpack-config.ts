@@ -6,10 +6,12 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../next-server/lib/constants'
-import resolve from 'next/dist/compiled/resolve/index.js'
+import { resolveRequest } from '../lib/resolve-request'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
+// @ts-ignore: Currently missing types
+import PnpWebpackPlugin from 'pnp-webpack-plugin'
 
 import {
   DOT_NEXT_ALIAS,
@@ -111,7 +113,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath
   try {
-    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+    typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -153,6 +155,7 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    plugins: [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -311,45 +314,40 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            resolve(
-              request,
-              { basedir: dir, preserveSymlinks: true },
-              (err, res) => {
-                if (err) {
-                  return callback()
-                }
+            let res
+            try {
+              res = resolveRequest(request, context)
+            } catch (err) {
+              return callback()
+            }
 
-                if (!res) {
-                  return callback()
-                }
+            if (!res) {
+              return callback()
+            }
 
-                // Default pages have to be transpiled
-                if (
-                  !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-                  (res.match(/next[/\\]dist[/\\]/) ||
-                    res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                    res.match(
-                      /node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/
-                    ))
-                ) {
-                  return callback()
-                }
+            // Default pages have to be transpiled
+            if (
+              !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+              (res.match(/next[/\\]dist[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+            ) {
+              return callback()
+            }
 
-                // Webpack itself has to be compiled because it doesn't always use module relative paths
-                if (
-                  res.match(/node_modules[/\\]webpack/) ||
-                  res.match(/node_modules[/\\]css-loader/)
-                ) {
-                  return callback()
-                }
+            // Webpack itself has to be compiled because it doesn't always use module relative paths
+            if (
+              res.match(/node_modules[/\\]webpack/) ||
+              res.match(/node_modules[/\\]css-loader/)
+            ) {
+              return callback()
+            }
 
-                if (res.match(/node_modules[/\\].*\.js$/)) {
-                  return callback(undefined, `commonjs ${request}`)
-                }
+            if (res.match(/node_modules[/\\].*\.js$/)) {
+              return callback(undefined, `commonjs ${request}`)
+            }
 
-                callback()
-              }
-            )
+            callback()
           },
         ]
       : [
@@ -443,6 +441,7 @@ export default async function getBaseWebpackConfig(
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
+      plugins: [PnpWebpackPlugin],
     },
     // @ts-ignore this is filtered
     module: {
