@@ -17,8 +17,8 @@ const appDir = path.join(__dirname, '..')
 describe('Handles Duplicate Pages', () => {
   describe('production', () => {
     it('Throws an error during build', async () => {
-      const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      expect(stderr).toContain('Duplicate page detected')
+      const { stdout } = await nextBuild(appDir, [], { stdout: true })
+      expect(stdout).toContain('Duplicate page detected')
     })
   })
 
