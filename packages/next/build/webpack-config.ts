@@ -688,8 +688,8 @@ export default async function getBaseWebpackConfig(
         !isServer &&
         !dev &&
         new MiniCssExtractPlugin({
-          filename: 'static/css/[name].[contenthash:8].css',
-          chunkFilename: 'static/css/[name].[contenthash:8].chunk.css',
+          filename: 'static/css/[contenthash].css',
+          chunkFilename: 'static/css/[contenthash].chunk.css',
         }),
       tracer &&
         new ProfilingPlugin({
