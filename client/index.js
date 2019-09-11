@@ -1,4 +1,4 @@
-/* global __NEXT_DATA__, location */
+/* global __NEXT_DATA__ */
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import mitt from 'mitt'
@@ -38,14 +38,13 @@ export default () => {
         err
       }, render)
 
-      const hash = location.hash.substring(1)
-      render({ Component, props, hash, err })
+      render({ Component, props, err })
 
       return emitter
     })
 }
 
-export function render ({ Component, props, hash, err }) {
+export function render ({ Component, props, err }) {
   // There are some errors we should ignore.
   // Next.js rendering logic knows how to handle them.
   // These are specially 404 errors
@@ -69,7 +68,7 @@ export function render ({ Component, props, hash, err }) {
       Component = Component || lastAppProps.Component
       props = props || lastAppProps.props
 
-      const appProps = { Component, props, hash, err, router, url: router.url }
+      const appProps = { Component, props, err, router }
       // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
       lastAppProps = appProps
 

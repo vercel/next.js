@@ -96,22 +96,12 @@ function change (method, _url, _as, options) {
   events.emit('routeChangeStart', as)
 
   const routeInfo = components[route]
-  const { error } = routeInfo
-
-  if (error && error.cancelled) {
-    return Promise.resolve(false)
-  }
 
   changeState(method, url, as, options)
-  const hash = window.location.hash.substring(1)
 
   SingletonRouter.route = route
   SingletonRouter.url = { pathname, query, asPath: as }
-  subscriber({ ...routeInfo, hash })
-
-  if (error) {
-    return Promise.reject(error)
-  }
+  subscriber(routeInfo)
 
   events.emit('routeChangeComplete', as)
   return Promise.resolve(true)
