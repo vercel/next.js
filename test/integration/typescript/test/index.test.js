@@ -2,6 +2,7 @@
 /* global jasmine */
 import { join } from 'path'
 import cheerio from 'cheerio'
+import { writeFile, remove } from 'fs-extra'
 import {
   renderViaHTTP,
   nextBuild,
@@ -33,6 +34,28 @@ describe('TypeScript Features', () => {
     it('should render the page', async () => {
       const $ = await get$('/hello')
       expect($('body').text()).toMatch(/Hello World/)
+    })
+
+    it('should not fail to render when an inactive page has an error', async () => {
+      await killApp(app)
+      let evilFile = join(appDir, 'pages', 'evil.tsx')
+      try {
+        await writeFile(
+          evilFile,
+          `import React from 'react'
+
+export default function EvilPage(): JSX.Element {
+  return <div notARealProp />
+}
+`
+        )
+        app = await launchApp(appDir, appPort)
+
+        const $ = await get$('/hello')
+        expect($('body').text()).toMatch(/Hello World/)
+      } finally {
+        await remove(evilFile)
+      }
     })
   })
 
