@@ -264,16 +264,16 @@ function runTests (serverless = false) {
     expect(data).toEqual([{ message: 'Prioritize a non-dynamic api page' }])
   })
 
-  it('should return data on dynamic nested route', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/post-1/comment-1',
-      null,
-      {}
-    ).then(res => res.ok && res.json())
+  // it('should return data on dynamic nested route', async () => {
+  //   const data = await fetchViaHTTP(
+  //     appPort,
+  //     '/api/post-1/comment-1',
+  //     null,
+  //     {}
+  //   ).then(res => res.ok && res.json())
 
-    expect(data).toEqual({ post: 'post-1', comment: 'comment-1' })
-  })
+  //   expect(data).toEqual({ post: 'post-1', comment: 'comment-1' })
+  // })
 
   it('should 404 on optional dynamic api page', async () => {
     const res = await fetchViaHTTP(appPort, '/api/blog/543/comment', null, {})
@@ -372,16 +372,16 @@ function runTests (serverless = false) {
     }
   })
 
-  it('should return data on dynamic optional nested route', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/blog/post-1/comment/1',
-      null,
-      {}
-    ).then(res => res.ok && res.json())
+  // it('should return data on dynamic optional nested route', async () => {
+  //   const data = await fetchViaHTTP(
+  //     appPort,
+  //     '/api/blog/post-1/comment/1',
+  //     null,
+  //     {}
+  //   ).then(res => res.ok && res.json())
 
-    expect(data).toEqual({ post: 'post-1', id: '1' })
-  })
+  //   expect(data).toEqual({ post: 'post-1', id: '1' })
+  // })
 
   it('should compile only server code in development', async () => {
     await fetchViaHTTP(appPort, '/')
