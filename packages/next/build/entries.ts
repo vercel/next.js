@@ -31,7 +31,7 @@ export function createPagesMapping(
             join('pages', previousPages[pageKey])
           )} and ${chalk.cyan(
             join('pages', pagePath)
-          )} both resolve to  ${chalk.cyan(pageKey)}.`
+          )} both resolve to ${chalk.cyan(pageKey)}.`
         )
       } else {
         previousPages[pageKey] = pagePath
