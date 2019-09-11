@@ -19,7 +19,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   PAGES_MANIFEST
-} from 'next-server/constants'
+} from 'next/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
@@ -78,6 +78,11 @@ describe('Production Usage', () => {
       expect($html('html').text()).toMatch(/404/)
       expect(text).toMatch(/"statusCode":404/)
       expect(res.status).toBe(404)
+    })
+
+    it('should render 404 for /_next/static route', async () => {
+      const html = await renderViaHTTP(appPort, '/_next/static')
+      expect(html).toMatch(/This page could not be found/)
     })
 
     it('should render 200 for POST on page', async () => {
@@ -232,6 +237,14 @@ describe('Production Usage', () => {
       const res = await fetch(url)
       const body = await res.text()
       expect(body).toEqual('API hello works')
+    })
+
+    it('should work with dynamic params and search string', async () => {
+      const url = `http://localhost:${appPort}/api/post-1?val=1`
+      const res = await fetch(url)
+      const body = await res.json()
+
+      expect(body).toEqual({ val: '1', post: 'post-1' })
     })
   })
 
@@ -567,6 +580,68 @@ describe('Production Usage', () => {
         }
       })
       expect(found).toBe(false)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not emit profiling events', async () => {
+    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
+  })
+
+  it('should contain the Next.js version in window export', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const version = await browser.eval('window.next.version')
+      expect(version).toBeTruthy()
+      expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should clear all core performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+      const allPerfMarks = [
+        'beforeRender',
+        'afterHydrate',
+        'afterRender',
+        'routeChange'
+      ]
+
+      allPerfMarks.forEach(name =>
+        expect(currentPerfMarks).not.toContainEqual(
+          expect.objectContaining({ name })
+        )
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not clear custom performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/mark-in-head')
+
+      const customMarkFound = await browser.eval(
+        `window.performance.getEntriesByType('mark').filter(function(e) {
+          return e.name === 'custom-mark'
+        }).length === 1`
+      )
+      expect(customMarkFound).toBe(true)
     } finally {
       if (browser) {
         await browser.close()

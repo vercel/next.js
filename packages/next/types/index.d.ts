@@ -9,11 +9,11 @@ import {
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
-} from 'next-server/dist/lib/utils'
+  // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/next-server/lib/utils'
 
-import { PageConfig } from 'next-server/types'
-
-import next from 'next/dist/server/next'
+// @ts-ignore This path is generated at build time and conflicts otherwise
+import next from '../dist/server/next'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -49,12 +49,21 @@ export type NextPage<P = {}, IP = P> = {
   getInitialProps?(ctx: NextPageContext): Promise<IP>
 }
 
-export {
-  NextPageContext,
-  NextComponentType,
-  NextApiResponse,
-  NextApiRequest,
-  PageConfig,
+/**
+ * `Config` type, use it for export const config
+ */
+export type PageConfig = {
+  amp?: boolean | 'hybrid'
+  api?: {
+    /**
+     * The byte limit of the body. This is the number of bytes or any string
+     * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
+     */
+    bodyParser?: { sizeLimit?: number | string } | false
+  }
+  experimentalPrerender?: boolean
 }
+
+export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
 
 export default next

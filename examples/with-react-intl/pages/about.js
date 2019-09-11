@@ -1,24 +1,19 @@
-import React, { Component } from 'react'
-import { FormattedRelative } from 'react-intl'
+import { FormattedRelativeTime } from 'react-intl'
+import { selectUnit } from '@formatjs/intl-utils'
 import Layout from '../components/Layout'
 
-class About extends Component {
-  static async getInitialProps ({ req }) {
-    return { someDate: Date.now() }
-  }
-
-  render () {
-    return (
-      <Layout>
-        <p>
-          <FormattedRelative
-            value={this.props.someDate}
-            updateInterval={1000}
-          />
-        </p>
-      </Layout>
-    )
-  }
+export default () => {
+  const { value, unit } = selectUnit(Date.now())
+  return (
+    <Layout>
+      <p>
+        <FormattedRelativeTime
+          numeric='auto'
+          value={value}
+          unit={unit}
+          updateIntervalInSeconds={1}
+        />
+      </p>
+    </Layout>
+  )
 }
-
-export default About

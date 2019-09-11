@@ -1,3 +1,3 @@
-export default (req, res) => {
-  res.json({ post: req.query.id })
+export default ({ query }, res) => {
+  res.json(query)
 }

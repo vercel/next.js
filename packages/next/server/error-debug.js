@@ -1,5 +1,5 @@
 import React from 'react'
-import Head from 'next-server/head'
+import Head from '../next-server/lib/head'
 
 // This component is only rendered on the server side.
 export default function ErrorDebug ({ error, info }) {

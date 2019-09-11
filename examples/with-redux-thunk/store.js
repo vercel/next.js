@@ -51,16 +51,16 @@ export const startClock = dispatch => {
   }, 1000)
 }
 
-export const incrementCount = () => dispatch => {
-  return dispatch({ type: actionTypes.INCREMENT })
+export const incrementCount = () => {
+  return { type: actionTypes.INCREMENT }
 }
 
-export const decrementCount = () => dispatch => {
-  return dispatch({ type: actionTypes.DECREMENT })
+export const decrementCount = () => {
+  return { type: actionTypes.DECREMENT }
 }
 
-export const resetCount = () => dispatch => {
-  return dispatch({ type: actionTypes.RESET })
+export const resetCount = () => {
+  return { type: actionTypes.RESET }
 }
 
 export function initializeStore (initialState = exampleInitialState) {

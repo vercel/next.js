@@ -2,14 +2,13 @@
 
 <p align="center">
   <a aria-label="ZEIT logo" href="https://github.com/zeit">
-    <img src="https://img.shields.io/badge/ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+    <img src="https://img.shields.io/badge/MADE%20BY%20ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
   </a>
   <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
     <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
-    <img alt="" src=
-  "https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+    <img alt="" src="https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
     <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
@@ -18,7 +17,7 @@
 
 <p align="center">
   <strong>
-    Visit  <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+    Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
   </strong>
 </p>
 
@@ -69,6 +68,7 @@
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
+    - [Changing x-powered-by](#changing-x-powered-by)
   - [Dynamic Import](#dynamic-import)
     - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
     - [With named exports](#with-named-exports)
@@ -276,13 +276,6 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="/examples/public-file-serving">Public file serving</a></li>
-  </ul>
-</details>
-
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
@@ -297,7 +290,7 @@ export default MyImage
 To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
 -->
 
-_Note: Don't name the `static` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets._
+_Note: Don't name the `static` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
 ### Dynamic Routing
 
@@ -333,7 +326,7 @@ Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: '
 
 > Note: Multiple dynamic route segments work the same way.
 >
-> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`. 
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`.
 > Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
 
 A `<Link>` for `/post/abc` looks like so:
@@ -454,9 +447,9 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-When you need state, lifecycle hooks or **initial data population** you can export a [React.Component](https://reactjs.org/docs/react-component.html) or use a stateless function and [Hooks](https://reactjs.org/docs/hooks-intro.html).
+When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or a [class component](https://reactjs.org/docs/react-component.html).
 
-Using a stateless function:
+Using a function component:
 
 ```jsx
 import fetch from 'isomorphic-unfetch'
@@ -474,7 +467,7 @@ Page.getInitialProps = async ({ req }) => {
 export default Page
 ```
 
-Using `React.Component`:
+Using a class component:
 
 ```jsx
 import React from 'react'
@@ -584,6 +577,29 @@ export default About
 ```
 
 Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
+
+**Example with `React.forwardRef`**
+
+```jsx
+import React from 'react'
+import Link from 'next/link'
+
+// `onClick`, `href`, and `ref` need to be passed to the DOM element
+// for proper handling
+const MyButton = React.forwardRef(({ onClick, href }, ref) => (
+  <a href={href} onClick={onClick} ref={ref}>
+    Click Me
+  </a>
+))
+
+export default () => (
+  <>
+    <Link href='/another'>
+      <MyButton />
+    </Link>
+  </>
+)
+```
 
 **Custom routes (using props from URL)**
 
@@ -777,7 +793,7 @@ import Router from 'next/router'
 
 Router.beforePopState(({ url, as, options }) => {
   // I only want to allow these two routes!
-  if (as !== '/' || as !== '/other') {
+  if (as !== '/' && as !== '/other') {
     // Have SSR render bad routes as a 404.
     window.location.href = as
     return false
@@ -939,7 +955,7 @@ componentDidUpdate(prevProps) {
   </ul>
 </details>
 
-If you want to access the `router` object inside any component in your app, you can use the `useRouter` hook, here's how to use it:
+If you want to access the `router` object inside any functional component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -963,6 +979,9 @@ export default function ActiveLink({ children, href }) {
   )
 }
 ```
+
+> **Note**: `useRouter` is a React hook, meaning it cannot be used with classes.
+> You can either use [`withRouter`](#using-a-higher-order-component) (a higher order component) or wrap your class in a functional component.
 
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
 
@@ -1056,8 +1075,6 @@ export default function MyLink() {
     </a>
   )
 }
-
-export default withRouter(MyLink)
 ```
 
 You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
@@ -1119,7 +1136,7 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
-For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+For [API routes](#api-routes) there are built-in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
 
 ```ts
 import { NextApiRequest, NextApiResponse } from 'next'
@@ -2158,12 +2175,12 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 ### Compression
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
-To disable **compression** in Next.js, set `compression` to `false` in `next.config.js`:
+To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
 
 ```js
 // next.config.js
 module.exports = {
-  compression: false,
+  compress: false,
 }
 ```
 
@@ -2627,9 +2644,8 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
     { "src": "home/next.config.js", "use": "@now/next" }
   ],
   "routes": [
-    { "src": "/docs/_next(.*)", "dest": "docs/_next$1" },
-    { "src": "/docs(.*)", "dest": "docs/docs$1" },
-    { "src": "(.*)", "dest": "home$1" }
+    { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
+    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
   ]
 }
 ```
@@ -2717,9 +2733,9 @@ As a result, we were able to introduce a very simple approach to routing that co
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
+Next.js provide [dynamic routing](#dynamic-routing) solution out of the box. This allows to use pretty links in url.
 
-On the client side, we have a parameter call `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
+You can check an [example](https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing) to see how it works.
 
 </details>
 

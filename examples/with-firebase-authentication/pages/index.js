@@ -63,10 +63,6 @@ export default class Index extends Component {
 
   addDbListener () {
     var db = firebase.firestore()
-    // Disable deprecated features
-    db.settings({
-      timestampsInSnapshots: true
-    })
     let unsubscribe = db.collection('messages').onSnapshot(
       querySnapshot => {
         var messages = {}
@@ -96,10 +92,6 @@ export default class Index extends Component {
   handleSubmit (event) {
     event.preventDefault()
     var db = firebase.firestore()
-    // Disable deprecated features
-    db.settings({
-      timestampsInSnapshots: true
-    })
     const date = new Date().getTime()
     db.collection('messages')
       .doc(`${date}`)

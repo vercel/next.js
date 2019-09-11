@@ -1,7 +1,7 @@
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
-import { PageConfig } from 'next-server/types'
+import { PageConfig } from '../../../types'
 
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
 export const sprStatus = { used: false }

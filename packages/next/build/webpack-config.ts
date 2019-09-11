@@ -5,11 +5,13 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-} from 'next-server/constants'
-import resolve from 'next/dist/compiled/resolve/index.js'
+} from '../next-server/lib/constants'
+import { resolveRequest } from '../lib/resolve-request'
 import path from 'path'
 import crypto from 'crypto'
 import webpack from 'webpack'
+// @ts-ignore: Currently missing types
+import PnpWebpackPlugin from 'pnp-webpack-plugin'
 
 import {
   DOT_NEXT_ALIAS,
@@ -19,12 +21,10 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { WebpackEntrypoints } from './entries'
-import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
-import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -32,8 +32,9 @@ import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cach
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+// @ts-ignore: JS file
+import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -52,15 +53,15 @@ export default async function getBaseWebpackConfig(
     config,
     target = 'server',
     entrypoints,
-    selectivePageBuilding = false,
+    tracer,
   }: {
+    tracer?: any
     dev?: boolean
     isServer?: boolean
     buildId: string
     config: any
     target?: string
     entrypoints: WebpackEntrypoints
-    selectivePageBuilding?: boolean
   }
 ): Promise<webpack.Configuration> {
   const distDir = path.join(dir, config.distDir)
@@ -72,7 +73,7 @@ export default async function getBaseWebpackConfig(
         hasModern: !!config.experimental.modern,
         distDir,
         cwd: dir,
-        cache: !selectivePageBuilding,
+        cache: true,
       },
     },
     // Backwards compat
@@ -112,7 +113,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath
   try {
-    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+    typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -145,15 +146,16 @@ export default async function getBaseWebpackConfig(
     alias: {
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
-      'next/head': 'next-server/dist/lib/head.js',
+      'next/head': 'next/dist/next-server/lib/head.js',
       'next/router': 'next/dist/client/router.js',
-      'next/config': 'next-server/dist/lib/runtime-config.js',
-      'next/dynamic': 'next-server/dist/lib/dynamic.js',
+      'next/config': 'next/dist/next-server/lib/runtime-config.js',
+      'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    plugins: [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -161,7 +163,7 @@ export default async function getBaseWebpackConfig(
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: !selectivePageBuilding,
+    cache: true,
     cpus: config.experimental.cpus,
     distDir: distDir,
   }
@@ -198,17 +200,6 @@ export default async function getBaseWebpackConfig(
         vendors: false,
       },
     },
-    selective: {
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        react: {
-          name: 'commons',
-          chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
-        },
-      },
-    },
     prod: {
       chunks: 'all',
       cacheGroups: {
@@ -232,6 +223,9 @@ export default async function getBaseWebpackConfig(
         default: false,
         vendors: false,
         framework: {
+          // Framework chunk applies to modules in dynamic chunks, unlike shared chunks
+          // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
+          chunks: 'all',
           name: 'framework',
           test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
@@ -243,21 +237,12 @@ export default async function getBaseWebpackConfig(
               /node_modules[/\\]/.test(module.identifier())
             )
           },
-          name(module: { identifier: Function; rawRequest: string }): string {
-            const rawRequest =
-              module.rawRequest &&
-              module.rawRequest.replace(/^@(\w+)[/\\]/, '$1-')
-            if (rawRequest) return rawRequest
-
-            const identifier = module.identifier()
-            const trimmedIdentifier = /(?:^|[/\\])node_modules[/\\](.*)/.exec(
-              identifier
-            )
-            const processedIdentifier =
-              trimmedIdentifier &&
-              trimmedIdentifier[1].replace(/^@(\w+)[/\\]/, '$1-')
-
-            return processedIdentifier || identifier
+          name(module: { libIdent: Function }): string {
+            return crypto
+              .createHash('sha1')
+              .update(module.libIdent({ context: dir }))
+              .digest('hex')
+              .substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
@@ -280,8 +265,7 @@ export default async function getBaseWebpackConfig(
                   ''
                 )
               )
-              .digest('base64')
-              .replace(/\//g, '')
+              .digest('hex')
           },
           priority: 10,
           minChunks: 2,
@@ -296,8 +280,6 @@ export default async function getBaseWebpackConfig(
   let splitChunksConfig: webpack.Options.SplitChunksOptions
   if (dev) {
     splitChunksConfig = splitChunksConfigs.dev
-  } else if (selectivePageBuilding) {
-    splitChunksConfig = splitChunksConfigs.selective
   } else {
     splitChunksConfig = config.experimental.granularChunks
       ? splitChunksConfigs.prodGranular
@@ -332,42 +314,40 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            resolve(
-              request,
-              { basedir: dir, preserveSymlinks: true },
-              (err, res) => {
-                if (err) {
-                  return callback()
-                }
+            let res
+            try {
+              res = resolveRequest(request, context)
+            } catch (err) {
+              return callback()
+            }
 
-                if (!res) {
-                  return callback()
-                }
+            if (!res) {
+              return callback()
+            }
 
-                // Default pages have to be transpiled
-                if (
-                  res.match(/next[/\\]dist[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)
-                ) {
-                  return callback()
-                }
+            // Default pages have to be transpiled
+            if (
+              !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+              (res.match(/next[/\\]dist[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+            ) {
+              return callback()
+            }
 
-                // Webpack itself has to be compiled because it doesn't always use module relative paths
-                if (
-                  res.match(/node_modules[/\\]webpack/) ||
-                  res.match(/node_modules[/\\]css-loader/)
-                ) {
-                  return callback()
-                }
+            // Webpack itself has to be compiled because it doesn't always use module relative paths
+            if (
+              res.match(/node_modules[/\\]webpack/) ||
+              res.match(/node_modules[/\\]css-loader/)
+            ) {
+              return callback()
+            }
 
-                if (res.match(/node_modules[/\\].*\.js$/)) {
-                  return callback(undefined, `commonjs ${request}`)
-                }
+            if (res.match(/node_modules[/\\].*\.js$/)) {
+              return callback(undefined, `commonjs ${request}`)
+            }
 
-                callback()
-              }
-            )
+            callback()
           },
         ]
       : [
@@ -381,60 +361,29 @@ export default async function getBaseWebpackConfig(
             ) {
               // if it's the Next.js' require mark it as external
               // since it's not used
-              if (
-                context.replace(/\\/g, '/').includes('next-server/dist/server')
-              ) {
+              if (context.replace(/\\/g, '/').includes('next-server/server')) {
                 return callback(undefined, `commonjs ${request}`)
               }
             }
             return callback()
           },
         ],
-    optimization: Object.assign(
-      {
-        checkWasmTypes: false,
-        nodeEnv: false,
-      },
-      isServer
-        ? {
-            splitChunks: false,
-            minimize: false,
-          }
-        : {
-            runtimeChunk: selectivePageBuilding
-              ? false
-              : {
-                  name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-                },
-            splitChunks: splitChunksConfig,
-            minimize: !dev,
-            minimizer: !dev
-              ? [
-                  new TerserPlugin({
-                    ...terserPluginConfig,
-                    terserOptions: {
-                      ...terserOptions,
-                      // Disable compress when using terser loader
-                      ...(selectivePageBuilding ||
-                      config.experimental.terserLoader
-                        ? { compress: false }
-                        : undefined),
-                    },
-                  }),
-                ]
-              : undefined,
-          },
-      selectivePageBuilding
-        ? {
-            providedExports: false,
-            usedExports: false,
-            concatenateModules: false,
-          }
-        : undefined
-    ),
-    recordsPath: selectivePageBuilding
-      ? undefined
-      : path.join(outputPath, 'records.json'),
+    optimization: {
+      checkWasmTypes: false,
+      nodeEnv: false,
+      splitChunks: isServer ? false : splitChunksConfig,
+      runtimeChunk: isServer
+        ? undefined
+        : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
+      minimize: !(dev || isServer),
+      minimizer: [
+        new TerserPlugin({
+          ...terserPluginConfig,
+          terserOptions,
+        }),
+      ],
+    },
+    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
@@ -471,30 +420,33 @@ export default async function getBaseWebpackConfig(
     performance: false,
     resolve: resolveConfig,
     resolveLoader: {
+      // The loaders Next.js provides
+      alias: [
+        'emit-file-loader',
+        'next-babel-loader',
+        'next-client-pages-loader',
+        'next-data-loader',
+        'next-serverless-loader',
+        'noop-loader',
+      ].reduce(
+        (alias, loader) => {
+          // using multiple aliases to replace `resolveLoader.modules`
+          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+
+          return alias
+        },
+        {} as Record<string, string>
+      ),
       modules: [
-        path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
+      plugins: [PnpWebpackPlugin],
     },
     // @ts-ignore this is filtered
     module: {
       strictExportPresence: true,
       rules: [
-        (selectivePageBuilding || config.experimental.terserLoader) &&
-          !isServer && {
-            test: /\.(js|mjs|jsx)$/,
-            exclude: /\.min\.(js|mjs|jsx)$/,
-            use: {
-              loader: 'next-minify-loader',
-              options: {
-                terserOptions: {
-                  ...terserOptions,
-                  mangle: false,
-                },
-              },
-            },
-          },
         config.experimental.ampBindInitData &&
           !isServer && {
             test: /\.(tsx|ts|js|mjs|jsx)$/,
@@ -518,14 +470,14 @@ export default async function getBaseWebpackConfig(
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [
             dir,
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
             /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
-              /next-server[\\/]dist[\\/]lib/.test(path) ||
+              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
               /next[\\/]dist[\\/]pages/.test(path) ||
               /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
@@ -558,8 +510,8 @@ export default async function getBaseWebpackConfig(
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
         'process.crossOrigin': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
-        'process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING': JSON.stringify(
-          selectivePageBuilding
+        'process.env.__NEXT_TEST_MODE': JSON.stringify(
+          process.env.__NEXT_TEST_MODE
         ),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
@@ -572,7 +524,7 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
         'process.env.__NEXT_GRANULAR_CHUNKS':
-          config.experimental.granularChunks && !selectivePageBuilding && !dev,
+          config.experimental.granularChunks && !dev,
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -592,6 +544,12 @@ export default async function getBaseWebpackConfig(
         distDir,
         isServer,
       }),
+      // Moment.js is an extremely popular library that bundles large locale files
+      // by default due to how Webpack interprets its code. This is a practical
+      // solution that requires the user to opt into importing specific locales.
+      // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
+      config.future.excludeDefaultMomentLocales &&
+        new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
       ...(dev
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations
@@ -632,14 +590,6 @@ export default async function getBaseWebpackConfig(
           })()
         : []),
       !dev && new webpack.HashedModuleIdsPlugin(),
-      // This must come after HashedModuleIdsPlugin (it sets any modules that
-      // were missed by HashedModuleIdsPlugin)
-      !dev && selectivePageBuilding && new AllModulesIdentifiedPlugin(dir),
-      // This sets chunk ids to be hashed versions of their names to reduce
-      // bundle churn
-      !dev && selectivePageBuilding && new HashedChunkIdsPlugin(buildId),
-      // On the client we want to share the same runtime cache
-      !isServer && selectivePageBuilding && new SharedRuntimePlugin(),
       !dev &&
         new webpack.IgnorePlugin({
           checkResource: (resource: string) => {
@@ -652,12 +602,7 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      isLikeServerless &&
-        new ServerlessPlugin(buildId, {
-          isServer,
-          isFlyingShuttle: selectivePageBuilding,
-          isTrace: isServerlessTrace,
-        }),
+      isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&
@@ -669,12 +614,9 @@ export default async function getBaseWebpackConfig(
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
-      config.experimental.profiling &&
-        new webpack.debug.ProfilingPlugin({
-          outputPath: path.join(
-            distDir,
-            `profile-events-${isServer ? 'server' : 'client'}.json`
-          ),
+      tracer &&
+        new ProfilingPlugin({
+          tracer,
         }),
       !isServer &&
         useTypeScript &&
@@ -726,7 +668,7 @@ export default async function getBaseWebpackConfig(
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
     }
   }
@@ -769,6 +711,7 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,
