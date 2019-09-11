@@ -34,11 +34,9 @@ describe('Handles Duplicate Pages', () => {
         onStderr: handleOutput
       })
       await renderViaHTTP(appPort, '/hello')
-      await waitFor(1000)
+      await waitFor(3000)
       await killApp(app)
-      expect(output).toMatch(
-        /Duplicate page detected\. The following files both resolve to/
-      )
+      expect(output).toMatch(/Duplicate page detected/)
     })
   })
 })
