@@ -511,7 +511,7 @@ export default async function getBaseWebpackConfig(
             use: isServer
               ? // Global CSS is ignored on the server because it's only needed
                 // on the client-side.
-                require.resolve('null-loader')
+                require.resolve('ignore-loader')
               : [
                   // During development we load CSS via JavaScript so we can
                   // hot reload it without refreshing the page.
