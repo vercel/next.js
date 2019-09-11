@@ -22,6 +22,8 @@ let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 function runTests (serverless = false) {
+  const apiRead = `/api/read-server${serverless ? 'less' : ''}`
+
   it('should render page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/API - support/)
@@ -280,7 +282,7 @@ function runTests (serverless = false) {
   })
 
   it('should work with __dirname read', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
+    const data = await fetchViaHTTP(appPort, apiRead, null, {}).then(
       res => res.ok && res.text()
     )
 
@@ -288,38 +290,34 @@ function runTests (serverless = false) {
   })
 
   it('should work with __dirname read and re-compile', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
+    const data = await fetchViaHTTP(appPort, apiRead, null, {}).then(
       res => res.ok && res.text()
     )
 
     expect(data).toContain('export default () => <div>API - support</div>')
 
-    const index = new File(join(appDir, 'pages/index.js'))
+    const index = new File(join(appDir, `pages${apiRead}.js`))
 
-    index.replace('API', 'IPA')
+    index.replace('req', '_')
 
     await waitFor(500)
 
-    const change = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
+    const change = await fetchViaHTTP(appPort, apiRead, null, {}).then(
       res => res.ok && res.text()
     )
-    expect(change).toContain('export default () => <div>IPA - support</div>')
+    expect(change).toContain('export default () => <div>API - support</div>')
 
-    index.restore()
-
-    const dirname = new File(join(appDir, 'pages/api/read.js'))
-
-    dirname.replace('index.js', 'user.js')
+    index.replace('index.js', 'user.js')
 
     await waitFor(500)
 
-    const user = await fetchViaHTTP(appPort, '/api/read', null, {}).then(
+    const user = await fetchViaHTTP(appPort, apiRead, null, {}).then(
       res => res.ok && res.text()
     )
 
     expect(user).toContain('export default () => <div>User</div>')
 
-    dirname.restore()
+    index.restore()
   })
 
   // it('should save file with __dirname', async () => {
