@@ -97,7 +97,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
-  const mappedPages = createPagesMapping(pagePaths, config.pageExtensions, true)
+  const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
