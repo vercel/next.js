@@ -309,7 +309,6 @@ export function watchCompilers(
             return
           }
 
-          // TODO: remove node_modules
           const reportFiles = stats.compilation.modules
             .map((m: any) => m.resource)
             .filter(Boolean)
