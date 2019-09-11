@@ -32,5 +32,5 @@ steps:
     displayName: 'Yarn check'
 
   - script: |
-      node run-tests.js -c 2 -g $(group)
+      node run-tests.js -g $(group)
     displayName: 'Run tests'
