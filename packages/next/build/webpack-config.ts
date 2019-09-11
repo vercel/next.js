@@ -294,11 +294,14 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
-  const customAppFile = await findPageFile(
+  let customAppFile = await findPageFile(
     path.join(dir, 'pages'),
     '/_app',
     config.pageExtensions
   )
+  if (customAppFile) {
+    customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
+  }
 
   let webpackConfig: webpack.Configuration = {
     devtool,
@@ -405,7 +408,7 @@ export default async function getBaseWebpackConfig(
               },
             },
           }),
-      ],
+      ].filter(Boolean),
     },
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
@@ -506,7 +509,7 @@ export default async function getBaseWebpackConfig(
             oneOf: [
               {
                 test: /\.css$/,
-                issuer: { include: [customAppFile] },
+                issuer: { include: [customAppFile].filter(Boolean) },
                 use: isServer
                   ? // Global CSS is ignored on the server because it's only needed
                     // on the client-side.
