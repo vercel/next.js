@@ -3,7 +3,6 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import stripAnsi from 'strip-ansi'
 import Head, { defaultHead } from '../lib/head'
-import App from '../lib/app'
 import RouterState from './router'
 
 export const $HEAD = Symbol.for('head')
@@ -40,11 +39,7 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
     }
   }
 
-  const app = createElement(App, {
-    Component: enhancer(Component),
-    props,
-    router: new RouterState(pathname, query, asPath)
-  })
+  const app = createElement(enhancer(Component), props)
 
   let html
   let head

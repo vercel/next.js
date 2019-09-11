@@ -2,7 +2,6 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import mitt from 'mitt'
-import App from '../lib/app'
 import { waitForPage } from '../lib/page-loader'
 import router, { createRouter } from './router'
 import { getURL } from '../lib/url'
@@ -75,7 +74,7 @@ export function render ({ Component, props, hash, err }) {
       lastAppProps = appProps
 
       emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
-      renderReactElement(createElement(App, appProps), appContainer)
+      renderReactElement(createElement(Component, props), appContainer)
       emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
     }).catch((err) => {
       if (err.abort) return
@@ -100,7 +99,7 @@ export function renderError (error) {
       const appProps = { Component: ErrorComponent, props, err: error, router }
 
       emitter.emit('before-reactdom-render', { ErrorComponent, appProps })
-      renderReactElement(createElement(App, appProps), appContainer)
+      renderReactElement(createElement(ErrorComponent, props), appContainer)
       emitter.emit('after-reactdom-render', { ErrorComponent, appProps })
     })
 }
