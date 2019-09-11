@@ -23,7 +23,7 @@ aliases:
 executors:
   node:
     docker:
-      - image: circleci/node:8-browsers
+      - image: circleci/node@sha256:8631b3dc0f49fc179940bbd4254ced0c41b99d02bfdbf1d8bdd4d0b135e3ee5f
     working_directory: ~/repo
 
 #########################
