@@ -1023,6 +1023,8 @@ Since Next.js server-renders your pages, this allows all the future interaction 
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
 
+> Automatic prefetching is disabled if your device is connected with 2G network or [Save-Data](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Save-Data) header is `on`.
+
 > `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892.
 
 #### With `<Link>`
