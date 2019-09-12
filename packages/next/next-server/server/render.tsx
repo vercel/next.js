@@ -130,6 +130,7 @@ type RenderOpts = {
   runtimeConfig?: { [key: string]: any }
   dangerousAsPath: string
   assetPrefix?: string
+  hasCssMode: boolean
   err?: Error | null
   nextExport?: boolean
   skeleton?: boolean
@@ -166,6 +167,7 @@ function renderDocument(
     skeleton,
     dynamicImportsIds,
     dangerousAsPath,
+    hasCssMode,
     err,
     dev,
     ampPath,
@@ -216,6 +218,8 @@ function renderDocument(
           canonicalBase={canonicalBase}
           ampPath={ampPath}
           inAmpMode={inAmpMode}
+          isDevelopment={!!dev}
+          hasCssMode={hasCssMode}
           hybridAmp={hybridAmp}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
