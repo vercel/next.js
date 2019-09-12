@@ -73,7 +73,7 @@ export function render ({ Component, props, err }) {
       lastAppProps = appProps
 
       emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
-      renderReactElement(createElement(Component, props), appContainer)
+      renderReactElement(createElement(Component, { url: router.url, ...props }), appContainer)
       emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
     }).catch((err) => {
       if (err.abort) return
