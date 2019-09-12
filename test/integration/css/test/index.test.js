@@ -2,7 +2,15 @@
 /* global jasmine */
 import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import {
+  findPort,
+  nextBuild,
+  launchApp,
+  killApp,
+  File,
+  waitFor
+} from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -135,7 +143,65 @@ describe('CSS Support', () => {
     })
   })
 
-  // TODO: test style HMR in dev with single & multi-sheets
+  describe('Can hot reload CSS without losing state', () => {
+    const appDir = join(fixturesDir, 'multi-page')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should update CSS color without remounting <input>', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/page1')
+        await waitFor(2000) // ensure application hydrates
+
+        const desiredText = 'hello world'
+        await browser.elementById('text-input').type(desiredText)
+        expect(await browser.elementById('text-input').getValue()).toBe(
+          desiredText
+        )
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('.red-text')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+        const cssFile = new File(join(appDir, 'styles/global1.css'))
+        try {
+          cssFile.replace('color: red', 'color: purple')
+          await waitFor(2000) // wait for HMR
+
+          const refreshedColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          )
+          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
+
+          // ensure text remained
+          expect(await browser.elementById('text-input').getValue()).toBe(
+            desiredText
+          )
+        } finally {
+          cssFile.restore()
+        }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   // TODO: test @import and url() behavior within CSS files
   // TODO: test polyfilling behavior
   // TODO: test prefixing behavior
