@@ -49,7 +49,6 @@
     "mitt": "^1.1.3",
     "prop-types": "^15.7.0",
     "querystring": "^0.2.0",
-    "react-hot-loader": "^4.8.0",
     "strip-ansi": "^5.1.0"
   },
   "devDependencies": {

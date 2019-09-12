@@ -1,4 +1,3 @@
-import 'react-hot-loader/patch'
 import initNext, * as next from './'
 import initWebpackHMR from '@healthline/six-million/webpack-hot-middleware-client'
 
