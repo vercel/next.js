@@ -307,6 +307,6 @@ describe('CSS Support', () => {
     })
   })
 
-  // TODO: FOUC in development?
+  // TODO: FOUC in development b/c of style-loader
   // TODO: test @import and url() behavior within CSS files
 })
