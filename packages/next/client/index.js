@@ -337,6 +337,8 @@ function renderReactElement(reactEl, domEl) {
 function markHydrateComplete() {
   if (!ST) return
 
+  measureFid()
+
   performance.mark('afterHydrate') // mark end of hydration
 
   performance.measure(
@@ -390,6 +392,36 @@ function clearMarks() {
     'Next.js-route-change-to-render',
     'Next.js-render',
   ].forEach(measure => performance.clearMeasures(measure))
+}
+
+function measureFid () {
+  perfMetrics.onFirstInputDelay((delay, event) => {
+    if (
+      performance.getEntriesByName('Next.js-hydration', 'measure').length > 0
+    ) {
+      const hydrateEnd =
+        performance.getEntriesByName('Next.js-hydration', 'measure')[0]
+          .startTime +
+        performance.getEntriesByName('Next.js-hydration', 'measure')[0].duration
+
+      // TODO: Instead of console.logs, expose values to user code through perf relayer
+      console.log(
+        'First input after hydration',
+        `start: ${event.timeStamp}`,
+        `delay: ${delay}`
+      )
+      console.log(
+        'Delta between hydration end and first input',
+        `diff: ${event.timeStamp - hydrateEnd}`
+      )
+    } else {
+      console.log(
+        'First input before hydration',
+        `start: ${event.timeStamp}`,
+        `delay: ${delay}`
+      )
+    }
+  })
 }
 
 function AppContainer({ children }) {

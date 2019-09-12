@@ -13,6 +13,7 @@ import {
   DocumentInitialProps,
   DocumentProps,
 } from '../next-server/lib/utils'
+import fidPolyfill from '../next-server/lib/fid'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 
@@ -518,6 +519,11 @@ export class Head extends Component<
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
+          }}
+        />
       </head>
     )
   }
