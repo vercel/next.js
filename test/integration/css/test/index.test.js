@@ -44,9 +44,7 @@ describe('CSS Support', () => {
       await nextBuild(appDir)
     })
 
-    // TODO: Currently broken, how do we want this to work?
-    // Single CSS file or two CSS files?
-    it.skip(`should've emitted a single CSS file`, async () => {
+    it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
@@ -55,7 +53,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent).toContain('color:red')
-      expect(cssContent).toContain('color:blue')
+      expect(cssContent).toContain('color:#00f') // minified version of blue
     })
   })
 
