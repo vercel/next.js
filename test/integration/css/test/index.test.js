@@ -66,6 +66,33 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('CSS Compilation', () => {
+    const appDir = join(fixturesDir, 'compilation')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've compiled to media _ and _ selector`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        `"@media (min-width:480px) and (max-width:767px){a{color:green}}"`
+      )
+    })
+  })
+
   // Tests css ordering
   describe('Multi Global Support (reversed)', () => {
     const appDir = join(fixturesDir, 'multi-global-reversed')
@@ -203,7 +230,6 @@ describe('CSS Support', () => {
   })
 
   // TODO: test @import and url() behavior within CSS files
-  // TODO: test polyfilling behavior
   // TODO: test prefixing behavior
   // TODO: test server-side response inclusion of CSS scripts
   // TODO: test client-side hydration CSS validity for single & multi
