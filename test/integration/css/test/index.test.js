@@ -7,6 +7,9 @@ import {
   nextBuild,
   launchApp,
   killApp,
+  nextServer,
+  startApp,
+  stopApp,
   File,
   waitFor
 } from 'next-test-utils'
@@ -73,11 +76,11 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    fit('should build successfully', async () => {
+    it('should build successfully', async () => {
       await nextBuild(appDir)
     })
 
-    fit(`should've compiled and prefixed`, async () => {
+    it(`should've compiled and prefixed`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
@@ -229,8 +232,81 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Has CSS in computed styles in Development', () => {
+    const appDir = join(fixturesDir, 'multi-page')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have CSS for page', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/page2')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('.blue-text')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Has CSS in computed styles in Production', () => {
+    const appDir = join(fixturesDir, 'multi-page')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it('should have CSS for page', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/page2')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('.blue-text')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   // TODO: test @import and url() behavior within CSS files
-  // TODO: test server-side response inclusion of CSS scripts
-  // TODO: test client-side hydration CSS validity for single & multi
   // TODO: test client-side transitions between pages
 })
