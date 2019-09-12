@@ -558,6 +558,20 @@ export default async function getBaseWebpackConfig(
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
           } as webpack.RuleSetRule),
+        config.experimental.css &&
+          ({
+            loader: require.resolve('file-loader'),
+            issuer: {
+              // file-loader is only used for CSS files, e.g. url() for a SVG
+              // or font files
+              test: /\.css$/,
+            },
+            // Exclude extensions that webpack handles by default
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            options: {
+              name: 'static/media/[name].[hash].[ext]',
+            },
+          } as webpack.RuleSetRule),
       ].filter(Boolean),
     },
     plugins: [
