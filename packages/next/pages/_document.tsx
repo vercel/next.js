@@ -344,25 +344,6 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {// Ad hoc way to detect development mode
-        buildId === 'development' && (
-          <>
-            <style
-              data-next-hydrating
-              dangerouslySetInnerHTML={{
-                __html: `body{-webkit-animation:-next-hydrating 8s steps(1,end) 0s 1 normal both;-moz-animation:-next-hydrating 8s steps(1,end) 0s 1 normal both;-ms-animation:-next-hydrating 8s steps(1,end) 0s 1 normal both;animation:-next-hydrating 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}`,
-              }}
-            />
-            <noscript>
-              <style
-                data-next-hydrating
-                dangerouslySetInnerHTML={{
-                  __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
-                }}
-              />
-            </noscript>
-          </>
-        )}
         {children}
         {head}
         <meta
