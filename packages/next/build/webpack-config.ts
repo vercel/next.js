@@ -1,17 +1,9 @@
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import {
-  CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-  REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY,
-  SERVERLESS_DIRECTORY,
-} from '../next-server/lib/constants'
-import resolve from 'next/dist/compiled/resolve/index.js'
-import path from 'path'
 import crypto from 'crypto'
-import webpack from 'webpack'
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
+import webpack from 'webpack'
 
 import {
   DOT_NEXT_ALIAS,
@@ -20,6 +12,14 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { resolveRequest } from '../lib/resolve-request'
+import {
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  REACT_LOADABLE_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+} from '../next-server/lib/constants'
 import { WebpackEntrypoints } from './entries'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
@@ -30,11 +30,11 @@ import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
+// @ts-ignore: JS file
+import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-// @ts-ignore: JS file
-import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -113,7 +113,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath
   try {
-    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+    typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -314,45 +314,40 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            resolve(
-              request,
-              { basedir: context, preserveSymlinks: true },
-              (err, res) => {
-                if (err) {
-                  return callback()
-                }
+            let res
+            try {
+              res = resolveRequest(request, context)
+            } catch (err) {
+              return callback()
+            }
 
-                if (!res) {
-                  return callback()
-                }
+            if (!res) {
+              return callback()
+            }
 
-                // Default pages have to be transpiled
-                if (
-                  !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-                  (res.match(/next[/\\]dist[/\\]/) ||
-                    res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                    res.match(
-                      /node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/
-                    ))
-                ) {
-                  return callback()
-                }
+            // Default pages have to be transpiled
+            if (
+              !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+              (res.match(/next[/\\]dist[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+            ) {
+              return callback()
+            }
 
-                // Webpack itself has to be compiled because it doesn't always use module relative paths
-                if (
-                  res.match(/node_modules[/\\]webpack/) ||
-                  res.match(/node_modules[/\\]css-loader/)
-                ) {
-                  return callback()
-                }
+            // Webpack itself has to be compiled because it doesn't always use module relative paths
+            if (
+              res.match(/node_modules[/\\]webpack/) ||
+              res.match(/node_modules[/\\]css-loader/)
+            ) {
+              return callback()
+            }
 
-                if (res.match(/node_modules[/\\].*\.js$/)) {
-                  return callback(undefined, `commonjs ${request}`)
-                }
+            if (res.match(/node_modules[/\\].*\.js$/)) {
+              return callback(undefined, `commonjs ${request}`)
+            }
 
-                callback()
-              }
-            )
+            callback()
           },
         ]
       : [

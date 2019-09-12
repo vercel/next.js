@@ -30,17 +30,17 @@ const defaultConfig: { [key: string]: any } = {
   },
   exportTrailingSlash: false,
   experimental: {
+    ampBindInitData: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    ampBindInitData: false,
-    profiling: false,
     documentMiddleware: false,
     granularChunks: false,
-    publicDirectory: false,
     modern: false,
+    profiling: false,
+    publicDirectory: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
