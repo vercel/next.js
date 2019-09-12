@@ -1,5 +1,5 @@
 @media (480px <= width < 768px) {
-  a {
+  ::placeholder {
     color: green;
   }
 }

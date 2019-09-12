@@ -66,18 +66,18 @@ describe('CSS Support', () => {
     })
   })
 
-  describe('CSS Compilation', () => {
-    const appDir = join(fixturesDir, 'compilation')
+  describe('CSS Compilation and Prefixing', () => {
+    const appDir = join(fixturesDir, 'compilation-and-prefixing')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
+    fit('should build successfully', async () => {
       await nextBuild(appDir)
     })
 
-    it(`should've compiled to media _ and _ selector`, async () => {
+    fit(`should've compiled and prefixed`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
       const files = await readdir(cssFolder)
@@ -88,7 +88,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){a{color:green}}"`
+        `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}"`
       )
     })
   })
@@ -230,7 +230,6 @@ describe('CSS Support', () => {
   })
 
   // TODO: test @import and url() behavior within CSS files
-  // TODO: test prefixing behavior
   // TODO: test server-side response inclusion of CSS scripts
   // TODO: test client-side hydration CSS validity for single & multi
   // TODO: test client-side transitions between pages
