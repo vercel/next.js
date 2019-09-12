@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
-import OptimizeCssAssetsPlugin from 'next/dist/compiled/optimize-css-assets-webpack-plugin'
+import OptimizeCssAssetsPlugin from 'optimize-css-assets-webpack-plugin'
 import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'

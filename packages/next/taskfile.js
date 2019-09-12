@@ -92,28 +92,13 @@ export async function ncc_text_table (task, opts) {
     .target('dist/compiled/text-table')
 }
 
-// eslint-disable-next-line camelcase
-export async function ncc_optimize_css_assets_webpack_plugin (task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(
-          __dirname,
-          require.resolve('optimize-css-assets-webpack-plugin')
-        )
-    )
-    .ncc({ packageName: 'optimize-css-assets-webpack-plugin' })
-    .target('dist/compiled/optimize-css-assets-webpack-plugin')
-}
-
 export async function precompile (task) {
   await task.parallel([
     'ncc_unistore',
     'ncc_resolve',
     'ncc_arg',
     'ncc_nanoid',
-    'ncc_text_table',
-    'ncc_optimize_css_assets_webpack_plugin'
+    'ncc_text_table'
   ])
 }
 

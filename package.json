@@ -115,9 +115,6 @@
     "wd": "1.11.3",
     "webpack-bundle-analyzer": "3.3.2"
   },
-  "resolutions": {
-    "cssnano": "npm:cssnano-simple@1.0.0"
-  },
   "engines": {
     "node": ">= 8.0.0"
   }
