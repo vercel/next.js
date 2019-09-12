@@ -307,6 +307,7 @@ describe('CSS Support', () => {
     })
   })
 
+  // TODO: FOUC in development?
   // TODO: test @import and url() behavior within CSS files
   // TODO: test client-side transitions between pages
 })
