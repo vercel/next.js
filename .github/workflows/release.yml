@@ -1,0 +1,12 @@
+on: release
+name: Generate release stats
+jobs:
+  prStats:
+    name: PR Stats
+    runs-on: ubuntu-latest
+    steps:
+    - name: PR Stats
+    - uses: actions/checkout@master
+      uses: zeit/next-stats-action@master
+      env:
+        PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
