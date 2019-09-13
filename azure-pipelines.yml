@@ -1,6 +1,9 @@
 pool:
   vmImage: 'vs2017-win2016'
 
+variables:
+  NEXT_TELEMETRY_DISABLED: '1'
+
 strategy:
   maxParallel: 10
   matrix:
