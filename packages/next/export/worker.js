@@ -146,7 +146,7 @@ export default async function ({
       }
     }
 
-    if (curRenderOpts && curRenderOpts.inAmpMode) {
+    if (curRenderOpts.inAmpMode) {
       await validateAmp(html, path)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
