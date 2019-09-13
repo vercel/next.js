@@ -1,27 +1,31 @@
 import fs from 'fs'
 import path from 'path'
 
-export function findPagesDir(dir: string): string | undefined {
-  let pagesDir: string | undefined
-  let hasConflict = false
-
+const existsSync = (f: string): boolean => {
   try {
-    let curDir = path.join(dir, 'pages')
-    fs.accessSync(curDir, fs.constants.F_OK)
-    pagesDir = curDir
-  } catch (err) {}
+    fs.accessSync(f, fs.constants.F_OK)
+    return true
+  } catch (_) {
+    return false
+  }
+}
 
-  try {
-    let curDir = path.join(dir, 'src/pages')
-    fs.accessSync(curDir, fs.constants.F_OK)
-    hasConflict = !!pagesDir
-    pagesDir = curDir
-  } catch (err) {}
+export function findPagesDir(dir: string): string {
+  // prioritize ./pages over ./src/pages
+  let curDir = path.join(dir, 'pages')
+  if (existsSync(curDir)) return curDir
 
-  if (hasConflict) {
+  curDir = path.join(dir, 'src/pages')
+  if (existsSync(curDir)) return curDir
+
+  // Check one level down the tree to see if the pages directory might be there
+  if (existsSync(path.join(dir, '..', 'pages'))) {
     throw new Error(
-      `Can not use both './src/pages' and './pages'. You must one or the either.`
+      '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
     )
   }
-  return pagesDir
+
+  throw new Error(
+    "> Couldn't find a `pages` directory. Please create one under the project root"
+  )
 }

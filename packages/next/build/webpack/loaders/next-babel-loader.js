@@ -54,6 +54,7 @@ module.exports = babelLoader.custom(babel => {
       const custom = {
         isServer: opts.isServer,
         isModern: opts.isModern,
+        pagesDir: opts.pagesDir,
         hasModern: opts.hasModern
       }
       const filename = join(opts.cwd, 'noop.js')
@@ -86,19 +87,19 @@ module.exports = babelLoader.custom(babel => {
       delete loader.distDir
       delete loader.isModern
       delete loader.hasModern
+      delete loader.pagesDir
       return { loader, custom }
     },
     config (
       cfg,
       {
         source,
-        customOptions: { isServer, isModern, hasModern }
+        customOptions: { isServer, isModern, hasModern, pagesDir }
       }
     ) {
-      const { cwd } = cfg.options
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
-      const isPageFile = filename.startsWith(join(cwd, 'pages'))
+      const isPageFile = filename.startsWith(pagesDir)
 
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {

@@ -103,7 +103,7 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise(resolve => {
-      const pagesDir = join(this.dir, 'pages')
+      const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(pagesDir, (_, files) => {
@@ -167,9 +167,10 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
-    await verifyTypeScriptSetup(this.dir)
+    await verifyTypeScriptSetup(this.dir, this.pagesDir)
 
     this.hotReloader = new HotReloader(this.dir, {
+      pagesDir: this.pagesDir,
       config: this.nextConfig,
       buildId: this.buildId
     })

@@ -33,6 +33,7 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
+import { findPagesDir } from '../../lib/find-pages-dir'
 
 type NextConfig = any
 
@@ -63,6 +64,7 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
+  pagesDir: string
   publicDir: string
   pagesManifest: string
   buildId: string
@@ -91,9 +93,9 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
+    this.pagesDir = findPagesDir(this.dir)
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.pagesManifest = join(
       this.distDir,

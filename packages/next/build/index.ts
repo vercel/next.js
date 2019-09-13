@@ -39,6 +39,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -61,22 +62,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  await verifyTypeScriptSetup(dir)
-
   let backgroundWork: (Promise<any> | undefined)[] = []
   backgroundWork.push(
     recordVersion({ cliCommand: 'build' }),
     recordNextPlugins(path.resolve(dir))
   )
 
-  console.log('Creating an optimized production build ...')
-  console.log()
-
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const pagesDir = path.join(dir, 'pages')
+  const pagesDir = findPagesDir(dir)
+
+  await verifyTypeScriptSetup(dir, pagesDir)
+
+  console.log('Creating an optimized production build ...')
+  console.log()
 
   let tracer: any = null
   if (config.experimental.profiling) {
@@ -106,6 +107,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: false,
       config,
       target,
+      pagesDir,
       entrypoints: entrypoints.client,
     }),
     getBaseWebpackConfig(dir, {
@@ -114,6 +116,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: true,
       config,
       target,
+      pagesDir,
       entrypoints: entrypoints.server,
     }),
   ])
