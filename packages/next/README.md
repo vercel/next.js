@@ -555,6 +555,8 @@ export default Home
 
 ```jsx
 // pages/about.js
+import Link from 'next/link'
+
 function About() {
   return (
     <>
