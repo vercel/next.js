@@ -1,4 +1,4 @@
-import withApolloClient from '../lib/with-apollo-client'
+import { withApollo } from '../apollo/client'
 import gql from 'graphql-tag'
 import Link from 'next/link'
 import { useQuery } from '@apollo/react-hooks'
@@ -8,7 +8,7 @@ const ViewerQuery = gql`
     viewer {
       id
       name
-      status @client
+      status
     }
   }
 `
@@ -33,8 +33,4 @@ const Index = () => {
   return null
 }
 
-Index.getInitialProps = async ({ client }) => {
-  await client.query({ query: ViewerQuery })
-}
-
-export default withApolloClient(Index)
+export default withApollo(Index)
