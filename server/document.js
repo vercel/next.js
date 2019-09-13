@@ -34,7 +34,7 @@ export default class Document extends Component {
       ios:
         /iPhone OS ([_0-9]+)/.exec(userAgent) &&
         parseFloat(RegExp.$1.replace(/_/, '.')),
-      chrome: /Chrome\/([.0-9]*)/.exec(userAgent) && parseFloat(RegExp.$1) && !userAgent.includes('Edge/')
+      chrome: !/Edge\//.test(userAgent) && /Chrome\/([.0-9]*)/.exec(userAgent) && parseFloat(RegExp.$1)
     }
 
     this.serveModern =
