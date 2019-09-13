@@ -111,7 +111,7 @@ export default async function ({
         (page === '/' ? 'index' : page) + '.js'
       )).renderReqToHTML
       const result = await renderMethod(req, res, true)
-      curRenderOpts = result.renderOpts
+      curRenderOpts = result.renderOpts || {}
       html = result.html
     } else {
       const components = await loadComponents(
