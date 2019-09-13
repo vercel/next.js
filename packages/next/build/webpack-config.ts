@@ -316,7 +316,7 @@ export default async function getBaseWebpackConfig(
 
             let res
             try {
-              res = resolveRequest(request, context)
+              res = resolveRequest(request, dir)
             } catch (err) {
               if (
                 request === 'react-ssr-prepass' &&

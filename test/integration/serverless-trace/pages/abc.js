@@ -1,1 +1,2 @@
-export default () => <div>test</div>
+import { useRouter } from 'next/router'
+export default () => <div>test {useRouter().pathname}</div>
