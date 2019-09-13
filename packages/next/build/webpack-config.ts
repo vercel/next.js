@@ -318,6 +318,17 @@ export default async function getBaseWebpackConfig(
             try {
               res = resolveRequest(request, context)
             } catch (err) {
+              if (
+                request === 'react-ssr-prepass' &&
+                !config.experimental.ampBindInitData
+              ) {
+                if (
+                  context.replace(/\\/g, '/').includes('next-server/server')
+                ) {
+                  return callback(undefined, `commonjs ${request}`)
+                }
+              }
+
               return callback()
             }
 
