@@ -336,6 +336,17 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            let baseRes
+            try {
+              baseRes = resolveRequest(request, dir)
+            } catch (err) {}
+
+            // If the package, when required from the root, would be different from
+            // what the real resolution would use, then we cannot externalize it
+            if (baseRes !== res) {
+              return callback()
+            }
+
             // Default pages have to be transpiled
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
