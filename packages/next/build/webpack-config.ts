@@ -314,10 +314,17 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            // Resolve the import with the webpack provided context, this
+            // ensures we're resolving the correct version when multiple
+            // exist.
             let res
             try {
               res = resolveRequest(request, context)
             } catch (err) {
+              // This is a special case for the Next.js data experiment. This
+              // will be removed in the future.
+              // We're telling webpack to externalize a package that doesn't
+              // exist because we know it won't ever be used at runtime.
               if (
                 request === 'react-ssr-prepass' &&
                 !config.experimental.ampBindInitData
@@ -329,20 +336,30 @@ export default async function getBaseWebpackConfig(
                 }
               }
 
+              // If the request cannot be resolved, we need to tell webpack to
+              // "bundle" it so that webpack shows an error (that it cannot be
+              // resolved).
               return callback()
             }
 
+            // Same as above, if the request cannot be resolved we need to have
+            // webpack "bundle" it so it surfaces the not found error.
             if (!res) {
               return callback()
             }
 
+            // Bundled Node.js code is relocated without its node_modules tree.
+            // This means we need to make sure its request resolves to the same
+            // package that'll be available at runtime. If it's not identical,
+            // we need to bundle the code (even if it _should_ be external).
             let baseRes
             try {
               baseRes = resolveRequest(request, dir)
             } catch (err) {}
 
-            // If the package, when required from the root, would be different from
-            // what the real resolution would use, then we cannot externalize it
+            // Same as above: if the package, when required from the root,
+            // would be different from what the real resolution would use, we
+            // cannot externalize it.
             if (baseRes !== res) {
               return callback()
             }
@@ -365,10 +382,13 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            // Anything else that is standard JavaScript within `node_modules`
+            // can be externalized.
             if (res.match(/node_modules[/\\].*\.js$/)) {
               return callback(undefined, `commonjs ${request}`)
             }
 
+            // Default behavior: bundle the code!
             callback()
           },
         ]
