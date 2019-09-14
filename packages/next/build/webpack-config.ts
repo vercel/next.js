@@ -319,7 +319,7 @@ export default async function getBaseWebpackConfig(
             // exist.
             let res
             try {
-              res = resolveRequest(request, context)
+              res = resolveRequest(request, `${context}/`)
             } catch (err) {
               // This is a special case for the Next.js data experiment. This
               // will be removed in the future.
@@ -354,7 +354,7 @@ export default async function getBaseWebpackConfig(
             // we need to bundle the code (even if it _should_ be external).
             let baseRes
             try {
-              baseRes = resolveRequest(request, dir)
+              baseRes = resolveRequest(request, `${dir}/`)
             } catch (err) {}
 
             // Same as above: if the package, when required from the root,
