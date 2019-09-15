@@ -267,8 +267,11 @@ export async function renderToHTML(
     defaultAppGetInitialProps
 
   let isPrerender = pageConfig.experimentalPrerender === true
-  let isSkeleton = false
   const isStaticPage = isPrerender || isAutoExport
+  // TODO: revisit `?_nextPreviewSkeleton=(truthy)`
+  const isSkeleton = isPrerender && !!query._nextPreviewSkeleton
+  // remove from query so it doesn't end up in document
+  delete query._nextPreviewSkeleton
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -299,10 +302,6 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
-  // might want to change previewing of skeleton from `?_nextPreviewSkeleton=(truthy)`
-  isSkeleton = isPrerender && !!query._nextPreviewSkeleton
-  // remove from query so it doesn't end up in document
-  delete query._nextPreviewSkeleton
   if (isSkeleton) renderOpts.nextExport = true
   if (isAutoExport) renderOpts.autoExport = true
 
