@@ -427,6 +427,24 @@ describe('Production Usage', () => {
       expect(script).not.toMatch(/runtimeConfig/)
     })
 
+    it('should add autoExport for auto pre-rendered pages', async () => {
+      for (const page of ['/', '/about']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(data.autoExport).toBe(true)
+      }
+    })
+
+    it('should not add autoExport for non pre-rendered pages', async () => {
+      for (const page of ['/query']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(!!data.autoExport).toBe(false)
+      }
+    })
+
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
