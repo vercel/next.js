@@ -119,7 +119,8 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   }
 
   const tsPath = await checkDependencies({ dir, isYarn })
-  const ts = await import(tsPath)
+  // @ts-ignore
+  const ts = (await import(tsPath)) as typeof import('typescript')
 
   const compilerOptions: any = {
     // These are suggested values and will be set when not present in the
