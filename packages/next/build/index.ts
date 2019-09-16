@@ -83,7 +83,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
   const publicDir = path.join(dir, 'public')
-  let publicFiles = await recursiveReadDir(publicDir, /.*/)
+  let publicFiles: string[] = []
+  let hasPublicDir = false
+
+  try {
+    await fsStat(publicDir)
+    hasPublicDir = true
+  } catch (_) {}
+
+  if (hasPublicDir) {
+    publicFiles = await recursiveReadDir(publicDir, /.*/)
+  }
 
   let tracer: any = null
   if (config.experimental.profiling) {
@@ -108,10 +118,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const conflictingPublicFiles: string[] = []
 
-  try {
-    await fsStat(path.join(publicDir, '_next'))
-    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-  } catch (err) {}
+  if (hasPublicDir) {
+    try {
+      await fsStat(path.join(publicDir, '_next'))
+      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+    } catch (err) {}
+  }
 
   for (let file of publicFiles) {
     file = file
