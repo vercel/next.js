@@ -5,7 +5,7 @@ jobs:
     name: PR Stats
     runs-on: ubuntu-latest
     steps:
-    - name: PR Stats
-      uses: zeit/next-stats-action@master
-      env:
-        COMMENT_ENDPOINT: https://next-stats.jjsweb.site/api/comment
+      - name: PR Stats
+        uses: zeit/next-stats-action@master
+        env:
+          COMMENT_ENDPOINT: https://next-stats.jjsweb.site/api/comment

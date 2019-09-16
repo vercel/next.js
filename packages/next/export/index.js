@@ -6,7 +6,6 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { API_ROUTE } from '../lib/constants'
 import { existsSync, readFileSync } from 'fs'
-import createProgress from 'tty-aware-progress'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { formatAmpMessages } from '../build/output/index'
@@ -22,8 +21,51 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH
 } from '../next-server/lib/constants'
+import createSpinner from '../build/spinner'
 
 const mkdirp = promisify(mkdirpModule)
+
+const createProgress = (total, label = 'Exporting') => {
+  let curProgress = 0
+  let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
+    spinner: {
+      frames: [
+        '[    ]',
+        '[=   ]',
+        '[==  ]',
+        '[=== ]',
+        '[ ===]',
+        '[  ==]',
+        '[   =]',
+        '[    ]',
+        '[   =]',
+        '[  ==]',
+        '[ ===]',
+        '[====]',
+        '[=== ]',
+        '[==  ]',
+        '[=   ]'
+      ],
+      interval: 80
+    }
+  })
+
+  return () => {
+    curProgress++
+
+    const newText = `${label} (${curProgress}/${total})`
+    if (progressSpinner) {
+      progressSpinner.text = newText
+    } else {
+      console.log(newText)
+    }
+
+    if (curProgress === total && progressSpinner) {
+      progressSpinner.stop()
+      console.log(newText)
+    }
+  }
+}
 
 export default async function (dir, options, configuration) {
   function log (message) {

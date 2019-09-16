@@ -551,9 +551,18 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
-        'process.env.__NEXT_GRANULAR_CHUNKS':
-          config.experimental.granularChunks && !dev,
+        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
+          config.experimental.modern && !dev
+        ),
+        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
+          config.experimental.granularChunks && !dev
+        ),
+        'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
+          config.devIndicators.buildActivity
+        ),
+        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
+          config.devIndicators.autoPrerender
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

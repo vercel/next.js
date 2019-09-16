@@ -99,7 +99,11 @@ const listenToIntersections = (el: any, cb: any) => {
   observer.observe(el)
   listeners.set(el, cb)
   return () => {
-    observer.unobserve(el)
+    try {
+      observer.unobserve(el)
+    } catch (err) {
+      console.error(err)
+    }
     listeners.delete(el)
   }
 }
