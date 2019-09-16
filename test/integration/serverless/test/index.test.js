@@ -2,7 +2,8 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import cheerio from 'cheerio'
+import { existsSync, readdirSync, readFileSync } from 'fs'
 import {
   killApp,
   findPort,
@@ -15,6 +16,8 @@ import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
+const chunksDir = join(appDir, '.next/static/chunks')
+const buildIdFile = join(appDir, '.next/BUILD_ID')
 let appPort
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -30,6 +33,24 @@ describe('Serverless', () => {
   it('should render the page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/Hello World/)
+  })
+
+  it('should add autoExport for auto pre-rendered pages', async () => {
+    for (const page of ['/', '/abc']) {
+      const html = await renderViaHTTP(appPort, page)
+      const $ = cheerio.load(html)
+      const data = JSON.parse($('#__NEXT_DATA__').html())
+      expect(data.autoExport).toBe(true)
+    }
+  })
+
+  it('should not add autoExport for non pre-rendered pages', async () => {
+    for (const page of ['/fetch']) {
+      const html = await renderViaHTTP(appPort, page)
+      const $ = cheerio.load(html)
+      const data = JSON.parse($('#__NEXT_DATA__').html())
+      expect(!!data.autoExport).toBe(false)
+    }
   })
 
   it('should serve file from public folder', async () => {
@@ -49,6 +70,11 @@ describe('Serverless', () => {
 
   it('should render 404', async () => {
     const html = await renderViaHTTP(appPort, '/404')
+    expect(html).toMatch(/This page could not be found/)
+  })
+
+  it('should render 404 for /_next/static', async () => {
+    const html = await renderViaHTTP(appPort, '/_next/static')
     expect(html).toMatch(/This page could not be found/)
   })
 
@@ -93,6 +119,19 @@ describe('Serverless', () => {
     }
   })
 
+  it('should not have combined client-side chunks', () => {
+    expect(readdirSync(chunksDir).length).toBeGreaterThanOrEqual(2)
+    const buildId = readFileSync(buildIdFile, 'utf8').trim()
+
+    const pageContent = join(
+      appDir,
+      '.next/static',
+      buildId,
+      'pages/dynamic.js'
+    )
+    expect(readFileSync(pageContent, 'utf8')).not.toContain('Hello!')
+  })
+
   it('should not output _app.js and _document.js to serverless build', () => {
     expect(existsSync(join(serverlessDir, '_app.js'))).toBeFalsy()
     expect(existsSync(join(serverlessDir, '_document.js'))).toBeFalsy()
@@ -121,8 +160,28 @@ describe('Serverless', () => {
 
   it('should reply on dynamic API request successfully', async () => {
     const result = await renderViaHTTP(appPort, '/api/posts/post-1')
-    const { post } = JSON.parse(result)
-    expect(post).toBe('post-1')
+    const { id } = JSON.parse(result)
+    expect(id).toBe('post-1')
+  })
+
+  it('should reply on dynamic API request successfully with query parameters', async () => {
+    const result = await renderViaHTTP(appPort, '/api/posts/post-1?param=val')
+    const { id, param } = JSON.parse(result)
+    expect(id).toBe('post-1')
+    expect(param).toBe('val')
+  })
+
+  it('should reply on dynamic API index request successfully', async () => {
+    const result = await renderViaHTTP(appPort, '/api/dynamic/post-1')
+    const { path } = JSON.parse(result)
+    expect(path).toBe('post-1')
+  })
+
+  it('should reply on dynamic API index request successfully with query parameters', async () => {
+    const result = await renderViaHTTP(appPort, '/api/dynamic/post-1?param=val')
+    const { path, param } = JSON.parse(result)
+    expect(path).toBe('post-1')
+    expect(param).toBe('val')
   })
 
   it('should 404 on API request with trailing slash', async () => {

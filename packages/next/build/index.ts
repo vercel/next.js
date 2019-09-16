@@ -1,46 +1,43 @@
-import { Sema } from 'async-sema'
 import chalk from 'chalk'
 import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
 import {
-  CHUNK_GRAPH_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
-} from 'next-server/dist/server/config'
+} from '../next-server/server/config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-import workerFarm from 'worker-farm'
+import Worker from 'jest-worker'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import {
+  recordBuildDuration,
+  recordBuildOptimize,
+  recordNextPlugins,
+  recordVersion,
+} from '../telemetry/events'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
-import { FlyingShuttle } from './flying-shuttle'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import {
   collectPages,
-  getCacheIdentifier,
-  getFileForPage,
   getPageSizeInKb,
-  getSpecifiedPages,
   hasCustomAppGetInitialProps,
   PageInfo,
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import {
-  exportManifest,
-  getPageChunks,
-} from './webpack/plugins/chunk-graph-plugin'
+import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import createSpinner from './spinner'
 
@@ -53,8 +50,8 @@ const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./static-checker')
 
-export type PrerenderRoute = {
-  path: string
+export type PrerenderFile = {
+  lambda: string
   contentTypes: string[]
 }
 
@@ -67,6 +64,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir)
 
+  let backgroundWork: (Promise<any> | undefined)[] = []
+  backgroundWork.push(
+    recordVersion({ cliCommand: 'build' }),
+    recordNextPlugins(path.resolve(dir))
+  )
+
   const buildSpinner = createSpinner({
     prefixText: 'Creating an optimized production build',
   })
@@ -77,136 +80,43 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
-  const isFlyingShuttle = Boolean(
-    config.experimental.flyingShuttle &&
-      !process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
-  )
-  const selectivePageBuilding = Boolean(
-    isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
-  )
+  let tracer: any = null
+  if (config.experimental.profiling) {
+    const { createTrace } = require('./profiler/profiler.js')
+    tracer = createTrace(path.join(distDir, `profile-events.json`))
+    tracer.profiler.startProfiling()
+  }
 
   const isLikeServerless = isTargetLikeServerless(target)
 
-  if (selectivePageBuilding && target !== 'serverless') {
-    throw new Error(
-      `Cannot use ${
-        isFlyingShuttle ? 'flying shuttle' : '`now dev`'
-      } without the \`serverless\` target.`
-    )
-  }
+  const pagePaths: string[] = await collectPages(
+    pagesDir,
+    config.pageExtensions
+  )
 
-  const selectivePageBuildingCacheIdentifier = selectivePageBuilding
-    ? await getCacheIdentifier({
-        pagesDirectory: pagesDir,
-        env: config.env || {},
-      })
-    : 'noop'
-
-  let flyingShuttle: FlyingShuttle | undefined
-  if (isFlyingShuttle) {
-    console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
-    console.log()
-
-    await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
-    await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
-    await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
-
-    flyingShuttle = new FlyingShuttle({
-      buildId,
-      pagesDirectory: pagesDir,
-      distDirectory: distDir,
-      cacheIdentifier: selectivePageBuildingCacheIdentifier,
-    })
-  }
-
-  let pagePaths: string[]
-  if (process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE) {
-    pagePaths = await getSpecifiedPages(
-      dir,
-      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE!,
-      config.pageExtensions
-    )
-  } else {
-    pagePaths = await collectPages(pagesDir, config.pageExtensions)
-  }
   // needed for static exporting since we want to replace with HTML
-  // files even when flying shuttle doesn't rebuild the files
-  const allPagePaths = [...pagePaths]
+  // files
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
-  if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
-    allPageInfos = await flyingShuttle.getPageInfos()
-    const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
-    for (const unchangedPage of _unchangedPages) {
-      const info = allPageInfos.get(unchangedPage) || ({} as PageInfo)
-      if (info.static) allStaticPages.add(unchangedPage)
-
-      const recalled = await flyingShuttle.restorePage(unchangedPage, info)
-      if (recalled) {
-        continue
-      }
-      _unchangedPages.delete(unchangedPage)
-    }
-
-    const unchangedPages = (await Promise.all(
-      [..._unchangedPages].map(async page => {
-        if (
-          page.endsWith('.amp') &&
-          (allPageInfos.get(page.split('.amp')[0]) || ({} as PageInfo)).isAmp
-        ) {
-          return ''
-        }
-        const file = await getFileForPage({
-          page,
-          pagesDirectory: pagesDir,
-          pageExtensions: config.pageExtensions,
-        })
-        if (file) {
-          return file
-        }
-
-        return Promise.reject(
-          new Error(
-            `Failed to locate page file: ${page}. ` +
-              `Did pageExtensions change? We can't recover from this yet.`
-          )
-        )
-      })
-    )).filter(Boolean)
-
-    const pageSet = new Set(pagePaths)
-    for (const unchangedPage of unchangedPages) {
-      pageSet.delete(unchangedPage)
-    }
-    pagePaths = [...pageSet]
-  }
-
-  const allMappedPages = createPagesMapping(allPagePaths, config.pageExtensions)
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(
-    mappedPages,
-    target,
-    buildId,
-    /* dynamicBuildId */ selectivePageBuilding,
-    config
-  )
+  const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
+      tracer,
       buildId,
       isServer: false,
       config,
       target,
       entrypoints: entrypoints.client,
-      selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
+      tracer,
       buildId,
       isServer: true,
       config,
       target,
       entrypoints: entrypoints.server,
-      selectivePageBuilding,
     }),
   ])
 
@@ -225,6 +135,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         )
     )
   }
+
+  const webpackBuildStart = process.hrtime()
 
   let result: CompilerResult = { warnings: [], errors: [] }
   // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
@@ -247,22 +159,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
     result = await runCompiler(configs)
   }
 
+  const webpackBuildEnd = process.hrtime(webpackBuildStart)
   if (buildSpinner) {
     buildSpinner.stopAndPersist()
   }
   console.log()
 
   result = formatWebpackMessages(result)
-
-  if (isFlyingShuttle) {
-    console.log()
-
-    exportManifest({
-      dir: dir,
-      fileName: path.join(distDir, CHUNK_GRAPH_MANIFEST),
-      selectivePageBuildingCacheIdentifier,
-    })
-  }
 
   if (result.errors.length > 0) {
     // Only keep the first error. Others are often indicative
@@ -301,6 +204,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn()
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
+    backgroundWork.push(
+      recordBuildDuration({
+        totalPageCount: pagePaths.length,
+        durationInSeconds: webpackBuildEnd[0],
+      })
+    )
   }
 
   const postBuildSpinner = createSpinner({
@@ -325,29 +234,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(config.experimental.cpus, {
-    capacity: pageKeys.length,
+  const staticCheckWorkers = new Worker(staticCheckWorker, {
+    numWorkers: config.experimental.cpus,
+    enableWorkerThreads: true,
   })
-  const staticCheckWorkers = workerFarm(
-    {
-      maxConcurrentWorkers: config.experimental.cpus,
-    },
-    staticCheckWorker,
-    ['default']
-  )
 
+  const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
       const chunks = getPageChunks(page)
 
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(actualPage, distPath, buildId)
+      const size = await getPageSizeInKb(actualPage, distDir, buildId)
       const bundleRelative = path.join(
         isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
       )
       const serverBundle = path.join(
-        distPath,
+        distDir,
         isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         bundleRelative
       )
@@ -367,7 +271,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           isLikeServerless
             ? serverBundle
             : path.join(
-                distPath,
+                distDir,
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
@@ -389,17 +293,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          await staticCheckSema.acquire()
-          const result: any = await new Promise((resolve, reject) => {
-            staticCheckWorkers.default(
-              { serverBundle, runtimeEnvConfig },
-              (error: Error | null, result: any) => {
-                if (error) return reject(error)
-                resolve(result || {})
-              }
-            )
+          let result: any = await (staticCheckWorkers as any).default({
+            serverBundle,
+            runtimeEnvConfig,
           })
-          staticCheckSema.release()
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
@@ -414,15 +311,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
-          staticCheckSema.release()
         }
       }
 
       pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
     })
   )
-
-  workerFarm.end(staticCheckWorkers)
+  staticCheckWorkers.end()
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -449,7 +344,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   }
 
-  await writeBuildId(distDir, buildId, selectivePageBuilding)
+  await writeBuildId(distDir, buildId)
+  const prerenderFiles: { [path: string]: PrerenderFile } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -489,7 +385,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
         relativeDest
       )
 
-      if (!isSpr) {
+      if (isSpr) {
+        const projectRelativeDest = path.join(
+          config.distDir,
+          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+          relativeDest
+        )
+        prerenderFiles[projectRelativeDest] = {
+          lambda: projectRelativeDest.replace(/\.html$/, '.js'),
+          contentTypes: ['application/json', 'text/html'],
+        }
+      } else {
         pagesManifest[page] = relativeDest
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
@@ -513,19 +419,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
 
-  if (sprPages.size > 0) {
-    const prerenderRoutes: PrerenderRoute[] = []
-
-    sprPages.forEach(pg => {
-      prerenderRoutes.push({
-        path: pg,
-        contentTypes: ['application/json', 'text/html'],
-      })
+  const analysisEnd = process.hrtime(analysisBegin)
+  backgroundWork.push(
+    recordBuildOptimize({
+      durationInSeconds: analysisEnd[0],
+      totalPageCount: pagePaths.length,
+      staticPageCount: staticPages.size,
+      ssrPageCount: pagePaths.length - staticPages.size,
     })
+  )
 
+  if (sprPages.size > 0) {
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify({ prerenderRoutes }),
+      JSON.stringify({ prerenderFiles }),
       'utf8'
     )
   }
@@ -535,10 +442,65 @@ export default async function build(dir: string, conf = null): Promise<void> {
     allPageInfos.set(key, info)
   })
 
-  if (flyingShuttle) {
-    await flyingShuttle.mergeManifests()
-    await flyingShuttle.save(allStaticPages, pageInfos)
+  printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless)
+
+  if (tracer) {
+    const parsedResults = await tracer.profiler.stopProfiling()
+    await new Promise(resolve => {
+      if (parsedResults === undefined) {
+        tracer.profiler.destroy()
+        tracer.trace.flush()
+        tracer.end(resolve)
+        return
+      }
+
+      const cpuStartTime = parsedResults.profile.startTime
+      const cpuEndTime = parsedResults.profile.endTime
+
+      tracer.trace.completeEvent({
+        name: 'TaskQueueManager::ProcessTaskFromWorkQueue',
+        id: ++tracer.counter,
+        cat: ['toplevel'],
+        ts: cpuStartTime,
+        args: {
+          src_file: '../../ipc/ipc_moji_bootstrap.cc',
+          src_func: 'Accept',
+        },
+      })
+
+      tracer.trace.completeEvent({
+        name: 'EvaluateScript',
+        id: ++tracer.counter,
+        cat: ['devtools.timeline'],
+        ts: cpuStartTime,
+        dur: cpuEndTime - cpuStartTime,
+        args: {
+          data: {
+            url: 'webpack',
+            lineNumber: 1,
+            columnNumber: 1,
+            frame: '0xFFF',
+          },
+        },
+      })
+
+      tracer.trace.instantEvent({
+        name: 'CpuProfile',
+        id: ++tracer.counter,
+        cat: ['disabled-by-default-devtools.timeline'],
+        ts: cpuEndTime,
+        args: {
+          data: {
+            cpuProfile: parsedResults.profile,
+          },
+        },
+      })
+
+      tracer.profiler.destroy()
+      tracer.trace.flush()
+      tracer.end(resolve)
+    })
   }
 
-  printTreeView(Object.keys(allMappedPages), allPageInfos, isLikeServerless)
+  await Promise.all(backgroundWork).catch(() => {})
 }

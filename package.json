@@ -17,7 +17,8 @@
     "test": "yarn run testall || yarn run test-take2",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
-    "prettier": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
+    "prettier": "prettier --write",
+    "prettier-fix": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
     "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
@@ -38,6 +39,10 @@
       "git add"
     ],
     "*.ts": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.md": [
       "prettier --write",
       "git add"
     ]
@@ -71,6 +76,7 @@
     "@zeit/next-typescript": "1.1.2-canary.0",
     "abort-controller": "3.0.0",
     "amphtml-validator": "1.0.23",
+    "async-sema": "3.0.1",
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "10.0.1",
     "babel-jest": "24.8.0",
@@ -94,6 +100,7 @@
     "lerna": "3.14.1",
     "lint-staged": "8.1.7",
     "mkdirp": "0.5.1",
+    "moment": "^2.24.0",
     "node-fetch": "2.6.0",
     "node-notifier": "5.4.0",
     "node-sass": "4.12.0",

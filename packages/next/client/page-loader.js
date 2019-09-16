@@ -1,5 +1,5 @@
 /* global document, window */
-import mitt from 'next-server/dist/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 
 function supportsPreload (el) {
   try {
@@ -15,7 +15,7 @@ function preloadScript (url) {
   const link = document.createElement('link')
   link.rel = 'preload'
   link.crossOrigin = process.crossOrigin
-  link.href = url
+  link.href = encodeURI(url)
   link.as = 'script'
   document.head.appendChild(link)
 }
@@ -28,7 +28,6 @@ export default class PageLoader {
     this.pageCache = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
-    this.promisedBuildId = Promise.resolve()
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
       this.promisedBuildManifest = new Promise(resolve => {
         if (window.__BUILD_MANIFEST) {
@@ -39,39 +38,6 @@ export default class PageLoader {
           }
         }
       })
-    }
-
-    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
-      this.promisedBuildId = Promise.resolve()
-      this.onDynamicBuildId = () => {
-        this.promisedBuildId = new Promise(resolve => {
-          const unfetch = require('unfetch')
-          unfetch(`${this.assetPrefix}/_next/static/HEAD_BUILD_ID`)
-            .then(res => {
-              if (res.ok) {
-                return res
-              }
-
-              const err = new Error('Failed to fetch HEAD buildId')
-              err.res = res
-              throw err
-            })
-            .then(res => res.text())
-            .then(buildId => {
-              this.buildId = buildId.trim()
-            })
-            .catch(() => {
-              // When this fails it's not a _huge_ deal, preload wont work and page
-              // navigation will 404, triggering a SSR refresh
-              console.warn(
-                'Failed to load BUILD_ID from server. ' +
-                  'The following client-side page transition will likely 404 and cause a SSR.\n' +
-                  'http://err.sh/zeit/next.js/head-build-id'
-              )
-            })
-            .then(resolve, resolve)
-        })
-      }
     }
   }
 
@@ -144,10 +110,6 @@ export default class PageLoader {
   }
 
   async loadRoute (route) {
-    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
-      await this.promisedBuildId
-    }
-
     route = this.normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
@@ -166,7 +128,7 @@ export default class PageLoader {
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
-    script.src = url
+    script.src = encodeURI(url)
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
@@ -179,9 +141,10 @@ export default class PageLoader {
   registerPage (route, regFn) {
     const register = () => {
       try {
-        const { error, page } = regFn()
-        this.pageCache[route] = { error, page }
-        this.pageRegisterEvents.emit(route, { error, page })
+        const mod = regFn()
+        const pageData = { page: mod.default || mod, mod }
+        this.pageCache[route] = pageData
+        this.pageRegisterEvents.emit(route, pageData)
       } catch (error) {
         this.pageCache[route] = { error }
         this.pageRegisterEvents.emit(route, { error })
@@ -211,10 +174,6 @@ export default class PageLoader {
   }
 
   async prefetch (route, isDependency) {
-    if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
-      await this.promisedBuildId
-    }
-
     route = this.normalizeRoute(route)
     let scriptRoute = `${route === '/' ? '/index' : route}.js`
 
@@ -233,8 +192,9 @@ export default class PageLoader {
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.
     if (
-      document.querySelector(`link[rel="preload"][href^="${url}"]`) ||
-      document.querySelector(`script[data-next-page="${route}"]`)
+      document.querySelector(
+        `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
+      )
     ) {
       return
     }

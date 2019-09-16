@@ -802,6 +802,7 @@ declare module 'webpack' {
         portableRecords?: boolean
         /** Tells webpack which algorithm to use when choosing chunk ids. */
         chunkIds?: false | 'natural' | 'named' | 'size' | 'total-size'
+        checkWasmTypes?: boolean
       }
     }
 

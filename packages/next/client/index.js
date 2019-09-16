@@ -3,20 +3,20 @@ import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
-import mitt from 'next-server/dist/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 import {
   loadGetInitialProps,
   getURL,
   SUPPORTS_PERFORMANCE_USER_TIMING
-} from 'next-server/dist/lib/utils'
+} from '../next-server/lib/utils'
 import PageLoader from './page-loader'
-import * as envConfig from 'next-server/config'
-import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
-import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
-import { RouterContext } from 'next-server/dist/lib/router-context'
-import { DataManager } from 'next-server/dist/lib/data-manager'
+import * as envConfig from '../next-server/lib/runtime-config'
+import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { DataManagerContext } from '../next-server/lib/data-manager-context'
+import { RouterContext } from '../next-server/lib/router-context'
+import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -30,13 +30,14 @@ if (!window.Promise) {
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 window.__NEXT_DATA__ = data
 
+export const version = process.env.__NEXT_VERSION
+
 const {
   props,
   err,
   page,
   query,
   buildId,
-  dynamicBuildId,
   assetPrefix,
   runtimeConfig,
   dynamicIds
@@ -162,13 +163,11 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  if (process.env.__NEXT_EXPERIMENTAL_SELECTIVEPAGEBUILDING) {
-    if (dynamicBuildId === true) {
-      pageLoader.onDynamicBuildId()
-    }
-  }
+  // if auto prerendered and dynamic route wait to update asPath
+  // until after mount to prevent hydration mismatch
+  const initialAsPath = isDynamicRoute(page) && data.nextExport ? page : asPath
 
-  router = createRouter(page, query, asPath, {
+  router = createRouter(page, query, initialAsPath, {
     initialProps: props,
     pageLoader,
     App,
@@ -286,7 +285,10 @@ function markRenderComplete () {
 }
 
 function clearMarks () {
-  performance.clearMarks()
+  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
+    mark => performance.clearMarks(mark)
+  )
+
   /*
    * TODO: uncomment the following line when we have a way to
    * expose this to user code.

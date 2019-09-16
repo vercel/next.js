@@ -1,8 +1,11 @@
 import { loader } from 'webpack'
 import { join } from 'path'
 import { parse } from 'querystring'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils'
+import {
+  BUILD_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from '../../../next-server/lib/constants'
+import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { API_ROUTE } from '../../../lib/constants'
 
 export type ServerlessLoaderQuery = {
@@ -12,10 +15,10 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
+  buildId: string
   assetPrefix: string
   ampBindInitData: boolean | string
   generateEtags: string
-  dynamicBuildId?: string | boolean
   canonicalBase: string
 }
 
@@ -24,6 +27,7 @@ const nextServerlessLoader: loader.Loader = function() {
     distDir,
     absolutePagePath,
     page,
+    buildId,
     canonicalBase,
     assetPrefix,
     ampBindInitData,
@@ -31,7 +35,6 @@ const nextServerlessLoader: loader.Loader = function() {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
-    dynamicBuildId,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
@@ -45,17 +48,18 @@ const nextServerlessLoader: loader.Loader = function() {
     ${
       isDynamicRoute(page)
         ? `
-      import { getRouteMatcher } from 'next-server/dist/lib/router/utils/route-matcher';
-      import { getRouteRegex } from 'next-server/dist/lib/router/utils/route-regex';
+      import { getRouteMatcher } from 'next/dist/next-server/lib/router/utils/route-matcher';
+      import { getRouteRegex } from 'next/dist/next-server/lib/router/utils/route-regex';
       `
         : ``
     }
-      import { apiResolver } from 'next-server/dist/server/api-utils'
+      import { parse } from 'url'
+      import { apiResolver } from 'next/dist/next-server/server/api-utils'
 
       export default (req, res) => {
         const params = ${
           isDynamicRoute(page)
-            ? `getRouteMatcher(getRouteRegex('${page}'))(req.url)`
+            ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
             : `{}`
         }
         const resolver = require('${absolutePagePath}')
@@ -65,11 +69,11 @@ const nextServerlessLoader: loader.Loader = function() {
   } else {
     return `
     import {parse} from 'url'
-    import {renderToHTML} from 'next-server/dist/server/render';
-    import {sendHTML} from 'next-server/dist/server/send-html';
+    import {renderToHTML} from 'next/dist/next-server/server/render';
+    import {sendHTML} from 'next/dist/next-server/server/send-html';
     ${
       isDynamicRoute(page)
-        ? `import {getRouteMatcher, getRouteRegex} from 'next-server/dist/lib/router/utils';`
+        ? `import {getRouteMatcher, getRouteRegex} from 'next/dist/next-server/lib/router/utils';`
         : ''
     }
     import buildManifest from '${buildManifest}';
@@ -89,8 +93,7 @@ const nextServerlessLoader: loader.Loader = function() {
         buildManifest,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
-        buildId: "__NEXT_REPLACE__BUILD_ID__",
-        dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
+        buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${ampBindInitData === true ||
           ampBindInitData === 'true'}
