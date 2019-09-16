@@ -129,7 +129,8 @@ export default class Router implements BaseRouter {
       this.changeState(
         'replaceState',
         formatWithValidation({ pathname, query }),
-        as
+        as,
+        window.history.state && window.history.state.options
       )
 
       window.addEventListener('popstate', this.onPopState)
