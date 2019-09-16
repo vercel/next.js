@@ -30,16 +30,21 @@ cd with-aws-amplify-typescript
 
 #### Install & Configure Amplify
 
-  1. [Sign up](https://portal.aws.amazon.com/billing/signup#/start) for an AWS account
-  2. Install the AWS Amplify cli: 
-  ```sh
+1. [Sign up](https://portal.aws.amazon.com/billing/signup#/start) for an AWS account
+2. Install the AWS Amplify cli:
+
+```sh
 npm install -g @aws-amplify/cli
-  ```
-  3. Configure the Amplify cli
-  ```sh
+```
+
+3. Configure the Amplify cli
+
+```sh
 amplify configure
-  ```
-  [Read More](https://aws-amplify.github.io/docs/cli-toolchain/quickstart?sdk=js)
+```
+
+[Read More](https://aws-amplify.github.io/docs/cli-toolchain/quickstart?sdk=js)
+
 </details>
 
 #### Initialize Amplify
@@ -52,9 +57,9 @@ $ amplify init
 ? Enter a name for the environment: dev (or whatever you would like to call this env)
 ? Choose your default editor: <YOUR_EDITOR_OF_CHOICE>
 ? Choose the type of app that you're building (Use arrow keys)
-  android 
-  ios 
-❯ javascript 
+  android
+  ios
+❯ javascript
 ? What javascript framework are you using react
 ? Source Directory Path:  src
 ? Distribution Directory Path: out
@@ -71,11 +76,11 @@ $ amplify init
 $ amplify add api
 # <Interactive>
 ? Please select from one of the below mentioned services (Use arrow keys)
-❯ GraphQL 
-  REST 
+❯ GraphQL
+  REST
 ? Provide API name: <API_NAME>
 ? Choose an authorization type for the API (Use arrow keys)
-❯ API key 
+❯ API key
   Amazon Cognito User Pool
 ? Do you have an annotated GraphQL schema? (y/N) y
 ? Provide your schema file path: ./schema.graphql
@@ -90,12 +95,12 @@ $ amplify push
 ? Are you sure you want to continue? Y
 ? Do you want to generate code for your newly created GraphQL API? Y
 ? Choose the code generation language target (Use arrow keys)
-  javascript 
-❯ typescript 
+  javascript
+❯ typescript
   flow
-? Enter the file name pattern of graphql queries, mutations and subscriptions (src/graphql/**/*.js) 
+? Enter the file name pattern of graphql queries, mutations and subscriptions (src/graphql/**/*.js)
 ? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions (Y/n) Y
-? Enter maximum statement depth [increase from default if your schema is deeply nested] (2) 
+? Enter maximum statement depth [increase from default if your schema is deeply nested] (2)
 
 # </Interactive>
 ```
@@ -114,7 +119,7 @@ yarn dev
 
 1. Open [`amplify/backend/api/nextjswithamplifyts/schema.graphql`](amplify/backend/api/nextjswithamplifyts/schema.graphql) and change what you need to.
 2. Run `amplify push`
-3. 👍 
+3. 👍
 
 ## The idea behind the example
 
@@ -124,10 +129,8 @@ We use AWS Amplify to generate code and to manage and consume the AWS cloud reso
 
 The NextJS app has dynamic and static routes to demonstrate how to load data on the server based on the incoming request.
 
-Two routes are implemented : 
+Two routes are implemented :
 
 - `/` : A static route that uses getInitialProps to load data from AppSync and renders it on the server (Code in [pages/index.tsx](/pages/index.tsx))
 
 - `/todo/[id]` : A dynamic route that uses getInitialProps and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/:[id].tsx](/pages/todo/[id].tsx))
-
-

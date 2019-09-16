@@ -75,8 +75,8 @@ const renames = [
 module.exports = {
   commentHeading: 'Stats from current PR',
   commentReleaseHeading: 'Stats from current release',
-  appBuildCommand: 'yarn next build',
-  appStartCommand: 'yarn next start --port $PORT',
+  appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
+  appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
   mainRepo: 'zeit/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
@@ -89,6 +89,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -109,6 +110,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID',
               experimental: {
                 modern: true,
                 granularChunks: true
@@ -134,6 +136,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID',
               target: 'serverless',
               experimental: {
                 modern: true,

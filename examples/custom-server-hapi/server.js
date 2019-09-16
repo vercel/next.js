@@ -39,7 +39,7 @@ app.prepare().then(async () => {
   })
 
   server.route({
-    method: 'GET',
+    method: '*',
     path: '/{p*}' /* catch all route */,
     handler: defaultHandlerWrapper(app)
   })

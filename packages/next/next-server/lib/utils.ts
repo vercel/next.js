@@ -28,6 +28,10 @@ export type AppType = NextComponentType<
   AppPropsType
 >
 
+export type AppTreeType = ComponentType<
+  AppInitialProps & { [name: string]: any }
+>
+
 export type Enhancer<C> = (Component: C) => C
 
 export type ComponentsEnhancer =
@@ -61,6 +65,7 @@ export type NEXT_DATA = {
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
+  autoExport?: boolean
   skeleton?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
@@ -98,12 +103,12 @@ export interface NextPageContext {
   /**
    * `Component` the tree of the App to use if needing to render separately
    */
-  AppTree: AppType
+  AppTree: AppTreeType
 }
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
-  AppTree: AppType
+  AppTree: AppTreeType
   ctx: NextPageContext
   router: R
 }
