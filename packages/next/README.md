@@ -594,7 +594,7 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => (
 
 export default () => (
   <>
-    <Link href='/another'>
+    <Link href="/another">
       <MyButton />
     </Link>
   </>
@@ -1667,12 +1667,12 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-function Error ({ statusCode }) {
+function Error({ statusCode }) {
   return (
     <p>
       {statusCode
         ? `An error ${statusCode} occurred on server`
-        : "An error occurred on client"}
+        : 'An error occurred on client'}
     </p>
   )
 }
@@ -1690,9 +1690,9 @@ export default Error
 If you want to render the built-in error page you can by using `next/error`:
 
 ```jsx
-import React from "react"
-import Error from "next/error"
-import fetch from "isomorphic-unfetch"
+import React from 'react'
+import Error from 'next/error'
+import fetch from 'isomorphic-unfetch'
 
 const Page = ({ errorCode, stars }) => {
   if (errorCode) {
@@ -1703,7 +1703,7 @@ const Page = ({ errorCode, stars }) => {
 }
 
 Page.getInitialProps = async () => {
-  const res = await fetch("https://api.github.com/repos/zeit/next.js")
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
   const errorCode = res.statusCode > 200 ? res.statusCode : false
   const json = await res.json()
 
@@ -2166,6 +2166,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
+
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:

@@ -17,7 +17,8 @@
     "test": "yarn run testall || yarn run test-take2",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
-    "prettier": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
+    "prettier": "prettier --write",
+    "prettier-fix": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
     "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
@@ -38,6 +39,10 @@
       "git add"
     ],
     "*.ts": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.md": [
       "prettier --write",
       "git add"
     ]
