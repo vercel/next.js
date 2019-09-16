@@ -83,11 +83,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
   const publicDir = path.join(dir, 'public')
-  let publicFiles: string[] = []
-
-  if (config.experimental.publicDirectory) {
-    publicFiles = await recursiveReadDir(publicDir, /.*/)
-  }
+  let publicFiles = await recursiveReadDir(publicDir, /.*/)
 
   let tracer: any = null
   if (config.experimental.profiling) {
