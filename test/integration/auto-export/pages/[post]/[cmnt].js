@@ -17,7 +17,7 @@ if (typeof window !== 'undefined') {
 
 export default () => {
   if (typeof window !== 'undefined') {
-    window.pathnames.push(location.pathname)
+    window.pathnames.push(window.location.pathname)
   }
   return <p>{useRouter().asPath}</p>
 }
