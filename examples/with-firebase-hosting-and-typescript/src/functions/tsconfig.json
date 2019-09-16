@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "es6",
-      "dom",
-      "es2016"
-    ],
+    "lib": ["es6", "dom", "es2016"],
     "module": "commonjs",
     "strict": true,
     "outDir": "../../dist/functions",

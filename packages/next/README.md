@@ -2164,8 +2164,8 @@ In some cases this indicator might not be as useful like when working on electro
 ```js
 module.exports = {
   devIndicators: {
-    autoPrerender: false
-  }
+    autoPrerender: false,
+  },
 }
 ```
 
