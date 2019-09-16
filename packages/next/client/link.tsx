@@ -101,8 +101,8 @@ const listenToIntersections = (el: any, cb: any) => {
   return () => {
     try {
       observer.unobserve(el)
-    } catch (_) {
-      /* not detrimental if it fails to unobserve */
+    } catch (err) {
+      console.error(err)
     }
     listeners.delete(el)
   }
