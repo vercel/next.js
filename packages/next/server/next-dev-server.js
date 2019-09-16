@@ -198,12 +198,14 @@ export default class DevServer extends Server {
 
   async run (req, res, parsedUrl) {
     await this.devReady
-    try {
-      await fsStat(join(this.publicDir, '_next'))
-      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-    } catch (err) {}
-
     const { pathname } = parsedUrl
+
+    if (pathname.startsWith('/_next')) {
+      try {
+        await fsStat(join(this.publicDir, '_next'))
+        throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+      } catch (err) {}
+    }
 
     // check for a public file, throwing error if there's a
     // conflicting page
