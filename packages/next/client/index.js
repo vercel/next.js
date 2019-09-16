@@ -85,11 +85,15 @@ class Container extends React.Component {
   componentDidMount () {
     this.scrollToHash()
 
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
+    // If page was exported we need to refresh the router information
+    // since it could be a dynamic page that needs to parse params,
+    // new query values could be present, or the asPath could have changed
     if (
       data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search || data.skeleton)
+      (isDynamicRoute(router.pathname) ||
+        location.search ||
+        data.skeleton ||
+        router.pathname !== asPath)
     ) {
       // update query on mount for exported pages
       router.replace(
