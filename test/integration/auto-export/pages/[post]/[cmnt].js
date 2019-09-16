@@ -12,8 +12,12 @@ if (typeof window !== 'undefined') {
     window.caughtWarns.push(1)
     origError(...args)
   }
+  window.pathnames = []
 }
 
 export default () => {
+  if (typeof window !== 'undefined') {
+    window.pathnames.push(window.location.pathname)
+  }
   return <p>{useRouter().asPath}</p>
 }
