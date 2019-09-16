@@ -41,9 +41,11 @@ import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import createSpinner from './spinner'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
+const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
@@ -109,6 +111,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const conflictingPublicFiles: string[] = []
+
+  try {
+    await fsStat(path.join(publicDir, '_next'))
+    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+  } catch (err) {}
 
   for (let file of publicFiles) {
     file = file

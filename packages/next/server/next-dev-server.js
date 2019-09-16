@@ -21,6 +21,7 @@ import {
 import React from 'react'
 import { findPageFile } from './lib/find-page-file'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -197,6 +198,12 @@ export default class DevServer extends Server {
 
   async run (req, res, parsedUrl) {
     await this.devReady
+
+    try {
+      await fsStat(join(this.publicDir, '_next'))
+      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+    } catch (err) {}
+
     const { finished } = await this.hotReloader.run(req, res, parsedUrl)
     if (finished) {
       return
