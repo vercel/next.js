@@ -198,16 +198,11 @@ export default class DevServer extends Server {
 
   async run (req, res, parsedUrl) {
     await this.devReady
-
     try {
       await fsStat(join(this.publicDir, '_next'))
       throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
     } catch (err) {}
 
-    const { finished } = await this.hotReloader.run(req, res, parsedUrl)
-    if (finished) {
-      return
-    }
     const { pathname } = parsedUrl
 
     // check for a public file, throwing error if there's a
@@ -216,6 +211,7 @@ export default class DevServer extends Server {
       if (await this.hasPublicFile(pathname)) {
         const pageFile = await findPageFile(
           this.pagesDir,
+
           normalizePagePath(pathname),
           this.nextConfig.pageExtensions
         )
@@ -229,6 +225,11 @@ export default class DevServer extends Server {
         }
         return this.servePublic(req, res, pathname)
       }
+    }
+
+    const { finished } = await this.hotReloader.run(req, res, parsedUrl)
+    if (finished) {
+      return
     }
 
     return super.run(req, res, parsedUrl)
