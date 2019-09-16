@@ -47,7 +47,6 @@ const RegisterBox = () => {
     <form
       onSubmit={e => {
         e.preventDefault()
-        e.stopPropagation()
 
         create({
           variables: {

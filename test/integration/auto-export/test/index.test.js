@@ -66,12 +66,19 @@ describe('Auto Export', () => {
 
     runTests()
 
-    it('should show hydration warning from mismatching asPath', async () => {
+    it('should not show hydration warning from mismatching asPath', async () => {
       const browser = await webdriver(appPort, '/zeit/cmnt-1')
       await waitFor(500)
 
       const numCaught = await browser.eval(`window.caughtWarns.length`)
-      expect(numCaught).toBe(1)
+      expect(numCaught).toBe(0)
+    })
+
+    it('should update asPath after mount', async () => {
+      const browser = await webdriver(appPort, '/zeit/cmnt-2')
+      await waitFor(500)
+      const html = await browser.eval(`document.documentElement.innerHTML`)
+      expect(html).toMatch(/\/zeit\/cmnt-2/)
     })
   })
 })

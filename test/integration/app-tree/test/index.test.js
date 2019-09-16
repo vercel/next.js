@@ -52,7 +52,7 @@ const runTests = () => {
   })
 }
 
-describe('Auto Export', () => {
+describe('AppTree', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

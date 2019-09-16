@@ -11,7 +11,6 @@ export default function initializeBuildWatcher () {
   shadowHost.style.height = 0
   shadowHost.style.zIndex = 99998
   shadowHost.style.transition = 'all 100ms ease'
-  shadowHost.title = 'Click to hide for page'
 
   document.body.appendChild(shadowHost)
 
@@ -36,8 +35,15 @@ export default function initializeBuildWatcher () {
   const css = createCss(prefix)
   shadowRoot.appendChild(css)
 
+  const expandEl = container.querySelector('a')
+  const closeEl = container.querySelector(`#${prefix}close`)
+
   // State
-  let isVisible = window.__NEXT_DATA__.nextExport
+  const dismissKey = '__NEXT_DISMISS_PRERENDER_INDICATOR'
+  const dismissUntil = parseInt(window.localStorage.getItem(dismissKey), 10)
+  const dismissed = dismissUntil > new Date().getTime()
+
+  let isVisible = !dismissed && window.__NEXT_DATA__.nextExport
 
   function updateContainer () {
     if (isVisible) {
@@ -46,21 +52,36 @@ export default function initializeBuildWatcher () {
       container.classList.remove(`${prefix}visible`)
     }
   }
+  const expandedClass = `${prefix}expanded`
+  let toggleTimeout
 
-  shadowHost.addEventListener('click', () => {
-    shadowHost.style.opacity = 0
-    shadowHost.style.pointerEvents = 'none'
+  const toggleExpand = (expand = true) => {
+    clearTimeout(toggleTimeout)
+
+    toggleTimeout = setTimeout(() => {
+      if (expand) {
+        expandEl.classList.add(expandedClass)
+        closeEl.style.display = 'flex'
+      } else {
+        expandEl.classList.remove(expandedClass)
+        closeEl.style.display = 'none'
+      }
+    }, 50)
+  }
+
+  closeEl.addEventListener('click', () => {
+    const oneHourAway = new Date().getTime() + 1 * 60 * 60 * 1000
+    window.localStorage.setItem(dismissKey, oneHourAway + '')
+    isVisible = false
+    updateContainer()
   })
-  shadowHost.addEventListener('mouseenter', () => {
-    container.classList.add(`${prefix}expanded`)
-  })
-  shadowHost.addEventListener('mouseleave', () => {
-    container.classList.remove(`${prefix}expanded`)
-  })
+  closeEl.addEventListener('mouseenter', () => toggleExpand())
+  closeEl.addEventListener('mouseleave', () => toggleExpand(false))
+  expandEl.addEventListener('mouseenter', () => toggleExpand())
+  expandEl.addEventListener('mouseleave', () => toggleExpand(false))
 
   Router.events.on('routeChangeComplete', () => {
     isVisible = window.next.isPrerendered
-    shadowHost.style.opacity = 1
     updateContainer()
   })
   updateContainer()
@@ -70,16 +91,20 @@ function createContainer (prefix) {
   const container = document.createElement('div')
   container.id = `${prefix}container`
   container.innerHTML = `
-    <div id="${prefix}icon-wrapper">
-      <svg width="15" height="20" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M36 3L30.74 41H8L36 3Z" fill="black"/>
-      <path d="M25 77L30.26 39H53L25 77Z" fill="black"/>
-      <path d="M13.5 33.5L53 39L47.5 46.5L7 41.25L13.5 33.5Z" fill="black"/>
-      </svg>
-      Prerendered Page
-    </div>
+    <button id="${prefix}close" title="Hide indicator for session">
+      <span>×</span>
+    </button>
+    <a href="https://nextjs.org/docs#automatic-prerender-indicator" target="_blank">
+      <div id="${prefix}icon-wrapper">
+          <svg width="15" height="20" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M36 3L30.74 41H8L36 3Z" fill="black"/>
+          <path d="M25 77L30.26 39H53L25 77Z" fill="black"/>
+          <path d="M13.5 33.5L53 39L47.5 46.5L7 41.25L13.5 33.5Z" fill="black"/>
+          </svg>
+          Prerendered Page
+      </div>
+    </a>
   `
-
   return container
 }
 
@@ -88,8 +113,32 @@ function createCss (prefix) {
   css.textContent = `
     #${prefix}container {
       position: absolute;
+      display: none;
       bottom: 10px;
       right: 15px;
+    }
+
+    #${prefix}close {
+      top: -10px;
+      right: -10px;
+      border: none;
+      width: 18px;
+      height: 18px;
+      color: #333333;
+      font-size: 16px;
+      cursor: pointer;
+      display: none;
+      position: absolute;
+      background: #ffffff;
+      border-radius: 100%;
+      align-items: center;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #${prefix}container a {
+      color: inherit;
+      text-decoration: none;
       width: 15px;
       height: 23px;
       overflow: hidden;
@@ -110,8 +159,7 @@ function createCss (prefix) {
       align-items: center;
       box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.25), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
 
-      display: none;
-      opacity: 0;
+      display: flex;
       transition: opacity 0.1s ease, bottom 0.1s ease, width 0.3s ease;
       animation: ${prefix}fade-in 0.1s ease-in-out;
     }
@@ -122,6 +170,7 @@ function createCss (prefix) {
       display: flex;
       flex-shrink: 0;
       align-items: center;
+      position: relative;
     }
 
     #${prefix}icon-wrapper svg {
@@ -129,8 +178,8 @@ function createCss (prefix) {
       margin-right: 3px;
     }
 
-    #${prefix}container.${prefix}expanded {
-      width: 140px;
+    #${prefix}container a.${prefix}expanded {
+      width: 135px;
     }
 
     #${prefix}container.${prefix}visible {

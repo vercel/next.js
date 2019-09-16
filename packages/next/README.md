@@ -555,6 +555,8 @@ export default Home
 
 ```jsx
 // pages/about.js
+import Link from 'next/link'
+
 function About() {
   return (
     <>
@@ -955,7 +957,7 @@ componentDidUpdate(prevProps) {
   </ul>
 </details>
 
-If you want to access the `router` object inside any component in your app, you can use the `useRouter` hook, here's how to use it:
+If you want to access the `router` object inside any functional component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -979,6 +981,9 @@ export default function ActiveLink({ children, href }) {
   )
 }
 ```
+
+> **Note**: `useRouter` is a React hook, meaning it cannot be used with classes.
+> You can either use [`withRouter`](#using-a-higher-order-component) (a higher order component) or wrap your class in a functional component.
 
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
 
@@ -1019,6 +1024,8 @@ Next.js has an API which allows you to prefetch pages.
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
+
+> Automatic prefetching is disabled if your device is connected with 2G network or [Save-Data](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Save-Data) header is `on`.
 
 > `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892.
 
@@ -1133,7 +1140,7 @@ export default (req, res) => {
 
 - `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
-For [API routes](#api-routes) there are build in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+For [API routes](#api-routes) there are built-in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
 
 ```ts
 import { NextApiRequest, NextApiResponse } from 'next'
@@ -2147,6 +2154,20 @@ There is no configuration or special handling required.
 
 > **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
 > `ctx.req` will be `undefined` for pages that are prerendered.
+
+## Automatic Prerender Indicator
+
+When a page qualifies for automatic prerendering we show an indicator to let you know. This is helpful since the automatic prerendering optimization can be very beneficial and knowing immediately in development if it qualifies can be useful. See above for information on the benefits of this optimization.
+
+In some cases this indicator might not be as useful like when working on electron applications. For these cases you can disable the indicator in your `next.config.js` by setting
+
+```js
+module.exports = {
+  devIndicators: {
+    autoPrerender: false
+  }
+}
+```
 
 ## Production deployment
 
