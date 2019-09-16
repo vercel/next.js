@@ -40,6 +40,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
+import createSpinner from './spinner'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -70,8 +71,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     recordNextPlugins(path.resolve(dir))
   )
 
-  console.log('Creating an optimized production build ...')
-  console.log()
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -101,11 +103,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   // needed for static exporting since we want to replace with HTML
   // files
-  const allPagePaths = [...pagePaths]
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
-  const allMappedPages = createPagesMapping(allPagePaths, config.pageExtensions)
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const conflictingPublicFiles: string[] = []
@@ -192,6 +192,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
+  if (buildSpinner) {
+    buildSpinner.stopAndPersist()
+  }
+  console.log()
 
   result = formatWebpackMessages(result)
 
@@ -234,12 +238,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
     backgroundWork.push(
       recordBuildDuration({
-        totalPageCount: allPagePaths.length,
+        totalPageCount: pagePaths.length,
         durationInSeconds: webpackBuildEnd[0],
       })
     )
   }
 
+  const postBuildSpinner = createSpinner({
+    prefixText: 'Automatically optimizing pages',
+  })
+
+  const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
@@ -439,14 +448,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+  console.log()
 
   const analysisEnd = process.hrtime(analysisBegin)
   backgroundWork.push(
     recordBuildOptimize({
       durationInSeconds: analysisEnd[0],
-      totalPageCount: allPagePaths.length,
+      totalPageCount: pagePaths.length,
       staticPageCount: staticPages.size,
-      ssrPageCount: allPagePaths.length - staticPages.size,
+      ssrPageCount: pagePaths.length - staticPages.size,
     })
   )
 
@@ -463,7 +474,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     allPageInfos.set(key, info)
   })
 
-  printTreeView(Object.keys(allMappedPages), allPageInfos, isLikeServerless)
+  printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless)
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()

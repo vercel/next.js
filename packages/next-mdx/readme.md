@@ -61,7 +61,7 @@ module.exports = withMDX()
 
 ## Top level .mdx pages
 
-Define the `pagesExtensions` option to have Next.js handle `.mdx` files in the `pages` directory as pages:
+Define the `pageExtensions` option to have Next.js handle `.mdx` files in the `pages` directory as pages:
 
 ```js
 // next.config.js

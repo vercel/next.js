@@ -195,7 +195,8 @@ export default class Router implements BaseRouter {
     this.replace(url, as, options)
   }
 
-  update(route: string, Component: ComponentType) {
+  update(route: string, mod: any) {
+    const Component: ComponentType = mod.default || mod
     const data = this.components[route]
     if (!data) {
       throw new Error(`Cannot update unavailable route: ${route}`)
