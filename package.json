@@ -106,7 +106,6 @@
     "node-sass": "4.12.0",
     "pre-commit": "1.2.2",
     "prettier": "1.17.1",
-    "ps-list": "6.3.0",
     "react": "16.8.6",
     "react-dom": "16.8.6",
     "react-ssr-prepass": "1.0.5",

@@ -35,5 +35,5 @@ steps:
     displayName: 'Yarn check'
 
   - script: |
-      node run-tests.js -c 2 -g $(group) --hard-retry
+      node run-tests.js -c 2 -g $(group)
     displayName: 'Run tests'
