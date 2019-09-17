@@ -116,7 +116,9 @@ const DEFAULT_CONCURRENCY = 3
                 if (name.includes('chrome') || name.includes('node')) {
                   if (proc.pid !== process.pid) {
                     console.log('killing', name)
-                    await treeKill(proc.pid)
+                    try {
+                      await treeKill(proc.pid)
+                    } catch (_) {}
                   }
                 }
               }
