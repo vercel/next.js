@@ -143,14 +143,14 @@ export async function getPageSizeInKb(
   )
 
   // With granularChunks flag enabled, each page may have additional chunks that it depends on
-  const basePages = buildManifest.pages['/_app']
+  const baseDeps = buildManifest.pages['/_app']
   let deps = buildManifest.pages[page] || []
 
   // Get the list of chunks specific to this page
   // With granularChunks: false, this will be []
   if (page !== '/_app' && deps.length) {
     deps = deps.filter(dep => {
-      return !basePages.includes(dep) && /\.module\.js$/.test(dep) === isModern
+      return !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
     })
   }
 
