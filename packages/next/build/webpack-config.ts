@@ -294,11 +294,13 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
-  let customAppFile = await findPageFile(
-    path.join(dir, 'pages'),
-    '/_app',
-    config.pageExtensions
-  )
+  let customAppFile: string | null = config.experimental.css
+    ? await findPageFile(
+        path.join(dir, 'pages'),
+        '/_app',
+        config.pageExtensions
+      )
+    : null
   if (customAppFile) {
     customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
   }
