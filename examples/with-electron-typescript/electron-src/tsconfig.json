@@ -6,10 +6,7 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "lib": [
-      "dom",
-      "es2017"
-    ],
+    "lib": ["dom", "es2017"],
     "module": "commonjs",
     "moduleResolution": "node",
     "noEmit": false,
@@ -20,14 +17,8 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "esnext",
-    "outDir": "../main",
+    "outDir": "../main"
   },
-  "exclude": [
-    "node_modules"
-  ],
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.js"
-  ]
+  "exclude": ["node_modules"],
+  "include": ["**/*.ts", "**/*.tsx", "**/*.js"]
 }

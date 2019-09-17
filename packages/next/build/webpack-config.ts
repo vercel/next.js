@@ -326,10 +326,17 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            // Resolve the import with the webpack provided context, this
+            // ensures we're resolving the correct version when multiple
+            // exist.
             let res
             try {
-              res = resolveRequest(request, context)
+              res = resolveRequest(request, `${context}/`)
             } catch (err) {
+              // This is a special case for the Next.js data experiment. This
+              // will be removed in the future.
+              // We're telling webpack to externalize a package that doesn't
+              // exist because we know it won't ever be used at runtime.
               if (
                 request === 'react-ssr-prepass' &&
                 !config.experimental.ampBindInitData
@@ -341,10 +348,31 @@ export default async function getBaseWebpackConfig(
                 }
               }
 
+              // If the request cannot be resolved, we need to tell webpack to
+              // "bundle" it so that webpack shows an error (that it cannot be
+              // resolved).
               return callback()
             }
 
+            // Same as above, if the request cannot be resolved we need to have
+            // webpack "bundle" it so it surfaces the not found error.
             if (!res) {
+              return callback()
+            }
+
+            // Bundled Node.js code is relocated without its node_modules tree.
+            // This means we need to make sure its request resolves to the same
+            // package that'll be available at runtime. If it's not identical,
+            // we need to bundle the code (even if it _should_ be external).
+            let baseRes
+            try {
+              baseRes = resolveRequest(request, `${dir}/`)
+            } catch (err) {}
+
+            // Same as above: if the package, when required from the root,
+            // would be different from what the real resolution would use, we
+            // cannot externalize it.
+            if (baseRes !== res) {
               return callback()
             }
 
@@ -366,10 +394,13 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            // Anything else that is standard JavaScript within `node_modules`
+            // can be externalized.
             if (res.match(/node_modules[/\\].*\.js$/)) {
               return callback(undefined, `commonjs ${request}`)
             }
 
+            // Default behavior: bundle the code!
             callback()
           },
         ]
@@ -616,9 +647,18 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
-        'process.env.__NEXT_GRANULAR_CHUNKS':
-          config.experimental.granularChunks && !dev,
+        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
+          config.experimental.modern && !dev
+        ),
+        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
+          config.experimental.granularChunks && !dev
+        ),
+        'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
+          config.devIndicators.buildActivity
+        ),
+        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
+          config.devIndicators.autoPrerender
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

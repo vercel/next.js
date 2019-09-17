@@ -596,7 +596,7 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => (
 
 export default () => (
   <>
-    <Link href='/another'>
+    <Link href="/another">
       <MyButton />
     </Link>
   </>
@@ -1674,21 +1674,19 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-class Error extends React.Component {
-  static getInitialProps({ res, err }) {
-    const statusCode = res ? res.statusCode : err ? err.statusCode : null
-    return { statusCode }
-  }
+function Error({ statusCode }) {
+  return (
+    <p>
+      {statusCode
+        ? `An error ${statusCode} occurred on server`
+        : 'An error occurred on client'}
+    </p>
+  )
+}
 
-  render() {
-    return (
-      <p>
-        {this.props.statusCode
-          ? `An error ${this.props.statusCode} occurred on server`
-          : 'An error occurred on client'}
-      </p>
-    )
-  }
+Error.getInitialProps = ({ res, err }) => {
+  const statusCode = res ? res.statusCode : err ? err.statusCode : null
+  return { statusCode }
 }
 
 export default Error
@@ -1703,22 +1701,20 @@ import React from 'react'
 import Error from 'next/error'
 import fetch from 'isomorphic-unfetch'
 
-class Page extends React.Component {
-  static async getInitialProps() {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const errorCode = res.statusCode > 200 ? res.statusCode : false
-    const json = await res.json()
-
-    return { errorCode, stars: json.stargazers_count }
+const Page = ({ errorCode, stars }) => {
+  if (errorCode) {
+    return <Error statusCode={errorCode} />
   }
 
-  render() {
-    if (this.props.errorCode) {
-      return <Error statusCode={this.props.errorCode} />
-    }
+  return <div>Next stars: {stars}</div>
+}
 
-    return <div>Next stars: {this.props.stars}</div>
-  }
+Page.getInitialProps = async () => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const errorCode = res.statusCode > 200 ? res.statusCode : false
+  const json = await res.json()
+
+  return { errorCode, stars: json.stargazers_count }
 }
 
 export default Page
@@ -2159,6 +2155,20 @@ There is no configuration or special handling required.
 > **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
 > `ctx.req` will be `undefined` for pages that are prerendered.
 
+## Automatic Prerender Indicator
+
+When a page qualifies for automatic prerendering we show an indicator to let you know. This is helpful since the automatic prerendering optimization can be very beneficial and knowing immediately in development if it qualifies can be useful. See above for information on the benefits of this optimization.
+
+In some cases this indicator might not be as useful like when working on electron applications. For these cases you can disable the indicator in your `next.config.js` by setting
+
+```js
+module.exports = {
+  devIndicators: {
+    autoPrerender: false,
+  },
+}
+```
+
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -2177,6 +2187,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
+
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:

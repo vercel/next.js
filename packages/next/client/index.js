@@ -163,11 +163,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  // if auto prerendered and dynamic route wait to update asPath
-  // until after mount to prevent hydration mismatch
-  const initialAsPath = isDynamicRoute(page) && data.nextExport ? page : asPath
-
-  router = createRouter(page, query, initialAsPath, {
+  router = createRouter(page, query, asPath, {
     initialProps: props,
     pageLoader,
     App,
