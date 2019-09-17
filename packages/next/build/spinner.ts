@@ -51,7 +51,7 @@ export default function createSpinner(
       return spinner!
     }
   } else if (prefixText || text) {
-    console.log(prefixText || text)
+    console.log(prefixText ? prefixText + '...' : text)
   }
 
   return spinner
