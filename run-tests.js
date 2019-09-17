@@ -1,16 +1,21 @@
 const path = require('path')
 const _glob = require('glob')
+const psList = require('ps-list')
+const _treeKill = require('tree-kill')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
+const treeKill = promisify(_treeKill)
 
 const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 3
 
 ;(async () => {
+  // kills all node process except current one and all Chrome(driver) instances
+  const useHardRetries = process.argv.indexOf('--hard-retry') > -1
   let concurrencyIdx = process.argv.indexOf('-c')
   const concurrency =
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
@@ -68,12 +73,20 @@ const DEFAULT_CONCURRENCY = 3
           stdio: 'inherit'
         }
       )
-      children.add(child)
-      child.on('exit', code => {
+      const exitHandler = code => {
         children.delete(child)
         if (code) reject(new Error(`failed with code: ${code}`))
         resolve()
-      })
+      }
+      child.on('exit', exitHandler)
+
+      child.prepareRestart = () => {
+        child.removeListener('exit', exitHandler)
+        children.delete(child)
+        child.kill()
+      }
+      child.restart = () => resolve(runTest(test))
+      children.add(child)
     })
 
   await Promise.all(
@@ -93,6 +106,24 @@ const DEFAULT_CONCURRENCY = 3
               await exec(`git clean -fdx "${path.join(__dirname, test)}"`)
               await exec(`git checkout "${path.join(__dirname, test)}"`)
             } catch (err) {}
+
+            if (useHardRetries) {
+              const runningChildren = [...children]
+              runningChildren.forEach(child => child.prepareRestart())
+              for (const proc of await psList()) {
+                const name = proc.name.toLowerCase()
+
+                if (name.includes('chrome') || name.includes('node')) {
+                  if (proc.pid !== process.pid) {
+                    console.log('killing', name)
+                    try {
+                      await treeKill(proc.pid)
+                    } catch (_) {}
+                  }
+                }
+              }
+              runningChildren.forEach(child => child.restart())
+            }
           }
         }
       }
