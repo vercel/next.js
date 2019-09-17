@@ -132,15 +132,32 @@ export function printTreeView(
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string
+  buildId: string,
+  buildManifest: { pages: { [k: string]: string[] } },
+  isModern: boolean
 ): Promise<number> {
   const clientBundle = path.join(
     distPath,
     `static/${buildId}/pages/`,
     `${page}.js`
   )
+  const basePages = buildManifest.pages['/_app']
+  let deps = buildManifest.pages[page] || []
+
+  if (page !== '/_app' && deps.length) {
+    deps = deps.filter(dep => {
+      return !basePages.includes(dep) && /\.module\.js$/.test(dep) === isModern
+    })
+  }
+
   try {
-    return (await fsStat(clientBundle)).size
+    let pageSize = (await fsStat(clientBundle)).size
+
+    for (const dep of deps) {
+      pageSize += (await fsStat(`${distPath}/${dep}`)).size
+    }
+
+    return pageSize
   } catch (_) {}
   return -1
 }
