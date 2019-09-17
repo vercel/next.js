@@ -3,10 +3,12 @@ import Router from 'next/router'
 import fetch from 'isomorphic-unfetch'
 import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
-import { withAuthSync } from '../utils/auth'
+import { useAuthSync } from '../utils/auth'
 import getHost from '../utils/get-host'
 
 const Profile = props => {
+  useAuthSync();
+  
   const { name, login, bio, avatarUrl } = props.data
 
   return (
@@ -72,4 +74,4 @@ Profile.getInitialProps = async ctx => {
   }
 }
 
-export default withAuthSync(Profile)
+export default (Profile)
