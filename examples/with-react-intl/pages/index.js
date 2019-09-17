@@ -1,4 +1,9 @@
-import { FormattedMessage, FormattedNumber, defineMessages, useIntl } from 'react-intl'
+import {
+  FormattedMessage,
+  FormattedNumber,
+  defineMessages,
+  useIntl
+} from 'react-intl'
 import Head from 'next/head'
 import Layout from '../components/Layout'
 

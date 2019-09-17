@@ -65,6 +65,7 @@ export type NEXT_DATA = {
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
+  autoExport?: boolean
   skeleton?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
