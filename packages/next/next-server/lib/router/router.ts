@@ -118,7 +118,11 @@ export default class Router implements BaseRouter {
     this.pageLoader = pageLoader
     this.pathname = pathname
     this.query = query
-    this.asPath = as
+    // if auto prerendered and dynamic route wait to update asPath
+    // until after mount to prevent hydration mismatch
+    this.asPath =
+      // @ts-ignore this is temporarily global (attached to window)
+      isDynamicRoute(pathname) && __NEXT_DATA__.nextExport ? pathname : as
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp

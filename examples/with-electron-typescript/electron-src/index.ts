@@ -16,17 +16,17 @@ app.on('ready', async () => {
     height: 600,
     webPreferences: {
       nodeIntegration: false,
-      preload: join(__dirname, 'preload.js')
-    }
+      preload: join(__dirname, 'preload.js'),
+    },
   })
 
   const url = isDev
     ? 'http://localhost:8000/'
     : format({
-      pathname: join(__dirname, '../renderer/index.html'),
-      protocol: 'file:',
-      slashes: true
-    })
+        pathname: join(__dirname, '../renderer/index.html'),
+        protocol: 'file:',
+        slashes: true,
+      })
 
   mainWindow.loadURL(url)
 })

@@ -18,6 +18,7 @@ import Worker from 'jest-worker'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   recordBuildDuration,
@@ -40,9 +41,12 @@ import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import { findPagesDir } from '../lib/find-pages-dir'
+import createSpinner from './spinner'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
+const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
@@ -68,16 +72,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
     recordNextPlugins(path.resolve(dir))
   )
 
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
+
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
+  let publicFiles: string[] = []
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
   console.log('Creating an optimized production build ...')
   console.log()
+
+  if (config.experimental.publicDirectory) {
+    publicFiles = await recursiveReadDir(publicDir, /.*/)
+  }
 
   let tracer: any = null
   if (config.experimental.profiling) {
@@ -100,6 +114,36 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const conflictingPublicFiles: string[] = []
+
+  try {
+    await fsStat(path.join(publicDir, '_next'))
+    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+  } catch (err) {}
+
+  for (let file of publicFiles) {
+    file = file
+      .replace(/\\/g, '/')
+      .replace(/\/index$/, '')
+      .split(publicDir)
+      .pop()!
+
+    if (mappedPages[file]) {
+      conflictingPublicFiles.push(file)
+    }
+  }
+  const numConflicting = conflictingPublicFiles.length
+
+  if (numConflicting) {
+    throw new Error(
+      `Conflicting public and page file${
+        numConflicting === 1 ? ' was' : 's were'
+      } found. https://err.sh/zeit/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+        '\n'
+      )}`
+    )
+  }
+
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       tracer,
@@ -161,6 +205,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
+  if (buildSpinner) {
+    buildSpinner.stopAndPersist()
+  }
+  console.log()
 
   result = formatWebpackMessages(result)
 
@@ -209,6 +257,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  const postBuildSpinner = createSpinner({
+    prefixText: 'Automatically optimizing pages',
+  })
+
+  const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
@@ -408,6 +461,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+  console.log()
 
   const analysisEnd = process.hrtime(analysisBegin)
   backgroundWork.push(

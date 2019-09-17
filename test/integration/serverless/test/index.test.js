@@ -2,6 +2,7 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import cheerio from 'cheerio'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import {
   killApp,
@@ -32,6 +33,24 @@ describe('Serverless', () => {
   it('should render the page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/Hello World/)
+  })
+
+  it('should add autoExport for auto pre-rendered pages', async () => {
+    for (const page of ['/', '/abc']) {
+      const html = await renderViaHTTP(appPort, page)
+      const $ = cheerio.load(html)
+      const data = JSON.parse($('#__NEXT_DATA__').html())
+      expect(data.autoExport).toBe(true)
+    }
+  })
+
+  it('should not add autoExport for non pre-rendered pages', async () => {
+    for (const page of ['/fetch']) {
+      const html = await renderViaHTTP(appPort, page)
+      const $ = cheerio.load(html)
+      const data = JSON.parse($('#__NEXT_DATA__').html())
+      expect(!!data.autoExport).toBe(false)
+    }
   })
 
   it('should serve file from public folder', async () => {
