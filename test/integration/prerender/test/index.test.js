@@ -4,13 +4,11 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
-  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
   nextBuild,
-  nextStart,
-  waitFor
+  nextStart
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -80,50 +78,6 @@ const runTests = () => {
     text = await browser.elementByCss('#normal-text').text()
     expect(text).toMatch(/a normal page/)
   })
-
-  it('should return JSON when content-type is set', async () => {
-    const data = await fetchViaHTTP(appPort, '/', undefined, {
-      headers: {
-        'content-type': 'application/json'
-      }
-    }).then(res => res.ok && res.json())
-
-    expect(data.world).toMatch('world')
-  })
-
-  it('should generate skeleton without calling getInitialProps', async () => {
-    let html = await renderViaHTTP(
-      appPort,
-      '/blog/post-1?_nextPreviewSkeleton=1'
-    )
-    expect(html).not.toMatch(/Post:.*?SSR/)
-
-    html = await renderViaHTTP(
-      appPort,
-      '/blog/post-1/comment-1?_nextPreviewSkeleton=1'
-    )
-    expect(html).not.toMatch(/Comment:.*?SSR/)
-  })
-
-  it('should call getInitialProps when viewing skeleton', async () => {
-    let browser = await webdriver(
-      appPort,
-      '/blog/post-1?_nextPreviewSkeleton=1'
-    )
-    await waitFor(1000)
-    let text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Post:.*?SSR/)
-    await browser.close()
-
-    browser = await webdriver(
-      appPort,
-      '/blog/post-1/comment-1?_nextPreviewSkeleton=1'
-    )
-    await waitFor(1000)
-    text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Comment:.*?SSR/)
-    await browser.close()
-  })
 }
 
 describe('SPR Prerender', () => {
@@ -149,21 +103,16 @@ describe('SPR Prerender', () => {
 
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
-      const prerenderablePaths = Object.keys(manifest.prerenderFiles)
 
-      expect(JSON.stringify(prerenderablePaths.sort())).toBe(
-        JSON.stringify(
-          [
-            '/index.html',
-            '/another.html',
-            '/something.html',
-            '/blog/[post].html',
-            '/blog/[post]/[comment].html'
-          ]
-            .map(pg => join('.next/serverless/pages/', pg))
-            .sort()
-        )
-      )
+      expect(manifest.version).toBe(1)
+      expect(manifest.routes).toEqual({
+        '/another': { revalidate: 0 },
+        '/blog/post-1': { revalidate: 10 },
+        '/blog/post-2': { revalidate: 10 },
+        '/blog/post-1/comment-1': { revalidate: 5 },
+        '/blog/post-2/comment-2': { revalidate: 5 },
+        '/something': { revalidate: false }
+      })
     })
   })
 })

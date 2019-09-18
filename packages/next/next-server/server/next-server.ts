@@ -230,6 +230,13 @@ export default class Server {
         },
       },
       {
+        match: route('/_next/data/:path*'),
+        fn: async (req, res, params, parsedUrl) => {
+          if (!params.path) return this.render404(req, res, parsedUrl)
+          await this.renderData(req, res, params.path, parsedUrl)
+        },
+      },
+      {
         match: route('/_next/:path*'),
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
@@ -426,6 +433,20 @@ export default class Server {
   ) {
     const { generateEtags, poweredByHeader } = this.renderOpts
     return sendHTML(req, res, html, { generateEtags, poweredByHeader })
+  }
+
+  private async renderData(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    parsedUrl?: UrlWithParsedQuery
+  ) {
+    if (isBlockedPage(pathname)) {
+      return this.render404(req, res, parsedUrl)
+    }
+    // look up data in cache, serve it if available (should be except
+    // for dynamic-routes that weren't pre-populated)
+    // if past revalidate period, queue revalidating in background
   }
 
   public async render(

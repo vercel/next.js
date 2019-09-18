@@ -623,16 +623,9 @@ export default class Router implements BaseRouter {
       (Component as any).__NEXT_SPR
     ) {
       let status: any
-      const url = ctx.asPath
-        ? ctx.asPath
-        : format({
-            pathname: ctx.pathname,
-            query: ctx.query,
-          })
+      const { pathname } = parse(ctx.asPath || ctx.pathname)
 
-      props = await fetch(url, {
-        headers: { 'content-type': 'application/json' },
-      })
+      props = await fetch(`/_next/data${pathname}`)
         .then(res => {
           if (!res.ok) {
             status = res.status

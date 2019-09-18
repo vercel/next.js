@@ -1,15 +1,23 @@
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
-
-const wrapPage = Comp => {
-  Comp.getInitialProps = () => ({ world: 'world' })
-  return Comp
+export const config = {
+  experimentalRevalidate: 0,
+  experimentalPrerender: true
 }
 
-export default wrapPage(({ world }) => (
+export async function getStaticProps () {
+  return {
+    props: {
+      world: 'world',
+      time: new Date().getTime()
+    }
+  }
+}
+
+export default ({ world, time }) => (
   <>
     <p>hello {world}</p>
+    <p>time: {time}</p>
     <Link href='/'>
       <a id='home'>to home</a>
     </Link>
@@ -18,4 +26,4 @@ export default wrapPage(({ world }) => (
       <a id='somethin'>to something</a>
     </Link>
   </>
-))
+)

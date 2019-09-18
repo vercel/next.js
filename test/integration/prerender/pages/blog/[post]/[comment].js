@@ -1,18 +1,37 @@
+import React from 'react'
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
+export const config = {
+  experimentalRevalidate: 5,
+  experimentalPrerender: true,
+}
 
-const Comment = ({ data }) => (
-  <>
-    <p>Comment: {data}</p>
-    <Link href='/'>
-      <a id='home'>to home</a>
-    </Link>
-  </>
-)
+export async function getStaticParams() {
+  return [
+    '/blog/post-1/comment-1',
+    { post: 'post-2', comment: 'comment-2' }
+  ]
+}
 
-Comment.getInitialProps = () => ({
-  data: typeof window === 'undefined' ? 'SSR' : 'CSR'
-})
+export async function getStaticProps({ params }) {
+  return {
+    props: {
+      post: params.post,
+      comment: params.comment,
+      time: new Date().getTime()
+    }
+  }
+}
 
-export default Comment
+export default ({ post, comment, time }) => {
+  return (
+    <>
+      <p>post: {post}</p>
+      <p>comment: {comment}</p>
+      <p>time: {time}</p>
+      <Link href='/'>
+        <a id='home'>to home</a>
+      </Link>
+    </>
+  )
+}

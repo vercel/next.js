@@ -1,23 +1,35 @@
 import React from 'react'
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
+export const config = {
+  experimentalRevalidate: 10,
+  experimentalPrerender: true,
+}
 
-export default class Post extends React.Component {
-  static async getInitialProps () {
-    return {
-      data: typeof window === 'undefined' ? 'SSR' : 'CSR'
+export async function getStaticParams() {
+  return [
+    '/blog/post-1',
+    { post: 'post-2' }
+  ]
+}
+
+export async function getStaticProps({ params }) {
+  return {
+    props: {
+      post: params.post,
+      time: new Date().getTime()
     }
   }
+}
 
-  render () {
-    return (
-      <>
-        <p>Post: {this.props.data}</p>
-        <Link href='/'>
-          <a id='home'>to home</a>
-        </Link>
-      </>
-    )
-  }
+export default ({ post, time }) => {
+  return (
+    <>
+      <p>post: {post}</p>
+      <p>time: {time}</p>
+      <Link href='/'>
+        <a id='home'>to home</a>
+      </Link>
+    </>
+  )
 }

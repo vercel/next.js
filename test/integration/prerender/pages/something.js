@@ -1,27 +1,30 @@
-import React, { Component } from 'react'
+import React from 'react'
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
+export const config = {
+  experimentalPrerender: true,
+  experimentalRevalidate: false
+}
 
-class Page extends Component {
-  static async getInitialProps () {
-    return { world: 'world' }
-  }
-
-  render () {
-    return (
-      <>
-        <p>hello {this.props.world}</p>
-        <Link href='/'>
-          <a id='home'>to home</a>
-        </Link>
-        <br />
-        <Link href='/another'>
-          <a id='another'>to another</a>
-        </Link>
-      </>
-    )
+export async function getStaticProps () {
+  return {
+    props: {
+      time: new Date().getTime()
+    }
   }
 }
 
-export default Page
+export default ({ time }) => {
+  return (
+    <>
+      <p>time: {time}</p>
+      <Link href='/'>
+        <a id='home'>to home</a>
+      </Link>
+      <br />
+      <Link href='/another'>
+        <a id='another'>to another</a>
+      </Link>
+    </>
+  )
+}
