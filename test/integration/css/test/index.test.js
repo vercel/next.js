@@ -122,7 +122,7 @@ describe('CSS Support', () => {
       )
 
       // Contains a source map
-      expect(cssContent).toMatch(/\/\*# sourceMappingURL=(.+\.map) \*\//)
+      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
     })
 
     it(`should've emitted a source map`, async () => {
