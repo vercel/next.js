@@ -10,7 +10,15 @@ import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 
-const fsStat = promisify(fs.stat)
+const fsStatPromise = promisify(fs.stat)
+const fileStats = {}
+const fsStat = file => {
+  if (fileStats[file]) return fileStats[file]
+
+  fileStats[file] = fsStatPromise(file)
+
+  return fileStats[file]
+}
 
 export function collectPages(
   directory: string,
@@ -157,7 +165,7 @@ export async function getPageSizeInKb(
   deps.push(clientBundle)
 
   try {
-    let depStats = await Promise.all(deps.map(dep => fsStat(dep)))
+    let depStats = await Promise.all(deps.map(fsStat))
 
     return depStats.reduce((size, stat) => size + stat.size, 0)
   } catch (_) {}
