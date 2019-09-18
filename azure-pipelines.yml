@@ -3,6 +3,7 @@ pool:
 
 variables:
   NEXT_TELEMETRY_DISABLED: '1'
+  YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
 
 strategy:
   maxParallel: 10
@@ -26,13 +27,15 @@ steps:
       versionSpec: $(node_version)
     displayName: 'Install Node.js'
 
-  - script: |
-      yarn install
-    displayName: 'Install dependencies'
+  - task: CacheBeta@0
+    inputs:
+      key: yarn | $(Agent.OS) | yarn.lock
+      path: $(YARN_CACHE_FOLDER)
+    displayName: Cache Yarn packages
 
   - script: |
-      yarn check
-    displayName: 'Yarn check'
+      yarn --frozen-lockfile --check-files
+    displayName: 'Install dependencies'
 
   - script: |
       node run-tests.js -c 2 -g $(group)

@@ -85,6 +85,7 @@
     "content-type": "1.0.4",
     "cookie": "0.4.0",
     "css-loader": "3.2.0",
+    "cssnano-simple": "1.0.0",
     "devalue": "2.0.0",
     "etag": "1.8.1",
     "file-loader": "4.2.0",
@@ -99,7 +100,6 @@
     "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.1",
     "node-fetch": "2.6.0",
-    "optimize-css-assets-webpack-plugin": "5.0.3",
     "ora": "3.4.0",
     "path-to-regexp": "2.1.0",
     "pnp-webpack-plugin": "1.5.0",
@@ -124,7 +124,7 @@
     "webpack": "4.39.0",
     "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0",
-    "webpack-sources": "1.3.0"
+    "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
     "react": "^16.6.0",
@@ -154,7 +154,6 @@
     "@types/mkdirp": "0.5.2",
     "@types/nanoid": "2.0.0",
     "@types/node-fetch": "2.3.4",
-    "@types/optimize-css-assets-webpack-plugin": "5.0.0",
     "@types/react": "16.8.18",
     "@types/react-dom": "16.8.4",
     "@types/react-is": "16.7.1",
