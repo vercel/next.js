@@ -350,14 +350,14 @@ export class Head extends Component<
               <style
                 data-next-hydrating
                 dangerouslySetInnerHTML={{
-                  __html: `body{-webkit-animation:-next-hydrating 3s steps(1,end) 0s 1 normal both;-moz-animation:-next-hydrating 3s steps(1,end) 0s 1 normal both;-ms-animation:-next-hydrating 3s steps(1,end) 0s 1 normal both;animation:-next-hydrating 3s steps(1,end) 0s 1 normal both}@-webkit-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}`,
+                  __html: `body{display:none}`,
                 }}
               />
               <noscript>
                 <style
                   data-next-hydrating
                   dangerouslySetInnerHTML={{
-                    __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
+                    __html: `body{display:unset}`,
                   }}
                 />
               </noscript>
