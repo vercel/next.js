@@ -120,6 +120,38 @@ describe('CSS Support', () => {
       ).toMatchInlineSnapshot(
         `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}"`
       )
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*# sourceMappingURL=(.+\.map) \*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
+      const cssMapContent = (await readFile(
+        join(cssFolder, cssMapFiles[0]),
+        'utf8'
+      )).trim()
+
+      const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+      expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
+        Object {
+          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
+          "sourcesContent": Array [
+            "@media (480px <= width < 768px) {
+          ::placeholder {
+            color: green;
+          }
+        }
+        ",
+          ],
+          "version": 3,
+        }
+      `)
     })
   })
 
@@ -370,11 +402,11 @@ describe('CSS Support', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
-          "dark.svg",
-          "light.svg",
-        ]
-      `)
+                Array [
+                  "dark.svg",
+                  "light.svg",
+                ]
+            `)
     })
   })
 })
