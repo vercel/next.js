@@ -4,6 +4,12 @@ declare module 'unfetch'
 declare module 'styled-jsx/server'
 declare module 'async-retry'
 
+declare module 'cssnano-simple' {
+  import { Plugin } from 'postcss'
+  const cssnanoSimple: Plugin<{}>
+  export = cssnanoSimple
+}
+
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
 
