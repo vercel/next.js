@@ -1,7 +1,6 @@
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
-import OptimizeCssAssetsPlugin from 'optimize-css-assets-webpack-plugin'
 import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
@@ -27,6 +26,7 @@ import { WebpackEntrypoints } from './entries'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
+import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
@@ -440,15 +440,15 @@ export default async function getBaseWebpackConfig(
         }),
         // Minify CSS
         config.experimental.css &&
-          new OptimizeCssAssetsPlugin({
-            cssProcessorOptions: {
+          new CssMinimizerPlugin({
+            postcssOptions: {
               map: {
                 // `inline: false` generates the source map in a separate file.
                 // Otherwise, the CSS file is needlessly large.
                 inline: false,
-                // `annotation: true` appends the `sourceMappingURL` to the end
-                // of the CSS file for DevTools to find them.
-                annotation: true,
+                // `annotation: false` skips appending the `sourceMappingURL`
+                // to the end of the CSS file. Webpack already handles this.
+                annotation: false,
               },
             },
           }),
