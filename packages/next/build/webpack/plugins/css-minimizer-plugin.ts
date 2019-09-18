@@ -1,6 +1,6 @@
-import webpack from 'webpack'
-import { SourceMapSource, RawSource } from 'webpack-sources'
 import { process as minify } from 'cssnano-simple'
+import webpack from 'webpack'
+import { RawSource, SourceMapSource } from 'webpack-sources'
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
 const CSS_REGEX = /\.css(\?.*)?$/i
@@ -40,29 +40,20 @@ export class CssMinimizerPlugin {
                 const asset = compilation.assets[file]
 
                 let input: string
-                let inputSourceMap: string | undefined
-
                 if (postcssOptions.map && asset.sourceAndMap) {
                   const { source, map } = asset.sourceAndMap()
                   input = source
-                  inputSourceMap = map
-
-                  postcssOptions.map.prev = inputSourceMap
-                    ? postcssOptions.map.prev
-                    : false
+                  postcssOptions.map.prev = map ? map : false
                 } else {
                   input = asset.source()
                 }
 
                 return minify(input, postcssOptions).then(res => {
                   if (res.map) {
-                    compilation.assets[file] = new (SourceMapSource as any)(
-                      res.css, // sourceCode: String
-                      file, // name: String
-                      res.map.toJSON(), // sourceMap: Object | String
-                      input, // originalSource?: String
-                      inputSourceMap, // innerSourceMap?: Object | String
-                      true // removeOriginalSource?: boolean
+                    compilation.assets[file] = new SourceMapSource(
+                      res.css,
+                      file,
+                      res.map
                     )
                   } else {
                     compilation.assets[file] = new RawSource(res.css)
