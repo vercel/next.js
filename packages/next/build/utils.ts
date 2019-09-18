@@ -139,29 +139,27 @@ export async function getPageSizeInKb(
   const clientBundle = path.join(
     distPath,
     `static/${buildId}/pages/`,
-    `${page}.js`
+    `${page}${isModern ? '.module' : ''}.js`
   )
 
   // With granularChunks flag enabled, each page may have additional chunks that it depends on
-  const baseDeps = buildManifest.pages['/_app']
-  let deps = buildManifest.pages[page] || []
+  const baseDeps = page === '/_app' ? [] : buildManifest.pages['/_app']
 
   // Get the list of chunks specific to this page
   // With granularChunks: false, this will be []
-  if (page !== '/_app' && deps.length) {
-    deps = deps.filter(dep => {
+  const deps = (buildManifest.pages[page] || [])
+    .filter(dep => {
       return !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
     })
-  }
+    .map(dep => `${distPath}/${dep}`)
+
+  // Add the main bundle for the page
+  deps.push(clientBundle)
 
   try {
-    let pageSize = (await fsStat(clientBundle)).size
+    let depStats = await Promise.all(deps.map(dep => fsStat(dep)))
 
-    for (const dep of deps) {
-      pageSize += (await fsStat(`${distPath}/${dep}`)).size
-    }
-
-    return pageSize
+    return depStats.reduce((size, stat) => size + stat.size, 0)
   } catch (_) {}
   return -1
 }
