@@ -446,9 +446,9 @@ export default async function getBaseWebpackConfig(
                 // `inline: false` generates the source map in a separate file.
                 // Otherwise, the CSS file is needlessly large.
                 inline: false,
-                // `annotation: true` appends the `sourceMappingURL` to the end
-                // of the CSS file for DevTools to find them.
-                annotation: true,
+                // `annotation: false` skips appending the `sourceMappingURL`
+                // to the end of the CSS file. Webpack already handles this.
+                annotation: false,
               },
             },
           }),
