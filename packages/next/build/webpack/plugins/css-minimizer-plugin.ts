@@ -53,7 +53,7 @@ export class CssMinimizerPlugin {
                     compilation.assets[file] = new SourceMapSource(
                       res.css,
                       file,
-                      res.map
+                      res.map.toJSON()
                     )
                   } else {
                     compilation.assets[file] = new RawSource(res.css)
