@@ -141,8 +141,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
-  if (mod && mod.onPerformanceData) {
-    perfDataRelayer = mod.onPerformanceData
+  if (mod && mod.experimental_onPerformanceData) {
+    perfDataRelayer = mod.experimental_onPerformanceData
   }
 
   let initialErr = err

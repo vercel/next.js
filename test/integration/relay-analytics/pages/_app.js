@@ -1,8 +1,12 @@
 /* global localStorage */
+/* eslint-disable camelcase */
 import App from 'next/app'
 
 export default class MyApp extends App {}
 
-export function onPerformanceData (data) {
+/*
+  Method is experimental and will eventually be handled in a Next.js plugin
+*/
+export function experimental_onPerformanceData (data) {
   localStorage.setItem(data.name, data.value || data.startTime)
 }
