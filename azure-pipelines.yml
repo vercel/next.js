@@ -13,10 +13,10 @@ strategy:
     node-10-2:
       group: 2/4
       node_version: ^10.10.0
-    node-8-1:
+    node-10-3:
       group: 3/4
       node_version: ^10.10.0
-    node-8-2:
+    node-10-4:
       group: 4/4
       node_version: ^10.10.0
 
