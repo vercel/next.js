@@ -353,9 +353,8 @@ export class Head extends Component<
                   __html: `body{display:none}`,
                 }}
               />
-              <noscript>
+              <noscript data-next-hydrating>
                 <style
-                  data-next-hydrating
                   dangerouslySetInnerHTML={{
                     __html: `body{display:unset}`,
                   }}
