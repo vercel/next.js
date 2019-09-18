@@ -8,17 +8,17 @@ strategy:
   maxParallel: 10
   matrix:
     node-10-1:
-      group: 1/2
+      group: 1/4
       node_version: ^10.10.0
     node-10-2:
-      group: 2/2
+      group: 2/4
       node_version: ^10.10.0
-    node-8-1:
-      group: 1/2
-      node_version: ^8.12.0
-    node-8-2:
-      group: 2/2
-      node_version: ^8.12.0
+    node-10-3:
+      group: 3/4
+      node_version: ^10.10.0
+    node-10-4:
+      group: 4/4
+      node_version: ^10.10.0
 
 steps:
   - task: NodeTool@0

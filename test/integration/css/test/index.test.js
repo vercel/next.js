@@ -120,6 +120,38 @@ describe('CSS Support', () => {
       ).toMatchInlineSnapshot(
         `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}"`
       )
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*# sourceMappingURL=(.+\.map) \*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
+      const cssMapContent = (await readFile(
+        join(cssFolder, cssMapFiles[0]),
+        'utf8'
+      )).trim()
+
+      const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+      expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
+        Object {
+          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
+          "sourcesContent": Array [
+            "@media (480px <= width < 768px) {
+          ::placeholder {
+            color: green;
+          }
+        }
+        ",
+          ],
+          "version": 3,
+        }
+      `)
     })
   })
 
@@ -354,10 +386,8 @@ describe('CSS Support', () => {
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(
-        `".red-text{color:red;background-image:url(static/media/dark.aec5f3c9cc94e82b1ec7e67df51fee37.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(static/media/light.a3db2506d3b40692ea343b66d8277fb9.svg);color:#00f}"`
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\(static\/media\/dark\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -372,11 +402,11 @@ describe('CSS Support', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
-          "dark.svg",
-          "light.svg",
-        ]
-      `)
+                Array [
+                  "dark.svg",
+                  "light.svg",
+                ]
+            `)
     })
   })
 })
