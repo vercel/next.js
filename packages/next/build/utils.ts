@@ -148,9 +148,9 @@ export async function getPageSizeInKb(
   // Get the list of chunks specific to this page
   // With granularChunks: false, this will be []
   const deps = (buildManifest.pages[page] || [])
-    .filter(dep => {
-      return !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
-    })
+    .filter(
+      dep => !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
+    )
     .map(dep => `${distPath}/${dep}`)
 
   // Add the main bundle for the page
