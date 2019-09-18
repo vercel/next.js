@@ -354,10 +354,8 @@ describe('CSS Support', () => {
 
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(
-        `".red-text{color:red;background-image:url(static/media/dark.aec5f3c9cc94e82b1ec7e67df51fee37.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(static/media/light.a3db2506d3b40692ea343b66d8277fb9.svg);color:#00f}"`
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\(static\/media\/dark\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
