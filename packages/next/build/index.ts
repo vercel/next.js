@@ -53,9 +53,14 @@ const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./static-checker')
 
-export type PrerenderFile = {
-  lambda: string
-  contentTypes: string[]
+export type sprRoute = {
+  revalidate: number | false
+}
+
+export type PrerenderManifest = {
+  version: number
+  concurrency?: number
+  routes: { [route: string]: sprRoute }
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -332,6 +337,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
+          // TODO: add calling of getStaticParams for dynamic pages
+          // and returning of revalidate for prerender pages
           let result: any = await (staticCheckWorkers as any).default({
             serverBundle,
             runtimeEnvConfig,
@@ -384,7 +391,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
-  const prerenderFiles: { [path: string]: PrerenderFile } = {}
+  const prerenderRoutes: { [route: string]: sprRoute } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -424,17 +431,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         relativeDest
       )
 
-      if (isSpr) {
-        const projectRelativeDest = path.join(
-          config.distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-          relativeDest
-        )
-        prerenderFiles[projectRelativeDest] = {
-          lambda: projectRelativeDest.replace(/\.html$/, '.js'),
-          contentTypes: ['application/json', 'text/html'],
-        }
-      } else {
+      if (!isSpr) {
         pagesManifest[page] = relativeDest
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
@@ -469,9 +466,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
 
   if (sprPages.size > 0) {
+    const prerenderManifest: PrerenderManifest = {
+      version: 1,
+      routes: prerenderRoutes,
+    }
+
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify({ prerenderFiles }),
+      JSON.stringify(prerenderManifest),
       'utf8'
     )
   }

@@ -33,6 +33,7 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
+import { initializeSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -146,8 +147,17 @@ export default class Server {
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
-
     this.setAssetPrefix(assetPrefix)
+
+    initializeSprCache({
+      distDir: this.distDir,
+      pagesDir: join(
+        this.distDir,
+        this._isLikeServerless
+          ? 'serverless/pages'
+          : `server/static/${this.buildId}/pages`
+      ),
+    })
   }
 
   private currentPhase(): string {
