@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -13,10 +14,32 @@ import {
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
+const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 
-const runTests = () => {
+const prerenderManifest = {
+  '/blog/post-1': {
+    revalidate: 10
+  },
+  '/blog/post-2': {
+    revalidate: 10
+  },
+  '/blog/post-1/comment-1': {
+    revalidate: 5
+  },
+  '/blog/post-2/comment-2': {
+    revalidate: 5
+  },
+  '/another': {
+    revalidate: 0
+  },
+  '/something': {
+    revalidate: false
+  }
+}
+
+const runTests = (dev = false) => {
   it('should navigate between pages successfully', async () => {
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -68,6 +91,27 @@ const runTests = () => {
     expect(html).toMatch(/hello.*?world/)
   })
 
+  it('should return data correctly', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(appPort, '/_next/data/something')
+    )
+    expect(data.world).toBe('world')
+  })
+
+  it('should return data correctly for dynamic page', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(appPort, '/_next/data/blog/post-1')
+    )
+    expect(data.post).toBe('post-1')
+  })
+
+  it('should return data correctly for dynamic page (non-seeded)', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(appPort, '/_next/data/blog/post-3')
+    )
+    expect(data.post).toBe('post-3')
+  })
+
   it('should navigate to a normal page and back', async () => {
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -78,6 +122,15 @@ const runTests = () => {
     text = await browser.elementByCss('#normal-text').text()
     expect(text).toMatch(/a normal page/)
   })
+
+  if (!dev) {
+    it('outputs a prerender-manifest correctly', async () => {
+      const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
+
+      expect(manifest.version).toBe(1)
+      expect(manifest.routes).toEqual(prerenderManifest)
+    })
+  }
 }
 
 describe('SPR Prerender', () => {
@@ -88,11 +141,16 @@ describe('SPR Prerender', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests(true)
   })
 
-  describe('production mode', () => {
+  describe('serverless mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { target: 'serverless' }`,
+        'utf8'
+      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -100,19 +158,17 @@ describe('SPR Prerender', () => {
     afterAll(() => killApp(app))
 
     runTests()
+  })
 
-    it('outputs a prerender-manifest correctly', async () => {
-      const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
-
-      expect(manifest.version).toBe(1)
-      expect(manifest.routes).toEqual({
-        '/another': { revalidate: 0 },
-        '/blog/post-1': { revalidate: 10 },
-        '/blog/post-2': { revalidate: 10 },
-        '/blog/post-1/comment-1': { revalidate: 5 },
-        '/blog/post-2/comment-2': { revalidate: 5 },
-        '/something': { revalidate: false }
-      })
+  describe('production mode', () => {
+    beforeAll(async () => {
+      await fs.unlink(nextConfig)
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
+    afterAll(() => killApp(app))
+
+    runTests()
   })
 })

@@ -9,6 +9,8 @@ import { isValidElementType } from 'react-is'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 
 const fsStatPromise = promisify(fs.stat)
 const fileStats: { [k: string]: Promise<fs.Stats> } = {}
@@ -172,10 +174,16 @@ export async function getPageSizeInKb(
   return -1
 }
 
-export function isPageStatic(
+export async function isPageStatic(
+  page: string,
   serverBundle: string,
   runtimeEnvConfig: any
-): { static?: boolean; prerender?: boolean; isHybridAmp?: boolean } {
+): Promise<{
+  static?: boolean
+  prerender?: boolean
+  isHybridAmp?: boolean
+  prerenderRoutes?: string[]
+}> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
     const mod = require(serverBundle)
@@ -184,12 +192,61 @@ export function isPageStatic(
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
+    const prerender = !!mod.getStaticProps
     const config = mod.config || {}
+    let prerenderRoutes
+
+    if (prerender && mod.getStaticParams) {
+      if (!isDynamicRoute(page)) {
+        throw new Error(
+          `getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+        )
+      }
+      const routeRegex = getRouteRegex(page)
+      const routeMatcher = getRouteMatcher(routeRegex)
+      const paramKeys = Object.keys(routeMatcher(page))
+      prerenderRoutes = await mod.getStaticParams()
+
+      const checkParams = (
+        route: string | { [name: string]: string },
+        params: false | { [name: string]: string }
+      ) => {
+        const curParamKeys = Object.keys(params)
+        if (
+          !params ||
+          curParamKeys.length !== paramKeys.length ||
+          paramKeys.some(param => !curParamKeys.includes(param))
+        ) {
+          throw new Error(
+            `Invalid static route provided for ${page}: ${
+              typeof route === 'string' ? route : JSON.stringify(route)
+            }`
+          )
+        }
+      }
+
+      prerenderRoutes = prerenderRoutes.map((route: string | any) => {
+        const params = typeof route === 'string' ? routeMatcher(route) : route
+        checkParams(route, params)
+
+        if (params && typeof route !== 'string') {
+          route = page.replace(
+            /\[.*?\]/g,
+            (val: string): string => {
+              const paramName = val.substr(1, val.length - 2)
+              return params[paramName]
+            }
+          )
+        }
+        return route
+      })
+    }
 
     return {
-      static: typeof (Comp as any).getInitialProps !== 'function',
-      prerender: config.experimentalPrerender === true,
+      static: !prerender && typeof (Comp as any).getInitialProps !== 'function',
       isHybridAmp: config.amp === 'hybrid',
+      prerenderRoutes,
+      prerender,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

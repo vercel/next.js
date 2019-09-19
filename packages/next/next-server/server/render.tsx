@@ -285,6 +285,7 @@ export async function renderToHTML(
 
   // SPR is enabled for this page
   if (getStaticProps) {
+    console.log('spr enabled', pathname, urlPathname)
     let revalidatePromise = pendingRevalidations.get(urlPathname)
     if (revalidatePromise) {
       // wait for pending revalidation and resolve from it
@@ -296,7 +297,11 @@ export async function renderToHTML(
       console.log('using cache for', urlPathname)
       res.end(isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html)
       // don't need to revalidate if we have a cache and it isn't expired
-      if (cachedData.revalidateAfter > new Date().getTime()) return null
+      if (
+        cachedData.revalidateAfter === false ||
+        cachedData.revalidateAfter > new Date().getTime()
+      )
+        return null
     } else {
       console.log('no cache for', urlPathname)
     }
@@ -408,6 +413,9 @@ export async function renderToHTML(
         params: isDynamicRoute(pathname) ? query : undefined,
       })
       props = { pageProps: data.props }
+      // pass up revalidate and props for export
+      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).sprData = data.props
     } else {
       props = await loadGetInitialProps(App, {
         AppTree: ctx.AppTree,

@@ -254,6 +254,10 @@ export default async function (dir, options, configuration) {
           Array.isArray(result && result.errors) && result.errors.length > 0
       }
       renderError |= result.error
+
+      if (typeof result.revalidate !== 'undefined') {
+        configuration.revalidations[path] = result.revalidate
+      }
       if (progress) progress()
     })
   )

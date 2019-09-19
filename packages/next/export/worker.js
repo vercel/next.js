@@ -184,6 +184,16 @@ export default async function ({
         await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
       }
     }
+
+    if (curRenderOpts.sprData) {
+      await writeFileP(
+        htmlFilepath.replace(/\.html$/, '.json'),
+        JSON.stringify(curRenderOpts.sprData),
+        'utf8'
+      )
+    }
+    results.revalidate = curRenderOpts.revalidate
+
     await writeFileP(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {

@@ -43,6 +43,7 @@ import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import createSpinner from './spinner'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { isDynamicRoute } from '../next-server/lib/router/utils'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -52,7 +53,7 @@ const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
-const staticCheckWorker = require.resolve('./static-checker')
+const staticCheckWorker = require.resolve('./utils')
 
 export type sprRoute = {
   revalidate: number | false
@@ -261,7 +262,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     prefixText: 'Automatically optimizing pages',
   })
 
-  const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
@@ -274,6 +274,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
+  const prerenderRoutes = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
@@ -349,13 +350,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
         try {
           // TODO: add calling of getStaticParams for dynamic pages
           // and returning of revalidate for prerender pages
-          let result: any = await (staticCheckWorkers as any).default({
+          let result: any = await (staticCheckWorkers as any).isPageStatic(
+            page,
             serverBundle,
-            runtimeEnvConfig,
-          })
+            runtimeEnvConfig
+          )
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
+          }
+
+          if (result.prerender) {
+            sprPages.add(page)
+
+            if (result.prerenderRoutes) {
+              prerenderRoutes.set(page, result.prerenderRoutes)
+            }
           }
 
           if (result.static && customAppGetInitialProps === false) {
@@ -401,7 +411,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
-  const prerenderRoutes: { [route: string]: sprRoute } = {}
+  const finalPrerenderRoutes: { [route: string]: sprRoute } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -413,9 +423,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }
-    const exportConfig = {
+    const exportConfig: any = {
       ...config,
-      exportPathMap: (defaultMap: any) => defaultMap,
+      revalidations: {},
+      exportPathMap: (defaultMap: any) => {
+        prerenderRoutes.forEach((routes, page) => {
+          // remove /blog/[post] from being exported itself
+          if (isDynamicRoute(page)) {
+            delete defaultMap[page]
+          }
+          routes.forEach(route => {
+            defaultMap[route] = { page }
+          })
+        })
+        return defaultMap
+      },
       exportTrailingSlash: false,
     }
     await exportApp(dir, exportOptions, exportConfig)
@@ -426,9 +448,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsUnlink(serverBundle)
     }
 
-    const moveExportedPage = async (page: string, file: string) => {
-      const isSpr = sprPages.has(page)
-      file = `${file}.html`
+    const moveExportedPage = async (
+      page: string,
+      file: string,
+      isSpr: boolean,
+      ext = 'html'
+    ) => {
+      file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
       const relativeDest = (isLikeServerless
         ? path.join('pages', file)
@@ -451,10 +477,34 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
 
     for (const page of combinedPages) {
+      const isSpr = sprPages.has(page)
+      const isDynamic = isDynamicRoute(page)
       let file = page === '/' ? '/index' : page
-      await moveExportedPage(page, file)
+      if (!isSpr || !isDynamic) {
+        await moveExportedPage(page, file, isSpr)
+      }
       const hasAmp = hybridAmpPages.has(page)
-      if (hasAmp) await moveExportedPage(`${page}.amp`, `${file}.amp`)
+      if (hasAmp) await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr)
+
+      if (isSpr) {
+        if (!isDynamic) {
+          await moveExportedPage(page, page, true, 'json')
+
+          finalPrerenderRoutes[page] = {
+            revalidate: exportConfig.revalidations[page],
+          }
+        }
+        const extraRoutes = prerenderRoutes.get(page)
+        if (extraRoutes) {
+          for (const route of extraRoutes) {
+            await moveExportedPage(route, route, true)
+            await moveExportedPage(route, route, true, 'json')
+            finalPrerenderRoutes[route] = {
+              revalidate: exportConfig.revalidations[route],
+            }
+          }
+        }
+      }
     }
 
     // remove temporary export folder
@@ -478,7 +528,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (sprPages.size > 0) {
     const prerenderManifest: PrerenderManifest = {
       version: 1,
-      routes: prerenderRoutes,
+      routes: finalPrerenderRoutes,
     }
 
     await fsWriteFile(

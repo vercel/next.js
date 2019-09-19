@@ -3,7 +3,7 @@ import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { parse as parseUrl, UrlWithParsedQuery, format as formatUrl } from 'url'
 
 import {
   BUILD_ID_FILE,
@@ -159,6 +159,7 @@ export default class Server {
           ? 'serverless/pages'
           : `server/static/${this.buildId}/pages`
       ),
+      flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
   }
 
@@ -532,6 +533,14 @@ export default class Server {
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
     ) {
+      const curUrl = parseUrl(req.url!, true)
+      req.url = formatUrl({
+        ...curUrl,
+        query: {
+          ...curUrl.query,
+          ...query,
+        },
+      })
       return result.Component.renderReqToHTML(req, res)
     }
 

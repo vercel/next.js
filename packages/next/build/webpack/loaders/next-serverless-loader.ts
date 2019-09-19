@@ -43,9 +43,6 @@ const nextServerlessLoader: loader.Loader = function() {
     '/'
   )
 
-  // TODO: add handling for sending data from serverless
-  // need to parse /_next/data/:path* manually
-
   if (page.match(API_ROUTE)) {
     return `
     ${
@@ -100,12 +97,19 @@ const nextServerlessLoader: loader.Loader = function() {
         App,
         Document,
         buildManifest,
+        getStaticProps,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${ampBindInitData === true ||
-          ampBindInitData === 'true'}
+          ampBindInitData === 'true'},
+      }
+      let sprData = false
+
+      if (req.url.match(/_next\\/data/)) {
+        sprData = true
+        req.url = req.url.replace(/\\/_next\\/data\\//, '/')
       }
       const parsedUrl = parse(req.url, true)
       const renderOpts = Object.assign(
@@ -121,10 +125,10 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           isDynamicRoute(page)
-            ? `const params = fromExport ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, params), renderOpts)
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, params, sprData || parsedUrl.query._nextSprData ? { _nextSprData: '1' } : {}), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result
