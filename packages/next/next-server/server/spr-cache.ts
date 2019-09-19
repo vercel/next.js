@@ -85,11 +85,15 @@ export function initializeSprCache({
       !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
   }
 
-  prerenderManifest = dev
-    ? { routes: {} }
-    : JSON.parse(
-        fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
-      )
+  try {
+    prerenderManifest = dev
+      ? { routes: {} }
+      : JSON.parse(
+          fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
+        )
+  } catch (_) {
+    prerenderManifest = { version: 1, routes: {} }
+  }
 
   cache = new LRUCache({
     // default to 50MB limit
