@@ -592,7 +592,7 @@ export default async function getBaseWebpackConfig(
                   // Resolve CSS `@import`s and `url()`s
                   {
                     loader: require.resolve('css-loader'),
-                    options: { importLoaders: 1, sourceMap: !dev },
+                    options: { importLoaders: 1, sourceMap: true },
                   },
 
                   // Compile CSS
@@ -614,7 +614,7 @@ export default async function getBaseWebpackConfig(
                           stage: 3,
                         }),
                       ],
-                      sourceMap: !dev,
+                      sourceMap: true,
                     },
                   },
                 ].filter(Boolean),
