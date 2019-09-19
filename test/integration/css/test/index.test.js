@@ -402,11 +402,92 @@ describe('CSS Support', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-                Array [
-                  "dark.svg",
-                  "light.svg",
-                ]
-            `)
+        Array [
+          "dark.svg",
+          "light.svg",
+        ]
+      `)
+    })
+  })
+
+  describe('Ordering with styled-jsx (dev)', () => {
+    const appDir = join(fixturesDir, 'with-styled-jsx')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+        await waitFor(2000) // ensure application hydrates
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('.my-text')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Ordering with styled-jsx (prod)', () => {
+    const appDir = join(fixturesDir, 'with-styled-jsx')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it('should have the correct color (css ordering)', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+        await waitFor(2000) // ensure application hydrates
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('.my-text')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
   })
 })

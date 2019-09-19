@@ -559,7 +559,17 @@ export default async function getBaseWebpackConfig(
               : [
                   // During development we load CSS via JavaScript so we can
                   // hot reload it without refreshing the page.
-                  dev && require.resolve('style-loader'),
+                  dev && {
+                    loader: require.resolve('style-loader'),
+                    options: {
+                      // By default, style-loader injects CSS into the bottom
+                      // of <head>. This causes ordering problems between dev
+                      // and prod. To fix this, we render a <noscript> tag for
+                      // the styles to be placed within. These styles will be
+                      // applied _before_ <style jsx global>.
+                      insert: `#__next_css__DO_NOT_USE__`,
+                    },
+                  },
                   // When building for production we extract CSS into
                   // separate files.
                   !dev && {

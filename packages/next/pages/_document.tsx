@@ -350,14 +350,13 @@ export class Head extends Component<
               <style
                 data-next-hydrating
                 dangerouslySetInnerHTML={{
-                  __html: `body{-webkit-animation:-next-hydrating 3s steps(1,end) 0s 1 normal both;-moz-animation:-next-hydrating 3s steps(1,end) 0s 1 normal both;-ms-animation:-next-hydrating 3s steps(1,end) 0s 1 normal both;animation:-next-hydrating 3s steps(1,end) 0s 1 normal both}@-webkit-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}@keyframes -next-hydrating{from{visibility:hidden}to{visibility:visible}}`,
+                  __html: `body{display:none}`,
                 }}
               />
-              <noscript>
+              <noscript data-next-hydrating>
                 <style
-                  data-next-hydrating
                   dangerouslySetInnerHTML={{
-                    __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
+                    __html: `body{display:unset}`,
                   }}
                 />
               </noscript>
@@ -457,6 +456,13 @@ export class Head extends Component<
             />
             {this.getPreloadDynamicChunks()}
             {this.getPreloadMainLinks()}
+            {this.context._documentProps.isDevelopment &&
+              this.context._documentProps.hasCssMode && (
+                // this element is used to mount development styles so the
+                // ordering matches production
+                // (by default, style-loader injects at the bottom of <head />)
+                <noscript id="__next_css__DO_NOT_USE__" />
+              )}
             {this.getCssLinks()}
             {styles || null}
           </>
