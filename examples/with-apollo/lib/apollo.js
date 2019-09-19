@@ -15,6 +15,9 @@ let globalApolloClient = null
  * your PageComponent via HOC pattern.
  */
 export const withApollo = ({ ssr = true } = {}) => PageComponent => {
+  const isAppHoc =
+    PageComponent === App || PageComponent.prototype instanceof App
+
   const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
     const client = apolloClient || initApolloClient(apolloState)
     return (
@@ -22,6 +25,14 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
         <PageComponent {...pageProps} />
       </ApolloProvider>
     )
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (isAppHoc && ssr) {
+      console.warn(
+        'You are using the "withApollo" HOC on "_app.js" level. Please note that this disables project wide automatic static optimization. Better wrap your PageComponents directly.'
+      )
+    }
   }
 
   // Set the correct displayName in development
