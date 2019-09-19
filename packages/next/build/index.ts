@@ -3,6 +3,7 @@ import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
 import {
   PAGES_MANIFEST,
+  BUILD_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
@@ -262,6 +263,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
     PAGES_MANIFEST
   )
+  const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const sprPages = new Set<string>()
   const staticPages = new Set<string>()
@@ -269,6 +271,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hybridAmpPages = new Set<string>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+  const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
+
   let customAppGetInitialProps: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
@@ -284,7 +288,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const chunks = getPageChunks(page)
 
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(actualPage, distDir, buildId)
+      const size = await getPageSizeInKb(
+        actualPage,
+        distDir,
+        buildId,
+        buildManifest,
+        config.experimental.modern
+      )
       const bundleRelative = path.join(
         isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
