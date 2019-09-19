@@ -353,9 +353,8 @@ export class Head extends Component<
                   __html: `body{display:none}`,
                 }}
               />
-              <noscript>
+              <noscript data-next-hydrating>
                 <style
-                  data-next-hydrating
                   dangerouslySetInnerHTML={{
                     __html: `body{display:unset}`,
                   }}
@@ -457,6 +456,13 @@ export class Head extends Component<
             />
             {this.getPreloadDynamicChunks()}
             {this.getPreloadMainLinks()}
+            {this.context._documentProps.isDevelopment &&
+              this.context._documentProps.hasCssMode && (
+                // this element is used to mount development styles so the
+                // ordering matches production
+                // (by default, style-loader injects at the bottom of <head />)
+                <noscript id="__next_css__DO_NOT_USE__" />
+              )}
             {this.getCssLinks()}
             {styles || null}
           </>
