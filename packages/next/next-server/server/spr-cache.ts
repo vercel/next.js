@@ -8,28 +8,30 @@ import { PRERENDER_MANIFEST } from '../lib/constants'
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 
-let prerenderManifest: PrerenderManifest
+type SprCacheValue = {
+  html: string
+  pageData: any
+  // UTC in milliseconds to revalidate after
+  revalidateAfter: number | false
+}
 
-let cache: LRUCache<string, any>
+let cache: LRUCache<string, SprCacheValue>
+let prerenderManifest: PrerenderManifest
 let sprOptions: {
   flushToDisk?: boolean
   pagesDir?: string
   distDir?: string
+  dev?: boolean
 } = {}
-
-type sprCacheValue = {
-  html: string
-  pageData: any
-  // UTC in milliseconds to revalidate after Date.getTime
-  revalidateAfter: number | false
-}
 
 const getSeedPath = (pathname: string, ext: string): string => {
   return path.join(sprOptions.pagesDir!, `${pathname}.${ext}`)
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
-  const { revalidate } = prerenderManifest.routes[pathname]
+  // in development we don't have a prerender-manifest
+  // and default to always revalidating to allow easier debugging
+  const { revalidate } = prerenderManifest.routes[pathname] || { revalidate: 0 }
   const revalidateAfter =
     typeof revalidate === 'number'
       ? revalidate + new Date().getTime()
@@ -41,24 +43,29 @@ export const calculateRevalidate = (pathname: string): number | false => {
 // initialize the SPR cache
 export function initializeSprCache({
   max,
+  dev,
   distDir,
   pagesDir,
   flushToDisk,
 }: {
+  dev: boolean
   max?: number
   distDir: string
   pagesDir: string
   flushToDisk?: boolean
 }) {
   sprOptions = {
+    dev,
     distDir,
     pagesDir,
     flushToDisk: typeof flushToDisk !== 'undefined' ? flushToDisk : true,
   }
 
-  prerenderManifest = JSON.parse(
-    fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
-  )
+  prerenderManifest = dev
+    ? {}
+    : JSON.parse(
+        fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
+      )
 
   cache = new LRUCache({
     // default to 50MB limit
@@ -71,8 +78,10 @@ export function initializeSprCache({
 }
 
 // get data from SPR cache if available
-export async function getSprCache(pathname: string) {
-  let data: sprCacheValue | undefined = cache.get(pathname)
+export async function getSprCache(
+  pathname: string
+): Promise<SprCacheValue | undefined> {
+  let data: SprCacheValue | undefined = cache.get(pathname)
 
   // let's check the disk for seed data
   if (!data) {
@@ -87,6 +96,7 @@ export async function getSprCache(pathname: string) {
         pageData,
         revalidateAfter: calculateRevalidate(pathname),
       }
+      cache.set(pathname, data)
     } catch (_) {
       // unable to get data from disk
     }
@@ -100,13 +110,12 @@ export async function setSprCache(
   data: {
     html: string
     pageData: any
-    revalidateAfter?: number | false
   }
 ) {
-  if (typeof data.revalidateAfter === 'undefined') {
-    data.revalidateAfter = calculateRevalidate(pathname)
-  }
-  cache.set(pathname, data)
+  cache.set(pathname, {
+    ...data,
+    revalidateAfter: calculateRevalidate(pathname),
+  })
 
   if (sprOptions.flushToDisk) {
     try {

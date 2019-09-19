@@ -150,6 +150,7 @@ export default class Server {
     this.setAssetPrefix(assetPrefix)
 
     initializeSprCache({
+      dev: !!this.renderOpts.dev,
       distDir: this.distDir,
       pagesDir: join(
         this.distDir,
@@ -241,9 +242,19 @@ export default class Server {
       },
       {
         match: route('/_next/data/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
-          if (!params.path) return this.render404(req, res, parsedUrl)
-          await this.renderData(req, res, params.path, parsedUrl)
+        fn: async (req, res, params, _parsedUrl) => {
+          // Make sure to 404 for /_next/data/ itself
+          if (!params.path) return this.render404(req, res, _parsedUrl)
+          const pathname = `/${params.path.join('/')}`
+          req.url = pathname
+          const parsedUrl = parseUrl(pathname, true)
+          await this.render(
+            req,
+            res,
+            pathname,
+            { _nextSprData: '1' },
+            parsedUrl
+          )
         },
       },
       {
@@ -445,20 +456,6 @@ export default class Server {
     return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
 
-  private async renderData(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    parsedUrl?: UrlWithParsedQuery
-  ) {
-    if (isBlockedPage(pathname)) {
-      return this.render404(req, res, parsedUrl)
-    }
-    // look up data in cache, serve it if available (should be except
-    // for dynamic-routes that weren't pre-populated)
-    // if past revalidate period, queue revalidating in background
-  }
-
   public async render(
     req: IncomingMessage,
     res: ServerResponse,
@@ -587,9 +584,21 @@ export default class Server {
                   req,
                   res,
                   dynamicRoute.page,
-                  { ...query, ...params },
+                  // only add params for SPR enabled pages
+                  {
+                    ...(result.getStaticProps
+                      ? { _nextSprData: query._nextSprData }
+                      : query),
+                    ...params,
+                  },
                   result,
-                  { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+                  {
+                    ...this.renderOpts,
+                    amphtml,
+                    hasAmp,
+                    dataOnly,
+                    isDynamic: true,
+                  }
                 )
               }
             )

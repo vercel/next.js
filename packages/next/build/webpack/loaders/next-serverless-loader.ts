@@ -43,6 +43,9 @@ const nextServerlessLoader: loader.Loader = function() {
     '/'
   )
 
+  // TODO: add handling for sending data from serverless
+  // need to parse /_next/data/:path* manually
+
   if (page.match(API_ROUTE)) {
     return `
     ${
@@ -84,6 +87,12 @@ const nextServerlessLoader: loader.Loader = function() {
     import * as ComponentInfo from '${absolutePagePath}';
     const Component = ComponentInfo.default
     export default Component
+    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
+    ${
+      isDynamicRoute(page)
+        ? "export const getStaticParams = ComponentInfo['getStaticParam' + 's']"
+        : ''
+    }
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport) {
@@ -115,7 +124,7 @@ const nextServerlessLoader: loader.Loader = function() {
             ? `const params = fromExport ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, params), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result

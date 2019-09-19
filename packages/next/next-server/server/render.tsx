@@ -29,6 +29,7 @@ import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 // Uses a module path because of the compiled output directory location
 import { PageConfig } from 'next/types'
+import { getSprCache } from './spr-cache'
 
 export type ManifestItem = {
   id: number | string
@@ -150,6 +151,13 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  getStaticProps?: (params: {
+    params: any | undefined
+  }) => {
+    props: any
+    revalidate: number | false
+  }
+  isDynamic?: boolean
 }
 
 function renderDocument(
@@ -259,7 +267,27 @@ export async function renderToHTML(
     buildManifest,
     reactLoadableManifest,
     ErrorDebug,
+    getStaticProps,
+    isDynamic,
   } = renderOpts
+
+  // SPR is enabled for this page
+  if (typeof getStaticProps === 'function') {
+    const isData = query._nextSprData
+    delete query._nextSprData
+    console.log('spr enabled', pathname, query)
+    const cachedData = await getSprCache(pathname)
+
+    if (cachedData) {
+      console.log('using cache for', pathname)
+      res.end(isData ? JSON.stringify(cachedData.pageData) : cachedData.html)
+      // don't need to revalidate if we have a cache and it isn't expired
+      if (cachedData.revalidateAfter > new Date().getTime()) return null
+    }
+    console.log('revalidating cache for', pathname)
+  } else {
+    console.log('spr not enabled', pathname)
+  }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -269,13 +297,6 @@ export async function renderToHTML(
   let isAutoExport =
     typeof (Component as any).getInitialProps !== 'function' &&
     defaultAppGetInitialProps
-
-  let isPrerender = pageConfig.experimentalPrerender === true
-  const isStaticPage = isPrerender || isAutoExport
-  // TODO: revisit `?_nextPreviewSkeleton=(truthy)`
-  const isSkeleton = isPrerender && !!query._nextPreviewSkeleton
-  // remove from query so it doesn't end up in document
-  delete query._nextPreviewSkeleton
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -297,7 +318,7 @@ export async function renderToHTML(
       )
     }
 
-    if (isStaticPage) {
+    if (isAutoExport) {
       // remove query values except ones that will be set during export
       query = {
         amp: query.amp,
@@ -306,7 +327,6 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
-  if (isSkeleton) renderOpts.nextExport = true
   if (isAutoExport) renderOpts.autoExport = true
 
   // @ts-ignore url will always be set
@@ -314,8 +334,8 @@ export async function renderToHTML(
   const router = new ServerRouter(pathname, query, asPath)
   const ctx = {
     err,
-    req: isStaticPage ? undefined : req,
-    res: isStaticPage ? undefined : res,
+    req: isAutoExport ? undefined : req,
+    res: isAutoExport ? undefined : res,
     pathname,
     query,
     asPath,
@@ -328,9 +348,6 @@ export async function renderToHTML(
     },
   }
   let props: any
-  const isDataPrerender =
-    pageConfig.experimentalPrerender === true &&
-    req.headers['content-type'] === 'application/json'
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
@@ -364,25 +381,18 @@ export async function renderToHTML(
   )
 
   try {
-    props =
-      isSkeleton && !isDataPrerender
-        ? { pageProps: {} }
-        : await loadGetInitialProps(App, {
-            AppTree: ctx.AppTree,
-            Component,
-            router,
-            ctx,
-          })
+    props = getStaticProps
+      ? (await getStaticProps({ params: isDynamic ? query : undefined })).props
+      : await loadGetInitialProps(App, {
+          AppTree: ctx.AppTree,
+          Component,
+          router,
+          ctx,
+        })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
-  }
-
-  if (isDataPrerender) {
-    res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify(props.pageProps || {}))
-    return null
   }
 
   // the response might be finished on the getInitialProps call
@@ -529,7 +539,6 @@ export async function renderToHTML(
   // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
-  if (isSkeleton) renderOpts.skeleton = true
 
   let html = renderDocument(Document, {
     ...renderOpts,

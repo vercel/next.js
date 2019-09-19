@@ -6,7 +6,7 @@ import { PageConfig } from '../../../types'
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
 export const sprStatus = { used: false }
 
-const configKeys = new Set(['amp', 'experimentalPrerender'])
+const configKeys = new Set(['amp'])
 const sprSSRExports = new Set(['getStaticProps', 'getStaticParams'])
 const pageComponentVar = '__NEXT_COMP'
 // this value can't be optimized by terser so the shorter the better
@@ -67,6 +67,10 @@ export default function nextPageConfig({
 
                 // drop SSR Exports for client bundles
                 if (id && sprSSRExports.has(id.name)) {
+                  if (id.name === 'getStaticProps') {
+                    state.isPrerender = true
+                    sprStatus.used = sprStatus.used || state.isPrerender
+                  }
                   dropPath(path, t)
                   return
                 }
@@ -105,8 +109,6 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
-                state.isPrerender = config.experimentalPrerender === true
-                sprStatus.used = sprStatus.used || state.isPrerender
                 // remove export const config from bundle
                 dropPath(path, t)
               },
