@@ -533,7 +533,7 @@ export default class Server {
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
     ) {
-      const curUrl = parseUrl(req.url!, true)
+      const curUrl = parseUrl(req.url || '', true)
       req.url = formatUrl({
         ...curUrl,
         query: {

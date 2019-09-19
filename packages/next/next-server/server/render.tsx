@@ -275,7 +275,7 @@ export async function renderToHTML(
   } = renderOpts
 
   let revalidateResolve = () => {}
-  const urlPathname = urlParse(req.url!).pathname!
+  const urlPathname = urlParse(req.url || '').pathname!
   const isSprData = getStaticProps && query._nextSprData
   delete query._nextSprData
 
