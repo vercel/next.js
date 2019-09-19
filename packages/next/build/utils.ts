@@ -11,8 +11,8 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 
 const fsStatPromise = promisify(fs.stat)
-const fileStats = {}
-const fsStat = file => {
+const fileStats: { [k: string]: Promise<fs.Stats> } = {}
+const fsStat = (file: string) => {
   if (fileStats[file]) return fileStats[file]
 
   fileStats[file] = fsStatPromise(file)
