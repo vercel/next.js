@@ -4,6 +4,7 @@ import LRUCache from 'lru-cache'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
+import { normalizePagePath } from './normalize-page-path'
 
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
@@ -58,11 +59,12 @@ export function initializeSprCache({
     dev,
     distDir,
     pagesDir,
-    flushToDisk: typeof flushToDisk !== 'undefined' ? flushToDisk : true,
+    flushToDisk:
+      !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
   }
 
   prerenderManifest = dev
-    ? {}
+    ? { routes: {} }
     : JSON.parse(
         fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
       )
@@ -81,6 +83,7 @@ export function initializeSprCache({
 export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
+  pathname = normalizePagePath(pathname)
   let data: SprCacheValue | undefined = cache.get(pathname)
 
   // let's check the disk for seed data
@@ -112,6 +115,7 @@ export async function setSprCache(
     pageData: any
   }
 ) {
+  pathname = normalizePagePath(pathname)
   cache.set(pathname, {
     ...data,
     revalidateAfter: calculateRevalidate(pathname),

@@ -4,7 +4,7 @@ const Page = ({ world, time }) => {
   return (
     <>
       <p>hello {world}</p>
-      <p>time: {time}</p>
+      <span>time: {time}</span>
       <Link href='/another'>
         <a id='another'>to another</a>
       </Link>

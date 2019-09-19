@@ -11,7 +11,7 @@ import {
   nextStart
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 let app
 let appPort
@@ -48,7 +48,7 @@ const runTests = () => {
     await browser.elementByCss('#post-1').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Post:.*?SSR/)
+    expect(text).toMatch(/Post:.*?post-1/)
 
     // go to /
     await browser.elementByCss('#home').click()
@@ -57,8 +57,8 @@ const runTests = () => {
     // go to /blog/post-1/comment-1
     await browser.elementByCss('#comment-1').click()
     await browser.waitForElementByCss('#home')
-    text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Comment:.*?SSR/)
+    text = await browser.elementByCss('p:nth-child(2)').text()
+    expect(text).toMatch(/Comment:.*?comment-1/)
 
     await browser.close()
   })
@@ -81,7 +81,7 @@ const runTests = () => {
 }
 
 describe('SPR Prerender', () => {
-  describe('development mode', () => {
+  describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)

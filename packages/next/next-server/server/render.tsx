@@ -29,7 +29,9 @@ import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 // Uses a module path because of the compiled output directory location
 import { PageConfig } from 'next/types'
-import { getSprCache } from './spr-cache'
+import { getSprCache, setSprCache } from './spr-cache'
+import { parse as urlParse } from 'url'
+import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 
 export type ManifestItem = {
   id: number | string
@@ -244,6 +246,8 @@ function renderDocument(
   )
 }
 
+const pendingRevalidations = new Map<string, Promise<void>>()
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -268,25 +272,42 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
-    isDynamic,
   } = renderOpts
 
+  let revalidateResolve = () => {}
+  const urlPathname = urlParse(req.url!).pathname!
+  const isSprData = getStaticProps && query._nextSprData
+  delete query._nextSprData
+
+  if (isSprData) {
+    res.setHeader('Content-Type', 'application/json')
+  }
+
   // SPR is enabled for this page
-  if (typeof getStaticProps === 'function') {
-    const isData = query._nextSprData
-    delete query._nextSprData
-    console.log('spr enabled', pathname, query)
-    const cachedData = await getSprCache(pathname)
+  if (getStaticProps) {
+    let revalidatePromise = pendingRevalidations.get(urlPathname)
+    if (revalidatePromise) {
+      // wait for pending revalidation and resolve from it
+      await revalidatePromise
+    }
+    const cachedData = await getSprCache(urlPathname)
 
     if (cachedData) {
-      console.log('using cache for', pathname)
-      res.end(isData ? JSON.stringify(cachedData.pageData) : cachedData.html)
+      console.log('using cache for', urlPathname)
+      res.end(isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html)
       // don't need to revalidate if we have a cache and it isn't expired
       if (cachedData.revalidateAfter > new Date().getTime()) return null
+    } else {
+      console.log('no cache for', urlPathname)
     }
-    console.log('revalidating cache for', pathname)
-  } else {
-    console.log('spr not enabled', pathname)
+
+    revalidatePromise = new Promise(resolve => {
+      revalidateResolve = () => {
+        pendingRevalidations.delete(urlPathname)
+        resolve()
+      }
+    })
+    pendingRevalidations.set(urlPathname, revalidatePromise)
   }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
@@ -294,9 +315,10 @@ export async function renderToHTML(
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
-  let isAutoExport =
+  const isAutoExport =
     typeof (Component as any).getInitialProps !== 'function' &&
-    defaultAppGetInitialProps
+    defaultAppGetInitialProps &&
+    !getStaticProps
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -381,14 +403,19 @@ export async function renderToHTML(
   )
 
   try {
-    props = getStaticProps
-      ? (await getStaticProps({ params: isDynamic ? query : undefined })).props
-      : await loadGetInitialProps(App, {
-          AppTree: ctx.AppTree,
-          Component,
-          router,
-          ctx,
-        })
+    if (getStaticProps) {
+      const data = await getStaticProps({
+        params: isDynamicRoute(pathname) ? query : undefined,
+      })
+      props = { pageProps: data.props }
+    } else {
+      props = await loadGetInitialProps(App, {
+        AppTree: ctx.AppTree,
+        Component,
+        router,
+        ctx,
+      })
+    }
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -396,7 +423,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res)) return null
+  if (isResSent(res) && !getStaticProps) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -500,7 +527,7 @@ export async function renderToHTML(
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
-  if (isResSent(res)) return null
+  if (isResSent(res) && !getStaticProps) return null
 
   let dataManagerData = '[]'
   if (dataManager) {
@@ -575,6 +602,15 @@ export async function renderToHTML(
     // fix &amp being escaped for amphtml rel link
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
+
+  if (getStaticProps) {
+    setSprCache(urlPathname, { html, pageData: props.pageProps })
+    revalidateResolve()
+    // if we were able to use the cache return null
+    if (isResSent(res)) return null
+    return isSprData ? JSON.stringify(props.pageProps) : html
+  }
+
   return html
 }
 

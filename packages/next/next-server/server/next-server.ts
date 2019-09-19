@@ -57,6 +57,7 @@ export type ServerConstructor = {
    * Object what you would use in next.config.js - @default {}
    */
   conf?: NextConfig
+  dev?: boolean
 }
 
 export default class Server {
@@ -89,13 +90,13 @@ export default class Server {
     staticMarkup = false,
     quiet = false,
     conf = null,
+    dev = false,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.pagesManifest = join(
       this.distDir,
@@ -150,7 +151,7 @@ export default class Server {
     this.setAssetPrefix(assetPrefix)
 
     initializeSprCache({
-      dev: !!this.renderOpts.dev,
+      dev,
       distDir: this.distDir,
       pagesDir: join(
         this.distDir,
@@ -597,7 +598,6 @@ export default class Server {
                     amphtml,
                     hasAmp,
                     dataOnly,
-                    isDynamic: true,
                   }
                 )
               }

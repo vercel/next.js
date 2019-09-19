@@ -1,23 +1,21 @@
 import React from 'react'
 import Link from 'next/link'
 
-export const config = {
-  experimentalPrerender: true,
-  experimentalRevalidate: false
-}
-
 export async function getStaticProps () {
   return {
     props: {
+      world: 'world',
       time: new Date().getTime()
-    }
+    },
+    revalidate: false
   }
 }
 
-export default ({ time }) => {
+export default ({ world, time }) => {
   return (
     <>
-      <p>time: {time}</p>
+      <p>hello: {world}</p>
+      <span>time: {time}</span>
       <Link href='/'>
         <a id='home'>to home</a>
       </Link>

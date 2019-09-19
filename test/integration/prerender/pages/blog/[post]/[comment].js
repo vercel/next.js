@@ -1,11 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
 
-export const config = {
-  experimentalRevalidate: 5,
-  experimentalPrerender: true,
-}
-
 export async function getStaticParams() {
   return [
     '/blog/post-1/comment-1',
@@ -19,16 +14,17 @@ export async function getStaticProps({ params }) {
       post: params.post,
       comment: params.comment,
       time: new Date().getTime()
-    }
+    },
+    revalidate: 5,
   }
 }
 
 export default ({ post, comment, time }) => {
   return (
     <>
-      <p>post: {post}</p>
-      <p>comment: {comment}</p>
-      <p>time: {time}</p>
+      <p>Post: {post}</p>
+      <p>Comment: {comment}</p>
+      <span>time: {time}</span>
       <Link href='/'>
         <a id='home'>to home</a>
       </Link>
