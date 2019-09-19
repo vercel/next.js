@@ -1747,7 +1747,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.ts)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/next-server/lib/constants.ts)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -2725,7 +2725,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.js) for more information.
+See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.ts) for more information.
 
 </details>
 
