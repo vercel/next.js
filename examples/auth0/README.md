@@ -26,9 +26,9 @@ POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
 SESSION_COOKIE_SECRET=viloxyf_z2GW6K4CT-KQD_MoLEA2wqv5jWuq4Jd0P7ymgG5GJGMpvMneXZzhK3sL (at least 32 characters, used to encrypt the cookie)
 ```
 
-### Hosting in Now.sh
+### Hosting on ZEIT Now
 
-When deploying this example to Now.sh you'll want to update the `now.json` configuration file:
+When deploying this example to ZEIT Now you'll want to update the `now.json` configuration file:
 
 ```json
 {
