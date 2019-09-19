@@ -567,7 +567,7 @@ export default async function getBaseWebpackConfig(
                       // and prod. To fix this, we render a <noscript> tag as
                       // an "anchor" for the styles to be placed after. These
                       // styles will be applied _before_ <style jsx global>.
-                      insert: function(element: Node) {
+                      insert: (element: Node) => {
                         const parent = document.querySelector('head') as Element
                         const anchor = document.querySelector(
                           '#__next_css__DO_NOT_USE__'
