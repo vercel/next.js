@@ -534,13 +534,7 @@ export default class Server {
       typeof result.Component.renderReqToHTML === 'function'
     ) {
       const curUrl = parseUrl(req.url || '', true)
-      req.url = formatUrl({
-        ...curUrl,
-        query: {
-          ...curUrl.query,
-          ...query,
-        },
-      })
+      req.url = `/_next/data${curUrl.pathname}.json`
       return result.Component.renderReqToHTML(req, res)
     }
 
