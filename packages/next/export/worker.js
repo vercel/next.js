@@ -208,7 +208,7 @@ export default async function ({
       await mkdirp(dirname(dataFile))
       await writeFileP(dataFile, JSON.stringify(curRenderOpts.sprData), 'utf8')
     }
-    results.revalidate = curRenderOpts.revalidate
+    results.fromBuildExportRevalidate = curRenderOpts.revalidate
 
     await writeFileP(htmlFilepath, html, 'utf8')
     return results
