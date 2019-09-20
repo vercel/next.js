@@ -55,14 +55,13 @@ const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./utils')
 
-export type sprRoute = {
+export type SprRoute = {
   revalidate: number | false
 }
 
 export type PrerenderManifest = {
   version: number
-  concurrency?: number
-  routes: { [route: string]: sprRoute }
+  routes: { [route: string]: SprRoute }
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -274,7 +273,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
-  const prerenderRoutes = new Map<string, Array<string>>()
+  const additionalSprPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
@@ -362,7 +361,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             sprPages.add(page)
 
             if (result.prerenderRoutes) {
-              prerenderRoutes.set(page, result.prerenderRoutes)
+              additionalSprPaths.set(page, result.prerenderRoutes)
             }
           }
 
@@ -409,7 +408,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
-  const finalPrerenderRoutes: { [route: string]: sprRoute } = {}
+  const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -425,7 +424,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...config,
       revalidations: {},
       exportPathMap: (defaultMap: any) => {
-        prerenderRoutes.forEach((routes, page) => {
+        additionalSprPaths.forEach((routes, page) => {
           // remove /blog/[post] from being exported itself
           if (isDynamicRoute(page)) {
             delete defaultMap[page]
@@ -492,7 +491,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             revalidate: exportConfig.revalidations[page],
           }
         }
-        const extraRoutes = prerenderRoutes.get(page)
+        const extraRoutes = additionalSprPaths.get(page)
         if (extraRoutes) {
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true)
