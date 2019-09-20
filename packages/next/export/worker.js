@@ -24,6 +24,7 @@ export default async function ({
   distDir,
   buildId,
   outDir,
+  sprDataDir,
   renderOpts,
   serverRuntimeConfig,
   subFolders,
@@ -35,7 +36,7 @@ export default async function ({
 
   try {
     let { query = {} } = pathMap
-    const { page, sprPage } = pathMap
+    const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
 
@@ -69,12 +70,6 @@ export default async function ({
     }
     const res = {
       ...headerMocks
-    }
-
-    if (sprPage && isDynamicRoute(page)) {
-      query._nextPreviewSkeleton = 1
-      // pass via `req` to avoid adding code to serverless bundle
-      req.url += (req.url.includes('?') ? '&' : '?') + '_nextPreviewSkeleton=1'
     }
 
     envConfig.setConfig({
@@ -186,11 +181,13 @@ export default async function ({
     }
 
     if (curRenderOpts.sprData) {
-      await writeFileP(
-        htmlFilepath.replace(/\.html$/, '.json'),
-        JSON.stringify(curRenderOpts.sprData),
-        'utf8'
+      const dataFile = join(
+        sprDataDir,
+        htmlFilename.replace(/\.html$/, '.json')
       )
+
+      await mkdirp(dirname(dataFile))
+      await writeFileP(dataFile, JSON.stringify(curRenderOpts.sprData), 'utf8')
     }
     results.revalidate = curRenderOpts.revalidate
 

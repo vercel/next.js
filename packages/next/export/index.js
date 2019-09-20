@@ -3,9 +3,9 @@ import chalk from 'chalk'
 import Worker from 'jest-worker'
 import { promisify } from 'util'
 import mkdirpModule from 'mkdirp'
-import { resolve, join } from 'path'
+import { resolve, join, dirname } from 'path'
 import { API_ROUTE } from '../lib/constants'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, rename as renameOrig } from 'fs'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { formatAmpMessages } from '../build/output/index'
@@ -18,12 +18,15 @@ import {
   PAGES_MANIFEST,
   CONFIG_FILE,
   BUILD_ID_FILE,
+  PRERENDER_MANIFEST,
+  SERVERLESS_DIRECTORY,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH
 } from '../next-server/lib/constants'
 import createSpinner from '../build/spinner'
 
 const mkdirp = promisify(mkdirpModule)
+const rename = promisify(renameOrig)
 
 const createProgress = (total, label = 'Exporting') => {
   let curProgress = 0
@@ -78,8 +81,9 @@ export default async function (dir, options, configuration) {
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.exportTrailingSlash
+  const isServerless = nextConfig.target !== 'server'
 
-  if (!options.buildExport && nextConfig.target !== 'server') {
+  if (!options.buildExport && isServerless) {
     throw new Error(
       'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
     )
@@ -96,6 +100,19 @@ export default async function (dir, options, configuration) {
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+
+  let prerenderManifest
+  try {
+    prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
+  } catch (_) {}
+
+  const distPagesDir = join(
+    distDir,
+    isServerless
+      ? SERVERLESS_DIRECTORY
+      : join(SERVER_DIRECTORY, 'static', buildId),
+    'pages'
+  )
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap = {}
@@ -201,6 +218,7 @@ export default async function (dir, options, configuration) {
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
+  const sprDataDir = options.buildExport ? outDir : join(outDir, '_next/data')
 
   const ampValidations = {}
   let hadValidationError = false
@@ -241,6 +259,7 @@ export default async function (dir, options, configuration) {
         distDir,
         buildId,
         outDir,
+        sprDataDir,
         renderOpts,
         serverRuntimeConfig,
         subFolders,
@@ -255,7 +274,11 @@ export default async function (dir, options, configuration) {
       }
       renderError |= result.error
 
-      if (typeof result.revalidate !== 'undefined') {
+      if (
+        typeof result.revalidate !== 'undefined' &&
+        configuration &&
+        configuration.revalidations
+      ) {
         configuration.revalidations[path] = result.revalidate
       }
       if (progress) progress()
@@ -263,6 +286,22 @@ export default async function (dir, options, configuration) {
   )
 
   worker.end()
+
+  // copy prerendered routes to outDir
+  if (prerenderManifest) {
+    await Promise.all(
+      Object.keys(prerenderManifest.routes).map(async route => {
+        const orig = join(distPagesDir, route)
+        const htmlDest = join(outDir, `${route}.html`)
+        const jsonDest = join(sprDataDir, `${route}.json`)
+
+        await mkdirp(dirname(htmlDest))
+        await mkdirp(dirname(jsonDest))
+        await rename(`${orig}.html`, htmlDest)
+        await rename(`${orig}.json`, jsonDest)
+      })
+    )
+  }
 
   if (Object.keys(ampValidations).length) {
     console.log(formatAmpMessages(ampValidations))
