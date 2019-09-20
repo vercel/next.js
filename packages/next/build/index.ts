@@ -500,15 +500,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       if (isSpr) {
+        // For a non-dynamic SPR page, we must copy its data file from export.
         if (!isDynamic) {
           await moveExportedPage(page, page, true, 'json')
 
           finalPrerenderRoutes[page] = {
             revalidate: exportConfig.defaultPageRevalidation[page],
           }
-        }
-        const extraRoutes = additionalSprPaths.get(page)
-        if (extraRoutes) {
+        } else {
+          // For a dynamic SPR page, we did not copy its html nor data exports.
+          // Instead, we must copy specific versions of this page as defined by
+          // `getStaticParams` (additionalSprPaths).
+          const extraRoutes = additionalSprPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')
             await moveExportedPage(route, route, true, 'json')
