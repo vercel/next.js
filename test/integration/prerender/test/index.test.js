@@ -73,9 +73,14 @@ const navigateTest = () => {
 const runTests = (dev = false) => {
   navigateTest()
 
-  it('should SSR content correctly', async () => {
+  it('should SSR normal page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/hello.*?world/)
+  })
+
+  it('should SSR SPR page correctly', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1')
+    expect(html).toMatch(/Post:.*?post-1/)
   })
 
   it('should return data correctly', async () => {

@@ -534,8 +534,10 @@ export default class Server {
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
     ) {
-      const curUrl = parseUrl(req.url || '', true)
-      req.url = `/_next/data${curUrl.pathname}.json`
+      if (query._nextSprData) {
+        const curUrl = parseUrl(req.url || '', true)
+        req.url = `/_next/data${curUrl.pathname}.json`
+      }
       return result.Component.renderReqToHTML(req, res)
     }
 
