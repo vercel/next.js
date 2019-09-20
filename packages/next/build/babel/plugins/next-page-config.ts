@@ -33,11 +33,6 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
   )
 }
 
-function dropPath(path: any, t: typeof BabelTypes) {
-  // this should be dead-code eliminated
-  path.replaceWith(t.ifStatement(t.booleanLiteral(false), t.emptyStatement()))
-}
-
 interface ConfigState {
   isPrerender?: boolean
   bundleDropped?: boolean
@@ -71,7 +66,7 @@ export default function nextPageConfig({
                     state.isPrerender = true
                     sprStatus.used = sprStatus.used || state.isPrerender
                   }
-                  dropPath(path, t)
+                  path.remove()
                   return
                 }
 
@@ -110,7 +105,7 @@ export default function nextPageConfig({
                   return
                 }
                 // remove export const config from bundle
-                dropPath(path, t)
+                path.remove()
               },
             },
             state
