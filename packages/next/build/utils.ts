@@ -193,14 +193,18 @@ export async function isPageStatic(
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
+
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const prerender = !!mod.getStaticProps
-    const config = mod.config || {}
-    let prerenderRoutes
 
+    // A page cannot be prerendered _and_ define a data requirement. That's an
+    // oxymoron!
     if (hasGetInitialProps && prerender) {
       throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
     }
+
+    const config = mod.config || {}
+    let prerenderRoutes
 
     if (prerender && mod.getStaticParams) {
       if (!isDynamicRoute(page)) {
