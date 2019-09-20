@@ -69,7 +69,7 @@ export default function nextPageConfig({
                 ) {
                   if (id.name === EXPORT_NAME_GET_STATIC_PROPS) {
                     state.isPrerender = true
-                    sprStatus.used = sprStatus.used || state.isPrerender
+                    sprStatus.used = true
                   }
                   path.remove()
                   return
