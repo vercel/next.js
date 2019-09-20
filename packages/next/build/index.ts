@@ -425,12 +425,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
       revalidations: {},
       // Default map will be the collection of automatic statically exported
       // pages and SPR pages.
+      // n.b. we cannot handle this above in combinedPages because the dynamic
+      // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        additionalSprPaths.forEach((routes, page) => {
-          // remove /blog/[post] from being exported itself
+        // Remove dynamically routed pages from the default path map.
+        sprPages.forEach(page => {
           if (isDynamicRoute(page)) {
             delete defaultMap[page]
           }
+        })
+        // Append additional SPR paths for dynamic pages
+        additionalSprPaths.forEach((routes, page) => {
           routes.forEach(route => {
             defaultMap[route] = { page }
           })
