@@ -81,9 +81,9 @@ export default async function (dir, options, configuration) {
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.exportTrailingSlash
-  const isServerless = nextConfig.target !== 'server'
+  const isLikeServerless = nextConfig.target !== 'server'
 
-  if (!options.buildExport && isServerless) {
+  if (!options.buildExport && isLikeServerless) {
     throw new Error(
       'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
     )
@@ -108,7 +108,7 @@ export default async function (dir, options, configuration) {
 
   const distPagesDir = join(
     distDir,
-    isServerless
+    isLikeServerless
       ? SERVERLESS_DIRECTORY
       : join(SERVER_DIRECTORY, 'static', buildId),
     'pages'
