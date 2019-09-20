@@ -11,7 +11,7 @@ const writeFile = promisify(fs.writeFile)
 
 /*
   TODO:
-    - implement copying data files during export / investigate whether we want to allow falling back to calling `getStaticProps` client-side for dynamic routes that weren't seeded during export
+    - decide on 404ing for missing export /_next/data/${route}
  */
 
 type SprCacheValue = {
