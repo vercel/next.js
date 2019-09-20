@@ -130,7 +130,7 @@ const nextServerlessLoader: loader.Loader = function() {
             ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, params, sprData || parsedUrl.query._nextSprData ? { _nextSprData: '1' } : {}), renderOpts)
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result
