@@ -195,18 +195,18 @@ export async function isPageStatic(
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const prerender = !!mod.getStaticProps
+    const hasStaticProps = !!mod.getStaticProps
 
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
-    if (hasGetInitialProps && prerender) {
+    if (hasGetInitialProps && hasStaticProps) {
       throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
     }
 
     const config = mod.config || {}
     let prerenderRoutes
 
-    if (prerender && mod.getStaticParams) {
+    if (hasStaticProps && mod.getStaticParams) {
       if (!isDynamicRoute(page)) {
         throw new Error(
           `getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
@@ -253,10 +253,10 @@ export async function isPageStatic(
     }
 
     return {
-      static: !prerender && !hasGetInitialProps,
+      static: !hasStaticProps && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes,
-      prerender,
+      prerender: hasStaticProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
