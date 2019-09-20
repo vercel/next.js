@@ -461,7 +461,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       page: string,
       file: string,
       isSpr: boolean,
-      ext = 'html'
+      ext: 'html' | 'json'
     ) => {
       file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
@@ -490,10 +490,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isDynamic = isDynamicRoute(page)
       let file = page === '/' ? '/index' : page
       if (!isSpr || !isDynamic) {
-        await moveExportedPage(page, file, isSpr)
+        await moveExportedPage(page, file, isSpr, 'html')
       }
       const hasAmp = hybridAmpPages.has(page)
-      if (hasAmp) await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr)
+      if (hasAmp)
+        await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr, 'html')
 
       if (isSpr) {
         if (!isDynamic) {
@@ -506,7 +507,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         const extraRoutes = additionalSprPaths.get(page)
         if (extraRoutes) {
           for (const route of extraRoutes) {
-            await moveExportedPage(route, route, true)
+            await moveExportedPage(route, route, true, 'html')
             await moveExportedPage(route, route, true, 'json')
             finalPrerenderRoutes[route] = {
               revalidate: exportConfig.defaultPageRevalidation[route],
