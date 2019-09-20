@@ -156,8 +156,9 @@ export default class Server {
       pagesDir: join(
         this.distDir,
         this._isLikeServerless
-          ? 'serverless/pages'
-          : `server/static/${this.buildId}/pages`
+          ? SERVERLESS_DIRECTORY
+          : `${SERVER_DIRECTORY}/static/${this.buildId}`,
+        'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })

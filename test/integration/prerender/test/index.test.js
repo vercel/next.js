@@ -116,6 +116,9 @@ const runTests = (dev = false) => {
 
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual({
+        '/blog/[post3]': {
+          initialRevalidateSeconds: 10
+        },
         '/blog/post-1': {
           initialRevalidateSeconds: 10
         },

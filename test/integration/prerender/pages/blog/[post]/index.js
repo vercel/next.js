@@ -5,7 +5,8 @@ import Link from 'next/link'
 export async function unstable_getStaticParams () {
   return [
     '/blog/post-1',
-    { post: 'post-2' }
+    { post: 'post-2' },
+    '/blog/[post3]'
   ]
 }
 
