@@ -428,13 +428,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        // Remove dynamically routed pages from the default path map.
+        // Remove dynamically routed pages from the default path map. These
+        // pages cannot be prerendered because we don't have enough information
+        // to do so.
         sprPages.forEach(page => {
           if (isDynamicRoute(page)) {
             delete defaultMap[page]
           }
         })
-        // Append additional SPR paths for dynamic pages
+        // Append the "well-known" routes we should prerender for, e.g. blog
+        // post slugs.
         additionalSprPaths.forEach((routes, page) => {
           routes.forEach(route => {
             defaultMap[route] = { page }
