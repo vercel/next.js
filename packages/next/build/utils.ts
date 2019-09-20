@@ -183,7 +183,7 @@ export async function isPageStatic(
   static?: boolean
   prerender?: boolean
   isHybridAmp?: boolean
-  prerenderRoutes?: string[]
+  prerenderRoutes?: string[] | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -211,46 +211,51 @@ export async function isPageStatic(
       )
     }
 
-    let prerenderRoutes
+    let prerenderPaths: string[] | undefined
+    if (hasStaticProps && hasStaticParams) {
+      prerenderPaths = [] as string[]
 
-    if (hasStaticProps && mod.getStaticParams) {
-      const routeRegex = getRouteRegex(page)
-      const routeMatcher = getRouteMatcher(routeRegex)
-      const paramKeys = Object.keys(routeMatcher(page))
-      prerenderRoutes = await mod.getStaticParams()
+      const _routeRegex = getRouteRegex(page)
+      const _routeMatcher = getRouteMatcher(_routeRegex)
 
-      const checkParams = (
-        route: string | { [name: string]: string },
-        params: false | { [name: string]: string }
-      ) => {
-        const curParamKeys = Object.keys(params)
-        if (
-          !params ||
-          curParamKeys.length !== paramKeys.length ||
-          paramKeys.some(param => !curParamKeys.includes(param))
-        ) {
-          throw new Error(
-            `Invalid static route provided for ${page}: ${
-              typeof route === 'string' ? route : JSON.stringify(route)
-            }`
-          )
+      // Get the default list of allowed params.
+      const _validParamKeys = Object.keys(_routeMatcher(page))
+
+      const toPrerender: Array<
+        { [key: string]: string } | string
+      > = await mod.getStaticParams()
+      toPrerender.forEach(entry => {
+        // For a string-provided path, we must make sure it matches the dynamic
+        // route.
+        if (typeof entry === 'string') {
+          const result = _routeMatcher(entry)
+          if (!result) {
+            throw new Error(
+              `The provided path \`${entry}\` does not match the page: \`${page}\`.`
+            )
+          }
+
+          prerenderPaths!.push(entry)
         }
-      }
-
-      prerenderRoutes = prerenderRoutes.map((route: string | any) => {
-        const params = typeof route === 'string' ? routeMatcher(route) : route
-        checkParams(route, params)
-
-        if (params && typeof route !== 'string') {
-          route = page.replace(
-            /\[.*?\]/g,
-            (val: string): string => {
-              const paramName = val.substr(1, val.length - 2)
-              return params[paramName]
+        // For the object-provided path, we must make sure it specifies all
+        // required keys.
+        else {
+          let builtPage = page
+          _validParamKeys.forEach(validParamKey => {
+            if (typeof entry[validParamKey] !== 'string') {
+              throw new Error(
+                `A required parameter (${validParamKey}) was not provided as a string.`
+              )
             }
-          )
+
+            builtPage = builtPage.replace(
+              `[${validParamKey}]`,
+              encodeURIComponent(entry[validParamKey])
+            )
+          })
+
+          prerenderPaths!.push(builtPage)
         }
-        return route
       })
     }
 
@@ -258,7 +263,7 @@ export async function isPageStatic(
     return {
       static: !hasStaticProps && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes,
+      prerenderRoutes: prerenderPaths,
       prerender: hasStaticProps,
     }
   } catch (err) {
