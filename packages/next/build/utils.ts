@@ -11,6 +11,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
+import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 
 const fsStatPromise = promisify(fs.stat)
 const fileStats: { [k: string]: Promise<fs.Stats> } = {}
@@ -192,9 +193,14 @@ export async function isPageStatic(
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
+    const hasGetInitialProps = !!(Comp as any).getInitialProps
     const prerender = !!mod.getStaticProps
     const config = mod.config || {}
     let prerenderRoutes
+
+    if (hasGetInitialProps && prerender) {
+      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+    }
 
     if (prerender && mod.getStaticParams) {
       if (!isDynamicRoute(page)) {
@@ -243,7 +249,7 @@ export async function isPageStatic(
     }
 
     return {
-      static: !prerender && typeof (Comp as any).getInitialProps !== 'function',
+      static: !prerender && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes,
       prerender,

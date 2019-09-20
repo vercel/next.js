@@ -32,6 +32,7 @@ import { PageConfig } from 'next/types'
 import { getSprCache, setSprCache } from './spr-cache'
 import { parse as urlParse } from 'url'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
+import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
 
 export type ManifestItem = {
   id: number | string
@@ -283,6 +284,18 @@ export async function renderToHTML(
     res.setHeader('Content-Type', 'application/json')
   }
 
+  const defaultAppGetInitialProps =
+    App.getInitialProps === (App as any).origGetInitialProps
+
+  const hasPageGetInitialProps = !!(Component as any).getInitialProps
+
+  const isAutoExport =
+    !hasPageGetInitialProps && defaultAppGetInitialProps && !getStaticProps
+
+  if (hasPageGetInitialProps && getStaticProps) {
+    throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
   // SPR is enabled for this page
   if (getStaticProps) {
     console.log('spr enabled', pathname, urlPathname)
@@ -315,16 +328,6 @@ export async function renderToHTML(
     pendingRevalidations.set(urlPathname, revalidatePromise)
   }
 
-  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-
-  const defaultAppGetInitialProps =
-    App.getInitialProps === (App as any).origGetInitialProps
-
-  const isAutoExport =
-    typeof (Component as any).getInitialProps !== 'function' &&
-    defaultAppGetInitialProps &&
-    !getStaticProps
-
   if (dev) {
     const { isValidElementType } = require('react-is')
     if (!isValidElementType(Component)) {
@@ -355,6 +358,8 @@ export async function renderToHTML(
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
+
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
