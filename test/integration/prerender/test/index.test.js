@@ -80,21 +80,21 @@ const runTests = (dev = false) => {
 
   it('should return data correctly', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, '/_next/data/something')
+      await renderViaHTTP(appPort, '/_next/data/something.json')
     )
     expect(data.world).toBe('world')
   })
 
   it('should return data correctly for dynamic page', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, '/_next/data/blog/post-1')
+      await renderViaHTTP(appPort, '/_next/data/blog/post-1.json')
     )
     expect(data.post).toBe('post-1')
   })
 
   it('should return data correctly for dynamic page (non-seeded)', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, '/_next/data/blog/post-3')
+      await renderViaHTTP(appPort, '/_next/data/blog/post-3.json')
     )
     expect(data.post).toBe('post-3')
   })
