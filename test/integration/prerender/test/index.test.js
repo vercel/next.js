@@ -17,27 +17,7 @@ const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
-
-const prerenderManifest = {
-  '/blog/post-1': {
-    revalidate: 10
-  },
-  '/blog/post-2': {
-    revalidate: 10
-  },
-  '/blog/post-1/comment-1': {
-    revalidate: 5
-  },
-  '/blog/post-2/comment-2': {
-    revalidate: 5
-  },
-  '/another': {
-    revalidate: 0
-  },
-  '/something': {
-    revalidate: false
-  }
-}
+let distPagesDir
 
 const runTests = (dev = false) => {
   it('should navigate between pages successfully', async () => {
@@ -128,7 +108,40 @@ const runTests = (dev = false) => {
       const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
 
       expect(manifest.version).toBe(1)
-      expect(manifest.routes).toEqual(prerenderManifest)
+      expect(manifest.routes).toEqual({
+        '/blog/post-1': {
+          revalidate: 10
+        },
+        '/blog/post-2': {
+          revalidate: 10
+        },
+        '/blog/post-1/comment-1': {
+          revalidate: 5
+        },
+        '/blog/post-2/comment-2': {
+          revalidate: 5
+        },
+        '/another': {
+          revalidate: 0
+        },
+        '/something': {
+          revalidate: false
+        }
+      })
+    })
+
+    it('outputs prerendered files correctly', async () => {
+      const routes = [
+        '/another',
+        '/something',
+        '/blog/post-1',
+        '/blog/post-2/comment-2'
+      ]
+
+      for (const route of routes) {
+        await fs.access(join(distPagesDir, `${route}.html`), fs.constants.F_OK)
+        await fs.access(join(distPagesDir, `${route}.json`), fs.constants.F_OK)
+      }
     })
   }
 }
@@ -154,6 +167,7 @@ describe('SPR Prerender', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      distPagesDir = join(appDir, '.next/serverless/pages')
     })
     afterAll(() => killApp(app))
 
@@ -166,6 +180,8 @@ describe('SPR Prerender', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
     afterAll(() => killApp(app))
 
