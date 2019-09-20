@@ -40,10 +40,9 @@ export default async function ({
     const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
-    const isDynamic = isDynamicRoute(page)
 
     // Check if the page is a specified dynamic route
-    if (isDynamic && page !== path) {
+    if (isDynamicRoute(page) && page !== path) {
       const params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
         query = {
@@ -104,7 +103,7 @@ export default async function ({
     // eslint-disable-next-line camelcase
     const renderedDuringBuild = unstable_getStaticProps => {
       // eslint-disable-next-line camelcase
-      return !buildExport && unstable_getStaticProps && !isDynamic
+      return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
     }
 
     if (serverless) {
