@@ -11,8 +11,6 @@ const writeFile = promisify(fs.writeFile)
 
 /*
   TODO:
-    - update prerenderManifest with revalidation values returned during render for non-seeded dynamic routes. Could add an optional revalidate arg to setSprCache that updates the in memory manifest and flushes to disk if enabled
-
     - implement copying data files during export / investigate whether we want to allow falling back to calling `getStaticProps` client-side for dynamic routes that weren't seeded during export
  */
 
@@ -54,11 +52,12 @@ const getSeedPath = (pathname: string, ext: string): string => {
 export const calculateRevalidate = (pathname: string): number | false => {
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
+  const curTime = new Date().getTime()
+  if (!curOpts().dev) return curTime
+
   const { revalidate } = curManifest().routes[pathname] || { revalidate: 0 }
   const revalidateAfter =
-    typeof revalidate === 'number'
-      ? revalidate + new Date().getTime()
-      : revalidate
+    typeof revalidate === 'number' ? revalidate + curTime : revalidate
 
   return revalidateAfter
 }
@@ -144,10 +143,15 @@ export async function setSprCache(
   data: {
     html: string
     pageData: any
-  }
+  },
+  revalidate?: number | false
 ) {
   const cache = curCache()
   if (!cache) return
+
+  if (typeof revalidate !== 'undefined') {
+    curManifest().routes[pathname] = { revalidate }
+  }
   pathname = normalizePagePath(pathname)
   cache.set(pathname, {
     ...data,

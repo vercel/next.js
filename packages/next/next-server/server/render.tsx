@@ -411,6 +411,7 @@ export async function renderToHTML(
       </DataManagerContext.Provider>
     </RouterContext.Provider>
   )
+  let curSprRevalidate: undefined | false | number
 
   try {
     if (getStaticProps) {
@@ -418,6 +419,7 @@ export async function renderToHTML(
         params: isDynamicRoute(pathname) ? query : undefined,
       })
       props = { pageProps: data.props }
+      curSprRevalidate = data.revalidate
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).sprData = data.props
@@ -617,7 +619,11 @@ export async function renderToHTML(
   }
 
   if (getStaticProps) {
-    setSprCache(urlPathname, { html, pageData: props.pageProps })
+    setSprCache(
+      urlPathname,
+      { html, pageData: props.pageProps },
+      curSprRevalidate
+    )
     revalidateResolve()
     // if we were able to use the cache return null
     if (isResSent(res)) return null
