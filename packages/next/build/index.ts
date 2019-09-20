@@ -431,6 +431,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         // Remove dynamically routed pages from the default path map. These
         // pages cannot be prerendered because we don't have enough information
         // to do so.
+        //
+        // Note: prerendering disables automatic static optimization.
         sprPages.forEach(page => {
           if (isDynamicRoute(page)) {
             delete defaultMap[page]
