@@ -348,8 +348,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          // TODO: add calling of getStaticParams for dynamic pages
-          // and returning of revalidate for prerender pages
           let result: any = await (staticCheckWorkers as any).isPageStatic(
             page,
             serverBundle,
