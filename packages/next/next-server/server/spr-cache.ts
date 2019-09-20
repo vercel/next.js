@@ -51,11 +51,11 @@ export const calculateRevalidate = (pathname: string): number | false => {
   if (!curOpts().dev) return curTime
 
   const { initialRevalidateSeconds } = curManifest().routes[pathname] || {
-    initialRevalidateSeconds: 0,
+    initialRevalidateSeconds: 1,
   }
   const revalidateAfter =
     typeof initialRevalidateSeconds === 'number'
-      ? initialRevalidateSeconds + curTime
+      ? initialRevalidateSeconds * 1000 + curTime
       : initialRevalidateSeconds
 
   return revalidateAfter
