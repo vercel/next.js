@@ -637,7 +637,9 @@ export default class Router implements BaseRouter {
           return { pageProps }
         })
         .catch((err: Error) => {
-          return { error: err.message, status }
+          console.error(`Failed to load data`, err)
+          window.location.href = pathname!
+          return new Promise(() => {})
         })
     } else {
       const AppTree = this._wrapApp(App)
