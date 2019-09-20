@@ -511,7 +511,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } else {
           // For a dynamic SPR page, we did not copy its html nor data exports.
           // Instead, we must copy specific versions of this page as defined by
-          // `getStaticParams` (additionalSprPaths).
+          // `unstable_getStaticParams` (additionalSprPaths).
           const extraRoutes = additionalSprPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')

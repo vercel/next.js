@@ -15,7 +15,7 @@ export function interopDefault(mod: any) {
 export type LoadComponentsReturnType = {
   Component: any
   pageConfig: PageConfig
-  getStaticProps?: (params: {
+  unstable_getStaticProps?: (params: {
     params: any
   }) => {
     props: any
@@ -39,7 +39,7 @@ export async function loadComponents(
     return {
       Component,
       pageConfig: Component.config || {},
-      getStaticProps: Component.getStaticProps,
+      unstable_getStaticProps: Component.unstable_getStaticProps,
     }
   }
   const documentPath = join(
@@ -86,6 +86,6 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
-    getStaticProps: ComponentMod.getStaticProps,
+    unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
   }
 }

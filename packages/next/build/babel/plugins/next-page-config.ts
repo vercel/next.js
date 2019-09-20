@@ -10,8 +10,8 @@ const configKeys = new Set(['amp'])
 const pageComponentVar = '__NEXT_COMP'
 // this value can't be optimized by terser so the shorter the better
 const prerenderId = '__NEXT_SPR'
-const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
-const EXPORT_NAME_GET_STATIC_PARAMS = 'getStaticParams'
+const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
+const EXPORT_NAME_GET_STATIC_PARAMS = 'unstable_getStaticParams'
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {

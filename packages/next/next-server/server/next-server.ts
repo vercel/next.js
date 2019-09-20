@@ -596,7 +596,7 @@ export default class Server {
                   dynamicRoute.page,
                   // only add params for SPR enabled pages
                   {
-                    ...(result.getStaticProps
+                    ...(result.unstable_getStaticProps
                       ? { _nextSprData: query._nextSprData }
                       : query),
                     ...params,
