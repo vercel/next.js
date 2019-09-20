@@ -61,7 +61,6 @@ export type SprRoute = {
 
 export type PrerenderManifest = {
   version: number
-  concurrency?: number
   routes: { [route: string]: SprRoute }
 }
 
