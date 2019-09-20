@@ -493,8 +493,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         await moveExportedPage(page, file, isSpr, 'html')
       }
       const hasAmp = hybridAmpPages.has(page)
-      if (hasAmp)
+      if (hasAmp) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr, 'html')
+      }
 
       if (isSpr) {
         if (!isDynamic) {
