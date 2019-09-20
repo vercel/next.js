@@ -196,7 +196,7 @@ export async function isPageStatic(
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
-    const hasStaticParams = !!mod.getStaticParams
+    const hasStaticParams = !!mod.unstable_getStaticParams
 
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
@@ -207,7 +207,7 @@ export async function isPageStatic(
     // A page cannot have static parameters if it is not a dynamic page.
     if (hasStaticProps && hasStaticParams && !isDynamicRoute(page)) {
       throw new Error(
-        `getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+        `unstable_getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
       )
     }
 
@@ -223,7 +223,7 @@ export async function isPageStatic(
 
       const toPrerender: Array<
         { [key: string]: string } | string
-      > = await mod.getStaticParams()
+      > = await mod.unstable_getStaticParams()
       toPrerender.forEach(entry => {
         // For a string-provided path, we must make sure it matches the dynamic
         // route.

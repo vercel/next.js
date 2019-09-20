@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 
-export async function getStaticParams() {
+export async function unstable_getStaticParams() {
   return [
     '/blog/post-1/comment-1',
     { post: 'post-2', comment: 'comment-2' }
