@@ -211,7 +211,6 @@ export async function isPageStatic(
       )
     }
 
-    const config = mod.config || {}
     let prerenderRoutes
 
     if (hasStaticProps && mod.getStaticParams) {
@@ -255,6 +254,7 @@ export async function isPageStatic(
       })
     }
 
+    const config = mod.config || {}
     return {
       static: !hasStaticProps && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
