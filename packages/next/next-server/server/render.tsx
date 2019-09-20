@@ -154,7 +154,7 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  getStaticProps?: (params: {
+  unstable_getStaticProps?: (params: {
     params: any | undefined
   }) => {
     props: any
@@ -272,12 +272,12 @@ export async function renderToHTML(
     buildManifest,
     reactLoadableManifest,
     ErrorDebug,
-    getStaticProps,
+    unstable_getStaticProps,
   } = renderOpts
 
   let revalidateResolve = () => {}
   const urlPathname = urlParse(req.url || '').pathname!
-  const isSprData = getStaticProps && query._nextSprData
+  const isSprData = unstable_getStaticProps && query._nextSprData
   delete query._nextSprData
 
   if (isSprData) {
@@ -290,14 +290,16 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const isAutoExport =
-    !hasPageGetInitialProps && defaultAppGetInitialProps && !getStaticProps
+    !hasPageGetInitialProps &&
+    defaultAppGetInitialProps &&
+    !unstable_getStaticProps
 
-  if (hasPageGetInitialProps && getStaticProps) {
+  if (hasPageGetInitialProps && unstable_getStaticProps) {
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
   // SPR is enabled for this page
-  if (getStaticProps) {
+  if (unstable_getStaticProps) {
     console.log('spr enabled', pathname, urlPathname)
     let revalidatePromise = pendingRevalidations.get(urlPathname)
     if (revalidatePromise) {
@@ -414,8 +416,8 @@ export async function renderToHTML(
   let curSprRevalidate: undefined | false | number
 
   try {
-    if (getStaticProps) {
-      const data = await getStaticProps({
+    if (unstable_getStaticProps) {
+      const data = await unstable_getStaticProps({
         params: isDynamicRoute(pathname) ? query : undefined,
       })
       props = { pageProps: data.props }
@@ -438,7 +440,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !getStaticProps) return null
+  if (isResSent(res) && !unstable_getStaticProps) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -542,7 +544,7 @@ export async function renderToHTML(
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !getStaticProps) return null
+  if (isResSent(res) && !unstable_getStaticProps) return null
 
   let dataManagerData = '[]'
   if (dataManager) {
@@ -618,7 +620,7 @@ export async function renderToHTML(
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
 
-  if (getStaticProps) {
+  if (unstable_getStaticProps) {
     setSprCache(
       urlPathname,
       { html, pageData: props.pageProps },

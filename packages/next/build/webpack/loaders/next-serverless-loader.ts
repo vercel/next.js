@@ -84,7 +84,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import * as ComponentInfo from '${absolutePagePath}';
     const Component = ComponentInfo.default
     export default Component
-    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
+    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     ${
       isDynamicRoute(page)
         ? "export const getStaticParams = ComponentInfo['getStaticParam' + 's']"
@@ -97,7 +97,7 @@ const nextServerlessLoader: loader.Loader = function() {
         App,
         Document,
         buildManifest,
-        getStaticProps,
+        unstable_getStaticProps,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
@@ -127,10 +127,10 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           isDynamicRoute(page)
-            ? `const params = fromExport && !getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, params, sprData || parsedUrl.query._nextSprData ? { _nextSprData: '1' } : {}), renderOpts)
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, params, sprData || parsedUrl.query._nextSprData ? { _nextSprData: '1' } : {}), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result

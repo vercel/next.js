@@ -8,7 +8,7 @@ export async function getStaticParams() {
   ]
 }
 
-export async function getStaticProps({ params }) {
+export async function unstable_getStaticProps({ params }) {
   return {
     props: {
       post: params.post,

@@ -195,7 +195,7 @@ export async function isPageStatic(
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.getStaticProps
+    const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticParams = !!mod.getStaticParams
 
     // A page cannot be prerendered _and_ define a data requirement. That's

@@ -1,7 +1,8 @@
 import React from 'react'
 import Link from 'next/link'
 
-export async function getStaticProps () {
+// eslint-disable-next-line camelcase
+export async function unstable_getStaticProps () {
   return {
     props: {
       world: 'world',
