@@ -277,9 +277,9 @@ export default async function (dir, options, configuration) {
       if (
         typeof result.revalidate !== 'undefined' &&
         configuration &&
-        configuration.revalidations
+        configuration.defaultPageRevalidation
       ) {
-        configuration.revalidations[path] = result.revalidate
+        configuration.defaultPageRevalidation[path] = result.revalidate
       }
       if (progress) progress()
     })

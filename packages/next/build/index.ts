@@ -422,7 +422,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
     const exportConfig: any = {
       ...config,
-      revalidations: {},
+      defaultPageRevalidation: {},
       // Default map will be the collection of automatic statically exported
       // pages and SPR pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
@@ -500,7 +500,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           await moveExportedPage(page, page, true, 'json')
 
           finalPrerenderRoutes[page] = {
-            revalidate: exportConfig.revalidations[page],
+            revalidate: exportConfig.defaultPageRevalidation[page],
           }
         }
         const extraRoutes = additionalSprPaths.get(page)
@@ -509,7 +509,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             await moveExportedPage(route, route, true)
             await moveExportedPage(route, route, true, 'json')
             finalPrerenderRoutes[route] = {
-              revalidate: exportConfig.revalidations[route],
+              revalidate: exportConfig.defaultPageRevalidation[route],
             }
           }
         }
