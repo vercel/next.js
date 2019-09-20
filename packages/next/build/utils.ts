@@ -197,8 +197,8 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const prerender = !!mod.getStaticProps
 
-    // A page cannot be prerendered _and_ define a data requirement. That's an
-    // oxymoron!
+    // A page cannot be prerendered _and_ define a data requirement. That's
+    // contradictory!
     if (hasGetInitialProps && prerender) {
       throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
     }
