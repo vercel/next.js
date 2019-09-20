@@ -276,7 +276,7 @@ export default async function (dir, options, configuration) {
       renderError |= result.error
 
       if (options.buildExport && typeof result.revalidate !== 'undefined') {
-        configuration.defaultPageRevalidation[path] = result.revalidate
+        configuration.initialPageRevalidationMap[path] = result.revalidate
       }
       if (progress) progress()
     })

@@ -56,7 +56,7 @@ const mkdirp = promisify(mkdirpOrig)
 const staticCheckWorker = require.resolve('./utils')
 
 export type SprRoute = {
-  revalidate: number | false
+  initialRevalidateSeconds: number | false
 }
 
 export type PrerenderManifest = {
@@ -422,7 +422,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
     const exportConfig: any = {
       ...config,
-      defaultPageRevalidation: {},
+      initialPageRevalidationMap: {},
       // Default map will be the collection of automatic statically exported
       // pages and SPR pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
@@ -505,7 +505,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           await moveExportedPage(page, page, true, 'json')
 
           finalPrerenderRoutes[page] = {
-            revalidate: exportConfig.defaultPageRevalidation[page],
+            initialRevalidateSeconds:
+              exportConfig.initialPageRevalidationMap[page],
           }
         } else {
           // For a dynamic SPR page, we did not copy its html nor data exports.
@@ -516,7 +517,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
             await moveExportedPage(route, route, true, 'html')
             await moveExportedPage(route, route, true, 'json')
             finalPrerenderRoutes[route] = {
-              revalidate: exportConfig.defaultPageRevalidation[route],
+              initialRevalidateSeconds:
+                exportConfig.initialPageRevalidationMap[route],
             }
           }
         }
