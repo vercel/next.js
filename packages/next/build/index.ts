@@ -489,7 +489,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSpr = sprPages.has(page)
       const isDynamic = isDynamicRoute(page)
       let file = page === '/' ? '/index' : page
-      if (!isSpr || !isDynamic) {
+      // The dynamic version of SPR pages are not prerendered. Below, we handle
+      // the specific prerenders of these.
+      if (!(isSpr && isDynamic)) {
         await moveExportedPage(page, file, isSpr, 'html')
       }
       const hasAmp = hybridAmpPages.has(page)
