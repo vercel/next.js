@@ -26,6 +26,7 @@ export default async function ({
   outDir,
   sprDataDir,
   renderOpts,
+  buildExport,
   serverRuntimeConfig,
   subFolders,
   serverless
@@ -39,9 +40,10 @@ export default async function ({
     const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
+    const isDynamic = isDynamicRoute(page)
 
     // Check if the page is a specified dynamic route
-    if (isDynamicRoute(page) && page !== path) {
+    if (isDynamic && page !== path) {
       const params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
         query = {
@@ -99,12 +101,22 @@ export default async function ({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
+    const renderedDuringBuild = getStaticProps => {
+      return !buildExport && getStaticProps && !isDynamic
+    }
+
     if (serverless) {
-      renderMethod = require(join(
+      const mod = require(join(
         distDir,
         'serverless/pages',
         (page === '/' ? 'index' : page) + '.js'
-      )).renderReqToHTML
+      ))
+
+      // for non-dynamic SPR pages we should have already
+      // prerendered the file
+      if (renderedDuringBuild(mod.getStaticProps)) return results
+
+      renderMethod = mod.renderReqToHTML
       const result = await renderMethod(req, res, true)
       curRenderOpts = result.renderOpts || {}
       html = result.html
@@ -119,6 +131,10 @@ export default async function ({
         page,
         serverless
       )
+
+      // for non-dynamic SPR pages we should have already
+      // prerendered the file
+      if (renderedDuringBuild(components.getStaticProps)) return results
 
       if (typeof components.Component === 'string') {
         html = components.Component

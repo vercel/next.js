@@ -263,6 +263,7 @@ export default async function (dir, options, configuration) {
         renderOpts,
         serverRuntimeConfig,
         subFolders,
+        buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target)
       })
 
@@ -274,11 +275,7 @@ export default async function (dir, options, configuration) {
       }
       renderError |= result.error
 
-      if (
-        typeof result.revalidate !== 'undefined' &&
-        configuration &&
-        configuration.revalidations
-      ) {
+      if (options.buildExport && typeof result.revalidate !== 'undefined') {
         configuration.revalidations[path] = result.revalidate
       }
       if (progress) progress()
@@ -288,7 +285,7 @@ export default async function (dir, options, configuration) {
   worker.end()
 
   // copy prerendered routes to outDir
-  if (prerenderManifest) {
+  if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async route => {
         const orig = join(distPagesDir, route)
