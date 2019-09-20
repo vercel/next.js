@@ -9,7 +9,9 @@ import {
   launchApp,
   killApp,
   nextBuild,
-  nextStart
+  nextStart,
+  nextExport,
+  startStaticServer
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -18,8 +20,9 @@ const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 let distPagesDir
+let exportDir
 
-const runTests = (dev = false) => {
+const navigateTest = () => {
   it('should navigate between pages successfully', async () => {
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -65,6 +68,10 @@ const runTests = (dev = false) => {
 
     await browser.close()
   })
+}
+
+const runTests = (dev = false) => {
+  navigateTest()
 
   it('should SSR content correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
@@ -186,5 +193,32 @@ describe('SPR Prerender', () => {
     afterAll(() => killApp(app))
 
     runTests()
+  })
+
+  describe('export mode', () => {
+    beforeAll(async () => {
+      exportDir = join(appDir, 'out')
+      await nextBuild(appDir)
+      await nextExport(appDir, { outdir: exportDir })
+      app = await startStaticServer(exportDir)
+      appPort = app.address().port
+    })
+    afterAll(() => killApp(app))
+
+    it('should copy prerender files correctly', async () => {
+      const routes = [
+        '/another',
+        '/something',
+        '/blog/post-1',
+        '/blog/post-2/comment-2'
+      ]
+
+      for (const route of routes) {
+        await fs.access(join(exportDir, `${route}.html`))
+        await fs.access(join(exportDir, '_next/data', `${route}.json`))
+      }
+    })
+
+    navigateTest()
   })
 })

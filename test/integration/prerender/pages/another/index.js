@@ -19,7 +19,7 @@ export default ({ world, time }) => (
     </Link>
     <br />
     <Link href='/something'>
-      <a id='somethin'>to something</a>
+      <a id='something'>to something</a>
     </Link>
   </>
 )

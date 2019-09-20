@@ -247,7 +247,7 @@ export default class Server {
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself
           if (!params.path) return this.render404(req, res, _parsedUrl)
-          const pathname = `/${params.path.join('/')}`
+          const pathname = `/${params.path.join('/')}`.replace(/\.json$/, '')
           req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
           await this.render(

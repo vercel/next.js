@@ -625,7 +625,7 @@ export default class Router implements BaseRouter {
       let status: any
       const { pathname } = parse(ctx.asPath || ctx.pathname)
 
-      props = await fetch(`/_next/data${pathname}`)
+      props = await fetch(`/_next/data${pathname}.json`)
         .then(res => {
           if (!res.ok) {
             status = res.status
@@ -637,7 +637,7 @@ export default class Router implements BaseRouter {
           return { pageProps }
         })
         .catch((err: Error) => {
-          console.error(`Failed to load data`, err)
+          console.error(`Failed to load data`, status, err)
           window.location.href = pathname!
           return new Promise(() => {})
         })

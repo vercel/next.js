@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import mkdirpModule from 'mkdirp'
 import { resolve, join, dirname } from 'path'
 import { API_ROUTE } from '../lib/constants'
-import { existsSync, readFileSync, rename as renameOrig } from 'fs'
+import { existsSync, readFileSync, copyFile as copyFileOrig } from 'fs'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { formatAmpMessages } from '../build/output/index'
@@ -26,7 +26,7 @@ import {
 import createSpinner from '../build/spinner'
 
 const mkdirp = promisify(mkdirpModule)
-const rename = promisify(renameOrig)
+const copyFile = promisify(copyFileOrig)
 
 const createProgress = (total, label = 'Exporting') => {
   let curProgress = 0
@@ -294,8 +294,8 @@ export default async function (dir, options, configuration) {
 
         await mkdirp(dirname(htmlDest))
         await mkdirp(dirname(jsonDest))
-        await rename(`${orig}.html`, htmlDest)
-        await rename(`${orig}.json`, jsonDest)
+        await copyFile(`${orig}.html`, htmlDest)
+        await copyFile(`${orig}.json`, jsonDest)
       })
     )
   }
