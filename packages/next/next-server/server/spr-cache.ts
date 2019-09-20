@@ -9,11 +9,6 @@ import { normalizePagePath } from './normalize-page-path'
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 
-/*
-  TODO:
-    - decide on 404ing for missing export /_next/data/${route}
- */
-
 type SprCacheValue = {
   html: string
   pageData: any
