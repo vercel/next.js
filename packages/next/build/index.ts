@@ -423,6 +423,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const exportConfig: any = {
       ...config,
       revalidations: {},
+      // Default map will be the collection of automatic statically exported
+      // pages and SPR pages.
       exportPathMap: (defaultMap: any) => {
         additionalSprPaths.forEach((routes, page) => {
           // remove /blog/[post] from being exported itself
