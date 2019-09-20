@@ -12,7 +12,7 @@ const writeFile = promisify(fs.writeFile)
 type SprCacheValue = {
   html: string
   pageData: any
-  // UTC in milliseconds to revalidate after
+  // milliseconds to revalidate after
   revalidateAfter: number | false
 }
 
