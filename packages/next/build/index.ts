@@ -56,7 +56,7 @@ const mkdirp = promisify(mkdirpOrig)
 const staticCheckWorker = require.resolve('./utils')
 
 export type SprRoute = {
-  revalidate: number | false
+  initialRevalidateSeconds: number | false
 }
 
 export type PrerenderManifest = {
@@ -422,7 +422,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
     const exportConfig: any = {
       ...config,
-      defaultPageRevalidation: {},
+      initialPageRevalidationMap: {},
       // Default map will be the collection of automatic statically exported
       // pages and SPR pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
@@ -489,7 +489,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSpr = sprPages.has(page)
       const isDynamic = isDynamicRoute(page)
       let file = page === '/' ? '/index' : page
-      if (!isSpr || !isDynamic) {
+      // The dynamic version of SPR pages are not prerendered. Below, we handle
+      // the specific prerenders of these.
+      if (!(isSpr && isDynamic)) {
         await moveExportedPage(page, file, isSpr, 'html')
       }
       const hasAmp = hybridAmpPages.has(page)
@@ -498,20 +500,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       if (isSpr) {
+        // For a non-dynamic SPR page, we must copy its data file from export.
         if (!isDynamic) {
           await moveExportedPage(page, page, true, 'json')
 
           finalPrerenderRoutes[page] = {
-            revalidate: exportConfig.defaultPageRevalidation[page],
+            initialRevalidateSeconds:
+              exportConfig.initialPageRevalidationMap[page],
           }
-        }
-        const extraRoutes = additionalSprPaths.get(page)
-        if (extraRoutes) {
+        } else {
+          // For a dynamic SPR page, we did not copy its html nor data exports.
+          // Instead, we must copy specific versions of this page as defined by
+          // `getStaticParams` (additionalSprPaths).
+          const extraRoutes = additionalSprPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')
             await moveExportedPage(route, route, true, 'json')
             finalPrerenderRoutes[route] = {
-              revalidate: exportConfig.defaultPageRevalidation[route],
+              initialRevalidateSeconds:
+                exportConfig.initialPageRevalidationMap[route],
             }
           }
         }

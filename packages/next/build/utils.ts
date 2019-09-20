@@ -193,21 +193,28 @@ export async function isPageStatic(
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
-    const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const prerender = !!mod.getStaticProps
-    const config = mod.config || {}
-    let prerenderRoutes
 
-    if (hasGetInitialProps && prerender) {
+    const hasGetInitialProps = !!(Comp as any).getInitialProps
+    const hasStaticProps = !!mod.getStaticProps
+    const hasStaticParams = !!mod.getStaticParams
+
+    // A page cannot be prerendered _and_ define a data requirement. That's
+    // contradictory!
+    if (hasGetInitialProps && hasStaticProps) {
       throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
     }
 
-    if (prerender && mod.getStaticParams) {
-      if (!isDynamicRoute(page)) {
-        throw new Error(
-          `getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
-        )
-      }
+    // A page cannot have static parameters if it is not a dynamic page.
+    if (hasStaticProps && hasStaticParams && !isDynamicRoute(page)) {
+      throw new Error(
+        `getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+      )
+    }
+
+    const config = mod.config || {}
+    let prerenderRoutes
+
+    if (hasStaticProps && mod.getStaticParams) {
       const routeRegex = getRouteRegex(page)
       const routeMatcher = getRouteMatcher(routeRegex)
       const paramKeys = Object.keys(routeMatcher(page))
@@ -249,10 +256,10 @@ export async function isPageStatic(
     }
 
     return {
-      static: !prerender && !hasGetInitialProps,
+      static: !hasStaticProps && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes,
-      prerender,
+      prerender: hasStaticProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

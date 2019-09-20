@@ -55,9 +55,13 @@ export const calculateRevalidate = (pathname: string): number | false => {
   const curTime = new Date().getTime()
   if (!curOpts().dev) return curTime
 
-  const { revalidate } = curManifest().routes[pathname] || { revalidate: 0 }
+  const { initialRevalidateSeconds } = curManifest().routes[pathname] || {
+    initialRevalidateSeconds: 0,
+  }
   const revalidateAfter =
-    typeof revalidate === 'number' ? revalidate + curTime : revalidate
+    typeof initialRevalidateSeconds === 'number'
+      ? initialRevalidateSeconds + curTime
+      : initialRevalidateSeconds
 
   return revalidateAfter
 }
@@ -144,13 +148,15 @@ export async function setSprCache(
     html: string
     pageData: any
   },
-  revalidate?: number | false
+  revalidateSeconds?: number | false
 ) {
   const cache = curCache()
   if (!cache) return
 
-  if (typeof revalidate !== 'undefined') {
-    curManifest().routes[pathname] = { revalidate }
+  if (typeof revalidateSeconds !== 'undefined') {
+    curManifest().routes[pathname] = {
+      initialRevalidateSeconds: revalidateSeconds,
+    }
   }
   pathname = normalizePagePath(pathname)
   cache.set(pathname, {
