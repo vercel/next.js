@@ -55,14 +55,14 @@ const mkdirp = promisify(mkdirpOrig)
 
 const staticCheckWorker = require.resolve('./utils')
 
-export type sprRoute = {
+export type SprRoute = {
   revalidate: number | false
 }
 
 export type PrerenderManifest = {
   version: number
   concurrency?: number
-  routes: { [route: string]: sprRoute }
+  routes: { [route: string]: SprRoute }
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -409,7 +409,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
-  const finalPrerenderRoutes: { [route: string]: sprRoute } = {}
+  const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
