@@ -275,8 +275,12 @@ export default async function (dir, options, configuration) {
       }
       renderError |= result.error
 
-      if (options.buildExport && typeof result.revalidate !== 'undefined') {
-        configuration.initialPageRevalidationMap[path] = result.revalidate
+      if (
+        options.buildExport &&
+        typeof result.fromBuildExportRevalidate !== 'undefined'
+      ) {
+        configuration.initialPageRevalidationMap[path] =
+          result.fromBuildExportRevalidate
       }
       if (progress) progress()
     })
