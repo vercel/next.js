@@ -10,7 +10,15 @@ import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 
-const fsStat = promisify(fs.stat)
+const fsStatPromise = promisify(fs.stat)
+const fileStats: { [k: string]: Promise<fs.Stats> } = {}
+const fsStat = (file: string) => {
+  if (fileStats[file]) return fileStats[file]
+
+  fileStats[file] = fsStatPromise(file)
+
+  return fileStats[file]
+}
 
 export function collectPages(
   directory: string,
@@ -132,15 +140,34 @@ export function printTreeView(
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string
+  buildId: string,
+  buildManifest: { pages: { [k: string]: string[] } },
+  isModern: boolean
 ): Promise<number> {
   const clientBundle = path.join(
     distPath,
     `static/${buildId}/pages/`,
-    `${page}.js`
+    `${page}${isModern ? '.module' : ''}.js`
   )
+
+  // With granularChunks flag enabled, each page may have additional chunks that it depends on
+  const baseDeps = page === '/_app' ? [] : buildManifest.pages['/_app']
+
+  // Get the list of chunks specific to this page
+  // With granularChunks: false, this will be []
+  const deps = (buildManifest.pages[page] || [])
+    .filter(
+      dep => !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
+    )
+    .map(dep => `${distPath}/${dep}`)
+
+  // Add the main bundle for the page
+  deps.push(clientBundle)
+
   try {
-    return (await fsStat(clientBundle)).size
+    let depStats = await Promise.all(deps.map(fsStat))
+
+    return depStats.reduce((size, stat) => size + stat.size, 0)
   } catch (_) {}
   return -1
 }

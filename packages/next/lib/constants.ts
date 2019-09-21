@@ -22,3 +22,5 @@ export const API_ROUTE = /^\/api(?:\/|$)/
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'
 export const DOT_NEXT_ALIAS = 'private-dot-next'
+
+export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://err.sh/zeit/next.js/public-next-folder-conflict`

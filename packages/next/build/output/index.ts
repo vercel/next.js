@@ -265,13 +265,13 @@ export function watchCompilers(
             const errors = allMsgs
               .filter(msg => msg.severity === 'error')
               .map(d => ({
-                file: d.file,
+                file: (d.file || '').replace(/\\/g, '/'),
                 message: format(d),
               }))
             const warnings = allMsgs
               .filter(msg => msg.severity === 'warning')
               .map(d => ({
-                file: d.file,
+                file: (d.file || '').replace(/\\/g, '/'),
                 message: format(d),
               }))
 
@@ -310,7 +310,7 @@ export function watchCompilers(
           }
 
           const reportFiles = stats.compilation.modules
-            .map((m: any) => m.resource)
+            .map((m: any) => (m.resource || '').replace(/\\/g, '/'))
             .filter(Boolean)
 
           let filteredErrors = typeMessages.errors

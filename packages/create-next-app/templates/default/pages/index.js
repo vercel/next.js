@@ -6,6 +6,7 @@ const Home = () => (
   <div>
     <Head>
       <title>Home</title>
+      <link rel='icon' href='/static/favicon.ico' />
     </Head>
 
     <Nav />
