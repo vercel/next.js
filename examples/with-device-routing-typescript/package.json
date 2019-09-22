@@ -1,0 +1,25 @@
+{
+  "name": "with-device-routing-typescript",
+  "version": "1.0.0",
+  "description": "this is example for routing pages that separated mobile and pc",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "export": "next export",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^9.0.6",
+    "path": "^0.12.7",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0"
+  },
+  "author": "kimcoder",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^12.7.5",
+    "@types/react": "^16.9.2",
+    "typescript": "^3.6.3"
+  }
+}
