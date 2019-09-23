@@ -132,10 +132,10 @@ const runTests = (dev = false) => {
           initialRevalidateSeconds: 10
         },
         '/blog/post-1/comment-1': {
-          initialRevalidateSeconds: 5
+          initialRevalidateSeconds: 2
         },
         '/blog/post-2/comment-2': {
-          initialRevalidateSeconds: 5
+          initialRevalidateSeconds: 2
         },
         '/another': {
           initialRevalidateSeconds: 0
