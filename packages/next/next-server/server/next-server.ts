@@ -537,47 +537,23 @@ export default class Server {
       return result.Component
     }
 
+    // check request state
     const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
+    const isSpr = !!result.unstable_getStaticProps
 
-    async function doRender(): Promise<{
-      html: string | null
-      sprData: any
-      sprRevalidate: number | false
-    }> {
-      let sprData: any
-      let html: string | null
-      let sprRevalidate: number | false
-
-      let renderResult
+    // non-spr requests should render like normal
+    if (!isSpr) {
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await result.Component.renderReqToHTML(req, res, true)
-
-        html = renderResult.html
-        sprData = renderResult.renderOpts.sprData
-        sprRevalidate = renderResult.renderOpts.revalidate
-      } else {
-        const renderOpts = {
-          ...result,
-          ...opts,
-        }
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
-
-        html = renderResult
-        sprData = renderOpts.sprData
-        sprRevalidate = renderOpts.revalidate
+        return result.Component.renderReqToHTML(req, res)
       }
 
-      return { html, sprData, sprRevalidate }
-    }
-
-    const isSpr = !!result.unstable_getStaticProps
-    // if the page is not using SPR, it doesn't need to run through the SPR
-    // logic
-    if (!isSpr) {
-      return doRender().then(res => res.html)
+      return renderToHTML(req, res, pathname, query, {
+        ...result,
+        ...opts,
+      })
     }
 
     // Toggle whether or not this is an SPR Data request
@@ -616,7 +592,39 @@ export default class Server {
       req.url = `/_next/data${curUrl.pathname}.json`
     }
 
-    return withCoalescedInvoke(doRender)(sprCacheKey, []).then(
+    const doRender = withCoalescedInvoke(async function(): Promise<{
+      html: string | null
+      sprData: any
+      sprRevalidate: number | false
+    }> {
+      let sprData: any
+      let html: string | null
+      let sprRevalidate: number | false
+
+      let renderResult
+      // handle serverless
+      if (isLikeServerless) {
+        renderResult = await result.Component.renderReqToHTML(req, res, true)
+
+        html = renderResult.html
+        sprData = renderResult.renderOpts.sprData
+        sprRevalidate = renderResult.renderOpts.revalidate
+      } else {
+        const renderOpts = {
+          ...result,
+          ...opts,
+        }
+        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+
+        html = renderResult
+        sprData = renderOpts.sprData
+        sprRevalidate = renderOpts.revalidate
+      }
+
+      return { html, sprData, sprRevalidate }
+    })
+
+    return doRender(sprCacheKey, []).then(
       async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
         // Respond to the request if a payload wasn't sent above (from cache)
         if (!isResSent(res)) {
