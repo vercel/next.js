@@ -610,7 +610,6 @@ export default class Server {
     }
 
     // If we're here, that means data is missing or it's stale.
-    // TODO: request deduping
 
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
