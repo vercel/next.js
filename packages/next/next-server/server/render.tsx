@@ -391,7 +391,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res)) return null
+  if (isResSent(res) && !isSpr) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -495,7 +495,7 @@ export async function renderToHTML(
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
-  if (isResSent(res)) return null
+  if (isResSent(res) && !isSpr) return null
 
   let dataManagerData = '[]'
   if (dataManager) {
