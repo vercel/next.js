@@ -534,15 +534,20 @@ export default class Server {
     delete query._nextSprData
 
     if (isSpr) {
-      if (isSprData) {
-        res.setHeader('Content-Type', 'application/json')
-      }
+      res.setHeader(
+        'Content-Type',
+        `${isSprData ? 'application/json' : 'text/html'}; charset=utf-8`
+      )
+
       const cachedData = await getSprCache(urlPathname)
 
       if (cachedData) {
-        res.end(
-          isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html
-        )
+        const data = isSprData
+          ? JSON.stringify(cachedData.pageData)
+          : cachedData.html
+
+        res.setHeader('Content-Length', Buffer.byteLength(data))
+        res.end(data)
 
         if (!cachedData.isStale) {
           return null
