@@ -8,6 +8,7 @@ import {
   findPort,
   launchApp,
   killApp,
+  waitFor,
   nextBuild,
   nextStart,
   nextExport,
@@ -158,6 +159,49 @@ const runTests = (dev = false) => {
         await fs.access(join(distPagesDir, `${route}.json`), fs.constants.F_OK)
       }
     })
+
+    it('should handle de-duping correctly', async () => {
+      let vals = new Array(10).fill(null)
+
+      vals = await Promise.all(
+        vals.map(() => renderViaHTTP(appPort, '/blog/post-10'))
+      )
+      const val = vals[0]
+      expect(val).toMatch(/Post:.*?post-10/)
+      expect(new Set(vals).size).toBe(1)
+    })
+
+    it('should handle revalidating HTML correctly', async () => {
+      const route = '/blog/post-1/comment-1'
+      const initialHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toMatch(/Post:.*?post-1/)
+      expect(initialHtml).toMatch(/Comment:.*?comment-1/)
+
+      await waitFor(2 * 1000)
+      await renderViaHTTP(appPort, route)
+
+      await waitFor(2 * 1000)
+      const newHtml = await renderViaHTTP(appPort, route)
+      expect(newHtml === initialHtml).toBe(false)
+      expect(newHtml).toMatch(/Post:.*?post-1/)
+      expect(newHtml).toMatch(/Comment:.*?comment-1/)
+    })
+
+    it('should handle revalidating JSON correctly', async () => {
+      const route = '/_next/data/blog/post-2/comment-3'
+      const initialJson = await renderViaHTTP(appPort, route)
+      expect(initialJson).toMatch(/post-2/)
+      expect(initialJson).toMatch(/comment-3/)
+
+      await waitFor(2 * 1000)
+      await renderViaHTTP(appPort, route)
+
+      await waitFor(2 * 1000)
+      const newJson = await renderViaHTTP(appPort, route)
+      expect(newJson === initialJson).toBe(false)
+      expect(newJson).toMatch(/post-2/)
+      expect(newJson).toMatch(/comment-3/)
+    })
   }
 }
 
@@ -191,7 +235,9 @@ describe('SPR Prerender', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await fs.unlink(nextConfig)
+      try {
+        await fs.unlink(nextConfig)
+      } catch (_) {}
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
