@@ -517,6 +517,13 @@ export default class Server {
     )
   }
 
+  private __sendPayload(res: ServerResponse, payload: any, header: string) {
+    // TODO: ETag? Cache-Control headers? Next-specific headers?
+    res.setHeader('Content-Type', header)
+    res.setHeader('Content-Length', Buffer.byteLength(payload))
+    res.end(payload)
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -583,14 +590,6 @@ export default class Server {
     // Compute the SPR cache key
     const sprCacheKey = parseUrl(req.url || '').pathname!
 
-    function sendPayload(payload: any, header: string) {
-      // TODO: ETag? Cache-Control headers? Next-specific headers?
-
-      res.setHeader('Content-Type', header)
-      res.setHeader('Content-Length', Buffer.byteLength(payload))
-      res.end(payload)
-    }
-
     // Complete the response with cached data if its present
     const cachedData = await getSprCache(sprCacheKey)
     if (cachedData) {
@@ -598,7 +597,8 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      sendPayload(
+      this.__sendPayload(
+        res,
         data,
         isSprData ? 'application/json' : 'text/html; charset=utf-8'
       )
@@ -618,29 +618,29 @@ export default class Server {
       req.url = `/_next/data${curUrl.pathname}.json`
     }
 
-    return doCoalescedRender(sprCacheKey, []).then(async function({
-      isOrigin,
-      value: { html, sprData, sprRevalidate },
-    }) {
-      // Respond to the request if a payload wasn't sent above (from cache)
-      if (!isResSent(res)) {
-        sendPayload(
-          isSprData ? JSON.stringify(sprData) : html,
-          isSprData ? 'application/json' : 'text/html; charset=utf-8'
-        )
-      }
+    return doCoalescedRender(sprCacheKey, []).then(
+      async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
+        // Respond to the request if a payload wasn't sent above (from cache)
+        if (!isResSent(res)) {
+          this.__sendPayload(
+            res,
+            isSprData ? JSON.stringify(sprData) : html,
+            isSprData ? 'application/json' : 'text/html; charset=utf-8'
+          )
+        }
 
-      // Update the SPR cache if the head request
-      if (isOrigin) {
-        await setSprCache(
-          sprCacheKey,
-          { html: html!, pageData: sprData },
-          sprRevalidate
-        )
-      }
+        // Update the SPR cache if the head request
+        if (isOrigin) {
+          await setSprCache(
+            sprCacheKey,
+            { html: html!, pageData: sprData },
+            sprRevalidate
+          )
+        }
 
-      return null
-    })
+        return null
+      }
+    )
   }
 
   public renderToHTML(
