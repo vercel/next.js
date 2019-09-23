@@ -29,8 +29,6 @@ import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 // Uses a module path because of the compiled output directory location
 import { PageConfig } from 'next/types'
-import { getSprCache, setSprCache } from './spr-cache'
-import { parse as urlParse } from 'url'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
 
