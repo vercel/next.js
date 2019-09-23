@@ -573,8 +573,6 @@ export default class Server {
       return { html, sprData, sprRevalidate }
     }
 
-    const doCoalescedRender = withCoalescedInvoke(doRender)
-
     const isSpr = !!result.unstable_getStaticProps
     // if the page is not using SPR, it doesn't need to run through the SPR
     // logic
@@ -618,7 +616,7 @@ export default class Server {
       req.url = `/_next/data${curUrl.pathname}.json`
     }
 
-    return doCoalescedRender(sprCacheKey, []).then(
+    return withCoalescedInvoke(doRender)(sprCacheKey, []).then(
       async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
         // Respond to the request if a payload wasn't sent above (from cache)
         if (!isResSent(res)) {
