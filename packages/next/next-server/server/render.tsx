@@ -247,8 +247,6 @@ function renderDocument(
   )
 }
 
-const pendingRevalidations = new Map<string, Promise<void>>()
-
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -275,14 +273,9 @@ export async function renderToHTML(
     unstable_getStaticProps,
   } = renderOpts
 
-  let revalidateResolve = () => {}
-  const urlPathname = urlParse(req.url || '').pathname!
-  const isSprData = unstable_getStaticProps && query._nextSprData
+  const isSpr = !!unstable_getStaticProps
+  const isSprData = isSpr && query._nextSprData
   delete query._nextSprData
-
-  if (isSprData) {
-    res.setHeader('Content-Type', 'application/json')
-  }
 
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
@@ -290,44 +283,10 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const isAutoExport =
-    !hasPageGetInitialProps &&
-    defaultAppGetInitialProps &&
-    !unstable_getStaticProps
+    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
 
-  if (hasPageGetInitialProps && unstable_getStaticProps) {
+  if (hasPageGetInitialProps && isSpr) {
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
-  }
-
-  // SPR is enabled for this page
-  if (unstable_getStaticProps) {
-    console.log('spr enabled', pathname, urlPathname)
-    let revalidatePromise = pendingRevalidations.get(urlPathname)
-    if (revalidatePromise) {
-      // wait for pending revalidation and resolve from it
-      await revalidatePromise
-    }
-    const cachedData = await getSprCache(urlPathname)
-
-    if (cachedData) {
-      console.log('using cache for', urlPathname)
-      res.end(isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html)
-      // don't need to revalidate if we have a cache and it isn't expired
-      if (
-        cachedData.revalidateAfter === false ||
-        cachedData.revalidateAfter > new Date().getTime()
-      )
-        return null
-    } else {
-      console.log('no cache for', urlPathname)
-    }
-
-    revalidatePromise = new Promise(resolve => {
-      revalidateResolve = () => {
-        pendingRevalidations.delete(urlPathname)
-        resolve()
-      }
-    })
-    pendingRevalidations.set(urlPathname, revalidatePromise)
   }
 
   if (dev) {
@@ -413,15 +372,13 @@ export async function renderToHTML(
       </DataManagerContext.Provider>
     </RouterContext.Provider>
   )
-  let curSprRevalidate: undefined | false | number
 
   try {
-    if (unstable_getStaticProps) {
-      const data = await unstable_getStaticProps({
+    if (isSpr) {
+      const data = await unstable_getStaticProps!({
         params: isDynamicRoute(pathname) ? query : undefined,
       })
       props = { pageProps: data.props }
-      curSprRevalidate = data.revalidate
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).sprData = data.props
@@ -440,7 +397,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !unstable_getStaticProps) return null
+  if (isResSent(res)) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -544,7 +501,7 @@ export async function renderToHTML(
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !unstable_getStaticProps) return null
+  if (isResSent(res)) return null
 
   let dataManagerData = '[]'
   if (dataManager) {
@@ -620,18 +577,9 @@ export async function renderToHTML(
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
 
-  if (unstable_getStaticProps) {
-    setSprCache(
-      urlPathname,
-      { html, pageData: props.pageProps },
-      curSprRevalidate
-    )
-    revalidateResolve()
-    // if we were able to use the cache return null
-    if (isResSent(res)) return null
-    return isSprData ? JSON.stringify(props.pageProps) : html
+  if (isSprData) {
+    return JSON.stringify(props.pageProps)
   }
-
   return html
 }
 
