@@ -2673,7 +2673,7 @@ For the production deployment, you can use the same configuration and run `now` 
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 - [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
 - [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
-- [Working with Ghost and Next.js](https://ghost.org/docs/api/v2/nextjs/)
+- [Working with Ghost and Next.js](https://ghost.org/docs/api/nextjs/)
 
 
 ## FAQ
