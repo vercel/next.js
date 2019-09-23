@@ -158,7 +158,6 @@ type RenderOpts = {
     props: any
     revalidate: number | false
   }
-  isDynamic?: boolean
 }
 
 function renderDocument(
