@@ -16,6 +16,7 @@ import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
@@ -111,6 +112,11 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
+        [path.join(
+          CLIENT_STATIC_FILES_PATH,
+          buildId,
+          'polyfill.js'
+        )]: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'polyfill.js'),
       }
     : undefined
 
@@ -156,6 +162,11 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
+      ...(!isServer
+        ? {
+            url: 'native-url',
+          }
+        : {}),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
