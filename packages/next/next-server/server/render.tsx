@@ -272,9 +272,6 @@ export async function renderToHTML(
   } = renderOpts
 
   const isSpr = !!unstable_getStaticProps
-  const isSprData = isSpr && query._nextSprData
-  delete query._nextSprData
-
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -575,9 +572,6 @@ export async function renderToHTML(
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
 
-  if (isSprData) {
-    return JSON.stringify(props.pageProps)
-  }
   return html
 }
 

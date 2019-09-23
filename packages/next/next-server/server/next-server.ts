@@ -33,7 +33,7 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { initializeSprCache } from './spr-cache'
+import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -528,23 +528,66 @@ export default class Server {
     if (typeof result.Component === 'string') {
       return result.Component
     }
+    const isSpr = !!result.unstable_getStaticProps
+    const isSprData = isSpr && query._nextSprData
+    const urlPathname = parseUrl(req.url || '').pathname!
+    delete query._nextSprData
+
+    if (isSpr) {
+      if (isSprData) {
+        res.setHeader('Content-Type', 'application/json')
+      }
+      const cachedData = await getSprCache(urlPathname)
+
+      if (cachedData) {
+        return isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html
+      }
+    }
+
+    let sprData: any
+    let html: string | null
+    let sprRevalidate: number | false
 
     // handle serverless
     if (
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
     ) {
-      if (query._nextSprData) {
+      if (isSprData) {
         const curUrl = parseUrl(req.url || '', true)
         req.url = `/_next/data${curUrl.pathname}.json`
       }
-      return result.Component.renderReqToHTML(req, res)
+      const renderResult = await result.Component.renderReqToHTML(
+        req,
+        res,
+        true
+      )
+      html = renderResult.html
+      sprData = renderResult.renderOpts.sprData
+      sprRevalidate = renderResult.renderOpts.revalidate
+    } else {
+      const renderOpts = {
+        ...result,
+        ...opts,
+      }
+      html = await renderToHTML(req, res, pathname, query, renderOpts)
+      sprData = renderOpts.sprData
+      sprRevalidate = renderOpts.revalidate
     }
 
-    return renderToHTML(req, res, pathname, query, {
-      ...result,
-      ...opts,
-    })
+    if (isSpr) {
+      setSprCache(
+        urlPathname,
+        {
+          html: html!,
+          pageData: sprData,
+        },
+        sprRevalidate
+      )
+
+      if (isSprData) return JSON.stringify(sprData)
+    }
+    return html
   }
 
   public renderToHTML(

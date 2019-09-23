@@ -25,32 +25,22 @@ let sprOptions: {
   dev?: boolean
 } = {}
 
-// since serverless bundles this file into each page
-// we need to use a global for `next start` or else we can't
-// initialize and share a cache
-const curOpts = () => {
-  return (global as any).__SPR_OPTS || sprOptions
-}
-
-const curCache = () => {
-  return (global as any).__SPR_CACHE || cache
-}
-
-const curManifest = () => {
-  return (global as any).__SPR_MANIFEST || prerenderManifest
-}
+const pendingRevalidations = new Map<
+  string,
+  { promise: Promise<void>; resolve: () => void }
+>()
 
 const getSeedPath = (pathname: string, ext: string): string => {
-  return path.join(curOpts().pagesDir!, `${pathname}.${ext}`)
+  return path.join(sprOptions.pagesDir!, `${pathname}.${ext}`)
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
-  if (!curOpts().dev) return curTime
+  if (!sprOptions.dev) return curTime
 
-  const { initialRevalidateSeconds } = curManifest().routes[pathname] || {
+  const { initialRevalidateSeconds } = prerenderManifest.routes[pathname] || {
     initialRevalidateSeconds: 1,
   }
   const revalidateAfter =
@@ -101,17 +91,12 @@ export function initializeSprCache({
       return val.html.length + JSON.stringify(val.pageData).length
     },
   })
-  ;(global as any).__SPR_CACHE = cache
-  ;(global as any).__SPR_OPTS = sprOptions
-  ;(global as any).__SPR_MANIFEST = prerenderManifest
 }
 
 // get data from SPR cache if available
 export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
-  const cache = curCache()
-  if (!cache) return
   pathname = normalizePagePath(pathname)
   let data: SprCacheValue | undefined = cache.get(pathname)
 
@@ -133,6 +118,18 @@ export async function getSprCache(
       // unable to get data from disk
     }
   }
+
+  if (!data) {
+    let revalidateResolve: () => void
+    const revalidatePromise = new Promise<void>(resolve => {
+      revalidateResolve = () => resolve()
+    })
+    pendingRevalidations.set(pathname, {
+      promise: revalidatePromise,
+      resolve: revalidateResolve!,
+    })
+  }
+
   return data
 }
 
@@ -145,21 +142,26 @@ export async function setSprCache(
   },
   revalidateSeconds?: number | false
 ) {
-  const cache = curCache()
-  if (!cache) return
-
   if (typeof revalidateSeconds !== 'undefined') {
-    curManifest().routes[pathname] = {
+    prerenderManifest.routes[pathname] = {
       initialRevalidateSeconds: revalidateSeconds,
     }
   }
+
   pathname = normalizePagePath(pathname)
   cache.set(pathname, {
     ...data,
     revalidateAfter: calculateRevalidate(pathname),
   })
 
-  if (curOpts().flushToDisk) {
+  const pendingRevalidation = pendingRevalidations.get(pathname)
+
+  if (pendingRevalidation) {
+    pendingRevalidations.delete(pathname)
+    pendingRevalidation.resolve()
+  }
+
+  if (sprOptions.flushToDisk) {
     try {
       await writeFile(getSeedPath(pathname, 'html'), data.html, 'utf8')
       await writeFile(
