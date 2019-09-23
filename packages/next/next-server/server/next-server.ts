@@ -22,7 +22,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -540,7 +540,18 @@ export default class Server {
       const cachedData = await getSprCache(urlPathname)
 
       if (cachedData) {
-        return isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html
+        res.end(
+          isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html
+        )
+        const { revalidateAfter } = cachedData
+
+        if (
+          revalidateAfter !== false &&
+          revalidateAfter >= new Date().getTime()
+        ) {
+          return null
+        }
+        // if we need to revalidate we continue on
       }
     }
 
@@ -584,7 +595,8 @@ export default class Server {
         },
         sprRevalidate
       )
-
+      // if it was a revalidation we already sent the response
+      if (isResSent(res)) return null
       if (isSprData) return JSON.stringify(sprData)
     }
     return html
