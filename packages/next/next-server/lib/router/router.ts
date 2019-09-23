@@ -633,9 +633,6 @@ export default class Router implements BaseRouter {
           }
           return res.json()
         })
-        .then((pageProps: any) => {
-          return { pageProps }
-        })
         .catch((err: Error) => {
           console.error(`Failed to load data`, status, err)
           window.location.href = pathname!

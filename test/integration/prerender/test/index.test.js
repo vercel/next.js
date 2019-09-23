@@ -87,21 +87,21 @@ const runTests = (dev = false) => {
     const data = JSON.parse(
       await renderViaHTTP(appPort, '/_next/data/something.json')
     )
-    expect(data.world).toBe('world')
+    expect(data.pageProps.world).toBe('world')
   })
 
   it('should return data correctly for dynamic page', async () => {
     const data = JSON.parse(
       await renderViaHTTP(appPort, '/_next/data/blog/post-1.json')
     )
-    expect(data.post).toBe('post-1')
+    expect(data.pageProps.post).toBe('post-1')
   })
 
   it('should return data correctly for dynamic page (non-seeded)', async () => {
     const data = JSON.parse(
       await renderViaHTTP(appPort, '/_next/data/blog/post-3.json')
     )
-    expect(data.post).toBe('post-3')
+    expect(data.pageProps.post).toBe('post-3')
   })
 
   it('should navigate to a normal page and back', async () => {

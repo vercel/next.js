@@ -368,21 +368,21 @@ export async function renderToHTML(
   )
 
   try {
+    props = await loadGetInitialProps(App, {
+      AppTree: ctx.AppTree,
+      Component,
+      router,
+      ctx,
+    })
+
     if (isSpr) {
       const data = await unstable_getStaticProps!({
         params: isDynamicRoute(pathname) ? query : undefined,
       })
-      props = { pageProps: data.props }
+      props.pageProps = data.props
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate
-      ;(renderOpts as any).sprData = data.props
-    } else {
-      props = await loadGetInitialProps(App, {
-        AppTree: ctx.AppTree,
-        Component,
-        router,
-        ctx,
-      })
+      ;(renderOpts as any).sprData = props
     }
   } catch (err) {
     if (!dev || !err) throw err
