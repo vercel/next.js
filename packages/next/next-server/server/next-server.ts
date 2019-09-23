@@ -555,7 +555,7 @@ export default class Server {
         let renderResult
         // handle serverless
         if (isLikeServerless) {
-          renderResult = await result.Component.renderReqToHTML(req, res)
+          renderResult = await result.Component.renderReqToHTML(req, res, true)
 
           html = renderResult.html
           sprData = renderResult.renderOpts.sprData
