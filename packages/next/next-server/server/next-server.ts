@@ -3,8 +3,8 @@ import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { parse as parseUrl, UrlWithParsedQuery, format as formatUrl } from 'url'
-
+import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -60,13 +60,6 @@ export type ServerConstructor = {
   dev?: boolean
 }
 
-type CoalescedRenderResponse = {
-  html: string | null
-  sprData: any
-  sprRevalidate: number | false
-  coalesced: boolean
-}
-
 export default class Server {
   dir: string
   quiet: boolean
@@ -91,7 +84,6 @@ export default class Server {
   private compression?: Middleware
   router: Router
   private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
-  private __coalescedRenders: Map<string, Promise<CoalescedRenderResponse>>
 
   public constructor({
     dir = '.',
@@ -170,7 +162,6 @@ export default class Server {
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
-    this.__coalescedRenders = new Map()
   }
 
   private currentPhase(): string {
@@ -543,71 +534,45 @@ export default class Server {
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
 
-    const _this = this
-    async function doCoalescedRender(
-      coalesceKey: string | null
-    ): Promise<CoalescedRenderResponse> {
-      async function __inner() {
-        let sprData: any
-        let html: string | null
-        let sprRevalidate: number | false
+    async function doRender(): Promise<{
+      html: string | null
+      sprData: any
+      sprRevalidate: number | false
+    }> {
+      let sprData: any
+      let html: string | null
+      let sprRevalidate: number | false
 
-        let renderResult
-        // handle serverless
-        if (isLikeServerless) {
-          renderResult = await result.Component.renderReqToHTML(req, res, true)
+      let renderResult
+      // handle serverless
+      if (isLikeServerless) {
+        renderResult = await result.Component.renderReqToHTML(req, res, true)
 
-          html = renderResult.html
-          sprData = renderResult.renderOpts.sprData
-          sprRevalidate = renderResult.renderOpts.revalidate
-        } else {
-          const renderOpts = {
-            ...result,
-            ...opts,
-          }
-          renderResult = await renderToHTML(
-            req,
-            res,
-            pathname,
-            query,
-            renderOpts
-          )
-
-          html = renderResult
-          sprData = renderOpts.sprData
-          sprRevalidate = renderOpts.revalidate
-        }
-
-        return { html, sprData, sprRevalidate, coalesced: false }
-      }
-
-      if (!coalesceKey) {
-        return __inner()
-      }
-
-      let future = _this.__coalescedRenders.get(coalesceKey)
-      if (future) {
-        return future.then(res => ({ ...res, coalesced: true }))
+        html = renderResult.html
+        sprData = renderResult.renderOpts.sprData
+        sprRevalidate = renderResult.renderOpts.revalidate
       } else {
-        _this.__coalescedRenders.set(coalesceKey, (future = __inner()))
+        const renderOpts = {
+          ...result,
+          ...opts,
+        }
+        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
-        return future
-          .then(function(res) {
-            _this.__coalescedRenders.delete(coalesceKey)
-            return res
-          })
-          .catch(err => {
-            _this.__coalescedRenders.delete(coalesceKey)
-            return Promise.reject(err)
-          })
+        html = renderResult
+        sprData = renderOpts.sprData
+        sprRevalidate = renderOpts.revalidate
       }
+
+      return { html, sprData, sprRevalidate }
     }
+
+    const doCoalescedRender = withCoalescedInvoke(doRender)
 
     const isSpr = !!result.unstable_getStaticProps
     // if the page is not using SPR, it doesn't need to run through the SPR
     // logic
     if (!isSpr) {
-      return doCoalescedRender(null).then(res => res.html)
+      return doRender().then(res => res.html)
     }
 
     // Toggle whether or not this is an SPR Data request
@@ -654,11 +619,9 @@ export default class Server {
       req.url = `/_next/data${curUrl.pathname}.json`
     }
 
-    return doCoalescedRender(sprCacheKey).then(async function({
-      html,
-      sprData,
-      sprRevalidate,
-      coalesced,
+    return doCoalescedRender(sprCacheKey, []).then(async function({
+      isOrigin,
+      value: { html, sprData, sprRevalidate },
     }) {
       // Respond to the request if a payload wasn't sent above (from cache)
       if (!isResSent(res)) {
@@ -669,7 +632,7 @@ export default class Server {
       }
 
       // Update the SPR cache if the head request
-      if (!coalesced) {
+      if (isOrigin) {
         await setSprCache(
           sprCacheKey,
           { html: html!, pageData: sprData },
