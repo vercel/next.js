@@ -590,7 +590,16 @@ export default class Server {
         return future.then(res => ({ ...res, coalesced: true }))
       } else {
         _this.__coalescedRenders.set(coalesceKey, (future = __inner()))
+
         return future
+          .then(function(res) {
+            _this.__coalescedRenders.delete(coalesceKey)
+            return res
+          })
+          .catch(err => {
+            _this.__coalescedRenders.delete(coalesceKey)
+            return Promise.reject(err)
+          })
       }
     }
 
