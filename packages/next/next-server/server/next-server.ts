@@ -543,12 +543,8 @@ export default class Server {
         res.end(
           isSprData ? JSON.stringify(cachedData.pageData) : cachedData.html
         )
-        const { revalidateAfter } = cachedData
 
-        if (
-          revalidateAfter !== false &&
-          revalidateAfter >= new Date().getTime()
-        ) {
+        if (!cachedData.isStale) {
           return null
         }
         // if we need to revalidate we continue on

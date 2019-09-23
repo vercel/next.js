@@ -12,6 +12,7 @@ const writeFile = promisify(fs.writeFile)
 type SprCacheValue = {
   html: string
   pageData: any
+  isStale?: boolean
   // milliseconds to revalidate after
   revalidateAfter: number | false
 }
@@ -130,6 +131,13 @@ export async function getSprCache(
     })
   }
 
+  if (
+    data &&
+    data.revalidateAfter !== false &&
+    data.revalidateAfter < new Date().getTime()
+  ) {
+    data.isStale = true
+  }
   return data
 }
 
