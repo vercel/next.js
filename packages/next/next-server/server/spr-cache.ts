@@ -99,6 +99,13 @@ export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
   pathname = normalizePagePath(pathname)
+  const pendingRevalidation = pendingRevalidations.get(pathname)
+
+  // Wait for current revalidation
+  if (pendingRevalidation) {
+    await pendingRevalidation.promise
+  }
+
   let data: SprCacheValue | undefined = cache.get(pathname)
 
   // let's check the disk for seed data
