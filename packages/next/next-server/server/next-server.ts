@@ -60,6 +60,13 @@ export type ServerConstructor = {
   dev?: boolean
 }
 
+type CoalescedRenderResponse = {
+  html: string | null
+  sprData: any
+  sprRevalidate: number | false
+  coalesced: boolean
+}
+
 export default class Server {
   dir: string
   quiet: boolean
@@ -84,6 +91,7 @@ export default class Server {
   private compression?: Middleware
   router: Router
   private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  private __coalescedRenders: Map<string, Promise<CoalescedRenderResponse>>
 
   public constructor({
     dir = '.',
@@ -162,6 +170,7 @@ export default class Server {
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
     })
+    this.__coalescedRenders = new Map()
   }
 
   private currentPhase(): string {
@@ -248,6 +257,7 @@ export default class Server {
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself
           if (!params.path) return this.render404(req, res, _parsedUrl)
+          // TODO: force `.json` to be present
           const pathname = `/${params.path.join('/')}`.replace(/\.json$/, '')
           req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
@@ -523,84 +533,143 @@ export default class Server {
     query: ParsedUrlQuery = {},
     result: LoadComponentsReturnType,
     opts: any
-  ) {
+  ): Promise<string | null> {
     // handle static page
     if (typeof result.Component === 'string') {
       return result.Component
     }
-    const isSpr = !!result.unstable_getStaticProps
-    const isSprData = isSpr && query._nextSprData
-    const urlPathname = parseUrl(req.url || '').pathname!
-    delete query._nextSprData
 
-    if (isSpr) {
-      res.setHeader(
-        'Content-Type',
-        `${isSprData ? 'application/json' : 'text/html'}; charset=utf-8`
-      )
-
-      const cachedData = await getSprCache(urlPathname)
-
-      if (cachedData) {
-        const data = isSprData
-          ? JSON.stringify(cachedData.pageData)
-          : cachedData.html
-
-        res.setHeader('Content-Length', Buffer.byteLength(data))
-        res.end(data)
-
-        if (!cachedData.isStale) {
-          return null
-        }
-        // if we need to revalidate we continue on
-      }
-    }
-
-    let sprData: any
-    let html: string | null
-    let sprRevalidate: number | false
-
-    // handle serverless
-    if (
+    const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
-    ) {
-      if (isSprData) {
-        const curUrl = parseUrl(req.url || '', true)
-        req.url = `/_next/data${curUrl.pathname}.json`
+
+    const _this = this
+    async function doCoalescedRender(
+      coalesceKey: string | null
+    ): Promise<CoalescedRenderResponse> {
+      async function __inner() {
+        let sprData: any
+        let html: string | null
+        let sprRevalidate: number | false
+
+        let renderResult
+        // handle serverless
+        if (isLikeServerless) {
+          renderResult = await result.Component.renderReqToHTML(req, res)
+
+          html = renderResult.html
+          sprData = renderResult.renderOpts.sprData
+          sprRevalidate = renderResult.renderOpts.revalidate
+        } else {
+          const renderOpts = {
+            ...result,
+            ...opts,
+          }
+          renderResult = await renderToHTML(
+            req,
+            res,
+            pathname,
+            query,
+            renderOpts
+          )
+
+          html = renderResult
+          sprData = renderOpts.sprData
+          sprRevalidate = renderOpts.revalidate
+        }
+
+        return { html, sprData, sprRevalidate, coalesced: false }
       }
-      const renderResult = await result.Component.renderReqToHTML(
-        req,
-        res,
-        true
-      )
-      html = renderResult.html
-      sprData = renderResult.renderOpts.sprData
-      sprRevalidate = renderResult.renderOpts.revalidate
-    } else {
-      const renderOpts = {
-        ...result,
-        ...opts,
+
+      if (!coalesceKey) {
+        return __inner()
       }
-      html = await renderToHTML(req, res, pathname, query, renderOpts)
-      sprData = renderOpts.sprData
-      sprRevalidate = renderOpts.revalidate
+
+      let future = _this.__coalescedRenders.get(coalesceKey)
+      if (future) {
+        return future.then(res => ({ ...res, coalesced: true }))
+      } else {
+        _this.__coalescedRenders.set(coalesceKey, (future = __inner()))
+        return future
+      }
     }
 
-    if (isSpr) {
-      setSprCache(
-        urlPathname,
-        {
-          html: html!,
-          pageData: sprData,
-        },
-        sprRevalidate
-      )
-      // if it was a revalidation we already sent the response
-      if (isResSent(res)) return null
-      if (isSprData) return JSON.stringify(sprData)
+    const isSpr = !!result.unstable_getStaticProps
+    // if the page is not using SPR, it doesn't need to run through the SPR
+    // logic
+    if (!isSpr) {
+      return doCoalescedRender(null).then(res => res.html)
     }
-    return html
+
+    // Toggle whether or not this is an SPR Data request
+    const isSprData = isSpr && query._nextSprData
+    if (isSprData) {
+      delete query._nextSprData
+    }
+    // Compute the SPR cache key
+    const sprCacheKey = parseUrl(req.url || '').pathname!
+
+    function sendPayload(payload: any, header: string) {
+      // TODO: ETag? Cache-Control headers? Next-specific headers?
+
+      res.setHeader('Content-Type', header)
+      res.setHeader('Content-Length', Buffer.byteLength(payload))
+      res.end(payload)
+    }
+
+    // Complete the response with cached data if its present
+    const cachedData = await getSprCache(sprCacheKey)
+    if (cachedData) {
+      const data = isSprData
+        ? JSON.stringify(cachedData.pageData)
+        : cachedData.html
+
+      sendPayload(
+        data,
+        isSprData ? 'application/json' : 'text/html; charset=utf-8'
+      )
+
+      // Stop the request chain here if the data we sent was up-to-date
+      if (!cachedData.isStale) {
+        return null
+      }
+    }
+
+    // If we're here, that means data is missing or it's stale.
+    // TODO: request deduping
+
+    // Serverless requests need its URL transformed back into the original
+    // request path (to emulate lambda behavior in production)
+    if (isLikeServerless && isSprData) {
+      const curUrl = parseUrl(req.url || '', true)
+      req.url = `/_next/data${curUrl.pathname}.json`
+    }
+
+    return doCoalescedRender(sprCacheKey).then(async function({
+      html,
+      sprData,
+      sprRevalidate,
+      coalesced,
+    }) {
+      // Respond to the request if a payload wasn't sent above (from cache)
+      if (!isResSent(res)) {
+        sendPayload(
+          isSprData ? JSON.stringify(sprData) : html,
+          isSprData ? 'application/json' : 'text/html; charset=utf-8'
+        )
+      }
+
+      // Update the SPR cache if the head request
+      if (!coalesced) {
+        await setSprCache(
+          sprCacheKey,
+          { html: html!, pageData: sprData },
+          sprRevalidate
+        )
+      }
+
+      return null
+    })
   }
 
   public renderToHTML(

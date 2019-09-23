@@ -26,11 +26,6 @@ let sprOptions: {
   dev?: boolean
 } = {}
 
-const pendingRevalidations = new Map<
-  string,
-  { promise: Promise<void>; resolve: () => void }
->()
-
 const getSeedPath = (pathname: string, ext: string): string => {
   return path.join(sprOptions.pagesDir!, `${pathname}.${ext}`)
 }
@@ -99,12 +94,6 @@ export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
   pathname = normalizePagePath(pathname)
-  const pendingRevalidation = pendingRevalidations.get(pathname)
-
-  // Wait for current revalidation
-  if (pendingRevalidation) {
-    await pendingRevalidation.promise
-  }
 
   let data: SprCacheValue | undefined = cache.get(pathname)
 
@@ -125,17 +114,6 @@ export async function getSprCache(
     } catch (_) {
       // unable to get data from disk
     }
-  }
-
-  if (!data) {
-    let revalidateResolve: () => void
-    const revalidatePromise = new Promise<void>(resolve => {
-      revalidateResolve = () => resolve()
-    })
-    pendingRevalidations.set(pathname, {
-      promise: revalidatePromise,
-      resolve: revalidateResolve!,
-    })
   }
 
   if (
@@ -168,13 +146,6 @@ export async function setSprCache(
     ...data,
     revalidateAfter: calculateRevalidate(pathname),
   })
-
-  const pendingRevalidation = pendingRevalidations.get(pathname)
-
-  if (pendingRevalidation) {
-    pendingRevalidations.delete(pathname)
-    pendingRevalidation.resolve()
-  }
 
   if (sprOptions.flushToDisk) {
     try {
