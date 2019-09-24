@@ -13,7 +13,7 @@ app.prepare().then(() => {
 
   server.get('/b', (req, res) => app.render(req, res, '/b', req.query))
 
-  server.get('*', (req, res) => handle(req, res))
+  server.all('*', (req, res) => handle(req, res))
 
   server.listen(port, err => {
     if (err) throw err

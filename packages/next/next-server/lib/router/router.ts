@@ -118,7 +118,11 @@ export default class Router implements BaseRouter {
     this.pageLoader = pageLoader
     this.pathname = pathname
     this.query = query
-    this.asPath = as
+    // if auto prerendered and dynamic route wait to update asPath
+    // until after mount to prevent hydration mismatch
+    this.asPath =
+      // @ts-ignore this is temporarily global (attached to window)
+      isDynamicRoute(pathname) && __NEXT_DATA__.nextExport ? pathname : as
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
@@ -195,7 +199,8 @@ export default class Router implements BaseRouter {
     this.replace(url, as, options)
   }
 
-  update(route: string, Component: ComponentType) {
+  update(route: string, mod: any) {
+    const Component: ComponentType = mod.default || mod
     const data = this.components[route]
     if (!data) {
       throw new Error(`Cannot update unavailable route: ${route}`)
@@ -618,16 +623,9 @@ export default class Router implements BaseRouter {
       (Component as any).__NEXT_SPR
     ) {
       let status: any
-      const url = ctx.asPath
-        ? ctx.asPath
-        : format({
-            pathname: ctx.pathname,
-            query: ctx.query,
-          })
+      const { pathname } = parse(ctx.asPath || ctx.pathname)
 
-      props = await fetch(url, {
-        headers: { 'content-type': 'application/json' },
-      })
+      props = await fetch(`/_next/data${pathname}.json`)
         .then(res => {
           if (!res.ok) {
             status = res.status
@@ -635,11 +633,10 @@ export default class Router implements BaseRouter {
           }
           return res.json()
         })
-        .then((pageProps: any) => {
-          return { pageProps }
-        })
         .catch((err: Error) => {
-          return { error: err.message, status }
+          console.error(`Failed to load data`, status, err)
+          window.location.href = pathname!
+          return new Promise(() => {})
         })
     } else {
       const AppTree = this._wrapApp(App)

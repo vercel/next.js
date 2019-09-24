@@ -152,7 +152,7 @@ export class Head extends Component<
 
     return files.map((file: string) => {
       // Only render .css files here
-      if (!/\.css$/.exec(file)) {
+      if (!/\.css$/.test(file)) {
         return null
       }
 
@@ -344,6 +344,24 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
+        {this.context._documentProps.isDevelopment &&
+          this.context._documentProps.hasCssMode && (
+            <>
+              <style
+                data-next-hydrating
+                dangerouslySetInnerHTML={{
+                  __html: `body{display:none}`,
+                }}
+              />
+              <noscript data-next-hydrating>
+                <style
+                  dangerouslySetInnerHTML={{
+                    __html: `body{display:unset}`,
+                  }}
+                />
+              </noscript>
+            </>
+          )}
         {children}
         {head}
         <meta
@@ -438,6 +456,13 @@ export class Head extends Component<
             />
             {this.getPreloadDynamicChunks()}
             {this.getPreloadMainLinks()}
+            {this.context._documentProps.isDevelopment &&
+              this.context._documentProps.hasCssMode && (
+                // this element is used to mount development styles so the
+                // ordering matches production
+                // (by default, style-loader injects at the bottom of <head />)
+                <noscript id="__next_css__DO_NOT_USE__" />
+              )}
             {this.getCssLinks()}
             {styles || null}
           </>
@@ -480,7 +505,7 @@ export class NextScript extends Component<OriginProps> {
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
   getDynamicChunks() {
-    const { dynamicImports, assetPrefix } = this.context._documentProps
+    const { dynamicImports, assetPrefix, files } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dedupe(dynamicImports).map((bundle: any) => {
@@ -490,6 +515,8 @@ export class NextScript extends Component<OriginProps> {
           ? { type: 'module' }
           : { noModule: true }
       }
+
+      if (!/\.js$/.test(bundle.file) || files.includes(bundle.file)) return null
 
       return (
         <script
@@ -515,7 +542,7 @@ export class NextScript extends Component<OriginProps> {
 
     return files.map((file: string) => {
       // Only render .js files here
-      if (!/\.js$/.exec(file)) {
+      if (!/\.js$/.test(file)) {
         return null
       }
 
