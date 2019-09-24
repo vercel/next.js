@@ -29,6 +29,8 @@ import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 // Uses a module path because of the compiled output directory location
 import { PageConfig } from 'next/types'
+import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
+import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
 
 export type ManifestItem = {
   id: number | string
@@ -150,6 +152,12 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  unstable_getStaticProps?: (params: {
+    params: any | undefined
+  }) => {
+    props: any
+    revalidate: number | false
+  }
 }
 
 function renderDocument(
@@ -259,23 +267,21 @@ export async function renderToHTML(
     buildManifest,
     reactLoadableManifest,
     ErrorDebug,
+    unstable_getStaticProps,
   } = renderOpts
 
-  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-
+  const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
-  let isAutoExport =
-    typeof (Component as any).getInitialProps !== 'function' &&
-    defaultAppGetInitialProps
+  const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
-  let isPrerender = pageConfig.experimentalPrerender === true
-  const isStaticPage = isPrerender || isAutoExport
-  // TODO: revisit `?_nextPreviewSkeleton=(truthy)`
-  const isSkeleton = isPrerender && !!query._nextPreviewSkeleton
-  // remove from query so it doesn't end up in document
-  delete query._nextPreviewSkeleton
+  const isAutoExport =
+    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
+
+  if (hasPageGetInitialProps && isSpr) {
+    throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -297,7 +303,7 @@ export async function renderToHTML(
       )
     }
 
-    if (isStaticPage) {
+    if (isAutoExport) {
       // remove query values except ones that will be set during export
       query = {
         amp: query.amp,
@@ -306,16 +312,17 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
   }
-  if (isSkeleton) renderOpts.nextExport = true
   if (isAutoExport) renderOpts.autoExport = true
+
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
   const router = new ServerRouter(pathname, query, asPath)
   const ctx = {
     err,
-    req: isStaticPage ? undefined : req,
-    res: isStaticPage ? undefined : res,
+    req: isAutoExport ? undefined : req,
+    res: isAutoExport ? undefined : res,
     pathname,
     query,
     asPath,
@@ -328,9 +335,6 @@ export async function renderToHTML(
     },
   }
   let props: any
-  const isDataPrerender =
-    pageConfig.experimentalPrerender === true &&
-    req.headers['content-type'] === 'application/json'
 
   if (documentMiddlewareEnabled && typeof DocumentMiddleware === 'function') {
     await DocumentMiddleware(ctx)
@@ -364,29 +368,30 @@ export async function renderToHTML(
   )
 
   try {
-    props =
-      isSkeleton && !isDataPrerender
-        ? { pageProps: {} }
-        : await loadGetInitialProps(App, {
-            AppTree: ctx.AppTree,
-            Component,
-            router,
-            ctx,
-          })
+    props = await loadGetInitialProps(App, {
+      AppTree: ctx.AppTree,
+      Component,
+      router,
+      ctx,
+    })
+
+    if (isSpr) {
+      const data = await unstable_getStaticProps!({
+        params: isDynamicRoute(pathname) ? query : undefined,
+      })
+      props.pageProps = data.props
+      // pass up revalidate and props for export
+      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).sprData = props
+    }
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
   }
 
-  if (isDataPrerender) {
-    res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify(props.pageProps || {}))
-    return null
-  }
-
   // the response might be finished on the getInitialProps call
-  if (isResSent(res)) return null
+  if (isResSent(res) && !isSpr) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -490,7 +495,7 @@ export async function renderToHTML(
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
-  if (isResSent(res)) return null
+  if (isResSent(res) && !isSpr) return null
 
   let dataManagerData = '[]'
   if (dataManager) {
@@ -529,7 +534,6 @@ export async function renderToHTML(
   // update renderOpts so export knows current state
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
-  if (isSkeleton) renderOpts.skeleton = true
 
   let html = renderDocument(Document, {
     ...renderOpts,
@@ -566,6 +570,7 @@ export async function renderToHTML(
     // fix &amp being escaped for amphtml rel link
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
+
   return html
 }
 

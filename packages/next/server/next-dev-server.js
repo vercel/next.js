@@ -33,7 +33,7 @@ const fsStat = promisify(fs.stat)
 
 export default class DevServer extends Server {
   constructor (options) {
-    super(options)
+    super({ ...options, dev: true })
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {

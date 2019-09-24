@@ -4,7 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-
+import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -22,7 +22,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -33,6 +33,7 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
+import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -56,6 +57,7 @@ export type ServerConstructor = {
    * Object what you would use in next.config.js - @default {}
    */
   conf?: NextConfig
+  dev?: boolean
 }
 
 export default class Server {
@@ -88,13 +90,13 @@ export default class Server {
     staticMarkup = false,
     quiet = false,
     conf = null,
+    dev = false,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.pagesManifest = join(
       this.distDir,
@@ -146,8 +148,20 @@ export default class Server {
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
-
     this.setAssetPrefix(assetPrefix)
+
+    initializeSprCache({
+      dev,
+      distDir: this.distDir,
+      pagesDir: join(
+        this.distDir,
+        this._isLikeServerless
+          ? SERVERLESS_DIRECTORY
+          : `${SERVER_DIRECTORY}/static/${this.buildId}`,
+        'pages'
+      ),
+      flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
+    })
   }
 
   private currentPhase(): string {
@@ -227,6 +241,24 @@ export default class Server {
             ...(params.path || [])
           )
           await this.serveStatic(req, res, p, parsedUrl)
+        },
+      },
+      {
+        match: route('/_next/data/:path*'),
+        fn: async (req, res, params, _parsedUrl) => {
+          // Make sure to 404 for /_next/data/ itself
+          if (!params.path) return this.render404(req, res, _parsedUrl)
+          // TODO: force `.json` to be present
+          const pathname = `/${params.path.join('/')}`.replace(/\.json$/, '')
+          req.url = pathname
+          const parsedUrl = parseUrl(pathname, true)
+          await this.render(
+            req,
+            res,
+            pathname,
+            { _nextSprData: '1' },
+            parsedUrl
+          )
         },
       },
       {
@@ -485,6 +517,13 @@ export default class Server {
     )
   }
 
+  private __sendPayload(res: ServerResponse, payload: any, header: string) {
+    // TODO: ETag? Cache-Control headers? Next-specific headers?
+    res.setHeader('Content-Type', header)
+    res.setHeader('Content-Length', Buffer.byteLength(payload))
+    res.end(payload)
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -492,24 +531,122 @@ export default class Server {
     query: ParsedUrlQuery = {},
     result: LoadComponentsReturnType,
     opts: any
-  ) {
+  ): Promise<string | null> {
     // handle static page
     if (typeof result.Component === 'string') {
       return result.Component
     }
 
-    // handle serverless
-    if (
+    // check request state
+    const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
-    ) {
-      return result.Component.renderReqToHTML(req, res)
+    const isSpr = !!result.unstable_getStaticProps
+
+    // non-spr requests should render like normal
+    if (!isSpr) {
+      // handle serverless
+      if (isLikeServerless) {
+        return result.Component.renderReqToHTML(req, res)
+      }
+
+      return renderToHTML(req, res, pathname, query, {
+        ...result,
+        ...opts,
+      })
     }
 
-    return renderToHTML(req, res, pathname, query, {
-      ...result,
-      ...opts,
+    // Toggle whether or not this is an SPR Data request
+    const isSprData = isSpr && query._nextSprData
+    if (isSprData) {
+      delete query._nextSprData
+    }
+    // Compute the SPR cache key
+    const sprCacheKey = parseUrl(req.url || '').pathname!
+
+    // Complete the response with cached data if its present
+    const cachedData = await getSprCache(sprCacheKey)
+    if (cachedData) {
+      const data = isSprData
+        ? JSON.stringify(cachedData.pageData)
+        : cachedData.html
+
+      this.__sendPayload(
+        res,
+        data,
+        isSprData ? 'application/json' : 'text/html; charset=utf-8'
+      )
+
+      // Stop the request chain here if the data we sent was up-to-date
+      if (!cachedData.isStale) {
+        return null
+      }
+    }
+
+    // If we're here, that means data is missing or it's stale.
+
+    // Serverless requests need its URL transformed back into the original
+    // request path (to emulate lambda behavior in production)
+    if (isLikeServerless && isSprData) {
+      const curUrl = parseUrl(req.url || '', true)
+      req.url = `/_next/data${curUrl.pathname}.json`
+    }
+
+    const doRender = withCoalescedInvoke(async function(): Promise<{
+      html: string | null
+      sprData: any
+      sprRevalidate: number | false
+    }> {
+      let sprData: any
+      let html: string | null
+      let sprRevalidate: number | false
+
+      let renderResult
+      // handle serverless
+      if (isLikeServerless) {
+        renderResult = await result.Component.renderReqToHTML(req, res, true)
+
+        html = renderResult.html
+        sprData = renderResult.renderOpts.sprData
+        sprRevalidate = renderResult.renderOpts.revalidate
+      } else {
+        const renderOpts = {
+          ...result,
+          ...opts,
+        }
+        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+
+        html = renderResult
+        sprData = renderOpts.sprData
+        sprRevalidate = renderOpts.revalidate
+      }
+
+      return { html, sprData, sprRevalidate }
     })
+
+    return doRender(sprCacheKey, []).then(
+      async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
+        // Respond to the request if a payload wasn't sent above (from cache)
+        if (!isResSent(res)) {
+          this.__sendPayload(
+            res,
+            isSprData ? JSON.stringify(sprData) : html,
+            isSprData ? 'application/json' : 'text/html; charset=utf-8'
+          )
+        }
+
+        // Update the SPR cache if the head request
+        if (isOrigin) {
+          await setSprCache(
+            sprCacheKey,
+            { html: html!, pageData: sprData },
+            sprRevalidate
+          )
+        }
+
+        return null
+      }
+    )
   }
 
   public renderToHTML(
@@ -556,9 +693,20 @@ export default class Server {
                   req,
                   res,
                   dynamicRoute.page,
-                  { ...query, ...params },
+                  // only add params for SPR enabled pages
+                  {
+                    ...(result.unstable_getStaticProps
+                      ? { _nextSprData: query._nextSprData }
+                      : query),
+                    ...params,
+                  },
                   result,
-                  { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+                  {
+                    ...this.renderOpts,
+                    amphtml,
+                    hasAmp,
+                    dataOnly,
+                  }
                 )
               }
             )
