@@ -431,16 +431,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        // Remove dynamically routed pages from the default path map. These
-        // pages cannot be prerendered because we don't have enough information
-        // to do so.
-        //
-        // Note: prerendering disables automatic static optimization.
-        sprPages.forEach(page => {
-          if (isDynamicRoute(page)) {
-            delete defaultMap[page]
-          }
-        })
         // Append the "well-known" routes we should prerender for, e.g. blog
         // post slugs.
         additionalSprPaths.forEach((routes, page) => {
@@ -492,26 +482,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const isSpr = sprPages.has(page)
       const isDynamic = isDynamicRoute(page)
       let file = page === '/' ? '/index' : page
-      // The dynamic version of SPR pages are not prerendered. Below, we handle
-      // the specific prerenders of these.
-      if (!(isSpr && isDynamic)) {
-        await moveExportedPage(page, file, isSpr, 'html')
-      }
+      // move the prerender HTML file for static/SPR
+      await moveExportedPage(page, file, isSpr, 'html')
+
       const hasAmp = hybridAmpPages.has(page)
       if (hasAmp) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr, 'html')
       }
 
       if (isSpr) {
-        // For a non-dynamic SPR page, we must copy its data file from export.
-        if (!isDynamic) {
-          await moveExportedPage(page, page, true, 'json')
+        await moveExportedPage(page, page, true, 'json')
 
-          finalPrerenderRoutes[page] = {
-            initialRevalidateSeconds:
-              exportConfig.initialPageRevalidationMap[page],
-          }
-        } else {
+        finalPrerenderRoutes[page] = {
+          initialRevalidateSeconds:
+            exportConfig.initialPageRevalidationMap[page],
+        }
+        if (isDynamic) {
           // For a dynamic SPR page, we did not copy its html nor data exports.
           // Instead, we must copy specific versions of this page as defined by
           // `unstable_getStaticParams` (additionalSprPaths).

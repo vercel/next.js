@@ -100,22 +100,12 @@ export default async function ({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
-    // eslint-disable-next-line camelcase
-    const renderedDuringBuild = unstable_getStaticProps => {
-      // eslint-disable-next-line camelcase
-      return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
-    }
-
     if (serverless) {
       const mod = require(join(
         distDir,
         'serverless/pages',
         (page === '/' ? 'index' : page) + '.js'
       ))
-
-      // for non-dynamic SPR pages we should have already
-      // prerendered the file
-      if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
       renderMethod = mod.renderReqToHTML
       const result = await renderMethod(req, res, true)
@@ -132,12 +122,6 @@ export default async function ({
         page,
         serverless
       )
-
-      // for non-dynamic SPR pages we should have already
-      // prerendered the file
-      if (renderedDuringBuild(components.unstable_getStaticProps)) {
-        return results
-      }
 
       if (typeof components.Component === 'string') {
         html = components.Component
