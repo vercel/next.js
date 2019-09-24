@@ -94,6 +94,7 @@ export function initializeSprCache({
 export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
+  if (sprOptions.dev) return
   pathname = normalizePagePath(pathname)
 
   let data: SprCacheValue | undefined = cache.get(pathname)
@@ -141,6 +142,7 @@ export async function setSprCache(
   },
   revalidateSeconds?: number | false
 ) {
+  if (sprOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
     prerenderManifest.routes[pathname] = {
       initialRevalidateSeconds: revalidateSeconds,
