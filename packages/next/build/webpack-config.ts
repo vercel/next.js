@@ -786,17 +786,19 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
-        new ForkTsCheckerWebpackPlugin({
-          typescript: typeScriptPath,
-          async: dev,
-          useTypescriptIncrementalApi: true,
-          checkSyntacticErrors: true,
-          tsconfig: tsConfigPath,
-          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-          compilerOptions: { isolatedModules: true, noEmit: true },
-          silent: true,
-          formatter: 'codeframe',
-        }),
+        new ForkTsCheckerWebpackPlugin(
+          PnpWebpackPlugin.forkTsCheckerOptions({
+            typescript: typeScriptPath,
+            async: dev,
+            useTypescriptIncrementalApi: true,
+            checkSyntacticErrors: true,
+            tsconfig: tsConfigPath,
+            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+            compilerOptions: { isolatedModules: true, noEmit: true },
+            silent: true,
+            formatter: 'codeframe',
+          })
+        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
