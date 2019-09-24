@@ -40,11 +40,13 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    css: false,
     documentMiddleware: false,
     granularChunks: false,
     modern: false,
     profiling: false,
     publicDirectory: false,
+    sprFlushToDisk: true,
   },
   future: {
     excludeDefaultMomentLocales: false,

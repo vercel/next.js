@@ -1,11 +1,10 @@
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
-
-const Page = ({ world }) => {
+const Page = ({ world, time }) => {
   return (
     <>
       <p>hello {world}</p>
+      <span>time: {time}</span>
       <Link href='/another'>
         <a id='another'>to another</a>
       </Link>
@@ -29,6 +28,6 @@ const Page = ({ world }) => {
   )
 }
 
-Page.getInitialProps = () => ({ world: 'world' })
+Page.getInitialProps = () => ({ world: 'world', time: new Date().getTime() })
 
 export default Page

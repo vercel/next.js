@@ -3,6 +3,7 @@ import fs from 'fs'
 import mkdirpOrig from 'mkdirp'
 import {
   PAGES_MANIFEST,
+  BUILD_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
@@ -43,6 +44,7 @@ import { writeBuildId } from './write-build-id'
 import { findPagesDir } from '../lib/find-pages-dir'
 import createSpinner from './spinner'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { isDynamicRoute } from '../next-server/lib/router/utils'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -52,11 +54,15 @@ const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
-const staticCheckWorker = require.resolve('./static-checker')
+const staticCheckWorker = require.resolve('./utils')
 
-export type PrerenderFile = {
-  lambda: string
-  contentTypes: string[]
+export type SprRoute = {
+  initialRevalidateSeconds: number | false
+}
+
+export type PrerenderManifest = {
+  version: number
+  routes: { [route: string]: SprRoute }
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -261,20 +267,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
     prefixText: 'Automatically optimizing pages',
   })
 
-  const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
     isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
     PAGES_MANIFEST
   )
+  const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const sprPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
+  const additionalSprPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+  const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
+
   let customAppGetInitialProps: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
@@ -290,7 +299,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const chunks = getPageChunks(page)
 
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(actualPage, distDir, buildId)
+      const size = await getPageSizeInKb(
+        actualPage,
+        distDir,
+        buildId,
+        buildManifest,
+        config.experimental.modern
+      )
       const bundleRelative = path.join(
         isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
@@ -338,13 +353,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          let result: any = await (staticCheckWorkers as any).default({
+          let result: any = await (staticCheckWorkers as any).isPageStatic(
+            page,
             serverBundle,
-            runtimeEnvConfig,
-          })
+            runtimeEnvConfig
+          )
 
           if (result.isHybridAmp) {
             hybridAmpPages.add(page)
+          }
+
+          if (result.prerender) {
+            sprPages.add(page)
+
+            if (result.prerenderRoutes) {
+              additionalSprPaths.set(page, result.prerenderRoutes)
+            }
           }
 
           if (result.static && customAppGetInitialProps === false) {
@@ -390,7 +414,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
-  const prerenderFiles: { [path: string]: PrerenderFile } = {}
+  const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -402,9 +426,33 @@ export default async function build(dir: string, conf = null): Promise<void> {
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }
-    const exportConfig = {
+    const exportConfig: any = {
       ...config,
-      exportPathMap: (defaultMap: any) => defaultMap,
+      initialPageRevalidationMap: {},
+      // Default map will be the collection of automatic statically exported
+      // pages and SPR pages.
+      // n.b. we cannot handle this above in combinedPages because the dynamic
+      // page must be in the `pages` array, but not in the mapping.
+      exportPathMap: (defaultMap: any) => {
+        // Remove dynamically routed pages from the default path map. These
+        // pages cannot be prerendered because we don't have enough information
+        // to do so.
+        //
+        // Note: prerendering disables automatic static optimization.
+        sprPages.forEach(page => {
+          if (isDynamicRoute(page)) {
+            delete defaultMap[page]
+          }
+        })
+        // Append the "well-known" routes we should prerender for, e.g. blog
+        // post slugs.
+        additionalSprPaths.forEach((routes, page) => {
+          routes.forEach(route => {
+            defaultMap[route] = { page }
+          })
+        })
+        return defaultMap
+      },
       exportTrailingSlash: false,
     }
     await exportApp(dir, exportOptions, exportConfig)
@@ -415,9 +463,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsUnlink(serverBundle)
     }
 
-    const moveExportedPage = async (page: string, file: string) => {
-      const isSpr = sprPages.has(page)
-      file = `${file}.html`
+    const moveExportedPage = async (
+      page: string,
+      file: string,
+      isSpr: boolean,
+      ext: 'html' | 'json'
+    ) => {
+      file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
       const relativeDest = (isLikeServerless
         ? path.join('pages', file)
@@ -430,17 +482,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         relativeDest
       )
 
-      if (isSpr) {
-        const projectRelativeDest = path.join(
-          config.distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-          relativeDest
-        )
-        prerenderFiles[projectRelativeDest] = {
-          lambda: projectRelativeDest.replace(/\.html$/, '.js'),
-          contentTypes: ['application/json', 'text/html'],
-        }
-      } else {
+      if (!isSpr) {
         pagesManifest[page] = relativeDest
         if (page === '/') pagesManifest['/index'] = relativeDest
         if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
@@ -450,10 +492,43 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
 
     for (const page of combinedPages) {
+      const isSpr = sprPages.has(page)
+      const isDynamic = isDynamicRoute(page)
       let file = page === '/' ? '/index' : page
-      await moveExportedPage(page, file)
+      // The dynamic version of SPR pages are not prerendered. Below, we handle
+      // the specific prerenders of these.
+      if (!(isSpr && isDynamic)) {
+        await moveExportedPage(page, file, isSpr, 'html')
+      }
       const hasAmp = hybridAmpPages.has(page)
-      if (hasAmp) await moveExportedPage(`${page}.amp`, `${file}.amp`)
+      if (hasAmp) {
+        await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr, 'html')
+      }
+
+      if (isSpr) {
+        // For a non-dynamic SPR page, we must copy its data file from export.
+        if (!isDynamic) {
+          await moveExportedPage(page, page, true, 'json')
+
+          finalPrerenderRoutes[page] = {
+            initialRevalidateSeconds:
+              exportConfig.initialPageRevalidationMap[page],
+          }
+        } else {
+          // For a dynamic SPR page, we did not copy its html nor data exports.
+          // Instead, we must copy specific versions of this page as defined by
+          // `unstable_getStaticParams` (additionalSprPaths).
+          const extraRoutes = additionalSprPaths.get(page) || []
+          for (const route of extraRoutes) {
+            await moveExportedPage(route, route, true, 'html')
+            await moveExportedPage(route, route, true, 'json')
+            finalPrerenderRoutes[route] = {
+              initialRevalidateSeconds:
+                exportConfig.initialPageRevalidationMap[route],
+            }
+          }
+        }
+      }
     }
 
     // remove temporary export folder
@@ -475,9 +550,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
 
   if (sprPages.size > 0) {
+    const prerenderManifest: PrerenderManifest = {
+      version: 1,
+      routes: finalPrerenderRoutes,
+    }
+
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
-      JSON.stringify({ prerenderFiles }),
+      JSON.stringify(prerenderManifest),
       'utf8'
     )
   }
