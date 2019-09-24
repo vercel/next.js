@@ -56,7 +56,9 @@ MyError.getInitialProps = async ({ res, err, asPath }) => {
   // If this point is reached, getInitialProps was called without any
   // information about what the error might be. This is unexpected and may
   // indicate a bug introduced in Next.js, so record it in Sentry
-  Sentry.captureException(new Error(`_error.js getInitialProps missing data at path: ${asPath}`))
+  Sentry.captureException(
+    new Error(`_error.js getInitialProps missing data at path: ${asPath}`)
+  )
 
   return errorInitialProps
 }

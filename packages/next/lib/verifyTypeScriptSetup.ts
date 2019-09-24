@@ -20,7 +20,7 @@ function writeJson(fileName: string, object: object): Promise<void> {
 
 async function hasTypeScript(dir: string): Promise<boolean> {
   const typescriptFiles = await recursiveReadDir(
-    path.join(dir, 'pages'),
+    dir,
     /.*\.(ts|tsx)$/,
     /(node_modules|.*\.d\.ts)/
   )
@@ -96,7 +96,10 @@ async function checkDependencies({
   process.exit(1)
 }
 
-export async function verifyTypeScriptSetup(dir: string): Promise<void> {
+export async function verifyTypeScriptSetup(
+  dir: string,
+  pagesDir: string
+): Promise<void> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
@@ -110,7 +113,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     )
     firstTimeSetup = tsConfig === '' || tsConfig === '{}'
   } else {
-    const hasTypeScriptFiles = await hasTypeScript(dir)
+    const hasTypeScriptFiles = await hasTypeScript(pagesDir)
     if (hasTypeScriptFiles) {
       firstTimeSetup = true
     } else {

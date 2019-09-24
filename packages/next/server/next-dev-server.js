@@ -22,6 +22,7 @@ import React from 'react'
 import { findPageFile } from './lib/find-page-file'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -51,7 +52,7 @@ export default class DevServer extends Server {
         )
       })
     }
-    this.pagesDir = join(this.dir, 'pages')
+    this.pagesDir = findPagesDir(this.dir)
   }
 
   currentPhase () {
@@ -110,7 +111,7 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise(resolve => {
-      const pagesDir = join(this.dir, 'pages')
+      const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(pagesDir, (_, files) => {
@@ -174,9 +175,10 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
-    await verifyTypeScriptSetup(this.dir)
+    await verifyTypeScriptSetup(this.dir, this.pagesDir)
 
     this.hotReloader = new HotReloader(this.dir, {
+      pagesDir: this.pagesDir,
       config: this.nextConfig,
       buildId: this.buildId
     })

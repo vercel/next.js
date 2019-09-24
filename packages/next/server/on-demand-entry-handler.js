@@ -32,9 +32,15 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (
   devMiddleware,
   multiCompiler,
-  { buildId, dir, reload, pageExtensions, maxInactiveAge, pagesBufferLength }
+  {
+    buildId,
+    pagesDir,
+    reload,
+    pageExtensions,
+    maxInactiveAge,
+    pagesBufferLength
+  }
 ) {
-  const pagesDir = join(dir, 'pages')
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}

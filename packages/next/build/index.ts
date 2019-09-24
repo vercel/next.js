@@ -41,6 +41,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
+import { findPagesDir } from '../lib/find-pages-dir'
 import createSpinner from './spinner'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { isDynamicRoute } from '../next-server/lib/router/utils'
@@ -71,8 +72,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  await verifyTypeScriptSetup(dir)
-
   let backgroundWork: (Promise<any> | undefined)[] = []
   backgroundWork.push(
     recordVersion({ cliCommand: 'build' }),
@@ -87,9 +86,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const pagesDir = path.join(dir, 'pages')
   const publicDir = path.join(dir, 'public')
+  const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
+
+  await verifyTypeScriptSetup(dir, pagesDir)
+
+  console.log('Creating an optimized production build ...')
+  console.log()
 
   if (config.experimental.publicDirectory) {
     publicFiles = await recursiveReadDir(publicDir, /.*/)
@@ -153,6 +157,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: false,
       config,
       target,
+      pagesDir,
       entrypoints: entrypoints.client,
     }),
     getBaseWebpackConfig(dir, {
@@ -161,6 +166,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: true,
       config,
       target,
+      pagesDir,
       entrypoints: entrypoints.server,
     }),
   ])

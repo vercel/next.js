@@ -9,6 +9,7 @@ One of your public files has the exact same path as a page file which is not sup
 Rename either the public file or page file that is causing the conflict.
 
 Example conflict between public file and page file
+
 ```
 public/
   hello
@@ -17,6 +18,7 @@ pages/
 ```
 
 Non-conflicting public file and page file
+
 ```
 public/
   hello.txt

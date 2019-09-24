@@ -52,18 +52,6 @@ const nextDev: cliCommand = argv => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (!existsSync(join(dir, 'pages'))) {
-    if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit(
-        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
-      )
-    }
-
-    printAndExit(
-      "> Couldn't find a `pages` directory. Please create one under the project root"
-    )
-  }
-
   const port = args['--port'] || 3000
   const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
 
