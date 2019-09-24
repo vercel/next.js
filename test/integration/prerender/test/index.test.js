@@ -116,7 +116,20 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
-  if (!dev) {
+  if (dev) {
+    it('should always call getStaticProps without caching in dev', async () => {
+      const initialHtml = await renderViaHTTP(appPort, '/something')
+      expect(initialHtml).toMatch(/hello.*?world/)
+
+      const newHtml = await renderViaHTTP(appPort, '/something')
+      expect(newHtml).toMatch(/hello.*?world/)
+      expect(initialHtml !== newHtml).toBe(true)
+
+      const newerHtml = await renderViaHTTP(appPort, '/something')
+      expect(newerHtml).toMatch(/hello.*?world/)
+      expect(newHtml !== newerHtml).toBe(true)
+    })
+  } else {
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
 
