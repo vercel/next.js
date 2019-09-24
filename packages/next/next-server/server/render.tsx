@@ -379,6 +379,19 @@ export async function renderToHTML(
       const data = await unstable_getStaticProps!({
         params: isDynamicRoute(pathname) ? query : undefined,
       })
+
+      const invalidKeys = Object.keys(data).filter(
+        key => key !== 'revalidate' && key !== 'props'
+      )
+
+      if (invalidKeys.length) {
+        throw new Error(
+          `Invalid object returned from getStaticProps: found invalid keys ${invalidKeys.join(
+            ', '
+          )}`
+        )
+      }
+
       props.pageProps = data.props
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate

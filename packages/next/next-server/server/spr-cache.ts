@@ -13,6 +13,7 @@ type SprCacheValue = {
   html: string
   pageData: any
   isStale?: boolean
+  curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
 }
@@ -122,6 +123,11 @@ export async function getSprCache(
     data.revalidateAfter < new Date().getTime()
   ) {
     data.isStale = true
+  }
+  const manifestEntry = prerenderManifest.routes[pathname]
+
+  if (data && manifestEntry) {
+    data.curRevalidate = manifestEntry.initialRevalidateSeconds
   }
   return data
 }
