@@ -4,6 +4,7 @@ import Link from 'next/link'
 export async function unstable_getStaticProps () {
   return {
     props: { world: 'world', time: new Date().getTime() },
+    // bad-prop
     revalidate: 1
   }
 }

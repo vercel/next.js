@@ -386,9 +386,10 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(
-          `Invalid object returned from getStaticProps: found invalid keys ${invalidKeys.join(
+          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:\n\n\treturn { props: { title: 'My Title', content: '...' }\n\nKeys that need moved: ${invalidKeys.join(
             ', '
-          )}`
+          )}.
+        `
         )
       }
 

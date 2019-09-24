@@ -129,6 +129,22 @@ const runTests = (dev = false) => {
       expect(newerHtml).toMatch(/hello.*?world/)
       expect(newHtml !== newerHtml).toBe(true)
     })
+
+    it('should error on bad object from getStaticProps', async () => {
+      const indexPage = join(__dirname, '../pages/index.js')
+      const origContent = await fs.readFile(indexPage, 'utf8')
+      await fs.writeFile(
+        indexPage,
+        origContent.replace(/\/\/ bad-prop/, 'another: true,')
+      )
+      await waitFor(1000)
+      try {
+        const html = await renderViaHTTP(appPort, '/')
+        expect(html).toMatch(/Additional keys were returned/)
+      } finally {
+        await fs.writeFile(indexPage, origContent)
+      }
+    })
   } else {
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
