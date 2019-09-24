@@ -92,9 +92,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
-  console.log('Creating an optimized production build ...')
-  console.log()
-
   if (config.experimental.publicDirectory) {
     publicFiles = await recursiveReadDir(publicDir, /.*/)
   }
