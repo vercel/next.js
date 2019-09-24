@@ -393,6 +393,19 @@ export async function renderToHTML(
         )
       }
 
+      if (typeof data.revalidate === 'number') {
+        if (data.revalidate < 0) {
+          throw new Error(
+            `A page's revalidate can not be less than 0. If you want to always revalidate your page use getInitialProps instead of getStaticProps.`
+          )
+        } else if (data.revalidate > 31536000) {
+          // if it's greater than a year for some reason error
+          throw new Error(
+            `A page's revalidate can not be set to more than a year. If you want to prevent revalidating you can use \`false\` instead.`
+          )
+        }
+      }
+
       props.pageProps = data.props
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate
