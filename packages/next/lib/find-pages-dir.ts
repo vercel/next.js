@@ -18,7 +18,7 @@ export function findPagesDir(dir: string): string {
   curDir = path.join(dir, 'src/pages')
   if (existsSync(curDir)) return curDir
 
-  // Check one level down the tree to see if the pages directory might be there
+  // Check one level up the tree to see if the pages directory might be there
   if (existsSync(path.join(dir, '..', 'pages'))) {
     throw new Error(
       '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
