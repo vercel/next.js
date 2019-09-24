@@ -152,7 +152,7 @@ export class Head extends Component<
 
     return files.map((file: string) => {
       // Only render .css files here
-      if (!/\.css$/.exec(file)) {
+      if (!/\.css$/.test(file)) {
         return null
       }
 
@@ -516,7 +516,7 @@ export class NextScript extends Component<OriginProps> {
           : { noModule: true }
       }
 
-      if (files.includes(bundle.file)) return null
+      if (!/\.js$/.test(bundle.file) || files.includes(bundle.file)) return null
 
       return (
         <script
@@ -542,7 +542,7 @@ export class NextScript extends Component<OriginProps> {
 
     return files.map((file: string) => {
       // Only render .js files here
-      if (!/\.js$/.exec(file)) {
+      if (!/\.js$/.test(file)) {
         return null
       }
 
