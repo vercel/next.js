@@ -533,7 +533,7 @@ export default class Server {
     if (revalidate) {
       res.setHeader(
         'Cache-Control',
-        `s-maxage=${revalidate}, stale-while-revalidate`
+        `s-maxage=${revalidate}, stale-while-revalidate, stale-if-error`
       )
     }
     res.end(payload)
