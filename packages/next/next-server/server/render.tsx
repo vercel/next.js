@@ -396,12 +396,12 @@ export async function renderToHTML(
       if (typeof data.revalidate === 'number') {
         if (data.revalidate < 0) {
           throw new Error(
-            `A page's revalidate can not be less than 0. If you want to always revalidate your page use getInitialProps instead of getStaticProps.`
+            `A page's revalidate option can not be less than zero. A revalidate option of zero means to revalidate _after_ every request. To never revalidate, you can set revalidate to \`false\` (only ran once at build-time).`
           )
         } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
           throw new Error(
-            `A page's revalidate can not be set to more than a year. If you want to prevent revalidating you can use \`false\` instead.`
+            `Warning: A page's revalidate option was set to more than a year. This may have been done in error.\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
       }
