@@ -2,6 +2,19 @@ import { join } from 'path'
 import chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
+const { trueCasePath } = require('true-case-path')
+
+async function isTrueCasePath(pagePath: string) {
+  try {
+    const truePagePath = await trueCasePath(pagePath)
+    if (pagePath !== truePagePath) {
+      return false
+    }
+  } catch (err) {
+    return false
+  }
+  return true
+}
 
 export async function findPageFile(
   rootDir: string,
@@ -14,7 +27,7 @@ export async function findPageFile(
     const relativePagePath = `${normalizedPagePath}.${extension}`
     const pagePath = join(rootDir, relativePagePath)
 
-    if (await isWriteable(pagePath)) {
+    if ((await isTrueCasePath(pagePath)) && (await isWriteable(pagePath))) {
       foundPagePaths.push(relativePagePath)
     }
 
@@ -23,7 +36,10 @@ export async function findPageFile(
       `index.${extension}`
     )
     const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (await isWriteable(pagePathWithIndex)) {
+    if (
+      (await isTrueCasePath(pagePath)) &&
+      (await isWriteable(pagePathWithIndex))
+    ) {
       foundPagePaths.push(relativePagePathWithIndex)
     }
   }
