@@ -1,9 +1,7 @@
 const dotenv = require('dotenv')
-const { withAuth0 } = require('@auth0/nextjs-auth0')
-
 dotenv.config()
 
-module.exports = withAuth0({
+module.exports = {
   env: {
     AUTH0_DOMAIN: process.env.AUTH0_DOMAIN,
     AUTH0_CLIENT_ID: process.env.AUTH0_CLIENT_ID,
@@ -16,4 +14,4 @@ module.exports = withAuth0({
     SESSION_COOKIE_SECRET: process.env.SESSION_COOKIE_SECRET,
     SESSION_COOKIE_LIFETIME: 7200 // 2 hours
   }
-})
+}
