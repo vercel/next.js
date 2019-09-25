@@ -10,9 +10,7 @@ const isProd = env.NODE_ENV === 'production'
 const Test5 = () => (
   <React.Fragment>
     <h1>Client Test 5</h1>
-    <p>
-      isProd: {isProd}
-    </p>
+    <p>isProd: {isProd}</p>
   </React.Fragment>
 )
 

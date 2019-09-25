@@ -2675,7 +2675,6 @@ For the production deployment, you can use the same configuration and run `now` 
 - [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
 - [Working with Ghost and Next.js](https://ghost.org/docs/api/nextjs/)
 
-
 ## FAQ
 
 <details>

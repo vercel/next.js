@@ -82,7 +82,7 @@ An easy way to disable Sentry while developing is to set its `enabled` flag base
 ```js
 Sentry.init({
   dsn: 'PUT_YOUR_SENTRY_DSN_HERE',
-  enabled: process.env.NODE_ENV === 'production'
+  enabled: process.env.NODE_ENV === 'production',
 })
 ```
 
