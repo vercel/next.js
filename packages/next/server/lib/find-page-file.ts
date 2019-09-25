@@ -24,7 +24,7 @@ export async function findPageFile(
     const relativePagePath = `${normalizedPagePath}.${extension}`
     const pagePath = join(rootDir, relativePagePath)
 
-    if ((await isTrueCasePath(pagePath)) && (await isWriteable(pagePath))) {
+    if (await isWriteable(pagePath)) {
       foundPagePaths.push(relativePagePath)
     }
 
@@ -33,10 +33,7 @@ export async function findPageFile(
       `index.${extension}`
     )
     const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (
-      (await isTrueCasePath(pagePathWithIndex)) &&
-      (await isWriteable(pagePathWithIndex))
-    ) {
+    if (await isWriteable(pagePathWithIndex)) {
       foundPagePaths.push(relativePagePathWithIndex)
     }
   }
@@ -53,6 +50,10 @@ export async function findPageFile(
         join('pages', foundPagePaths[1])
       )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
     )
+  }
+
+  if (!(await isTrueCasePath(foundPagePaths[0]))) {
+    return null
   }
 
   return foundPagePaths[0]
