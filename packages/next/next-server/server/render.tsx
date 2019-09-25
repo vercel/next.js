@@ -400,7 +400,7 @@ export async function renderToHTML(
           )
         } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
-          throw new Error(
+          console.warn(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
