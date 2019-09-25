@@ -4,10 +4,11 @@ import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 const { trueCasePath } = require('true-case-path')
 
-async function isTrueCasePath(pagePath: string) {
+async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   try {
-    const truePagePath = await trueCasePath(pagePath)
-    return pagePath === truePagePath
+    const fullPagePath = join(pagesDir, pagePath)
+    const truePagePath = await trueCasePath(fullPagePath)
+    return fullPagePath === truePagePath
   } catch (err) {
     return false
   }
@@ -52,7 +53,7 @@ export async function findPageFile(
     )
   }
 
-  if (!(await isTrueCasePath(foundPagePaths[0]))) {
+  if (!(await isTrueCasePagePath(foundPagePaths[0], rootDir))) {
     return null
   }
 
