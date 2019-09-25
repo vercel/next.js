@@ -1,8 +1,8 @@
 import { join } from 'path'
-import fs from 'fs'
 import chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
+import fs from 'fs'
 import { platform } from 'os'
 import { promisify } from 'util'
 
