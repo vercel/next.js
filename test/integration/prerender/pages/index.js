@@ -1,5 +1,14 @@
 import Link from 'next/link'
 
+// eslint-disable-next-line camelcase
+export async function unstable_getStaticProps () {
+  return {
+    props: { world: 'world', time: new Date().getTime() },
+    // bad-prop
+    revalidate: 1
+  }
+}
+
 const Page = ({ world, time }) => {
   return (
     <>
@@ -27,7 +36,5 @@ const Page = ({ world, time }) => {
     </>
   )
 }
-
-Page.getInitialProps = () => ({ world: 'world', time: new Date().getTime() })
 
 export default Page

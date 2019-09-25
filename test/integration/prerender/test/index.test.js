@@ -116,12 +116,44 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
-  if (!dev) {
+  if (dev) {
+    it('should always call getStaticProps without caching in dev', async () => {
+      const initialHtml = await renderViaHTTP(appPort, '/something')
+      expect(initialHtml).toMatch(/hello.*?world/)
+
+      const newHtml = await renderViaHTTP(appPort, '/something')
+      expect(newHtml).toMatch(/hello.*?world/)
+      expect(initialHtml !== newHtml).toBe(true)
+
+      const newerHtml = await renderViaHTTP(appPort, '/something')
+      expect(newerHtml).toMatch(/hello.*?world/)
+      expect(newHtml !== newerHtml).toBe(true)
+    })
+
+    it('should error on bad object from getStaticProps', async () => {
+      const indexPage = join(__dirname, '../pages/index.js')
+      const origContent = await fs.readFile(indexPage, 'utf8')
+      await fs.writeFile(
+        indexPage,
+        origContent.replace(/\/\/ bad-prop/, 'another: true,')
+      )
+      await waitFor(1000)
+      try {
+        const html = await renderViaHTTP(appPort, '/')
+        expect(html).toMatch(/Additional keys were returned/)
+      } finally {
+        await fs.writeFile(indexPage, origContent)
+      }
+    })
+  } else {
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = require(join(appDir, '.next', 'prerender-manifest.json'))
 
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual({
+        '/': {
+          initialRevalidateSeconds: 1
+        },
         '/blog/[post3]': {
           initialRevalidateSeconds: 10
         },

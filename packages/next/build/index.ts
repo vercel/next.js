@@ -505,7 +505,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (isSpr) {
         // For a non-dynamic SPR page, we must copy its data file from export.
         if (!isDynamic) {
-          await moveExportedPage(page, page, true, 'json')
+          await moveExportedPage(page, file, true, 'json')
 
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
