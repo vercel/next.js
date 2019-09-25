@@ -10,8 +10,8 @@ const readdir = promisify(fs.readdir)
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const segments = pagePath
-    .substring(1)
     .split(platform() === 'win32' ? '\\' : '/')
+    .filter(Boolean)
   const promises = segments.map(async (segment, i) => {
     const dir = join(pagesDir, ...segments.slice(0, i))
     const entries = await readdir(dir)
