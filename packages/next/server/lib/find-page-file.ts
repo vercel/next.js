@@ -37,7 +37,7 @@ export async function findPageFile(
     )
     const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
     if (
-      (await isTrueCasePath(pagePath)) &&
+      (await isTrueCasePath(pagePathWithIndex)) &&
       (await isWriteable(pagePathWithIndex))
     ) {
       foundPagePaths.push(relativePagePathWithIndex)
