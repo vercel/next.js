@@ -7,13 +7,10 @@ const { trueCasePath } = require('true-case-path')
 async function isTrueCasePath(pagePath: string) {
   try {
     const truePagePath = await trueCasePath(pagePath)
-    if (pagePath !== truePagePath) {
-      return false
-    }
+    return pagePath === truePagePath
   } catch (err) {
     return false
   }
-  return true
 }
 
 export async function findPageFile(
