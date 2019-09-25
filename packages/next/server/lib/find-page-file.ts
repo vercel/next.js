@@ -1,17 +1,23 @@
 import { join } from 'path'
+import fs from 'fs'
 import chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
-const { trueCasePath } = require('true-case-path')
+import { platform } from 'os'
+import { promisify } from 'util'
+
+const readdir = promisify(fs.readdir)
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  try {
-    const fullPagePath = join(pagesDir, pagePath)
-    const truePagePath = await trueCasePath(fullPagePath)
-    return fullPagePath === truePagePath
-  } catch (err) {
-    return false
-  }
+  const segments = pagePath
+    .substring(1)
+    .split(platform() === 'win32' ? '\\' : '/')
+  const promises = segments.map(async (segment, i) => {
+    const dir = join(pagesDir, ...segments.slice(0, i))
+    const entries = await readdir(dir)
+    return entries.includes(segment)
+  })
+  return (await Promise.all(promises)).every(Boolean)
 }
 
 export async function findPageFile(
