@@ -16,7 +16,7 @@ import {
   AppType,
   NextPageContext,
 } from '../lib/utils'
-import Head, { defaultHead } from '../lib/head'
+import NextHead, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
@@ -117,7 +117,7 @@ function render(
   try {
     html = renderElementToString(element)
   } finally {
-    head = Head.rewind() || defaultHead(isInAmpMode(ampMode))
+    head = NextHead.rewind() || defaultHead(isInAmpMode(ampMode))
   }
 
   return { html, head }
@@ -158,6 +158,7 @@ type RenderOpts = {
     props: any
     revalidate: number | false
   }
+  Head: React.ComponentType
 }
 
 function renderDocument(
@@ -268,6 +269,7 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
     unstable_getStaticProps,
+    Head,
   } = renderOpts
 
   const isSpr = !!unstable_getStaticProps
@@ -375,6 +377,7 @@ export async function renderToHTML(
       router,
       ctx,
     })
+    props.head = Head != null ? <Head {...props.pageProps} /> : null
 
     if (isSpr) {
       const data = await unstable_getStaticProps!({
@@ -469,6 +472,9 @@ export async function renderToHTML(
   }
 
   let renderPage: RenderPage
+  let renderHead = (props: any) => (
+    <NextHead suppressDeprecationWarning>{App.renderHead(props)}</NextHead>
+  )
 
   if (ampBindInitData) {
     const ssrPrepass = require('react-ssr-prepass')
@@ -486,6 +492,7 @@ export async function renderToHTML(
 
       const Application = () => (
         <AppContainer>
+          {renderHead(props)}
           <EnhancedApp
             Component={EnhancedComponent}
             router={router}
@@ -529,6 +536,7 @@ export async function renderToHTML(
       return render(
         renderElementToString,
         <AppContainer>
+          {renderHead(props)}
           <EnhancedApp
             Component={EnhancedComponent}
             router={router}

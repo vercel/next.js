@@ -15,6 +15,7 @@ import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import { DataManagerContext } from '../next-server/lib/data-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
 import { DataManager } from '../next-server/lib/data-manager'
+import NextHead from '../next-server/lib/head'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
@@ -180,7 +181,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       render({ App, Component, props, err, emitter })
     }
   })
-  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  const renderCtx = {
+    App,
+    Component,
+    Head: mod.Head,
+    props,
+    err: initialErr,
+    emitter
+  }
   render(renderCtx)
 
   return emitter
@@ -214,7 +222,9 @@ export async function renderError (props) {
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
 
-  ErrorComponent = await pageLoader.loadPage('/_error')
+  const { page: ErrorComponent, mod } = await pageLoader.loadPageScript(
+    '/_error'
+  )
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
@@ -231,7 +241,13 @@ export async function renderError (props) {
     ? props.props
     : await loadGetInitialProps(App, appCtx)
 
-  await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
+  await doRender({
+    ...props,
+    err,
+    Component: ErrorComponent,
+    Head: mod.Head,
+    props: initProps
+  })
 }
 
 // If hydrate does not exist, eg in preact.
@@ -339,7 +355,7 @@ const wrapApp = App => props => {
   )
 }
 
-async function doRender ({ App, Component, props, err }) {
+async function doRender ({ App, Component, Head, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (
@@ -362,7 +378,13 @@ async function doRender ({ App, Component, props, err }) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { ...props, Component, err, router }
+  const appProps = {
+    ...props,
+    Component,
+    err,
+    head: Head != null ? <Head {...props} /> : null,
+    router
+  }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
@@ -375,6 +397,7 @@ async function doRender ({ App, Component, props, err }) {
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(
     <AppContainer>
+      <NextHead suppressDeprecationWarning>{App.renderHead(appProps)}</NextHead>
       <App {...appProps} />
     </AppContainer>,
     appElement

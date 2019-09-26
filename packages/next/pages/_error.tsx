@@ -1,5 +1,4 @@
 import React from 'react'
-import Head from '../next-server/lib/head'
 import { NextPageContext } from '../next-server/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
@@ -31,28 +30,40 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
   render() {
     const { statusCode } = this.props
-    const title =
-      this.props.title ||
-      statusCodes[statusCode] ||
-      'An unexpected error has occurred'
 
     return (
       <div style={styles.error}>
-        <Head>
-          <title>
-            {statusCode}: {title}
-          </title>
-        </Head>
         <div>
           <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
           {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
           <div style={styles.desc}>
-            <h2 style={styles.h2}>{title}.</h2>
+            <h2 style={styles.h2}>{getErrorTitle(this.props)}.</h2>
           </div>
         </div>
       </div>
     )
   }
+}
+
+/**
+ * Head for the `Error` component.
+ */
+export function Head(props: React.ComponentProps<typeof Error>) {
+  return (
+    <>
+      <title>
+        {props.statusCode}: {getErrorTitle(props)}
+      </title>
+    </>
+  )
+}
+
+function getErrorTitle(props: React.ComponentProps<typeof Error>) {
+  return (
+    props.title ||
+    statusCodes[props.statusCode] ||
+    'An unexpected error has occurred'
+  )
 }
 
 const styles: { [k: string]: React.CSSProperties } = {

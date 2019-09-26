@@ -141,7 +141,18 @@ const Effect = withSideEffect()
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
-function Head({ children }: { children: React.ReactNode }) {
+function Head({
+  children,
+  suppressDeprecationWarning = false,
+}: {
+  children: React.ReactNode
+  suppressDeprecationWarning?: boolean
+}) {
+  if (process.env.NODE_ENV !== 'production' && !suppressDeprecationWarning) {
+    console.warn(
+      'Warning: `Head` is deprecated, add `Head` to your page instead. https://err.sh/zeit/next.js/next-head-deprecated'
+    )
+  }
   return (
     <AmpStateContext.Consumer>
       {ampState => (

@@ -32,7 +32,9 @@ export type AppType = NextComponentType<
   AppContextType,
   AppInitialProps,
   AppPropsType
->
+> & {
+  renderHead(props: AppPropsType): JSX.Element | null
+}
 
 export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
@@ -128,6 +130,7 @@ export type AppPropsType<
   P = {}
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
+  head: JSX.Element | null
   router: R
 }
 

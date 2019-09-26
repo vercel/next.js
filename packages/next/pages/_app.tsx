@@ -45,6 +45,10 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
     const url = createUrl(router)
     return <Component {...pageProps} url={url} />
   }
+
+  static renderHead<CP>({ head }: AppProps<CP>) {
+    return head
+  }
 }
 
 let warnContainer: () => void
