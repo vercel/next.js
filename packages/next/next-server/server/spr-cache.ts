@@ -13,6 +13,7 @@ type SprCacheValue = {
   html: string
   pageData: any
   isStale?: boolean
+  curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
 }
@@ -93,6 +94,7 @@ export function initializeSprCache({
 export async function getSprCache(
   pathname: string
 ): Promise<SprCacheValue | undefined> {
+  if (sprOptions.dev) return
   pathname = normalizePagePath(pathname)
 
   let data: SprCacheValue | undefined = cache.get(pathname)
@@ -123,6 +125,11 @@ export async function getSprCache(
   ) {
     data.isStale = true
   }
+  const manifestEntry = prerenderManifest.routes[pathname]
+
+  if (data && manifestEntry) {
+    data.curRevalidate = manifestEntry.initialRevalidateSeconds
+  }
   return data
 }
 
@@ -135,6 +142,7 @@ export async function setSprCache(
   },
   revalidateSeconds?: number | false
 ) {
+  if (sprOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
     prerenderManifest.routes[pathname] = {
       initialRevalidateSeconds: revalidateSeconds,

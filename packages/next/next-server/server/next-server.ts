@@ -520,10 +520,22 @@ export default class Server {
     )
   }
 
-  private __sendPayload(res: ServerResponse, payload: any, header: string) {
+  private __sendPayload(
+    res: ServerResponse,
+    payload: any,
+    type: string,
+    revalidate?: number | false
+  ) {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', header)
+    res.setHeader('Content-Type', type)
     res.setHeader('Content-Length', Buffer.byteLength(payload))
+
+    if (revalidate) {
+      res.setHeader(
+        'Cache-Control',
+        `s-maxage=${revalidate}, stale-while-revalidate, stale-if-error`
+      )
+    }
     res.end(payload)
   }
 
@@ -577,7 +589,8 @@ export default class Server {
       this.__sendPayload(
         res,
         data,
-        isSprData ? 'application/json' : 'text/html; charset=utf-8'
+        isSprData ? 'application/json' : 'text/html; charset=utf-8',
+        cachedData.curRevalidate
       )
 
       // Stop the request chain here if the data we sent was up-to-date
@@ -634,7 +647,8 @@ export default class Server {
           this.__sendPayload(
             res,
             isSprData ? JSON.stringify(sprData) : html,
-            isSprData ? 'application/json' : 'text/html; charset=utf-8'
+            isSprData ? 'application/json' : 'text/html; charset=utf-8',
+            sprRevalidate
           )
         }
 
