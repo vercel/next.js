@@ -1,17 +1,14 @@
-import { join } from 'path'
+import { join, sep } from 'path'
 import chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 import fs from 'fs'
-import { platform } from 'os'
 import { promisify } from 'util'
 
 const readdir = promisify(fs.readdir)
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  const segments = pagePath
-    .split(platform() === 'win32' ? '\\' : '/')
-    .filter(Boolean)
+  const segments = pagePath.split(sep).filter(Boolean)
   const promises = segments.map(async (segment, i) => {
     const dir = join(pagesDir, ...segments.slice(0, i))
     const entries = await readdir(dir)
