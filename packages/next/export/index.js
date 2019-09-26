@@ -292,6 +292,7 @@ export default async function (dir, options, configuration) {
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async route => {
+        route = route === '/' ? '/index' : route
         const orig = join(distPagesDir, route)
         const htmlDest = join(outDir, `${route}.html`)
         const jsonDest = join(sprDataDir, `${route}.json`)
