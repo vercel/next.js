@@ -4,7 +4,7 @@ import {
   PAGES_MANIFEST,
   ROUTE_NAME_REGEX,
   SERVERLESS_ROUTE_NAME_REGEX,
-} from 'next-server/constants'
+} from '../../../next-server/lib/constants'
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR

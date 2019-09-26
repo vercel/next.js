@@ -19,7 +19,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   PAGES_MANIFEST
-} from 'next-server/constants'
+} from 'next/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
@@ -78,6 +78,11 @@ describe('Production Usage', () => {
       expect($html('html').text()).toMatch(/404/)
       expect(text).toMatch(/"statusCode":404/)
       expect(res.status).toBe(404)
+    })
+
+    it('should render 404 for /_next/static route', async () => {
+      const html = await renderViaHTTP(appPort, '/_next/static')
+      expect(html).toMatch(/This page could not be found/)
     })
 
     it('should render 200 for POST on page', async () => {
@@ -371,15 +376,9 @@ describe('Production Usage', () => {
 
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
+      const file = await renderViaHTTP(appPort, '/file')
       expect(data).toBe('data')
-    })
-
-    it('Should prioritize pages over public files', async () => {
-      const html = await renderViaHTTP(appPort, '/about')
-      const data = await renderViaHTTP(appPort, '/file')
-
-      expect(html).toMatch(/About Page/)
-      expect(data).toBe('test')
+      expect(file).toBe('test')
     })
 
     it('should reload the page on page script error', async () => {
@@ -420,6 +419,24 @@ describe('Production Usage', () => {
       const $ = cheerio.load(html)
       const script = $('#__NEXT_DATA__').html()
       expect(script).not.toMatch(/runtimeConfig/)
+    })
+
+    it('should add autoExport for auto pre-rendered pages', async () => {
+      for (const page of ['/', '/about']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(data.autoExport).toBe(true)
+      }
+    })
+
+    it('should not add autoExport for non pre-rendered pages', async () => {
+      for (const page of ['/query']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(!!data.autoExport).toBe(false)
+      }
     })
 
     if (browserName === 'chrome') {
@@ -593,6 +610,50 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should clear all core performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+      const allPerfMarks = [
+        'beforeRender',
+        'afterHydrate',
+        'afterRender',
+        'routeChange'
+      ]
+
+      allPerfMarks.forEach(name =>
+        expect(currentPerfMarks).not.toContainEqual(
+          expect.objectContaining({ name })
+        )
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not clear custom performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/mark-in-head')
+
+      const customMarkFound = await browser.eval(
+        `window.performance.getEntriesByType('mark').filter(function(e) {
+          return e.name === 'custom-mark'
+        }).length === 1`
+      )
+      expect(customMarkFound).toBe(true)
     } finally {
       if (browser) {
         await browser.close()

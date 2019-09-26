@@ -27,8 +27,14 @@ window.next = next
 initNext({ webpackHMR })
   .then(emitter => {
     initOnDemandEntries({ assetPrefix: prefix })
-    initializeBuildWatcher()
-    initializePrerenderIndicator()
+    if (process.env.__NEXT_BUILD_INDICATOR) initializeBuildWatcher()
+    if (
+      process.env.__NEXT_PRERENDER_INDICATOR &&
+      // disable by default in electron
+      !(typeof process !== 'undefined' && 'electron' in process.versions)
+    ) {
+      initializePrerenderIndicator()
+    }
 
     let lastScroll
 

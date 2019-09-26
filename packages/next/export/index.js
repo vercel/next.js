@@ -1,29 +1,74 @@
 import { cpus } from 'os'
-import { fork } from 'child_process'
-import { recursiveCopy } from '../lib/recursive-copy'
-import mkdirpModule from 'mkdirp'
-import { resolve, join } from 'path'
-import { existsSync, readFileSync } from 'fs'
 import chalk from 'chalk'
+import Worker from 'jest-worker'
+import { promisify } from 'util'
+import mkdirpModule from 'mkdirp'
+import { resolve, join, dirname } from 'path'
+import { API_ROUTE } from '../lib/constants'
+import { existsSync, readFileSync, copyFile as copyFileOrig } from 'fs'
+import { recursiveCopy } from '../lib/recursive-copy'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { formatAmpMessages } from '../build/output/index'
 import loadConfig, {
   isTargetLikeServerless
-} from 'next-server/dist/server/config'
+} from '../next-server/server/config'
 import {
   PHASE_EXPORT,
   SERVER_DIRECTORY,
   PAGES_MANIFEST,
   CONFIG_FILE,
   BUILD_ID_FILE,
+  PRERENDER_MANIFEST,
+  SERVERLESS_DIRECTORY,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH
-} from 'next-server/constants'
-import createProgress from 'tty-aware-progress'
-import { promisify } from 'util'
-import { recursiveDelete } from '../lib/recursive-delete'
-import { API_ROUTE } from '../lib/constants'
-import { formatAmpMessages } from '../build/output/index'
+} from '../next-server/lib/constants'
+import createSpinner from '../build/spinner'
 
 const mkdirp = promisify(mkdirpModule)
+const copyFile = promisify(copyFileOrig)
+
+const createProgress = (total, label = 'Exporting') => {
+  let curProgress = 0
+  let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
+    spinner: {
+      frames: [
+        '[    ]',
+        '[=   ]',
+        '[==  ]',
+        '[=== ]',
+        '[ ===]',
+        '[  ==]',
+        '[   =]',
+        '[    ]',
+        '[   =]',
+        '[  ==]',
+        '[ ===]',
+        '[====]',
+        '[=== ]',
+        '[==  ]',
+        '[=   ]'
+      ],
+      interval: 80
+    }
+  })
+
+  return () => {
+    curProgress++
+
+    const newText = `${label} (${curProgress}/${total})`
+    if (progressSpinner) {
+      progressSpinner.text = newText
+    } else {
+      console.log(newText)
+    }
+
+    if (curProgress === total && progressSpinner) {
+      progressSpinner.stop()
+      console.log(newText)
+    }
+  }
+}
 
 export default async function (dir, options, configuration) {
   function log (message) {
@@ -33,12 +78,12 @@ export default async function (dir, options, configuration) {
 
   dir = resolve(dir)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
-  const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.exportTrailingSlash
+  const isLikeServerless = nextConfig.target !== 'server'
 
-  if (!options.buildExport && nextConfig.target !== 'server') {
+  if (!options.buildExport && isLikeServerless) {
     throw new Error(
       'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
     )
@@ -55,6 +100,19 @@ export default async function (dir, options, configuration) {
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+
+  let prerenderManifest
+  try {
+    prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
+  } catch (_) {}
+
+  const distPagesDir = join(
+    distDir,
+    isLikeServerless
+      ? SERVERLESS_DIRECTORY
+      : join(SERVER_DIRECTORY, 'static', buildId),
+    'pages'
+  )
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap = {}
@@ -130,9 +188,7 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
-  log(
-    `  launching ${threads} threads with concurrency of ${concurrency} per thread`
-  )
+  log(`  launching ${threads} workers`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {
     dev: false,
     dir,
@@ -141,7 +197,9 @@ export default async function (dir, options, configuration) {
     buildId
   })
   if (!exportPathMap['/404']) {
-    exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
+    exportPathMap['/404.html'] = exportPathMap['/404.html'] || {
+      page: '/_error'
+    }
   }
   const exportPaths = Object.keys(exportPathMap)
   const filteredPaths = exportPaths.filter(
@@ -160,20 +218,7 @@ export default async function (dir, options, configuration) {
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
-
-  const chunks = filteredPaths.reduce((result, route, i) => {
-    const worker = i % threads
-    if (!result[worker]) {
-      result[worker] = { paths: [], pathMap: {} }
-    }
-    result[worker].pathMap[route] = exportPathMap[route]
-    result[worker].paths.push(route)
-
-    if (options.sprPages && options.sprPages.has(route)) {
-      result[worker].pathMap[route].sprPage = true
-    }
-    return result
-  }, [])
+  const sprDataDir = options.buildExport ? outDir : join(outDir, '_next/data')
 
   const ampValidations = {}
   let hadValidationError = false
@@ -193,46 +238,72 @@ export default async function (dir, options, configuration) {
       }
     })
   }
-  const workers = new Set()
+
+  const worker = new Worker(require.resolve('./worker'), {
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: true,
+    exposedMethods: ['default']
+  })
+
+  worker.getStdout().pipe(process.stdout)
+  worker.getStderr().pipe(process.stderr)
+
+  let renderError = false
 
   await Promise.all(
-    chunks.map(
-      chunk =>
-        new Promise((resolve, reject) => {
-          const worker = fork(require.resolve('./worker'), [], {
-            env: process.env
-          })
-          workers.add(worker)
-          worker.send({
-            distDir,
-            buildId,
-            exportPaths: chunk.paths,
-            exportPathMap: chunk.pathMap,
-            outDir,
-            renderOpts,
-            serverRuntimeConfig,
-            concurrency,
-            subFolders,
-            serverless: isTargetLikeServerless(nextConfig.target)
-          })
-          worker.on('message', ({ type, payload }) => {
-            if (type === 'progress' && progress) {
-              progress()
-            } else if (type === 'error') {
-              reject(payload)
-            } else if (type === 'done') {
-              resolve()
-            } else if (type === 'amp-validation') {
-              ampValidations[payload.page] = payload.result
-              hadValidationError =
-                hadValidationError || payload.result.errors.length
-            }
-          })
-        })
-    )
+    filteredPaths.map(async path => {
+      const result = await worker.default({
+        path,
+        pathMap: exportPathMap[path],
+        distDir,
+        buildId,
+        outDir,
+        sprDataDir,
+        renderOpts,
+        serverRuntimeConfig,
+        subFolders,
+        buildExport: options.buildExport,
+        serverless: isTargetLikeServerless(nextConfig.target)
+      })
+
+      for (const validation of result.ampValidations || []) {
+        const { page, result } = validation
+        ampValidations[page] = result
+        hadValidationError |=
+          Array.isArray(result && result.errors) && result.errors.length > 0
+      }
+      renderError |= result.error
+
+      if (
+        options.buildExport &&
+        typeof result.fromBuildExportRevalidate !== 'undefined'
+      ) {
+        configuration.initialPageRevalidationMap[path] =
+          result.fromBuildExportRevalidate
+      }
+      if (progress) progress()
+    })
   )
 
-  workers.forEach(worker => worker.kill())
+  worker.end()
+
+  // copy prerendered routes to outDir
+  if (!options.buildExport && prerenderManifest) {
+    await Promise.all(
+      Object.keys(prerenderManifest.routes).map(async route => {
+        route = route === '/' ? '/index' : route
+        const orig = join(distPagesDir, route)
+        const htmlDest = join(outDir, `${route}.html`)
+        const jsonDest = join(sprDataDir, `${route}.json`)
+
+        await mkdirp(dirname(htmlDest))
+        await mkdirp(dirname(jsonDest))
+        await copyFile(`${orig}.html`, htmlDest)
+        await copyFile(`${orig}.json`, jsonDest)
+      })
+    )
+  }
 
   if (Object.keys(ampValidations).length) {
     console.log(formatAmpMessages(ampValidations))
@@ -243,6 +314,9 @@ export default async function (dir, options, configuration) {
     )
   }
 
+  if (renderError) {
+    throw new Error(`Export encountered errors`)
+  }
   // Add an empty line to the console for the better readability.
   log('')
 }

@@ -2,8 +2,7 @@
   "name": "with-zones-home",
   "version": "1.0.0",
   "scripts": {
-    "build": "next build",
-    "start": "next start -p 4000"
+    "dev": "next dev -p 4001"
   },
   "dependencies": {
     "next": "latest",

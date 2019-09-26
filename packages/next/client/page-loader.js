@@ -1,5 +1,5 @@
 /* global document, window */
-import mitt from 'next-server/dist/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 
 function supportsPreload (el) {
   try {
@@ -15,7 +15,7 @@ function preloadScript (url) {
   const link = document.createElement('link')
   link.rel = 'preload'
   link.crossOrigin = process.crossOrigin
-  link.href = url
+  link.href = encodeURI(url)
   link.as = 'script'
   document.head.appendChild(link)
 }
@@ -128,7 +128,7 @@ export default class PageLoader {
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
-    script.src = url
+    script.src = encodeURI(url)
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
@@ -141,9 +141,10 @@ export default class PageLoader {
   registerPage (route, regFn) {
     const register = () => {
       try {
-        const { error, page } = regFn()
-        this.pageCache[route] = { error, page }
-        this.pageRegisterEvents.emit(route, { error, page })
+        const mod = regFn()
+        const pageData = { page: mod.default || mod, mod }
+        this.pageCache[route] = pageData
+        this.pageRegisterEvents.emit(route, pageData)
       } catch (error) {
         this.pageCache[route] = { error }
         this.pageRegisterEvents.emit(route, { error })

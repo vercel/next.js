@@ -1,14 +1,9 @@
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import {
-  CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-  REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY,
-  SERVERLESS_DIRECTORY,
-} from 'next-server/constants'
-import resolve from 'next/dist/compiled/resolve/index.js'
-import path from 'path'
 import crypto from 'crypto'
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import MiniCssExtractPlugin from 'mini-css-extract-plugin'
+import path from 'path'
+// @ts-ignore: Currently missing types
+import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
 
 import {
@@ -18,21 +13,31 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { resolveRequest } from '../lib/resolve-request'
+import {
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  REACT_LOADABLE_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+} from '../next-server/lib/constants'
+import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
+import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
+// @ts-ignore: JS file
+import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-// @ts-ignore: JS file
-import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -45,20 +50,22 @@ const escapePathVariables = (value: any) => {
 export default async function getBaseWebpackConfig(
   dir: string,
   {
-    dev = false,
-    isServer = false,
     buildId,
     config,
+    dev = false,
+    isServer = false,
+    pagesDir,
+    tracer,
     target = 'server',
     entrypoints,
-    tracer,
   }: {
-    tracer?: any
-    dev?: boolean
-    isServer?: boolean
     buildId: string
     config: any
+    dev?: boolean
+    isServer?: boolean
+    pagesDir: string
     target?: string
+    tracer?: any
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
@@ -70,6 +77,7 @@ export default async function getBaseWebpackConfig(
         isServer,
         hasModern: !!config.experimental.modern,
         distDir,
+        pagesDir,
         cwd: dir,
         cache: true,
       },
@@ -111,7 +119,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath
   try {
-    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+    typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -144,15 +152,16 @@ export default async function getBaseWebpackConfig(
     alias: {
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
-      'next/head': 'next-server/dist/lib/head.js',
+      'next/head': 'next/dist/next-server/lib/head.js',
       'next/router': 'next/dist/client/router.js',
-      'next/config': 'next-server/dist/lib/runtime-config.js',
-      'next/dynamic': 'next-server/dist/lib/dynamic.js',
+      'next/config': 'next/dist/next-server/lib/runtime-config.js',
+      'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
-      [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
+      [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
+    plugins: [PnpWebpackPlugin],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -262,8 +271,7 @@ export default async function getBaseWebpackConfig(
                   ''
                 )
               )
-              .digest('base64')
-              .replace(/\//g, '')
+              .digest('hex')
           },
           priority: 10,
           minChunks: 2,
@@ -289,6 +297,17 @@ export default async function getBaseWebpackConfig(
       ? 'anonymous'
       : config.crossOrigin
 
+  let customAppFile: string | null = config.experimental.css
+    ? await findPageFile(
+        path.join(dir, 'pages'),
+        '/_app',
+        config.pageExtensions
+      )
+    : null
+  if (customAppFile) {
+    customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
+  }
+
   let webpackConfig: webpack.Configuration = {
     devtool,
     mode: webpackMode,
@@ -312,42 +331,82 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            resolve(
-              request,
-              { basedir: dir, preserveSymlinks: true },
-              (err, res) => {
-                if (err) {
-                  return callback()
-                }
-
-                if (!res) {
-                  return callback()
-                }
-
-                // Default pages have to be transpiled
+            // Resolve the import with the webpack provided context, this
+            // ensures we're resolving the correct version when multiple
+            // exist.
+            let res
+            try {
+              res = resolveRequest(request, `${context}/`)
+            } catch (err) {
+              // This is a special case for the Next.js data experiment. This
+              // will be removed in the future.
+              // We're telling webpack to externalize a package that doesn't
+              // exist because we know it won't ever be used at runtime.
+              if (
+                request === 'react-ssr-prepass' &&
+                !config.experimental.ampBindInitData
+              ) {
                 if (
-                  res.match(/next[/\\]dist[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                  res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)
+                  context.replace(/\\/g, '/').includes('next-server/server')
                 ) {
-                  return callback()
-                }
-
-                // Webpack itself has to be compiled because it doesn't always use module relative paths
-                if (
-                  res.match(/node_modules[/\\]webpack/) ||
-                  res.match(/node_modules[/\\]css-loader/)
-                ) {
-                  return callback()
-                }
-
-                if (res.match(/node_modules[/\\].*\.js$/)) {
                   return callback(undefined, `commonjs ${request}`)
                 }
-
-                callback()
               }
-            )
+
+              // If the request cannot be resolved, we need to tell webpack to
+              // "bundle" it so that webpack shows an error (that it cannot be
+              // resolved).
+              return callback()
+            }
+
+            // Same as above, if the request cannot be resolved we need to have
+            // webpack "bundle" it so it surfaces the not found error.
+            if (!res) {
+              return callback()
+            }
+
+            // Bundled Node.js code is relocated without its node_modules tree.
+            // This means we need to make sure its request resolves to the same
+            // package that'll be available at runtime. If it's not identical,
+            // we need to bundle the code (even if it _should_ be external).
+            let baseRes
+            try {
+              baseRes = resolveRequest(request, `${dir}/`)
+            } catch (err) {}
+
+            // Same as above: if the package, when required from the root,
+            // would be different from what the real resolution would use, we
+            // cannot externalize it.
+            if (baseRes !== res) {
+              return callback()
+            }
+
+            // Default pages have to be transpiled
+            if (
+              !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
+              (res.match(/next[/\\]dist[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
+                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+            ) {
+              return callback()
+            }
+
+            // Webpack itself has to be compiled because it doesn't always use module relative paths
+            if (
+              res.match(/node_modules[/\\]webpack/) ||
+              res.match(/node_modules[/\\]css-loader/)
+            ) {
+              return callback()
+            }
+
+            // Anything else that is standard JavaScript within `node_modules`
+            // can be externalized.
+            if (res.match(/node_modules[/\\].*\.js$/)) {
+              return callback(undefined, `commonjs ${request}`)
+            }
+
+            // Default behavior: bundle the code!
+            callback()
           },
         ]
       : [
@@ -361,9 +420,7 @@ export default async function getBaseWebpackConfig(
             ) {
               // if it's the Next.js' require mark it as external
               // since it's not used
-              if (
-                context.replace(/\\/g, '/').includes('next-server/dist/server')
-              ) {
+              if (context.replace(/\\/g, '/').includes('next-server/server')) {
                 return callback(undefined, `commonjs ${request}`)
               }
             }
@@ -379,11 +436,26 @@ export default async function getBaseWebpackConfig(
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
+        // Minify JavaScript
         new TerserPlugin({
           ...terserPluginConfig,
           terserOptions,
         }),
-      ],
+        // Minify CSS
+        config.experimental.css &&
+          new CssMinimizerPlugin({
+            postcssOptions: {
+              map: {
+                // `inline: false` generates the source map in a separate file.
+                // Otherwise, the CSS file is needlessly large.
+                inline: false,
+                // `annotation: false` skips appending the `sourceMappingURL`
+                // to the end of the CSS file. Webpack already handles this.
+                annotation: false,
+              },
+            },
+          }),
+      ].filter(Boolean),
     },
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
@@ -422,11 +494,28 @@ export default async function getBaseWebpackConfig(
     performance: false,
     resolve: resolveConfig,
     resolveLoader: {
+      // The loaders Next.js provides
+      alias: [
+        'emit-file-loader',
+        'next-babel-loader',
+        'next-client-pages-loader',
+        'next-data-loader',
+        'next-serverless-loader',
+        'noop-loader',
+      ].reduce(
+        (alias, loader) => {
+          // using multiple aliases to replace `resolveLoader.modules`
+          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+
+          return alias
+        },
+        {} as Record<string, string>
+      ),
       modules: [
-        path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
+      plugins: [PnpWebpackPlugin],
     },
     // @ts-ignore this is filtered
     module: {
@@ -442,14 +531,14 @@ export default async function getBaseWebpackConfig(
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [
             dir,
-            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
             /[\\/](strip-ansi|ansi-regex)[\\/]/,
           ],
           exclude: (path: string) => {
             if (
-              /next-server[\\/]dist[\\/]lib/.test(path) ||
+              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
               /next[\\/]dist[\\/]client/.test(path) ||
               /next[\\/]dist[\\/]pages/.test(path) ||
               /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
@@ -461,6 +550,97 @@ export default async function getBaseWebpackConfig(
           },
           use: defaultLoaders.babel,
         },
+        config.experimental.css &&
+          // Support CSS imports
+          ({
+            test: /\.css$/,
+            issuer: { include: [customAppFile].filter(Boolean) },
+            use: isServer
+              ? // Global CSS is ignored on the server because it's only needed
+                // on the client-side.
+                require.resolve('ignore-loader')
+              : [
+                  // During development we load CSS via JavaScript so we can
+                  // hot reload it without refreshing the page.
+                  dev && {
+                    loader: require.resolve('style-loader'),
+                    options: {
+                      // By default, style-loader injects CSS into the bottom
+                      // of <head>. This causes ordering problems between dev
+                      // and prod. To fix this, we render a <noscript> tag as
+                      // an anchor for the styles to be placed before. These
+                      // styles will be applied _before_ <style jsx global>.
+                      insert: (element: Node) => {
+                        // These elements should always exist. If they do not,
+                        // this code should fail.
+                        const anchorElement = document.querySelector(
+                          '#__next_css__DO_NOT_USE__'
+                        )!
+                        const parentNode = anchorElement.parentNode! // Normally <head>
+
+                        // Each style tag should be placed right before our
+                        // anchor. By inserting before and not after, we do not
+                        // need to track the last inserted element.
+                        parentNode.insertBefore(element, anchorElement)
+                      },
+                    },
+                  },
+                  // When building for production we extract CSS into
+                  // separate files.
+                  !dev && {
+                    loader: MiniCssExtractPlugin.loader,
+                    options: {},
+                  },
+
+                  // Resolve CSS `@import`s and `url()`s
+                  {
+                    loader: require.resolve('css-loader'),
+                    options: { importLoaders: 1, sourceMap: true },
+                  },
+
+                  // Compile CSS
+                  {
+                    loader: require.resolve('postcss-loader'),
+                    options: {
+                      ident: 'postcss',
+                      plugins: () => [
+                        // Make Flexbox behave like the spec cross-browser.
+                        require('postcss-flexbugs-fixes'),
+                        // Run Autoprefixer and compile new CSS features.
+                        require('postcss-preset-env')({
+                          autoprefixer: {
+                            // Disable legacy flexbox support
+                            flexbox: 'no-2009',
+                          },
+                          // Enable CSS features that have shipped to the
+                          // web platform, i.e. in 2+ browsers unflagged.
+                          stage: 3,
+                        }),
+                      ],
+                      sourceMap: true,
+                    },
+                  },
+                ].filter(Boolean),
+            // A global CSS import always has side effects. Webpack will tree
+            // shake the CSS without this option if the issuer claims to have
+            // no side-effects.
+            // See https://github.com/webpack/webpack/issues/6571
+            sideEffects: true,
+          } as webpack.RuleSetRule),
+        config.experimental.css &&
+          ({
+            loader: require.resolve('file-loader'),
+            issuer: {
+              // file-loader is only used for CSS files, e.g. url() for a SVG
+              // or font files
+              test: /\.css$/,
+            },
+            // Exclude extensions that webpack handles by default
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            options: {
+              name: 'static/media/[name].[hash].[ext]',
+            },
+          } as webpack.RuleSetRule),
       ].filter(Boolean),
     },
     plugins: [
@@ -494,9 +674,18 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_MODERN_BUILD': config.experimental.modern && !dev,
-        'process.env.__NEXT_GRANULAR_CHUNKS':
-          config.experimental.granularChunks && !dev,
+        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
+          config.experimental.modern && !dev
+        ),
+        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
+          config.experimental.granularChunks && !dev
+        ),
+        'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
+          config.devIndicators.buildActivity
+        ),
+        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
+          config.devIndicators.autoPrerender
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -574,7 +763,7 @@ export default async function getBaseWebpackConfig(
             )
           },
         }),
-      isServerless && new ServerlessPlugin(),
+      isServerless && isServer && new ServerlessPlugin(),
       isServer && new PagesManifestPlugin(isLikeServerless),
       target === 'server' &&
         isServer &&
@@ -586,23 +775,33 @@ export default async function getBaseWebpackConfig(
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
+      // Extract CSS as CSS file(s) in the client-side production bundle.
+      config.experimental.css &&
+        !isServer &&
+        !dev &&
+        new MiniCssExtractPlugin({
+          filename: 'static/css/[contenthash].css',
+          chunkFilename: 'static/css/[contenthash].chunk.css',
+        }),
       tracer &&
         new ProfilingPlugin({
           tracer,
         }),
       !isServer &&
         useTypeScript &&
-        new ForkTsCheckerWebpackPlugin({
-          typescript: typeScriptPath,
-          async: dev,
-          useTypescriptIncrementalApi: true,
-          checkSyntacticErrors: true,
-          tsconfig: tsConfigPath,
-          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-          compilerOptions: { isolatedModules: true, noEmit: true },
-          silent: true,
-          formatter: 'codeframe',
-        }),
+        new ForkTsCheckerWebpackPlugin(
+          PnpWebpackPlugin.forkTsCheckerOptions({
+            typescript: typeScriptPath,
+            async: dev,
+            useTypescriptIncrementalApi: true,
+            checkSyntacticErrors: true,
+            tsconfig: tsConfigPath,
+            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+            compilerOptions: { isolatedModules: true, noEmit: true },
+            silent: true,
+            formatter: 'codeframe',
+          })
+        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
@@ -683,6 +882,7 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,

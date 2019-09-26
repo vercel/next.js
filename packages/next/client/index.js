@@ -3,20 +3,20 @@ import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
-import mitt from 'next-server/dist/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 import {
   loadGetInitialProps,
   getURL,
   SUPPORTS_PERFORMANCE_USER_TIMING
-} from 'next-server/dist/lib/utils'
+} from '../next-server/lib/utils'
 import PageLoader from './page-loader'
-import * as envConfig from 'next-server/config'
-import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
-import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
-import { RouterContext } from 'next-server/dist/lib/router-context'
-import { DataManager } from 'next-server/dist/lib/data-manager'
+import * as envConfig from '../next-server/lib/runtime-config'
+import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { DataManagerContext } from '../next-server/lib/data-manager-context'
+import { RouterContext } from '../next-server/lib/router-context'
+import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
-import { isDynamicRoute } from 'next-server/dist/lib/router/utils/is-dynamic'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -238,10 +238,28 @@ function renderReactElement (reactEl, domEl) {
 
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+    ReactDOM.hydrate(reactEl, domEl, function () {
+      if (process.env.NODE_ENV !== 'production') {
+        document
+          .querySelectorAll('[data-next-hydrating]')
+          .forEach(function (el) {
+            el.remove()
+          })
+      }
+      markHydrateComplete()
+    })
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl, markRenderComplete)
+    ReactDOM.render(reactEl, domEl, function () {
+      if (process.env.NODE_ENV !== 'production') {
+        document
+          .querySelectorAll('[data-next-hydrating]')
+          .forEach(function (el) {
+            el.remove()
+          })
+      }
+      markRenderComplete()
+    })
   }
 }
 
@@ -281,7 +299,10 @@ function markRenderComplete () {
 }
 
 function clearMarks () {
-  performance.clearMarks()
+  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
+    mark => performance.clearMarks(mark)
+  )
+
   /*
    * TODO: uncomment the following line when we have a way to
    * expose this to user code.

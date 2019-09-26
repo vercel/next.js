@@ -2,9 +2,12 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
-import { pageNotFoundError } from 'next-server/dist/server/require'
-import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
-import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
+import { pageNotFoundError } from '../next-server/server/require'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  ROUTE_NAME_REGEX,
+  IS_BUNDLED_PAGE_REGEX
+} from '../next-server/lib/constants'
 import { stringify } from 'querystring'
 import { findPageFile } from './lib/find-page-file'
 import { isWriteable } from '../build/is-writeable'
@@ -29,9 +32,15 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (
   devMiddleware,
   multiCompiler,
-  { buildId, dir, reload, pageExtensions, maxInactiveAge, pagesBufferLength }
+  {
+    buildId,
+    pagesDir,
+    reload,
+    pageExtensions,
+    maxInactiveAge,
+    pagesBufferLength
+  }
 ) {
-  const pagesDir = join(dir, 'pages')
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}

@@ -1,22 +1,28 @@
-import Server from 'next-server/dist/server/next-server'
+import Server from '../next-server/server/next-server'
 import { join, relative } from 'path'
+import { promisify } from 'util'
 import HotReloader from './hot-reloader'
-import { route } from 'next-server/dist/server/router'
-import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
+import { route } from '../next-server/server/router'
+import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
 import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
+import { recordVersion } from '../telemetry/events'
 import fs from 'fs'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute
-} from 'next-server/dist/lib/router/utils'
+} from '../next-server/lib/router/utils'
 import React from 'react'
+import { findPageFile } from './lib/find-page-file'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -24,9 +30,11 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
+const fsStat = promisify(fs.stat)
+
 export default class DevServer extends Server {
   constructor (options) {
-    super(options)
+    super({ ...options, dev: true })
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
@@ -44,6 +52,7 @@ export default class DevServer extends Server {
         )
       })
     }
+    this.pagesDir = findPagesDir(this.dir)
   }
 
   currentPhase () {
@@ -102,7 +111,7 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise(resolve => {
-      const pagesDir = join(this.dir, 'pages')
+      const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(pagesDir, (_, files) => {
@@ -166,9 +175,10 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
-    await verifyTypeScriptSetup(this.dir)
+    await verifyTypeScriptSetup(this.dir, this.pagesDir)
 
     this.hotReloader = new HotReloader(this.dir, {
+      pagesDir: this.pagesDir,
       config: this.nextConfig,
       buildId: this.buildId
     })
@@ -177,6 +187,8 @@ export default class DevServer extends Server {
     await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady()
+
+    recordVersion({ cliCommand: 'dev' })
   }
 
   async close () {
@@ -188,6 +200,37 @@ export default class DevServer extends Server {
 
   async run (req, res, parsedUrl) {
     await this.devReady
+    const { pathname } = parsedUrl
+
+    if (pathname.startsWith('/_next')) {
+      try {
+        await fsStat(join(this.publicDir, '_next'))
+        throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+      } catch (err) {}
+    }
+
+    // check for a public file, throwing error if there's a
+    // conflicting page
+    if (this.nextConfig.experimental.publicDirectory) {
+      if (await this.hasPublicFile(pathname)) {
+        const pageFile = await findPageFile(
+          this.pagesDir,
+
+          normalizePagePath(pathname),
+          this.nextConfig.pageExtensions
+        )
+
+        if (pageFile) {
+          const err = new Error(
+            `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
+          )
+          res.statusCode = 500
+          return this.renderError(err, req, res, pathname, {})
+        }
+        return this.servePublic(req, res, pathname)
+      }
+    }
+
     const { finished } = await this.hotReloader.run(req, res, parsedUrl)
     if (finished) {
       return
@@ -269,9 +312,9 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname).catch(err => {
+      await this.hotReloader.ensurePage(pathname).catch(async err => {
         if (err.code !== 'ENOENT') {
-          return Promise.reject(err)
+          throw err
         }
 
         for (const dynamicRoute of this.dynamicRoutes) {
@@ -286,18 +329,12 @@ export default class DevServer extends Server {
           })
         }
 
-        return Promise.reject(err)
+        throw err
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
-        if (this.nextConfig.experimental.publicDirectory) {
-          // Try to send a public file and let servePublic handle the request from here
-          await this.servePublic(req, res, pathname)
-          return null
-        } else {
-          res.statusCode = 404
-          return this.renderErrorToHTML(null, req, res, pathname, query)
-        }
+        res.statusCode = 404
+        return this.renderErrorToHTML(null, req, res, pathname, query)
       }
       if (!this.quiet) console.error(err)
     }
@@ -344,6 +381,15 @@ export default class DevServer extends Server {
   servePublic (req, res, path) {
     const p = join(this.publicDir, path)
     return this.serveStatic(req, res, p)
+  }
+
+  async hasPublicFile (path) {
+    try {
+      const info = await fsStat(join(this.publicDir, path))
+      return info.isFile()
+    } catch (_) {
+      return false
+    }
   }
 
   async getCompilationError (page) {

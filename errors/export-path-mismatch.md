@@ -23,4 +23,4 @@ module.exports = {
 
 ### Useful Links
 
-- [exportPathMap](https://github.com/zeit/next.js#usage) documentation
+- [exportPathMap](https://nextjs.org/docs#usage) documentation

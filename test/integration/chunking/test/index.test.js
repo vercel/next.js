@@ -30,10 +30,18 @@ describe('Chunking', () => {
       // Error here means old chunks don't exist, so we don't need to do anything
     }
     await nextBuild(appDir)
-    stats = await readFile(join(appDir, '.next', 'stats.json'), 'utf8')
+    stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
+      // fixes backslashes in keyNames not being escaped on windows
+      .replace(/"static\\(.*?":)/g, '"static\\\\$1')
+      .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
+
     stats = JSON.parse(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
+  })
+
+  it('should use all url friendly names', () => {
+    expect(chunks).toEqual(chunks.map(name => encodeURIComponent(name)))
   })
 
   it('should create a framework chunk', () => {
