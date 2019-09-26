@@ -1,6 +1,7 @@
-import ciEnvironment from 'ci-info'
 import isDockerFunction from 'is-docker'
 import os from 'os'
+
+import * as ciEnvironment from './ci-info'
 
 type AnonymousMeta = {
   systemPlatform: NodeJS.Platform
