@@ -46,6 +46,10 @@ export async function findPageFile(
     return null
   }
 
+  if (!(await isTrueCasePagePath(foundPagePaths[0], rootDir))) {
+    return null
+  }
+
   if (foundPagePaths.length > 1) {
     warn(
       `Duplicate page detected. ${chalk.cyan(
@@ -54,10 +58,6 @@ export async function findPageFile(
         join('pages', foundPagePaths[1])
       )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
     )
-  }
-
-  if (!(await isTrueCasePagePath(foundPagePaths[0], rootDir))) {
-    return null
   }
 
   return foundPagePaths[0]
