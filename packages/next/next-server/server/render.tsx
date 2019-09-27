@@ -405,6 +405,8 @@ export async function renderToHTML(
           )
         }
       } else if (data.revalidate === false) {
+        // `false` is an allowed behavior. We'll catch `revalidate: true` and
+        // fall into our default behavior.
       } else {
         // By default, we revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
