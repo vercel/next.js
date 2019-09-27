@@ -6,40 +6,54 @@
  */
 
 type DelayCallback = (delay: number, event: Event) => void
+type addEventListener = (
+  type: string,
+  listener: EventListener,
+  listenerOpts: EventListenerOptions
+) => void
+type removeEventListener = addEventListener
 
 const fidPolyfill = (
-  addEventListener: EventListener,
-  removeEventListener: EventListener
+  addEventListener: addEventListener,
+  removeEventListener: removeEventListener
 ) => {
   let firstInputEvent: Event
   let firstInputDelay: number
-  let firstInputTimeStamp: Date
+  let firstInputTimeStamp: number
 
   let callbacks: DelayCallback[] = []
 
   const listenerOpts = { passive: true, capture: true }
-  const startTimeStamp = new Date()
+  const startTimeStamp = +new Date()
 
   const pointerup = 'pointerup'
   const pointercancel = 'pointercancel'
 
-  function onFirstInputDelay(callback: DelayCallback) {
+  function onInputDelay(callback: DelayCallback) {
     callbacks.push(callback)
-    reportFirstInputDelayIfRecordedAndValid()
+    reportInputDelayIfRecordedAndValid()
   }
 
-  function recordFirstInputDelay(delay: number, evt: Event) {
+  function recordInputDelay(delay: number, evt: Event) {
     firstInputEvent = evt
     firstInputDelay = delay
-    firstInputTimeStamp = new Date()
+    firstInputTimeStamp = +new Date()
 
-    reportFirstInputDelayIfRecordedAndValid()
+    reportInputDelayIfRecordedAndValid()
   }
 
-  function reportFirstInputDelayIfRecordedAndValid() {
+  function reportInputDelayIfRecordedAndValid() {
+    const hydrationMeasures = performance.getEntriesByName(
+      'Next.js-hydration',
+      'measure'
+    )
+    const firstInputStart = firstInputTimeStamp - startTimeStamp
+
     if (
       firstInputDelay >= 0 &&
-      firstInputDelay < firstInputTimeStamp - startTimeStamp
+      firstInputDelay < firstInputStart &&
+      (hydrationMeasures.length === 0 ||
+        hydrationMeasures[0].startTime < firstInputStart)
     ) {
       callbacks.forEach(function(callback) {
         callback(firstInputDelay, firstInputEvent)
@@ -47,9 +61,7 @@ const fidPolyfill = (
 
       // If the app is already hydrated, that means the first "post-hydration" input
       // has been measured and listeners can be removed
-      if (
-        performance.getEntriesByName('Next.js-hydration', 'measure').length > 0
-      ) {
+      if (hydrationMeasures.length > 0) {
         eachEventType(removeEventListener)
         callbacks = []
       }
@@ -58,7 +70,7 @@ const fidPolyfill = (
 
   function onPointerDown(delay: number, evt: Event) {
     function onPointerUp() {
-      recordFirstInputDelay(delay, evt)
+      recordInputDelay(delay, evt)
     }
 
     function onPointerCancel() {
@@ -76,21 +88,21 @@ const fidPolyfill = (
 
   function onInput(evt: Event) {
     if (evt.cancelable) {
-      var isEpochTime = evt.timeStamp > 1e12
-      var now = isEpochTime ? new Date() : performance.now()
+      const isEpochTime = evt.timeStamp > 1e12
+      const now = isEpochTime ? +new Date() : performance.now()
 
-      var delay = now - evt.timeStamp
+      const delay = now - evt.timeStamp
 
       if (evt.type == 'pointerdown') {
         onPointerDown(delay, evt)
       } else {
-        recordFirstInputDelay(delay, evt)
+        recordInputDelay(delay, evt)
       }
     }
   }
 
-  function eachEventType(callback: EventListener) {
-    var eventTypes = [
+  function eachEventType(callback: addEventListener | removeEventListener) {
+    const eventTypes = [
       'click',
       'mousedown',
       'keydown',
@@ -104,8 +116,9 @@ const fidPolyfill = (
 
   eachEventType(addEventListener)
 
-  self['perfMetrics'] = self['perfMetrics'] || {}
-  self['perfMetrics']['onFirstInputDelay'] = onFirstInputDelay
+  let context = self as any
+  context['hydrationMetrics'] = context['hydrationMetrics'] || {}
+  context['hydrationMetrics']['onInputDelay'] = onInputDelay
 }
 
 export default fidPolyfill

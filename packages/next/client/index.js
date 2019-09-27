@@ -395,16 +395,17 @@ function clearMarks() {
 }
 
 function measureFid () {
-  perfMetrics.onFirstInputDelay((delay, event) => {
-    if (
-      performance.getEntriesByName('Next.js-hydration', 'measure').length > 0
-    ) {
-      const hydrateEnd =
-        performance.getEntriesByName('Next.js-hydration', 'measure')[0]
-          .startTime +
-        performance.getEntriesByName('Next.js-hydration', 'measure')[0].duration
+  hydrationMetrics.onInputDelay((delay, event) => {
+    const hydrationMeasures = performance.getEntriesByName(
+      'Next.js-hydration',
+      'measure'
+    )
 
-      // TODO: Instead of console.logs, expose values to user code through perf relayer
+    if (hydrationMeasures.length > 0) {
+      const { startTime, duration } = hydrationMeasures[0]
+      const hydrateEnd = startTime + duration
+
+      // TODO: Instead of console.logs, expose values to user code through perf relayer (next.js/pull/8480)
       console.log(
         'First input after hydration',
         `start: ${event.timeStamp}`,
