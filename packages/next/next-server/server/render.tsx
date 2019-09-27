@@ -404,6 +404,12 @@ export async function renderToHTML(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
+      } else if (data.revalidate === false) {
+      } else {
+        // By default, we revalidate after 1 second. This value is optimal for
+        // the most up-to-date page possible, but without a 1-to-1
+        // request-refresh ratio.
+        data.revalidate = 1
       }
 
       props.pageProps = data.props

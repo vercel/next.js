@@ -172,6 +172,9 @@ const runTests = (dev = false) => {
         '/another': {
           initialRevalidateSeconds: 0
         },
+        '/default-revalidate': {
+          initialRevalidateSeconds: 1
+        },
         '/something': {
           initialRevalidateSeconds: false
         }
