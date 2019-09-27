@@ -179,6 +179,10 @@ const runTests = (dev = false) => {
           initialRevalidateSeconds: false
         }
       })
+      expect(manifest.dynamicRoutes).toEqual([
+        '/blog/[post]',
+        '/blog/[post]/[comment]'
+      ])
     })
 
     it('outputs prerendered files correctly', async () => {
