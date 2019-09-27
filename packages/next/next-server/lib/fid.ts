@@ -13,21 +13,21 @@ type addEventListener = (
 ) => void
 type removeEventListener = addEventListener
 
-const fidPolyfill = (
+function fidPolyfill(
   addEventListener: addEventListener,
   removeEventListener: removeEventListener
-) => {
-  let firstInputEvent: Event
-  let firstInputDelay: number
-  let firstInputTimeStamp: number
+) {
+  var firstInputEvent: Event
+  var firstInputDelay: number
+  var firstInputTimeStamp: number
 
-  let callbacks: DelayCallback[] = []
+  var callbacks: DelayCallback[] = []
 
-  const listenerOpts = { passive: true, capture: true }
-  const startTimeStamp = +new Date()
+  var listenerOpts = { passive: true, capture: true }
+  var startTimeStamp = +new Date()
 
-  const pointerup = 'pointerup'
-  const pointercancel = 'pointercancel'
+  var pointerup = 'pointerup'
+  var pointercancel = 'pointercancel'
 
   function onInputDelay(callback: DelayCallback) {
     callbacks.push(callback)
@@ -43,11 +43,11 @@ const fidPolyfill = (
   }
 
   function reportInputDelayIfRecordedAndValid() {
-    const hydrationMeasures = performance.getEntriesByName(
+    var hydrationMeasures = performance.getEntriesByName(
       'Next.js-hydration',
       'measure'
     )
-    const firstInputStart = firstInputTimeStamp - startTimeStamp
+    var firstInputStart = firstInputTimeStamp - startTimeStamp
 
     if (
       firstInputDelay >= 0 &&
@@ -88,10 +88,10 @@ const fidPolyfill = (
 
   function onInput(evt: Event) {
     if (evt.cancelable) {
-      const isEpochTime = evt.timeStamp > 1e12
-      const now = isEpochTime ? +new Date() : performance.now()
+      var isEpochTime = evt.timeStamp > 1e12
+      var now = isEpochTime ? +new Date() : performance.now()
 
-      const delay = now - evt.timeStamp
+      var delay = now - evt.timeStamp
 
       if (evt.type == 'pointerdown') {
         onPointerDown(delay, evt)
@@ -102,7 +102,7 @@ const fidPolyfill = (
   }
 
   function eachEventType(callback: addEventListener | removeEventListener) {
-    const eventTypes = [
+    var eventTypes = [
       'click',
       'mousedown',
       'keydown',
@@ -116,7 +116,7 @@ const fidPolyfill = (
 
   eachEventType(addEventListener)
 
-  let context = self as any
+  var context = self as any
   context['hydrationMetrics'] = context['hydrationMetrics'] || {}
   context['hydrationMetrics']['onInputDelay'] = onInputDelay
 }
