@@ -394,14 +394,25 @@ export async function renderToHTML(
       }
 
       if (typeof data.revalidate === 'number') {
-        if (data.revalidate < 0) {
+        if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option can not be less than zero. A revalidate option of zero means to revalidate _after_ every request. To never revalidate, you can set revalidate to \`false\` (only ran once at build-time).`
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${
+              data.revalidate
+            }', cannot be used.` +
+              `\nTry changing the value to '${Math.ceil(
+                data.revalidate
+              )}' or using \`Math.round()\` if you're computing the value.`
+          )
+        } else if (data.revalidate < 0) {
+          throw new Error(
+            `A page's revalidate option can not be less than zero. A revalidate option of zero means to revalidate _after_ every request.` +
+              `\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).`
           )
         } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
           console.warn(
-            `Warning: A page's revalidate option was set to more than a year. This may have been done in error.\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
+              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
       }
