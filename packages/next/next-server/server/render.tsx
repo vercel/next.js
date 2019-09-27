@@ -415,6 +415,14 @@ export async function renderToHTML(
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
+      } else if (data.revalidate === false) {
+        // `false` is an allowed behavior. We'll catch `revalidate: true` and
+        // fall into our default behavior.
+      } else {
+        // By default, we revalidate after 1 second. This value is optimal for
+        // the most up-to-date page possible, but without a 1-to-1
+        // request-refresh ratio.
+        data.revalidate = 1
       }
 
       props.pageProps = data.props
