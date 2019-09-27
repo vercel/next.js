@@ -28,8 +28,8 @@ Profile.getInitialProps = async ({ req, res }) => {
 
     return { user }
   }
-
-  const user = await fetchUser()
+  const cookie = req && req.getHeader('cookie')
+  const user = await fetchUser(cookie)
   return { user }
 }
 
