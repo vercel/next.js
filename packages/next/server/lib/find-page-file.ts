@@ -1,4 +1,4 @@
-import { join, sep, normalize } from 'path'
+import { join, sep as pathSeparator, normalize } from 'path'
 import chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
@@ -8,15 +8,17 @@ import { promisify } from 'util'
 const readdir = promisify(fs.readdir)
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  const segments = normalize(pagePath)
-    .split(sep)
+  const pageSegments = normalize(pagePath)
+    .split(pathSeparator)
     .filter(Boolean)
-  const promises = segments.map(async (segment, i) => {
-    const dir = join(pagesDir, ...segments.slice(0, i))
-    const entries = await readdir(dir)
-    return entries.includes(segment)
+
+  const segmentExistsPromises = pageSegments.map(async (segment, i) => {
+    const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
+    const parentDirEntries = await readdir(segmentParentDir)
+    return parentDirEntries.includes(segment)
   })
-  return (await Promise.all(promises)).every(Boolean)
+
+  return (await Promise.all(segmentExistsPromises)).every(Boolean)
 }
 
 export async function findPageFile(
