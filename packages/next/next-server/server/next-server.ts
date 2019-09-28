@@ -66,7 +66,7 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
-  pagesDir: string
+  pagesDir?: string
   publicDir: string
   pagesManifest: string
   buildId: string
@@ -97,7 +97,6 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    this.pagesDir = findPagesDir(this.dir)
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
