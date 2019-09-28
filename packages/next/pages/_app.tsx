@@ -57,6 +57,8 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   }
 }
 
+export type NextApp = typeof App;
+
 let warnContainer: () => void
 let warnUrl: () => void
 
