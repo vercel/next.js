@@ -12,15 +12,15 @@ const modules = {
     [{ size: [] }],
     ['bold', 'italic', 'underline', 'strike', 'blockquote'],
     [{ 'list': 'ordered' }, { 'list': 'bullet' },
-    { 'indent': '-1' }, { 'indent': '+1' }],
+      { 'indent': '-1' }, { 'indent': '+1' }],
     ['link', 'image', 'video'],
     ['clean']
   ],
   clipboard: {
     // toggle to add extra line breaks when pasting HTML:
-    matchVisual: false,
+    matchVisual: false
   }
- };
+ }
 /*
  * Quill editor formats
  * See https://quilljs.com/docs/formats/
@@ -30,15 +30,15 @@ const formats = [
   'bold', 'italic', 'underline', 'strike', 'blockquote',
   'list', 'bullet', 'indent',
   'link', 'image', 'video'
-];
+]
 export default class App extends React.Component {
-  render() {
-    return (
-        <QuillNoSSRWrapper
-            modules={modules}
-            formats={formats}
-            theme="snow"
-        />
-        )
-    }
+  render () {
+      return (
+      <QuillNoSSRWrapper
+        modules={modules}
+        formats={formats}
+        theme="snow"
+      />
+      )
+  }
 }
