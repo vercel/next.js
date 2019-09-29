@@ -20,7 +20,7 @@ const modules = {
     // toggle to add extra line breaks when pasting HTML:
     matchVisual: false
   }
- }
+}
 /*
  * Quill editor formats
  * See https://quilljs.com/docs/formats/
@@ -33,12 +33,12 @@ const formats = [
 ]
 export default class App extends React.Component {
   render () {
-      return (
-      <QuillNoSSRWrapper
+    return (
+        <QuillNoSSRWrapper
         modules={modules}
         formats={formats}
-        theme="snow"
+        theme='snow'
       />
-      )
+    )
   }
 }
