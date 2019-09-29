@@ -1,0 +1,21 @@
+{
+  "name": "custom-server-express-http2",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "release": "cross-env NODE_ENV=production next build",
+    "start": "cross-env NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "compression": "^1.7.4",
+    "express": "^4.17.1",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "spdy": "^4.0.1"
+  },
+  "devDependencies": {
+    "cross-env": "^5.2.0"
+  }
+}
