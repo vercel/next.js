@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import fetch from 'isomorphic-unfetch'
 
 const User = React.createContext({ user: null, loading: false })
@@ -24,12 +24,12 @@ export const UserProvider = ({ value, children }) => {
 export const useUser = () => React.useContext(User)
 
 export const useFetchUser = () => {
-  const [data, setUser] = React.useState({
+  const [data, setUser] = useState({
     user: null,
     loading: true
   })
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (data.user) {
       return
     }

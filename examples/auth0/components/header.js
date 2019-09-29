@@ -23,8 +23,9 @@ const Header = () => {
             (user ? (
               <>
                 <li>
-                  {/* You can use <Link /> here too */}
-                  <a href='/profile'>Profile</a>
+                  <Link href='/profile'>
+                    <a>Profile</a>
+                  </Link>
                 </li>
                 <li>
                   <a href='/api/logout'>Logout</a>
