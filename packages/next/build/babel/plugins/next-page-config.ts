@@ -109,8 +109,6 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
-                // remove export const config from bundle
-                path.remove()
               },
             },
             state

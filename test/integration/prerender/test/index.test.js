@@ -172,10 +172,17 @@ const runTests = (dev = false) => {
         '/another': {
           initialRevalidateSeconds: 0
         },
+        '/default-revalidate': {
+          initialRevalidateSeconds: 1
+        },
         '/something': {
           initialRevalidateSeconds: false
         }
       })
+      expect(manifest.dynamicRoutes).toEqual([
+        '/blog/[post]',
+        '/blog/[post]/[comment]'
+      ])
     })
 
     it('outputs prerendered files correctly', async () => {

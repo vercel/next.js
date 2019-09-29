@@ -1,5 +1,5 @@
 /* global location */
-import React, { Suspense } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
@@ -319,15 +319,13 @@ function AppContainer ({ children }) {
         )
       }
     >
-      <Suspense fallback={<div>Loading...</div>}>
-        <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <DataManagerContext.Provider value={dataManager}>
-            <HeadManagerContext.Provider value={headManager.updateHead}>
-              {children}
-            </HeadManagerContext.Provider>
-          </DataManagerContext.Provider>
-        </RouterContext.Provider>
-      </Suspense>
+      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+        <DataManagerContext.Provider value={dataManager}>
+          <HeadManagerContext.Provider value={headManager.updateHead}>
+            {children}
+          </HeadManagerContext.Provider>
+        </DataManagerContext.Provider>
+      </RouterContext.Provider>
     </Container>
   )
 }

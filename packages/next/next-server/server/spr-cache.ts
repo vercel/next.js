@@ -72,12 +72,12 @@ export function initializeSprCache({
 
   try {
     prerenderManifest = dev
-      ? { routes: {} }
+      ? { routes: {}, dynamicRoutes: [] }
       : JSON.parse(
           fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
         )
   } catch (_) {
-    prerenderManifest = { version: 1, routes: {} }
+    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: [] }
   }
 
   cache = new LRUCache({
