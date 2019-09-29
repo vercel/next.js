@@ -1,12 +1,8 @@
 import React from 'react'
 import dynamic from 'next/dynamic';
-
-
 const QuillNoSSRWrapper = dynamic(
     import('react-quill'), {ssr: false, loading: () => <p>Loading ...</p>}
 );
-
-
 import 'react-quill/dist/quill.snow.css';
 
 const modules = {
@@ -35,10 +31,7 @@ const formats = [
     'list', 'bullet', 'indent',
     'link', 'image', 'video'
 ];
-
-
 export default class App extends React.Component {
-
     render() {
         return (
             <QuillNoSSRWrapper
