@@ -20,7 +20,12 @@ function Header ({ user, loading }) {
               <>
                 <li>
                   <Link href='/profile'>
-                    <a>Profile</a>
+                    <a>Client-rendered profile</a>
+                  </Link>
+                </li>
+                <li>
+                  <Link href='/advanced/ssr-profile'>
+                    <a>Server rendered profile (advanced)</a>
                   </Link>
                 </li>
                 <li>

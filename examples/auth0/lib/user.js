@@ -3,7 +3,7 @@ import fetch from 'isomorphic-unfetch'
 
 export async function fetchUser (cookie = '') {
   const res = await fetch(
-    'http://localhost:3000/api/me',
+    '/api/me',
     cookie
       ? {
         headers: {
@@ -15,7 +15,7 @@ export async function fetchUser (cookie = '') {
   return res.ok ? res.json() : null
 }
 
-export function useFetchUser () {
+export function useFetchUser ({ required } = {}) {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
 
@@ -26,6 +26,11 @@ export function useFetchUser () {
     fetchUser().then(user => {
       // Only set the user if the component is still mounted
       if (isMounted) {
+        // When the user is not logged in but login is required
+        if (required && !user) {
+          window.location.href = '/api/login'
+          return
+        }
         setUser(user)
         setLoading(false)
       }
