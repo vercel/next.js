@@ -63,6 +63,7 @@ export type SprRoute = {
 export type PrerenderManifest = {
   version: number
   routes: { [route: string]: SprRoute }
+  dynamicRoutes: string[]
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -412,6 +413,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId)
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
+  const tbdPrerenderRoutes: string[] = []
 
   if (staticPages.size > 0 || sprPages.size > 0) {
     const combinedPages = [...staticPages, ...sprPages]
@@ -438,6 +440,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         // Note: prerendering disables automatic static optimization.
         sprPages.forEach(page => {
           if (isDynamicRoute(page)) {
+            tbdPrerenderRoutes.push(page)
             delete defaultMap[page]
           }
         })
@@ -550,6 +553,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const prerenderManifest: PrerenderManifest = {
       version: 1,
       routes: finalPrerenderRoutes,
+      dynamicRoutes: tbdPrerenderRoutes.sort(),
     }
 
     await fsWriteFile(
