@@ -48,8 +48,6 @@ POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
 
 When deploying this example to ZEIT Now you'll want to update the `now.json` configuration file.
 
-The required settings can be found on the Auth0 application's settings page:
-
 ```json
 {
   "build": {
@@ -66,18 +64,26 @@ The required settings can be found on the Auth0 application's settings page:
 }
 ```
 
+- `AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`.
+- `AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
+- `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
+- `REDIRECT_URI` - The url where Auth0 redirects back to, make sure a consistent url is used here.
+- `POST_LOGOUT_REDIRECT_URI` - Where to redirect after logging out
+- `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.now.sh/32) to generate a value.
+- `SESSION_COOKIE_LIFETIME` - How long a session lasts in seconds. The default is 2 hours.
+
 The `@auth0_client_secret` and `@session_cookie_secret` are [ZEIT Now environment secrets](https://zeit.co/docs/v2/environment-variables-and-secrets/)
 
 You can create the `@auth0_client_secret` by running:
 
 ```
-now secrets add auth0_client_secret YOUR_AUTH0_CLIENT_SECRET
+now secrets add auth0_client_secret PLACE_YOUR_AUTH0_CLIENT_SECRET
 ```
 
-And create the `session_cookie_secret` by running
+And create the `session_cookie_secret` by generating a value [here](https://generate-secret.now.sh/32) and running:
 
 ```
-now secrets add session_cookie_secret YOUR_SESSION_COOKIE_SECRET
+now secrets add session_cookie_secret PLACE_YOUR_SESSION_COOKIE_SECRET
 ```
 
 ## About this sample
