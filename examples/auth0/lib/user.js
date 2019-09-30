@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react'
 import fetch from 'isomorphic-unfetch'
 
 export async function fetchUser (cookie = '') {
+  if (typeof window !== 'undefined' && window.__user) {
+    return window.__user
+  }
+
   const res = await fetch(
     '/api/me',
     cookie
@@ -12,14 +16,35 @@ export async function fetchUser (cookie = '') {
       }
       : {}
   )
-  return res.ok ? res.json() : null
+
+  if (!res.ok) {
+    delete window.__user
+    return null
+  }
+
+  const json = await res.json()
+  if (typeof window !== 'undefined') {
+    window.__user = json
+  }
+  return json
 }
 
 export function useFetchUser ({ required } = {}) {
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(
+    () => !(typeof window !== 'undefined' && window.__user)
+  )
+  const [user, setUser] = useState(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+
+    return window.__user || null
+  })
 
   useEffect(() => {
+    if (!loading && user) {
+      return
+    }
     setLoading(true)
     let isMounted = true
 
