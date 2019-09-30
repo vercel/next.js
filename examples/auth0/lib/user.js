@@ -3,7 +3,7 @@ import fetch from 'isomorphic-unfetch'
 
 export const fetchUser = async (cookie = '') => {
   const res = await fetch(
-    '/api/me',
+    'http://localhost:3000/api/me',
     cookie
       ? {
         headers: {
