@@ -27,7 +27,9 @@ function Home () {
       {user && (
         <>
           <h4>Rendered user info on the client</h4>
-          <pre>{JSON.stringify(user, null, 2)}</pre>
+          <img src={user.picture} alt='user picture' />
+          <p>nickname: {user.nickname}</p>
+          <p>name: {user.name}</p>
         </>
       )}
     </Layout>

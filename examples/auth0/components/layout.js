@@ -24,7 +24,8 @@ function Layout ({ user, loading = false, children }) {
         body {
           margin: 0;
           color: #333;
-          font-family: -apple-system, 'Segoe UI';
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
       `}</style>
     </>

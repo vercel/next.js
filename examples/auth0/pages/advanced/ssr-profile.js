@@ -12,7 +12,9 @@ function Profile ({ user }) {
 
       <div>
         <h3>Profile (server rendered)</h3>
-        <pre>{JSON.stringify(user, null, 2)}</pre>
+        <img src={user.picture} alt='user picture' />
+        <p>nickname: {user.nickname}</p>
+        <p>name: {user.name}</p>
       </div>
     </Layout>
   )
