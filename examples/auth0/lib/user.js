@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import fetch from 'isomorphic-unfetch'
 
-export const fetchUser = async (cookie = '') => {
+export async function fetchUser (cookie = '') {
   const res = await fetch(
     'http://localhost:3000/api/me',
     cookie
@@ -15,7 +15,7 @@ export const fetchUser = async (cookie = '') => {
   return res.ok ? res.json() : null
 }
 
-export const useFetchUser = () => {
+export function useFetchUser () {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
 

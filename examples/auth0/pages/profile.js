@@ -5,16 +5,18 @@ import React from 'react'
 import { fetchUser } from '../lib/user'
 import Layout from '../components/layout'
 
-const Profile = ({ user }) => (
-  <Layout user={user}>
-    <h1>Profile</h1>
+function Profile ({ user }) {
+  return (
+    <Layout user={user}>
+      <h1>Profile</h1>
 
-    <div>
-      <h3>Profile (server rendered)</h3>
-      <pre>{JSON.stringify(user, null, 2)}</pre>
-    </div>
-  </Layout>
-)
+      <div>
+        <h3>Profile (server rendered)</h3>
+        <pre>{JSON.stringify(user, null, 2)}</pre>
+      </div>
+    </Layout>
+  )
+}
 
 Profile.getInitialProps = async ({ req, res }) => {
   // On the server-side you can check authentication status directly

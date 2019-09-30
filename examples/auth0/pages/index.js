@@ -3,7 +3,7 @@ import React from 'react'
 import Layout from '../components/layout'
 import { useFetchUser } from '../lib/user'
 
-export default function Home () {
+function Home () {
   const { user, loading } = useFetchUser()
 
   return (
@@ -33,3 +33,5 @@ export default function Home () {
     </Layout>
   )
 }
+
+export default Home

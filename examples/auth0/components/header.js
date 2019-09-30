@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-const Header = ({ user, loading }) => {
+function Header ({ user, loading }) {
   return (
     <header>
       <nav>
