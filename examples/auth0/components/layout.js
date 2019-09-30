@@ -1,15 +1,14 @@
 import Head from 'next/head'
 
 import Header from './header'
-import { UserProvider } from '../lib/user'
 
 const Layout = ({ user, loading = false, children }) => (
-  <UserProvider value={{ user, loading }}>
+  <>
     <Head>
       <title>Next.js with Auth0</title>
     </Head>
 
-    <Header />
+    <Header user={user} loading={loading} />
 
     <main>
       <div className='container'>{children}</div>
@@ -28,7 +27,7 @@ const Layout = ({ user, loading = false, children }) => (
         font-family: -apple-system, 'Segoe UI';
       }
     `}</style>
-  </UserProvider>
+  </>
 )
 
 export default Layout

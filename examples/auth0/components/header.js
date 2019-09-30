@@ -1,10 +1,6 @@
 import Link from 'next/link'
 
-import { useUser } from '../lib/user'
-
-const Header = () => {
-  const { user, loading } = useUser()
-
+const Header = ({ user, loading }) => {
   return (
     <header>
       <nav>

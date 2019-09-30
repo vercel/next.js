@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import fetch from 'isomorphic-unfetch'
-
-const User = React.createContext({ user: null, loading: false })
 
 export const fetchUser = async (cookie = '') => {
   const res = await fetch(
@@ -16,12 +14,6 @@ export const fetchUser = async (cookie = '') => {
   )
   return res.ok ? res.json() : null
 }
-
-export const UserProvider = ({ value, children }) => {
-  return <User.Provider value={value}>{children}</User.Provider>
-}
-
-export const useUser = () => React.useContext(User)
 
 export const useFetchUser = () => {
   const [data, setUser] = useState({
