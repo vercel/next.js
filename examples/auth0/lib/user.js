@@ -16,29 +16,25 @@ export const fetchUser = async (cookie = '') => {
 }
 
 export const useFetchUser = () => {
-  const [data, setUser] = useState({
-    user: null,
-    loading: true
-  })
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
-    if (data.user) {
-      return
-    }
-
+    setLoading(true)
     let isMounted = true
 
     fetchUser().then(user => {
       // Only set the user if the component is still mounted
       if (isMounted) {
-        setUser({ user, loading: false })
+        setUser(user)
+        setLoading(false)
       }
     })
 
     return () => {
       isMounted = false
     }
-  }, [data])
+  }, [])
 
-  return data
+  return { user, loading }
 }
