@@ -14,31 +14,41 @@ yarn create next-app --example auth0 auth0
 
 ## Configuring Auth0
 
-Go to the [Auth0 dashboard](https://manage.auth0.com/) and create a new application of type _Web Application_ and make sure to configure the following:
+1. Go to the [Auth0 dashboard](https://manage.auth0.com/) and create a new application of type _Regular Web Applications_ and make sure to configure the following
+2. Go to the settings page of the application
+3. Configure the following settings:
 
 - _Allowed Callback URLs_: Should be set to `http://localhost:3000/api/callback` when testing locally or typically to `https://myapp.com/api/callback` when deploying your application.
 - _Allowed Logout URLs_: Should be set to `http://localhost:3000/` when testing locally or typically to `https://myapp.com/` when deploying your application.
 
+4. Save the settings
+
 ### Configuring Next.js
 
-In the Next.js configuration file (`next.config.js`) you'll see that different environment variables are being loaded in the server runtime configuration.
+In the Next.js configuration file (`next.config.js`) you'll see that different environment variables are being assigned.
 
 ### Local Development
 
-For local development you'll want to create a `.env` file with the necessary settings:
+For local development you'll want to create a `.env` file with the necessary settings.
+
+The required settings can be found on the Auth0 application's settings page:
 
 ```
 AUTH0_DOMAIN=YOUR_AUTH0_DOMAIN
 AUTH0_CLIENT_ID=YOUR_AUTH0_CLIENT_ID
 AUTH0_CLIENT_SECRET=YOUR_AUTH0_CLIENT_SECRET
+
+SESSION_COOKIE_SECRET=viloxyf_z2GW6K4CT-KQD_MoLEA2wqv5jWuq4Jd0P7ymgG5GJGMpvMneXZzhK3sL (at least 32 characters, used to encrypt the cookie)
+
 REDIRECT_URI=http://localhost:3000/api/callback
 POST_LOGOUT_REDIRECT_URI=http://localhost:3000/
-SESSION_COOKIE_SECRET=viloxyf_z2GW6K4CT-KQD_MoLEA2wqv5jWuq4Jd0P7ymgG5GJGMpvMneXZzhK3sL (at least 32 characters, used to encrypt the cookie)
 ```
 
 ### Hosting on ZEIT Now
 
-When deploying this example to ZEIT Now you'll want to update the `now.json` configuration file:
+When deploying this example to ZEIT Now you'll want to update the `now.json` configuration file.
+
+The required settings can be found on the Auth0 application's settings page:
 
 ```json
 {
@@ -56,11 +66,18 @@ When deploying this example to ZEIT Now you'll want to update the `now.json` con
 }
 ```
 
-Some of these values are settings and can just be added to your repository if you want. Others are actual secrets and need to be created as such using the `now` CLI:
+The `@auth0_client_secret` and `@session_cookie_secret` are [ZEIT Now environment secrets](https://zeit.co/docs/v2/environment-variables-and-secrets/)
 
-```bash
+You can create the `@auth0_client_secret` by running:
+
+```
 now secrets add auth0_client_secret YOUR_AUTH0_CLIENT_SECRET
-now secrets add session_cookie_secret viloxyf_z2GW6K4CT-KQD_MoLEA2wqv5jWuq4Jd0P7ymgG5GJGMpvMneXZzhK3sL
+```
+
+And create the `session_cookie_secret` by running
+
+```
+now secrets add session_cookie_secret YOUR_SESSION_COOKIE_SECRET
 ```
 
 ## About this sample
