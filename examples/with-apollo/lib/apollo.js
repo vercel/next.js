@@ -6,7 +6,11 @@ import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
 import fetch from 'isomorphic-unfetch'
 
-let apolloClient = null
+let apollo = null
+
+const cache = new InMemoryCache({
+    resultCaching: false,
+});
 
 /**
  * Creates and provides the apolloContext
@@ -17,13 +21,13 @@ let apolloClient = null
  * @param {Boolean} [config.ssr=true]
  */
 export function withApollo (PageComponent, { ssr = true } = {}) {
-  const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
+  const WithApollo = ({ apolloClient, apolloState, ssrComplete, ...pageProps }) => {
     const client = apolloClient || initApolloClient(apolloState)
-    return (
-      <ApolloProvider client={client}>
-        <PageComponent {...pageProps} />
-      </ApolloProvider>
-    )
+    return typeof window !== 'undefined' || (ssr && !ssrComplete) ? (
+        <ApolloProvider client={client}>
+            <PageComponent {...pageProps} />
+        </ApolloProvider>
+    ) : null;
   }
 
   // Set the correct displayName in development
@@ -91,7 +95,8 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
 
       return {
         ...pageProps,
-        apolloState
+        apolloState,
+        ssrComplete: true,
       }
     }
   }
@@ -112,8 +117,8 @@ function initApolloClient (initialState) {
   }
 
   // Reuse client on the client-side
-  if (!apolloClient) {
-    apolloClient = createApolloClient(initialState)
+  if (!apollo) {
+    apollo = createApolloClient(initialState)
   }
 
   return apolloClient
@@ -132,6 +137,6 @@ function createApolloClient (initialState = {}) {
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
       fetch
     }),
-    cache: new InMemoryCache().restore(initialState)
+    cache: cache.restore(initialState),
   })
 }
