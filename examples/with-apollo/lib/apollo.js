@@ -9,8 +9,8 @@ import fetch from 'isomorphic-unfetch'
 let apollo = null
 
 const cache = new InMemoryCache({
-    resultCaching: false,
-});
+  resultCaching: false
+})
 
 /**
  * Creates and provides the apolloContext
@@ -21,13 +21,18 @@ const cache = new InMemoryCache({
  * @param {Boolean} [config.ssr=true]
  */
 export function withApollo (PageComponent, { ssr = true } = {}) {
-  const WithApollo = ({ apolloClient, apolloState, ssrComplete, ...pageProps }) => {
+  const WithApollo = ({
+    apolloClient,
+    apolloState,
+    ssrComplete,
+    ...pageProps
+  }) => {
     const client = apolloClient || initApolloClient(apolloState)
     return typeof window !== 'undefined' || (ssr && !ssrComplete) ? (
-        <ApolloProvider client={client}>
-            <PageComponent {...pageProps} />
-        </ApolloProvider>
-    ) : null;
+      <ApolloProvider client={client}>
+        <PageComponent {...pageProps} />
+      </ApolloProvider>
+    ) : null
   }
 
   // Set the correct displayName in development
@@ -96,7 +101,7 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
       return {
         ...pageProps,
         apolloState,
-        ssrComplete: true,
+        ssrComplete: true
       }
     }
   }
@@ -121,7 +126,7 @@ function initApolloClient (initialState) {
     apollo = createApolloClient(initialState)
   }
 
-  return apolloClient
+  return apollo
 }
 
 /**
@@ -137,6 +142,6 @@ function createApolloClient (initialState = {}) {
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
       fetch
     }),
-    cache: cache.restore(initialState),
+    cache: cache.restore(initialState)
   })
 }
