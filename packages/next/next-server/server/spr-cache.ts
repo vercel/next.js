@@ -77,7 +77,7 @@ export function initializeSprCache({
           fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
         )
   } catch (_) {
-    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: [] }
+    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: {} }
   }
 
   cache = new LRUCache({
@@ -144,7 +144,13 @@ export async function setSprCache(
 ) {
   if (sprOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
+    // TODO: This is really bad. We shouldn't be mutating the manifest from the
+    // build.
     prerenderManifest.routes[pathname] = {
+      dataRoute: path.posix.join(
+        '/_next/data',
+        `${pathname === '/' ? '/index' : pathname}.json`
+      ),
       initialRevalidateSeconds: revalidateSeconds,
     }
   }
@@ -155,6 +161,8 @@ export async function setSprCache(
     revalidateAfter: calculateRevalidate(pathname),
   })
 
+  // TODO: This option needs to cease to exist unless it stops mutating the
+  // `next build` output's manifest.
   if (sprOptions.flushToDisk) {
     try {
       await writeFile(getSeedPath(pathname, 'html'), data.html, 'utf8')
