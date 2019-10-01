@@ -1,26 +1,29 @@
 import chalk from 'chalk'
 import fs from 'fs'
+import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
+import nanoid from 'next/dist/compiled/nanoid/index.js'
+import path from 'path'
+import { promisify } from 'util'
+
+import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { findPagesDir } from '../lib/find-pages-dir'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveReadDir } from '../lib/recursive-readdir'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
-  PAGES_MANIFEST,
   BUILD_MANIFEST,
+  PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../next-server/lib/constants'
+import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
-import path from 'path'
-import { promisify } from 'util'
-import Worker from 'jest-worker'
-
-import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import { recursiveDelete } from '../lib/recursive-delete'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   recordBuildDuration,
   recordBuildOptimize,
@@ -31,6 +34,7 @@ import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
+import createSpinner from './spinner'
 import {
   collectPages,
   getPageSizeInKb,
@@ -41,10 +45,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { findPagesDir } from '../lib/find-pages-dir'
-import createSpinner from './spinner'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
-import { isDynamicRoute } from '../next-server/lib/router/utils'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -58,12 +58,20 @@ const staticCheckWorker = require.resolve('./utils')
 
 export type SprRoute = {
   initialRevalidateSeconds: number | false
+  dataRoute: string
+}
+
+export type DynamicSprRoute = {
+  routeRegex: string
+
+  dataRoute: string
+  dataRouteRegex: string
 }
 
 export type PrerenderManifest = {
   version: number
   routes: { [route: string]: SprRoute }
-  dynamicRoutes: string[]
+  dynamicRoutes: { [route: string]: DynamicSprRoute }
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -513,6 +521,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
               exportConfig.initialPageRevalidationMap[page],
+            dataRoute: path.posix.join(
+              '/_next/data',
+              `${page === '/' ? '/index' : page}.json`
+            ),
           }
         } else {
           // For a dynamic SPR page, we did not copy its html nor data exports.
@@ -525,6 +537,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
             finalPrerenderRoutes[route] = {
               initialRevalidateSeconds:
                 exportConfig.initialPageRevalidationMap[route],
+              dataRoute: path.posix.join(
+                '/_next/data',
+                `${route === '/' ? '/index' : route}.json`
+              ),
             }
           }
         }
@@ -550,10 +566,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
 
   if (sprPages.size > 0) {
+    const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
+    tbdPrerenderRoutes.forEach(tbdRoute => {
+      const dataRoute = path.posix.join(
+        '/_next/data',
+        `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
+      )
+
+      finalDynamicRoutes[tbdRoute] = {
+        routeRegex: getRouteRegex(tbdRoute).re.source,
+        dataRoute,
+        dataRouteRegex: getRouteRegex(
+          dataRoute.replace(/\.json$/, '')
+        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+      }
+    })
     const prerenderManifest: PrerenderManifest = {
       version: 1,
       routes: finalPrerenderRoutes,
-      dynamicRoutes: tbdPrerenderRoutes.sort(),
+      dynamicRoutes: finalDynamicRoutes,
     }
 
     await fsWriteFile(
