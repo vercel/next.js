@@ -6,9 +6,9 @@ import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
 import fetch from 'isomorphic-unfetch'
 
-let apollo = null
+let APOLLO_CLIENT = null
 
-const cache = new InMemoryCache({
+const CACHE = new InMemoryCache({
   resultCaching: false
 })
 
@@ -122,11 +122,11 @@ function initApolloClient (initialState) {
   }
 
   // Reuse client on the client-side
-  if (!apollo) {
-    apollo = createApolloClient(initialState)
+  if (!APOLLO_CLIENT) {
+    APOLLO_CLIENT = createApolloClient(initialState)
   }
 
-  return apollo
+  return APOLLO_CLIENT
 }
 
 /**
@@ -142,6 +142,6 @@ function createApolloClient (initialState = {}) {
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
       fetch
     }),
-    cache: cache.restore(initialState)
+    cache: CACHE.restore(initialState)
   })
 }
