@@ -139,7 +139,7 @@ export default async function (dir, options, configuration) {
   await mkdirp(join(outDir, '_next', buildId))
 
   // Copy static directory
-  if (existsSync(join(dir, 'static'))) {
+  if (!options.buildExport && existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')
     await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
   }
@@ -226,6 +226,7 @@ export default async function (dir, options, configuration) {
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
   if (
+    !options.buildExport &&
     nextConfig.experimental &&
     nextConfig.experimental.publicDirectory &&
     existsSync(publicDir)
