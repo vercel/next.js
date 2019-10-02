@@ -344,12 +344,12 @@ export class Head extends Component<
           this.context._documentProps.hasCssMode && (
             <>
               <style
-                data-next-hydrating
+                data-next-hide-fouc
                 dangerouslySetInnerHTML={{
                   __html: `body{display:none}`,
                 }}
               />
-              <noscript data-next-hydrating>
+              <noscript data-next-hide-fouc>
                 <style
                   dangerouslySetInnerHTML={{
                     __html: `body{display:block}`,
