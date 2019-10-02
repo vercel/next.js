@@ -353,7 +353,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-automatic-prerendering\n'
+            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
           )
         }
       }
