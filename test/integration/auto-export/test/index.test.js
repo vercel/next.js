@@ -39,6 +39,22 @@ const runTests = () => {
     expect(html).toMatch(/post.*post-1/)
     expect(html).toMatch(/nextExport/)
   })
+
+  it('should update asPath after mount', async () => {
+    const browser = await webdriver(appPort, '/zeit/cmnt-2')
+    await waitFor(500)
+    const html = await browser.eval(`document.documentElement.innerHTML`)
+    expect(html).toMatch(/\/zeit\/cmnt-2/)
+  })
+
+  it('should not replace URL with page name while asPath is delayed', async () => {
+    const browser = await webdriver(appPort, '/zeit/cmnt-1')
+    await waitFor(500)
+    const val = await browser.eval(`!!window.pathnames.find(function(p) {
+      return p !== '/zeit/cmnt-1'
+    })`)
+    expect(val).toBe(false)
+  })
 }
 
 describe('Auto Export', () => {
@@ -72,13 +88,6 @@ describe('Auto Export', () => {
 
       const numCaught = await browser.eval(`window.caughtWarns.length`)
       expect(numCaught).toBe(0)
-    })
-
-    it('should update asPath after mount', async () => {
-      const browser = await webdriver(appPort, '/zeit/cmnt-2')
-      await waitFor(500)
-      const html = await browser.eval(`document.documentElement.innerHTML`)
-      expect(html).toMatch(/\/zeit\/cmnt-2/)
     })
   })
 })

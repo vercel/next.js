@@ -596,7 +596,7 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => (
 
 export default () => (
   <>
-    <Link href='/another'>
+    <Link href="/another">
       <MyButton />
     </Link>
   </>
@@ -1674,21 +1674,19 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-class Error extends React.Component {
-  static getInitialProps({ res, err }) {
-    const statusCode = res ? res.statusCode : err ? err.statusCode : null
-    return { statusCode }
-  }
+function Error({ statusCode }) {
+  return (
+    <p>
+      {statusCode
+        ? `An error ${statusCode} occurred on server`
+        : 'An error occurred on client'}
+    </p>
+  )
+}
 
-  render() {
-    return (
-      <p>
-        {this.props.statusCode
-          ? `An error ${this.props.statusCode} occurred on server`
-          : 'An error occurred on client'}
-      </p>
-    )
-  }
+Error.getInitialProps = ({ res, err }) => {
+  const statusCode = res ? res.statusCode : err ? err.statusCode : 404
+  return { statusCode }
 }
 
 export default Error
@@ -1703,22 +1701,20 @@ import React from 'react'
 import Error from 'next/error'
 import fetch from 'isomorphic-unfetch'
 
-class Page extends React.Component {
-  static async getInitialProps() {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const errorCode = res.statusCode > 200 ? res.statusCode : false
-    const json = await res.json()
-
-    return { errorCode, stars: json.stargazers_count }
+const Page = ({ errorCode, stars }) => {
+  if (errorCode) {
+    return <Error statusCode={errorCode} />
   }
 
-  render() {
-    if (this.props.errorCode) {
-      return <Error statusCode={this.props.errorCode} />
-    }
+  return <div>Next stars: {stars}</div>
+}
 
-    return <div>Next stars: {this.props.stars}</div>
-  }
+Page.getInitialProps = async () => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const errorCode = res.statusCode > 200 ? res.statusCode : false
+  const json = await res.json()
+
+  return { errorCode, stars: json.stargazers_count }
 }
 
 export default Page
@@ -1751,7 +1747,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.ts)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/next-server/lib/constants.ts)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -2168,8 +2164,8 @@ In some cases this indicator might not be as useful like when working on electro
 ```js
 module.exports = {
   devIndicators: {
-    autoPrerender: false
-  }
+    autoPrerender: false,
+  },
 }
 ```
 
@@ -2191,6 +2187,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
+
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
@@ -2676,6 +2673,7 @@ For the production deployment, you can use the same configuration and run `now` 
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 - [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
 - [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
+- [Working with Ghost and Next.js](https://ghost.org/docs/api/nextjs/)
 
 ## FAQ
 
@@ -2728,7 +2726,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.js) for more information.
+See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.ts) for more information.
 
 </details>
 

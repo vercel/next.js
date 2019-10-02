@@ -152,7 +152,7 @@ export class Head extends Component<
 
     return files.map((file: string) => {
       // Only render .css files here
-      if (!/\.css$/.exec(file)) {
+      if (!/\.css$/.test(file)) {
         return null
       }
 
@@ -344,6 +344,24 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
+        {this.context._documentProps.isDevelopment &&
+          this.context._documentProps.hasCssMode && (
+            <>
+              <style
+                data-next-hydrating
+                dangerouslySetInnerHTML={{
+                  __html: `body{display:none}`,
+                }}
+              />
+              <noscript data-next-hydrating>
+                <style
+                  dangerouslySetInnerHTML={{
+                    __html: `body{display:block}`,
+                  }}
+                />
+              </noscript>
+            </>
+          )}
         {children}
         {head}
         <meta
@@ -438,6 +456,13 @@ export class Head extends Component<
             />
             {this.getPreloadDynamicChunks()}
             {this.getPreloadMainLinks()}
+            {this.context._documentProps.isDevelopment &&
+              this.context._documentProps.hasCssMode && (
+                // this element is used to mount development styles so the
+                // ordering matches production
+                // (by default, style-loader injects at the bottom of <head />)
+                <noscript id="__next_css__DO_NOT_USE__" />
+              )}
             {this.getCssLinks()}
             {styles || null}
           </>
@@ -491,7 +516,7 @@ export class NextScript extends Component<OriginProps> {
           : { noModule: true }
       }
 
-      if (files.includes(bundle.file)) return null
+      if (!/\.js$/.test(bundle.file) || files.includes(bundle.file)) return null
 
       return (
         <script
@@ -517,7 +542,7 @@ export class NextScript extends Component<OriginProps> {
 
     return files.map((file: string) => {
       // Only render .js files here
-      if (!/\.js$/.exec(file)) {
+      if (!/\.js$/.test(file)) {
         return null
       }
 

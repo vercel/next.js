@@ -1,5 +1,5 @@
 /* global location */
-import React, { Suspense } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
@@ -167,11 +167,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
-  // if auto prerendered and dynamic route wait to update asPath
-  // until after mount to prevent hydration mismatch
-  const initialAsPath = isDynamicRoute(page) && data.nextExport ? page : asPath
-
-  router = createRouter(page, query, initialAsPath, {
+  router = createRouter(page, query, asPath, {
     initialProps: props,
     pageLoader,
     App,
@@ -246,10 +242,28 @@ function renderReactElement (reactEl, domEl) {
 
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+    ReactDOM.hydrate(reactEl, domEl, function () {
+      if (process.env.NODE_ENV !== 'production') {
+        document
+          .querySelectorAll('[data-next-hydrating]')
+          .forEach(function (el) {
+            el.remove()
+          })
+      }
+      markHydrateComplete()
+    })
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl, markRenderComplete)
+    ReactDOM.render(reactEl, domEl, function () {
+      if (process.env.NODE_ENV !== 'production') {
+        document
+          .querySelectorAll('[data-next-hydrating]')
+          .forEach(function (el) {
+            el.remove()
+          })
+      }
+      markRenderComplete()
+    })
   }
   relayPaintMetrics()
 }
@@ -356,15 +370,13 @@ function AppContainer ({ children }) {
         )
       }
     >
-      <Suspense fallback={<div>Loading...</div>}>
-        <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <DataManagerContext.Provider value={dataManager}>
-            <HeadManagerContext.Provider value={headManager.updateHead}>
-              {children}
-            </HeadManagerContext.Provider>
-          </DataManagerContext.Provider>
-        </RouterContext.Provider>
-      </Suspense>
+      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+        <DataManagerContext.Provider value={dataManager}>
+          <HeadManagerContext.Provider value={headManager.updateHead}>
+            {children}
+          </HeadManagerContext.Provider>
+        </DataManagerContext.Provider>
+      </RouterContext.Provider>
     </Container>
   )
 }

@@ -1,5 +1,4 @@
 import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
 import Conf from 'conf'
 import { BinaryLike, createHash, randomBytes } from 'crypto'
 import findUp from 'find-up'
@@ -7,6 +6,7 @@ import isDockerFunction from 'is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
+import * as ciEnvironment from './ci-info'
 import { _postPayload } from './post-payload'
 import { getProjectId } from './project-id'
 

@@ -70,12 +70,10 @@ export default function (context) {
       expect(data).toBe('item')
     })
 
-    it('Should serve public files and prioritize pages', async () => {
+    it('Should serve public files', async () => {
       const html = await renderViaHTTP(context.port, '/about')
-      const html2 = await renderViaHTTP(context.port, '/query')
       const data = await renderViaHTTP(context.port, '/about/data.txt')
       expect(html).toMatch(/This is the About page foobar/)
-      expect(html2).toMatch(/{"a":"blue"}/)
       expect(data).toBe('data')
     })
 

@@ -376,15 +376,9 @@ describe('Production Usage', () => {
 
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
+      const file = await renderViaHTTP(appPort, '/file')
       expect(data).toBe('data')
-    })
-
-    it('Should prioritize pages over public files', async () => {
-      const html = await renderViaHTTP(appPort, '/about')
-      const data = await renderViaHTTP(appPort, '/file')
-
-      expect(html).toMatch(/About Page/)
-      expect(data).toBe('test')
+      expect(file).toBe('test')
     })
 
     it('should reload the page on page script error', async () => {

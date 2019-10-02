@@ -20,7 +20,7 @@ function writeJson(fileName: string, object: object): Promise<void> {
 
 async function hasTypeScript(dir: string): Promise<boolean> {
   const typescriptFiles = await recursiveReadDir(
-    path.join(dir, 'pages'),
+    dir,
     /.*\.(ts|tsx)$/,
     /(node_modules|.*\.d\.ts)/
   )
@@ -41,16 +41,18 @@ async function checkDependencies({
     { file: '@types/node/index.d.ts', pkg: '@types/node' },
   ]
 
+  let resolutions = new Map<string, string>()
+
   const missingPackages = requiredPackages.filter(p => {
     try {
-      resolveRequest(p.file, `${dir}/`)
+      resolutions.set(p.pkg, resolveRequest(p.file, `${dir}/`))
     } catch (_) {
       return true
     }
   })
 
   if (missingPackages.length < 1) {
-    return
+    return resolutions.get('typescript')!
   }
 
   const packagesHuman = missingPackages
@@ -94,7 +96,10 @@ async function checkDependencies({
   process.exit(1)
 }
 
-export async function verifyTypeScriptSetup(dir: string): Promise<void> {
+export async function verifyTypeScriptSetup(
+  dir: string,
+  pagesDir: string
+): Promise<void> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
@@ -108,7 +113,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     )
     firstTimeSetup = tsConfig === '' || tsConfig === '{}'
   } else {
-    const hasTypeScriptFiles = await hasTypeScript(dir)
+    const hasTypeScriptFiles = await hasTypeScript(pagesDir)
     if (hasTypeScriptFiles) {
       firstTimeSetup = true
     } else {
@@ -116,9 +121,10 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     }
   }
 
-  await checkDependencies({ dir, isYarn })
+  const tsPath = await checkDependencies({ dir, isYarn })
+  // @ts-ignore
+  const ts = (await import(tsPath)) as typeof import('typescript')
 
-  const ts = await import('typescript')
   const compilerOptions: any = {
     // These are suggested values and will be set when not present in the
     // tsconfig.json

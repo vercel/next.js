@@ -24,7 +24,9 @@ export default async function ({
   distDir,
   buildId,
   outDir,
+  sprDataDir,
   renderOpts,
+  buildExport,
   serverRuntimeConfig,
   subFolders,
   serverless
@@ -35,7 +37,7 @@ export default async function ({
 
   try {
     let { query = {} } = pathMap
-    const { page, sprPage } = pathMap
+    const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
 
@@ -71,12 +73,6 @@ export default async function ({
       ...headerMocks
     }
 
-    if (sprPage && isDynamicRoute(page)) {
-      query._nextPreviewSkeleton = 1
-      // pass via `req` to avoid adding code to serverless bundle
-      req.url += (req.url.includes('?') ? '&' : '?') + '_nextPreviewSkeleton=1'
-    }
-
     envConfig.setConfig({
       serverRuntimeConfig,
       publicRuntimeConfig: renderOpts.runtimeConfig
@@ -104,12 +100,24 @@ export default async function ({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
+    // eslint-disable-next-line camelcase
+    const renderedDuringBuild = unstable_getStaticProps => {
+      // eslint-disable-next-line camelcase
+      return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
+    }
+
     if (serverless) {
-      renderMethod = require(join(
+      const mod = require(join(
         distDir,
         'serverless/pages',
         (page === '/' ? 'index' : page) + '.js'
-      )).renderReqToHTML
+      ))
+
+      // for non-dynamic SPR pages we should have already
+      // prerendered the file
+      if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
+
+      renderMethod = mod.renderReqToHTML
       const result = await renderMethod(req, res, true)
       curRenderOpts = result.renderOpts || {}
       html = result.html
@@ -124,6 +132,12 @@ export default async function ({
         page,
         serverless
       )
+
+      // for non-dynamic SPR pages we should have already
+      // prerendered the file
+      if (renderedDuringBuild(components.unstable_getStaticProps)) {
+        return results
+      }
 
       if (typeof components.Component === 'string') {
         html = components.Component
@@ -184,6 +198,18 @@ export default async function ({
         await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
       }
     }
+
+    if (curRenderOpts.sprData) {
+      const dataFile = join(
+        sprDataDir,
+        htmlFilename.replace(/\.html$/, '.json')
+      )
+
+      await mkdirp(dirname(dataFile))
+      await writeFileP(dataFile, JSON.stringify(curRenderOpts.sprData), 'utf8')
+    }
+    results.fromBuildExportRevalidate = curRenderOpts.revalidate
+
     await writeFileP(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {

@@ -110,10 +110,11 @@ function erroredPages (compilation, options = { enhanceName: name => name }) {
 }
 
 export default class HotReloader {
-  constructor (dir, { config, buildId } = {}) {
+  constructor (dir, { config, pagesDir, buildId } = {}) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
+    this.pagesDir = pagesDir
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
     this.initialized = false
@@ -204,10 +205,9 @@ export default class HotReloader {
   }
 
   async getWebpackConfig () {
-    const pagesDir = join(this.dir, 'pages')
     const pagePaths = await Promise.all([
-      findPageFile(pagesDir, '/_app', this.config.pageExtensions),
-      findPageFile(pagesDir, '/_document', this.config.pageExtensions)
+      findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
+      findPageFile(this.pagesDir, '/_document', this.config.pageExtensions)
     ])
 
     const pages = createPagesMapping(
@@ -235,6 +235,7 @@ export default class HotReloader {
         isServer: false,
         config: this.config,
         buildId: this.buildId,
+        pagesDir: this.pagesDir,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints }
       }),
       getBaseWebpackConfig(this.dir, {
@@ -242,6 +243,7 @@ export default class HotReloader {
         isServer: true,
         config: this.config,
         buildId: this.buildId,
+        pagesDir: this.pagesDir,
         entrypoints: entrypoints.server
       })
     ])
@@ -442,6 +444,7 @@ export default class HotReloader {
       {
         dir: this.dir,
         buildId: this.buildId,
+        pagesDir: this.pagesDir,
         distDir: this.config.distDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,
