@@ -151,6 +151,7 @@ export async function setSprCache(
         '/_next/data',
         `${pathname === '/' ? '/index' : pathname}.json`
       ),
+      srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
       initialRevalidateSeconds: revalidateSeconds,
     }
   }

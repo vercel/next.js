@@ -27,39 +27,48 @@ let exportDir
 const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
-    initialRevalidateSeconds: 1
+    initialRevalidateSeconds: 1,
+    srcRoute: null
   },
   '/blog/[post3]': {
     dataRoute: `/_next/data/${buildId}/blog/[post3].json`,
-    initialRevalidateSeconds: 10
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]'
   },
   '/blog/post-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1.json`,
-    initialRevalidateSeconds: 10
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]'
   },
   '/blog/post-2': {
     dataRoute: `/_next/data/${buildId}/blog/post-2.json`,
-    initialRevalidateSeconds: 10
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]'
   },
   '/blog/post-1/comment-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1/comment-1.json`,
-    initialRevalidateSeconds: 2
+    initialRevalidateSeconds: 2,
+    srcRoute: '/blog/[post]/[comment]'
   },
   '/blog/post-2/comment-2': {
     dataRoute: `/_next/data/${buildId}/blog/post-2/comment-2.json`,
-    initialRevalidateSeconds: 2
+    initialRevalidateSeconds: 2,
+    srcRoute: '/blog/[post]/[comment]'
   },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
-    initialRevalidateSeconds: 0
+    initialRevalidateSeconds: 0,
+    srcRoute: null
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
-    initialRevalidateSeconds: 1
+    initialRevalidateSeconds: 1,
+    srcRoute: null
   },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
-    initialRevalidateSeconds: false
+    initialRevalidateSeconds: false,
+    srcRoute: null
   }
 })
 
