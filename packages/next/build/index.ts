@@ -58,6 +58,7 @@ const staticCheckWorker = require.resolve('./utils')
 
 export type SprRoute = {
   initialRevalidateSeconds: number | false
+  srcRoute: string | null
   dataRoute: string
 }
 
@@ -521,6 +522,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
               exportConfig.initialPageRevalidationMap[page],
+            srcRoute: null,
             dataRoute: path.posix.join(
               '/_next/data',
               `${page === '/' ? '/index' : page}.json`
@@ -537,6 +539,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             finalPrerenderRoutes[route] = {
               initialRevalidateSeconds:
                 exportConfig.initialPageRevalidationMap[route],
+              srcRoute: page,
               dataRoute: path.posix.join(
                 '/_next/data',
                 `${route === '/' ? '/index' : route}.json`
