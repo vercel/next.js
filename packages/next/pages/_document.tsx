@@ -352,7 +352,7 @@ export class Head extends Component<
               <noscript data-next-hydrating>
                 <style
                   dangerouslySetInnerHTML={{
-                    __html: `body{display:unset}`,
+                    __html: `body{display:block}`,
                   }}
                 />
               </noscript>
