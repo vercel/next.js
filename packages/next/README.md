@@ -118,7 +118,6 @@
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
   - [How to merge them](#how-to-merge-them)
-- [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Authors](#authors)
@@ -2669,14 +2668,6 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
 ```
 
 For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
-
-## Recipes
-
-- [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
-- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
-- [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
-- [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
-- [Working with Ghost and Next.js](https://ghost.org/docs/api/nextjs/)
 
 ## FAQ
 
