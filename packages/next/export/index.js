@@ -10,6 +10,7 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { formatAmpMessages } from '../build/output/index'
 import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { recordVersion } from '../telemetry/events'
 import loadConfig, {
   isTargetLikeServerless
 } from '../next-server/server/config'
@@ -82,6 +83,10 @@ export default async function (dir, options, configuration) {
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   setTelemetryDir(distDir)
+  if (!options.buildExport) {
+    recordVersion({ cliCommand: 'export' })
+  }
+
   const subFolders = nextConfig.exportTrailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
