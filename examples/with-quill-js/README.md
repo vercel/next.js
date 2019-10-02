@@ -9,7 +9,7 @@ Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [
 ```bash
 npx create-next-app --example with-quill-js with-quill-js-app
 # or
-yarn create next-app --example with-quill-js with-draft-js-app
+yarn create next-app --example with-quill-js with-quill-js-app
 ```
 
 ### Download manually
