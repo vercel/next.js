@@ -82,8 +82,8 @@ export default async function (dir, options, configuration) {
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
-  setTelemetryDir(distDir)
   if (!options.buildExport) {
+    setTelemetryDir(distDir)
     recordVersion({ cliCommand: 'export' })
   }
 
