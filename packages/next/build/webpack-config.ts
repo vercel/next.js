@@ -591,12 +591,17 @@ export default async function getBaseWebpackConfig(
                         // We use `requestAnimationFrame` as a way to defer
                         // this operation since there may be multiple style
                         // tags.
-                        self.requestAnimationFrame(function() {
-                          document
-                            .querySelectorAll('[data-next-hide-fouc]')
-                            .forEach(function(el) {
-                              el.remove()
-                            })
+                        ;(self.requestAnimationFrame || setTimeout)(function() {
+                          for (
+                            var x = document.querySelectorAll(
+                                '[data-next-hide-fouc]'
+                              ),
+                              i = x.length;
+                            i--;
+
+                          ) {
+                            x[i].parentNode!.removeChild(x[i])
+                          }
                         })
                       },
                     },
