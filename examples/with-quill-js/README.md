@@ -7,7 +7,7 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-quill-js
+npx create-next-app --example with-quill-js with-quill-js-app
 # or
 yarn create next-app --example with-quill-js with-draft-js-app
 ```
