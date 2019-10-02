@@ -36,6 +36,15 @@ initNext({ webpackHMR })
       initializePrerenderIndicator()
     }
 
+    // This is the fallback helper that removes Next.js' no-FOUC styles when
+    // CSS mode is enabled. This only really activates if you haven't created
+    // _any_ styles in your application yet.
+    window.requestAnimationFrame(function () {
+      document.querySelectorAll('[data-next-hide-fouc]').forEach(function (el) {
+        el.remove()
+      })
+    })
+
     let lastScroll
 
     emitter.on('before-reactdom-render', ({ Component, ErrorComponent }) => {
