@@ -3,6 +3,6 @@
  */
 module.exports = {
   tailwind: {
-    styled: '@emotion/styled',
-  },
+    styled: '@emotion/styled'
+  }
 }
