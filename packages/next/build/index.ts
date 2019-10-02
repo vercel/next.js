@@ -349,11 +349,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
           console.warn(
             chalk.bold.yellow(`Warning: `) +
               chalk.yellow(
-                `You have opted-out of Automatic Prerendering due to \`getInitialProps\` in \`pages/_app\`.`
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-automatic-prerendering\n'
+            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
           )
         }
       }

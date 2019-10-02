@@ -93,7 +93,8 @@
     - [Runtime configuration](#runtime-configuration)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
-- [Automatic Prerendering](#automatic-prerendering)
+- [Automatic Static Optimization](#automatic-static-optimization)
+- [Automatic Static Optimization Indicator](#automatic-static-optimization-indicator)
 - [Production deployment](#production-deployment)
   - [Compression](#compression)
   - [Serverless deployment](#serverless-deployment)
@@ -362,7 +363,7 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 > **Note**: Predefined routes take precedence over dynamic routes.
 > For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
 
-> **Note**: Pages that are statically optimized by [automatic prerendering](#automatic-prerendering) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
+> **Note**: Pages that are statically optimized by [automatic static optimization](#automatic-static-optimization) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
 > After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 > If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
 
@@ -1568,7 +1569,7 @@ class MyApp extends App {
 export default MyApp
 ```
 
-> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Prerendering](#automatic-prerendering)
+> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Static Optimization](#automatic-static-optimization)
 
 ### Custom `<Document>`
 
@@ -1589,10 +1590,10 @@ Note, [styled-jsx](https://github.com/zeit/styled-jsx) is included in Next.js by
 A custom `<Document>` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
 
 > **Note**: `<Document>`'s `getInitialProps` function is not called during client-side transitions,
-> nor when a page is [automatically prerendered](#automatic-prerendering).
+> nor when a page is [automatically statically optimized](#automatic-static-optimization).
 
 > **Note**: Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`.
-> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic prerendering (static optimization)](#automatic-prerendering).
+> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic static optimization](#automatic-static-optimization).
 
 To use a custom `<Document>`, you must create a file at `./pages/_document.js` and extend the `Document` class:
 
@@ -2050,7 +2051,7 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 > **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
-> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic prerendering](#automatic-prerendering)**.
+> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic static optimization](#automatic-static-optimization)**.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
@@ -2058,7 +2059,7 @@ Place any server-only runtime config under a `serverRuntimeConfig` property.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
-> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic prerendering](#automatic-prerendering).
+> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic static optimization](#automatic-static-optimization).
 > You can also de-optimize your entire application by creating a [Custom `<App>`](#custom-app) with `getInitialProps`.
 
 ```js
@@ -2123,12 +2124,12 @@ module.exports = {
 }
 ```
 
-## Automatic Prerendering
+## Automatic Static Optimization
 
 Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements.
 This determination is made by the absence of `getInitialProps` in the page.
 
-If `getInitialProps` is present, Next.js will not prerender the page.
+If `getInitialProps` is present, Next.js will not statically optimize the page.
 Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
 If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client side after hydration.
@@ -2155,9 +2156,11 @@ There is no configuration or special handling required.
 > **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
 > `ctx.req` will be `undefined` for pages that are prerendered.
 
-## Automatic Prerender Indicator
+## Automatic Static Optimization Indicator
 
-When a page qualifies for automatic prerendering we show an indicator to let you know. This is helpful since the automatic prerendering optimization can be very beneficial and knowing immediately in development if it qualifies can be useful. See above for information on the benefits of this optimization.
+When a page qualifies for automatic static optimization we show an indicator to let you know.
+This is helpful since the automatic static optimization can be very beneficial and knowing immediately in development if it qualifies can be useful.
+See above for information on the benefits of this optimization.
 
 In some cases this indicator might not be as useful like when working on electron applications. For these cases you can disable the indicator in your `next.config.js` by setting
 
@@ -2226,7 +2229,7 @@ module.exports = {
 }
 ```
 
-The `serverless` target will output a single lambda or [HTML file](#automatic-prerendering) per page.
+The `serverless` target will output a single lambda or [HTML file](#automatic-static-optimization) per page.
 This file is completely standalone and doesn't require any dependencies to run:
 
 - `pages/index.js` => `.next/serverless/pages/index.js`
@@ -2244,7 +2247,7 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
 
 The static HTML files are ready to be served as-is.
-You can read more about this feature, including how to opt-out, in the [Automatic Prerendering section](#automatic-prerendering).
+You can read more about this feature, including how to opt-out, in the [Automatic Static Optimization section](#automatic-static-optimization).
 
 Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
@@ -2614,7 +2617,7 @@ With `next export`, we build a HTML version of your app. At export time we will 
 
 The `req` and `res` fields of the `context` object passed to `getInitialProps` are empty objects during export as there is no server running.
 
-> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic prerendering](#automatic-prerendering).
+> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic static optimization](#automatic-static-optimization).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
