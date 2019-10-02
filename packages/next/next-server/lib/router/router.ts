@@ -625,7 +625,10 @@ export default class Router implements BaseRouter {
       let status: any
       const { pathname } = parse(ctx.asPath || ctx.pathname)
 
-      props = await fetch(`/_next/data${pathname}.json`)
+      props = await fetch(
+        // @ts-ignore __NEXT_DATA__
+        `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+      )
         .then(res => {
           if (!res.ok) {
             status = res.status
