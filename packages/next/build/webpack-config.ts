@@ -582,6 +582,22 @@ export default async function getBaseWebpackConfig(
                         // anchor. By inserting before and not after, we do not
                         // need to track the last inserted element.
                         parentNode.insertBefore(element, anchorElement)
+
+                        // Remember: this is development only code.
+                        //
+                        // After styles are injected, we need to remove the
+                        // <style> tags that set `body { display: none; }`.
+                        //
+                        // We use `requestAnimationFrame` as a way to defer
+                        // this operation since there may be multiple style
+                        // tags.
+                        self.requestAnimationFrame(function() {
+                          document
+                            .querySelectorAll('[data-next-hide-fouc]')
+                            .forEach(function(el) {
+                              el.remove()
+                            })
+                        })
                       },
                     },
                   },
