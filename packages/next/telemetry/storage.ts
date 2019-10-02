@@ -74,7 +74,7 @@ function setup() {
 
   const cwd =
     (ciEnvironment.isCI || isDockerFunction()) && distDir
-      ? path.join(distDir, '.cache')
+      ? path.join(distDir, 'cache')
       : undefined
 
   config = new Conf({ projectName: 'nextjs', cwd })
