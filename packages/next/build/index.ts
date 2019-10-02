@@ -30,6 +30,7 @@ import {
   recordNextPlugins,
   recordVersion,
 } from '../telemetry/events'
+import { setDistDir as setTelemetryDir } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
@@ -96,6 +97,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  setTelemetryDir(distDir)
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []

@@ -10,6 +10,7 @@ import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import Watchpack from 'watchpack'
+import { setDistDir as setTelemetryDir } from '../telemetry/storage'
 import { recordVersion } from '../telemetry/events'
 import fs from 'fs'
 import {
@@ -188,6 +189,7 @@ export default class DevServer extends Server {
     await this.startWatcher()
     this.setDevReady()
 
+    setTelemetryDir(this.distDir)
     recordVersion({ cliCommand: 'dev' })
   }
 
