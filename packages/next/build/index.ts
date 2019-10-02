@@ -83,12 +83,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(
-    recordVersion({ cliCommand: 'build' }),
-    recordNextPlugins(path.resolve(dir))
-  )
-
   const buildSpinner = createSpinner({
     prefixText: 'Creating an optimized production build',
   })
@@ -101,6 +95,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
+
+  let backgroundWork: (Promise<any> | undefined)[] = []
+  backgroundWork.push(
+    recordVersion({ cliCommand: 'build' }),
+    recordNextPlugins(path.resolve(dir))
+  )
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
