@@ -921,7 +921,8 @@ export default async function getBaseWebpackConfig(
             use &&
             typeof use === 'object' &&
             // Identify use statements only pertaining to `css-loader`
-            use.loader === 'css-loader' &&
+            (use.loader === 'css-loader' ||
+              use.loader === 'css-loader/locals') &&
             use.options &&
             typeof use.options === 'object' &&
             // The `minimize` property is a good heuristic that we need to
@@ -963,10 +964,7 @@ export default async function getBaseWebpackConfig(
             // ... resolve the version of `css-loader` shipped with that
             // package instead of whichever was hoisted highest in your
             // `node_modules` tree.
-            const correctCssLoader = resolveRequest(
-              'css-loader',
-              correctNextCss
-            )
+            const correctCssLoader = resolveRequest(use.loader, correctNextCss)
             if (correctCssLoader) {
               // We saved the user from a failed build!
               use.loader = correctCssLoader
