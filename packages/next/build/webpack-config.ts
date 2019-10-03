@@ -905,14 +905,13 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      // Check if the rule we're iterating over applies to Sass or Less
-      if (
-        !(
-          rule.test.source === '\\.scss$' ||
-          rule.test.source === '\\.sass$' ||
-          rule.test.source === '\\.less$'
-        )
-      ) {
+      const isSass =
+        rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
+      const isLess = rule.test.source === '\\.less$'
+      const isCss = rule.test.source === '\\.css$'
+
+      // Check if the rule we're iterating over applies to Sass, Less, or CSS
+      if (!(isSass || isLess || isCss)) {
         return
       }
 
@@ -946,11 +945,17 @@ export default async function getBaseWebpackConfig(
           // or Less plugin.
           const correctNextCss = resolveRequest(
             '@zeit/next-css',
-            require.resolve(
-              (rule.test as RegExp).source === '\\.less$'
-                ? '@zeit/next-less'
-                : '@zeit/next-sass'
-            )
+            isCss
+              ? // Resolve `@zeit/next-css` from the base directory
+                `${dir}/`
+              : // Else, resolve it from the specific plugins
+                require.resolve(
+                  isSass
+                    ? '@zeit/next-sass'
+                    : isLess
+                    ? '@zeit/next-less'
+                    : 'next'
+                )
           )
 
           // If we found `@zeit/next-css` ...
