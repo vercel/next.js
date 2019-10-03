@@ -128,7 +128,12 @@ export function runNextCommand (argv, options = {}) {
 
 export function runNextCommandDev (argv, stdOut, opts = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
-  const env = { ...process.env, NODE_ENV: undefined, ...opts.env }
+  const env = {
+    ...process.env,
+    NODE_ENV: undefined,
+    __NEXT_TEST_MODE: 'true',
+    ...opts.env
+  }
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
@@ -138,11 +143,18 @@ export function runNextCommandDev (argv, stdOut, opts = {}) {
       if (/ready on/i.test(message)) {
         resolve(stdOut ? message : instance)
       }
+      if (typeof opts.onStdout === 'function') {
+        opts.onStdout(message)
+      }
       process.stdout.write(message)
     }
 
     function handleStderr (data) {
-      process.stderr.write(data.toString())
+      const message = data.toString()
+      if (typeof opts.onStderr === 'function') {
+        opts.onStderr(message)
+      }
+      process.stderr.write(message)
     }
 
     instance.stdout.on('data', handleStdout)
@@ -160,8 +172,8 @@ export function runNextCommandDev (argv, stdOut, opts = {}) {
 }
 
 // Launch the app in dev mode.
-export function launchApp (dir, port) {
-  return runNextCommandDev([dir, '-p', port])
+export function launchApp (dir, port, opts) {
+  return runNextCommandDev([dir, '-p', port], undefined, opts)
 }
 
 export function nextBuild (dir, args = [], opts = {}) {
@@ -208,7 +220,23 @@ export function buildTS (args = [], cwd, env = {}) {
 export async function killApp (instance) {
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, err => {
-      if (err) return reject(err)
+      if (err) {
+        if (
+          process.platform === 'win32' &&
+          typeof err.message === 'string' &&
+          (err.message.includes(`no running instance of the task`) ||
+            err.message.includes(`not found`))
+        ) {
+          // Windows throws an error if the process is already dead
+          //
+          // Command failed: taskkill /pid 6924 /T /F
+          // ERROR: The process with PID 6924 (child process of PID 6736) could not be terminated.
+          // Reason: There is no running instance of the task.
+          return resolve()
+        }
+        return reject(err)
+      }
+
       resolve()
     })
   })

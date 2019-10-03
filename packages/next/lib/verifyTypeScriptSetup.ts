@@ -1,13 +1,15 @@
+import chalk from 'chalk'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import chalk from 'chalk'
 import { promisify } from 'util'
-import { recursiveReadDir } from './recursive-readdir'
-import resolve from 'next/dist/compiled/resolve/index.js'
 
-const exists = promisify(fs.exists)
+import { fileExists } from './file-exists'
+import { recursiveReadDir } from './recursive-readdir'
+import { resolveRequest } from './resolve-request'
+
 const writeFile = promisify(fs.writeFile)
+const readFile = promisify(fs.readFile)
 
 function writeJson(fileName: string, object: object): Promise<void> {
   return writeFile(
@@ -39,16 +41,18 @@ async function checkDependencies({
     { file: '@types/node/index.d.ts', pkg: '@types/node' },
   ]
 
+  let resolutions = new Map<string, string>()
+
   const missingPackages = requiredPackages.filter(p => {
     try {
-      resolve.sync(p.file, { basedir: dir })
+      resolutions.set(p.pkg, resolveRequest(p.file, `${dir}/`))
     } catch (_) {
       return true
     }
   })
 
   if (missingPackages.length < 1) {
-    return
+    return resolutions.get('typescript')!
   }
 
   const packagesHuman = missingPackages
@@ -92,22 +96,35 @@ async function checkDependencies({
   process.exit(1)
 }
 
-export async function verifyTypeScriptSetup(dir: string): Promise<void> {
+export async function verifyTypeScriptSetup(
+  dir: string,
+  pagesDir: string
+): Promise<void> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
-  const hasTsConfig = await exists(tsConfigPath)
-  const isYarn = await exists(yarnLockFile)
-  const hasTypeScriptFiles = await hasTypeScript(dir)
-  let firstTimeSetup = !hasTsConfig && hasTypeScriptFiles
+  const hasTsConfig = await fileExists(tsConfigPath)
+  const isYarn = await fileExists(yarnLockFile)
 
-  if (!(hasTsConfig || hasTypeScriptFiles)) {
-    return
+  let firstTimeSetup = false
+  if (hasTsConfig) {
+    const tsConfig = await readFile(tsConfigPath, 'utf8').then(val =>
+      val.trim()
+    )
+    firstTimeSetup = tsConfig === '' || tsConfig === '{}'
+  } else {
+    const hasTypeScriptFiles = await hasTypeScript(pagesDir)
+    if (hasTypeScriptFiles) {
+      firstTimeSetup = true
+    } else {
+      return
+    }
   }
 
-  await checkDependencies({ dir, isYarn })
+  const tsPath = await checkDependencies({ dir, isYarn })
+  // @ts-ignore
+  const ts = (await import(tsPath)) as typeof import('typescript')
 
-  const ts = await import('typescript')
   const compilerOptions: any = {
     // These are suggested values and will be set when not present in the
     // tsconfig.json
@@ -191,6 +208,14 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
       ts.sys,
       path.dirname(tsConfigPath)
     )
+
+    if (result.errors) {
+      result.errors = result.errors.filter(
+        ({ code }) =>
+          // No inputs were found in config file
+          code !== 18003
+      )
+    }
 
     if (result.errors && result.errors.length) {
       throw new Error(

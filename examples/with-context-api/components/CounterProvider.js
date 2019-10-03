@@ -6,37 +6,27 @@ const CounterContext = React.createContext()
 /* Then create a provider Component */
 class CounterProvider extends Component {
   state = {
-    count: 0
-  }
-
-  increase = () => {
-    this.setState({
-      count: this.state.count + 1
-    })
-  }
-
-  increaseBy = val => {
-    this.setState({
-      count: this.state.count + val
-    })
-  }
-
-  decrease = () => {
-    this.setState({
-      count: this.state.count - 1
-    })
+    count: 0,
+    increase: () => {
+      this.setState((state, props) => ({
+        count: state.count + 1
+      }))
+    },
+    increaseBy: val => {
+      this.setState((state, props) => ({
+        count: state.count + val
+      }))
+    },
+    decrease: () => {
+      this.setState((state, props) => ({
+        count: state.count - 1
+      }))
+    }
   }
 
   render () {
     return (
-      <CounterContext.Provider
-        value={{
-          count: this.state.count,
-          increase: this.increase,
-          decrease: this.decrease,
-          increaseBy: this.increaseBy
-        }}
-      >
+      <CounterContext.Provider value={this.state}>
         {this.props.children}
       </CounterContext.Provider>
     )

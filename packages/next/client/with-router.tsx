@@ -1,6 +1,6 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { NextComponentType, NextPageContext } from 'next-server/dist/lib/utils'
+import { NextComponentType, NextPageContext } from '../next-server/lib/utils'
 import { NextRouter } from './router'
 
 export type WithRouterProps = {
@@ -38,6 +38,8 @@ export default function withRouter<
   }
 
   WithRouteWrapper.getInitialProps = ComposedComponent.getInitialProps
+  // This is needed to allow checking for custom getInitialProps in _app
+  ;(WithRouteWrapper as any).origGetInitialProps = (ComposedComponent as any).origGetInitialProps
   if (process.env.NODE_ENV !== 'production') {
     const name =
       ComposedComponent.displayName || ComposedComponent.name || 'Unknown'

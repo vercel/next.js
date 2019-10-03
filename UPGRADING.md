@@ -1,5 +1,42 @@
 # Migrating from v8 to v9
 
+## Preamble
+
+#### Production Deployment on ZEIT Now v2
+
+If you previously configured `routes` in your `now.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://github.com/zeit/next.js#dynamic-routing).
+
+Next.js 9's dynamic routes are **automatically configured on [Now](https://zeit.co/now)** and do not require any `now.json` customization.
+
+You can read more about [Dynamic Routing here](https://github.com/zeit/next.js#dynamic-routing).
+
+#### Check your Custom <App> (`pages/_app.js`)
+
+If you previously copied the [Custom `<App>`](https://nextjs.org/docs#custom-app) example, you may be able to remove your `getInitialProps`.
+
+Removing `getInitialProps` from `pages/_app.js` (when possible) is important to leverage new Next.js features!
+
+The following `getInitialProps` does nothing and may be removed:
+
+```js
+class MyApp extends App {
+  // Remove me, I do nothing!
+  static async getInitialProps({ Component, ctx }) {
+    let pageProps = {}
+
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
+    }
+
+    return { pageProps }
+  }
+
+  render() {
+    // ... etc
+  }
+}
+```
+
 ## Breaking Changes
 
 #### `@zeit/next-typescript` is no longer necessary
@@ -17,16 +54,19 @@ The following types are different:
 > This list was created by the community to help you upgrade, if you find other differences please send a pull-request to this list to help other users.
 
 From:
+
 ```tsx
-import { NextContext } from "next";
-import { NextAppContext } from "next/app";
-import { NextDocumentContext } from "next/document";
+import { NextContext } from 'next'
+import { NextAppContext, DefaultAppIProps } from 'next/app'
+import { NextDocumentContext, DefaultDocumentIProps } from 'next/document'
 ```
+
 to
+
 ```tsx
-import { NextPageContext } from "next";
-import { AppContext } from "next/app";
-import { DocumentContext } from "next/document";
+import { NextPageContext } from 'next'
+import { AppContext, AppInitialProps } from 'next/app'
+import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
 #### The `config` key is now a special export on a page
@@ -103,6 +143,11 @@ module.exports = {
   exportTrailingSlash: true,
 }
 ```
+
+#### `./pages/api/` is treated differently
+
+Pages in `./pages/api/` are now considered [API Routes](https://nextjs.org/blog/next-9#api-routes).
+Pages in this directory will no longer contain a client-side bundle.
 
 ## Deprecated Features
 

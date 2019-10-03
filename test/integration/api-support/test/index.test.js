@@ -9,6 +9,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
   nextBuild,
+  nextStart,
   File
 } from 'next-test-utils'
 import json from '../big.json'
@@ -35,12 +36,49 @@ function runTests (serverless = false) {
     expect(status).toEqual(404)
   })
 
+  it('should not conflict with /api routes', async () => {
+    const port = await findPort()
+    await nextBuild(appDir)
+    const app = await nextStart(appDir, port)
+    const res = await fetchViaHTTP(port, '/api-conflict')
+    expect(res.status).not.toEqual(404)
+    killApp(app)
+  })
+
+  it('should work with index api', async () => {
+    if (serverless) {
+      const port = await findPort()
+      const resolver = require(join(appDir, '.next/serverless/pages/api.js'))
+        .default
+
+      const server = createServer(resolver).listen(port)
+      const res = await fetchViaHTTP(port, '/api')
+      const text = await res.text()
+      server.close()
+
+      expect(text).toEqual('Index should work')
+    } else {
+      const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
+        res => res.ok && res.text()
+      )
+
+      expect(text).toEqual('Index should work')
+    }
+  })
+
   it('should return custom error', async () => {
     const data = await fetchViaHTTP(appPort, '/api/error', null, {})
     const json = await data.json()
 
     expect(data.status).toEqual(500)
     expect(json).toEqual({ error: 'Server error!' })
+  })
+
+  it('should throw Internal Server Error', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
+    const text = await res.text()
+    expect(res.status).toBe(500)
+    expect(text).toBe('Internal Server Error')
   })
 
   it('should parse JSON body', async () => {
@@ -78,6 +116,18 @@ function runTests (serverless = false) {
 
     expect(data.status).toEqual(413)
     expect(data.statusText).toEqual('Body exceeded 1mb limit')
+  })
+
+  it('should parse bigger body then 1mb', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/big-parse', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify(json)
+    })
+
+    expect(data.status).toEqual(200)
   })
 
   it('should parse urlencoded body', async () => {
@@ -146,12 +196,12 @@ function runTests (serverless = false) {
     expect(data).toEqual({ nextjs: 'cool' })
   })
 
-  it('should return 405 on POST on pages', async () => {
+  it('should return 200 on POST on pages', async () => {
     const res = await fetchViaHTTP(appPort, '/user', null, {
       method: 'POST'
     })
 
-    expect(res.status).toEqual(405)
+    expect(res.status).toEqual(200)
   })
 
   it('should return JSON on post on API', async () => {
@@ -169,6 +219,36 @@ function runTests (serverless = false) {
 
     expect(data).toEqual({ post: 'post-1' })
   })
+
+  it('should work with dynamic params and search string', async () => {
+    const data = await fetchViaHTTP(
+      appPort,
+      '/api/post-1?val=1',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+
+    expect(data).toEqual({ val: '1', post: 'post-1' })
+  })
+
+  if (serverless) {
+    it('should work with dynamic params and search string like lambda', async () => {
+      await nextBuild(appDir, [])
+
+      const port = await findPort()
+      const resolver = require(join(
+        appDir,
+        '.next/serverless/pages/api/[post].js'
+      )).default
+
+      const server = createServer(resolver).listen(port)
+      const res = await fetchViaHTTP(port, '/api/post-1?val=1')
+      const json = await res.json()
+      server.close()
+
+      expect(json).toEqual({ val: '1', post: 'post-1' })
+    })
+  }
 
   it('should prioritize a non-dynamic page', async () => {
     const data = await fetchViaHTTP(
@@ -224,6 +304,13 @@ function runTests (serverless = false) {
     } else {
       expect(
         existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
+      ).toBeTruthy()
+
+      const buildManifest = JSON.parse(
+        readFileSync(join(appDir, '.next/build-manifest.json'), 'utf8')
+      )
+      expect(
+        Object.keys(buildManifest.pages).includes('/api-conflict')
       ).toBeTruthy()
     }
   })

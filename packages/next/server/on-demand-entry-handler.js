@@ -2,13 +2,17 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
-import { pageNotFoundError } from 'next-server/dist/server/require'
-import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
-import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
+import { pageNotFoundError } from '../next-server/server/require'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import {
+  ROUTE_NAME_REGEX,
+  IS_BUNDLED_PAGE_REGEX
+} from '../next-server/lib/constants'
 import { stringify } from 'querystring'
 import { findPageFile } from './lib/find-page-file'
 import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
+import { API_ROUTE } from '../lib/constants'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -30,17 +34,13 @@ export default function onDemandEntryHandler (
   multiCompiler,
   {
     buildId,
-    dir,
-    distDir,
+    pagesDir,
     reload,
     pageExtensions,
     maxInactiveAge,
-    pagesBufferLength,
-    publicRuntimeConfig,
-    serverRuntimeConfig
+    pagesBufferLength
   }
 ) {
-  const pagesDir = join(dir, 'pages')
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
@@ -56,7 +56,7 @@ export default function onDemandEntryHandler (
       invalidator.startBuilding()
 
       const allEntries = Object.keys(entries).map(async page => {
-        if (compiler.name === 'client' && page.startsWith('/api')) {
+        if (compiler.name === 'client' && page.match(API_ROUTE)) {
           return
         }
         const { name, absolutePagePath } = entries[page]

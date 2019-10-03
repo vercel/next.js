@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { getSortedRoutes } from 'next-server/dist/lib/router/utils/sorted-routes'
+import { getSortedRoutes } from 'next/dist/next-server/lib/router/utils/sorted-routes'
 
 describe('getSortedRoutes', () => {
   it('does not add extra routes', () => {
@@ -41,5 +41,11 @@ describe('getSortedRoutes', () => {
         '/blog/[cid]'
       ])
     ).toThrowError(/different slug names/)
+  })
+
+  it('catches reused param names', () => {
+    expect(() =>
+      getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
+    ).toThrowError(/the same slug name/)
   })
 })

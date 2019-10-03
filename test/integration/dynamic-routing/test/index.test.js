@@ -9,20 +9,19 @@ import {
   launchApp,
   killApp,
   waitFor,
-  runNextCommand,
-  nextServer,
-  startApp,
-  stopApp
+  nextBuild,
+  nextStart
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 let app
 let appPort
-let server
+let buildId
 const appDir = join(__dirname, '../')
+const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests () {
+function runTests (dev) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -187,6 +186,46 @@ function runTests () {
     const scrollPosition = await browser.eval('window.pageYOffset')
     expect(scrollPosition).toBe(7232)
   })
+
+  it('should prioritize public files over dynamic route', async () => {
+    const data = await renderViaHTTP(appPort, '/hello.txt')
+    expect(data).toMatch(/hello world/)
+  })
+
+  if (dev) {
+    it('should work with HMR correctly', async () => {
+      const browser = await webdriver(appPort, '/post-1/comments')
+      let text = await browser.eval(`document.documentElement.innerHTML`)
+      expect(text).toMatch(/comments for.*post-1/)
+
+      const page = join(appDir, 'pages/[name]/comments.js')
+      const origContent = await fs.readFile(page, 'utf8')
+      const newContent = origContent.replace(/comments/, 'commentss')
+
+      try {
+        await fs.writeFile(page, newContent, 'utf8')
+        await waitFor(3 * 1000)
+
+        let text = await browser.eval(`document.documentElement.innerHTML`)
+        expect(text).toMatch(/commentss for.*post-1/)
+      } finally {
+        await fs.writeFile(page, origContent, 'utf8')
+        if (browser) await browser.close()
+      }
+    })
+  } else {
+    it('should output modern bundles with dynamic route correctly', async () => {
+      const bundlePath = join(
+        appDir,
+        '.next/static/',
+        buildId,
+        'pages/blog/[name]/comment/[id]'
+      )
+
+      await fs.access(bundlePath + '.js', fs.constants.F_OK)
+      await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
+    })
+  }
 }
 
 const nextConfig = join(appDir, 'next.config.js')
@@ -204,50 +243,54 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await runNextCommand(['build', appDir])
+      const curConfig = await fs.readFile(nextConfig, 'utf8')
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true
-      })
+      if (curConfig.includes('target')) {
+        await fs.writeFile(
+          nextConfig,
+          `
+          module.exports = {
+            experimental: {
+              modern: true,
+              publicDirectory: true
+            }
+          }
+        `
+        )
+      }
+      await nextBuild(appDir)
+      buildId = await fs.readFile(buildIdPath, 'utf8')
 
-      server = await startApp(app)
-      appPort = server.address().port
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
-    afterAll(() => stopApp(server))
+    afterAll(() => killApp(app))
 
     runTests()
   })
 
   describe('SSR production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await fs.writeFile(
         nextConfig,
         `
         module.exports = {
-          target: 'serverless'
+          target: 'serverless',
+          experimental: {
+            modern: true,
+            publicDirectory: true
+          }
         }
       `
       )
 
-      await runNextCommand(['build', appDir])
+      await nextBuild(appDir)
+      buildId = await fs.readFile(buildIdPath, 'utf8')
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true
-      })
-
-      server = await startApp(app)
-      appPort = server.address().port
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
-    afterAll(async () => {
-      await stopApp(server)
-      await fs.remove(nextConfig)
-    })
-
+    afterAll(() => killApp(app))
     runTests()
   })
 })

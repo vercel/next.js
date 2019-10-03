@@ -10,20 +10,19 @@ import {
   ROUTE_NAME_REGEX,
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_AMP
-} from 'next-server/constants'
+} from '../next-server/lib/constants'
 import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
-import { route } from 'next-server/dist/server/router'
+import { route } from '../next-server/server/router'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { fileExists } from '../lib/file-exists'
 import { promisify } from 'util'
 import fs from 'fs'
 
 const access = promisify(fs.access)
 const readFile = promisify(fs.readFile)
-// eslint-disable-next-line
-const fileExists = promisify(fs.exists)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -111,10 +110,11 @@ function erroredPages (compilation, options = { enhanceName: name => name }) {
 }
 
 export default class HotReloader {
-  constructor (dir, { config, buildId } = {}) {
+  constructor (dir, { config, pagesDir, buildId } = {}) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
+    this.pagesDir = pagesDir
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
     this.initialized = false
@@ -205,10 +205,9 @@ export default class HotReloader {
   }
 
   async getWebpackConfig () {
-    const pagesDir = join(this.dir, 'pages')
     const pagePaths = await Promise.all([
-      findPageFile(pagesDir, '/_app', this.config.pageExtensions),
-      findPageFile(pagesDir, '/_document', this.config.pageExtensions)
+      findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
+      findPageFile(this.pagesDir, '/_document', this.config.pageExtensions)
     ])
 
     const pages = createPagesMapping(
@@ -219,7 +218,6 @@ export default class HotReloader {
       pages,
       'server',
       this.buildId,
-      false,
       this.config
     )
 
@@ -237,6 +235,7 @@ export default class HotReloader {
         isServer: false,
         config: this.config,
         buildId: this.buildId,
+        pagesDir: this.pagesDir,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints }
       }),
       getBaseWebpackConfig(this.dir, {
@@ -244,6 +243,7 @@ export default class HotReloader {
         isServer: true,
         config: this.config,
         buildId: this.buildId,
+        pagesDir: this.pagesDir,
         entrypoints: entrypoints.server
       })
     ])
@@ -444,6 +444,7 @@ export default class HotReloader {
       {
         dir: this.dir,
         buildId: this.buildId,
+        pagesDir: this.pagesDir,
         distDir: this.config.distDir,
         reload: this.reload.bind(this),
         pageExtensions: this.config.pageExtensions,

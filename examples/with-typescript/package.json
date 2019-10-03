@@ -9,14 +9,14 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.10.1",
+    "react-dom": "^16.10.1"
   },
   "devDependencies": {
-    "@types/node": "^11.13.9",
-    "@types/react": "^16.8.15",
-    "@types/react-dom": "^16.0.11",
-    "typescript": "3.5.2"
+    "@types/node": "^12.7.8",
+    "@types/react": "^16.9.3",
+    "@types/react-dom": "^16.9.1",
+    "typescript": "3.6.3"
   },
   "license": "ISC"
 }

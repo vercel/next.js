@@ -17,7 +17,8 @@
     "test": "yarn run testall || yarn run test-take2",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript \"packages/**/*.ts\"",
-    "prettier": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
+    "prettier": "prettier --write",
+    "prettier-fix": "prettier --write \"**/*.{js,jsx,json,ts,tsx,md,mdx,css,html,yml,yaml,scss,sass}\" && yarn lint-fix",
     "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
@@ -40,6 +41,10 @@
     "*.ts": [
       "prettier --write",
       "git add"
+    ],
+    "*.md": [
+      "prettier --write",
+      "git add"
     ]
   },
   "standard": {
@@ -53,6 +58,9 @@
       "examples/with-kea/**",
       "examples/with-mobx/**",
       "test/integration/client-navigation/pages/throw-undefined.js"
+    ],
+    "globals": [
+      "performance"
     ]
   },
   "devDependencies": {
@@ -61,25 +69,29 @@
     "@babel/preset-react": "7.0.0",
     "@mdx-js/loader": "0.18.0",
     "@types/jest": "24.0.13",
+    "@types/ora": "3.2.0",
     "@types/string-hash": "1.1.1",
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
     "@zeit/next-typescript": "1.1.2-canary.0",
     "abort-controller": "3.0.0",
     "amphtml-validator": "1.0.23",
+    "async-sema": "3.0.1",
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "10.0.1",
     "babel-jest": "24.8.0",
     "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
-    "chromedriver": "2.46.0",
+    "chromedriver": "75.1.0",
     "clone": "2.1.2",
     "coveralls": "3.0.3",
     "cross-spawn": "6.0.5",
     "eslint": "5.16.0",
     "eslint-plugin-typescript": "0.14.0",
+    "execa": "2.0.3",
     "express": "4.17.0",
     "faunadb": "2.6.1",
+    "firebase": "6.3.4",
     "fs-extra": "7.0.1",
     "get-port": "5.0.0",
     "isomorphic-unfetch": "3.0.0",
@@ -88,6 +100,7 @@
     "lerna": "3.14.1",
     "lint-staged": "8.1.7",
     "mkdirp": "0.5.1",
+    "moment": "^2.24.0",
     "node-fetch": "2.6.0",
     "node-notifier": "5.4.0",
     "node-sass": "4.12.0",
@@ -105,7 +118,7 @@
     "typescript": "3.5.1",
     "typescript-eslint-parser": "22.0.0",
     "wait-port": "0.2.2",
-    "wd": "1.11.2",
+    "wd": "1.11.3",
     "webpack-bundle-analyzer": "3.3.2"
   },
   "engines": {

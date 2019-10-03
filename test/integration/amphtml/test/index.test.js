@@ -188,6 +188,19 @@ describe('AMP Usage', () => {
       await validateAMP(html)
       expect($('meta[name=viewport]').attr('content')).not.toBe('something :p')
     })
+
+    it('should allow manually setting canonical', async () => {
+      const html = await renderViaHTTP(appPort, '/manual-rels?amp=1')
+      const $ = cheerio.load(html)
+      await validateAMP(html)
+      expect($('link[rel=canonical]').attr('href')).toBe('/my-custom-canonical')
+    })
+
+    it('should allow manually setting amphtml rel', async () => {
+      const html = await renderViaHTTP(appPort, '/manual-rels')
+      const $ = cheerio.load(html)
+      expect($('link[rel=amphtml]').attr('href')).toBe('/my-custom-amphtml')
+    })
   })
 
   describe('combined styles', () => {
@@ -231,6 +244,13 @@ describe('AMP Usage', () => {
       await browser.elementByCss('#to-amp').click()
       await browser.waitForElementByCss('#only-amp')
       expect(await browser.elementByCss('#only-amp').text()).toMatch(/Only AMP/)
+    })
+
+    it('should add data-ampdevmode to development script tags', async () => {
+      const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
+      const $ = cheerio.load(html)
+      expect($('html').attr('data-ampdevmode')).toBe('')
+      expect($('script[data-ampdevmode]').length).toBe(3)
     })
 
     it('should detect the changes and display it', async () => {

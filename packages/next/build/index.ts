@@ -1,54 +1,79 @@
 import chalk from 'chalk'
-import {
-  SERVER_DIRECTORY,
-  SERVERLESS_DIRECTORY,
-  PAGES_MANIFEST,
-  CHUNK_GRAPH_MANIFEST,
-  PHASE_PRODUCTION_BUILD,
-} from 'next-server/constants'
-import loadConfig from 'next-server/next-config'
+import fs from 'fs'
+import Worker from 'jest-worker'
+import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import fs from 'fs'
 import { promisify } from 'util'
+
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import {
+  BUILD_MANIFEST,
+  PAGES_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
+  PRERENDER_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+} from '../next-server/lib/constants'
+import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
+import loadConfig, {
+  isTargetLikeServerless,
+} from '../next-server/server/config'
+import {
+  recordBuildDuration,
+  recordBuildOptimize,
+  recordNextPlugins,
+  recordVersion,
+} from '../telemetry/events'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
-import { FlyingShuttle } from './flying-shuttle'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
+import createSpinner from './spinner'
 import {
   collectPages,
-  getCacheIdentifier,
-  getFileForPage,
   getPageSizeInKb,
-  getSpecifiedPages,
-  printTreeView,
-  PageInfo,
-  isPageStatic,
   hasCustomAppGetInitialProps,
+  PageInfo,
+  printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import {
-  exportManifest,
-  getPageChunks,
-} from './webpack/plugins/chunk-graph-plugin'
+import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import mkdirpOrig from 'mkdirp'
-import workerFarm from 'worker-farm'
-import { Sema } from 'async-sema'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
+const fsStat = promisify(fs.stat)
 const fsMove = promisify(fs.rename)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
-const staticCheckWorker = require.resolve('./static-checker')
+const staticCheckWorker = require.resolve('./utils')
+
+export type SprRoute = {
+  initialRevalidateSeconds: number | false
+  srcRoute: string | null
+  dataRoute: string
+}
+
+export type DynamicSprRoute = {
+  routeRegex: string
+
+  dataRoute: string
+  dataRouteRegex: string
+}
+
+export type PrerenderManifest = {
+  version: number
+  routes: { [route: string]: SprRoute }
+  dynamicRoutes: { [route: string]: DynamicSprRoute }
+}
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -57,151 +82,124 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  await verifyTypeScriptSetup(dir)
+  let backgroundWork: (Promise<any> | undefined)[] = []
+  backgroundWork.push(
+    recordVersion({ cliCommand: 'build' }),
+    recordNextPlugins(path.resolve(dir))
+  )
 
-  console.log('Creating an optimized production build ...')
-  console.log()
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const pagesDir = path.join(dir, 'pages')
+  const publicDir = path.join(dir, 'public')
+  const pagesDir = findPagesDir(dir)
+  let publicFiles: string[] = []
 
-  const isFlyingShuttle = Boolean(
-    config.experimental.flyingShuttle &&
-      !process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+  await verifyTypeScriptSetup(dir, pagesDir)
+
+  if (config.experimental.publicDirectory) {
+    publicFiles = await recursiveReadDir(publicDir, /.*/)
+  }
+
+  let tracer: any = null
+  if (config.experimental.profiling) {
+    const { createTrace } = require('./profiler/profiler.js')
+    tracer = createTrace(path.join(distDir, `profile-events.json`))
+    tracer.profiler.startProfiling()
+  }
+
+  const isLikeServerless = isTargetLikeServerless(target)
+
+  const pagePaths: string[] = await collectPages(
+    pagesDir,
+    config.pageExtensions
   )
-  const selectivePageBuilding = Boolean(
-    isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
-  )
 
-  if (selectivePageBuilding && target !== 'serverless') {
-    throw new Error(
-      `Cannot use ${
-        isFlyingShuttle ? 'flying shuttle' : '`now dev`'
-      } without the serverless target.`
-    )
-  }
-
-  const selectivePageBuildingCacheIdentifier = selectivePageBuilding
-    ? await getCacheIdentifier({
-        pagesDirectory: pagesDir,
-        env: config.env || {},
-      })
-    : 'noop'
-
-  let flyingShuttle: FlyingShuttle | undefined
-  if (isFlyingShuttle) {
-    console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
-    console.log()
-
-    await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
-    await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
-    await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
-
-    flyingShuttle = new FlyingShuttle({
-      buildId,
-      pagesDirectory: pagesDir,
-      distDirectory: distDir,
-      cacheIdentifier: selectivePageBuildingCacheIdentifier,
-    })
-  }
-
-  let pagePaths: string[]
-  if (process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE) {
-    pagePaths = await getSpecifiedPages(
-      dir,
-      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE!,
-      config.pageExtensions
-    )
-  } else {
-    pagePaths = await collectPages(pagesDir, config.pageExtensions)
-  }
   // needed for static exporting since we want to replace with HTML
-  // files even when flying shuttle doesn't rebuild the files
-  const allPagePaths = [...pagePaths]
+  // files
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
-  if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
-    allPageInfos = await flyingShuttle.getPageInfos()
-    const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
-    for (const unchangedPage of _unchangedPages) {
-      const info = allPageInfos.get(unchangedPage) || ({} as PageInfo)
-      if (info.static) allStaticPages.add(unchangedPage)
+  const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
+  const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const conflictingPublicFiles: string[] = []
 
-      const recalled = await flyingShuttle.restorePage(unchangedPage, info)
-      if (recalled) {
-        continue
-      }
-      _unchangedPages.delete(unchangedPage)
+  try {
+    await fsStat(path.join(publicDir, '_next'))
+    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+  } catch (err) {}
+
+  for (let file of publicFiles) {
+    file = file
+      .replace(/\\/g, '/')
+      .replace(/\/index$/, '')
+      .split(publicDir)
+      .pop()!
+
+    if (mappedPages[file]) {
+      conflictingPublicFiles.push(file)
     }
+  }
+  const numConflicting = conflictingPublicFiles.length
 
-    const unchangedPages = (await Promise.all(
-      [..._unchangedPages].map(async page => {
-        if (
-          page.endsWith('.amp') &&
-          (allPageInfos.get(page.split('.amp')[0]) || ({} as PageInfo)).isAmp
-        ) {
-          return ''
-        }
-        const file = await getFileForPage({
-          page,
-          pagesDirectory: pagesDir,
-          pageExtensions: config.pageExtensions,
-        })
-        if (file) {
-          return file
-        }
-
-        return Promise.reject(
-          new Error(
-            `Failed to locate page file: ${page}. ` +
-              `Did pageExtensions change? We can't recover from this yet.`
-          )
-        )
-      })
-    )).filter(Boolean)
-
-    const pageSet = new Set(pagePaths)
-    for (const unchangedPage of unchangedPages) {
-      pageSet.delete(unchangedPage)
-    }
-    pagePaths = [...pageSet]
+  if (numConflicting) {
+    throw new Error(
+      `Conflicting public and page file${
+        numConflicting === 1 ? ' was' : 's were'
+      } found. https://err.sh/zeit/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+        '\n'
+      )}`
+    )
   }
 
-  const allMappedPages = createPagesMapping(allPagePaths, config.pageExtensions)
-  const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(
-    mappedPages,
-    target,
-    buildId,
-    /* dynamicBuildId */ selectivePageBuilding,
-    config
-  )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
+      tracer,
       buildId,
       isServer: false,
       config,
       target,
+      pagesDir,
       entrypoints: entrypoints.client,
-      selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
+      tracer,
       buildId,
       isServer: true,
       config,
       target,
+      pagesDir,
       entrypoints: entrypoints.server,
-      selectivePageBuilding,
     }),
   ])
 
+  const clientConfig = configs[0]
+
+  if (
+    clientConfig.optimization &&
+    (clientConfig.optimization.minimize !== true ||
+      (clientConfig.optimization.minimizer &&
+        clientConfig.optimization.minimizer.length === 0))
+  ) {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.bold(
+          `Production code optimization has been disabled in your project. Read more: https://err.sh/zeit/next.js/minification-disabled`
+        )
+    )
+  }
+
+  const webpackBuildStart = process.hrtime()
+
   let result: CompilerResult = { warnings: [], errors: [] }
-  if (target === 'serverless') {
-    const clientResult = await runCompiler(configs[0])
+  // TODO: why do we need this?? https://github.com/zeit/next.js/issues/8253
+  if (isLikeServerless) {
+    const clientResult = await runCompiler(clientConfig)
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
       result = {
@@ -219,17 +217,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
     result = await runCompiler(configs)
   }
 
-  result = formatWebpackMessages(result)
-
-  if (isFlyingShuttle) {
-    console.log()
-
-    exportManifest({
-      dir: dir,
-      fileName: path.join(distDir, CHUNK_GRAPH_MANIFEST),
-      selectivePageBuildingCacheIdentifier,
-    })
+  const webpackBuildEnd = process.hrtime(webpackBuildStart)
+  if (buildSpinner) {
+    buildSpinner.stopAndPersist()
   }
+  console.log()
+
+  result = formatWebpackMessages(result)
 
   if (result.errors.length > 0) {
     // Only keep the first error. Others are often indicative
@@ -268,48 +262,64 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn()
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
+    backgroundWork.push(
+      recordBuildDuration({
+        totalPageCount: pagePaths.length,
+        durationInSeconds: webpackBuildEnd[0],
+      })
+    )
   }
 
-  const distPath = path.join(dir, config.distDir)
+  const postBuildSpinner = createSpinner({
+    prefixText: 'Automatically optimizing pages',
+  })
+
   const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
-    target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
     PAGES_MANIFEST
   )
+  const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
+  const sprPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
+  const hybridAmpPages = new Set<string>()
+  const additionalSprPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+  const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
+
   let customAppGetInitialProps: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-  const staticCheckSema = new Sema(config.experimental.cpus, {
-    capacity: pageKeys.length,
+  const staticCheckWorkers = new Worker(staticCheckWorker, {
+    numWorkers: config.experimental.cpus,
+    enableWorkerThreads: true,
   })
-  const staticCheckWorkers = workerFarm(
-    {
-      maxConcurrentWorkers: config.experimental.cpus,
-    },
-    staticCheckWorker,
-    ['default']
-  )
 
+  const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
       const chunks = getPageChunks(page)
 
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(actualPage, distPath, buildId)
+      const size = await getPageSizeInKb(
+        actualPage,
+        distDir,
+        buildId,
+        buildManifest,
+        config.experimental.modern
+      )
       const bundleRelative = path.join(
-        target === 'serverless' ? 'pages' : `static/${buildId}/pages`,
+        isLikeServerless ? 'pages' : `static/${buildId}/pages`,
         actualPage + '.js'
       )
       const serverBundle = path.join(
-        distPath,
-        target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        distDir,
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         bundleRelative
       )
 
@@ -325,10 +335,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomAppGetInitialProps(
-          target === 'serverless'
+          isLikeServerless
             ? serverBundle
             : path.join(
-                distPath,
+                distDir,
                 SERVER_DIRECTORY,
                 `/static/${buildId}/pages/_app.js`
               ),
@@ -339,48 +349,51 @@ export default async function build(dir: string, conf = null): Promise<void> {
           console.warn(
             chalk.bold.yellow(`Warning: `) +
               chalk.yellow(
-                `You have opted-out of Automatic Prerendering due to \`getInitialProps\` in \`pages/_app\`.`
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-automatic-prerendering\n'
+            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
           )
         }
       }
 
       if (nonReservedPage) {
         try {
-          await staticCheckSema.acquire()
-          const result: any = await new Promise((resolve, reject) => {
-            staticCheckWorkers.default(
-              { serverBundle, runtimeEnvConfig },
-              (error: Error | null, result: any) => {
-                if (error) return reject(error)
-                resolve(result || {})
-              }
-            )
-          })
-          staticCheckSema.release()
+          let result: any = await (staticCheckWorkers as any).isPageStatic(
+            page,
+            serverBundle,
+            runtimeEnvConfig
+          )
 
-          if (
-            (result.static && customAppGetInitialProps === false) ||
-            result.prerender
-          ) {
+          if (result.isHybridAmp) {
+            hybridAmpPages.add(page)
+          }
+
+          if (result.prerender) {
+            sprPages.add(page)
+
+            if (result.prerenderRoutes) {
+              additionalSprPaths.set(page, result.prerenderRoutes)
+            }
+          }
+
+          if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
+          } else if (result.prerender) {
+            sprPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
-          staticCheckSema.release()
         }
       }
 
       pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
     })
   )
-
-  workerFarm.end(staticCheckWorkers)
+  staticCheckWorkers.end()
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -407,71 +420,247 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   }
 
-  await writeBuildId(distDir, buildId, selectivePageBuilding)
+  await writeBuildId(distDir, buildId)
+  const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
+  const tbdPrerenderRoutes: string[] = []
 
-  if (staticPages.size > 0) {
+  if (staticPages.size > 0 || sprPages.size > 0) {
+    const combinedPages = [...staticPages, ...sprPages]
     const exportApp = require('../export').default
     const exportOptions = {
+      sprPages,
       silent: true,
       buildExport: true,
-      pages: Array.from(staticPages),
+      pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }
-    const exportConfig = {
+    const exportConfig: any = {
       ...config,
-      exportPathMap: (defaultMap: any) => defaultMap,
+      initialPageRevalidationMap: {},
+      // Default map will be the collection of automatic statically exported
+      // pages and SPR pages.
+      // n.b. we cannot handle this above in combinedPages because the dynamic
+      // page must be in the `pages` array, but not in the mapping.
+      exportPathMap: (defaultMap: any) => {
+        // Remove dynamically routed pages from the default path map. These
+        // pages cannot be prerendered because we don't have enough information
+        // to do so.
+        //
+        // Note: prerendering disables automatic static optimization.
+        sprPages.forEach(page => {
+          if (isDynamicRoute(page)) {
+            tbdPrerenderRoutes.push(page)
+            delete defaultMap[page]
+          }
+        })
+        // Append the "well-known" routes we should prerender for, e.g. blog
+        // post slugs.
+        additionalSprPaths.forEach((routes, page) => {
+          routes.forEach(route => {
+            defaultMap[route] = { page }
+          })
+        })
+        return defaultMap
+      },
       exportTrailingSlash: false,
     }
     await exportApp(dir, exportOptions, exportConfig)
-    const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
 
-    let serverDir: string = ''
     // remove server bundles that were exported
     for (const page of staticPages) {
       const { serverBundle } = pageInfos.get(page)!
-      if (!serverDir) {
-        serverDir = path.join(
-          serverBundle.split(/(\/|\\)pages/).shift()!,
-          'pages'
-        )
-      }
       await fsUnlink(serverBundle)
     }
 
-    for (const file of toMove) {
+    const moveExportedPage = async (
+      page: string,
+      file: string,
+      isSpr: boolean,
+      ext: 'html' | 'json'
+    ) => {
+      file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
-      const dest = path.join(serverDir, file)
-      const relativeDest = (target === 'serverless'
+      const relativeDest = (isLikeServerless
         ? path.join('pages', file)
         : path.join('static', buildId, 'pages', file)
       ).replace(/\\/g, '/')
 
-      let page = file.split('.html')[0].replace(/\\/g, '/')
-      pagesManifest[page] = relativeDest
-      page = page === '/index' ? '/' : page
-      pagesManifest[page] = relativeDest
-      staticPages.add(page)
+      const dest = path.join(
+        distDir,
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        relativeDest
+      )
+
+      if (!isSpr) {
+        pagesManifest[page] = relativeDest
+        if (page === '/') pagesManifest['/index'] = relativeDest
+        if (page === '/.amp') pagesManifest['/index.amp'] = relativeDest
+      }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
     }
+
+    for (const page of combinedPages) {
+      const isSpr = sprPages.has(page)
+      const isDynamic = isDynamicRoute(page)
+      let file = page === '/' ? '/index' : page
+      // The dynamic version of SPR pages are not prerendered. Below, we handle
+      // the specific prerenders of these.
+      if (!(isSpr && isDynamic)) {
+        await moveExportedPage(page, file, isSpr, 'html')
+      }
+      const hasAmp = hybridAmpPages.has(page)
+      if (hasAmp) {
+        await moveExportedPage(`${page}.amp`, `${file}.amp`, isSpr, 'html')
+      }
+
+      if (isSpr) {
+        // For a non-dynamic SPR page, we must copy its data file from export.
+        if (!isDynamic) {
+          await moveExportedPage(page, file, true, 'json')
+
+          finalPrerenderRoutes[page] = {
+            initialRevalidateSeconds:
+              exportConfig.initialPageRevalidationMap[page],
+            srcRoute: null,
+            dataRoute: path.posix.join(
+              '/_next/data',
+              `${page === '/' ? '/index' : page}.json`
+            ),
+          }
+        } else {
+          // For a dynamic SPR page, we did not copy its html nor data exports.
+          // Instead, we must copy specific versions of this page as defined by
+          // `unstable_getStaticParams` (additionalSprPaths).
+          const extraRoutes = additionalSprPaths.get(page) || []
+          for (const route of extraRoutes) {
+            await moveExportedPage(route, route, true, 'html')
+            await moveExportedPage(route, route, true, 'json')
+            finalPrerenderRoutes[route] = {
+              initialRevalidateSeconds:
+                exportConfig.initialPageRevalidationMap[route],
+              srcRoute: page,
+              dataRoute: path.posix.join(
+                '/_next/data',
+                `${route === '/' ? '/index' : route}.json`
+              ),
+            }
+          }
+        }
+      }
+    }
+
     // remove temporary export folder
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+  console.log()
+
+  const analysisEnd = process.hrtime(analysisBegin)
+  backgroundWork.push(
+    recordBuildOptimize({
+      durationInSeconds: analysisEnd[0],
+      totalPageCount: pagePaths.length,
+      staticPageCount: staticPages.size,
+      ssrPageCount: pagePaths.length - staticPages.size,
+    })
+  )
+
+  if (sprPages.size > 0) {
+    const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
+    tbdPrerenderRoutes.forEach(tbdRoute => {
+      const dataRoute = path.posix.join(
+        '/_next/data',
+        `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
+      )
+
+      finalDynamicRoutes[tbdRoute] = {
+        routeRegex: getRouteRegex(tbdRoute).re.source,
+        dataRoute,
+        dataRouteRegex: getRouteRegex(
+          dataRoute.replace(/\.json$/, '')
+        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+      }
+    })
+    const prerenderManifest: PrerenderManifest = {
+      version: 1,
+      routes: finalPrerenderRoutes,
+      dynamicRoutes: finalDynamicRoutes,
+    }
+
+    await fsWriteFile(
+      path.join(distDir, PRERENDER_MANIFEST),
+      JSON.stringify(prerenderManifest),
+      'utf8'
+    )
+  }
+
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {
     allPageInfos.set(key, info)
   })
 
-  if (flyingShuttle) {
-    await flyingShuttle.mergePagesManifest()
-    await flyingShuttle.save(allStaticPages, pageInfos)
+  printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless)
+
+  if (tracer) {
+    const parsedResults = await tracer.profiler.stopProfiling()
+    await new Promise(resolve => {
+      if (parsedResults === undefined) {
+        tracer.profiler.destroy()
+        tracer.trace.flush()
+        tracer.end(resolve)
+        return
+      }
+
+      const cpuStartTime = parsedResults.profile.startTime
+      const cpuEndTime = parsedResults.profile.endTime
+
+      tracer.trace.completeEvent({
+        name: 'TaskQueueManager::ProcessTaskFromWorkQueue',
+        id: ++tracer.counter,
+        cat: ['toplevel'],
+        ts: cpuStartTime,
+        args: {
+          src_file: '../../ipc/ipc_moji_bootstrap.cc',
+          src_func: 'Accept',
+        },
+      })
+
+      tracer.trace.completeEvent({
+        name: 'EvaluateScript',
+        id: ++tracer.counter,
+        cat: ['devtools.timeline'],
+        ts: cpuStartTime,
+        dur: cpuEndTime - cpuStartTime,
+        args: {
+          data: {
+            url: 'webpack',
+            lineNumber: 1,
+            columnNumber: 1,
+            frame: '0xFFF',
+          },
+        },
+      })
+
+      tracer.trace.instantEvent({
+        name: 'CpuProfile',
+        id: ++tracer.counter,
+        cat: ['disabled-by-default-devtools.timeline'],
+        ts: cpuEndTime,
+        args: {
+          data: {
+            cpuProfile: parsedResults.profile,
+          },
+        },
+      })
+
+      tracer.profiler.destroy()
+      tracer.trace.flush()
+      tracer.end(resolve)
+    })
   }
 
-  printTreeView(
-    Object.keys(allMappedPages),
-    allPageInfos,
-    target === 'serverless'
-  )
+  await Promise.all(backgroundWork).catch(() => {})
 }

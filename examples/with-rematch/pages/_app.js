@@ -1,4 +1,4 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 
 import withRematch from '../shared/withRematch'
@@ -8,11 +8,9 @@ class MyApp extends App {
   render () {
     const { Component, pageProps, reduxStore } = this.props
     return (
-      <Container>
-        <Provider store={reduxStore}>
-          <Component {...pageProps} />
-        </Provider>
-      </Container>
+      <Provider store={reduxStore}>
+        <Component {...pageProps} />
+      </Provider>
     )
   }
 }

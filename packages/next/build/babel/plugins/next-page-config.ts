@@ -1,13 +1,19 @@
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
 import * as BabelTypes from '@babel/types'
-import { PageConfig } from 'next-server/types'
+import { PageConfig } from '../../../types'
 
-const configKeys = new Set(['amp', 'experimentalPrerender'])
-export const inlineGipIdentifier = '__NEXT_GIP_INLINE__'
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
+export const sprStatus = { used: false }
 
-// replace progam path with just a variable with the drop identifier
+const configKeys = new Set(['amp'])
+const pageComponentVar = '__NEXT_COMP'
+// this value can't be optimized by terser so the shorter the better
+const prerenderId = '__NEXT_SPR'
+const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
+const EXPORT_NAME_GET_STATIC_PARAMS = 'unstable_getStaticParams'
+
+// replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
   path.parentPath.replaceWith(
     t.program(
@@ -29,10 +35,11 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 }
 
 interface ConfigState {
-  setupInlining?: boolean
+  isPrerender?: boolean
   bundleDropped?: boolean
 }
 
+// config to parsing pageConfig for client bundles
 export default function nextPageConfig({
   types: t,
 }: {
@@ -48,17 +55,44 @@ export default function nextPageConfig({
                 path: NodePath<BabelTypes.ExportNamedDeclaration>,
                 state: any
               ) {
-                if (
-                  state.bundleDropped ||
-                  !path.node.declaration ||
-                  !(path.node.declaration as any).declarations
-                )
+                // Skip if the file will be dropped
+                if (state.bundleDropped) {
                   return
-                const { declarations } = path.node.declaration as any
-                const config: PageConfig = {}
+                }
 
-                for (const declaration of declarations) {
-                  if (declaration.id.name !== 'config') continue
+                // Bail out of `export { a, b, c };` case.
+                // We should probably support this.
+                if (!path.node.declaration) {
+                  return
+                }
+
+                const { declarations, id } = path.node.declaration as any
+
+                // drop SSR Exports for client bundles
+                if (
+                  id &&
+                  (id.name === EXPORT_NAME_GET_STATIC_PROPS ||
+                    id.name === EXPORT_NAME_GET_STATIC_PARAMS)
+                ) {
+                  if (id.name === EXPORT_NAME_GET_STATIC_PROPS) {
+                    state.isPrerender = true
+                    sprStatus.used = true
+                  }
+                  path.remove()
+                  return
+                }
+
+                if (!declarations) {
+                  return
+                }
+
+                const config: PageConfig = {}
+                for (let dIndex = 0; dIndex < declarations.length; ++dIndex) {
+                  const declaration = declarations[dIndex]
+
+                  if (declaration.id.name !== 'config') {
+                    continue
+                  }
 
                   if (declaration.init.type !== 'ObjectExpression') {
                     const pageName =
@@ -79,6 +113,11 @@ export default function nextPageConfig({
                       config[name] = prop.value.value
                     }
                   }
+
+                  declarations.splice(dIndex, 1)
+                  if (declarations.length === 0) {
+                    path.remove()
+                  }
                 }
 
                 if (config.amp === true) {
@@ -86,41 +125,39 @@ export default function nextPageConfig({
                   state.bundleDropped = true
                   return
                 }
-
-                if (
-                  config.experimentalPrerender === true ||
-                  config.experimentalPrerender === 'inline'
-                ) {
-                  state.setupInlining = true
-                }
               },
             },
             state
           )
         },
       },
-      // handles Page.getInitialProps = () => {}
-      AssignmentExpression(path, state: ConfigState) {
-        if (!state.setupInlining) return
-        const { property } = (path.node.left || {}) as any
-        const { name } = property
-        if (name !== 'getInitialProps') return
-        // replace the getInitialProps function with an identifier for replacing
-        path.node.right = t.functionExpression(
-          null,
-          [],
-          t.blockStatement([
-            t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
-          ])
-        )
-      },
-      // handles class { static async getInitialProps() {} }
-      FunctionDeclaration(path, state: ConfigState) {
-        if (!state.setupInlining) return
-        if ((path.node.id && path.node.id.name) !== 'getInitialProps') return
-        path.node.body = t.blockStatement([
-          t.returnStatement(t.stringLiteral(inlineGipIdentifier)),
+      ExportDefaultDeclaration(path, state: ConfigState) {
+        if (!state.isPrerender) {
+          return
+        }
+        const prev = t.cloneDeep(path.node.declaration)
+
+        // workaround to allow assigning a ClassDeclaration to a variable
+        // babel throws error without
+        if (prev.type.endsWith('Declaration')) {
+          prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
+        }
+
+        path.insertBefore([
+          t.variableDeclaration('const', [
+            t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
+          ]),
+          t.assignmentExpression(
+            '=',
+            t.memberExpression(
+              t.identifier(pageComponentVar),
+              t.identifier(prerenderId)
+            ),
+            t.booleanLiteral(true)
+          ),
         ])
+
+        path.node.declaration = t.identifier(pageComponentVar)
       },
     },
   }

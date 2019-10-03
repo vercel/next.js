@@ -1,5 +1,5 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 
 export default class MyApp extends App {
   // find this
@@ -11,10 +11,6 @@ export default class MyApp extends App {
 
   render () {
     const { Component, url } = this.props
-    return (
-      <Container>
-        <Component url={url} />
-      </Container>
-    )
+    return <Component url={url} />
   }
 }

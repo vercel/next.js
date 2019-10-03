@@ -19,7 +19,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   PAGES_MANIFEST
-} from 'next-server/constants'
+} from 'next/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
@@ -80,11 +80,16 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 405 for POST on page', async () => {
+    it('should render 404 for /_next/static route', async () => {
+      const html = await renderViaHTTP(appPort, '/_next/static')
+      expect(html).toMatch(/This page could not be found/)
+    })
+
+    it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
         method: 'POST'
       })
-      expect(res.status).toBe(405)
+      expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
@@ -124,6 +129,32 @@ describe('Production Usage', () => {
       )
       expect(res.headers.get('allow').includes('GET')).toBe(true)
       expect(res.status).toBe(405)
+    })
+
+    it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const res = await fetch(
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
+        {
+          method: 'GET',
+          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' }
+        }
+      )
+      expect(res.status).toBe(412)
+    })
+
+    it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const res = await fetch(
+        `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
+        {
+          method: 'GET',
+          headers: { 'if-unmodified-since': 'nextjs' }
+        }
+      )
+      expect(res.status).toBe(200)
     })
 
     it('should set Content-Length header', async () => {
@@ -206,6 +237,14 @@ describe('Production Usage', () => {
       const res = await fetch(url)
       const body = await res.text()
       expect(body).toEqual('API hello works')
+    })
+
+    it('should work with dynamic params and search string', async () => {
+      const url = `http://localhost:${appPort}/api/post-1?val=1`
+      const res = await fetch(url)
+      const body = await res.json()
+
+      expect(body).toEqual({ val: '1', post: 'post-1' })
     })
   })
 
@@ -337,15 +376,9 @@ describe('Production Usage', () => {
 
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
+      const file = await renderViaHTTP(appPort, '/file')
       expect(data).toBe('data')
-    })
-
-    it('Should prioritize pages over public files', async () => {
-      const html = await renderViaHTTP(appPort, '/about')
-      const data = await renderViaHTTP(appPort, '/file')
-
-      expect(html).toMatch(/About Page/)
-      expect(data).toBe('test')
+      expect(file).toBe('test')
     })
 
     it('should reload the page on page script error', async () => {
@@ -388,10 +421,30 @@ describe('Production Usage', () => {
       expect(script).not.toMatch(/runtimeConfig/)
     })
 
+    it('should add autoExport for auto pre-rendered pages', async () => {
+      for (const page of ['/', '/about']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(data.autoExport).toBe(true)
+      }
+    })
+
+    it('should not add autoExport for non pre-rendered pages', async () => {
+      for (const page of ['/query']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(!!data.autoExport).toBe(false)
+      }
+    })
+
     if (browserName === 'chrome') {
       it('should add preload tags when Link prefetch prop is used', async () => {
         const browser = await webdriver(appPort, '/prefetch')
+        await waitFor(2000)
         const elements = await browser.elementsByCss('link[rel=preload]')
+
         expect(elements.length).toBe(9)
         await Promise.all(
           elements.map(async element => {
@@ -427,7 +480,7 @@ describe('Production Usage', () => {
 
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
-        if (!browser.log) return
+        if (global.browserName !== 'chrome') return
         const counter = await browser
           .elementByCss('#increase')
           .click()
@@ -447,7 +500,6 @@ describe('Production Usage', () => {
             foundLog = true
           }
         })
-
         expect(foundLog).toBe(true)
 
         // When we go to the 404 page, it'll do a hard reload.
@@ -520,24 +572,93 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should prerender pages with data correctly', async () => {
-    const toSomething = await renderViaHTTP(appPort, '/to-something')
-    expect(toSomething).toMatch(/some interesting title/)
-
-    const something = await renderViaHTTP(appPort, '/something')
-    expect(something).toMatch(/this is some data to be inlined/)
+  it('should handle AMP correctly in IE', async () => {
+    const browser = await webdriver(appPort, '/some-amp')
+    await waitFor(1000)
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('Not AMP')
   })
 
-  it('should have inlined the data correctly in prerender', async () => {
-    const browser = await webdriver(appPort, '/to-something')
-    await browser.elementByCss('#something').click()
+  it('should warn when prefetch is true', async () => {
+    if (global.browserName !== 'chrome') return
+    let browser
+    try {
+      browser = await webdriver(appPort, '/development-logs')
+      const browserLogs = await browser.log('browser')
+      let found = false
+      browserLogs.forEach(log => {
+        if (log.message.includes('Next.js auto-prefetches automatically')) {
+          found = true
+        }
+      })
+      expect(found).toBe(false)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 
-    let text = await browser.elementByCss('h3').text()
-    expect(text).toMatch(/this is some data to be inlined/)
+  it('should not emit profiling events', async () => {
+    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
+  })
 
-    await browser.elementByCss('#to-something').click()
-    text = await browser.elementByCss('h3').text()
-    expect(text).toMatch(/some interesting title/)
+  it('should contain the Next.js version in window export', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const version = await browser.eval('window.next.version')
+      expect(version).toBeTruthy()
+      expect(version).toBe(require('next/package.json').version)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should clear all core performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/about')
+      const currentPerfMarks = await browser.eval(
+        `window.performance.getEntriesByType('mark')`
+      )
+      const allPerfMarks = [
+        'beforeRender',
+        'afterHydrate',
+        'afterRender',
+        'routeChange'
+      ]
+
+      allPerfMarks.forEach(name =>
+        expect(currentPerfMarks).not.toContainEqual(
+          expect.objectContaining({ name })
+        )
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not clear custom performance marks', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/mark-in-head')
+
+      const customMarkFound = await browser.eval(
+        `window.performance.getEntriesByType('mark').filter(function(e) {
+          return e.name === 'custom-mark'
+        }).length === 1`
+      )
+      expect(customMarkFound).toBe(true)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

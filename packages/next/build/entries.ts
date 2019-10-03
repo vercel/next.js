@@ -1,6 +1,10 @@
+import chalk from 'chalk'
 import { join } from 'path'
 import { stringify } from 'querystring'
-import { PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
+
+import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { isTargetLikeServerless } from '../next-server/server/config'
+import { warn } from './output/log'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 
 type PagesMapping = {
@@ -11,6 +15,7 @@ export function createPagesMapping(
   pagePaths: string[],
   extensions: string[]
 ): PagesMapping {
+  const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
       let page = `${pagePath
@@ -18,10 +23,20 @@ export function createPagesMapping(
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
       page = page === '/index' ? '/' : page
 
-      result[page === '' ? '/' : page] = join(
-        PAGES_DIR_ALIAS,
-        pagePath
-      ).replace(/\\/g, '/')
+      const pageKey = page === '' ? '/' : page
+
+      if (pageKey in result) {
+        warn(
+          `Duplicate page detected. ${chalk.cyan(
+            join('pages', previousPages[pageKey])
+          )} and ${chalk.cyan(
+            join('pages', pagePath)
+          )} both resolve to ${chalk.cyan(pageKey)}.`
+        )
+      } else {
+        previousPages[pageKey] = pagePath
+      }
+      result[pageKey] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
       return result
     },
     {}
@@ -45,9 +60,8 @@ type Entrypoints = {
 
 export function createEntrypoints(
   pages: PagesMapping,
-  target: 'server' | 'serverless',
+  target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
-  dynamicBuildId: boolean,
   config: any
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
@@ -58,21 +72,23 @@ export function createEntrypoints(
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     distDir: DOT_NEXT_ALIAS,
+    buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     ampBindInitData: config.experimental.ampBindInitData,
     canonicalBase: config.canonicalBase,
-    dynamicBuildId,
   }
 
   Object.keys(pages).forEach(page => {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-    const isApiRoute = bundleFile.startsWith('/api')
+    const isApiRoute = page.match(API_ROUTE)
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
 
-    if (isApiRoute && target === 'serverless') {
+    const isLikeServerless = isTargetLikeServerless(target)
+
+    if (isApiRoute && isLikeServerless) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
@@ -83,11 +99,7 @@ export function createEntrypoints(
       )}!`
     } else if (isApiRoute || target === 'server') {
       server[bundlePath] = [absolutePagePath]
-    } else if (
-      target === 'serverless' &&
-      page !== '/_app' &&
-      page !== '/_document'
-    ) {
+    } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,

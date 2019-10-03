@@ -13,12 +13,15 @@ export default async ({ assetPrefix }) => {
 
   setupPing(assetPrefix, () => Router.pathname, currentPage)
 
-  document.addEventListener('visibilitychange', event => {
-    const state = document.visibilityState
-    if (state === 'visible') {
-      setupPing(assetPrefix, () => Router.pathname, true)
-    } else {
-      closePing()
-    }
-  })
+  // prevent HMR connection from being closed when running tests
+  if (!process.env.__NEXT_TEST_MODE) {
+    document.addEventListener('visibilitychange', event => {
+      const state = document.visibilityState
+      if (state === 'visible') {
+        setupPing(assetPrefix, () => Router.pathname, true)
+      } else {
+        closePing()
+      }
+    })
+  }
 }
