@@ -968,7 +968,7 @@ export default async function getBaseWebpackConfig(
             }
           }
         } catch (_) {
-          // ooh noo :-(
+          // The error is not required to be handled.
         }
       })
     })
