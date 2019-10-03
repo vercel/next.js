@@ -249,10 +249,7 @@ function renderReactElement (reactEl, domEl) {
   } else {
     ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
-  relayPaintMetrics()
-}
 
-function relayPaintMetrics () {
   if (onPerfEntry) {
     performance.getEntriesByType('paint').forEach(onPerfEntry)
   }
