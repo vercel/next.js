@@ -238,28 +238,10 @@ function renderReactElement (reactEl, domEl) {
 
   // The check for `.hydrate` is there to support React alternatives like preact
   if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, function () {
-      if (process.env.NODE_ENV !== 'production') {
-        document
-          .querySelectorAll('[data-next-hydrating]')
-          .forEach(function (el) {
-            el.remove()
-          })
-      }
-      markHydrateComplete()
-    })
+    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl, function () {
-      if (process.env.NODE_ENV !== 'production') {
-        document
-          .querySelectorAll('[data-next-hydrating]')
-          .forEach(function (el) {
-            el.remove()
-          })
-      }
-      markRenderComplete()
-    })
+    ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
 }
 

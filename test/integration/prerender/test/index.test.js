@@ -153,39 +153,48 @@ const runTests = (dev = false) => {
       expect(manifest.routes).toEqual({
         '/': {
           dataRoute: '/_next/data/index.json',
-          initialRevalidateSeconds: 1
+          initialRevalidateSeconds: 1,
+          srcRoute: null
         },
         '/blog/[post3]': {
           dataRoute: '/_next/data/blog/[post3].json',
-          initialRevalidateSeconds: 10
+          initialRevalidateSeconds: 10,
+          srcRoute: '/blog/[post]'
         },
         '/blog/post-1': {
           dataRoute: '/_next/data/blog/post-1.json',
-          initialRevalidateSeconds: 10
+          initialRevalidateSeconds: 10,
+          srcRoute: '/blog/[post]'
         },
         '/blog/post-2': {
           dataRoute: '/_next/data/blog/post-2.json',
-          initialRevalidateSeconds: 10
+          initialRevalidateSeconds: 10,
+          srcRoute: '/blog/[post]'
         },
         '/blog/post-1/comment-1': {
           dataRoute: '/_next/data/blog/post-1/comment-1.json',
-          initialRevalidateSeconds: 2
+          initialRevalidateSeconds: 2,
+          srcRoute: '/blog/[post]/[comment]'
         },
         '/blog/post-2/comment-2': {
           dataRoute: '/_next/data/blog/post-2/comment-2.json',
-          initialRevalidateSeconds: 2
+          initialRevalidateSeconds: 2,
+          srcRoute: '/blog/[post]/[comment]'
         },
         '/another': {
           dataRoute: '/_next/data/another.json',
-          initialRevalidateSeconds: 0
+          initialRevalidateSeconds: 0,
+          srcRoute: null
         },
         '/default-revalidate': {
           dataRoute: '/_next/data/default-revalidate.json',
-          initialRevalidateSeconds: 1
+          initialRevalidateSeconds: 1,
+          srcRoute: null
         },
         '/something': {
           dataRoute: '/_next/data/something.json',
-          initialRevalidateSeconds: false
+          initialRevalidateSeconds: false,
+          srcRoute: null
         }
       })
       expect(manifest.dynamicRoutes).toEqual({
