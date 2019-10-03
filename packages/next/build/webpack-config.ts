@@ -905,6 +905,7 @@ export default async function getBaseWebpackConfig(
         return
       }
 
+      // Check if the rule we're iterating over applies to Sass or Less
       if (
         !(
           rule.test.source === '\\.scss$' ||
@@ -920,16 +921,29 @@ export default async function getBaseWebpackConfig(
           !(
             use &&
             typeof use === 'object' &&
+            // Identify use statements only pertaining to `css-loader`
             use.loader === 'css-loader' &&
             use.options &&
             typeof use.options === 'object' &&
+            // The `minimize` property is a good heuristic that we need to
+            // perform this hack. The `minimize` property was only valid on
+            // old `css-loader` versions. Custom setups (that aren't next-sass
+            // or next-less) likely have the newer version.
+            // We still handle this gracefully below.
             Object.prototype.hasOwnProperty.call(use.options, 'minimize')
           )
         ) {
           return
         }
 
+        // Try to monkey patch within a try-catch. We shouldn't fail the build
+        // if we cannot pull this off.
+        // The user may not even be using the `next-sass` or `next-less`
+        // plugins.
+        // If it does work, great!
         try {
+          // Resolve the version of `@zeit/next-css` as depended on by the Sass
+          // or Less plugin.
           const correctNextCss = resolveRequest(
             '@zeit/next-css',
             require.resolve(
@@ -938,14 +952,24 @@ export default async function getBaseWebpackConfig(
                 : '@zeit/next-sass'
             )
           )
+
+          // If we found `@zeit/next-css` ...
           if (correctNextCss) {
+            // ... resolve the version of `css-loader` shipped with that
+            // package instead of whichever was hoisted highest in your
+            // `node_modules` tree.
             const correctCssLoader = resolveRequest(
               'css-loader',
               correctNextCss
             )
-            if (correctCssLoader) use.loader = correctCssLoader
+            if (correctCssLoader) {
+              // We saved the user from a failed build!
+              use.loader = correctCssLoader
+            }
           }
-        } catch (_) {}
+        } catch (_) {
+          // ooh noo :-(
+        }
       })
     })
   }
