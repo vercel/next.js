@@ -892,6 +892,64 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // Patch `@zeit/next-sass` and `@zeit/next-css` compatibility
+  if (
+    !isServer &&
+    webpackConfig.module &&
+    Array.isArray(webpackConfig.module.rules)
+  ) {
+    ;[].forEach.call(webpackConfig.module.rules, function(
+      rule: webpack.RuleSetRule
+    ) {
+      if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
+        return
+      }
+
+      if (
+        !(
+          rule.test.source === '\\.scss$' ||
+          rule.test.source === '\\.sass$' ||
+          rule.test.source === '\\.less$'
+        )
+      ) {
+        return
+      }
+
+      ;[].forEach.call(rule.use, function(use: webpack.RuleSetUseItem) {
+        if (
+          !(
+            use &&
+            typeof use === 'object' &&
+            use.loader === 'css-loader' &&
+            use.options &&
+            typeof use.options === 'object' &&
+            Object.prototype.hasOwnProperty.call(use.options, 'minimize')
+          )
+        ) {
+          return
+        }
+
+        try {
+          const correctNextCss = resolveRequest(
+            '@zeit/next-css',
+            require.resolve(
+              (rule.test as RegExp).source === '\\.less$'
+                ? '@zeit/next-less'
+                : '@zeit/next-sass'
+            )
+          )
+          if (correctNextCss) {
+            const correctCssLoader = resolveRequest(
+              'css-loader',
+              correctNextCss
+            )
+            if (correctCssLoader) use.loader = correctCssLoader
+          }
+        } catch (_) {}
+      })
+    })
+  }
+
   // Backwards compat for `main.js` entry key
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
