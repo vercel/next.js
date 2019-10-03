@@ -892,7 +892,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  // Patch `@zeit/next-sass` and `@zeit/next-css` compatibility
+  // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
   if (
     !isServer &&
     webpackConfig.module &&
