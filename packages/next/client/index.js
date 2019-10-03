@@ -75,7 +75,7 @@ let webpackHMR
 export let router
 export let ErrorComponent
 let Component
-let App
+let App, onPerfEntry
 
 class Container extends React.Component {
   componentDidCatch (err, info) {
@@ -139,7 +139,13 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  App = await pageLoader.loadPage('/_app')
+  const { page: app, mod } = await pageLoader.loadPageScript('/_app')
+  App = app
+  if (mod && mod.unstable_onPerformanceData) {
+    onPerfEntry = function ({ name, startTime, value }) {
+      mod.unstable_onPerformanceData({ name, startTime, value })
+    }
+  }
 
   let initialErr = err
 
@@ -243,6 +249,13 @@ function renderReactElement (reactEl, domEl) {
   } else {
     ReactDOM.render(reactEl, domEl, markRenderComplete)
   }
+  relayPaintMetrics()
+}
+
+function relayPaintMetrics () {
+  if (onPerfEntry) {
+    performance.getEntriesByType('paint').forEach(onPerfEntry)
+  }
 }
 
 function markHydrateComplete () {
@@ -256,7 +269,10 @@ function markHydrateComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
-
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+    performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
+  }
   clearMarks()
 }
 
@@ -276,7 +292,12 @@ function markRenderComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
+    performance
+      .getEntriesByName('Next.js-route-change-to-render')
+      .forEach(onPerfEntry)
+  }
   clearMarks()
 }
 
@@ -284,12 +305,12 @@ function clearMarks () {
   ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
     mark => performance.clearMarks(mark)
   )
-
-  /*
-   * TODO: uncomment the following line when we have a way to
-   * expose this to user code.
-   */
-  // performance.clearMeasures()
+  ;[
+    'Next.js-before-hydration',
+    'Next.js-hydration',
+    'Next.js-route-change-to-render',
+    'Next.js-render'
+  ].forEach(measure => performance.clearMeasures(measure))
 }
 
 function AppContainer ({ children }) {
