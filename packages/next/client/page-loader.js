@@ -59,9 +59,7 @@ export default class PageLoader {
   }
 
   loadPage (route) {
-    return this.loadPageScript(route).then(value =>
-      value ? value.page : value
-    )
+    return this.loadPageScript(route).then(v => v.page)
   }
 
   loadPageScript (route) {

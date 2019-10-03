@@ -75,7 +75,7 @@ let webpackHMR
 export let router
 export let ErrorComponent
 let Component
-let App, perfDataRelayer
+let App, onPerfEntry
 
 class Container extends React.Component {
   componentDidCatch (err, info) {
@@ -141,8 +141,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
-  if (mod && mod.experimental_onPerformanceData) {
-    perfDataRelayer = mod.experimental_onPerformanceData
+  if (mod && mod.unstable_onPerformanceData) {
+    onPerfEntry = function ({ entry, startTime, value }) {
+      mod.unstable_onPerformanceData({ entry, startTime, value })
+    }
   }
 
   let initialErr = err
@@ -251,14 +253,8 @@ function renderReactElement (reactEl, domEl) {
 }
 
 function relayPaintMetrics () {
-  if (perfDataRelayer) {
-    performance.getEntriesByType('paint').forEach(entry => {
-      perfDataRelayer({
-        name: entry.name,
-        startTime: entry.startTime,
-        value: entry.duration
-      })
-    })
+  if (onPerfEntry) {
+    performance.getEntriesByType('paint').forEach(onPerfEntry)
   }
 }
 
@@ -273,22 +269,9 @@ function markHydrateComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
-  if (perfDataRelayer) {
-    performance.getEntriesByName('Next.js-hydration').forEach(entry => {
-      perfDataRelayer({
-        name: entry.name,
-        startTime: entry.startTime,
-        value: entry.duration
-      })
-    })
-
-    performance.getEntriesByName('beforeRender').forEach(entry => {
-      perfDataRelayer({
-        name: entry.name,
-        startTime: entry.startTime,
-        value: entry.duration
-      })
-    })
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+    performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
   }
   clearMarks()
 }
@@ -309,24 +292,11 @@ function markRenderComplete () {
     'beforeRender'
   )
   performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (perfDataRelayer) {
-    performance.getEntriesByName('Next.js-render').forEach(entry => {
-      perfDataRelayer({
-        name: entry.name,
-        startTime: entry.startTime,
-        value: entry.duration
-      })
-    })
-
+  if (onPerfEntry) {
+    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
     performance
       .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(entry => {
-        perfDataRelayer({
-          name: entry.name,
-          startTime: entry.startTime,
-          value: entry.duration
-        })
-      })
+      .forEach(onPerfEntry)
   }
   clearMarks()
 }
