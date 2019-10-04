@@ -297,7 +297,7 @@ export default class HotReloader {
     this.stats = ((await this.waitUntilValid()) as any).stats[0]
   }
 
-  async stop(webpackDevMiddleware: WebpackDevMiddleware.WebpackDevMiddleware) {
+  async stop(webpackDevMiddleware?: WebpackDevMiddleware.WebpackDevMiddleware) {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {

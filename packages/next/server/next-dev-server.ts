@@ -191,7 +191,7 @@ export default class DevServer extends Server {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
 
     this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir,
+      pagesDir: this.pagesDir!,
       config: this.nextConfig,
       buildId: this.buildId,
     })
