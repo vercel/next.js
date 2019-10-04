@@ -93,3 +93,19 @@ declare module NodeJS {
     crossOrigin?: string
   }
 }
+
+declare module 'watchpack' {
+  import { EventEmitter } from 'events'
+
+  class Watchpack extends EventEmitter {
+    watch(files: string[], directories: string[], startTime?: number): void
+    close(): void
+
+    getTimeInfoEntries(): Map<
+      string,
+      { safeTime: number; timestamp: number; accuracy?: number }
+    >
+  }
+
+  export default Watchpack
+}

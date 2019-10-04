@@ -1,23 +1,36 @@
 import React from 'react'
+
 import Head from '../next-server/lib/head'
 
 // This component is only rendered on the server side.
-export default function ErrorDebug ({ error, info }) {
+export default function ErrorDebug({
+  error,
+  info,
+}: {
+  error: Error
+  info: any
+}) {
   return (
-    <div style={styles.errorDebug}>
+    <div style={styles.errorDebug as object}>
       <Head>
-        <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
       <StackTrace error={error} info={info} />
     </div>
   )
 }
 
-const StackTrace = ({ error: { name, message, stack }, info }) => (
+const StackTrace = ({
+  error: { name, message, stack },
+  info,
+}: {
+  error: Error
+  info: any
+}) => (
   <div>
-    <div style={styles.heading}>{message || name}</div>
-    <pre style={styles.stack}>{stack}</pre>
-    {info && <pre style={styles.stack}>{info.componentStack}</pre>}
+    <div style={styles.heading as object}>{message || name}</div>
+    <pre style={styles.stack as object}>{stack}</pre>
+    {info && <pre style={styles.stack as object}>{info.componentStack}</pre>}
   </div>
 )
 
@@ -33,7 +46,7 @@ export const styles = {
     top: 0,
     bottom: 0,
     zIndex: 9999,
-    color: '#000000'
+    color: '#000000',
   },
 
   stack: {
@@ -45,7 +58,7 @@ export const styles = {
     margin: 0,
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',
-    marginTop: '16px'
+    marginTop: '16px',
   },
 
   heading: {
@@ -56,6 +69,6 @@ export const styles = {
     lineHeight: '28px',
     color: '#000000',
     marginBottom: '0px',
-    marginTop: '0px'
-  }
+    marginTop: '0px',
+  },
 }
