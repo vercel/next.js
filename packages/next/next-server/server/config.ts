@@ -105,7 +105,7 @@ function normalizeConfig(phase: string, config: any) {
 export default function loadConfig(
   phase: string,
   dir: string,
-  customConfig: any
+  customConfig?: object | null
 ) {
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
