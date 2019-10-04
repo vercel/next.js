@@ -1,29 +1,32 @@
-import Server from '../next-server/server/next-server'
-import { join, relative } from 'path'
-import { promisify } from 'util'
-import HotReloader from './hot-reloader'
-import { route } from '../next-server/server/router'
-import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
-import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
+import fs from 'fs'
+import { IncomingMessage, ServerResponse } from 'http'
+import { join, relative } from 'path'
+import React from 'react'
+import { UrlWithParsedQuery } from 'url'
+import { promisify } from 'util'
+import Watchpack from 'watchpack'
+
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import Watchpack from 'watchpack'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
-import { recordVersion } from '../telemetry/events'
-import fs from 'fs'
+import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
-  isDynamicRoute
+  isDynamicRoute,
 } from '../next-server/lib/router/utils'
-import React from 'react'
-import { findPageFile } from './lib/find-page-file'
+import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
-import { findPagesDir } from '../lib/find-pages-dir'
+import { route } from '../next-server/server/router'
+import { recordVersion } from '../telemetry/events'
+import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import ErrorDebug from './error-debug'
+import HotReloader from './hot-reloader'
+import { findPageFile } from './lib/find-page-file'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -34,14 +37,22 @@ if (typeof React.Suspense === 'undefined') {
 const fsStat = promisify(fs.stat)
 
 export default class DevServer extends Server {
-  constructor (options) {
+  private devReady: Promise<void>
+  private setDevReady?: Function
+  private webpackWatcher?: Watchpack | null
+  private hotReloader?: HotReloader
+
+  constructor(options: ServerConstructor) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
-    this.renderOpts.ErrorDebug = ErrorDebug
+    ;(this.renderOpts as any).ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
-    this.renderOpts.ampValidator = (html, pathname) => {
+    ;(this.renderOpts as any).ampValidator = (
+      html: string,
+      pathname: string
+    ) => {
       return AmpHtmlValidator.getInstance().then(validator => {
         const result = validator.validateString(html)
         ampValidation(
@@ -56,15 +67,15 @@ export default class DevServer extends Server {
     this.pagesDir = findPagesDir(this.dir)
   }
 
-  currentPhase () {
+  protected currentPhase() {
     return PHASE_DEVELOPMENT_SERVER
   }
 
-  readBuildId () {
+  protected readBuildId() {
     return 'development'
   }
 
-  async addExportPathMapRoutes () {
+  async addExportPathMapRoutes() {
     // Makes `next export` exportPathMap work in development mode.
     // So that the user doesn't have to define a custom server reading the exportPathMap
     if (this.nextConfig.exportPathMap) {
@@ -76,7 +87,7 @@ export default class DevServer extends Server {
           dir: this.dir,
           outDir: null,
           distDir: this.distDir,
-          buildId: this.buildId
+          buildId: this.buildId,
         }
       ) // In development we can't give a default path mapping
       for (const path in exportPathMap) {
@@ -99,13 +110,13 @@ export default class DevServer extends Server {
             const mergedQuery = { ...urlQuery, ...query }
 
             await this.render(req, res, page, mergedQuery, parsedUrl)
-          }
+          },
         })
       }
     }
   }
 
-  async startWatcher () {
+  async startWatcher() {
     if (this.webpackWatcher) {
       return
     }
@@ -115,7 +126,7 @@ export default class DevServer extends Server {
       const pagesDir = this.pagesDir
 
       // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir, (_, files) => {
+      fs.readdir(pagesDir!, (_, files) => {
         if (files && files.length) {
           return
         }
@@ -127,7 +138,7 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      wp.watch([], [pagesDir], 0)
+      wp.watch([], [pagesDir!], 0)
 
       wp.on('aggregated', () => {
         const dynamicRoutedPages = []
@@ -137,7 +148,8 @@ export default class DevServer extends Server {
             continue
           }
 
-          let pageName = '/' + relative(pagesDir, fileName).replace(/\\+/g, '/')
+          let pageName =
+            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
 
           pageName = pageName.replace(
             new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
@@ -155,7 +167,7 @@ export default class DevServer extends Server {
 
         this.dynamicRoutes = getSortedRoutes(dynamicRoutedPages).map(page => ({
           page,
-          match: getRouteMatcher(getRouteRegex(page))
+          match: getRouteMatcher(getRouteRegex(page)),
         }))
 
         if (!resolved) {
@@ -166,7 +178,7 @@ export default class DevServer extends Server {
     })
   }
 
-  async stopWatcher () {
+  async stopWatcher() {
     if (!this.webpackWatcher) {
       return
     }
@@ -175,36 +187,40 @@ export default class DevServer extends Server {
     this.webpackWatcher = null
   }
 
-  async prepare () {
-    await verifyTypeScriptSetup(this.dir, this.pagesDir)
+  async prepare() {
+    await verifyTypeScriptSetup(this.dir, this.pagesDir!)
 
     this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir,
+      pagesDir: this.pagesDir!,
       config: this.nextConfig,
-      buildId: this.buildId
+      buildId: this.buildId,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
-    this.setDevReady()
+    this.setDevReady!()
 
     setTelemetryDir(this.distDir)
     recordVersion({ cliCommand: 'dev' })
   }
 
-  async close () {
+  protected async close() {
     await this.stopWatcher()
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
   }
 
-  async run (req, res, parsedUrl) {
+  async run(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     await this.devReady
     const { pathname } = parsedUrl
 
-    if (pathname.startsWith('/_next')) {
+    if (pathname!.startsWith('/_next')) {
       try {
         await fsStat(join(this.publicDir, '_next'))
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
@@ -214,11 +230,11 @@ export default class DevServer extends Server {
     // check for a public file, throwing error if there's a
     // conflicting page
     if (this.nextConfig.experimental.publicDirectory) {
-      if (await this.hasPublicFile(pathname)) {
+      if (await this.hasPublicFile(pathname!)) {
         const pageFile = await findPageFile(
-          this.pagesDir,
+          this.pagesDir!,
 
-          normalizePagePath(pathname),
+          normalizePagePath(pathname!),
           this.nextConfig.pageExtensions
         )
 
@@ -227,13 +243,15 @@ export default class DevServer extends Server {
             `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
           )
           res.statusCode = 500
-          return this.renderError(err, req, res, pathname, {})
+          return this.renderError(err, req, res, pathname!, {})
         }
-        return this.servePublic(req, res, pathname)
+        return this.servePublic(req, res, pathname!)
       }
     }
 
-    const { finished } = await this.hotReloader.run(req, res, parsedUrl)
+    const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
+      finished: false,
+    }
     if (finished) {
       return
     }
@@ -241,7 +259,7 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
-  generateRoutes () {
+  generateRoutes() {
     const routes = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
@@ -251,23 +269,26 @@ export default class DevServer extends Server {
       fn: async (req, res, params) => {
         const p = join(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
-      }
+      },
     })
 
     return routes
   }
 
   // In development public files are not added to the router but handled as a fallback instead
-  generatePublicRoutes () {
+  protected generatePublicRoutes() {
     return []
   }
 
   // In development dynamic routes cannot be known ahead of time
-  getDynamicRoutes () {
+  protected getDynamicRoutes() {
     return []
   }
 
-  _filterAmpDevelopmentScript (html, event) {
+  _filterAmpDevelopmentScript(
+    html: string,
+    event: { line: number; col: number; code: string }
+  ) {
     if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
       return true
     }
@@ -292,9 +313,9 @@ export default class DevServer extends Server {
    * Check if resolver function is build or request new build for this function
    * @param {string} pathname
    */
-  async resolveApiRequest (pathname) {
+  protected async resolveApiRequest(pathname: string): Promise<string | null> {
     try {
-      await this.hotReloader.ensurePage(pathname)
+      await this.hotReloader!.ensurePage(pathname)
     } catch (err) {
       // API route dosn't exist => return 404
       if (err.code === 'ENOENT') {
@@ -305,7 +326,13 @@ export default class DevServer extends Server {
     return resolvedPath
   }
 
-  async renderToHTML (req, res, pathname, query, options = {}) {
+  async renderToHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: { [key: string]: string },
+    options = {}
+  ) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -314,18 +341,18 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname).catch(async err => {
-        if (err.code !== 'ENOENT') {
+      await this.hotReloader!.ensurePage(pathname).catch(async (err: Error) => {
+        if ((err as any).code !== 'ENOENT') {
           throw err
         }
 
-        for (const dynamicRoute of this.dynamicRoutes) {
+        for (const dynamicRoute of this.dynamicRoutes || []) {
           const params = dynamicRoute.match(pathname)
           if (!params) {
             continue
           }
 
-          return this.hotReloader.ensurePage(dynamicRoute.page).then(() => {
+          return this.hotReloader!.ensurePage(dynamicRoute.page).then(() => {
             pathname = dynamicRoute.page
             query = Object.assign({}, query, params)
           })
@@ -344,8 +371,14 @@ export default class DevServer extends Server {
     return html
   }
 
-  async renderErrorToHTML (err, req, res, pathname, query) {
-    await this.hotReloader.ensurePage('/_error')
+  async renderErrorToHTML(
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: { [key: string]: string }
+  ) {
+    await this.hotReloader!.ensurePage('/_error')
 
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -370,22 +403,22 @@ export default class DevServer extends Server {
     }
   }
 
-  sendHTML (req, res, html) {
+  sendHTML(req: IncomingMessage, res: ServerResponse, html: string) {
     // In dev, we should not cache pages for any reason.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
     return super.sendHTML(req, res, html)
   }
 
-  setImmutableAssetCacheControl (res) {
+  protected setImmutableAssetCacheControl(res: ServerResponse) {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
-  servePublic (req, res, path) {
+  servePublic(req: IncomingMessage, res: ServerResponse, path: string) {
     const p = join(this.publicDir, path)
     return this.serveStatic(req, res, p)
   }
 
-  async hasPublicFile (path) {
+  async hasPublicFile(path: string) {
     try {
       const info = await fsStat(join(this.publicDir, path))
       return info.isFile()
@@ -394,8 +427,8 @@ export default class DevServer extends Server {
     }
   }
 
-  async getCompilationError (page) {
-    const errors = await this.hotReloader.getCompilationErrors(page)
+  async getCompilationError(page: string) {
+    const errors = await this.hotReloader!.getCompilationErrors(page)
     if (errors.length === 0) return
 
     // Return the very first error we found.

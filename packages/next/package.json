@@ -163,6 +163,8 @@
     "@types/send": "0.14.4",
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
+    "@types/webpack-dev-middleware": "2.0.3",
+    "@types/webpack-hot-middleware": "2.16.5",
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.18.5",
     "arg": "4.1.0",
