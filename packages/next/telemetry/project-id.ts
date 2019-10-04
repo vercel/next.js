@@ -1,5 +1,4 @@
 import { execSync } from 'child_process'
-import { computeHash } from './storage'
 
 // Q: Why does Next.js need a project ID? Why is it looking at my git remote?
 // A:
@@ -28,13 +27,6 @@ function _getProjectIdByGit() {
   }
 }
 
-export function getProjectId(): string {
-  const projectId =
-    _getProjectIdByGit() || process.env.REPOSITORY_URL || process.cwd()
-
-  // Compute a one-way, salted hash of the project ID. This value cannot be
-  // reversed.
-  // See the top of the file for a more detailed reason why we ask for this
-  // data.
-  return computeHash(projectId.trim().toLowerCase()) || ''
+export function getRawProjectId(): string {
+  return _getProjectIdByGit() || process.env.REPOSITORY_URL || process.cwd()
 }

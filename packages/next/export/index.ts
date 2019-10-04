@@ -25,8 +25,8 @@ import {
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
-import { recordVersion } from '../telemetry/events'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { eventVersion } from '../telemetry/events'
+import { Telemetry } from '../telemetry/storage'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -94,8 +94,8 @@ export default async function(
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   if (!options.buildExport) {
-    setTelemetryDir(distDir)
-    recordVersion({ cliCommand: 'export' })
+    const telemetry = new Telemetry({ distDir })
+    telemetry.record(eventVersion({ cliCommand: 'export' }))
   }
 
   const subFolders = nextConfig.exportTrailingSlash
