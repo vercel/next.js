@@ -9,6 +9,8 @@ import { existsSync, readFileSync, copyFile as copyFileOrig } from 'fs'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { formatAmpMessages } from '../build/output/index'
+import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { recordVersion } from '../telemetry/events'
 import loadConfig, {
   isTargetLikeServerless
 } from '../next-server/server/config'
@@ -80,6 +82,11 @@ export default async function (dir, options, configuration) {
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
+  if (!options.buildExport) {
+    setTelemetryDir(distDir)
+    recordVersion({ cliCommand: 'export' })
+  }
+
   const subFolders = nextConfig.exportTrailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
@@ -139,7 +146,7 @@ export default async function (dir, options, configuration) {
   await mkdirp(join(outDir, '_next', buildId))
 
   // Copy static directory
-  if (existsSync(join(dir, 'static'))) {
+  if (!options.buildExport && existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')
     await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
   }
@@ -226,6 +233,7 @@ export default async function (dir, options, configuration) {
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
   if (
+    !options.buildExport &&
     nextConfig.experimental &&
     nextConfig.experimental.publicDirectory &&
     existsSync(publicDir)

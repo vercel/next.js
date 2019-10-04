@@ -261,7 +261,7 @@ export async function loadGetInitialProps<
       console.warn(
         `${getDisplayName(
           Component
-        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic prerendering. https://err.sh/zeit/next.js/empty-object-getInitialProps`
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/zeit/next.js/empty-object-getInitialProps`
       )
     }
   }

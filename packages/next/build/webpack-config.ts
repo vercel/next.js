@@ -570,18 +570,39 @@ export default async function getBaseWebpackConfig(
                       // and prod. To fix this, we render a <noscript> tag as
                       // an anchor for the styles to be placed before. These
                       // styles will be applied _before_ <style jsx global>.
-                      insert: (element: Node) => {
+                      insert: function(element: Node) {
                         // These elements should always exist. If they do not,
                         // this code should fail.
-                        const anchorElement = document.querySelector(
+                        var anchorElement = document.querySelector(
                           '#__next_css__DO_NOT_USE__'
                         )!
-                        const parentNode = anchorElement.parentNode! // Normally <head>
+                        var parentNode = anchorElement.parentNode! // Normally <head>
 
                         // Each style tag should be placed right before our
                         // anchor. By inserting before and not after, we do not
                         // need to track the last inserted element.
                         parentNode.insertBefore(element, anchorElement)
+
+                        // Remember: this is development only code.
+                        //
+                        // After styles are injected, we need to remove the
+                        // <style> tags that set `body { display: none; }`.
+                        //
+                        // We use `requestAnimationFrame` as a way to defer
+                        // this operation since there may be multiple style
+                        // tags.
+                        ;(self.requestAnimationFrame || setTimeout)(function() {
+                          for (
+                            var x = document.querySelectorAll(
+                                '[data-next-hide-fouc]'
+                              ),
+                              i = x.length;
+                            i--;
+
+                          ) {
+                            x[i].parentNode!.removeChild(x[i])
+                          }
+                        })
                       },
                     },
                   },
@@ -869,6 +890,91 @@ export default async function getBaseWebpackConfig(
         '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
       )
     }
+  }
+
+  // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
+  if (
+    !isServer &&
+    webpackConfig.module &&
+    Array.isArray(webpackConfig.module.rules)
+  ) {
+    ;[].forEach.call(webpackConfig.module.rules, function(
+      rule: webpack.RuleSetRule
+    ) {
+      if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
+        return
+      }
+
+      const isSass =
+        rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
+      const isLess = rule.test.source === '\\.less$'
+      const isCss = rule.test.source === '\\.css$'
+
+      // Check if the rule we're iterating over applies to Sass, Less, or CSS
+      if (!(isSass || isLess || isCss)) {
+        return
+      }
+
+      ;[].forEach.call(rule.use, function(use: webpack.RuleSetUseItem) {
+        if (
+          !(
+            use &&
+            typeof use === 'object' &&
+            // Identify use statements only pertaining to `css-loader`
+            (use.loader === 'css-loader' ||
+              use.loader === 'css-loader/locals') &&
+            use.options &&
+            typeof use.options === 'object' &&
+            // The `minimize` property is a good heuristic that we need to
+            // perform this hack. The `minimize` property was only valid on
+            // old `css-loader` versions. Custom setups (that aren't next-sass
+            // or next-less) likely have the newer version.
+            // We still handle this gracefully below.
+            Object.prototype.hasOwnProperty.call(use.options, 'minimize')
+          )
+        ) {
+          return
+        }
+
+        // Try to monkey patch within a try-catch. We shouldn't fail the build
+        // if we cannot pull this off.
+        // The user may not even be using the `next-sass` or `next-less`
+        // plugins.
+        // If it does work, great!
+        try {
+          // Resolve the version of `@zeit/next-css` as depended on by the Sass
+          // or Less plugin.
+          const correctNextCss = resolveRequest(
+            '@zeit/next-css',
+            isCss
+              ? // Resolve `@zeit/next-css` from the base directory
+                `${dir}/`
+              : // Else, resolve it from the specific plugins
+                require.resolve(
+                  isSass
+                    ? '@zeit/next-sass'
+                    : isLess
+                    ? '@zeit/next-less'
+                    : 'next'
+                )
+          )
+
+          // If we found `@zeit/next-css` ...
+          if (correctNextCss) {
+            // ... resolve the version of `css-loader` shipped with that
+            // package instead of whichever was hoisted highest in your
+            // `node_modules` tree.
+            const correctCssLoader = resolveRequest(use.loader, correctNextCss)
+            if (correctCssLoader) {
+              // We saved the user from a failed build!
+              use.loader = correctCssLoader
+            }
+          }
+        } catch (_) {
+          // The error is not required to be handled.
+        }
+      })
+    })
   }
 
   // Backwards compat for `main.js` entry key

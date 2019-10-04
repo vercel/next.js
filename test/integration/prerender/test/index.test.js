@@ -152,37 +152,64 @@ const runTests = (dev = false) => {
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual({
         '/': {
-          initialRevalidateSeconds: 1
+          dataRoute: '/_next/data/index.json',
+          initialRevalidateSeconds: 1,
+          srcRoute: null
         },
         '/blog/[post3]': {
-          initialRevalidateSeconds: 10
+          dataRoute: '/_next/data/blog/[post3].json',
+          initialRevalidateSeconds: 10,
+          srcRoute: '/blog/[post]'
         },
         '/blog/post-1': {
-          initialRevalidateSeconds: 10
+          dataRoute: '/_next/data/blog/post-1.json',
+          initialRevalidateSeconds: 10,
+          srcRoute: '/blog/[post]'
         },
         '/blog/post-2': {
-          initialRevalidateSeconds: 10
+          dataRoute: '/_next/data/blog/post-2.json',
+          initialRevalidateSeconds: 10,
+          srcRoute: '/blog/[post]'
         },
         '/blog/post-1/comment-1': {
-          initialRevalidateSeconds: 2
+          dataRoute: '/_next/data/blog/post-1/comment-1.json',
+          initialRevalidateSeconds: 2,
+          srcRoute: '/blog/[post]/[comment]'
         },
         '/blog/post-2/comment-2': {
-          initialRevalidateSeconds: 2
+          dataRoute: '/_next/data/blog/post-2/comment-2.json',
+          initialRevalidateSeconds: 2,
+          srcRoute: '/blog/[post]/[comment]'
         },
         '/another': {
-          initialRevalidateSeconds: 0
+          dataRoute: '/_next/data/another.json',
+          initialRevalidateSeconds: 0,
+          srcRoute: null
         },
         '/default-revalidate': {
-          initialRevalidateSeconds: 1
+          dataRoute: '/_next/data/default-revalidate.json',
+          initialRevalidateSeconds: 1,
+          srcRoute: null
         },
         '/something': {
-          initialRevalidateSeconds: false
+          dataRoute: '/_next/data/something.json',
+          initialRevalidateSeconds: false,
+          srcRoute: null
         }
       })
-      expect(manifest.dynamicRoutes).toEqual([
-        '/blog/[post]',
-        '/blog/[post]/[comment]'
-      ])
+      expect(manifest.dynamicRoutes).toEqual({
+        '/blog/[post]': {
+          dataRoute: '/_next/data/blog/[post].json',
+          dataRouteRegex: '^\\/_next\\/data\\/blog\\/([^\\/]+?)\\.json$',
+          routeRegex: '^\\/blog\\/([^\\/]+?)(?:\\/)?$'
+        },
+        '/blog/[post]/[comment]': {
+          dataRoute: '/_next/data/blog/[post]/[comment].json',
+          dataRouteRegex:
+            '^\\/_next\\/data\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$',
+          routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+        }
+      })
     })
 
     it('outputs prerendered files correctly', async () => {
