@@ -1,6 +1,8 @@
 declare module '@babel/plugin-transform-modules-commonjs'
 declare module 'webpack/lib/GraphHelpers'
+declare module 'webpack/lib/DynamicEntryPlugin'
 declare module 'unfetch'
+declare module 'launch-editor'
 declare module 'styled-jsx/server'
 declare module 'async-retry'
 
