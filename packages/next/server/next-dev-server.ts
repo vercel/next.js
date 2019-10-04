@@ -249,8 +249,9 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished } =
-      (await this.hotReloader!.run(req, res, parsedUrl)) || {}
+    const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
+      finished: false,
+    }
     if (finished) {
       return
     }
