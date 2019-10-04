@@ -194,7 +194,7 @@ describe('CSS Support', () => {
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('no loaders are configured to process this file')
+      expect(stderr).toContain('Please move all global CSS imports')
     })
   })
 
@@ -211,7 +211,7 @@ describe('CSS Support', () => {
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('no loaders are configured to process this file')
+      expect(stderr).toContain('Please move all global CSS imports')
     })
   })
 
@@ -228,7 +228,7 @@ describe('CSS Support', () => {
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('no loaders are configured to process this file')
+      expect(stderr).toContain('Please move all global CSS imports')
     })
   })
 
