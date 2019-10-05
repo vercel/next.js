@@ -9,7 +9,7 @@ export default () => (
       {/* this will override the default (same key as the default) */}
       <meta charSet='iso-8859-5' key='charSet' />
 
-      {/* this not render */}
+      {/* this will not render */}
       <meta name='viewport' content='width=device-width' key='viewport' />
       {/* this will override the default (same key as the default) */}
       <meta
