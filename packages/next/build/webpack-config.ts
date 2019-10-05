@@ -922,11 +922,7 @@ export default async function getBaseWebpackConfig(
   }
 
   // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
-  if (
-    !isServer &&
-    webpackConfig.module &&
-    Array.isArray(webpackConfig.module.rules)
-  ) {
+  if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
     ;[].forEach.call(webpackConfig.module.rules, function(
       rule: webpack.RuleSetRule
     ) {
