@@ -1,4 +1,4 @@
-# Google AMP
+# Google AMP Story
 
 ## How to use
 
@@ -7,9 +7,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example amp amp-app
+npx create-next-app --example amp-story amp-app
 # or
-yarn create next-app --example amp amp-app
+yarn create next-app --example amp-story amp-app
 ```
 
 ### Download manually
@@ -17,8 +17,8 @@ yarn create next-app --example amp amp-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/amp
-cd amp
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/amp-story
+cd amp-story
 ```
 
 Install it and run:
@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to create AMP pages using Next.js and the AMP feature. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page.
+This example shows how to create an AMP page with `amp-story` using Next.js and the AMP feature.
