@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
+import { resolve } from 'path'
+
+import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../bin/next'
 
 const nextBuild: cliCommand = argv => {
   const args = arg(

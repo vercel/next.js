@@ -1,88 +1,107 @@
-import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
+import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
-import { parse } from 'url'
-import { pageNotFoundError } from '../next-server/server/require'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import {
-  ROUTE_NAME_REGEX,
-  IS_BUNDLED_PAGE_REGEX
-} from '../next-server/lib/constants'
 import { stringify } from 'querystring'
-import { findPageFile } from './lib/find-page-file'
+import { parse } from 'url'
+import webpack from 'webpack'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
+import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
+
 import { isWriteable } from '../build/is-writeable'
 import * as Log from '../build/output/log'
 import { API_ROUTE } from '../lib/constants'
+import {
+  IS_BUNDLED_PAGE_REGEX,
+  ROUTE_NAME_REGEX,
+} from '../next-server/lib/constants'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { pageNotFoundError } from '../next-server/server/require'
+import { findPageFile } from './lib/find-page-file'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
-function addEntry (compilation, context, name, entry) {
+function addEntry(
+  compilation: webpack.compilation.Compilation,
+  context: string,
+  name: string,
+  entry: string[]
+) {
   return new Promise((resolve, reject) => {
     const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, err => {
+    compilation.addEntry(context, dep, name, (err: Error) => {
       if (err) return reject(err)
       resolve()
     })
   })
 }
 
-export default function onDemandEntryHandler (
-  devMiddleware,
-  multiCompiler,
+export default function onDemandEntryHandler(
+  devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
+  multiCompiler: webpack.MultiCompiler,
   {
     buildId,
     pagesDir,
     reload,
     pageExtensions,
     maxInactiveAge,
-    pagesBufferLength
+    pagesBufferLength,
+  }: {
+    buildId: string
+    pagesDir: string
+    reload: any
+    pageExtensions: string[]
+    maxInactiveAge: number
+    pagesBufferLength: number
   }
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
-  let entries = {}
+  let entries: any = {}
   let lastAccessPages = ['']
-  let doneCallbacks = new EventEmitter()
+  let doneCallbacks: EventEmitter | null = new EventEmitter()
   let reloading = false
   let stopped = false
-  let reloadCallbacks = new EventEmitter()
-  let lastEntry = null
+  let reloadCallbacks: EventEmitter | null = new EventEmitter()
+  let lastEntry: string | null = null
 
   for (const compiler of compilers) {
-    compiler.hooks.make.tapPromise('NextJsOnDemandEntries', compilation => {
-      invalidator.startBuilding()
+    compiler.hooks.make.tapPromise(
+      'NextJsOnDemandEntries',
+      (compilation: webpack.compilation.Compilation) => {
+        invalidator.startBuilding()
 
-      const allEntries = Object.keys(entries).map(async page => {
-        if (compiler.name === 'client' && page.match(API_ROUTE)) {
-          return
-        }
-        const { name, absolutePagePath } = entries[page]
-        const pageExists = await isWriteable(absolutePagePath)
-        if (!pageExists) {
-          Log.event('page was removed', page)
-          delete entries[page]
-          return
-        }
+        const allEntries = Object.keys(entries).map(async page => {
+          if (compiler.name === 'client' && page.match(API_ROUTE)) {
+            return
+          }
+          const { name, absolutePagePath } = entries[page]
+          const pageExists = await isWriteable(absolutePagePath)
+          if (!pageExists) {
+            Log.event('page was removed', page)
+            delete entries[page]
+            return
+          }
 
-        entries[page].status = BUILDING
-        return addEntry(compilation, compiler.context, name, [
-          compiler.name === 'client'
-            ? `next-client-pages-loader?${stringify({
-              page,
-              absolutePagePath
-            })}!`
-            : absolutePagePath
-        ])
-      })
+          entries[page].status = BUILDING
+          return addEntry(compilation, compiler.context, name, [
+            compiler.name === 'client'
+              ? `next-client-pages-loader?${stringify({
+                  page,
+                  absolutePagePath,
+                })}!`
+              : absolutePagePath,
+          ])
+        })
 
-      return Promise.all(allEntries).catch(err => console.error(err))
-    })
+        return Promise.all(allEntries).catch(err => console.error(err))
+      }
+    )
   }
 
-  function findHardFailedPages (errors) {
+  function findHardFailedPages(errors: any[]) {
     return errors
       .filter(e => {
         // Make sure to only pick errors which marked with missing modules
@@ -99,13 +118,13 @@ export default function onDemandEntryHandler (
       })
       .map(e => e.module.chunks)
       .reduce((a, b) => [...a, ...b], [])
-      .map(c => {
-        const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
+      .map((c: any) => {
+        const pageName = ROUTE_NAME_REGEX.exec(c.name)![1]
         return normalizePage(`/${pageName}`)
       })
   }
 
-  function getPagePathsFromEntrypoints (entrypoints) {
+  function getPagePathsFromEntrypoints(entrypoints: any) {
     const pagePaths = []
     for (const [, entrypoint] of entrypoints.entries()) {
       const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
@@ -130,12 +149,12 @@ export default function onDemandEntryHandler (
     const hardFailedPages = [
       ...new Set([
         ...findHardFailedPages(clientStats.compilation.errors),
-        ...findHardFailedPages(serverStats.compilation.errors)
-      ])
+        ...findHardFailedPages(serverStats.compilation.errors),
+      ]),
     ]
     const pagePaths = new Set([
       ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
-      ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints)
+      ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
     ])
 
     // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
@@ -153,7 +172,7 @@ export default function onDemandEntryHandler (
 
       entry.status = BUILT
       entry.lastActiveTime = Date.now()
-      doneCallbacks.emit(page)
+      doneCallbacks!.emit(page)
     }
 
     invalidator.doneBuilding()
@@ -168,10 +187,10 @@ export default function onDemandEntryHandler (
       reload()
         .then(() => {
           console.log('> Webpack reloaded.')
-          reloadCallbacks.emit('done')
+          reloadCallbacks!.emit('done')
           stop()
         })
-        .catch(err => {
+        .catch((err: Error) => {
           console.error(`> Webpack reloading failed: ${err.message}`)
           console.error(err.stack)
           process.exit(1)
@@ -179,7 +198,7 @@ export default function onDemandEntryHandler (
     }
   })
 
-  const disposeHandler = setInterval(function () {
+  const disposeHandler = setInterval(function() {
     if (stopped) return
     disposeInactiveEntries(
       devMiddleware,
@@ -191,14 +210,14 @@ export default function onDemandEntryHandler (
 
   disposeHandler.unref()
 
-  function stop () {
+  function stop() {
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
     reloadCallbacks = null
   }
 
-  function handlePing (pg) {
+  function handlePing(pg: string) {
     const page = normalizePage(pg)
     const entryInfo = entries[page]
     let toSend
@@ -236,23 +255,23 @@ export default function onDemandEntryHandler (
   }
 
   return {
-    waitUntilReloaded () {
+    waitUntilReloaded() {
       if (!reloading) return Promise.resolve(true)
       return new Promise(resolve => {
-        reloadCallbacks.once('done', function () {
+        reloadCallbacks!.once('done', function() {
           resolve()
         })
       })
     },
 
-    async ensurePage (page) {
+    async ensurePage(page: string) {
       await this.waitUntilReloaded()
-      let normalizedPagePath
+      let normalizedPagePath: string
       try {
         normalizedPagePath = normalizePagePath(page)
       } catch (err) {
         console.error(err)
-        throw pageNotFoundError(normalizedPagePath)
+        throw pageNotFoundError(page)
       }
 
       let pagePath = await findPageFile(
@@ -294,7 +313,7 @@ export default function onDemandEntryHandler (
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.once(normalizedPage, handleCallback)
+            doneCallbacks!.once(normalizedPage, handleCallback)
             return
           }
         }
@@ -302,24 +321,24 @@ export default function onDemandEntryHandler (
         Log.event(`build page: ${normalizedPage}`)
 
         entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
-        doneCallbacks.once(normalizedPage, handleCallback)
+        doneCallbacks!.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
 
-        function handleCallback (err) {
+        function handleCallback(err: Error) {
           if (err) return reject(err)
           resolve()
         }
       })
     },
 
-    middleware () {
-      return (req, res, next) => {
+    middleware() {
+      return (req: IncomingMessage, res: ServerResponse, next: Function) => {
         if (stopped) {
           // If this handler is stopped, we need to reload the user's browser.
           // So the user could connect to the actually running handler.
           res.statusCode = 302
-          res.setHeader('Location', req.url)
+          res.setHeader('Location', req.url!)
           res.end('302')
         } else if (reloading) {
           // Webpack config is reloading. So, we need to wait until it's done and
@@ -327,18 +346,18 @@ export default function onDemandEntryHandler (
           // So the user could connect to the new handler and webpack setup.
           this.waitUntilReloaded().then(() => {
             res.statusCode = 302
-            res.setHeader('Location', req.url)
+            res.setHeader('Location', req.url!)
             res.end('302')
           })
         } else {
-          if (!/^\/_next\/webpack-hmr/.test(req.url)) return next()
+          if (!/^\/_next\/webpack-hmr/.test(req.url!)) return next()
 
-          const { query } = parse(req.url, true)
+          const { query } = parse(req.url!, true)
           const page = query.page
           if (!page) return next()
 
           const runPing = () => {
-            const data = handlePing(query.page)
+            const data = handlePing(query.page as string)
             if (!data) return
             res.write('data: ' + JSON.stringify(data) + '\n\n')
           }
@@ -352,17 +371,17 @@ export default function onDemandEntryHandler (
           next()
         }
       }
-    }
+    },
   }
 }
 
-function disposeInactiveEntries (
-  devMiddleware,
-  entries,
-  lastAccessPages,
-  maxInactiveAge
+function disposeInactiveEntries(
+  devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
+  entries: any,
+  lastAccessPages: any,
+  maxInactiveAge: number
 ) {
-  const disposingPages = []
+  const disposingPages: any = []
 
   Object.keys(entries).forEach(page => {
     const { lastActiveTime, status } = entries[page]
@@ -382,7 +401,7 @@ function disposeInactiveEntries (
   })
 
   if (disposingPages.length > 0) {
-    disposingPages.forEach(page => {
+    disposingPages.forEach((page: any) => {
       delete entries[page]
     })
     Log.event(`disposing inactive page(s): ${disposingPages.join(', ')}`)
@@ -392,7 +411,7 @@ function disposeInactiveEntries (
 
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
-export function normalizePage (page) {
+export function normalizePage(page: string) {
   const unixPagePath = page.replace(/\\/g, '/')
   if (unixPagePath === '/index' || unixPagePath === '/') {
     return '/'
@@ -403,7 +422,15 @@ export function normalizePage (page) {
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  constructor (devMiddleware, multiCompiler) {
+  private multiCompiler: webpack.MultiCompiler
+  private devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware
+  private building: boolean
+  private rebuildAgain: boolean
+
+  constructor(
+    devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
+    multiCompiler: webpack.MultiCompiler
+  ) {
     this.multiCompiler = multiCompiler
     this.devMiddleware = devMiddleware
     // contains an array of types of compilers currently building
@@ -411,7 +438,7 @@ class Invalidator {
     this.rebuildAgain = false
   }
 
-  invalidate () {
+  invalidate() {
     // If there's a current build is processing, we won't abort it by invalidating.
     // (If aborted, it'll cause a client side hard reload)
     // But let it to invalidate just after the completion.
@@ -430,11 +457,11 @@ class Invalidator {
     this.devMiddleware.invalidate()
   }
 
-  startBuilding () {
+  startBuilding() {
     this.building = true
   }
 
-  doneBuilding () {
+  doneBuilding() {
     this.building = false
 
     if (this.rebuildAgain) {
