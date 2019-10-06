@@ -97,6 +97,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
+  let hasPublicDir = false
 
   let backgroundWork: (Promise<any> | undefined)[] = []
   backgroundWork.push(
@@ -106,7 +107,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
-  if (config.experimental.publicDirectory) {
+  try {
+    await fsStat(publicDir)
+    hasPublicDir = true
+  } catch (_) {}
+
+  if (hasPublicDir) {
     publicFiles = await recursiveReadDir(publicDir, /.*/)
   }
 
@@ -133,10 +139,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const conflictingPublicFiles: string[] = []
 
-  try {
-    await fsStat(path.join(publicDir, '_next'))
-    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-  } catch (err) {}
+  if (hasPublicDir) {
+    try {
+      await fsStat(path.join(publicDir, '_next'))
+      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+    } catch (err) {}
+  }
 
   for (let file of publicFiles) {
     file = file

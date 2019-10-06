@@ -180,8 +180,8 @@ export function nextBuild (dir, args = [], opts = {}) {
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport (dir, { outdir }) {
-  return runNextCommand(['export', dir, '--outdir', outdir])
+export function nextExport (dir, { outdir }, opts = {}) {
+  return runNextCommand(['export', dir, '--outdir', outdir], opts)
 }
 
 export function nextStart (dir, port, opts = {}) {

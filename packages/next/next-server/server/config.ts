@@ -77,6 +77,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       experimentalWarning()
     }
 
+    if (key === 'distDir' && userConfig[key] === 'public') {
+      throw new Error(
+        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+      )
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
