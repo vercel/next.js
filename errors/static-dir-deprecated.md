@@ -8,9 +8,10 @@ The reason we want to support a `public` directory instead is to not require the
 
 #### Possible Ways to Fix It
 
-Rename your `static` directory to public and update any URLs pointing to these files to not have the `/static` prefix
+You can move your `static` directory inside of the public directory and all URLs will remain the same as they were before
 
 **Before**
+
 ```sh
 static/
   my-image.jpg
@@ -20,26 +21,16 @@ components/
   my-image.js
 ```
 
-```jsx
-export default function MyImage() {
-  return <img src='/static/my-image.jpg' />
-}
-```
-
 **After**
+
 ```sh
 public/
-  my-image.jpg
+  static/
+    my-image.jpg
 pages/
   index.js
 components/
   my-image.js
-```
-
-```jsx
-export default function MyImage() {
-  return <img src='/my-image.jpg' />
-}
 ```
 
 ### Useful Links
