@@ -153,6 +153,13 @@ export default async function(
 
   // Initialize the output directory
   const outDir = options.outdir
+
+  if (outDir === join(dir, 'public')) {
+    throw new Error(
+      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/zeit/next.js/can-not-output-to-public`
+    )
+  }
+
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
 
@@ -243,12 +250,7 @@ export default async function(
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
-  if (
-    !options.buildExport &&
-    nextConfig.experimental &&
-    nextConfig.experimental.publicDirectory &&
-    existsSync(publicDir)
-  ) {
+  if (!options.buildExport && existsSync(publicDir)) {
     log('  copying "public" directory')
     await recursiveCopy(publicDir, outDir, {
       filter(path) {
