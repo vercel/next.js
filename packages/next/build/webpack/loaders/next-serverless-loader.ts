@@ -84,6 +84,12 @@ const nextServerlessLoader: loader.Loader = function() {
     import * as ComponentInfo from '${absolutePagePath}';
     const Component = ComponentInfo.default
     export default Component
+    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
+    ${
+      isDynamicRoute(page)
+        ? "export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']"
+        : ''
+    }
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport) {
@@ -91,12 +97,21 @@ const nextServerlessLoader: loader.Loader = function() {
         App,
         Document,
         buildManifest,
+        unstable_getStaticProps,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${ampBindInitData === true ||
-          ampBindInitData === 'true'}
+          ampBindInitData === 'true'},
+      }
+      let sprData = false
+
+      if (req.url.match(/_next\\/data/)) {
+        sprData = true
+        req.url = req.url
+          .replace(/\\/_next\\/data\\//, '/')
+          .replace(/\\.json$/, '')
       }
       const parsedUrl = parse(req.url, true)
       const renderOpts = Object.assign(
@@ -112,10 +127,10 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           isDynamicRoute(page)
-            ? `const params = fromExport ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, parsedUrl.query, params), renderOpts)
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result

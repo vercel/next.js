@@ -40,11 +40,13 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    css: false,
     documentMiddleware: false,
     granularChunks: false,
     modern: false,
     profiling: false,
     publicDirectory: false,
+    sprFlushToDisk: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -75,6 +77,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       experimentalWarning()
     }
 
+    if (key === 'distDir' && userConfig[key] === 'public') {
+      throw new Error(
+        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+      )
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
@@ -103,7 +111,7 @@ function normalizeConfig(phase: string, config: any) {
 export default function loadConfig(
   phase: string,
   dir: string,
-  customConfig: any
+  customConfig?: object | null
 ) {
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })

@@ -15,6 +15,12 @@ export function interopDefault(mod: any) {
 export type LoadComponentsReturnType = {
   Component: any
   pageConfig: PageConfig
+  unstable_getStaticProps?: (params: {
+    params: any
+  }) => {
+    props: any
+    revalidate: number | false
+  }
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -30,7 +36,11 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    return { Component, pageConfig: Component.config || {} }
+    return {
+      Component,
+      pageConfig: Component.config || {},
+      unstable_getStaticProps: Component.unstable_getStaticProps,
+    }
   }
   const documentPath = join(
     distDir,
@@ -76,5 +86,6 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
+    unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
   }
 }
