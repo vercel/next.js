@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import PropTypes from 'prop-types'
 import cookie from 'cookie'
 import Head from 'next/head'
@@ -19,15 +19,7 @@ import fetch from 'isomorphic-unfetch'
  */
 export function withApollo (PageComponent, { ssr = true } = {}) {
   const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
-    const client = useMemo(() => {
-      // We pass in the apolloClient directly when using getDataFromTree
-      if (apolloClient) {
-        return apolloClient
-      }
-
-      // Otherwise initClient using apolloState
-      return initApolloClient(apolloState, { getToken })
-    }, [])
+    const client = apolloClient || initApolloClient(apolloState, { getToken })
     return (
       <ApolloProvider client={client}>
         <PageComponent {...pageProps} />

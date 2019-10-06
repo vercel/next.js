@@ -1,23 +1,40 @@
 import React from 'react'
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
+// eslint-disable-next-line camelcase
+export async function unstable_getStaticParams () {
+  return [
+    '/blog/post-1',
+    { post: 'post-2' },
+    '/blog/[post3]'
+  ]
+}
 
-export default class Post extends React.Component {
-  static async getInitialProps () {
-    return {
-      data: typeof window === 'undefined' ? 'SSR' : 'CSR'
-    }
+// eslint-disable-next-line camelcase
+export async function unstable_getStaticProps ({ params }) {
+  if (params.post === 'post-10') {
+    await new Promise(resolve => {
+      setTimeout(() => resolve(), 1000)
+    })
   }
 
-  render () {
-    return (
-      <>
-        <p>Post: {this.props.data}</p>
-        <Link href='/'>
-          <a id='home'>to home</a>
-        </Link>
-      </>
-    )
+  return {
+    props: {
+      post: params.post,
+      time: (await import('perf_hooks')).performance.now()
+    },
+    revalidate: 10
   }
+}
+
+export default ({ post, time }) => {
+  return (
+    <>
+      <p>Post: {post}</p>
+      <span>time: {time}</span>
+      <Link href='/'>
+        <a id='home'>to home</a>
+      </Link>
+    </>
+  )
 }

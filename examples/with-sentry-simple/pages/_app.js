@@ -1,28 +1,21 @@
 import React from 'react'
 import App from 'next/app'
-import * as Sentry from '@sentry/browser'
+import * as Sentry from '@sentry/node'
 
 Sentry.init({
-  dsn: 'ENTER_YOUR_SENTRY_DSN_HERE'
+  // Replace with your project's Sentry DSN
+  dsn: 'https://00000000000000000000000000000000@sentry.io/1111111'
 })
 
 class MyApp extends App {
-  componentDidCatch (error, errorInfo) {
-    Sentry.withScope(scope => {
-      Object.keys(errorInfo).forEach(key => {
-        scope.setExtra(key, errorInfo[key])
-      })
-
-      Sentry.captureException(error)
-    })
-
-    super.componentDidCatch(error, errorInfo)
-  }
-
   render () {
     const { Component, pageProps } = this.props
 
-    return <Component {...pageProps} />
+    // Workaround for https://github.com/zeit/next.js/issues/8592
+    const { err } = this.props
+    const modifiedPageProps = { ...pageProps, err }
+
+    return <Component {...modifiedPageProps} />
   }
 }
 

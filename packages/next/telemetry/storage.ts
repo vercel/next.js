@@ -1,14 +1,15 @@
 import chalk from 'chalk'
-import ciEnvironment from 'ci-info'
 import Conf from 'conf'
 import { BinaryLike, createHash, randomBytes } from 'crypto'
-import findUp from 'find-up'
 import isDockerFunction from 'is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
+import * as ciEnvironment from './ci-info'
 import { _postPayload } from './post-payload'
 import { getProjectId } from './project-id'
+
+let distDir: string | undefined
 
 let config: Conf<any> | undefined
 let projectId: string | undefined
@@ -71,12 +72,10 @@ function setup() {
     return
   }
 
-  let cwd =
-    ciEnvironment.isCI || isDockerFunction()
-      ? // CI environments will normally cache `node_modules/`
-        findUp.sync('node_modules')
+  const cwd =
+    (ciEnvironment.isCI || isDockerFunction()) && distDir
+      ? path.join(distDir, 'cache')
       : undefined
-  if (cwd) cwd = path.join(cwd, '.next')
 
   config = new Conf({ projectName: 'nextjs', cwd })
 
@@ -100,6 +99,10 @@ function setup() {
   }
 
   notify()
+}
+
+export function setDistDir(_distDir: string) {
+  distDir = _distDir
 }
 
 export function computeHash(payload: BinaryLike): string | null {
