@@ -175,7 +175,7 @@ So far, we get:
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages/`
-- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
+- Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](#static-file-serving-eg-images) inside your project)
 
 ### Automatic code splitting
 
@@ -276,21 +276,19 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
-Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
+Create a folder called `public` in your project root directory. From your code you can then reference those files starting from the baseURL `/`
 
 ```jsx
 function MyImage() {
-  return <img src="/static/my-image.png" alt="my image" />
+  return <img src="/my-image.png" alt="my image" />
 }
 
 export default MyImage
 ```
 
-<!--
 To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
--->
 
-_Note: Don't name the `static` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
+_Note: Don't name the `public` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
 ### Dynamic Routing
 

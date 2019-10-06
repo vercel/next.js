@@ -64,6 +64,11 @@ export default class DevServer extends Server {
         )
       })
     }
+    if (fs.existsSync(join(this.dir, 'static'))) {
+      console.warn(
+        `The static directory has been deprecated in favor of the public directory. https://err.sh/zeit/next.js/static-dir-deprecated`
+      )
+    }
     this.pagesDir = findPagesDir(this.dir)
   }
 
