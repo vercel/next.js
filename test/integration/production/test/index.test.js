@@ -376,15 +376,9 @@ describe('Production Usage', () => {
 
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
+      const file = await renderViaHTTP(appPort, '/file')
       expect(data).toBe('data')
-    })
-
-    it('Should prioritize pages over public files', async () => {
-      const html = await renderViaHTTP(appPort, '/about')
-      const data = await renderViaHTTP(appPort, '/file')
-
-      expect(html).toMatch(/About Page/)
-      expect(data).toBe('test')
+      expect(file).toBe('test')
     })
 
     it('should reload the page on page script error', async () => {
@@ -425,6 +419,24 @@ describe('Production Usage', () => {
       const $ = cheerio.load(html)
       const script = $('#__NEXT_DATA__').html()
       expect(script).not.toMatch(/runtimeConfig/)
+    })
+
+    it('should add autoExport for auto pre-rendered pages', async () => {
+      for (const page of ['/', '/about']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(data.autoExport).toBe(true)
+      }
+    })
+
+    it('should not add autoExport for non pre-rendered pages', async () => {
+      for (const page of ['/query']) {
+        const html = await renderViaHTTP(appPort, page)
+        const $ = cheerio.load(html)
+        const data = JSON.parse($('#__NEXT_DATA__').html())
+        expect(!!data.autoExport).toBe(false)
+      }
     })
 
     if (browserName === 'chrome') {

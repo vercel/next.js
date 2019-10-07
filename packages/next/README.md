@@ -93,7 +93,8 @@
     - [Runtime configuration](#runtime-configuration)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
-- [Automatic Prerendering](#automatic-prerendering)
+- [Automatic Static Optimization](#automatic-static-optimization)
+- [Automatic Static Optimization Indicator](#automatic-static-optimization-indicator)
 - [Production deployment](#production-deployment)
   - [Compression](#compression)
   - [Serverless deployment](#serverless-deployment)
@@ -117,7 +118,6 @@
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
   - [How to merge them](#how-to-merge-them)
-- [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Authors](#authors)
@@ -175,7 +175,7 @@ So far, we get:
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages/`
-- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
+- Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](#static-file-serving-eg-images) inside your project)
 
 ### Automatic code splitting
 
@@ -276,21 +276,19 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
-Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
+Create a folder called `public` in your project root directory. From your code you can then reference those files starting from the baseURL `/`
 
 ```jsx
 function MyImage() {
-  return <img src="/static/my-image.png" alt="my image" />
+  return <img src="/my-image.png" alt="my image" />
 }
 
 export default MyImage
 ```
 
-<!--
 To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
--->
 
-_Note: Don't name the `static` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
+_Note: Don't name the `public` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
 ### Dynamic Routing
 
@@ -362,7 +360,7 @@ For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
 > **Note**: Predefined routes take precedence over dynamic routes.
 > For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
 
-> **Note**: Pages that are statically optimized by [automatic prerendering](#automatic-prerendering) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
+> **Note**: Pages that are statically optimized by [automatic static optimization](#automatic-static-optimization) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
 > After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 > If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
 
@@ -555,6 +553,8 @@ export default Home
 
 ```jsx
 // pages/about.js
+import Link from 'next/link'
+
 function About() {
   return (
     <>
@@ -594,7 +594,7 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => (
 
 export default () => (
   <>
-    <Link href='/another'>
+    <Link href="/another">
       <MyButton />
     </Link>
   </>
@@ -1022,6 +1022,8 @@ Next.js has an API which allows you to prefetch pages.
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
+
+> Automatic prefetching is disabled if your device is connected with 2G network or [Save-Data](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Save-Data) header is `on`.
 
 > `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892.
 
@@ -1564,7 +1566,7 @@ class MyApp extends App {
 export default MyApp
 ```
 
-> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Prerendering](#automatic-prerendering)
+> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Static Optimization](#automatic-static-optimization)
 
 ### Custom `<Document>`
 
@@ -1585,10 +1587,10 @@ Note, [styled-jsx](https://github.com/zeit/styled-jsx) is included in Next.js by
 A custom `<Document>` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
 
 > **Note**: `<Document>`'s `getInitialProps` function is not called during client-side transitions,
-> nor when a page is [automatically prerendered](#automatic-prerendering).
+> nor when a page is [automatically statically optimized](#automatic-static-optimization).
 
 > **Note**: Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`.
-> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic prerendering (static optimization)](#automatic-prerendering).
+> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic static optimization](#automatic-static-optimization).
 
 To use a custom `<Document>`, you must create a file at `./pages/_document.js` and extend the `Document` class:
 
@@ -1670,21 +1672,19 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-class Error extends React.Component {
-  static getInitialProps({ res, err }) {
-    const statusCode = res ? res.statusCode : err ? err.statusCode : null
-    return { statusCode }
-  }
+function Error({ statusCode }) {
+  return (
+    <p>
+      {statusCode
+        ? `An error ${statusCode} occurred on server`
+        : 'An error occurred on client'}
+    </p>
+  )
+}
 
-  render() {
-    return (
-      <p>
-        {this.props.statusCode
-          ? `An error ${this.props.statusCode} occurred on server`
-          : 'An error occurred on client'}
-      </p>
-    )
-  }
+Error.getInitialProps = ({ res, err }) => {
+  const statusCode = res ? res.statusCode : err ? err.statusCode : 404
+  return { statusCode }
 }
 
 export default Error
@@ -1699,22 +1699,20 @@ import React from 'react'
 import Error from 'next/error'
 import fetch from 'isomorphic-unfetch'
 
-class Page extends React.Component {
-  static async getInitialProps() {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const errorCode = res.statusCode > 200 ? res.statusCode : false
-    const json = await res.json()
-
-    return { errorCode, stars: json.stargazers_count }
+const Page = ({ errorCode, stars }) => {
+  if (errorCode) {
+    return <Error statusCode={errorCode} />
   }
 
-  render() {
-    if (this.props.errorCode) {
-      return <Error statusCode={this.props.errorCode} />
-    }
+  return <div>Next stars: {stars}</div>
+}
 
-    return <div>Next stars: {this.props.stars}</div>
-  }
+Page.getInitialProps = async () => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const errorCode = res.statusCode > 200 ? res.statusCode : false
+  const json = await res.json()
+
+  return { errorCode, stars: json.stargazers_count }
 }
 
 export default Page
@@ -1747,7 +1745,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.ts)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/next-server/lib/constants.ts)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -2050,7 +2048,7 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 > **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
-> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic prerendering](#automatic-prerendering)**.
+> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic static optimization](#automatic-static-optimization)**.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
@@ -2058,7 +2056,7 @@ Place any server-only runtime config under a `serverRuntimeConfig` property.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
-> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic prerendering](#automatic-prerendering).
+> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic static optimization](#automatic-static-optimization).
 > You can also de-optimize your entire application by creating a [Custom `<App>`](#custom-app) with `getInitialProps`.
 
 ```js
@@ -2123,12 +2121,12 @@ module.exports = {
 }
 ```
 
-## Automatic Prerendering
+## Automatic Static Optimization
 
 Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements.
 This determination is made by the absence of `getInitialProps` in the page.
 
-If `getInitialProps` is present, Next.js will not prerender the page.
+If `getInitialProps` is present, Next.js will not statically optimize the page.
 Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
 
 If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client side after hydration.
@@ -2155,6 +2153,22 @@ There is no configuration or special handling required.
 > **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
 > `ctx.req` will be `undefined` for pages that are prerendered.
 
+## Automatic Static Optimization Indicator
+
+When a page qualifies for automatic static optimization we show an indicator to let you know.
+This is helpful since the automatic static optimization can be very beneficial and knowing immediately in development if it qualifies can be useful.
+See above for information on the benefits of this optimization.
+
+In some cases this indicator might not be as useful like when working on electron applications. For these cases you can disable the indicator in your `next.config.js` by setting
+
+```js
+module.exports = {
+  devIndicators: {
+    autoPrerender: false,
+  },
+}
+```
+
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -2173,6 +2187,7 @@ Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ### Compression
+
 Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
 
 To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
@@ -2211,7 +2226,7 @@ module.exports = {
 }
 ```
 
-The `serverless` target will output a single lambda or [HTML file](#automatic-prerendering) per page.
+The `serverless` target will output a single lambda or [HTML file](#automatic-static-optimization) per page.
 This file is completely standalone and doesn't require any dependencies to run:
 
 - `pages/index.js` => `.next/serverless/pages/index.js`
@@ -2229,7 +2244,7 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
 
 The static HTML files are ready to be served as-is.
-You can read more about this feature, including how to opt-out, in the [Automatic Prerendering section](#automatic-prerendering).
+You can read more about this feature, including how to opt-out, in the [Automatic Static Optimization section](#automatic-static-optimization).
 
 Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
@@ -2599,7 +2614,7 @@ With `next export`, we build a HTML version of your app. At export time we will 
 
 The `req` and `res` fields of the `context` object passed to `getInitialProps` are empty objects during export as there is no server running.
 
-> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic prerendering](#automatic-prerendering).
+> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic static optimization](#automatic-static-optimization).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
@@ -2652,13 +2667,6 @@ You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local 
 
 For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
 
-## Recipes
-
-- [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
-- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
-- [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
-- [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
-
 ## FAQ
 
 <details>
@@ -2710,7 +2718,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.js) for more information.
+See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.ts) for more information.
 
 </details>
 

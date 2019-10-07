@@ -28,6 +28,10 @@ export type AppType = NextComponentType<
   AppPropsType
 >
 
+export type AppTreeType = ComponentType<
+  AppInitialProps & { [name: string]: any }
+>
+
 export type Enhancer<C> = (Component: C) => C
 
 export type ComponentsEnhancer =
@@ -61,6 +65,7 @@ export type NEXT_DATA = {
   assetPrefix?: string
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
+  autoExport?: boolean
   skeleton?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
@@ -98,12 +103,12 @@ export interface NextPageContext {
   /**
    * `Component` the tree of the App to use if needing to render separately
    */
-  AppTree: AppType
+  AppTree: AppTreeType
 }
 
 export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
-  AppTree: AppType
+  AppTree: AppTreeType
   ctx: NextPageContext
   router: R
 }
@@ -135,6 +140,8 @@ export type DocumentProps = DocumentInitialProps & {
   inAmpMode: boolean
   hybridAmp: boolean
   staticMarkup: boolean
+  isDevelopment: boolean
+  hasCssMode: boolean
   devFiles: string[]
   files: string[]
   dynamicImports: ManifestItem[]
@@ -254,7 +261,7 @@ export async function loadGetInitialProps<
       console.warn(
         `${getDisplayName(
           Component
-        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic prerendering. https://err.sh/zeit/next.js/empty-object-getInitialProps`
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/zeit/next.js/empty-object-getInitialProps`
       )
     }
   }

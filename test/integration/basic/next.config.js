@@ -4,9 +4,6 @@ module.exports = {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
   },
-  experimental: {
-    publicDirectory: true
-  },
   webpack (config) {
     config.module.rules.push({
       test: /pages[\\/]hmr[\\/]about/,
