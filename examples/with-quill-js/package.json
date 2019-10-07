@@ -1,7 +1,7 @@
 {
-  "name": "with-draft-js",
+  "name": "with-quill-js",
   "version": "1.0.0",
-  "author": "Asten Mies",
+  "author": "Arya Sadeghi",
   "license": "ISC",
   "scripts": {
     "dev": "next",

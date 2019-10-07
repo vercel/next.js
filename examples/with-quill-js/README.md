@@ -1,4 +1,4 @@
-# Quilljs  editor  Example
+# Quilljs editor Example
 
 ## How to use
 
@@ -39,4 +39,6 @@ now
 
 ## The idea behind the example
 
-Have you ever wanted to have an editor in your Next.js app? QuillJs is avalaible for SSR, but some plugins like the toolbar are using `window`, which does not work when doing SSR.
+[Quill](https://quilljs.com/) is powerful rich text editor. This example uses [react-quill](https://github.com/zenoamaro/react-quill) to integrate Quill with Next.js.
+
+Quill does not suppport SSR, so it's only loaded and rendered in the browser.
