@@ -14,7 +14,6 @@ Find the most recent version of this guide at [here](https://github.com/zeit/nex
 - [Adding Components](#adding-components)
 - [Fetching Data](#fetching-data)
 - [Syntax Highlighting](#syntax-highlighting)
-- [Using the `static` Folder](#using-the-static-folder)
 - [Deploy to Now](#deploy-to-now)
 - [Something Missing?](#something-missing)
 
@@ -37,7 +36,7 @@ After creating an app, it should look something like:
 ├── package.json
 ├── pages
 │   └── index.js
-├── static
+├── public
 │   └── favicon.ico
 └── yarn.lock
 ```
@@ -45,7 +44,7 @@ After creating an app, it should look something like:
 Routing in Next.js is based on the file system, so `./pages/index.js` maps to the `/` route and
 `./pages/about.js` would map to `/about`.
 
-The `./static` directory maps to `/static` in the `next` server, so you can put all your
+The `./public` directory maps to `/` in the `next` server, so you can put all your
 other static resources like images or compiled CSS in there.
 
 Out of the box, we get:
@@ -53,7 +52,7 @@ Out of the box, we get:
 - Automatic compilation and bundling (with Babel and webpack)
 - Hot code reloading
 - Server rendering and indexing of `./pages/`
-- Static file serving. `./static/` is mapped to `/static/`
+- Static file serving. `./public/` is mapped to `/`
 
 Read more about [Next's Routing](https://github.com/zeit/next.js#routing)
 
