@@ -20,6 +20,10 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
+  deferPageScript?: boolean
+  deferAppScript?: boolean
+  deferDynamicChunks?: boolean
+  deferScripts?: boolean
 }
 
 export async function middleware({ req, res }: DocumentContext) {}
@@ -487,7 +491,7 @@ export class NextScript extends Component<OriginProps> {
   static safariNomoduleFix =
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
-  getDynamicChunks() {
+  getDynamicChunks(defer?: boolean) {
     const { dynamicImports, assetPrefix, files } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
@@ -503,7 +507,8 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          async
+          defer={defer}
+          async={!defer}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -516,7 +521,7 @@ export class NextScript extends Component<OriginProps> {
     })
   }
 
-  getScripts() {
+  getScripts(defer?: boolean) {
     const { assetPrefix, files } = this.context._documentProps
     if (!files || files.length === 0) {
       return null
@@ -543,7 +548,8 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          async
+          defer={defer}
+          async={!defer}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           {...modernProps}
         />
@@ -630,7 +636,8 @@ export class NextScript extends Component<OriginProps> {
 
     const pageScript = [
       <script
-        async
+        defer={this.props.deferPageScript}
+        async={!this.props.deferPageScript}
         data-next-page={page}
         key={page}
         src={
@@ -644,7 +651,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          async
+          defer={this.props.deferPageScript}
+          async={!this.props.deferPageScript}
           data-next-page={page}
           key={`${page}-modern`}
           src={
@@ -663,7 +671,8 @@ export class NextScript extends Component<OriginProps> {
 
     const appScript = [
       <script
-        async
+        defer={this.props.deferAppScript}
+        async={!this.props.deferAppScript}
         data-next-page="/_app"
         src={
           assetPrefix +
@@ -677,7 +686,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          async
+          defer={this.props.deferAppScript}
+          async={!this.props.deferAppScript}
           data-next-page="/_app"
           src={
             assetPrefix +
@@ -734,8 +744,10 @@ export class NextScript extends Component<OriginProps> {
         ) : null}
         {page !== '/_error' && pageScript}
         {appScript}
-        {staticMarkup ? null : this.getDynamicChunks()}
-        {staticMarkup ? null : this.getScripts()}
+        {staticMarkup
+          ? null
+          : this.getDynamicChunks(this.props.deferDynamicChunks)}
+        {staticMarkup ? null : this.getScripts(this.props.deferScripts)}
       </>
     )
   }
