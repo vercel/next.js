@@ -219,6 +219,10 @@ export default class Server {
   }
 
   protected generateRoutes(): Route[] {
+    const publicRoutes = fs.existsSync(this.publicDir)
+      ? this.generatePublicRoutes()
+      : []
+
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -270,6 +274,7 @@ export default class Server {
           await this.render404(req, res, parsedUrl)
         },
       },
+      ...publicRoutes,
       {
         // It's very important to keep this route's param optional.
         // (but it should support as many params as needed, separated by '/')
@@ -293,10 +298,6 @@ export default class Server {
         },
       },
     ]
-
-    if (fs.existsSync(this.publicDir)) {
-      routes.push(...this.generatePublicRoutes())
-    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
