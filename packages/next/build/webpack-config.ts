@@ -955,7 +955,11 @@ export default async function getBaseWebpackConfig(
             // old `css-loader` versions. Custom setups (that aren't next-sass
             // or next-less) likely have the newer version.
             // We still handle this gracefully below.
-            Object.prototype.hasOwnProperty.call(use.options, 'minimize')
+            (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
+              Object.prototype.hasOwnProperty.call(
+                use.options,
+                'exportOnlyLocals'
+              ))
           )
         ) {
           return
