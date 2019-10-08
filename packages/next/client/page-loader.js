@@ -187,9 +187,9 @@ export default class PageLoader {
     ) {
       scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
-    const url = isDependency
+    const url = this.assetPrefix + isDependency
       ? route
-      : `${this.assetPrefix}/_next/static/${encodeURIComponent(
+      : `/_next/static/${encodeURIComponent(
         this.buildId
       )}/pages${scriptRoute}`
 
