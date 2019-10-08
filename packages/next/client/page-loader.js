@@ -187,11 +187,13 @@ export default class PageLoader {
     ) {
       scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
     }
-    const url = isDependency
-      ? route
-      : `${this.assetPrefix}/_next/static/${encodeURIComponent(
-        this.buildId
-      )}/pages${scriptRoute}`
+    const url =
+      this.assetPrefix +
+      (isDependency
+        ? route
+        : `/_next/static/${encodeURIComponent(
+          this.buildId
+        )}/pages${scriptRoute}`)
 
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.
