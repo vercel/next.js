@@ -1,34 +1,37 @@
-import { cpus } from 'os'
 import chalk from 'chalk'
+import { copyFile as copyFileOrig, existsSync, readFileSync } from 'fs'
 import Worker from 'jest-worker'
-import { promisify } from 'util'
 import mkdirpModule from 'mkdirp'
-import { resolve, join, dirname } from 'path'
+import { cpus } from 'os'
+import { dirname, join, resolve } from 'path'
+import { promisify } from 'util'
+
+import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
+import createSpinner from '../build/spinner'
 import { API_ROUTE } from '../lib/constants'
-import { existsSync, readFileSync, copyFile as copyFileOrig } from 'fs'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
-import { formatAmpMessages } from '../build/output/index'
-import loadConfig, {
-  isTargetLikeServerless
-} from '../next-server/server/config'
 import {
-  PHASE_EXPORT,
-  SERVER_DIRECTORY,
-  PAGES_MANIFEST,
-  CONFIG_FILE,
   BUILD_ID_FILE,
-  PRERENDER_MANIFEST,
-  SERVERLESS_DIRECTORY,
   CLIENT_PUBLIC_FILES_PATH,
-  CLIENT_STATIC_FILES_PATH
+  CLIENT_STATIC_FILES_PATH,
+  CONFIG_FILE,
+  PAGES_MANIFEST,
+  PHASE_EXPORT,
+  PRERENDER_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
 } from '../next-server/lib/constants'
-import createSpinner from '../build/spinner'
+import loadConfig, {
+  isTargetLikeServerless,
+} from '../next-server/server/config'
+import { recordVersion } from '../telemetry/events'
+import { setDistDir as setTelemetryDir } from '../telemetry/storage'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
 
-const createProgress = (total, label = 'Exporting') => {
+const createProgress = (total: number, label = 'Exporting') => {
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -47,10 +50,10 @@ const createProgress = (total, label = 'Exporting') => {
         '[====]',
         '[=== ]',
         '[==  ]',
-        '[=   ]'
+        '[=   ]',
       ],
-      interval: 80
-    }
+      interval: 80,
+    },
   })
 
   return () => {
@@ -70,9 +73,19 @@ const createProgress = (total, label = 'Exporting') => {
   }
 }
 
-export default async function (dir, options, configuration) {
-  function log (message) {
-    if (options.silent) return
+type ExportPathMap = {
+  [page: string]: { page: string; query?: { [key: string]: string } }
+}
+
+export default async function(
+  dir: string,
+  options: any,
+  configuration?: any
+): Promise<void> {
+  function log(message: string) {
+    if (options.silent) {
+      return
+    }
     console.log(message)
   }
 
@@ -80,6 +93,11 @@ export default async function (dir, options, configuration) {
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
+  if (!options.buildExport) {
+    setTelemetryDir(distDir)
+    recordVersion({ cliCommand: 'export' })
+  }
+
   const subFolders = nextConfig.exportTrailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
@@ -115,7 +133,7 @@ export default async function (dir, options, configuration) {
   )
 
   const pages = options.pages || Object.keys(pagesManifest)
-  const defaultPathMap = {}
+  const defaultPathMap: ExportPathMap = {}
 
   for (const page of pages) {
     // _document and _app are not real pages
@@ -135,6 +153,13 @@ export default async function (dir, options, configuration) {
 
   // Initialize the output directory
   const outDir = options.outdir
+
+  if (outDir === join(dir, 'public')) {
+    throw new Error(
+      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/zeit/next.js/can-not-output-to-public`
+    )
+  }
+
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
 
@@ -158,7 +183,7 @@ export default async function (dir, options, configuration) {
     console.log(
       `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
     )
-    nextConfig.exportPathMap = async defaultMap => {
+    nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
       return defaultMap
     }
   }
@@ -174,18 +199,18 @@ export default async function (dir, options, configuration) {
     staticMarkup: false,
     hotReloader: null,
     canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
-    isModern: nextConfig.experimental.modern
+    isModern: nextConfig.experimental.modern,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (Object.keys(publicRuntimeConfig).length > 0) {
-    renderOpts.runtimeConfig = publicRuntimeConfig
+    ;(renderOpts as any).runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.
-  global.__NEXT_DATA__ = {
-    nextExport: true
+  ;(global as any).__NEXT_DATA__ = {
+    nextExport: true,
   }
 
   log(`  launching ${threads} workers`)
@@ -194,11 +219,11 @@ export default async function (dir, options, configuration) {
     dir,
     outDir,
     distDir,
-    buildId
+    buildId,
   })
   if (!exportPathMap['/404']) {
     exportPathMap['/404.html'] = exportPathMap['/404.html'] || {
-      page: '/_error'
+      page: '/_error',
     }
   }
   const exportPaths = Object.keys(exportPathMap)
@@ -222,32 +247,30 @@ export default async function (dir, options, configuration) {
     ? outDir
     : join(outDir, '_next/data', buildId)
 
-  const ampValidations = {}
+  const ampValidations: AmpPageStatus = {}
   let hadValidationError = false
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
-  if (
-    !options.buildExport &&
-    nextConfig.experimental &&
-    nextConfig.experimental.publicDirectory &&
-    existsSync(publicDir)
-  ) {
+  if (!options.buildExport && existsSync(publicDir)) {
     log('  copying "public" directory')
     await recursiveCopy(publicDir, outDir, {
-      filter (path) {
+      filter(path) {
         // Exclude paths used by pages
         return !exportPathMap[path]
-      }
+      },
     })
   }
 
-  const worker = new Worker(require.resolve('./worker'), {
-    maxRetries: 0,
-    numWorkers: threads,
-    enableWorkerThreads: true,
-    exposedMethods: ['default']
-  })
+  const worker: Worker & { default: Function } = new Worker(
+    require.resolve('./worker'),
+    {
+      maxRetries: 0,
+      numWorkers: threads,
+      enableWorkerThreads: true,
+      exposedMethods: ['default'],
+    }
+  ) as any
 
   worker.getStdout().pipe(process.stdout)
   worker.getStderr().pipe(process.stderr)
@@ -267,16 +290,17 @@ export default async function (dir, options, configuration) {
         serverRuntimeConfig,
         subFolders,
         buildExport: options.buildExport,
-        serverless: isTargetLikeServerless(nextConfig.target)
+        serverless: isTargetLikeServerless(nextConfig.target),
       })
 
       for (const validation of result.ampValidations || []) {
         const { page, result } = validation
         ampValidations[page] = result
-        hadValidationError |=
-          Array.isArray(result && result.errors) && result.errors.length > 0
+        hadValidationError =
+          hadValidationError ||
+          (Array.isArray(result && result.errors) && result.errors.length > 0)
       }
-      renderError |= result.error
+      renderError = renderError || !!result.error
 
       if (
         options.buildExport &&

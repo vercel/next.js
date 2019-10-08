@@ -85,7 +85,7 @@ export default class Server {
   }
   private compression?: Middleware
   router: Router
-  private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
   public constructor({
     dir = '.',
@@ -166,7 +166,7 @@ export default class Server {
     })
   }
 
-  private currentPhase(): string {
+  protected currentPhase(): string {
     return PHASE_PRODUCTION_SERVER
   }
 
@@ -212,13 +212,17 @@ export default class Server {
   public async prepare(): Promise<void> {}
 
   // Backwards compatibility
-  private async close(): Promise<void> {}
+  protected async close(): Promise<void> {}
 
-  private setImmutableAssetCacheControl(res: ServerResponse) {
+  protected setImmutableAssetCacheControl(res: ServerResponse) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private generateRoutes(): Route[] {
+  protected generateRoutes(): Route[] {
+    const publicRoutes = fs.existsSync(this.publicDir)
+      ? this.generatePublicRoutes()
+      : []
+
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -284,6 +288,7 @@ export default class Server {
           await this.render404(req, res, parsedUrl)
         },
       },
+      ...publicRoutes,
       {
         // It's very important to keep this route's param optional.
         // (but it should support as many params as needed, separated by '/')
@@ -307,13 +312,6 @@ export default class Server {
         },
       },
     ]
-
-    if (
-      this.nextConfig.experimental.publicDirectory &&
-      fs.existsSync(this.publicDir)
-    ) {
-      routes.push(...this.generatePublicRoutes())
-    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -393,7 +391,7 @@ export default class Server {
    * Resolves path to resolver function
    * @param pathname path of request
    */
-  private resolveApiRequest(pathname: string) {
+  protected async resolveApiRequest(pathname: string): Promise<string | null> {
     return getPagePath(
       pathname,
       this.distDir,
@@ -402,7 +400,7 @@ export default class Server {
     )
   }
 
-  private generatePublicRoutes(): Route[] {
+  protected generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(
@@ -428,7 +426,7 @@ export default class Server {
     return routes
   }
 
-  private getDynamicRoutes() {
+  protected getDynamicRoutes() {
     const manifest = require(this.pagesManifest)
     const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
@@ -443,7 +441,7 @@ export default class Server {
     }
   }
 
-  private async run(
+  protected async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
@@ -467,7 +465,7 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  private async sendHTML(
+  protected async sendHTML(
     req: IncomingMessage,
     res: ServerResponse,
     html: string
@@ -862,7 +860,7 @@ export default class Server {
     return true
   }
 
-  private readBuildId(): string {
+  protected readBuildId(): string {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()

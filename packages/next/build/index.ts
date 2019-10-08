@@ -30,6 +30,7 @@ import {
   recordNextPlugins,
   recordVersion,
 } from '../telemetry/events'
+import { setDistDir as setTelemetryDir } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
@@ -82,12 +83,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(
-    recordVersion({ cliCommand: 'build' }),
-    recordNextPlugins(path.resolve(dir))
-  )
-
   const buildSpinner = createSpinner({
     prefixText: 'Creating an optimized production build',
   })
@@ -96,13 +91,26 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  setTelemetryDir(distDir)
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
+  let hasPublicDir = false
+
+  let backgroundWork: (Promise<any> | undefined)[] = []
+  backgroundWork.push(
+    recordVersion({ cliCommand: 'build' }),
+    recordNextPlugins(path.resolve(dir))
+  )
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
-  if (config.experimental.publicDirectory) {
+  try {
+    await fsStat(publicDir)
+    hasPublicDir = true
+  } catch (_) {}
+
+  if (hasPublicDir) {
     publicFiles = await recursiveReadDir(publicDir, /.*/)
   }
 
@@ -129,10 +137,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const conflictingPublicFiles: string[] = []
 
-  try {
-    await fsStat(path.join(publicDir, '_next'))
-    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-  } catch (err) {}
+  if (hasPublicDir) {
+    try {
+      await fsStat(path.join(publicDir, '_next'))
+      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+    } catch (err) {}
+  }
 
   for (let file of publicFiles) {
     file = file
@@ -349,11 +359,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
           console.warn(
             chalk.bold.yellow(`Warning: `) +
               chalk.yellow(
-                `You have opted-out of Automatic Prerendering due to \`getInitialProps\` in \`pages/_app\`.`
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-automatic-prerendering\n'
+            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
           )
         }
       }

@@ -56,6 +56,9 @@ describe('Serverless', () => {
   it('should serve file from public folder', async () => {
     const content = await renderViaHTTP(appPort, '/hello.txt')
     expect(content.trim()).toBe('hello world')
+
+    const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
+    expect(legacy).toMatch(`new static folder`)
   })
 
   it('should render the page with dynamic import', async () => {
