@@ -299,14 +299,10 @@ export default async function getBaseWebpackConfig(
       : config.crossOrigin
 
   let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(
-        path.join(dir, 'pages'),
-        '/_app',
-        config.pageExtensions
-      )
+    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
     : null
   if (customAppFile) {
-    customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
+    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -668,7 +664,7 @@ export default async function getBaseWebpackConfig(
                             'Custom <App>'
                           )}. Please move all global CSS imports to ${chalk.cyan(
                             customAppFile
-                              ? path.relative(dir, customAppFile)
+                              ? path.relative(pagesDir, customAppFile)
                               : 'pages/_app.js'
                           )}.\n` +
                           `Read more: https://err.sh/next.js/global-css`,
