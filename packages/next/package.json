@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.1.1",
+  "version": "9.1.2-canary.1",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -57,7 +57,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "1.0.1",
+    "@ampproject/toolbox-optimizer": "1.1.1",
     "@babel/core": "7.4.5",
     "@babel/plugin-proposal-class-properties": "7.4.4",
     "@babel/plugin-proposal-object-rest-spread": "7.4.4",
