@@ -133,7 +133,7 @@ export default () => <div>Welcome to next.js!</div>
 - 自动打包编译 (使用 webpack 和 babel)
 - 热加载
 - 以 `./pages`作为服务的渲染和索引
-- 静态文件服务. `./static/` 映射到 `/static/` (可以 [创建一个静态目录](#static-file-serving-eg-images) 在你的项目中)
+- 静态文件服务. `./public/` 映射到 `/` (可以 [创建一个静态目录](#static-file-serving-eg-images) 在你的项目中)
 
 这里有个简单的案例，可以下载看看 [sample app - nextgram](https://github.com/zeit/nextgram)
 
@@ -227,13 +227,13 @@ export default () => <p style={{ color: 'red' }}>hi there</p>
 
 ### 静态文件服务（如图像）
 
-在根目录下新建文件夹叫`static`。代码可以通过`/static/`来引入相关的静态资源。
+在根目录下新建文件夹叫`public`。代码可以通过`/`来引入相关的静态资源。
 
 ```jsx
-export default () => <img src="/static/my-image.png" alt="my image" />
+export default () => <img src="/my-image.png" alt="my image" />
 ```
 
-_注意：不要自定义静态文件夹的名字，只能叫`static` ，因为只有这个名字 Next.js 才会把它当作静态资源。_
+_注意：不要自定义静态文件夹的名字，只能叫`public` ，因为只有这个名字 Next.js 才会把它当作静态资源。_
 
 <a id="populating-head" style="display: none"></a>
 
