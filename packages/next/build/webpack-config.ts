@@ -664,7 +664,7 @@ export default async function getBaseWebpackConfig(
                             'Custom <App>'
                           )}. Please move all global CSS imports to ${chalk.cyan(
                             customAppFile
-                              ? path.relative(pagesDir, customAppFile)
+                              ? path.relative(dir, customAppFile)
                               : 'pages/_app.js'
                           )}.\n` +
                           `Read more: https://err.sh/next.js/global-css`,
