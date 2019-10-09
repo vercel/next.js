@@ -302,12 +302,6 @@ function clearMarks () {
   ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
     mark => performance.clearMarks(mark)
   )
-  ;[
-    'Next.js-before-hydration',
-    'Next.js-hydration',
-    'Next.js-route-change-to-render',
-    'Next.js-render'
-  ].forEach(measure => performance.clearMeasures(measure))
 }
 
 function AppContainer ({ children }) {
