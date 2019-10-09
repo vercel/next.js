@@ -44,6 +44,30 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Basic Global Support with src/ dir', () => {
+    const appDir = join(fixturesDir, 'single-global-src')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
+  })
+
   describe('Multi Global Support', () => {
     const appDir = join(fixturesDir, 'multi-global')
 
@@ -194,7 +218,9 @@ describe('CSS Support', () => {
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toMatch(
+        /Please move all global CSS imports.*?pages(\/|\\)_app/
+      )
     })
   })
 
@@ -211,7 +237,9 @@ describe('CSS Support', () => {
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toMatch(
+        /Please move all global CSS imports.*?pages(\/|\\)_app/
+      )
     })
   })
 
