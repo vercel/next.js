@@ -234,7 +234,7 @@ export default async function getBaseWebpackConfig(
           // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
         },
         lib: {
