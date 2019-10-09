@@ -1,4 +1,4 @@
-# next-css example
+# next-offline example
 
 ## How to use
 
@@ -9,7 +9,7 @@ Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [
 ```bash
 npx create-next-app --example with-next-offline with-next-offline-app
 # or
-yarn create next-app --example with-next-css with-next-offline-app
+yarn create next-app --example with-next-offline with-next-offline-app
 ```
 
 ### Download manually
