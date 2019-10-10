@@ -616,7 +616,7 @@ export default class Server {
     // request path (to emulate lambda behavior in production)
     if (isLikeServerless && isSprData) {
       const curUrl = parseUrl(req.url || '', true)
-      req.url = `/_next/data${curUrl.pathname}.json`
+      req.url = `/_next/data/${this.buildId}${curUrl.pathname}.json`
     }
 
     const doRender = withCoalescedInvoke(async function(): Promise<{

@@ -42,6 +42,7 @@ const nextServerlessLoader: loader.Loader = function() {
     /\\/g,
     '/'
   )
+  const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
   if (page.match(API_ROUTE)) {
     return `
@@ -110,8 +111,7 @@ const nextServerlessLoader: loader.Loader = function() {
       if (req.url.match(/_next\\/data/)) {
         sprData = true
         req.url = req.url
-          .replace(/\\/_next\\/data\\//, '/')
-          .replace('/${buildId}/', '/')
+          .replace(/\\/_next\\/data\\/${escapedBuildId}\\//, '/')
           .replace(/\\.json$/, '')
       }
       const parsedUrl = parse(req.url, true)
