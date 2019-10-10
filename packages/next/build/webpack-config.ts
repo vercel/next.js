@@ -299,14 +299,10 @@ export default async function getBaseWebpackConfig(
       : config.crossOrigin
 
   let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(
-        path.join(dir, 'pages'),
-        '/_app',
-        config.pageExtensions
-      )
+    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
     : null
   if (customAppFile) {
-    customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
+    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -955,7 +951,11 @@ export default async function getBaseWebpackConfig(
             // old `css-loader` versions. Custom setups (that aren't next-sass
             // or next-less) likely have the newer version.
             // We still handle this gracefully below.
-            Object.prototype.hasOwnProperty.call(use.options, 'minimize')
+            (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
+              Object.prototype.hasOwnProperty.call(
+                use.options,
+                'exportOnlyLocals'
+              ))
           )
         ) {
           return

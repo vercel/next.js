@@ -1,0 +1,18 @@
+{
+  "name": "with-next-offline",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "export": "next build && next export"
+  },
+  "dependencies": {
+    "next": "latest",
+    "next-offline": "4.0.6",
+    "react": "^16.10.2",
+    "react-dom": "^16.10.2",
+    "serve": "11.2.0"
+  }
+}
