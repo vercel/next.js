@@ -168,8 +168,6 @@ export default class Router implements BaseRouter {
       return
     }
 
-    console.log(e.state.options.historyId, this.historyId)
-
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
     if (e.state.options && e.state.options.historyId !== this.historyId) {
