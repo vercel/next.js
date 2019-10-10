@@ -23,7 +23,7 @@ const TELEMETRY_KEY_ID = `telemetry.anonymousId`
 // This is the cryptographic salt that is included within every hashed value.
 // This salt value is never sent to us, ensuring privacy and the one-way nature
 // of the hash (prevents dictionary lookups of pre-computed hashes).
-// See the `computeHash` function.
+// See the `oneWayHash` function.
 const TELEMETRY_KEY_SALT = `telemetry.salt`
 
 const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
