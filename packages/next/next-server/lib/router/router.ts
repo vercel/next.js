@@ -624,7 +624,8 @@ export default class Router implements BaseRouter {
     ) {
       let status: any
       // pathname should have leading slash
-      const { pathname } = parse(ctx.asPath || ctx.pathname)
+      let { pathname } = parse(ctx.asPath || ctx.pathname)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
 
       props = await fetch(
         // @ts-ignore __NEXT_DATA__

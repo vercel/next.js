@@ -85,16 +85,19 @@ const navigateTest = () => {
     expect(text).toMatch(/hello.*?world/)
 
     // go to /
+    await browser.eval('window.didTransition = 1')
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#another')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
 
     // go to /something
     await browser.elementByCss('#something').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
 
     // go to /
     await browser.elementByCss('#home').click()
@@ -105,6 +108,7 @@ const navigateTest = () => {
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
     expect(text).toMatch(/Post:.*?post-1/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
 
     // go to /
     await browser.elementByCss('#home').click()
@@ -115,6 +119,7 @@ const navigateTest = () => {
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p:nth-child(2)').text()
     expect(text).toMatch(/Comment:.*?comment-1/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
 
     await browser.close()
   })

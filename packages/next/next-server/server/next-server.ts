@@ -268,7 +268,7 @@ export default class Server {
           // re-create page's pathname
           const pathname = `/${params.path.join('/')}`
             .replace(/\.json$/, '')
-            .replace(/\/index$/, '')
+            .replace(/\/index$/, '/')
 
           req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
@@ -615,8 +615,9 @@ export default class Server {
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
     if (isLikeServerless && isSprData) {
-      const curUrl = parseUrl(req.url || '', true)
-      req.url = `/_next/data/${this.buildId}${curUrl.pathname}.json`
+      let { pathname } = parseUrl(req.url || '', true)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      req.url = `/_next/data/${this.buildId}${pathname}.json`
     }
 
     const doRender = withCoalescedInvoke(async function(): Promise<{
