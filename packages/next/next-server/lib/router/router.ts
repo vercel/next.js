@@ -623,6 +623,7 @@ export default class Router implements BaseRouter {
       (Component as any).__NEXT_SPR
     ) {
       let status: any
+      // pathname should have leading slash
       const { pathname } = parse(ctx.asPath || ctx.pathname)
 
       props = await fetch(
