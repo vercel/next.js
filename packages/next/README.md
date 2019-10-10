@@ -2045,7 +2045,7 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 
 #### Runtime configuration
 
-> **Warning:** Note that this option is not available when using `target: 'serverless'`
+> **Warning:** Note that these options are not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
 > The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic static optimization](#automatic-static-optimization)**.
