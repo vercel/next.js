@@ -539,6 +539,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             srcRoute: null,
             dataRoute: path.posix.join(
               '/_next/data',
+              buildId,
               `${page === '/' ? '/index' : page}.json`
             ),
           }
@@ -556,6 +557,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               srcRoute: page,
               dataRoute: path.posix.join(
                 '/_next/data',
+                buildId,
                 `${route === '/' ? '/index' : route}.json`
               ),
             }
@@ -589,6 +591,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     tbdPrerenderRoutes.forEach(tbdRoute => {
       const dataRoute = path.posix.join(
         '/_next/data',
+        buildId,
         `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
       )
 

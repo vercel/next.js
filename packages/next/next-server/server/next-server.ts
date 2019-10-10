@@ -252,10 +252,24 @@ export default class Server {
       {
         match: route('/_next/data/:path*'),
         fn: async (req, res, params, _parsedUrl) => {
-          // Make sure to 404 for /_next/data/ itself
-          if (!params.path) return this.render404(req, res, _parsedUrl)
-          // TODO: force `.json` to be present
-          const pathname = `/${params.path.join('/')}`.replace(/\.json$/, '')
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            return this.render404(req, res, _parsedUrl)
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          // show 404 if it doesn't end with .json
+          if (!params.path[params.path.length - 1].endsWith('.json')) {
+            return this.render404(req, res, _parsedUrl)
+          }
+
+          // re-create page's pathname
+          const pathname = `/${params.path.join('/')}`
+            .replace(/\.json$/, '')
+            .replace(/\/index$/, '/')
+
           req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
           await this.render(
@@ -601,8 +615,9 @@ export default class Server {
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
     if (isLikeServerless && isSprData) {
-      const curUrl = parseUrl(req.url || '', true)
-      req.url = `/_next/data${curUrl.pathname}.json`
+      let { pathname } = parseUrl(req.url || '', true)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      req.url = `/_next/data/${this.buildId}${pathname}.json`
     }
 
     const doRender = withCoalescedInvoke(async function(): Promise<{
