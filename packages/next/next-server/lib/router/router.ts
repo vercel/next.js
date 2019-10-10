@@ -128,7 +128,7 @@ export default class Router implements BaseRouter {
     this.clc = null
     this._wrapApp = wrapApp
     // we use a historyId to enable ignoring invalid popstates
-    this.historyId = new Date().getTime()
+    this.historyId = Math.random()
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
