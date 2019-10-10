@@ -111,7 +111,7 @@ const nextServerlessLoader: loader.Loader = function() {
       if (req.url.match(/_next\\/data/)) {
         sprData = true
         req.url = req.url
-          .replace(new RegExp('\\/_next\\/data\\/${escapedBuildId}\\/'), '/')
+          .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
       }
       const parsedUrl = parse(req.url, true)
