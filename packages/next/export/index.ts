@@ -243,7 +243,9 @@ export default async function(
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
-  const sprDataDir = options.buildExport ? outDir : join(outDir, '_next/data')
+  const sprDataDir = options.buildExport
+    ? outDir
+    : join(outDir, '_next/data', buildId)
 
   const ampValidations: AmpPageStatus = {}
   let hadValidationError = false
