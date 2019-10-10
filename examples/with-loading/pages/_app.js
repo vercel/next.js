@@ -19,7 +19,7 @@ export default class MyApp extends App {
       <>
         <Head>
           {/* Import CSS for nprogress */}
-          <link rel='stylesheet' type='text/css' href='/static/nprogress.css' />
+          <link rel='stylesheet' type='text/css' href='/nprogress.css' />
         </Head>
         <nav>
           <style jsx>{`
