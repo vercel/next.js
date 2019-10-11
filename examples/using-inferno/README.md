@@ -44,3 +44,4 @@ This example uses [Inferno](https://github.com/infernojs/inferno), an insanely f
 Here's how we did it:
 
 - Use `next.config.js` to customize our webpack config to support [inferno-compat](https://www.npmjs.com/package/inferno-compat)
+- Create `lib/inferno-compat.js` to polyfill the `React.createContext` API (required by Next.js) that is not available by `inferno-compat`

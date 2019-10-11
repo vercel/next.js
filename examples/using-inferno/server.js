@@ -1,13 +1,14 @@
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const moduleAlias = require('module-alias')
+const path = require('path')
 
 // For the development version, we'll use React.
 // Because, it support react hot loading and so on.
 if (!dev) {
-  moduleAlias.addAlias('react', 'inferno-compat')
+  moduleAlias.addAlias('react', path.resolve('./lib/inferno-compat.js'))
   moduleAlias.addAlias('react-dom/server', 'inferno-server')
-  moduleAlias.addAlias('react-dom', 'inferno-compat')
+  moduleAlias.addAlias('react-dom', path.resolve('./lib/inferno-compat.js'))
 }
 
 const { createServer } = require('http')

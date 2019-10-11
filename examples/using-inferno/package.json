@@ -7,6 +7,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "create-react-context": "0.3.0",
     "inferno": "7.3.2",
     "inferno-compat": "7.3.2",
     "inferno-server": "7.3.2",
