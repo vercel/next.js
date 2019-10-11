@@ -1,21 +1,26 @@
 import Link from 'next/link'
 
-export const config = { experimentalPrerender: true }
-
-const wrapPage = Comp => {
-  Comp.getInitialProps = () => ({ world: 'world' })
-  return Comp
+// eslint-disable-next-line camelcase
+export async function unstable_getStaticProps () {
+  return {
+    props: {
+      world: 'world',
+      time: new Date().getTime()
+    },
+    revalidate: 0
+  }
 }
 
-export default wrapPage(({ world }) => (
+export default ({ world, time }) => (
   <>
     <p>hello {world}</p>
+    <span>time: {time}</span>
     <Link href='/'>
       <a id='home'>to home</a>
     </Link>
     <br />
     <Link href='/something'>
-      <a id='somethin'>to something</a>
+      <a id='something'>to something</a>
     </Link>
   </>
-))
+)

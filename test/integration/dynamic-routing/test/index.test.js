@@ -187,6 +187,11 @@ function runTests (dev) {
     expect(scrollPosition).toBe(7232)
   })
 
+  it('should prioritize public files over dynamic route', async () => {
+    const data = await renderViaHTTP(appPort, '/hello.txt')
+    expect(data).toMatch(/hello world/)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
@@ -245,7 +250,10 @@ describe('Dynamic Routing', () => {
           nextConfig,
           `
           module.exports = {
-            experimental: { modern: true }
+            experimental: {
+              modern: true,
+              publicDirectory: true
+            }
           }
         `
         )
@@ -269,7 +277,8 @@ describe('Dynamic Routing', () => {
         module.exports = {
           target: 'serverless',
           experimental: {
-            modern: true
+            modern: true,
+            publicDirectory: true
           }
         }
       `

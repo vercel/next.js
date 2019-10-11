@@ -21,6 +21,10 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  devIndicators: {
+    buildActivity: true,
+    autoPrerender: true,
+  },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
@@ -30,17 +34,19 @@ const defaultConfig: { [key: string]: any } = {
   },
   exportTrailingSlash: false,
   experimental: {
+    ampBindInitData: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    ampBindInitData: false,
-    profiling: false,
+    css: false,
     documentMiddleware: false,
     granularChunks: false,
-    publicDirectory: false,
     modern: false,
+    profiling: false,
+    publicDirectory: false,
+    sprFlushToDisk: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -71,6 +77,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       experimentalWarning()
     }
 
+    if (key === 'distDir' && userConfig[key] === 'public') {
+      throw new Error(
+        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+      )
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
@@ -99,7 +111,7 @@ function normalizeConfig(phase: string, config: any) {
 export default function loadConfig(
   phase: string,
   dir: string,
-  customConfig: any
+  customConfig?: object | null
 ) {
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
@@ -135,12 +147,14 @@ export default function loadConfig(
     if (
       userConfig.target &&
       userConfig.target !== 'server' &&
-      userConfig.publicRuntimeConfig &&
-      Object.keys(userConfig.publicRuntimeConfig).length !== 0
+      ((userConfig.publicRuntimeConfig &&
+        Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
+        (userConfig.serverRuntimeConfig &&
+          Object.keys(userConfig.serverRuntimeConfig).length !== 0))
     ) {
       // TODO: change error message tone to "Only compatible with [fat] server mode"
       throw new Error(
-        'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+        'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
     }
 

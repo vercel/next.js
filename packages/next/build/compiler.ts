@@ -12,11 +12,11 @@ function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
     errors: true,
   })
   if (errors.length > 0) {
-    result.errors.push(...errors)
+    result.errors.push(...(errors as any))
   }
 
   if (warnings.length > 0) {
-    result.warnings.push(...warnings)
+    result.warnings.push(...(warnings as any))
   }
 
   return result

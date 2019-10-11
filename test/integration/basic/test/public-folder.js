@@ -6,14 +6,9 @@ export default context => {
     it('should allow access to public files', async () => {
       const data = await renderViaHTTP(context.appPort, '/data/data.txt')
       expect(data).toBe('data')
-    })
 
-    it('should prioritize pages over public files', async () => {
-      const html = await renderViaHTTP(context.appPort, '/about')
-      const data = await renderViaHTTP(context.appPort, '/file')
-
-      expect(html).toMatch(/About Page/)
-      expect(data).toBe('test')
+      const legacy = await renderViaHTTP(context.appPort, '/static/legacy.txt')
+      expect(legacy).toMatch(`new static folder`)
     })
   })
 }
