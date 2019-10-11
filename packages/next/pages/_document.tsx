@@ -144,24 +144,33 @@ export class Head extends Component<
 
   context!: DocumentComponentContext
 
-  getCssLinks() {
+  getCssLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
     const cssFiles =
       files && files.length ? files.filter(f => /\.css$/.test(f)) : []
+    const cssLinkElements: JSX.Element[] = []
+    cssFiles.forEach(file => {
+      cssLinkElements.push(
+        <link
+          nonce={this.props.nonce}
+          rel="preload"
+          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          as="style"
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        />
+      )
+      cssLinkElements.push(
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="stylesheet"
+          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        />
+      )
+    }, [])
 
-    return cssFiles.length === 0
-      ? null
-      : cssFiles.map((file: string) => {
-          return (
-            <link
-              key={file}
-              nonce={this.props.nonce}
-              rel="stylesheet"
-              href={`${assetPrefix}/_next/${encodeURI(file)}`}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
+    return cssFiles.length === 0 ? null : cssLinkElements
   }
 
   getPreloadDynamicChunks() {
@@ -196,7 +205,7 @@ export class Head extends Component<
     )
   }
 
-  getPreloadMainLinks() {
+  getPreloadMainLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
     if (!files || files.length === 0) {
       return null
@@ -204,15 +213,17 @@ export class Head extends Component<
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return files
-      .map((file: string) => {
+      .filter((file: string) => {
         // `dynamicImports` will contain both `.js` and `.module.js` when the
         // feature is enabled. This clause will filter down to the modern
         // variants only.
-        // This also filters out non-JS assets.
-        if (!file.endsWith(getOptionalModernScriptVariant('.js'))) {
-          return null
-        }
-
+        // Also filter  out buildManifest because it should not be preloaded for performance reasons
+        return (
+          file.endsWith(getOptionalModernScriptVariant('.js')) &&
+          !file.includes('buildManifest')
+        )
+      })
+      .map((file: string) => {
         return (
           <link
             key={file}
