@@ -1,4 +1,4 @@
-export default () => {
+export async function HeadTags () {
   return (
     <>
       <script
