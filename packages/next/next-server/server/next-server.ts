@@ -143,10 +143,12 @@ export default class Server {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
+    if (this.nextConfig.target === 'server') {
+      envConfig.setConfig({
+        serverRuntimeConfig,
+        publicRuntimeConfig,
+      })
+    }
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
