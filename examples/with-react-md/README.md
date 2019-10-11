@@ -27,11 +27,11 @@ Install it and run:
 
 ```bash
 npm install
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
+ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css public/react-md.light_blue-yellow.min.css
 npm run dev
 # or
 yarn
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
+ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css public/react-md.light_blue-yellow.min.css
 yarn dev
 ```
 
