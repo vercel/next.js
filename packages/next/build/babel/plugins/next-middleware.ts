@@ -134,6 +134,16 @@ export default function nextMiddlewarePlugin({
             )
           }
 
+          // make sure to insert memberExpression after
+          // the default export has been defined
+          for (let i = 0; i < path.node.body.length; i++) {
+            const curNode = path.node.body[i] as any
+            if (curNode.id && curNode.id.name === defaultExport.name) {
+              safeInsertIdx = i + 1
+              break
+            }
+          }
+
           path.node.body.splice(
             safeInsertIdx,
             0,

@@ -350,14 +350,8 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            if (
-              documentMiddlewarePlugins.some(plugin => {
-                return (
-                  request ===
-                  path.join(plugin.pkgName, 'middlewares/_document.middleware')
-                )
-              })
-            ) {
+            // make sure we transpile plugins' _document middleware
+            if (request.match(/middlewares(\/|\\)_document\.middleware/)) {
               return callback()
             }
 
