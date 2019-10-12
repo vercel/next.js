@@ -112,9 +112,10 @@ export class Html extends Component<
   context!: DocumentComponentContext
 
   render() {
-    const { inAmpMode } = this.context._documentProps
+    const { inAmpMode, htmlProps } = this.context._documentProps
     return (
       <html
+        {...htmlProps}
         {...this.props}
         amp={inAmpMode ? '' : undefined}
         data-ampdevmode={
@@ -463,6 +464,7 @@ export class Head extends Component<
             {styles || null}
           </>
         )}
+        {this.context._documentProps.headTags}
       </head>
     )
   }
@@ -628,6 +630,7 @@ export class NextScript extends Component<OriginProps> {
                 />
               ))
             : null}
+          {this.context._documentProps.bodyTags}
         </>
       )
     }
@@ -749,6 +752,7 @@ export class NextScript extends Component<OriginProps> {
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
+        {this.context._documentProps.bodyTags}
       </>
     )
   }

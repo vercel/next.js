@@ -20,3 +20,17 @@ export async function headTags () {
     </>
   )
 }
+
+export async function htmlProps () {
+  return {
+    lang: 'en'
+  }
+}
+
+export async function bodyTags () {
+  return (
+    <>
+      <script dangerouslySetInnerHTML={{ __html: 'console.log("hi") ' }} />
+    </>
+  )
+}

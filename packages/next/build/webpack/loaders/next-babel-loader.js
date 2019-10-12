@@ -142,8 +142,6 @@ module.exports = babelLoader.custom(babel => {
 
       // add middleware babel plugin
       if ((isApp && !isServer) || filename.match(/pages(\/|\\)_document/)) {
-        console.log('using middleware plugin for', filename)
-
         options.plugins.push(
           babel.createConfigItem(
             [

@@ -188,6 +188,9 @@ function renderDocument(
     devFiles,
     files,
     dynamicImports,
+    htmlProps,
+    bodyTags,
+    headTags,
   }: RenderOpts & {
     dataManagerData: string
     props: any
@@ -203,6 +206,9 @@ function renderDocument(
     dynamicImports: ManifestItem[]
     files: string[]
     devFiles: string[]
+    htmlProps: any
+    bodyTags: any
+    headTags: any
   }
 ): string {
   return (
@@ -237,6 +243,9 @@ function renderDocument(
           files={files}
           dynamicImports={dynamicImports}
           assetPrefix={assetPrefix}
+          htmlProps={htmlProps}
+          bodyTags={bodyTags}
+          headTags={headTags}
           {...docProps}
         />
       </AmpStateContext.Provider>
@@ -269,6 +278,35 @@ export async function renderToHTML(
     ErrorDebug,
     unstable_getStaticProps,
   } = renderOpts
+
+  const documentMiddlewares = (Document as any).__DOC_MIDDLEWARE || []
+  const callMiddlewares = async (method: string, args: any[], tags = true) => {
+    let results: any[] | { [name: string]: any } = tags ? [] : {}
+
+    await Promise.all(
+      documentMiddlewares.map(async (middleware: any) => {
+        if (middleware[method]) {
+          const result = await middleware[method](...args)
+          if (tags) {
+            results.push(result)
+          } else {
+            results = {
+              ...results,
+              ...result,
+            }
+          }
+        }
+      })
+    )
+
+    return tags
+      ? React.createElement(React.Fragment, {}, ...(results as any))
+      : results
+  }
+
+  const headTags = (...args: any) => callMiddlewares('headTags', args)
+  const bodyTags = (...args: any) => callMiddlewares('bodyTags', args)
+  const htmlProps = (...args: any) => callMiddlewares('htmlProps', args, false)
 
   const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
@@ -538,8 +576,8 @@ export async function renderToHTML(
       )
     }
   }
-
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const documentCtx = { ...ctx, renderPage }
+  const docProps = await loadGetInitialProps(Document, documentCtx)
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
@@ -587,6 +625,9 @@ export async function renderToHTML(
     dataManagerData,
     ampState,
     props,
+    headTags: await headTags(documentCtx),
+    bodyTags: await bodyTags(documentCtx),
+    htmlProps: await htmlProps(documentCtx),
     docProps,
     pathname,
     ampPath,
