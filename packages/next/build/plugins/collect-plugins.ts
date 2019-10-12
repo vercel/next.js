@@ -48,6 +48,16 @@ type SeparatedPlugins = {
   documentMiddlewarePlugins: PluginMetaData[]
 }
 
+// clean package name so it can be used as variable
+export const getPluginId = (pkg: string): string => {
+  pkg = pkg.replace(/\W/g, '')
+
+  if (pkg.match(/^[0-9]/)) {
+    pkg = `_${pkg}`
+  }
+  return pkg
+}
+
 export function getSeparatedPlugins(
   plugins: PluginMetaData[]
 ): SeparatedPlugins {

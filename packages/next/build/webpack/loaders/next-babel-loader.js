@@ -56,7 +56,8 @@ module.exports = babelLoader.custom(babel => {
         isModern: opts.isModern,
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
-        appMiddlewarePlugins: opts.appMiddlewarePlugins
+        appMiddlewarePlugins: opts.appMiddlewarePlugins,
+        documentMiddlewarePlugins: opts.documentMiddlewarePlugins
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -90,6 +91,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.hasModern
       delete loader.pagesDir
       delete loader.appMiddlewarePlugins
+      delete loader.documentMiddlewarePlugins
       return { loader, custom }
     },
     config (
@@ -101,13 +103,15 @@ module.exports = babelLoader.custom(babel => {
           isModern,
           hasModern,
           pagesDir,
-          appMiddlewarePlugins
+          appMiddlewarePlugins,
+          documentMiddlewarePlugins
         }
       }
     ) {
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
       const isPageFile = filename.startsWith(pagesDir)
+      const isApp = filename.match(/pages(\/|\\)_app/)
 
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
@@ -136,14 +140,19 @@ module.exports = babelLoader.custom(babel => {
         options.plugins.push(pageConfigPlugin)
       }
 
-      // add app middleware babel plugin
-      if (!isServer && filename.includes('_app')) {
+      // add middleware babel plugin
+      if ((isApp && !isServer) || filename.match(/pages(\/|\\)_document/)) {
+        console.log('using middleware plugin for', filename)
+
         options.plugins.push(
           babel.createConfigItem(
             [
-              require('../../babel/plugins/next-app-middleware'),
+              require('../../babel/plugins/next-middleware'),
               {
-                plugins: appMiddlewarePlugins
+                isApp,
+                plugins: isApp
+                  ? appMiddlewarePlugins
+                  : documentMiddlewarePlugins
               }
             ],
             { type: 'plugin' }

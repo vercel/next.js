@@ -39,7 +39,11 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import { collectPlugins, getSeparatedPlugins } from './plugins/collect-plugins'
+import {
+  collectPlugins,
+  getSeparatedPlugins,
+  getPluginId,
+} from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -74,7 +78,6 @@ export default async function getBaseWebpackConfig(
   const plugins = await collectPlugins(dir)
   const {
     appMiddlewarePlugins,
-    // TODO: we need to transpile and output _document middleware
     documentMiddlewarePlugins,
   } = getSeparatedPlugins(plugins)
 
@@ -89,6 +92,7 @@ export default async function getBaseWebpackConfig(
         cwd: dir,
         cache: true,
         appMiddlewarePlugins,
+        documentMiddlewarePlugins,
         hasModern: !!config.experimental.modern,
       },
     },
@@ -103,13 +107,8 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    ...appMiddlewarePlugins.map(plugin => {
-      const escapedPkgName = plugin.pkgName.replace(
-        /[|\\{}()[\]^$+*?.-]/g,
-        '\\$&'
-      )
-      return new RegExp(`${escapedPkgName}`)
-    }),
+    /\/middlewares\/_app.middleware/,
+    /\/middlewares\/_document.middleware/,
   ]
 
   // Support for NODE_PATH
@@ -348,6 +347,17 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (notExternalModules.indexOf(request) !== -1) {
+              return callback()
+            }
+
+            if (
+              documentMiddlewarePlugins.some(plugin => {
+                return (
+                  request ===
+                  path.join(plugin.pkgName, 'middlewares/_document.middleware')
+                )
+              })
+            ) {
               return callback()
             }
 
