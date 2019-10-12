@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to use [`@zeit/fetch`](https://npmjs.com/zeit/fetch) in a Next.js application.
+This example shows how to use [`@zeit/fetch`](https://npmjs.com/package/@zeit/fetch) in a Next.js application.
