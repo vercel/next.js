@@ -101,14 +101,29 @@ export default function nextMiddlewarePlugin({
           // if no plugins with app middleware, nothing extra needed
           if (pluginIds.length === 0 && isApp) return
           const contextArg = t.identifier('middlewareCtx')
+          let defaultExportIdx = -1
 
-          let defaultExport: any = path.node.body.find(node =>
-            t.isExportDefaultDeclaration(node)
-          )
+          let defaultExport: any = path.node.body.find((node, idx) => {
+            if (t.isExportDefaultDeclaration(node)) {
+              defaultExportIdx = idx
+              return true
+            }
+          })
 
           if (defaultExport) {
             // it's a export default ... syntax
             defaultExport = defaultExport.declaration
+
+            if (!t.isIdentifier(defaultExport)) {
+              const prev = t.cloneDeep(defaultExport)
+              path.node.body.splice(
+                defaultExportIdx,
+                1,
+                prev,
+                t.exportDefaultDeclaration(prev.id)
+              )
+              defaultExport = prev.id
+            }
           } else {
             // look for a transpiled exports.default
             path.node.body.find(node => {
