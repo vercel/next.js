@@ -55,7 +55,8 @@ module.exports = babelLoader.custom(babel => {
         isServer: opts.isServer,
         isModern: opts.isModern,
         pagesDir: opts.pagesDir,
-        hasModern: opts.hasModern
+        hasModern: opts.hasModern,
+        appMiddlewarePlugins: opts.appMiddlewarePlugins
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -88,13 +89,20 @@ module.exports = babelLoader.custom(babel => {
       delete loader.isModern
       delete loader.hasModern
       delete loader.pagesDir
+      delete loader.appMiddlewarePlugins
       return { loader, custom }
     },
     config (
       cfg,
       {
         source,
-        customOptions: { isServer, isModern, hasModern, pagesDir }
+        customOptions: {
+          isServer,
+          isModern,
+          hasModern,
+          pagesDir,
+          appMiddlewarePlugins
+        }
       }
     ) {
       const filename = this.resourcePath
@@ -126,6 +134,21 @@ module.exports = babelLoader.custom(babel => {
           { type: 'plugin' }
         )
         options.plugins.push(pageConfigPlugin)
+      }
+
+      // add app middleware babel plugin
+      if (!isServer && filename.includes('_app')) {
+        options.plugins.push(
+          babel.createConfigItem(
+            [
+              require('../../babel/plugins/next-app-middleware'),
+              {
+                plugins: appMiddlewarePlugins
+              }
+            ],
+            { type: 'plugin' }
+          )
+        )
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {

@@ -46,7 +46,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { collectPlugins } from './plugins/collect-plugins'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -92,8 +91,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-
-  await collectPlugins(dir)
 
   const telemetry = new Telemetry({ distDir })
 

@@ -180,6 +180,12 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       render({ App, Component, props, err, emitter })
     }
   })
+
+  // call app middleware
+  if (app.__CLIENT_INIT) {
+    app.__CLIENT_INIT({ router })
+  }
+
   const renderCtx = { App, Component, props, err: initialErr, emitter }
   render(renderCtx)
 

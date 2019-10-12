@@ -1,15 +1,24 @@
+import { join } from 'path'
 import { PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
+import { PluginMetaData } from '../../plugins/collect-plugins'
 
 type MiddlewareState = {
-  importsAdded?: boolean
+  opts?: {
+    plugins: PluginMetaData[]
+  }
 }
 
-const middlewarExportId = '__MIDDLEWARE'
+const clientInitId = '__CLIENT_INIT'
 
 // clean package name so it can be used as variable
 const getPluginId = (pkg: string): string => {
-  return pkg.replace(/(@|-)/g, '')
+  pkg = pkg.replace(/\W/g, '')
+
+  if (pkg.match(/^[0-9]/)) {
+    pkg = `_${pkg}`
+  }
+  return pkg
 }
 
 // config to parsing pageConfig for client bundles
@@ -23,48 +32,78 @@ export default function nextAppMiddleware({
       Program: {
         enter(path, state: MiddlewareState) {
           // TODO: bail out if no plugins with App Middleware
+          if (!state.opts || !state.opts.plugins) {
+            throw new Error('_app middleware plugins config is missing')
+          }
+          const { plugins } = state.opts
+          let safeInsertIdx = 0
 
-          // insert __MIDDLEWARE export function
-          path.insertAfter(
-            t.exportNamedDeclaration(
-              t.functionDeclaration(
-                t.identifier(middlewarExportId),
-                [
-                  // add parameter for MiddlewareCtx
-                ],
-                t.blockStatement([
-                  // add calling middlewares here
-                  t.returnStatement(t.nullLiteral()),
-                ])
-              ),
-              [t.exportNamespaceSpecifier(t.identifier(middlewarExportId))]
+          for (let i = 0; i < path.node.body.length; i++) {
+            const curNode = path.node.body[i]
+
+            if (!t.isImport(curNode) && !t.isImportDeclaration(curNode)) {
+              safeInsertIdx = i
+              break
+            }
+          }
+          const pluginIds: string[] = []
+
+          // require all of the plugins' app middleware
+          for (const plugin of plugins) {
+            const pluginId = getPluginId(plugin.pkgName)
+            const requirePath = join(
+              plugin.directory,
+              'middlewares/_app.middleware.js'
             )
-          )
 
-          path.traverse(
-            {
-              ImportDeclaration(path, state) {
-                if (state.importsAdded) return
-
-                // TODO: get this from state.config
-                const plugins = ['next-plugin-google-analytics']
-
-                for (const plugin of plugins) {
-                  // TODO: need to enable transpiling the imported plugins
-                  // import the plugin
-                  path.insertAfter(
-                    t.importDeclaration(
-                      [
-                        t.importNamespaceSpecifier(
-                          t.identifier(getPluginId(plugin))
-                        ),
-                      ],
-                      t.stringLiteral(`${plugin}/middlewares/_app.middleware`)
+            path.node.body.splice(
+              safeInsertIdx,
+              0,
+              t.variableDeclaration('var', [
+                t.variableDeclarator(
+                  t.identifier(pluginId),
+                  t.assignmentExpression(
+                    '=',
+                    t.identifier(pluginId),
+                    t.memberExpression(
+                      t.callExpression(t.identifier('require'), [
+                        t.stringLiteral(requirePath),
+                      ]),
+                      t.identifier('clientInit')
                     )
                   )
-                }
+                ),
+              ])
+            )
+            pluginIds.push(pluginId)
+            safeInsertIdx++
+          }
 
-                state.importsAdded = true
+          // if no plugins with app middleware, nothing extra needed
+          if (pluginIds.length === 0) return
+
+          const contextArg = t.identifier('middlewareCtx')
+
+          // Add __CLIENT_INIT static method that calls middleware
+          path.traverse(
+            {
+              ClassDeclaration(path, state) {
+                path.node.body.body.push(
+                  t.classMethod(
+                    'method',
+                    t.identifier(clientInitId),
+                    [contextArg],
+                    t.blockStatement(
+                      pluginIds.map(pluginId => {
+                        return t.expressionStatement(
+                          t.callExpression(t.identifier(pluginId), [contextArg])
+                        )
+                      })
+                    ),
+                    undefined,
+                    true
+                  )
+                )
               },
             },
             state

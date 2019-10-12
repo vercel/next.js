@@ -39,6 +39,7 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import { collectPlugins, getSeparatedPlugins } from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -70,17 +71,25 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  const plugins = await collectPlugins(dir)
+  const {
+    appMiddlewarePlugins,
+    // TODO: we need to transpile and output _document middleware
+    documentMiddlewarePlugins,
+  } = getSeparatedPlugins(plugins)
+
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
       options: {
         isServer,
-        hasModern: !!config.experimental.modern,
         distDir,
         pagesDir,
         cwd: dir,
         cache: true,
+        appMiddlewarePlugins,
+        hasModern: !!config.experimental.modern,
       },
     },
     // Backwards compat
@@ -88,6 +97,20 @@ export default async function getBaseWebpackConfig(
       loader: 'noop-loader',
     },
   }
+
+  const babelIncludeRegexes: RegExp[] = [
+    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]client/,
+    /next[\\/]dist[\\/]pages/,
+    /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    ...appMiddlewarePlugins.map(plugin => {
+      const escapedPkgName = plugin.pkgName.replace(
+        /[|\\{}()[\]^$+*?.-]/g,
+        '\\$&'
+      )
+      return new RegExp(`${escapedPkgName}`)
+    }),
+  ]
 
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
@@ -527,23 +550,11 @@ export default async function getBaseWebpackConfig(
           },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [
-            dir,
-            /next[\\/]dist[\\/]next-server[\\/]lib/,
-            /next[\\/]dist[\\/]client/,
-            /next[\\/]dist[\\/]pages/,
-            /[\\/](strip-ansi|ansi-regex)[\\/]/,
-          ],
+          include: [dir, ...babelIncludeRegexes],
           exclude: (path: string) => {
-            if (
-              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
-              /next[\\/]dist[\\/]client/.test(path) ||
-              /next[\\/]dist[\\/]pages/.test(path) ||
-              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
-            ) {
+            if (babelIncludeRegexes.some(r => r.test(path))) {
               return false
             }
-
             return /node_modules/.test(path)
           },
           use: defaultLoaders.babel,

@@ -2,7 +2,11 @@
   "name": "@next/plugin-google-analytics",
   "version": "9.1.2-canary.1",
   "nextjs": {
-    "name": "Google Analytics"
+    "name": "Google Analytics",
+    "middleware": [
+      "_app.clientInit",
+      "_document.headTags"
+    ]
   },
   "peerDependencies": {
     "next": "*"
