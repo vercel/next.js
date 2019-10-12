@@ -100,7 +100,6 @@ export default function nextMiddlewarePlugin({
           }
           // if no plugins with app middleware, nothing extra needed
           if (pluginIds.length === 0 && isApp) return
-          if (!isApp) return
           const contextArg = t.identifier('middlewareCtx')
 
           let defaultExport: any = path.node.body.find(node =>
