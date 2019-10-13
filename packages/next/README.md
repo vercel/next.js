@@ -286,8 +286,6 @@ function MyImage() {
 export default MyImage
 ```
 
-To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
-
 _Note: Don't name the `public` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
 ### Dynamic Routing
