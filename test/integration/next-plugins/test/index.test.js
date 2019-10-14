@@ -37,7 +37,7 @@ function runTests () {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     const found = Array.from($('head').children()).find(el => {
-      return (el.attribs.src || '').match(/googletagmanager/)
+      return (el.attribs.src || '').match(/googletagmanager.*?my-tracking-id/)
     })
     expect(found).toBeTruthy()
   })
@@ -76,7 +76,7 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { env: { GA_TRACKING_ID: 'hello' } }`
+        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' } }`
       )
       await nextBuild(appDir)
       appPort = await findPort()
@@ -91,7 +91,7 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'hello' } }`
+        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' } }`
       )
       await nextBuild(appDir)
       appPort = await findPort()

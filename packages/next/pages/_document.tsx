@@ -771,7 +771,7 @@ export class NextScript extends Component<OriginProps> {
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
-        {this.context._documentProps.bodyTags}
+        {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
       </>
     )
   }
