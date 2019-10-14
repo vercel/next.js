@@ -15,6 +15,8 @@ export type PluginMetaData = {
 export const VALID_MIDDLEWARE = [
   'init-client',
   'init-server',
+  'on-error-server',
+  'on-error-client',
   'document-head-tags',
   'document-body-tags',
   'document-html-props',

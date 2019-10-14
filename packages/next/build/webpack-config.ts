@@ -483,9 +483,11 @@ export default async function getBaseWebpackConfig(
       return {
         ...(clientEntries ? clientEntries : {}),
         ...entrypoints,
-        ...(isServer && !isLikeServerless
+        ...(isServer
           ? {
               'init-server.js': 'next-plugin-loader?middleware=init-server!',
+              'on-error-server.js':
+                'next-plugin-loader?middleware=on-error-server!',
             }
           : {}),
       }

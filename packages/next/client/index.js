@@ -19,6 +19,8 @@ import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 // eslint-disable-next-line
 import initClientMiddleware from 'next-plugin-loader?middleware=init-client!'
+// eslint-disable-next-line
+import onErrorMiddleware from 'next-plugin-loader?middleware=on-error-client!'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -220,6 +222,7 @@ export async function renderError (props) {
   if (process.env.NODE_ENV !== 'production') {
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
   }
+  onErrorMiddleware(err)
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)

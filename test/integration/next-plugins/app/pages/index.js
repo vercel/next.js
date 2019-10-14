@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Page = () => (
   <>
     <p id='home'>Home</p>
     <Link href='/another'>
@@ -11,3 +11,6 @@ export default () => (
     </Link>
   </>
 )
+Page.getInitialProps = () => ({})
+
+export default Page
