@@ -27,6 +27,7 @@
     "prepublish": "yarn release"
   },
   "devDependencies": {
+    "@types/fs-extra": "8.0.0",
     "@types/got": "9.6.2",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
@@ -36,11 +37,13 @@
     "commander": "2.20.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
+    "fs-extra": "8.1.0",
     "got": "9.6.0",
     "make-dir": "3.0.0",
     "promisepipe": "3.0.0",
     "prompts": "2.1.0",
     "rimraf": "2.6.3",
+    "simple-git": "1.126.0",
     "tar": "4.4.10",
     "typescript": "^3.5.3",
     "update-check": "1.5.3",

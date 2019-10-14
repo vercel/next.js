@@ -7,6 +7,7 @@ import path from 'path'
 
 import { downloadAndExtractExample, hasExample } from './helpers/examples'
 import { install } from './helpers/install'
+import { initGit } from './helpers/init-git'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
@@ -101,6 +102,11 @@ export async function createApp({
         }
       },
     })
+  }
+
+  if (await initGit(root)) {
+    console.log('Initialized a Git repository.')
+    console.log()
   }
 
   let cdpath: string
