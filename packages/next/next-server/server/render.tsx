@@ -215,8 +215,8 @@ function renderDocument(
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
       <AmpStateContext.Provider value={ampState}>
-        <Document
-          __NEXT_DATA__={{
+        {Document.renderDocument(Document, {
+          __NEXT_DATA__: {
             dataManager: dataManagerData,
             props, // The result of getInitialProps
             page: pathname, // The rendered page
@@ -230,24 +230,24 @@ function renderDocument(
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-          }}
-          dangerousAsPath={dangerousAsPath}
-          canonicalBase={canonicalBase}
-          ampPath={ampPath}
-          inAmpMode={inAmpMode}
-          isDevelopment={!!dev}
-          hasCssMode={hasCssMode}
-          hybridAmp={hybridAmp}
-          staticMarkup={staticMarkup}
-          devFiles={devFiles}
-          files={files}
-          dynamicImports={dynamicImports}
-          assetPrefix={assetPrefix}
-          htmlProps={htmlProps}
-          bodyTags={bodyTags}
-          headTags={headTags}
-          {...docProps}
-        />
+          },
+          dangerousAsPath,
+          canonicalBase,
+          ampPath,
+          inAmpMode,
+          isDevelopment: !!dev,
+          hasCssMode,
+          hybridAmp,
+          staticMarkup,
+          devFiles,
+          files,
+          dynamicImports,
+          assetPrefix,
+          htmlProps,
+          bodyTags,
+          headTags,
+          ...docProps,
+        })}
       </AmpStateContext.Provider>
     )
   )

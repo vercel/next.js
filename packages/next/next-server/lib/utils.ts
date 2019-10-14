@@ -4,6 +4,7 @@ import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/render'
 import { NextRouter } from './router/router'
+import { DocumentContext as DocumentComponentContext } from './document-context'
 
 /**
  * Types used by both next and next-server
@@ -20,7 +21,12 @@ export type DocumentType = NextComponentType<
   DocumentContext,
   DocumentInitialProps,
   DocumentProps
->
+> & {
+  renderDocument(
+    Document: DocumentType,
+    props: DocumentProps
+  ): React.ReactElement
+}
 
 export type AppType = NextComponentType<
   AppContextType,
