@@ -8,7 +8,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@auth0/nextjs-auth0": "0.2.0",
+    "@auth0/nextjs-auth0": "0.4.0",
     "dotenv": "^8.1.0",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",

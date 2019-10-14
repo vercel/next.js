@@ -1,6 +1,8 @@
 declare module '@babel/plugin-transform-modules-commonjs'
 declare module 'webpack/lib/GraphHelpers'
+declare module 'webpack/lib/DynamicEntryPlugin'
 declare module 'unfetch'
+declare module 'launch-editor'
 declare module 'styled-jsx/server'
 declare module 'async-retry'
 
@@ -92,4 +94,20 @@ declare module NodeJS {
   interface Process {
     crossOrigin?: string
   }
+}
+
+declare module 'watchpack' {
+  import { EventEmitter } from 'events'
+
+  class Watchpack extends EventEmitter {
+    watch(files: string[], directories: string[], startTime?: number): void
+    close(): void
+
+    getTimeInfoEntries(): Map<
+      string,
+      { safeTime: number; timestamp: number; accuracy?: number }
+    >
+  }
+
+  export default Watchpack
 }

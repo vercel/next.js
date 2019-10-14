@@ -1,6 +1,6 @@
-import { useAuth0 } from '@auth0/nextjs-auth0'
+import { initAuth0 } from '@auth0/nextjs-auth0'
 
-export default useAuth0({
+export default initAuth0({
   clientId: process.env.AUTH0_CLIENT_ID,
   clientSecret: process.env.AUTH0_CLIENT_SECRET,
   scope: process.env.AUTH0_SCOPE,
