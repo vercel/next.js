@@ -26,6 +26,11 @@ export const VALID_MIDDLEWARE = [
 
 type ENV_OPTIONS = { [name: string]: string }
 
+const exitWithError = (error: string) => {
+  console.error(error)
+  process.exit(1)
+}
+
 function collectPluginMeta(
   env: ENV_OPTIONS,
   pluginPackagePath: string
@@ -39,20 +44,18 @@ function collectPluginMeta(
   } = pluginPackageJson.nextjs
 
   if (!pluginMetaData) {
-    throw new Error(
-      'Next.js plugins need to have a "nextjs" key in package.json'
-    )
+    exitWithError('Next.js plugins need to have a "nextjs" key in package.json')
   }
 
   if (!pluginMetaData.name) {
-    throw new Error(
+    exitWithError(
       'Next.js plugins need to have a "nextjs.name" key in package.json'
     )
   }
 
   // TODO: add err.sh explaining requirements
   if (!Array.isArray(pluginMetaData.middleware)) {
-    throw new Error(
+    exitWithError(
       'Next.js plugins need to have a "nextjs.middleware" key in package.json'
     )
   }
@@ -76,7 +79,7 @@ function collectPluginMeta(
   // TODO: investigate requiring plugins' env be prefixed
   // somehow to prevent collision
   if (!Array.isArray(pluginMetaData['required-env'])) {
-    throw new Error(
+    exitWithError(
       'Next.js plugins need to have a "nextjs.required-env" key in package.json'
     )
   }
@@ -90,7 +93,7 @@ function collectPluginMeta(
   }
 
   if (missingEnvFields.length > 0) {
-    throw new Error(
+    exitWithError(
       `Next.js Plugin: ${
         pluginMetaData.name
       } required env ${missingEnvFields.join(
