@@ -22,8 +22,8 @@ import {
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { route } from '../next-server/server/router'
-import { recordVersion } from '../telemetry/events'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { eventVersion } from '../telemetry/events'
+import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
@@ -206,8 +206,8 @@ export default class DevServer extends Server {
     await this.startWatcher()
     this.setDevReady!()
 
-    setTelemetryDir(this.distDir)
-    recordVersion({ cliCommand: 'dev' })
+    const telemetry = new Telemetry({ distDir: this.distDir })
+    telemetry.record(eventVersion({ cliCommand: 'dev' }))
   }
 
   protected async close() {
