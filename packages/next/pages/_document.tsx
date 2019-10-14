@@ -20,10 +20,6 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
-  deferPageScript?: boolean
-  deferAppScript?: boolean
-  deferDynamicChunks?: boolean
-  deferScripts?: boolean
 }
 
 export async function middleware({ req, res }: DocumentContext) {}
@@ -581,6 +577,10 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       devFiles,
       __NEXT_DATA__,
+      deferPageScript,
+      deferAppScript,
+      deferDynamicChunks,
+      deferScripts,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
@@ -636,8 +636,8 @@ export class NextScript extends Component<OriginProps> {
 
     const pageScript = [
       <script
-        defer={this.props.deferPageScript}
-        async={!this.props.deferPageScript}
+        defer={deferPageScript}
+        async={!deferPageScript}
         data-next-page={page}
         key={page}
         src={
@@ -651,8 +651,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          defer={this.props.deferPageScript}
-          async={!this.props.deferPageScript}
+          defer={deferPageScript}
+          async={!deferPageScript}
           data-next-page={page}
           key={`${page}-modern`}
           src={
@@ -671,8 +671,8 @@ export class NextScript extends Component<OriginProps> {
 
     const appScript = [
       <script
-        defer={this.props.deferAppScript}
-        async={!this.props.deferAppScript}
+        defer={deferAppScript}
+        async={!deferAppScript}
         data-next-page="/_app"
         src={
           assetPrefix +
@@ -686,8 +686,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          defer={this.props.deferAppScript}
-          async={!this.props.deferAppScript}
+          defer={deferAppScript}
+          async={!deferAppScript}
           data-next-page="/_app"
           src={
             assetPrefix +
@@ -744,10 +744,8 @@ export class NextScript extends Component<OriginProps> {
         ) : null}
         {page !== '/_error' && pageScript}
         {appScript}
-        {staticMarkup
-          ? null
-          : this.getDynamicChunks(this.props.deferDynamicChunks)}
-        {staticMarkup ? null : this.getScripts(this.props.deferScripts)}
+        {staticMarkup ? null : this.getDynamicChunks(deferDynamicChunks)}
+        {staticMarkup ? null : this.getScripts(deferScripts)}
       </>
     )
   }
