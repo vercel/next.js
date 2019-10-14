@@ -16,6 +16,8 @@ import {
 import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags!'
 import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags!'
 import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props!'
+import enhanceAppMiddleware from 'next-plugin-loader?middleware=enhance-app-server!'
+import getStylesMiddleware from 'next-plugin-loader?middleware=get-styles-server!'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -68,11 +70,19 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
-  static async getInitialProps({
-    renderPage,
-  }: DocumentContext): Promise<DocumentInitialProps> {
-    const { html, head, dataOnly } = await renderPage()
-    const styles = flush()
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
+    const enhancers = await enhanceAppMiddleware(ctx)
+    const enhanceApp = (App: any) => {
+      for (const enhancer of enhancers) {
+        App = enhancer(App)
+      }
+      return (props: any) => <App {...props} />
+    }
+
+    const { html, head, dataOnly } = await ctx.renderPage({ enhanceApp })
+    const styles = [...flush(), ...(await getStylesMiddleware(ctx))]
     return { html, head, styles, dataOnly }
   }
 
@@ -247,6 +257,7 @@ export class Head extends Component<
       canonicalBase,
       __NEXT_DATA__,
       dangerousAsPath,
+      headTags,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
@@ -471,7 +482,7 @@ export class Head extends Component<
             {styles || null}
           </>
         )}
-        {this.context._documentProps.headTags}
+        {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )
   }
@@ -597,6 +608,7 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       devFiles,
       __NEXT_DATA__,
+      bodyTags,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
@@ -637,7 +649,7 @@ export class NextScript extends Component<OriginProps> {
                 />
               ))
             : null}
-          {this.context._documentProps.bodyTags}
+          {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
         </>
       )
     }

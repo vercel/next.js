@@ -279,30 +279,28 @@ export async function renderToHTML(
     unstable_getStaticProps,
   } = renderOpts
 
-  const callMiddlewares = async (method: string, args: any[], tags = true) => {
-    let results: any[] | { [name: string]: any } = tags ? [] : {}
+  const callMiddleware = async (method: string, args: any[], props = false) => {
+    let results: any = props ? {} : []
 
     if ((Document as any)[`${method}Middleware`]) {
       const curResults = await (Document as any)[`${method}Middleware`](...args)
-      if (tags) results = curResults
-      else {
+      if (props) {
         for (const result of curResults) {
           results = {
             ...results,
             ...result,
           }
         }
+      } else {
+        results = curResults
       }
     }
-
-    return tags
-      ? React.createElement(React.Fragment, {}, ...(results as any))
-      : results
+    return results
   }
 
-  const headTags = (...args: any) => callMiddlewares('headTags', args)
-  const bodyTags = (...args: any) => callMiddlewares('bodyTags', args)
-  const htmlProps = (...args: any) => callMiddlewares('htmlProps', args, false)
+  const headTags = (...args: any) => callMiddleware('headTags', args)
+  const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
+  const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
   const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
