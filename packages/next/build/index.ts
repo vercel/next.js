@@ -25,12 +25,12 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import {
-  recordBuildDuration,
-  recordBuildOptimize,
-  recordNextPlugins,
-  recordVersion,
+  eventBuildDuration,
+  eventBuildOptimize,
+  eventNextPlugins,
+  eventVersion,
 } from '../telemetry/events'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
@@ -91,7 +91,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  setTelemetryDir(distDir)
+
+  const telemetry = new Telemetry({ distDir })
+
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
@@ -99,8 +101,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   let backgroundWork: (Promise<any> | undefined)[] = []
   backgroundWork.push(
-    recordVersion({ cliCommand: 'build' }),
-    recordNextPlugins(path.resolve(dir))
+    telemetry.record(eventVersion({ cliCommand: 'build' })),
+    eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
   )
 
   await verifyTypeScriptSetup(dir, pagesDir)
@@ -273,10 +275,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
     backgroundWork.push(
-      recordBuildDuration({
-        totalPageCount: pagePaths.length,
-        durationInSeconds: webpackBuildEnd[0],
-      })
+      telemetry.record(
+        eventBuildDuration({
+          totalPageCount: pagePaths.length,
+          durationInSeconds: webpackBuildEnd[0],
+        })
+      )
     )
   }
 
@@ -407,7 +411,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (invalidPages.size > 0) {
     throw new Error(
-      `automatic static optimization failed: found page${
+      `Build optimization failed: found page${
         invalidPages.size === 1 ? '' : 's'
       } without a React Component as default export in \n${[...invalidPages]
         .map(pg => `pages${pg}`)
@@ -535,6 +539,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             srcRoute: null,
             dataRoute: path.posix.join(
               '/_next/data',
+              buildId,
               `${page === '/' ? '/index' : page}.json`
             ),
           }
@@ -552,6 +557,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               srcRoute: page,
               dataRoute: path.posix.join(
                 '/_next/data',
+                buildId,
                 `${route === '/' ? '/index' : route}.json`
               ),
             }
@@ -570,12 +576,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const analysisEnd = process.hrtime(analysisBegin)
   backgroundWork.push(
-    recordBuildOptimize({
-      durationInSeconds: analysisEnd[0],
-      totalPageCount: pagePaths.length,
-      staticPageCount: staticPages.size,
-      ssrPageCount: pagePaths.length - staticPages.size,
-    })
+    telemetry.record(
+      eventBuildOptimize({
+        durationInSeconds: analysisEnd[0],
+        totalPageCount: pagePaths.length,
+        staticPageCount: staticPages.size,
+        ssrPageCount: pagePaths.length - staticPages.size,
+      })
+    )
   )
 
   if (sprPages.size > 0) {
@@ -583,6 +591,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     tbdPrerenderRoutes.forEach(tbdRoute => {
       const dataRoute = path.posix.join(
         '/_next/data',
+        buildId,
         `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
       )
 

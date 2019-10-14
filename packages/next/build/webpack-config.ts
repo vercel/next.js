@@ -252,7 +252,10 @@ export default async function getBaseWebpackConfig(
           // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          // This regex ignores nested copies of framework libraries so they're 
+          // bundled with their issuer.
+          // https://github.com/zeit/next.js/pull/9012
+          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
         },
         lib: {
@@ -317,14 +320,10 @@ export default async function getBaseWebpackConfig(
       : config.crossOrigin
 
   let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(
-        path.join(dir, 'pages'),
-        '/_app',
-        config.pageExtensions
-      )
+    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
     : null
   if (customAppFile) {
-    customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
+    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -973,7 +972,11 @@ export default async function getBaseWebpackConfig(
             // old `css-loader` versions. Custom setups (that aren't next-sass
             // or next-less) likely have the newer version.
             // We still handle this gracefully below.
-            Object.prototype.hasOwnProperty.call(use.options, 'minimize')
+            (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
+              Object.prototype.hasOwnProperty.call(
+                use.options,
+                'exportOnlyLocals'
+              ))
           )
         ) {
           return
