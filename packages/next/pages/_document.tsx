@@ -736,6 +736,18 @@ export class NextScript extends Component<OriginProps> {
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
+        {process.env.__NEXT_GRANULAR_CHUNKS ? (
+          <script
+            async
+            nonce={this.props.nonce}
+            crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            src={
+              assetPrefix +
+              `/_next/static/${buildId}/_buildManifest.js` +
+              _devOnlyInvalidateCacheQueryString
+            }
+          />
+        ) : null}
       </>
     )
   }
