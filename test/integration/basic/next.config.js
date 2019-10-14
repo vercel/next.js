@@ -1,5 +1,9 @@
 const path = require('path')
-module.exports = {
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true'
+})
+
+module.exports = withBundleAnalyzer({
   onDemandEntries: {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
@@ -12,4 +16,4 @@ module.exports = {
 
     return config
   }
-}
+})
