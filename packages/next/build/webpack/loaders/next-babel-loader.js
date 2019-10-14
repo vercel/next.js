@@ -111,7 +111,6 @@ module.exports = babelLoader.custom(babel => {
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
       const isPageFile = filename.startsWith(pagesDir)
-      const isApp = filename.match(/pages(\/|\\)_app/)
 
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
@@ -138,24 +137,6 @@ module.exports = babelLoader.custom(babel => {
           { type: 'plugin' }
         )
         options.plugins.push(pageConfigPlugin)
-      }
-
-      // add middleware babel plugin
-      if ((isApp && !isServer) || filename.match(/pages(\/|\\)_document/)) {
-        options.plugins.push(
-          babel.createConfigItem(
-            [
-              require('../../babel/plugins/next-middleware'),
-              {
-                isApp,
-                plugins: isApp
-                  ? appMiddlewarePlugins
-                  : documentMiddlewarePlugins
-              }
-            ],
-            { type: 'plugin' }
-          )
-        )
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {

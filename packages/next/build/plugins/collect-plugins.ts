@@ -3,17 +3,38 @@ import path from 'path'
 import resolve from 'next/dist/compiled/resolve/index.js'
 
 export type PluginMetaData = {
+  middlewareVersion: number
+  requiredEnv: string[]
   middleware: string[]
   pluginName: string
   directory: string
   pkgName: string
 }
 
-function collectPluginMeta(pluginPackagePath: string): PluginMetaData {
+// currently supported middleware
+export const VALID_MIDDLEWARE = [
+  'init-client',
+  'document-head-tags',
+  'document-body-tags',
+  'document-html-props',
+  'on-error-client',
+  'on-error-server',
+  'enhance-app-server',
+  'get-styles-server',
+]
+
+type ENV_OPTIONS = { [name: string]: string }
+
+function collectPluginMeta(
+  env: ENV_OPTIONS,
+  pluginPackagePath: string
+): PluginMetaData {
   const pluginPackageJson = require(pluginPackagePath)
   const pluginMetaData: {
     name: string
+    version: number
     middleware: string[]
+    'required-env': string[]
   } = pluginPackageJson.nextjs
 
   if (!pluginMetaData) {
@@ -35,8 +56,52 @@ function collectPluginMeta(pluginPackagePath: string): PluginMetaData {
     )
   }
 
+  const invalidMiddleware: string[] = []
+
+  for (const middleware of pluginMetaData.middleware) {
+    if (!VALID_MIDDLEWARE.includes(middleware)) {
+      invalidMiddleware.push(middleware)
+    }
+  }
+
+  if (invalidMiddleware.length > 0) {
+    console.error(
+      `Next.js Plugin: ${
+        pluginMetaData.name
+      } listed invalid middleware ${invalidMiddleware.join(', ')}`
+    )
+  }
+
+  // TODO: investigate requiring plugins' env be prefixed
+  // somehow to prevent collision
+  if (!Array.isArray(pluginMetaData['required-env'])) {
+    throw new Error(
+      'Next.js plugins need to have a "nextjs.required-env" key in package.json'
+    )
+  }
+
+  const missingEnvFields: string[] = []
+
+  for (const field of pluginMetaData['required-env']) {
+    if (typeof env[field] === 'undefined') {
+      missingEnvFields.push(field)
+    }
+  }
+
+  if (missingEnvFields.length > 0) {
+    throw new Error(
+      `Next.js Plugin: ${
+        pluginMetaData.name
+      } required env ${missingEnvFields.join(
+        ', '
+      )} but was missing in your \`next.config.js\``
+    )
+  }
+
   return {
     directory: path.dirname(pluginPackagePath),
+    requiredEnv: pluginMetaData['required-env'],
+    middlewareVersion: pluginMetaData.version,
     middleware: pluginMetaData.middleware,
     pluginName: pluginMetaData.name,
     pkgName: pluginPackageJson.name,
@@ -87,7 +152,10 @@ export function getSeparatedPlugins(
   }
 }
 
-export async function collectPlugins(dir: string): Promise<PluginMetaData[]> {
+export async function collectPlugins(
+  dir: string,
+  env: ENV_OPTIONS
+): Promise<PluginMetaData[]> {
   const rootPackageJsonPath = await findUp('package.json', { cwd: dir })
   if (!rootPackageJsonPath) {
     return []
@@ -114,6 +182,7 @@ export async function collectPlugins(dir: string): Promise<PluginMetaData[]> {
   const nextPluginMetaData = await Promise.all(
     nextPluginNames.map(name =>
       collectPluginMeta(
+        env,
         resolve.sync(path.join(name, 'package.json'), {
           basedir: dir,
           preserveSymlinks: true,

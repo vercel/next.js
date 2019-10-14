@@ -13,6 +13,9 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from '../next-server/lib/constants'
+import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags!'
+import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags!'
+import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props!'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -56,6 +59,10 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
+
+  static headTagsMiddleware = headTagsMiddleware
+  static bodyTagsMiddleware = bodyTagsMiddleware
+  static htmlPropsMiddleware = htmlPropsMiddleware
 
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.

@@ -279,25 +279,21 @@ export async function renderToHTML(
     unstable_getStaticProps,
   } = renderOpts
 
-  const documentMiddlewares = (Document as any).__DOC_MIDDLEWARE || []
   const callMiddlewares = async (method: string, args: any[], tags = true) => {
     let results: any[] | { [name: string]: any } = tags ? [] : {}
 
-    await Promise.all(
-      documentMiddlewares.map(async (middleware: any) => {
-        if (middleware[method]) {
-          const result = await middleware[method](...args)
-          if (tags) {
-            results.push(result)
-          } else {
-            results = {
-              ...results,
-              ...result,
-            }
+    if ((Document as any)[`${method}Middleware`]) {
+      const curResults = await (Document as any)[`${method}Middleware`](...args)
+      if (tags) results = curResults
+      else {
+        for (const result of curResults) {
+          results = {
+            ...results,
+            ...result,
           }
         }
-      })
-    )
+      }
+    }
 
     return tags
       ? React.createElement(React.Fragment, {}, ...(results as any))

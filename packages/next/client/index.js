@@ -17,6 +17,8 @@ import { RouterContext } from '../next-server/lib/router-context'
 import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+// eslint-disable-next-line
+import initClientMiddleware from 'next-plugin-loader?middleware=init-client!'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -181,9 +183,11 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     }
   })
 
-  // call app middleware
-  if (app.__CLIENT_INIT) {
-    app.__CLIENT_INIT({ router })
+  // call init-client middleware
+  try {
+    initClientMiddleware({ router })
+  } catch (err) {
+    console.error(err)
   }
 
   const renderCtx = { App, Component, props, err: initialErr, emitter }

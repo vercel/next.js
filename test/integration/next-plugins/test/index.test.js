@@ -74,7 +74,10 @@ describe('Next.js plugins', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfigPath)
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = { env: { GA_TRACKING_ID: 'hello' } }`
+      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -88,16 +91,13 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { target: 'serverless' }`
+        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'hello' } }`
       )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfigPath)
-    })
+    afterAll(() => killApp(app))
 
     runTests()
   })

@@ -35,15 +35,12 @@ import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 // @ts-ignore: JS file
+import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import {
-  collectPlugins,
-  getSeparatedPlugins,
-  getPluginId,
-} from './plugins/collect-plugins'
+import { collectPlugins, VALID_MIDDLEWARE } from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -75,11 +72,8 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
-  const plugins = await collectPlugins(dir)
-  const {
-    appMiddlewarePlugins,
-    documentMiddlewarePlugins,
-  } = getSeparatedPlugins(plugins)
+  const plugins = await collectPlugins(dir, config.env)
+  pluginLoaderOptions.plugins = plugins
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -91,8 +85,6 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         cache: true,
-        appMiddlewarePlugins,
-        documentMiddlewarePlugins,
         hasModern: !!config.experimental.modern,
       },
     },
@@ -107,8 +99,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    /\/middlewares\/_app.middleware/,
-    /\/middlewares\/_document.middleware/,
+    ...VALID_MIDDLEWARE.map(name => new RegExp(`middleware/${name}`)),
   ]
 
   // Support for NODE_PATH
@@ -350,8 +341,9 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
-            // make sure we transpile plugins' _document middleware
-            if (request.match(/middlewares(\/|\\)_document\.middleware/)) {
+            // make sure we don't externalize anything that is
+            // supposed to be transpiled
+            if (babelIncludeRegexes.some(r => r.test(request))) {
               return callback()
             }
 
@@ -527,6 +519,7 @@ export default async function getBaseWebpackConfig(
         'next-data-loader',
         'next-serverless-loader',
         'noop-loader',
+        'next-plugin-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`

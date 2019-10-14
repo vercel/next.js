@@ -4,10 +4,13 @@
   "nextjs": {
     "name": "Google Analytics",
     "middleware": [
-      "_app.clientInit",
-      "_document.headTags",
-      "_document.bodyTags",
-      "_document.htmlProps"
+      "init-client",
+      "document-html-props",
+      "document-head-tags",
+      "document-body-tags"
+    ],
+    "required-env": [
+      "GA_TRACKING_ID"
     ]
   },
   "peerDependencies": {

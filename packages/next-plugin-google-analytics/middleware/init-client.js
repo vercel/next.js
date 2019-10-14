@@ -1,4 +1,4 @@
-export async function clientInit ({ router }) {
+export default async function initClient ({ router }) {
   console.log('Google Analytics _app middleware called')
   // for testing
   window.didClientInit = true
