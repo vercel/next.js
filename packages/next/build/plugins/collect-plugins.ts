@@ -14,6 +14,7 @@ export type PluginMetaData = {
 // currently supported middleware
 export const VALID_MIDDLEWARE = [
   'init-client',
+  'init-server',
   'document-head-tags',
   'document-body-tags',
   'document-html-props',

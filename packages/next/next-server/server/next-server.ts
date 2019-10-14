@@ -33,7 +33,6 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
 import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
@@ -153,6 +152,13 @@ export default class Server {
     const routes = this.generateRoutes()
     this.router = new Router(routes)
     this.setAssetPrefix(assetPrefix)
+
+    // call init-server middleware, this is done individually
+    // in serverless mode
+    if (!dev && !this._isLikeServerless) {
+      const initServer = require(join(this.distDir, 'server/init-server.js'))
+      initServer.default()
+    }
 
     initializeSprCache({
       dev,

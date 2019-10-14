@@ -56,8 +56,10 @@ const nextServerlessLoader: loader.Loader = function() {
     }
       import { parse } from 'url'
       import { apiResolver } from 'next/dist/next-server/server/api-utils'
+      import initServer from 'next-plugin-loader?middleware=init-server!'
 
-      export default (req, res) => {
+      export default async (req, res) => {
+        await initServer()
         const params = ${
           isDynamicRoute(page)
             ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
@@ -72,6 +74,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import {parse} from 'url'
     import {renderToHTML} from 'next/dist/next-server/server/render';
     import {sendHTML} from 'next/dist/next-server/server/send-html';
+    import initServer from 'next-plugin-loader?middleware=init-server!'
     ${
       isDynamicRoute(page)
         ? `import {getRouteMatcher, getRouteRegex} from 'next/dist/next-server/lib/router/utils';`
@@ -155,6 +158,7 @@ const nextServerlessLoader: loader.Loader = function() {
     }
     export async function render (req, res) {
       try {
+        await initServer()
         const html = await renderReqToHTML(req, res)
         sendHTML(req, res, html, {generateEtags: ${generateEtags}})
       } catch(err) {
