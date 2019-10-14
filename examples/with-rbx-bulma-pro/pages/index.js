@@ -35,7 +35,7 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href='https://github.com/segmentio/create-next-app'>
+            <Link href='https://github.com/zeit/next.js/tree/canary/packages/create-next-app'>
               <a>
                 <Title as='h3'>Create Next App &rarr;</Title>
                 <p>Was this tool helpful? Let us know how we can improve it</p>

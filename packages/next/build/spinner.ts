@@ -21,6 +21,8 @@ export default function createSpinner(
       ...options,
     }).start()
 
+    // Add capturing of console.log/warn/error to allow pausing
+    // the spinner before logging and then restarting spinner after
     const origLog = console.log
     const origWarn = console.warn
     const origError = console.error
@@ -39,6 +41,8 @@ export default function createSpinner(
 
     const resetLog = () => {
       console.log = origLog
+      console.warn = origWarn
+      console.error = origError
     }
     spinner.stop = (): ora.Ora => {
       origStop()
