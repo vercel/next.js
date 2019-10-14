@@ -124,9 +124,6 @@ function render(
 }
 
 type RenderOpts = {
-  deferPageScript: boolean
-  deferAppScript: boolean
-  deferDynamicChunks: boolean
   deferScripts: boolean
   documentMiddlewareEnabled: boolean
   ampBindInitData: boolean
@@ -192,9 +189,6 @@ function renderDocument(
     devFiles,
     files,
     dynamicImports,
-    deferPageScript,
-    deferAppScript,
-    deferDynamicChunks,
     deferScripts,
   }: RenderOpts & {
     dataManagerData: string
@@ -246,9 +240,6 @@ function renderDocument(
           dynamicImports,
           assetPrefix,
           ...docProps,
-          deferPageScript,
-          deferAppScript,
-          deferDynamicChunks,
           deferScripts,
         })}
       </AmpStateContext.Provider>

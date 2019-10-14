@@ -71,9 +71,6 @@ export default class Server {
   pagesManifest: string
   buildId: string
   renderOpts: {
-    deferPageScript: boolean
-    deferAppScript: boolean
-    deferDynamicChunks: boolean
     deferScripts: boolean
     poweredByHeader: boolean
     ampBindInitData: boolean
@@ -125,9 +122,6 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     this.renderOpts = {
-      deferPageScript: this.nextConfig.experimental.deferPageScript,
-      deferAppScript: this.nextConfig.experimental.deferAppScript,
-      deferDynamicChunks: this.nextConfig.experimental.deferDynamicChunks,
       deferScripts: this.nextConfig.experimental.deferScripts,
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,

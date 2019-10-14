@@ -577,9 +577,6 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       devFiles,
       __NEXT_DATA__,
-      deferPageScript,
-      deferAppScript,
-      deferDynamicChunks,
       deferScripts,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
@@ -636,8 +633,8 @@ export class NextScript extends Component<OriginProps> {
 
     const pageScript = [
       <script
-        defer={deferPageScript}
-        async={!deferPageScript}
+        defer={deferScripts}
+        async={!deferScripts}
         data-next-page={page}
         key={page}
         src={
@@ -651,8 +648,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          defer={deferPageScript}
-          async={!deferPageScript}
+          defer={deferScripts}
+          async={!deferScripts}
           data-next-page={page}
           key={`${page}-modern`}
           src={
@@ -671,8 +668,8 @@ export class NextScript extends Component<OriginProps> {
 
     const appScript = [
       <script
-        defer={deferAppScript}
-        async={!deferAppScript}
+        defer={deferScripts}
+        async={!deferScripts}
         data-next-page="/_app"
         src={
           assetPrefix +
@@ -686,8 +683,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          defer={deferAppScript}
-          async={!deferAppScript}
+          defer={deferScripts}
+          async={!deferScripts}
           data-next-page="/_app"
           src={
             assetPrefix +
@@ -744,7 +741,7 @@ export class NextScript extends Component<OriginProps> {
         ) : null}
         {page !== '/_error' && pageScript}
         {appScript}
-        {staticMarkup ? null : this.getDynamicChunks(deferDynamicChunks)}
+        {staticMarkup ? null : this.getDynamicChunks(deferScripts)}
         {staticMarkup ? null : this.getScripts(deferScripts)}
       </>
     )

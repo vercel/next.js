@@ -153,9 +153,6 @@ export type DocumentProps = DocumentInitialProps & {
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
-  deferPageScript?: boolean
-  deferAppScript?: boolean
-  deferDynamicChunks?: boolean
   deferScripts?: boolean
 }
 
