@@ -234,7 +234,10 @@ export default async function getBaseWebpackConfig(
           // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          // This regex ignores nested copies of framework libraries so they're 
+          // bundled with their issuer.
+          // https://github.com/zeit/next.js/pull/9012
+          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
           priority: 40,
         },
         lib: {
