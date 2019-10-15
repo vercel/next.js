@@ -1,4 +1,5 @@
-/* eslint-env jest */
+/* global fixture, test */
+import 'testcafe'
 
 import { join } from 'path'
 import { SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next/constants'
@@ -8,6 +9,7 @@ import {
   pageNotFoundError
 } from 'next/dist/next-server/server/require'
 import { normalizePagePath } from 'next/dist/next-server/server/normalize-page-path'
+import { didThrow } from 'next-test-utils'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
@@ -19,91 +21,89 @@ const pathToBundles = join(
   'pages'
 )
 
-describe('pageNotFoundError', () => {
-  it('Should throw error with ENOENT code', () => {
-    try {
-      pageNotFoundError('test')
-    } catch (err) {
-      expect(err.code).toBe('ENOENT')
-    }
-  })
+fixture('pageNotFoundError')
+
+test('Should throw error with ENOENT code', async t => {
+  let errCode
+  try {
+    throw pageNotFoundError('test')
+  } catch (err) {
+    errCode = err.code
+  }
+  await t.expect(errCode).eql('ENOENT')
 })
 
-describe('normalizePagePath', () => {
-  it('Should turn / into /index', () => {
-    expect(normalizePagePath('/')).toBe(`${sep}index`)
-  })
-
-  it('Should turn _error into /_error', () => {
-    expect(normalizePagePath('_error')).toBe(`${sep}_error`)
-  })
-
-  it('Should turn /abc into /abc', () => {
-    expect(normalizePagePath('/abc')).toBe(`${sep}abc`)
-  })
-
-  it('Should turn /abc/def into /abc/def', () => {
-    expect(normalizePagePath('/abc/def')).toBe(`${sep}abc${sep}def`)
-  })
-
-  it('Should throw on /../../test.js', () => {
-    expect(() => normalizePagePath('/../../test.js')).toThrow()
-  })
+test('Should turn / into /index', async t => {
+  await t.expect(normalizePagePath('/')).eql(`${sep}index`)
 })
 
-describe('getPagePath', () => {
-  it('Should append /index to the / page', () => {
-    const pagePath = getPagePath('/', distDir)
-    expect(pagePath).toBe(join(pathToBundles, `${sep}index.js`))
-  })
-
-  it('Should prepend / when a page does not have it', () => {
-    const pagePath = getPagePath('_error', distDir)
-    expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
-  })
-
-  it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', distDir)).toThrow()
-  })
+test('Should turn _error into /_error', async t => {
+  await t.expect(normalizePagePath('_error')).eql(`${sep}_error`)
 })
 
-describe('requirePage', () => {
-  it('Should require /index.js when using /', async () => {
-    const page = await requirePage('/', distDir)
-    expect(page.test).toBe('hello')
-  })
+test('Should turn /abc into /abc', async t => {
+  await t.expect(normalizePagePath('/abc')).eql(`${sep}abc`)
+})
 
-  it('Should require /index.js when using /index', async () => {
-    const page = await requirePage('/index', distDir)
-    expect(page.test).toBe('hello')
-  })
+test('Should turn /abc/def into /abc/def', async t => {
+  await t.expect(normalizePagePath('/abc/def')).eql(`${sep}abc${sep}def`)
+})
 
-  it('Should require /world.js when using /world', async () => {
-    const page = await requirePage('/world', distDir)
-    expect(page.test).toBe('world')
-  })
+test('Should throw on /../../test.js', async t => {
+  await didThrow(() => normalizePagePath('/../../test.js'), true)
+})
 
-  it('Should throw when using /../../test.js', async () => {
-    try {
-      await requirePage('/../../test', distDir)
-    } catch (err) {
-      expect(err.code).toBe('ENOENT')
-    }
-  })
+test('Should append /index to the / page', async t => {
+  const pagePath = getPagePath('/', distDir)
+  await t.expect(pagePath).eql(join(pathToBundles, `${sep}index.js`))
+})
 
-  it('Should throw when using non existent pages like /non-existent.js', async () => {
-    try {
-      await requirePage('/non-existent', distDir)
-    } catch (err) {
-      expect(err.code).toBe('ENOENT')
-    }
-  })
+test('Should prepend / when a page does not have it', async t => {
+  const pagePath = getPagePath('_error', distDir)
+  await t.expect(pagePath).eql(join(pathToBundles, `${sep}_error.js`))
+})
 
-  it('Should bubble up errors in the child component', async () => {
-    try {
-      await requirePage('/non-existent-child', distDir)
-    } catch (err) {
-      expect(err.code).toBe('MODULE_NOT_FOUND')
-    }
-  })
+test('Should throw with paths containing ../', async t => {
+  await didThrow(() => getPagePath('/../../package.json', distDir), true)
+})
+
+test('Should require /index.js when using /', async t => {
+  const page = await requirePage('/', distDir)
+  await t.expect(page.test).eql('hello')
+})
+
+test('Should require /index.js when using /index', async t => {
+  const page = await requirePage('/index', distDir)
+  await t.expect(page.test).eql('hello')
+})
+
+test('Should require /world.js when using /world', async t => {
+  const page = await requirePage('/world', distDir)
+  await t.expect(page.test).eql('world')
+})
+
+test('Should throw when using /../../test.js', async t => {
+  try {
+    await requirePage('/../../test', distDir)
+  } catch (err) {
+    await t.expect(err.code).eql('ENOENT')
+  }
+})
+
+test('Should throw when using non existent pages like /non-existent.js', async t => {
+  try {
+    await requirePage('/non-existent', distDir)
+  } catch (err) {
+    await t.expect(err.code).eql('ENOENT')
+  }
+})
+
+test('Should bubble up errors in the child component', async t => {
+  let errCode
+  try {
+    await requirePage('/non-existent-child', distDir)
+  } catch (err) {
+    errCode = err.code
+  }
+  await t.expect(errCode).eql('MODULE_NOT_FOUND')
 })

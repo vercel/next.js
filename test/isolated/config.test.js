@@ -1,4 +1,5 @@
-/* eslint-env jest */
+/* global fixture, test */
+import 'testcafe'
 
 import { join } from 'path'
 import loadConfig from 'next/dist/next-server/server/config'
@@ -7,82 +8,86 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
 
-describe('config', () => {
-  it('Should get the configuration', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
-    expect(config.customConfig).toBe(true)
-  })
+fixture('config')
 
-  it('Should pass the phase correctly', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.phase).toBe(PHASE_DEVELOPMENT_SERVER)
-  })
+test('Should get the configuration', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
+  await t.expect(config.customConfig).eql(true)
+})
 
-  it('Should pass the defaultConfig correctly', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.defaultConfig).toBeDefined()
-  })
+test('Should pass the phase correctly', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+  await t.expect(config.phase).eql(PHASE_DEVELOPMENT_SERVER)
+})
 
-  it('Should assign object defaults deeply to user config', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.distDir).toEqual('.next')
-    expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
-  })
+test('Should pass the defaultConfig correctly', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+  await t.expect(typeof config.defaultConfig).notEql('undefined')
+})
 
-  it('Should pass the customConfig correctly', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      customConfig: true
-    })
-    expect(config.customConfig).toBe(true)
-  })
+test('Should assign object defaults deeply to user config', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+  await t.expect(config.distDir).eql('.next')
+  await t
+    .expect(typeof config.onDemandEntries.maxInactiveAge)
+    .notEql('undefined')
+})
 
-  it('Should not pass the customConfig when it is null', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, null)
-    expect(config.webpack).toBe(null)
+test('Should pass the customConfig correctly', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    customConfig: true
   })
+  await t.expect(config.customConfig).eql(true)
+})
 
-  it('Should assign object defaults deeply to customConfig', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      customConfig: true,
-      onDemandEntries: { custom: true }
-    })
-    expect(config.customConfig).toBe(true)
-    expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+test('Should not pass the customConfig when it is null', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, null)
+  await t.expect(config.webpack).eql(null)
+})
+
+test('Should assign object defaults deeply to customConfig', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    customConfig: true,
+    onDemandEntries: { custom: true }
   })
+  await t.expect(config.customConfig).eql(true)
+  await t
+    .expect(typeof config.onDemandEntries.maxInactiveAge)
+    .notEql('undefined')
+})
 
-  it('Should allow setting objects which do not have defaults', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      bogusSetting: { custom: true }
-    })
-    expect(config.bogusSetting).toBeDefined()
-    expect(config.bogusSetting.custom).toBe(true)
+test('Should allow setting objects which do not have defaults', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    bogusSetting: { custom: true }
   })
+  await t.expect(typeof config.bogusSetting).notEql('undefined')
+  await t.expect(config.bogusSetting.custom).eql(true)
+})
 
-  it('Should override defaults for arrays from user arrays', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      pageExtensions: ['.bogus']
-    })
-    expect(config.pageExtensions).toEqual(['.bogus'])
+test('Should override defaults for arrays from user arrays', async t => {
+  const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    pageExtensions: ['.bogus']
   })
+  await t.expect(config.pageExtensions).eql(['.bogus'])
+})
 
-  it('Should throw when an invalid target is provided', () => {
-    try {
-      loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        join(__dirname, '_resolvedata', 'invalid-target')
-      )
-      // makes sure we don't just pass if the loadConfig passes while it should fail
-      throw new Error('failed')
-    } catch (err) {
-      expect(err.message).toMatch(/Specified target is invalid/)
-    }
-  })
-
-  it('Should pass when a valid target is provided', () => {
-    const config = loadConfig(
+test('Should throw when an invalid target is provided', async t => {
+  try {
+    loadConfig(
       PHASE_DEVELOPMENT_SERVER,
-      join(__dirname, '_resolvedata', 'valid-target')
+      join(__dirname, '_resolvedata', 'invalid-target')
     )
-    expect(config.target).toBe('serverless')
-  })
+    // makes sure we don't just pass if the loadConfig passes while it should fail
+    throw new Error('failed')
+  } catch (err) {
+    await t.expect(err.message).match(/Specified target is invalid/)
+  }
+})
+
+test('Should pass when a valid target is provided', async t => {
+  const config = loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    join(__dirname, '_resolvedata', 'valid-target')
+  )
+  await t.expect(config.target).eql('serverless')
 })
