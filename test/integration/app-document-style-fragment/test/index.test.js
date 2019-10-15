@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
@@ -10,32 +11,27 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
 const appDir = join(__dirname, '../')
-let appPort
-let server
-let app
 
-describe('Custom Document Fragment Styles', () => {
-  beforeAll(async () => {
+fixture('Custom Document Fragment Styles')
+  .before(async ctx => {
     await nextBuild(appDir)
-    app = nextServer({
+    ctx.app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
       quiet: true
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    ctx.server = await startApp(ctx.app)
+    ctx.appPort = ctx.server.address().port
   })
-  afterAll(() => stopApp(server))
+  .after(ctx => stopApp(ctx.server))
 
-  it('correctly adds styles from fragment styles key', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
+test('correctly adds styles from fragment styles key', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  const $ = cheerio.load(html)
 
-    const styles = $('style').text()
-    expect(styles).toMatch(/background:(.*|)hotpink/)
-    expect(styles).toMatch(/font-size:(.*|)16\.4px/)
-  })
+  const styles = $('style').text()
+  await t.expect(styles).match(/background:(.*|)hotpink/)
+  await t.expect(styles).match(/font-size:(.*|)16\.4px/)
 })
