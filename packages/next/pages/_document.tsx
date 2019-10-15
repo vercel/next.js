@@ -303,7 +303,14 @@ export class Head extends Component<
           }
           return child
         })
-
+    head = React.Children.map(head || [], child => {
+      if (!child) return child
+      const { type, props } = child
+      if (type === 'link' && props.rel === 'amphtml') {
+        hasAmphtmlRel = true
+      }
+      return child
+    })
     // try to parse styles from fragment for backwards compat
     const curStyles: React.ReactElement[] = Array.isArray(styles)
       ? (styles as React.ReactElement[])
