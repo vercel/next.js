@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import webdriver from 'next-webdriver'
 import path from 'path'
 import {
@@ -11,83 +12,78 @@ import {
   waitFor
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = path.join(__dirname, '..')
-let appPort
-let app
 
 const runTests = () => {
-  it('Supports commonjs 1', async () => {
-    const browser = await webdriver(appPort, '/commonjs1')
+  test('Supports commonjs 1', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/commonjs1')
     const html = await browser.eval('document.body.innerHTML')
-    expect(html).toMatch(/test1/)
-    expect(html).toMatch(/nextExport/)
+    await t.expect(html).match(/test1/)
+    await t.expect(html).match(/nextExport/)
     await browser.close()
   })
 
-  it('Supports commonjs 2', async () => {
-    const browser = await webdriver(appPort, '/commonjs2')
+  test('Supports commonjs 2', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/commonjs2')
     const html = await browser.eval('document.body.innerHTML')
-    expect(html).toMatch(/test2/)
-    expect(html).toMatch(/nextExport/)
+    await t.expect(html).match(/test2/)
+    await t.expect(html).match(/nextExport/)
     await browser.close()
   })
 
-  it('Refreshes query on mount', async () => {
-    const browser = await webdriver(appPort, '/post-1')
+  test('Refreshes query on mount', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/post-1')
     const html = await browser.eval('document.body.innerHTML')
-    expect(html).toMatch(/post.*post-1/)
-    expect(html).toMatch(/nextExport/)
+    await t.expect(html).match(/post.*post-1/)
+    await t.expect(html).match(/nextExport/)
   })
 
-  it('should update asPath after mount', async () => {
-    const browser = await webdriver(appPort, '/zeit/cmnt-2')
+  test('should update asPath after mount', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/zeit/cmnt-2')
     await waitFor(500)
     const html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/\/zeit\/cmnt-2/)
+    await t.expect(html).match(/\/zeit\/cmnt-2/)
   })
 
-  it('should not replace URL with page name while asPath is delayed', async () => {
-    const browser = await webdriver(appPort, '/zeit/cmnt-1')
+  test('should not replace URL with page name while asPath is delayed', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/zeit/cmnt-1')
     await waitFor(500)
     const val = await browser.eval(`!!window.pathnames.find(function(p) {
       return p !== '/zeit/cmnt-1'
     })`)
-    expect(val).toBe(false)
+    await t.expect(val).eql(false)
   })
 }
 
-describe('Auto Export', () => {
-  describe('production', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
+fixture('Auto Export')
 
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    runTests()
+fixture('production')
+  .before(async ctx => {
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
   })
 
-  describe('dev', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-
-    afterAll(() => killApp(app))
-
-    runTests()
-
-    it('should not show hydration warning from mismatching asPath', async () => {
-      const browser = await webdriver(appPort, '/zeit/cmnt-1')
-      await waitFor(500)
-
-      const numCaught = await browser.eval(`window.caughtWarns.length`)
-      expect(numCaught).toBe(0)
-    })
+  .after(async ctx => {
+    await killApp(ctx.app)
   })
+
+runTests()
+
+fixture('dev')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
+  })
+
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+test('should not show hydration warning from mismatching asPath', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/zeit/cmnt-1')
+  await waitFor(500)
+
+  const numCaught = await browser.eval(`window.caughtWarns.length`)
+  await t.expect(numCaught).eql(0)
 })
