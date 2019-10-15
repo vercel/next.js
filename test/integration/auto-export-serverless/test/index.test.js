@@ -1,26 +1,31 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import webdriver from 'next-webdriver'
 import path from 'path'
-import { nextBuild, nextStart, findPort, killApp } from 'next-test-utils'
+import {
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
+  waitFor
+} from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = path.join(__dirname, '..')
-let appPort
-let app
 
-describe('Auto Export Serverless', () => {
-  it('Refreshes query on mount', async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+fixture('Auto Export Serverless')
 
-    const browser = await webdriver(appPort, '/post-1')
-    const html = await browser.eval('document.body.innerHTML')
-    expect(html).toMatch(/post.*post-1/)
-    expect(html).toMatch(/nextExport/)
+test('Refreshes query on mount', async t => {
+  await nextBuild(appDir)
+  const appPort = await findPort()
+  const app = await nextStart(appDir, appPort)
 
-    await killApp(app)
-    await browser.close()
-  })
+  const browser = await webdriver(appPort, '/post-1')
+  await waitFor(500)
+  const html = await browser.eval('document.body.innerHTML')
+  await t.expect(html).match(/post.*post-1/)
+  await t.expect(html).match(/nextExport/)
+
+  await killApp(app)
+  await browser.close()
 })
