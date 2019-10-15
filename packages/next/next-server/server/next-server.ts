@@ -161,9 +161,12 @@ export default class Server {
         this.distDir,
         this._isLikeServerless ? 'serverless' : 'server'
       )
-      const initServer = require(join(serverPath, 'init-server.js'))
-      initServer.default()
-      this.onErrorMiddleware = require(join(serverPath, 'on-error-server.js'))
+      const initServer = require(join(serverPath, 'init-server.js')).default
+      this.onErrorMiddleware = require(join(
+        serverPath,
+        'on-error-server.js'
+      )).default
+      initServer()
     }
 
     initializeSprCache({
