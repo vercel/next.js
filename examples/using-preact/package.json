@@ -7,10 +7,14 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "@zeit/next-preact": "0.1.0",
+    "module-alias": "2.2.2",
     "next": "latest",
-    "preact": "8.2.7",
-    "preact-compat": "3.18.0"
+    "preact": "10.0.0",
+    "preact-render-to-string": "5.0.7"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "react": "16.10.2",
+    "react-dom": "16.10.2"
+  }
 }
