@@ -5,6 +5,67 @@ class WdInterface {
     await t.navigateTo(url)
   }
 
+  eval (toEval = '') {
+    return t.eval(
+      () => {
+        // eslint-disable-next-line
+        return eval(toEval)
+      },
+      {
+        dependencies: {
+          toEval
+        }
+      }
+    )
+  }
+
+  async elementsByCss (sel) {
+    const numEls = await Selector(sel).count
+    const elMethods = []
+
+    for (let i = 0; i < numEls; i++) {
+      elMethods.push({
+        getAttribute (attr) {
+          return t.eval(
+            () => {
+              const els = document.querySelectorAll(sel)
+              const el = els[i]
+              return el[attr]
+            },
+            {
+              dependencies: { i, attr, sel }
+            }
+          )
+        },
+        text () {
+          return t.eval(
+            () => {
+              const els = document.querySelectorAll(sel)
+              const el = els[i]
+              return el.innerText
+            },
+            {
+              dependencies: { i, sel }
+            }
+          )
+        },
+        click () {
+          return t.eval(
+            () => {
+              const els = document.querySelectorAll(sel)
+              const el = els[i]
+              return el.click()
+            },
+            {
+              dependencies: { i, sel }
+            }
+          )
+        }
+      })
+    }
+    return elMethods
+  }
+
   elementByCss (sel) {
     const el = Selector(sel)
 
@@ -44,8 +105,23 @@ class WdInterface {
     await t.navigateTo(url)
   }
 
-  log () {
-    return t.getBrowserConsoleMessages()
+  async back () {
+    await t.eval(() => window.history.back())
+  }
+
+  async log (types) {
+    const separated = await t.getBrowserConsoleMessages()
+    let logs = []
+
+    if (!Array.isArray(types)) {
+      types = Object.keys(separated)
+    }
+
+    types.forEach(t => {
+      logs = logs.concat(separated[t])
+    })
+
+    return logs
   }
 
   close () {}

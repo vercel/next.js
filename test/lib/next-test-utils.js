@@ -356,7 +356,7 @@ export async function getReactErrorOverlayContent () {
   }, 1000 * 30)
   while (!found) {
     try {
-      await Selector('iframe', { timeout: 10000 }).innerText
+      await Selector('iframe', { timeout: 10000 }).exists
 
       found = true
       return t.eval(
