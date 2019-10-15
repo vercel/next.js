@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -14,38 +15,31 @@ import fetch from 'node-fetch'
 import rendering from './rendering'
 import client from './client'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Configuration', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Configuration')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
-      renderViaHTTP(context.appPort, '/next-config'),
-      renderViaHTTP(context.appPort, '/build-id'),
-      renderViaHTTP(context.appPort, '/webpack-css'),
-      renderViaHTTP(context.appPort, '/module-only-component')
+      renderViaHTTP(ctx.appPort, '/next-config'),
+      renderViaHTTP(ctx.appPort, '/build-id'),
+      renderViaHTTP(ctx.appPort, '/webpack-css'),
+      renderViaHTTP(ctx.appPort, '/module-only-component')
     ])
   })
-
-  it('should disable X-Powered-By header support', async () => {
-    const url = `http://localhost:${context.appPort}/`
-    const header = (await fetch(url)).headers.get('X-Powered-By')
-    expect(header).not.toBe('Next.js')
+  .after(ctx => {
+    killApp(ctx.server)
   })
 
-  afterAll(() => {
-    killApp(context.server)
-  })
-
-  rendering(
-    context,
-    'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
-  )
-  client(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+test('should disable X-Powered-By header support', async t => {
+  const url = `http://localhost:${t.fixtureCtx.appPort}/`
+  const header = (await fetch(url)).headers.get('X-Powered-By')
+  await t.expect(header).notEql('Next.js')
 })
+
+rendering(
+  (p, q) => renderViaHTTP(t.fixtureCtx.appPort, p, q),
+  (p, q) => fetchViaHTTP(t.fixtureCtx.appPort, p, q)
+)
+client()
