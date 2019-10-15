@@ -13,17 +13,13 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from '../next-server/lib/constants'
+import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
-}
-
-export type DocumentComponentContext = {
-  readonly _documentProps: DocumentProps
-  readonly _devOnlyInvalidateCacheQueryString: string
 }
 
 export async function middleware({ req, res }: DocumentContext) {}
@@ -52,11 +48,6 @@ function getOptionalModernScriptVariant(path: string) {
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
-  static childContextTypes = {
-    _documentProps: PropTypes.any,
-    _devOnlyInvalidateCacheQueryString: PropTypes.string,
-  }
-
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
@@ -69,17 +60,24 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     return { html, head, styles, dataOnly }
   }
 
-  context!: DocumentComponentContext
-
-  getChildContext(): DocumentComponentContext {
-    return {
-      _documentProps: this.props,
-      // In dev we invalidate the cache by appending a timestamp to the resource URL.
-      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      _devOnlyInvalidateCacheQueryString:
-        process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
-    }
+  static renderDocument<P>(
+    Document: new () => Document<P>,
+    props: DocumentProps & P
+  ): React.ReactElement {
+    return (
+      <DocumentComponentContext.Provider
+        value={{
+          _documentProps: props,
+          // In dev we invalidate the cache by appending a timestamp to the resource URL.
+          // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+          // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+          _devOnlyInvalidateCacheQueryString:
+            process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
+        }}
+      >
+        <Document {...props} />
+      </DocumentComponentContext.Provider>
+    )
   }
 
   render() {
@@ -101,15 +99,13 @@ export class Html extends Component<
     HTMLHtmlElement
   >
 > {
-  static contextTypes = {
-    _documentProps: PropTypes.any,
-  }
+  static contextType = DocumentComponentContext
 
   static propTypes = {
     children: PropTypes.node.isRequired,
   }
 
-  context!: DocumentComponentContext
+  context!: React.ContextType<typeof DocumentComponentContext>
 
   render() {
     const { inAmpMode } = this.context._documentProps
@@ -132,17 +128,14 @@ export class Head extends Component<
       HTMLHeadElement
     >
 > {
-  static contextTypes = {
-    _documentProps: PropTypes.any,
-    _devOnlyInvalidateCacheQueryString: PropTypes.string,
-  }
+  static contextType = DocumentComponentContext
 
   static propTypes = {
     nonce: PropTypes.string,
     crossOrigin: PropTypes.string,
   }
 
-  context!: DocumentComponentContext
+  context!: React.ContextType<typeof DocumentComponentContext>
 
   getCssLinks() {
     const { assetPrefix, files } = this.context._documentProps
@@ -469,12 +462,9 @@ export class Head extends Component<
 }
 
 export class Main extends Component {
-  static contextTypes = {
-    _documentProps: PropTypes.any,
-    _devOnlyInvalidateCacheQueryString: PropTypes.string,
-  }
+  static contextType = DocumentComponentContext
 
-  context!: DocumentComponentContext
+  context!: React.ContextType<typeof DocumentComponentContext>
 
   render() {
     const { inAmpMode, html } = this.context._documentProps
@@ -484,17 +474,14 @@ export class Main extends Component {
 }
 
 export class NextScript extends Component<OriginProps> {
-  static contextTypes = {
-    _documentProps: PropTypes.any,
-    _devOnlyInvalidateCacheQueryString: PropTypes.string,
-  }
+  static contextType = DocumentComponentContext
 
   static propTypes = {
     nonce: PropTypes.string,
     crossOrigin: PropTypes.string,
   }
 
-  context!: DocumentComponentContext
+  context!: React.ContextType<typeof DocumentComponentContext>
 
   // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
   static safariNomoduleFix =

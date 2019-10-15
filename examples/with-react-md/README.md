@@ -6,7 +6,7 @@
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-react-md with-react-md-app
@@ -27,11 +27,11 @@ Install it and run:
 
 ```bash
 npm install
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
+ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css public/react-md.light_blue-yellow.min.css
 npm run dev
 # or
 yarn
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
+ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css public/react-md.light_blue-yellow.min.css
 yarn dev
 ```
 

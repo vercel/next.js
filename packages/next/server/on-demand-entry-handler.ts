@@ -366,8 +366,6 @@ export default function onDemandEntryHandler(
           req.on('close', () => {
             clearInterval(pingInterval)
           })
-          // Do initial ping right after EventSource is finished being set up
-          setImmediate(() => runPing())
           next()
         }
       }
