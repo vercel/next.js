@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
@@ -10,82 +11,74 @@ import {
   launchApp,
   killApp,
   renderViaHTTP,
-  waitFor,
-  killAll
+  waitFor
 } from 'next-test-utils'
-
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
 const appDir = path.join(__dirname, '..')
 const nextConfig = path.join(appDir, 'next.config.js')
-let appPort
-let app
 
 const runTests = () => {
-  it('should provide router context in AppTree on SSR', async () => {
-    let html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/page:.*?\//)
+  test('should provide router context in AppTree on SSR', async t => {
+    let html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+    await t.expect(html).match(/page:.*?\//)
 
-    html = await renderViaHTTP(appPort, '/another')
-    expect(html).toMatch(/page:.*?\/another/)
+    html = await renderViaHTTP(t.fixtureCtx.appPort, '/another')
+    await t.expect(html).match(/page:.*?\/another/)
   })
 
-  it('should provide router context in AppTree on CSR', async () => {
-    const browser = await webdriver(appPort, '/')
+  test('should provide router context in AppTree on CSR', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/')
     let html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/page:.*?\//)
+    await t.expect(html).match(/page:.*?\//)
 
     browser.elementByCss('#another').click()
     await waitFor(500)
     html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/page:.*?\//)
+    await t.expect(html).match(/page:.*?\//)
 
     browser.elementByCss('#home').click()
     await waitFor(500)
     html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/page:.*?\/another/)
+    await t.expect(html).match(/page:.*?\/another/)
   })
 
-  it('should pass AppTree to NextPageContext', async () => {
-    const html = await renderViaHTTP(appPort, '/hello')
-    expect(html).toMatch(/saved:.*?Hello world/)
+  test('should pass AppTree to NextPageContext', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/hello')
+    await t.expect(html).match(/saved:.*?Hello world/)
   })
 }
 
-describe('AppTree', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
+fixture('AppTree')
+
+fixture('dev mode')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+fixture('production mode')
+  .before(async ctx => {
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+fixture('serverless mode')
+  .before(async ctx => {
+    await fs.writeFile(nextConfig, `module.exports = { target: 'serverless' }`)
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+  })
+  .after(async ctx => {
+    await killApp(ctx.app)
+    await fs.remove(nextConfig)
   })
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killAll(app))
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
-    runTests()
-  })
-})
+runTests()
