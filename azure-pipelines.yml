@@ -4,6 +4,7 @@ pool:
 variables:
   NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
+  CHROMEDRIVER_VERSION: '76.0.3809.68'
 
 strategy:
   maxParallel: 10
@@ -36,6 +37,10 @@ steps:
   - script: |
       yarn --frozen-lockfile --check-files
     displayName: 'Install dependencies'
+
+  - script: |
+      yarn add chromedriver@76 -W
+    displayName: 'Install correct Chrome Driver version'
 
   - script: |
       node run-tests.js -c 2 -g $(group)
