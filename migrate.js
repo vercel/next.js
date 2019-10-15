@@ -20,6 +20,12 @@ const tst = process.argv[process.argv.length - 1]
     .replace(/\.not\.match\(/g, '.notMatch(')
     .replace(/\.not.toBe\(/g, '.notEql(')
     .replace(/\.not\.eql\(/g, '.notEql(')
+    .replace(/\/\* global jasmine \*\//, '')
+    .replace(/jasmine.DEFAULT_TIMEOUT_INTERVAL.*/, '')
+    .replace(/\.toBeTruthy\(/g, '.ok(')
+    .replace(/\.toBeFalsy\(/g, '.notOk(')
+    .replace(/\.toContain\(/g, '.contains(')
+    .replace(/\.not\.contains\(/g, '.notContains(')
 
   await fs.writeFile(tst, data, 'utf8')
 })()
