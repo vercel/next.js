@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import {
@@ -16,36 +17,33 @@ import json from '../big.json'
 import { createServer } from 'http'
 
 const appDir = join(__dirname, '../')
-let appPort
-let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 function runTests (serverless = false) {
-  it('should render page', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/API - support/)
+  test('should render page', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+    await t.expect(html).match(/API - support/)
   })
 
-  it('should return 404 for undefined path', async () => {
+  test('should return 404 for undefined path', async t => {
     const { status } = await fetchViaHTTP(
-      appPort,
+      t.fixtureCtx.appPort,
       '/api/not/unexisting/page/really',
       null,
       {}
     )
-    expect(status).toEqual(404)
+    await t.expect(status).eql(404)
   })
 
-  it('should not conflict with /api routes', async () => {
+  test('should not conflict with /api routes', async t => {
     const port = await findPort()
     await nextBuild(appDir)
     const app = await nextStart(appDir, port)
     const res = await fetchViaHTTP(port, '/api-conflict')
-    expect(res.status).not.toEqual(404)
+    await t.expect(res.status).notEql(404)
     killApp(app)
   })
 
-  it('should work with index api', async () => {
+  test('should work with index api', async t => {
     if (serverless) {
       const port = await findPort()
       const resolver = require(join(appDir, '.next/serverless/pages/api.js'))
@@ -56,33 +54,46 @@ function runTests (serverless = false) {
       const text = await res.text()
       server.close()
 
-      expect(text).toEqual('Index should work')
+      await t.expect(text).eql('Index should work')
     } else {
-      const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
-        res => res.ok && res.text()
-      )
+      const text = await fetchViaHTTP(
+        t.fixtureCtx.appPort,
+        '/api',
+        null,
+        {}
+      ).then(res => res.ok && res.text())
 
-      expect(text).toEqual('Index should work')
+      await t.expect(text).eql('Index should work')
     }
   })
 
-  it('should return custom error', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/error', null, {})
+  test('should return custom error', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/error',
+      null,
+      {}
+    )
     const json = await data.json()
 
-    expect(data.status).toEqual(500)
-    expect(json).toEqual({ error: 'Server error!' })
+    await t.expect(data.status).eql(500)
+    await t.expect(json).eql({ error: 'Server error!' })
   })
 
-  it('should throw Internal Server Error', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
+  test('should throw Internal Server Error', async t => {
+    const res = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/user-error',
+      null,
+      {}
+    )
     const text = await res.text()
-    expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+    await t.expect(res.status).eql(500)
+    await t.expect(text).eql('Internal Server Error')
   })
 
-  it('should parse JSON body', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+  test('should parse JSON body', async t => {
+    const data = await fetchViaHTTP(t.fixtureCtx.appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8'
@@ -90,23 +101,23 @@ function runTests (serverless = false) {
       body: JSON.stringify([{ title: 'Nextjs' }])
     }).then(res => res.ok && res.json())
 
-    expect(data).toEqual([{ title: 'Nextjs' }])
+    await t.expect(data).eql([{ title: 'Nextjs' }])
   })
 
-  it('should return error with invalid JSON', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+  test('should return error with invalid JSON', async t => {
+    const data = await fetchViaHTTP(t.fixtureCtx.appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8'
       },
       body: `{"message":Invalid"}`
     })
-    expect(data.status).toEqual(400)
-    expect(data.statusText).toEqual('Invalid JSON')
+    await t.expect(data.status).eql(400)
+    await t.expect(data.statusText).eql('Invalid JSON')
   })
 
-  it('should return error exceeded body limit', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+  test('should return error exceeded body limit', async t => {
+    const data = await fetchViaHTTP(t.fixtureCtx.appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8'
@@ -114,23 +125,28 @@ function runTests (serverless = false) {
       body: JSON.stringify(json)
     })
 
-    expect(data.status).toEqual(413)
-    expect(data.statusText).toEqual('Body exceeded 1mb limit')
+    await t.expect(data.status).eql(413)
+    await t.expect(data.statusText).eql('Body exceeded 1mb limit')
   })
 
-  it('should parse bigger body then 1mb', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/big-parse', null, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8'
-      },
-      body: JSON.stringify(json)
-    })
+  test('should parse bigger body then 1mb', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/big-parse',
+      null,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: JSON.stringify(json)
+      }
+    )
 
-    expect(data.status).toEqual(200)
+    await t.expect(data.status).eql(200)
   })
 
-  it('should parse urlencoded body', async () => {
+  test('should parse urlencoded body', async t => {
     const body = {
       title: 'Nextjs',
       description: 'The React Framework for Production'
@@ -142,7 +158,7 @@ function runTests (serverless = false) {
       })
       .join('&')
 
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+    const data = await fetchViaHTTP(t.fixtureCtx.appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-Form-urlencoded'
@@ -150,89 +166,115 @@ function runTests (serverless = false) {
       body: formBody
     }).then(res => res.ok && res.json())
 
-    expect(data).toEqual({
+    await t.expect(data).eql({
       title: 'Nextjs',
       description: 'The React Framework for Production'
     })
   })
 
-  it('should parse body in handler', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/no-parsing', null, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8'
-      },
-      body: JSON.stringify([{ title: 'Nextjs' }])
-    }).then(res => res.ok && res.json())
-
-    expect(data).toEqual([{ title: 'Nextjs' }])
-  })
-
-  it('should parse body with config', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parsing', null, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8'
-      },
-      body: JSON.stringify([{ title: 'Nextjs' }])
-    }).then(res => res.ok && res.json())
-
-    expect(data).toEqual({ message: 'Parsed body' })
-  })
-
-  it('should return empty cookies object', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/cookies', null, {}).then(
-      res => res.ok && res.json()
-    )
-    expect(data).toEqual({})
-  })
-
-  it('should return cookies object', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/cookies', null, {
-      headers: {
-        Cookie: 'nextjs=cool;'
+  test('should parse body in handler', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/no-parsing',
+      null,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: JSON.stringify([{ title: 'Nextjs' }])
       }
-    }).then(res => res.ok && res.json())
-    expect(data).toEqual({ nextjs: 'cool' })
+    ).then(res => res.ok && res.json())
+
+    await t.expect(data).eql([{ title: 'Nextjs' }])
   })
 
-  it('should return 200 on POST on pages', async () => {
-    const res = await fetchViaHTTP(appPort, '/user', null, {
+  test('should parse body with config', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/parsing',
+      null,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: JSON.stringify([{ title: 'Nextjs' }])
+      }
+    ).then(res => res.ok && res.json())
+
+    await t.expect(data).eql({ message: 'Parsed body' })
+  })
+
+  test('should return empty cookies object', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/cookies',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+    await t.expect(data).eql({})
+  })
+
+  test('should return cookies object', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/cookies',
+      null,
+      {
+        headers: {
+          Cookie: 'nextjs=cool;'
+        }
+      }
+    ).then(res => res.ok && res.json())
+    await t.expect(data).eql({ nextjs: 'cool' })
+  })
+
+  test('should return 200 on POST on pages', async t => {
+    const res = await fetchViaHTTP(t.fixtureCtx.appPort, '/user', null, {
       method: 'POST'
     })
 
-    expect(res.status).toEqual(200)
+    await t.expect(res.status).eql(200)
   })
 
-  it('should return JSON on post on API', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/blog?title=Nextjs', null, {
-      method: 'POST'
-    }).then(res => res.ok && res.json())
-
-    expect(data).toEqual([{ title: 'Nextjs' }])
-  })
-
-  it('should return data on dynamic route', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/post-1', null, {}).then(
-      res => res.ok && res.json()
-    )
-
-    expect(data).toEqual({ post: 'post-1' })
-  })
-
-  it('should work with dynamic params and search string', async () => {
+  test('should return JSON on post on API', async t => {
     const data = await fetchViaHTTP(
-      appPort,
+      t.fixtureCtx.appPort,
+      '/api/blog?title=Nextjs',
+      null,
+      {
+        method: 'POST'
+      }
+    ).then(res => res.ok && res.json())
+
+    await t.expect(data).eql([{ title: 'Nextjs' }])
+  })
+
+  test('should return data on dynamic route', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/post-1',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+
+    await t.expect(data).eql({ post: 'post-1' })
+  })
+
+  test('should work with dynamic params and search string', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
       '/api/post-1?val=1',
       null,
       {}
     ).then(res => res.ok && res.json())
 
-    expect(data).toEqual({ val: '1', post: 'post-1' })
+    await t.expect(data).eql({ val: '1', post: 'post-1' })
   })
 
   if (serverless) {
-    it('should work with dynamic params and search string like lambda', async () => {
+    test('should work with dynamic params and search string like lambda', async t => {
       await nextBuild(appDir, [])
 
       const port = await findPort()
@@ -246,39 +288,44 @@ function runTests (serverless = false) {
       const json = await res.json()
       server.close()
 
-      expect(json).toEqual({ val: '1', post: 'post-1' })
+      await t.expect(json).eql({ val: '1', post: 'post-1' })
     })
   }
 
-  it('should prioritize a non-dynamic page', async () => {
+  test('should prioritize a non-dynamic page', async t => {
     const data = await fetchViaHTTP(
-      appPort,
+      t.fixtureCtx.appPort,
       '/api/post-1/comments',
       null,
       {}
     ).then(res => res.ok && res.json())
 
-    expect(data).toEqual([{ message: 'Prioritize a non-dynamic api page' }])
+    await t.expect(data).eql([{ message: 'Prioritize a non-dynamic api page' }])
   })
 
-  it('should return data on dynamic nested route', async () => {
+  test('should return data on dynamic nested route', async t => {
     const data = await fetchViaHTTP(
-      appPort,
+      t.fixtureCtx.appPort,
       '/api/post-1/comment-1',
       null,
       {}
     ).then(res => res.ok && res.json())
 
-    expect(data).toEqual({ post: 'post-1', comment: 'comment-1' })
+    await t.expect(data).eql({ post: 'post-1', comment: 'comment-1' })
   })
 
-  it('should 404 on optional dynamic api page', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/blog/543/comment', null, {})
+  test('should 404 on optional dynamic api page', async t => {
+    const res = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/blog/543/comment',
+      null,
+      {}
+    )
 
-    expect(res.status).toBe(404)
+    await t.expect(res.status).eql(404)
   })
 
-  it('should build api routes', async () => {
+  test('should build api routes', async t => {
     await nextBuild(appDir, [], { stdout: true })
     if (serverless) {
       const pagesManifest = JSON.parse(
@@ -287,7 +334,7 @@ function runTests (serverless = false) {
           'utf8'
         )
       )
-      expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
+      await t.expect(Object.keys(pagesManifest).includes('/api/[post]')).ok()
 
       const port = await findPort()
       const resolver = require(join(
@@ -300,76 +347,89 @@ function runTests (serverless = false) {
       const json = await res.json()
       server.close()
 
-      expect(json).toEqual([{ title: 'Cool Post!' }])
+      await t.expect(json).eql([{ title: 'Cool Post!' }])
     } else {
-      expect(
-        existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
-      ).toBeTruthy()
+      await t
+        .expect(
+          existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
+        )
+        .ok()
 
       const buildManifest = JSON.parse(
         readFileSync(join(appDir, '.next/build-manifest.json'), 'utf8')
       )
-      expect(
-        Object.keys(buildManifest.pages).includes('/api-conflict')
-      ).toBeTruthy()
+      await t
+        .expect(Object.keys(buildManifest.pages).includes('/api-conflict'))
+        .ok()
     }
   })
 
-  it('should return data on dynamic optional nested route', async () => {
+  test('should return data on dynamic optional nested route', async t => {
     const data = await fetchViaHTTP(
-      appPort,
+      t.fixtureCtx.appPort,
       '/api/blog/post-1/comment/1',
       null,
       {}
     ).then(res => res.ok && res.json())
 
-    expect(data).toEqual({ post: 'post-1', id: '1' })
+    await t.expect(data).eql({ post: 'post-1', id: '1' })
   })
 
-  it('should compile only server code in development', async () => {
-    await fetchViaHTTP(appPort, '/')
-    await fetchViaHTTP(appPort, '/api/users')
+  test('should compile only server code in development', async t => {
+    await fetchViaHTTP(t.fixtureCtx.appPort, '/')
+    await fetchViaHTTP(t.fixtureCtx.appPort, '/api/users')
 
     // Normal page
-    expect(
-      existsSync(join(appDir, `/.next/static/development/pages/index.js`))
-    ).toBeTruthy()
-    expect(
-      existsSync(
-        join(appDir, `/.next/server/static/development/pages/index.js`)
+    await t
+      .expect(
+        existsSync(join(appDir, `/.next/static/development/pages/index.js`))
       )
-    ).toBeTruthy()
+      .ok()
+    await t
+      .expect(
+        existsSync(
+          join(appDir, `/.next/server/static/development/pages/index.js`)
+        )
+      )
+      .ok()
     // API page
-    expect(
-      existsSync(join(appDir, `/.next/static/development/pages/api/users.js`))
-    ).toBeFalsy()
-    expect(
-      existsSync(
-        join(appDir, `/.next/server/static/development/pages/api/users.js`)
+    await t
+      .expect(
+        existsSync(join(appDir, `/.next/static/development/pages/api/users.js`))
       )
-    ).toBeTruthy()
+      .notOk()
+    await t
+      .expect(
+        existsSync(
+          join(appDir, `/.next/server/static/development/pages/api/users.js`)
+        )
+      )
+      .ok()
   })
 }
 
-describe('API routes', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    server = await launchApp(appDir, appPort)
+fixture('API routes')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(appDir, ctx.appPort)
   })
-  afterAll(() => killApp(server))
+  .after(ctx => killApp(ctx.server))
 
-  describe('Server support', () => {
-    runTests()
+runTests()
+
+const nextConfig = new File(join(appDir, 'next.config.js'))
+
+fixture('Serverless support')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.server))
+  .beforeEach(() => {
+    nextConfig.replace('server', 'serverless')
+  })
+  .afterEach(() => {
+    nextConfig.restore()
   })
 
-  describe('Serverless support', () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
-    beforeEach(() => {
-      nextConfig.replace('server', 'serverless')
-    })
-    afterEach(() => {
-      nextConfig.restore()
-    })
-    runTests(true)
-  })
-})
+runTests(true)
