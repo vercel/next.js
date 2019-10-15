@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -9,22 +10,18 @@ import {
   killApp
 } from 'next-test-utils'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Compression', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Compression')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
 
     // pre-build page at the start
-    await renderViaHTTP(context.appPort, '/')
+    await renderViaHTTP(ctx.appPort, '/')
   })
-  afterAll(() => killApp(context.server))
+  .after(ctx => killApp(ctx.server))
 
-  it('should compress responses by default', async () => {
-    const res = await fetchViaHTTP(context.appPort, '/')
+test('should compress responses by default', async t => {
+  const res = await fetchViaHTTP(t.fixtureCtx.appPort, '/')
 
-    expect(res.headers.get('content-encoding')).toMatch(/gzip/)
-  })
+  await t.expect(res.headers.get('content-encoding')).match(/gzip/)
 })
