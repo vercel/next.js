@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { validateAMP } from 'amp-test-utils'
@@ -11,32 +12,27 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
 const appDir = join(__dirname, '../')
-let appPort
-let server
-let app
 
-describe('AMP Fragment Styles', () => {
-  beforeAll(async () => {
+fixture('AMP Fragment Styles')
+  .before(async ctx => {
     await nextBuild(appDir)
-    app = nextServer({
+    ctx.app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
       quiet: true
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    ctx.server = await startApp(ctx.app)
+    ctx.appPort = ctx.server.address().port
   })
-  afterAll(() => stopApp(server))
+  .after(ctx => stopApp(ctx.server))
 
-  it('adds styles from fragment in AMP mode correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/', { amp: 1 })
-    await validateAMP(html)
-    const $ = cheerio.load(html)
-    const styles = $('style[amp-custom]').text()
-    expect(styles).toMatch(/background:(.*|)hotpink/)
-    expect(styles).toMatch(/font-size:(.*|)16\.4px/)
-  })
+test('adds styles from fragment in AMP mode correctly', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/', { amp: 1 })
+  await validateAMP(html)
+  const $ = cheerio.load(html)
+  const styles = $('style[amp-custom]').text()
+  await t.expect(styles).match(/background:(.*|)hotpink/)
+  await t.expect(styles).match(/font-size:(.*|)16\.4px/)
 })
