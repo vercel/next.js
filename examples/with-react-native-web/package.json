@@ -10,5 +10,8 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "react-native-web": "^0.11.6"
+  },
+  "devDependencies": {
+    "babel-plugin-react-native-web": "^0.11.7"
   }
 }
