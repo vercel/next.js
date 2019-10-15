@@ -12,6 +12,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP
 } from 'next-test-utils'
+import qs from 'querystring'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
@@ -190,6 +191,28 @@ describe('Serverless', () => {
   it('should 404 on API request with trailing slash', async () => {
     const res = await fetchViaHTTP(appPort, '/api/hello/')
     expect(res.status).toBe(404)
+  })
+
+  it('should have the correct query string for a dynamic route', async () => {
+    const paramRaw = 'test % 123'
+    const param = encodeURIComponent(paramRaw)
+
+    const html = await renderViaHTTP(appPort, `/dr/${param}`)
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should have the correct query string for a spr route', async () => {
+    const paramRaw = 'test % 123'
+    const html = await fetchViaHTTP(appPort, `/dr/[slug]`, '', {
+      headers: { 'x-now-route-params': qs.stringify({ 1: paramRaw }) }
+    }).then(res => res.text())
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
   })
 
   describe('With basic usage', () => {

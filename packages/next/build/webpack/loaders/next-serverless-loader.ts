@@ -70,6 +70,7 @@ const nextServerlessLoader: loader.Loader = function() {
   } else {
     return `
     import {parse} from 'url'
+    import {parse as parseQs} from 'querystring'
     import {renderToHTML} from 'next/dist/next-server/server/render';
     import {sendHTML} from 'next/dist/next-server/server/send-html';
     ${
@@ -131,7 +132,40 @@ const nextServerlessLoader: loader.Loader = function() {
             ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
+        ${
+          // Temporary work around -- `x-now-route-params` is a platform header
+          // _only_ set for `Prerender` requests. We should move this logic
+          // into our builder to ensure we're decoupled. However, this entails
+          // removing reliance on `req.url` and using `req.query` instead
+          // (which is needed for "custom routes" anyway).
+          isDynamicRoute(page)
+            ? `const nowParams = req.headers && req.headers["x-now-route-params"]
+              ? getRouteMatcher(
+                  (function() {
+                    const { re, groups } = getRouteRegex("${page}");
+                    return {
+                      re: {
+                        // Simulate a RegExp match from the \`req.url\` input
+                        exec: str => {
+                          const obj = parseQs(str);
+                          return Object.keys(obj).reduce(
+                            (prev, key) =>
+                              Object.assign(prev, {
+                                [key]: encodeURIComponent(obj[key])
+                              }),
+                            {}
+                          );
+                        }
+                      },
+                      groups
+                    };
+                  })()
+                )(req.headers["x-now-route-params"])
+              : null;
+          `
+            : `const nowParams = null;`
+        }
+        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
 
         if (fromExport) return { html: result, renderOpts }
         return result
