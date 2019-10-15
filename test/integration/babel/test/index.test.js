@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -12,23 +13,17 @@ import {
 // test suits
 import rendering from './rendering'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Babel', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Babel')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
 
     // pre-build all pages at the start
-    await Promise.all([renderViaHTTP(context.appPort, '/')])
+    await Promise.all([renderViaHTTP(ctx.appPort, '/')])
   })
-  afterAll(() => killApp(context.server))
+  .after(ctx => killApp(ctx.server))
 
-  rendering(
-    context,
-    'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
-  )
-})
+rendering(
+  (p, q) => renderViaHTTP(t.fixtureCtx.appPort, p, q),
+  (p, q) => fetchViaHTTP(t.fixtureCtx.appPort, p, q)
+)
