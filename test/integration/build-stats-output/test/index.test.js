@@ -1,14 +1,14 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = join(__dirname, '../react-site')
 
-describe('Build Stats Output', () => {
-  it('Shows correct package count in output', async () => {
-    const { stdout } = await nextBuild(appDir, undefined, { stdout: true })
-    expect(stdout).toMatch(/\/something .*?5/)
-  })
+fixture('Build Stats Output')
+
+test('Shows correct package count in output', async t => {
+  const { stdout } = await nextBuild(appDir, undefined, { stdout: true })
+  await t.expect(stdout).match(/\/something .*?6/)
 })
