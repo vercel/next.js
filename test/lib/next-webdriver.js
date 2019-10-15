@@ -15,13 +15,33 @@ class WdInterface {
       },
       async text () {
         return el.innerText
+      },
+      async getComputedCss (style) {
+        return t.eval(
+          () => window.getComputedStyle(document.querySelector(sel))[style],
+          {
+            dependencies: { sel, style }
+          }
+        )
+      },
+      getAttribute (attr) {
+        attr = attr === 'class' ? 'className' : attr
+
+        return t.eval(() => document.querySelector(sel)[attr], {
+          dependencies: { sel, attr }
+        })
       }
     }
   }
 
   async waitForElementByCss (sel) {
-    await Selector(sel)
+    await Selector(sel).innerText
     return this
+  }
+
+  async refresh () {
+    const url = await t.eval(() => window.location.href)
+    await t.navigateTo(url)
   }
 
   log () {

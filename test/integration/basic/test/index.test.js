@@ -1,5 +1,5 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture */
+import { t } from 'testcafe'
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
@@ -10,29 +10,29 @@ import dynamic from './dynamic'
 import processEnv from './process-env'
 import publicFolder from './public-folder'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Basic Features', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Basic Features')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
-      renderViaHTTP(context.appPort, '/process-env'),
+      renderViaHTTP(ctx.appPort, '/process-env'),
 
-      renderViaHTTP(context.appPort, '/hmr/about'),
-      renderViaHTTP(context.appPort, '/hmr/style'),
-      renderViaHTTP(context.appPort, '/hmr/contact'),
-      renderViaHTTP(context.appPort, '/hmr/counter')
+      renderViaHTTP(ctx.appPort, '/hmr/about'),
+      renderViaHTTP(ctx.appPort, '/hmr/style'),
+      renderViaHTTP(ctx.appPort, '/hmr/contact'),
+      renderViaHTTP(ctx.appPort, '/hmr/counter')
     ])
   })
-  afterAll(() => killApp(context.server))
+  .after(ctx => killApp(ctx.server))
 
-  dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  processEnv(context)
-  publicFolder(context)
-})
+const render = (path, query) => {
+  return renderViaHTTP(t.fixtureCtx.appPort, path, query)
+}
+
+dynamic(render)
+hmr(render)
+errorRecovery(render)
+processEnv()
+publicFolder()

@@ -1,14 +1,16 @@
-/* eslint-env jest */
+/* global test */
+import 'testcafe'
 import { renderViaHTTP } from 'next-test-utils'
 
-export default context => {
-  describe('Public folder', () => {
-    it('should allow access to public files', async () => {
-      const data = await renderViaHTTP(context.appPort, '/data/data.txt')
-      expect(data).toBe('data')
+export default () => {
+  test('should allow access to public files', async t => {
+    const data = await renderViaHTTP(t.fixtureCtx.appPort, '/data/data.txt')
+    await t.expect(data).eql('data')
 
-      const legacy = await renderViaHTTP(context.appPort, '/static/legacy.txt')
-      expect(legacy).toMatch(`new static folder`)
-    })
+    const legacy = await renderViaHTTP(
+      t.fixtureCtx.appPort,
+      '/static/legacy.txt'
+    )
+    await t.expect(legacy).contains(`new static folder`)
   })
 }

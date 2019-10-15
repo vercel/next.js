@@ -1,4 +1,5 @@
 {
   "skipJsErrors": true,
+  "stopOnFirstFail": true,
   "disablePageCaching": true
 }

@@ -356,18 +356,19 @@ export async function getReactErrorOverlayContent () {
   }, 1000 * 30)
   while (!found) {
     try {
-      await Selector('iframe', { timeout: 10000 })
+      await Selector('iframe', { timeout: 10000 }).innerText
 
       found = true
       return t.eval(
-        `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+        () =>
+          document.querySelector('iframe').contentWindow.document.body.innerHTML
       )
     } catch (ex) {
       await waitFor(1000)
     }
   }
   return t.eval(
-    `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+    () => document.querySelector('iframe').contentWindow.document.body.innerHTML
   )
 }
 
