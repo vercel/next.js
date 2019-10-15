@@ -1,4 +1,4 @@
-/* eslint-env jest */
+import { t } from 'testcafe'
 import amphtmlValidator from 'amphtml-validator'
 
 export async function validateAMP (html) {
@@ -15,5 +15,5 @@ export async function validateAMP (html) {
       ;(error.severity === 'ERROR' ? console.error : console.warn)(msg)
     }
   }
-  expect(result.status).toBe('PASS')
+  await t.expect(result.status).eql('PASS')
 }

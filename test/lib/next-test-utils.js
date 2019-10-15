@@ -1,3 +1,4 @@
+import { t, Selector } from 'testcafe'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import http from 'http'
@@ -344,7 +345,7 @@ export class File {
 }
 
 // react-error-overlay uses an iframe so we have to read the contents from the frame
-export async function getReactErrorOverlayContent (browser) {
+export async function getReactErrorOverlayContent () {
   let found = false
   setTimeout(() => {
     if (found) {
@@ -355,26 +356,32 @@ export async function getReactErrorOverlayContent (browser) {
   }, 1000 * 30)
   while (!found) {
     try {
-      await browser.waitForElementByCss('iframe', 10000)
-
-      const hasIframe = await browser.hasElementByCssSelector('iframe')
-      if (!hasIframe) {
-        throw new Error('Waiting for iframe')
-      }
+      await Selector('iframe', { timeout: 10000 })
 
       found = true
-      return browser.eval(
+      return t.eval(
         `document.querySelector('iframe').contentWindow.document.body.innerHTML`
       )
     } catch (ex) {
       await waitFor(1000)
     }
   }
-  return browser.eval(
+  return t.eval(
     `document.querySelector('iframe').contentWindow.document.body.innerHTML`
   )
 }
 
-export function getBrowserBodyText (browser) {
-  return browser.eval('document.getElementsByTagName("body")[0].innerText')
+export function getBrowserBodyText () {
+  return Selector('body').innerText
+}
+
+export async function didThrow (func = () => {}, didThrow = true) {
+  let threw = false
+
+  try {
+    await func()
+  } catch (err) {
+    threw = true
+  }
+  await t.expect(threw).eql(didThrow)
 }

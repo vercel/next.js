@@ -1,54 +1,42 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture,test */
+import { t } from 'testcafe'
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 // test suits
 import rendering from './rendering'
 import client from './client'
 import csp from './csp'
 
-const context = {
-  output: ''
-}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+fixture('Document and App')
+  .before(async ctx => {
+    ctx.output = ''
+    const collectOutput = msg => {
+      ctx.output += msg || ''
+    }
 
-const collectOutput = message => {
-  context.output += message
-}
-
-describe('Document and App', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort, {
       onStdout: collectOutput,
       onStderr: collectOutput
     })
 
     // pre-build all pages at the start
-    await Promise.all([renderViaHTTP(context.appPort, '/')])
+    await Promise.all([renderViaHTTP(ctx.appPort, '/')])
   })
-  afterAll(() => killApp(context.server))
+  .after(ctx => killApp(ctx.server))
 
-  it('should not have any missing key warnings', async () => {
-    await renderViaHTTP(context.appPort, '/')
-    expect(context.output).not.toMatch(
-      /Each child in a list should have a unique "key" prop/
-    )
-  })
-
-  rendering(
-    context,
-    'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
-  )
-  client(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  csp(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+test('should not have any missing key warnings', async t => {
+  await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await t
+    .expect(t.fixtureCtx.output)
+    .notMatch(/Each child in a list should have a unique "key" prop/)
 })
+
+const render = (path, query) => {
+  return renderViaHTTP(t.fixtureCtx.appPort, path, query)
+}
+
+rendering(render)
+client()
+csp()

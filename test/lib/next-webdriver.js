@@ -1,97 +1,38 @@
-import wd from 'wd'
-import getPort from 'get-port'
-import waitPort from 'wait-port'
+import { t, Selector } from 'testcafe'
 
-const doHeadless = process.env.HEADLESS !== 'false'
-let driverPort = 9515
-
-let webdriver = async function (appPort, pathname) {
-  if (typeof appPort === 'undefined') {
-    throw new Error('appPort is undefined')
+class WdInterface {
+  async get (url) {
+    await t.navigateTo(url)
   }
 
-  const url = `http://localhost:${appPort}${pathname}`
-  console.log(`> Start loading browser with url: ${url}`)
+  elementByCss (sel) {
+    const el = Selector(sel)
 
-  // Sometimes browser won't initialize due to some random issues.
-  // So, we need to timeout the initialization and retry again.
-  for (let lc = 0; lc < 5; lc++) {
-    try {
-      const browser = await getBrowser(url, 5000)
-      console.log(`> Complete loading browser with url: ${url}`)
-      return browser
-    } catch (ex) {
-      console.warn(`> Error when loading browser with url: ${url}`)
-
-      // Try restarting chromedriver max twice
-      if (lc < 2) {
-        const chromedriver = require('chromedriver')
-        console.log('Trying to restart chromedriver with random port')
-        driverPort = await getPort()
-        chromedriver.stop()
-        chromedriver.start([`--port=${driverPort}`])
-        // https://github.com/giggio/node-chromedriver/issues/117
-        await waitPort({
-          port: driverPort,
-          timeout: 1000 * 30 // 30 seconds
-        })
-        continue
+    return {
+      async click () {
+        await t.click(el)
+        return this
+      },
+      async text () {
+        return el.innerText
       }
-
-      if (ex.message === 'TIMEOUT') continue
-      throw ex
     }
   }
 
-  console.error(`> Tried 5 times. Cannot load the browser for url: ${url}`)
-  throw new Error(`Couldn't start the browser for url: ${url}`)
+  async waitForElementByCss (sel) {
+    await Selector(sel)
+    return this
+  }
+
+  log () {
+    return t.getBrowserConsoleMessages()
+  }
+
+  close () {}
 }
 
-function getBrowser (url, timeout) {
-  const browser = wd.promiseChainRemote(`http://localhost:${driverPort}/`)
-
-  return new Promise((resolve, reject) => {
-    let timeouted = false
-    const timeoutHandler = setTimeout(() => {
-      timeouted = true
-      const error = new Error('TIMEOUT')
-      reject(error)
-    }, timeout)
-
-    browser
-      .init({
-        browserName: 'chrome',
-        ...(doHeadless
-          ? {
-            chromeOptions: { args: ['--headless'] }
-          }
-          : {})
-      })
-      .get(url, err => {
-        if (timeouted) {
-          try {
-            browser.close(() => {
-              // Ignore errors
-            })
-          } catch (err) {
-            // Ignore
-          }
-          return
-        }
-
-        clearTimeout(timeoutHandler)
-
-        if (err) {
-          reject(err)
-          return
-        }
-
-        resolve(browser)
-      })
-  })
+export default async function webdriver (appPort, pathname) {
+  const wd = new WdInterface()
+  await wd.get(`http://localhost:${appPort}${pathname}`)
+  return wd
 }
-
-if (global.isBrowserStack) {
-  webdriver = (...args) => global.bsWd(...args)
-}
-export default webdriver

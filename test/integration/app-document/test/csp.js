@@ -1,24 +1,19 @@
 /* eslint-env jest */
+import 'testcafe'
 import webdriver from 'next-webdriver'
 
-export default (context, render) => {
-  describe('With CSP enabled', () => {
-    it('should load inline script by hash', async () => {
-      const browser = await webdriver(context.appPort, '/?withCSP=hash')
-      if (global.browserName === 'chrome') {
-        const errLog = await browser.log('browser')
-        expect(errLog.filter(e => e.source === 'security')).toEqual([])
-      }
-      await browser.close()
-    })
+export default () => {
+  test('should load inline script by hash', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/?withCSP=hash')
+    const errLog = await browser.log('browser')
+    await t.expect([...errLog.warn, ...errLog.error]).eql([])
+    await browser.close()
+  })
 
-    it('should load inline script by nonce', async () => {
-      const browser = await webdriver(context.appPort, '/?withCSP=nonce')
-      if (global.browserName === 'chrome') {
-        const errLog = await browser.log('browser')
-        expect(errLog.filter(e => e.source === 'security')).toEqual([])
-      }
-      await browser.close()
-    })
+  test('should load inline script by nonce', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/?withCSP=nonce')
+    const errLog = await browser.log('browser')
+    await t.expect([...errLog.warn, ...errLog.error]).eql([])
+    await browser.close()
   })
 }
