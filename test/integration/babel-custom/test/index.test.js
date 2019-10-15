@@ -1,16 +1,15 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+fixture('Babel')
 
-describe('Babel', () => {
-  it('should allow setting targets.browsers', async () => {
-    await nextBuild(join(__dirname, '../fixtures/targets-browsers'))
-  })
+test('should allow setting targets.browsers', async t => {
+  await nextBuild(join(__dirname, '../fixtures/targets-browsers'))
+})
 
-  it('should allow setting targets to a string', async () => {
-    await nextBuild(join(__dirname, '../fixtures/targets-string'))
-  })
+test('should allow setting targets to a string', async t => {
+  await nextBuild(join(__dirname, '../fixtures/targets-string'))
 })
