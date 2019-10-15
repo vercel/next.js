@@ -1,4 +1,5 @@
-/* eslint-env jest */
+/* global fixture, test */
+import 'testcafe'
 import { findPageFile } from 'next/dist/server/lib/find-page-file'
 import { normalizePagePath } from 'next/dist/next-server/server/normalize-page-path'
 
@@ -7,22 +8,22 @@ import { join } from 'path'
 const resolveDataDir = join(__dirname, '..', 'isolated', '_resolvedata')
 const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 
-describe('findPageFile', () => {
-  it('should work', async () => {
-    const pagePath = normalizePagePath('/nav/about')
-    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
-    expect(result).toMatch(/^[\\/]nav[\\/]about\.js/)
-  })
+fixture('findPageFile')
 
-  it('should work with nested index.js', async () => {
-    const pagePath = normalizePagePath('/nested')
-    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
-    expect(result).toMatch(/^[\\/]nested[\\/]index\.js/)
-  })
+test('should work', async t => {
+  const pagePath = normalizePagePath('/nav/about')
+  const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+  await t.expect(result).match(/^[\\/]nav[\\/]about\.js/)
+})
 
-  it('should prefer prefered.js before prefered/index.js', async () => {
-    const pagePath = normalizePagePath('/prefered')
-    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
-    expect(result).toMatch(/^[\\/]prefered\.js/)
-  })
+test('should work with nested index.js', async t => {
+  const pagePath = normalizePagePath('/nested')
+  const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+  await t.expect(result).match(/^[\\/]nested[\\/]index\.js/)
+})
+
+test('should prefer prefered.js before prefered/index.js', async t => {
+  const pagePath = normalizePagePath('/prefered')
+  const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+  await t.expect(result).match(/^[\\/]prefered\.js/)
 })

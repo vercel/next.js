@@ -376,13 +376,17 @@ export function getBrowserBodyText () {
   return Selector('body').innerText
 }
 
-export async function didThrow (func = () => {}, didThrow = true) {
+export async function didThrow (func = () => {}, didThrow = true, errRegex) {
   let threw = false
 
   try {
     await func()
   } catch (err) {
     threw = true
+
+    if (errRegex) {
+      threw = !!(err.message || '').match(errRegex)
+    }
   }
   await t.expect(threw).eql(didThrow)
 }

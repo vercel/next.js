@@ -1,4 +1,5 @@
-/* eslint-env jest */
+/* global fixture, test */
+import 'testcafe'
 import {
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
@@ -6,11 +7,11 @@ import {
   PHASE_DEVELOPMENT_SERVER
 } from 'next/constants'
 
-describe('phaseConstants', () => {
-  it('should set phases correctly', () => {
-    expect(PHASE_EXPORT).toBe('phase-export')
-    expect(PHASE_PRODUCTION_BUILD).toBe('phase-production-build')
-    expect(PHASE_PRODUCTION_SERVER).toBe('phase-production-server')
-    expect(PHASE_DEVELOPMENT_SERVER).toBe('phase-development-server')
-  })
+fixture('phaseConstants')
+
+test('should set phases correctly', async t => {
+  await t.expect(PHASE_EXPORT).eql('phase-export')
+  await t.expect(PHASE_PRODUCTION_BUILD).eql('phase-production-build')
+  await t.expect(PHASE_PRODUCTION_SERVER).eql('phase-production-server')
+  await t.expect(PHASE_DEVELOPMENT_SERVER).eql('phase-development-server')
 })

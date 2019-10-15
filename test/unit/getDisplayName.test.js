@@ -1,30 +1,31 @@
-/* eslint-env jest */
+/* global fixture, test */
+import 'testcafe'
 import { Component } from 'react'
 import { getDisplayName } from 'next/dist/next-server/lib/utils'
 
-describe('getDisplayName', () => {
-  it('gets the proper display name of a component', () => {
-    class ComponentOne extends Component {
-      render () {
-        return null
-      }
-    }
+fixture('getDisplayName')
 
-    class ComponentTwo extends Component {
-      static displayName = 'CustomDisplayName'
-      render () {
-        return null
-      }
-    }
-
-    function FunctionalComponent () {
+test('gets the proper display name of a component', async t => {
+  class ComponentOne extends Component {
+    render () {
       return null
     }
+  }
 
-    expect(getDisplayName(ComponentOne)).toBe('ComponentOne')
-    expect(getDisplayName(ComponentTwo)).toBe('CustomDisplayName')
-    expect(getDisplayName(FunctionalComponent)).toBe('FunctionalComponent')
-    expect(getDisplayName(() => null)).toBe('Unknown')
-    expect(getDisplayName('div')).toBe('div')
-  })
+  class ComponentTwo extends Component {
+    static displayName = 'CustomDisplayName'
+    render () {
+      return null
+    }
+  }
+
+  function FunctionalComponent () {
+    return null
+  }
+
+  await t.expect(getDisplayName(ComponentOne)).eql('ComponentOne')
+  await t.expect(getDisplayName(ComponentTwo)).eql('CustomDisplayName')
+  await t.expect(getDisplayName(FunctionalComponent)).eql('FunctionalComponent')
+  await t.expect(getDisplayName(() => null)).eql('Unknown')
+  await t.expect(getDisplayName('div')).eql('div')
 })

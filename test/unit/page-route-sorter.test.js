@@ -1,23 +1,27 @@
-/* eslint-env jest */
+/* global fixture, test */
+import 'testcafe'
 import { getSortedRoutes } from 'next/dist/next-server/lib/router/utils/sorted-routes'
+import { didThrow } from 'next-test-utils'
 
-describe('getSortedRoutes', () => {
-  it('does not add extra routes', () => {
-    expect(getSortedRoutes(['/posts'])).toEqual(['/posts'])
+fixture('getSortedRoutes')
 
-    expect(getSortedRoutes(['/posts/[id]'])).toEqual(['/posts/[id]'])
-    expect(getSortedRoutes(['/posts/[id]/foo'])).toEqual(['/posts/[id]/foo'])
+test('does not add extra routes', async t => {
+  await t.expect(getSortedRoutes(['/posts'])).eql(['/posts'])
 
-    expect(getSortedRoutes(['/posts/[id]/[foo]/bar'])).toEqual([
-      '/posts/[id]/[foo]/bar'
-    ])
-    expect(getSortedRoutes(['/posts/[id]/baz/[foo]/bar'])).toEqual([
-      '/posts/[id]/baz/[foo]/bar'
-    ])
-  })
+  await t.expect(getSortedRoutes(['/posts/[id]'])).eql(['/posts/[id]'])
+  await t.expect(getSortedRoutes(['/posts/[id]/foo'])).eql(['/posts/[id]/foo'])
 
-  it('correctly sorts required slugs', () => {
-    expect(
+  await t
+    .expect(getSortedRoutes(['/posts/[id]/[foo]/bar']))
+    .eql(['/posts/[id]/[foo]/bar'])
+  await t
+    .expect(getSortedRoutes(['/posts/[id]/baz/[foo]/bar']))
+    .eql(['/posts/[id]/baz/[foo]/bar'])
+})
+
+test('correctly sorts required slugs', async t => {
+  await t
+    .expect(
       getSortedRoutes([
         '/posts',
         '/[root-slug]',
@@ -28,24 +32,39 @@ describe('getSortedRoutes', () => {
         '/foo/[d]/bar/baz/[f]',
         '/apples/[ab]/[cd]/ef'
       ])
-    ).toMatchSnapshot()
-  })
+    )
+    .eql([
+      '/',
+      '/apples/[ab]/[cd]/ef',
+      '/blog/[id]',
+      '/blog/[id]/comments/[cid]',
+      '/foo/[d]/bar/baz/[f]',
+      '/posts',
+      '/posts/[id]',
+      '/[root-slug]'
+    ])
+})
 
-  it('catches mismatched param names', () => {
-    expect(() =>
+test('catches mismatched param names', async t => {
+  await didThrow(
+    () =>
       getSortedRoutes([
         '/',
         '/blog',
         '/blog/[id]',
         '/blog/[id]/comments/[cid]',
         '/blog/[cid]'
-      ])
-    ).toThrowError(/different slug names/)
-  })
+      ]),
+    true,
+    /different slug names/
+  )
+})
 
-  it('catches reused param names', () => {
-    expect(() =>
-      getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
-    ).toThrowError(/the same slug name/)
-  })
+test('catches reused param names', async t => {
+  await didThrow(
+    () =>
+      getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]']),
+    true,
+    /the same slug name/
+  )
 })
