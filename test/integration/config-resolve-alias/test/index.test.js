@@ -1,18 +1,19 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+fixture('Invalid resolve alias')
 
-describe('Invalid resolve alias', () => {
-  it('should show relevant error when webpack resolve alias is wrong', async () => {
-    const { stderr } = await runNextCommand(['build', join(__dirname, '..')], {
-      stderr: true
-    })
+test('should show relevant error when webpack resolve alias is wrong', async t => {
+  const { stderr } = await runNextCommand(['build', join(__dirname, '..')], {
+    stderr: true
+  })
 
-    expect(stderr).toMatch(
+  await t
+    .expect(stderr)
+    .contains(
       'webpack config.resolve.alias was incorrectly overriden. https://err.sh'
     )
-  })
 })
