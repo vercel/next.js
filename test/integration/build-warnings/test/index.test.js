@@ -1,45 +1,45 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { nextBuild, File, waitFor } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = join(__dirname, '../')
 
-describe('Build warnings', () => {
-  it('should not shown warning about minification withou any modification', async () => {
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).not.toContain('optimization has been disabled')
-  })
+fixture('Build warnings')
 
-  it('should shown warning about minification for minimize', async () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
+test('should not shown warning about minification withou any modification', async t => {
+  const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+  await t.expect(stderr).notContains('optimization has been disabled')
+})
 
-    await waitFor(500)
+test('should shown warning about minification for minimize', async t => {
+  const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    nextConfig.replace('true', 'false')
+  await waitFor(500)
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+  nextConfig.replace('true', 'false')
 
-    expect(stderr).toContain('optimization has been disabled')
+  const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
 
-    nextConfig.restore()
-  })
+  await t.expect(stderr).contains('optimization has been disabled')
 
-  it('should shown warning about minification for minimizer', async () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
+  nextConfig.restore()
+})
 
-    await waitFor(500)
+test('should shown warning about minification for minimizer', async t => {
+  const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    nextConfig.replace(
-      'config.optimization.minimize = true',
-      'config.optimization.minimizer = []'
-    )
+  await waitFor(500)
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+  nextConfig.replace(
+    'config.optimization.minimize = true',
+    'config.optimization.minimizer = []'
+  )
 
-    expect(stderr).toContain('optimization has been disabled')
+  const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
 
-    nextConfig.restore()
-  })
+  await t.expect(stderr).contains('optimization has been disabled')
+
+  nextConfig.restore()
 })
