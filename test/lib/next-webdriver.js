@@ -19,6 +19,10 @@ class WdInterface {
     )
   }
 
+  url () {
+    return t.eval(() => window.location.href)
+  }
+
   async elementsByCss (sel) {
     const numEls = await Selector(sel).count
     const elMethods = []
@@ -95,8 +99,8 @@ class WdInterface {
     }
   }
 
-  async waitForElementByCss (sel) {
-    await Selector(sel).innerText
+  async waitForElementByCss (sel, timeout) {
+    await Selector(sel, { timeout }).exists
     return this
   }
 

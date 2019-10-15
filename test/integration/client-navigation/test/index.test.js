@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import renderingSuite from './rendering'
@@ -13,13 +14,10 @@ import {
   getReactErrorOverlayContent
 } from 'next-test-utils'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Client Navigation', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Client Navigation')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
 
     const prerender = [
       '/async-props',
@@ -54,992 +52,838 @@ describe('Client Navigation', () => {
 
       '/nested-cdm/index'
     ]
-    await Promise.all(
-      prerender.map(route => renderViaHTTP(context.appPort, route))
-    )
+    await Promise.all(prerender.map(route => renderViaHTTP(ctx.appPort, route)))
   })
-  afterAll(() => killApp(context.server))
+  .after(ctx => killApp(ctx.server))
 
-  describe('with <Link/>', () => {
-    it('should navigate the page', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-      const text = await browser
-        .elementByCss('#about-link')
-        .click()
-        .waitForElementByCss('.nav-about')
-        .elementByCss('p')
-        .text()
+test('should navigate the page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#about-link').click()
 
-      expect(text).toBe('This is the about page.')
-      await browser.close()
-    })
+  await browser.waitForElementByCss('.nav-about')
 
-    it('should navigate via the client side', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
+  const text = await browser.elementByCss('p').text()
 
-      const counterText = await browser
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#about-link')
-        .click()
-        .waitForElementByCss('.nav-about')
-        .elementByCss('#home-link')
-        .click()
-        .waitForElementByCss('.nav-home')
-        .elementByCss('#counter')
-        .text()
-
-      expect(counterText).toBe('Counter: 1')
-      await browser.close()
-    })
-  })
-
-  describe('With url property', () => {
-    it('Should keep immutable pathname, asPath and query', async () => {
-      const browser = await webdriver(context.appPort, '/nav/url-prop-change')
-      await browser.elementByCss('#add-query').click()
-      const urlResult = await browser.elementByCss('#url-result').text()
-      const previousUrlResult = await browser
-        .elementByCss('#previous-url-result')
-        .text()
-
-      expect(JSON.parse(urlResult)).toMatchObject({
-        query: { added: 'yes' },
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes'
-      })
-      expect(JSON.parse(previousUrlResult)).toMatchObject({
-        query: {},
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change'
-      })
-
-      await browser.close()
-    })
-  })
-
-  describe('with <a/> tag inside the <Link />', () => {
-    it('should navigate the page', async () => {
-      const browser = await webdriver(context.appPort, '/nav/about')
-      const text = await browser
-        .elementByCss('#home-link')
-        .click()
-        .waitForElementByCss('.nav-home')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the home.')
-      await browser.close()
-    })
-
-    it('should not navigate if the <a/> tag has a target', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-
-      const counterText = await browser
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#target-link')
-        .click()
-        .elementByCss('#counter')
-        .text()
-
-      expect(counterText).toBe('Counter: 1')
-      await browser.close()
-    })
-  })
-
-  describe('with unexpected <a/> nested tag', () => {
-    it('should not redirect if passHref prop is not defined in Link', async () => {
-      const browser = await webdriver(context.appPort, '/nav/pass-href-prop')
-      const text = await browser
-        .elementByCss('#without-href')
-        .click()
-        .waitForElementByCss('.nav-pass-href-prop')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the passHref prop page.')
-      await browser.close()
-    })
-
-    it('should redirect if passHref prop is defined in Link', async () => {
-      const browser = await webdriver(context.appPort, '/nav/pass-href-prop')
-      const text = await browser
-        .elementByCss('#with-href')
-        .click()
-        .waitForElementByCss('.nav-home')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the home.')
-      await browser.close()
-    })
-  })
-
-  describe('with empty getInitialProps()', () => {
-    it('should render an error', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/nav')
-        await browser.elementByCss('#empty-props').click()
-
-        await waitFor(3000)
-
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
-          /should resolve to an object\. But found "null" instead\./
-        )
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
-
-  describe('with the same page but different querystring', () => {
-    it('should navigate the page', async () => {
-      const browser = await webdriver(context.appPort, '/nav/querystring?id=1')
-      const text = await browser
-        .elementByCss('#next-id-link')
-        .click()
-        .waitForElementByCss('.nav-id-2')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('2')
-      await browser.close()
-    })
-
-    it('should remove querystring', async () => {
-      const browser = await webdriver(context.appPort, '/nav/querystring?id=1')
-      const text = await browser
-        .elementByCss('#main-page')
-        .click()
-        .waitForElementByCss('.nav-id-0')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('0')
-      await browser.close()
-    })
-  })
-
-  describe('with the current url', () => {
-    it('should reload the page', async () => {
-      const browser = await webdriver(context.appPort, '/nav/self-reload')
-      const defaultCount = await browser.elementByCss('p').text()
-      expect(defaultCount).toBe('COUNT: 0')
-
-      const countAfterClicked = await browser
-        .elementByCss('#self-reload-link')
-        .click()
-        .elementByCss('p')
-        .text()
-
-      expect(countAfterClicked).toBe('COUNT: 1')
-      await browser.close()
-    })
-
-    it('should always replace the state', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-
-      const countAfterClicked = await browser
-        .elementByCss('#self-reload-link')
-        .click()
-        .waitForElementByCss('#self-reload-page')
-        .elementByCss('#self-reload-link')
-        .click()
-        .elementByCss('#self-reload-link')
-        .click()
-        .elementByCss('p')
-        .text()
-
-      // counts (page change + two clicks)
-      expect(countAfterClicked).toBe('COUNT: 3')
-
-      // Since we replace the state, back button would simply go us back to /nav
-      await browser.back().waitForElementByCss('.nav-home')
-
-      await browser.close()
-    })
-  })
-
-  describe('with onClick action', () => {
-    it('should reload the page and perform additional action', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/nav/on-click')
-        const defaultCountQuery = await browser
-          .elementByCss('#query-count')
-          .text()
-        const defaultCountState = await browser
-          .elementByCss('#state-count')
-          .text()
-        expect(defaultCountQuery).toBe('QUERY COUNT: 0')
-        expect(defaultCountState).toBe('STATE COUNT: 0')
-
-        await browser.elementByCss('#on-click-link').click()
-
-        const countQueryAfterClicked = await browser
-          .elementByCss('#query-count')
-          .text()
-        const countStateAfterClicked = await browser
-          .elementByCss('#state-count')
-          .text()
-        expect(countQueryAfterClicked).toBe('QUERY COUNT: 1')
-        expect(countStateAfterClicked).toBe('STATE COUNT: 1')
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should not reload if default was prevented', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/nav/on-click')
-        const defaultCountQuery = await browser
-          .elementByCss('#query-count')
-          .text()
-        const defaultCountState = await browser
-          .elementByCss('#state-count')
-          .text()
-        expect(defaultCountQuery).toBe('QUERY COUNT: 0')
-        expect(defaultCountState).toBe('STATE COUNT: 0')
-
-        await browser.elementByCss('#on-click-link-prevent-default').click()
-
-        const countQueryAfterClicked = await browser
-          .elementByCss('#query-count')
-          .text()
-        const countStateAfterClicked = await browser
-          .elementByCss('#state-count')
-          .text()
-        expect(countQueryAfterClicked).toBe('QUERY COUNT: 0')
-        expect(countStateAfterClicked).toBe('STATE COUNT: 1')
-
-        await browser.elementByCss('#on-click-link').click()
-
-        const countQueryAfterClickedAgain = await browser
-          .elementByCss('#query-count')
-          .text()
-        const countStateAfterClickedAgain = await browser
-          .elementByCss('#state-count')
-          .text()
-        expect(countQueryAfterClickedAgain).toBe('QUERY COUNT: 1')
-        expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should always replace the state and perform additional action', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/nav')
-
-        await browser
-          .elementByCss('#on-click-link')
-          .click()
-          .waitForElementByCss('#on-click-page')
-
-        const defaultCountQuery = await browser
-          .elementByCss('#query-count')
-          .text()
-        expect(defaultCountQuery).toBe('QUERY COUNT: 1')
-
-        await browser.elementByCss('#on-click-link').click()
-        const countQueryAfterClicked = await browser
-          .elementByCss('#query-count')
-          .text()
-        const countStateAfterClicked = await browser
-          .elementByCss('#state-count')
-          .text()
-        expect(countQueryAfterClicked).toBe('QUERY COUNT: 2')
-        expect(countStateAfterClicked).toBe('STATE COUNT: 1')
-
-        // Since we replace the state, back button would simply go us back to /nav
-        await browser.back().waitForElementByCss('.nav-home')
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
-
-  describe('with hash changes', () => {
-    describe('when hash change via Link', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#via-link')
-          .click()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 0')
-
-        await browser.close()
-      })
-
-      it('should scroll to the specified position on the same page', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-          // Scrolls to item 400 on the page
-          const scrollPosition = await browser
-            .elementByCss('#scroll-to-item-400')
-            .click()
-            .eval('window.pageYOffset')
-
-          expect(scrollPosition).toBe(7258)
-
-          // Scrolls back to top when scrolling to `#` with no value.
-          const scrollPositionAfterEmptyHash = await browser
-            .elementByCss('#via-empty-hash')
-            .click()
-            .eval('window.pageYOffset')
-
-          expect(scrollPositionAfterEmptyHash).toBe(0)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
-      })
-
-      it('should scroll to the specified position on the same page with a name property', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-          // Scrolls to item 400 with name="name-item-400" on the page
-          const scrollPosition = await browser
-            .elementByCss('#scroll-to-name-item-400')
-            .click()
-            .eval('window.pageYOffset')
-
-          console.log(scrollPosition)
-
-          expect(scrollPosition).toBe(16258)
-
-          // Scrolls back to top when scrolling to `#` with no value.
-          const scrollPositionAfterEmptyHash = await browser
-            .elementByCss('#via-empty-hash')
-            .click()
-            .eval('window.pageYOffset')
-
-          expect(scrollPositionAfterEmptyHash).toBe(0)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
-      })
-
-      it('should scroll to the specified position to a new page', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/nav')
-
-          // Scrolls to item 400 on the page
-          await browser
-            .elementByCss('#scroll-to-hash')
-            .click()
-            .waitForElementByCss('#hash-changes-page')
-
-          const scrollPosition = await browser.eval('window.pageYOffset')
-          expect(scrollPosition).toBe(7258)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
-      })
-    })
-
-    describe('when hash change via A tag', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#via-a')
-          .click()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 0')
-
-        await browser.close()
-      })
-    })
-
-    describe('when hash get removed', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#via-a')
-          .click()
-          .elementByCss('#page-url')
-          .click()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 1')
-
-        await browser.close()
-      })
-
-      it('should not run getInitialProps when removing via back', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#scroll-to-item-400')
-          .click()
-          .back()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 0')
-        await browser.close()
-      })
-    })
-
-    describe('when hash set to empty', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#via-a')
-          .click()
-          .elementByCss('#via-empty-hash')
-          .click()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 0')
-
-        await browser.close()
-      })
-    })
-
-    describe('when hash changed to a different hash', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#via-a')
-          .click()
-          .elementByCss('#via-link')
-          .click()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 0')
-
-        await browser.close()
-      })
-    })
-  })
-
-  describe('with shallow routing', () => {
-    it('should update the url without running getInitialProps', async () => {
-      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
-      const counter = await browser
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 2')
-
-      const getInitialPropsRunCount = await browser
-        .elementByCss('#get-initial-props-run-count')
-        .text()
-      expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
-
-      await browser.close()
-    })
-
-    it('should handle the back button and should not run getInitialProps', async () => {
-      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
-      let counter = await browser
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 2')
-
-      counter = await browser
-        .back()
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 1')
-
-      const getInitialPropsRunCount = await browser
-        .elementByCss('#get-initial-props-run-count')
-        .text()
-      expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
-
-      await browser.close()
-    })
-
-    it('should run getInitialProps always when rending the page to the screen', async () => {
-      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
-
-      const counter = await browser
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#increase')
-        .click()
-        .elementByCss('#home-link')
-        .click()
-        .waitForElementByCss('.nav-home')
-        .back()
-        .waitForElementByCss('.shallow-routing')
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 2')
-
-      const getInitialPropsRunCount = await browser
-        .elementByCss('#get-initial-props-run-count')
-        .text()
-      expect(getInitialPropsRunCount).toBe('getInitialProps run count: 2')
-
-      await browser.close()
-    })
-  })
-
-  describe('with URL objects', () => {
-    it('should work with <Link/>', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-      const text = await browser
-        .elementByCss('#query-string-link')
-        .click()
-        .waitForElementByCss('.nav-querystring')
-        .elementByCss('p')
-        .text()
-      expect(text).toBe('10')
-
-      expect(await browser.url()).toBe(
-        `http://localhost:${context.appPort}/nav/querystring/10#10`
-      )
-      await browser.close()
-    })
-
-    it('should work with "Router.push"', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-      const text = await browser
-        .elementByCss('#query-string-button')
-        .click()
-        .waitForElementByCss('.nav-querystring')
-        .elementByCss('p')
-        .text()
-      expect(text).toBe('10')
-
-      expect(await browser.url()).toBe(
-        `http://localhost:${context.appPort}/nav/querystring/10#10`
-      )
-      await browser.close()
-    })
-
-    it('should work with the "replace" prop', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-
-      let stackLength = await browser.eval('window.history.length')
-
-      expect(stackLength).toBe(2)
-
-      // Navigation to /about using a replace link should maintain the url stack length
-      const text = await browser
-        .elementByCss('#about-replace-link')
-        .click()
-        .waitForElementByCss('.nav-about')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the about page.')
-
-      stackLength = await browser.eval('window.history.length')
-
-      expect(stackLength).toBe(2)
-
-      // Going back to the home with a regular link will augment the history count
-      await browser
-        .elementByCss('#home-link')
-        .click()
-        .waitForElementByCss('.nav-home')
-
-      stackLength = await browser.eval('window.history.length')
-
-      expect(stackLength).toBe(3)
-
-      await browser.close()
-    })
-  })
-
-  describe('with getInitialProp redirect', () => {
-    it('should redirect the page via client side', async () => {
-      const browser = await webdriver(context.appPort, '/nav')
-      const text = await browser
-        .elementByCss('#redirect-link')
-        .click()
-        .waitForElementByCss('.nav-about')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the about page.')
-      await browser.close()
-    })
-
-    it('should redirect the page when loading', async () => {
-      const browser = await webdriver(context.appPort, '/nav/redirect')
-      const text = await browser
-        .waitForElementByCss('.nav-about')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the about page.')
-      await browser.close()
-    })
-  })
-
-  describe('with different types of urls', () => {
-    it('should work with normal page', async () => {
-      const browser = await webdriver(context.appPort, '/with-cdm')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
-      await browser.close()
-    })
-
-    it('should work with dir/ page', async () => {
-      const browser = await webdriver(context.appPort, '/nested-cdm')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
-      await browser.close()
-    })
-
-    it('should work with /index page', async () => {
-      const browser = await webdriver(context.appPort, '/index')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
-      await browser.close()
-    })
-
-    it('should work with / page', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      const text = await browser.elementByCss('p').text()
-
-      expect(text).toBe('ComponentDidMount executed on client.')
-      await browser.close()
-    })
-  })
-
-  describe('with the HOC based router', () => {
-    it('should navigate as expected', async () => {
-      const browser = await webdriver(context.appPort, '/nav/with-hoc')
-
-      const pathname = await browser.elementByCss('#pathname').text()
-      expect(pathname).toBe('Current path: /nav/with-hoc')
-
-      const asPath = await browser.elementByCss('#asPath').text()
-      expect(asPath).toBe('Current asPath: /nav/with-hoc')
-
-      const text = await browser
-        .elementByCss('.nav-with-hoc a')
-        .click()
-        .waitForElementByCss('.nav-home')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the home.')
-      await browser.close()
-    })
-  })
-
-  describe('with asPath', () => {
-    describe('inside getInitialProps', () => {
-      it('should show the correct asPath with a Link with as prop', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-        const asPath = await browser
-          .elementByCss('#as-path-link')
-          .click()
-          .waitForElementByCss('.as-path-content')
-          .elementByCss('.as-path-content')
-          .text()
-
-        expect(asPath).toBe('/as/path')
-        await browser.close()
-      })
-
-      it('should show the correct asPath with a Link without the as prop', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-        const asPath = await browser
-          .elementByCss('#as-path-link-no-as')
-          .click()
-          .waitForElementByCss('.as-path-content')
-          .elementByCss('.as-path-content')
-          .text()
-
-        expect(asPath).toBe('/nav/as-path')
-        await browser.close()
-      })
-    })
-
-    describe('with next/router', () => {
-      it('should show the correct asPath', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-        const asPath = await browser
-          .elementByCss('#as-path-using-router-link')
-          .click()
-          .waitForElementByCss('.as-path-content')
-          .elementByCss('.as-path-content')
-          .text()
-
-        expect(asPath).toBe('/nav/as-path-using-router')
-        await browser.close()
-      })
-    })
-
-    describe('with next/link', () => {
-      it('should use pushState with same href and different asPath', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/nav/as-path-pushstate')
-          await browser
-            .elementByCss('#hello')
-            .click()
-            .waitForElementByCss('#something-hello')
-          const queryOne = JSON.parse(
-            await browser.elementByCss('#router-query').text()
-          )
-          expect(queryOne.something).toBe('hello')
-          await browser
-            .elementByCss('#same-query')
-            .click()
-            .waitForElementByCss('#something-same-query')
-          const queryTwo = JSON.parse(
-            await browser.elementByCss('#router-query').text()
-          )
-          expect(queryTwo.something).toBe('hello')
-          await browser.back().waitForElementByCss('#something-hello')
-          const queryThree = JSON.parse(
-            await browser.elementByCss('#router-query').text()
-          )
-          expect(queryThree.something).toBe('hello')
-          await browser
-            .elementByCss('#else')
-            .click()
-            .waitForElementByCss('#something-else')
-          await browser
-            .elementByCss('#hello2')
-            .click()
-            .waitForElementByCss('#nav-as-path-pushstate')
-          await browser.back().waitForElementByCss('#something-else')
-          const queryFour = JSON.parse(
-            await browser.elementByCss('#router-query').text()
-          )
-          expect(queryFour.something).toBe(undefined)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
-      })
-
-      it('should detect asPath query changes correctly', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/nav/as-path-query')
-          await browser
-            .elementByCss('#hello')
-            .click()
-            .waitForElementByCss('#something-hello-something-hello')
-          const queryOne = JSON.parse(
-            await browser.elementByCss('#router-query').text()
-          )
-          expect(queryOne.something).toBe('hello')
-          await browser
-            .elementByCss('#hello2')
-            .click()
-            .waitForElementByCss('#something-hello-something-else')
-          const queryTwo = JSON.parse(
-            await browser.elementByCss('#router-query').text()
-          )
-          expect(queryTwo.something).toBe('else')
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
-      })
-    })
-  })
-
-  describe('runtime errors', () => {
-    it('should show react-error-overlay when a client side error is thrown inside a component', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/error-inside-browser-page')
-        await waitFor(3000)
-        const text = await getReactErrorOverlayContent(browser)
-        expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should show react-error-overlay when a client side error is thrown outside a component', async () => {
-      let browser
-      try {
-        browser = await webdriver(
-          context.appPort,
-          '/error-in-the-browser-global-scope'
-        )
-        await waitFor(3000)
-        const text = await getReactErrorOverlayContent(browser)
-        expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
-
-  describe('with 404 pages', () => {
-    it('should 404 on not existent page', async () => {
-      const browser = await webdriver(context.appPort, '/non-existent')
-      expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
-      await browser.close()
-    })
-
-    it('should 404 for <page>/', async () => {
-      const browser = await webdriver(context.appPort, '/nav/about/')
-      expect(await browser.elementByCss('h1').text()).toBe('404')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'This page could not be found.'
-      )
-      await browser.close()
-    })
-
-    it('should should not contain a page script in a 404 page', async () => {
-      const browser = await webdriver(context.appPort, '/non-existent')
-      const scripts = await browser.elementsByCss('script[src]')
-      for (const script of scripts) {
-        const src = await script.getAttribute('src')
-        expect(src.includes('/non-existent')).toBeFalsy()
-      }
-      await browser.close()
-    })
-  })
-
-  describe('updating head while client routing', () => {
-    it('should update head during client routing', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/nav/head-1')
-        expect(
-          await browser
-            .elementByCss('meta[name="description"]')
-            .getAttribute('content')
-        ).toBe('Head One')
-
-        await browser
-          .elementByCss('#to-head-2')
-          .click()
-          .waitForElementByCss('#head-2', 3000)
-        expect(
-          await browser
-            .elementByCss('meta[name="description"]')
-            .getAttribute('content')
-        ).toBe('Head Two')
-
-        await browser
-          .elementByCss('#to-head-1')
-          .click()
-          .waitForElementByCss('#head-1', 3000)
-        expect(
-          await browser
-            .elementByCss('meta[name="description"]')
-            .getAttribute('content')
-        ).toBe('Head One')
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should update title during client routing', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/nav/head-1')
-        expect(await browser.eval('document.title')).toBe('this is head-1')
-
-        await browser
-          .elementByCss('#to-head-2')
-          .click()
-          .waitForElementByCss('#head-2', 3000)
-        expect(await browser.eval('document.title')).toBe('this is head-2')
-
-        await browser
-          .elementByCss('#to-head-1')
-          .click()
-          .waitForElementByCss('#head-1', 3000)
-        expect(await browser.eval('document.title')).toBe('this is head-1')
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
-
-  it('should not error on module.exports + polyfills', async () => {
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/read-only-object-error')
-      expect(await browser.elementByCss('body').text()).toBe(
-        'this is just a placeholder component'
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should work on nested /index/index.js', async () => {
-    const browser = await webdriver(context.appPort, '/nested-index/index')
-    expect(await browser.elementByCss('p').text()).toBe(
-      'This is an index.js nested in an index/ folder.'
-    )
-    await browser.close()
-  })
-
-  renderingSuite(
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
-  )
+  await t.expect(text).eql('This is the about page.')
+  await browser.close()
 })
+
+test('should navigate via the client side', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+
+  await browser.elementByCss('#increase').click()
+  await browser.elementByCss('#about-link').click()
+  await browser.waitForElementByCss('.nav-about')
+  await browser.elementByCss('#home-link').click()
+  await browser.waitForElementByCss('.nav-home')
+
+  const counterText = await browser.elementByCss('#counter').text()
+  await t.expect(counterText).eql('Counter: 1')
+  await browser.close()
+})
+
+test('Should keep immutable pathname, asPath and query', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/url-prop-change')
+  await browser.elementByCss('#add-query').click()
+  const urlResult = await browser.elementByCss('#url-result').text()
+  const previousUrlResult = await browser
+    .elementByCss('#previous-url-result')
+    .text()
+
+  await t.expect(JSON.parse(urlResult)).eql({
+    query: { added: 'yes' },
+    pathname: '/nav/url-prop-change',
+    asPath: '/nav/url-prop-change?added=yes'
+  })
+  await t.expect(JSON.parse(previousUrlResult)).eql({
+    query: {},
+    pathname: '/nav/url-prop-change',
+    asPath: '/nav/url-prop-change'
+  })
+
+  await browser.close()
+})
+
+test('should navigate the page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/about')
+  await browser.elementByCss('#home-link').click()
+  await browser.waitForElementByCss('.nav-home')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the home.')
+  await browser.close()
+})
+
+test('should not navigate if the <a/> tag has a target', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+
+  await browser.elementByCss('#increase').click()
+
+  // right now testcafe can't handle target links but we can still
+  // test this by checking if it was a hard navigate
+  await browser.eval('window.beforeTargetLink = true')
+  await browser.elementByCss('#target-link').click()
+
+  const val = await browser.eval(`window.beforeTargetLink`)
+  await t.expect(val).notOk()
+  await browser.close()
+})
+
+test('should not redirect if passHref prop is not defined in Link', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/pass-href-prop')
+  await browser.elementByCss('#without-href').click()
+  await browser.waitForElementByCss('.nav-pass-href-prop')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the passHref prop page.')
+  await browser.close()
+})
+
+test('should redirect if passHref prop is defined in Link', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/pass-href-prop')
+  await browser.elementByCss('#with-href').click()
+  await browser.waitForElementByCss('.nav-home')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the home.')
+  await browser.close()
+})
+
+test('should render an error', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+    await browser.elementByCss('#empty-props').click()
+
+    await waitFor(3000)
+
+    await t
+      .expect(await getReactErrorOverlayContent(browser))
+      .match(/should resolve to an object\. But found "null" instead\./)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should navigate the page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/querystring?id=1')
+  await browser.elementByCss('#next-id-link').click()
+  await browser.waitForElementByCss('.nav-id-2')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('2')
+  await browser.close()
+})
+
+test('should remove querystring', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/querystring?id=1')
+  await browser.elementByCss('#main-page').click()
+  await browser.waitForElementByCss('.nav-id-0')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('0')
+  await browser.close()
+})
+
+test('should reload the page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/self-reload')
+  const defaultCount = await browser.elementByCss('p').text()
+  await t.expect(defaultCount).eql('COUNT: 0')
+  await browser.elementByCss('#self-reload-link').click()
+
+  const countAfterClicked = await browser.elementByCss('p').text()
+  await t.expect(countAfterClicked).eql('COUNT: 1')
+  await browser.close()
+})
+
+test('should always replace the state', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+
+  await browser.elementByCss('#self-reload-link').click()
+  await browser.waitForElementByCss('#self-reload-page')
+  await browser.elementByCss('#self-reload-link').click()
+  await browser.elementByCss('#self-reload-link').click()
+
+  const countAfterClicked = await browser.elementByCss('p').text()
+  // counts (page change + two clicks)
+  await t.expect(countAfterClicked).eql('COUNT: 3')
+
+  // Since we replace the state, back button would simply go us back to /nav
+  await browser.back()
+  await browser.waitForElementByCss('.nav-home')
+
+  await browser.close()
+})
+
+test('should reload the page and perform additional action', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/on-click')
+    const defaultCountQuery = await browser.elementByCss('#query-count').text()
+    const defaultCountState = await browser.elementByCss('#state-count').text()
+    await t.expect(defaultCountQuery).eql('QUERY COUNT: 0')
+    await t.expect(defaultCountState).eql('STATE COUNT: 0')
+
+    await browser.elementByCss('#on-click-link').click()
+
+    const countQueryAfterClicked = await browser
+      .elementByCss('#query-count')
+      .text()
+    const countStateAfterClicked = await browser
+      .elementByCss('#state-count')
+      .text()
+    await t.expect(countQueryAfterClicked).eql('QUERY COUNT: 1')
+    await t.expect(countStateAfterClicked).eql('STATE COUNT: 1')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should not reload if default was prevented', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/on-click')
+    const defaultCountQuery = await browser.elementByCss('#query-count').text()
+    const defaultCountState = await browser.elementByCss('#state-count').text()
+    await t.expect(defaultCountQuery).eql('QUERY COUNT: 0')
+    await t.expect(defaultCountState).eql('STATE COUNT: 0')
+
+    await browser.elementByCss('#on-click-link-prevent-default').click()
+
+    const countQueryAfterClicked = await browser
+      .elementByCss('#query-count')
+      .text()
+    const countStateAfterClicked = await browser
+      .elementByCss('#state-count')
+      .text()
+    await t.expect(countQueryAfterClicked).eql('QUERY COUNT: 0')
+    await t.expect(countStateAfterClicked).eql('STATE COUNT: 1')
+
+    await browser.elementByCss('#on-click-link').click()
+
+    const countQueryAfterClickedAgain = await browser
+      .elementByCss('#query-count')
+      .text()
+    const countStateAfterClickedAgain = await browser
+      .elementByCss('#state-count')
+      .text()
+    await t.expect(countQueryAfterClickedAgain).eql('QUERY COUNT: 1')
+    await t.expect(countStateAfterClickedAgain).eql('STATE COUNT: 2')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should always replace the state and perform additional action', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+
+    await browser.elementByCss('#on-click-link').click()
+
+    await browser.waitForElementByCss('#on-click-page')
+
+    const defaultCountQuery = await browser.elementByCss('#query-count').text()
+    await t.expect(defaultCountQuery).eql('QUERY COUNT: 1')
+
+    await browser.elementByCss('#on-click-link').click()
+    const countQueryAfterClicked = await browser
+      .elementByCss('#query-count')
+      .text()
+    const countStateAfterClicked = await browser
+      .elementByCss('#state-count')
+      .text()
+    await t.expect(countQueryAfterClicked).eql('QUERY COUNT: 2')
+    await t.expect(countStateAfterClicked).eql('STATE COUNT: 1')
+
+    // Since we replace the state, back button would simply go us back to /nav
+    await browser.back()
+    await browser.waitForElementByCss('.nav-home')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should not run getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+  await browser.elementByCss('#via-link').click()
+  const counter = await browser.elementByCss('p').text()
+
+  await t.expect(counter).eql('COUNT: 0')
+
+  await browser.close()
+})
+
+test('should scroll to the specified position on the same page', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+    // Scrolls to item 400 on the page
+    await browser.elementByCss('#scroll-to-item-400').click()
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    await t.expect(scrollPosition).eql(7258)
+
+    // Scrolls back to top when scrolling to `#` with no value.
+    await browser.elementByCss('#via-empty-hash').click()
+    const scrollPositionAfterEmptyHash = await browser.eval(
+      'window.pageYOffset'
+    )
+
+    await t.expect(scrollPositionAfterEmptyHash).eql(0)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should scroll to the specified position on the same page with a name property', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+    // Scrolls to item 400 with name="name-item-400" on the page
+    await browser.elementByCss('#scroll-to-name-item-400').click()
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    console.log(scrollPosition)
+
+    await t.expect(scrollPosition).eql(16258)
+
+    // Scrolls back to top when scrolling to `#` with no value.
+    await browser.elementByCss('#via-empty-hash').click()
+    const scrollPositionAfterEmptyHash = await browser.eval(
+      'window.pageYOffset'
+    )
+
+    await t.expect(scrollPositionAfterEmptyHash).eql(0)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should scroll to the specified position to a new page', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+
+    // Scrolls to item 400 on the page
+    await browser.elementByCss('#scroll-to-hash').click()
+    await browser.waitForElementByCss('#hash-changes-page')
+
+    const scrollPosition = await browser.eval('window.pageYOffset')
+    await t.expect(scrollPosition).eql(7258)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should not run getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+  await browser.elementByCss('#via-a').click()
+  const counter = await browser.elementByCss('p').text()
+
+  await t.expect(counter).eql('COUNT: 0')
+
+  await browser.close()
+})
+
+test('should not run getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+  await browser.elementByCss('#via-a').click()
+  await browser.elementByCss('#page-url').click()
+
+  const counter = await browser.elementByCss('p').text()
+  await t.expect(counter).eql('COUNT: 1')
+
+  await browser.close()
+})
+
+test('should not run getInitialProps when removing via back', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+  await browser.elementByCss('#scroll-to-item-400').click()
+  await browser.back()
+
+  const counter = await browser.elementByCss('p').text()
+  await t.expect(counter).eql('COUNT: 0')
+  await browser.close()
+})
+
+test('should not run getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+  await browser.elementByCss('#via-a').click()
+  await browser.elementByCss('#via-empty-hash').click()
+
+  const counter = await browser.elementByCss('p').text()
+  await t.expect(counter).eql('COUNT: 0')
+
+  await browser.close()
+})
+
+test('should not run getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/hash-changes')
+
+  await browser.elementByCss('#via-a').click()
+  await browser.elementByCss('#via-link').click()
+
+  const counter = await browser.elementByCss('p').text()
+  await t.expect(counter).eql('COUNT: 0')
+
+  await browser.close()
+})
+
+test('should update the url without running getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/shallow-routing')
+  await browser.elementByCss('#increase').click()
+  await browser.elementByCss('#increase').click()
+
+  const counter = await browser.elementByCss('#counter').text()
+  await t.expect(counter).eql('Counter: 2')
+
+  const getInitialPropsRunCount = await browser
+    .elementByCss('#get-initial-props-run-count')
+    .text()
+  await t.expect(getInitialPropsRunCount).eql('getInitialProps run count: 1')
+
+  await browser.close()
+})
+
+test('should handle the back button and should not run getInitialProps', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/shallow-routing')
+  await browser.elementByCss('#increase').click()
+  await browser.elementByCss('#increase').click()
+
+  let counter = await browser.elementByCss('#counter').text()
+  await t.expect(counter).eql('Counter: 2')
+
+  await browser.back()
+
+  counter = await browser.elementByCss('#counter').text()
+  await t.expect(counter).eql('Counter: 1')
+
+  const getInitialPropsRunCount = await browser
+    .elementByCss('#get-initial-props-run-count')
+    .text()
+  await t.expect(getInitialPropsRunCount).eql('getInitialProps run count: 1')
+
+  await browser.close()
+})
+
+test('should run getInitialProps always when rending the page to the screen', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/shallow-routing')
+
+  await browser.elementByCss('#increase').click()
+  await browser.elementByCss('#increase').click()
+  await browser.elementByCss('#home-link').click()
+  await browser.waitForElementByCss('.nav-home')
+  await browser.back()
+  await browser.waitForElementByCss('.shallow-routing')
+
+  const counter = await browser.elementByCss('#counter').text()
+  await t.expect(counter).eql('Counter: 2')
+
+  const getInitialPropsRunCount = await browser
+    .elementByCss('#get-initial-props-run-count')
+    .text()
+  await t.expect(getInitialPropsRunCount).eql('getInitialProps run count: 2')
+
+  await browser.close()
+})
+
+test('should work with <Link/>', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#query-string-link').click()
+  await browser.waitForElementByCss('.nav-querystring')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('10')
+
+  await t
+    .expect(await browser.url())
+    .eql(`http://localhost:${t.fixtureCtx.appPort}/nav/querystring/10#10`)
+  await browser.close()
+})
+
+test('should work with "Router.push"', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#query-string-button').click()
+  await browser.waitForElementByCss('.nav-querystring')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('10')
+
+  await t
+    .expect(await browser.url())
+    .eql(`http://localhost:${t.fixtureCtx.appPort}/nav/querystring/10#10`)
+  await browser.close()
+})
+
+// Updated to not rely on history.length since it's unreliable
+test('should work with the "replace" prop', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+
+  // Navigation to /about using normal link should add it to history
+  await browser.elementByCss('#about-link').click()
+  await browser.waitForElementByCss('.nav-about')
+
+  await browser.elementByCss('#home-link').click()
+  await browser.waitForElementByCss('.nav-home')
+
+  // Navigation to /about using a replace link should replace home in the history
+  await browser.elementByCss('#about-replace-link').click()
+  await browser.waitForElementByCss('.nav-about')
+
+  let text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the about page.')
+
+  // Navigating back should remain on the about page since
+  // home was replaced by it and the previous entry was about
+  await browser.back()
+
+  text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the about page.')
+
+  await browser.elementByCss('#home-link').click()
+  await browser.waitForElementByCss('.nav-home')
+
+  await browser.close()
+})
+
+test('should redirect the page via client side', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#redirect-link').click()
+  await browser.waitForElementByCss('.nav-about')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the about page.')
+  await browser.close()
+})
+
+test('should redirect the page when loading', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/redirect')
+  await browser.waitForElementByCss('.nav-about')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the about page.')
+  await browser.close()
+})
+
+test('should work with normal page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/with-cdm')
+  const text = await browser.elementByCss('p').text()
+
+  await t.expect(text).eql('ComponentDidMount executed on client.')
+  await browser.close()
+})
+
+test('should work with dir/ page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nested-cdm')
+  const text = await browser.elementByCss('p').text()
+
+  await t.expect(text).eql('ComponentDidMount executed on client.')
+  await browser.close()
+})
+
+test('should work with /index page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/index')
+  const text = await browser.elementByCss('p').text()
+
+  await t.expect(text).eql('ComponentDidMount executed on client.')
+  await browser.close()
+})
+
+test('should work with / page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/')
+  const text = await browser.elementByCss('p').text()
+
+  await t.expect(text).eql('ComponentDidMount executed on client.')
+  await browser.close()
+})
+
+test('should navigate as expected', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/with-hoc')
+
+  const pathname = await browser.elementByCss('#pathname').text()
+  await t.expect(pathname).eql('Current path: /nav/with-hoc')
+
+  const asPath = await browser.elementByCss('#asPath').text()
+  await t.expect(asPath).eql('Current asPath: /nav/with-hoc')
+
+  await browser.elementByCss('.nav-with-hoc a').click()
+  await browser.waitForElementByCss('.nav-home')
+
+  const text = await browser.elementByCss('p').text()
+  await t.expect(text).eql('This is the home.')
+  await browser.close()
+})
+
+test('should show the correct asPath with a Link with as prop', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#as-path-link').click()
+  await browser.waitForElementByCss('.as-path-content')
+
+  const asPath = await browser.elementByCss('.as-path-content').text()
+  await t.expect(asPath).eql('/as/path')
+  await browser.close()
+})
+
+test('should show the correct asPath with a Link without the as prop', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#as-path-link-no-as').click()
+  await browser.waitForElementByCss('.as-path-content')
+
+  const asPath = await browser.elementByCss('.as-path-content').text()
+  await t.expect(asPath).eql('/nav/as-path')
+  await browser.close()
+})
+
+test('should show the correct asPath', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav')
+  await browser.elementByCss('#as-path-using-router-link').click()
+  await browser.waitForElementByCss('.as-path-content')
+
+  const asPath = await browser.elementByCss('.as-path-content').text()
+  await t.expect(asPath).eql('/nav/as-path-using-router')
+  await browser.close()
+})
+
+test('should use pushState with same href and different asPath', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/as-path-pushstate')
+    await browser.elementByCss('#hello').click()
+    await browser.waitForElementByCss('#something-hello')
+
+    const queryOne = JSON.parse(
+      await browser.elementByCss('#router-query').text()
+    )
+    await t.expect(queryOne.something).eql('hello')
+    await browser.elementByCss('#same-query').click()
+    await browser.waitForElementByCss('#something-same-query')
+
+    const queryTwo = JSON.parse(
+      await browser.elementByCss('#router-query').text()
+    )
+    await t.expect(queryTwo.something).eql('hello')
+    await browser.back()
+    await browser.waitForElementByCss('#something-hello')
+
+    const queryThree = JSON.parse(
+      await browser.elementByCss('#router-query').text()
+    )
+    await t.expect(queryThree.something).eql('hello')
+    await browser.elementByCss('#else').click()
+    await browser.waitForElementByCss('#something-else')
+
+    await browser.elementByCss('#hello2').click()
+    await browser.waitForElementByCss('#nav-as-path-pushstate')
+    await browser.back()
+    await browser.waitForElementByCss('#something-else')
+
+    const queryFour = JSON.parse(
+      await browser.elementByCss('#router-query').text()
+    )
+    await t.expect(queryFour.something).eql(undefined)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should detect asPath query changes correctly', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/as-path-query')
+    await browser.elementByCss('#hello').click()
+    await browser.waitForElementByCss('#something-hello-something-hello')
+
+    const queryOne = JSON.parse(
+      await browser.elementByCss('#router-query').text()
+    )
+    await t.expect(queryOne.something).eql('hello')
+    await browser.elementByCss('#hello2').click()
+    await browser.waitForElementByCss('#something-hello-something-else')
+
+    const queryTwo = JSON.parse(
+      await browser.elementByCss('#router-query').text()
+    )
+    await t.expect(queryTwo.something).eql('else')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should show react-error-overlay when a client side error is thrown inside a component', async t => {
+  let browser
+  try {
+    browser = await webdriver(
+      t.fixtureCtx.appPort,
+      '/error-inside-browser-page'
+    )
+    await waitFor(3000)
+    const text = await getReactErrorOverlayContent(browser)
+    await t.expect(text).match(/An Expected error occurred/)
+    await t.expect(text).match(/pages\/error-inside-browser-page\.js/)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should show react-error-overlay when a client side error is thrown outside a component', async t => {
+  let browser
+  try {
+    browser = await webdriver(
+      t.fixtureCtx.appPort,
+      '/error-in-the-browser-global-scope'
+    )
+    await waitFor(3000)
+    const text = await getReactErrorOverlayContent(browser)
+    await t.expect(text).match(/An Expected error occurred/)
+    await t.expect(text).match(/error-in-the-browser-global-scope\.js/)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should 404 on not existent page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/non-existent')
+  await t.expect(await browser.elementByCss('h1').text()).eql('404')
+  await t
+    .expect(await browser.elementByCss('h2').text())
+    .eql('This page could not be found.')
+  await browser.close()
+})
+
+test('should 404 for <page>/', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nav/about/')
+  await t.expect(await browser.elementByCss('h1').text()).eql('404')
+  await t
+    .expect(await browser.elementByCss('h2').text())
+    .eql('This page could not be found.')
+  await browser.close()
+})
+
+test('should should not contain a page script in a 404 page', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/non-existent')
+  const scripts = await browser.elementsByCss('script[src]')
+  for (const script of scripts) {
+    const src = await script.getAttribute('src')
+    await t.expect(src.includes('/non-existent')).notOk()
+  }
+  await browser.close()
+})
+
+test('should update head during client routing', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/head-1')
+    await t
+      .expect(
+        await browser
+          .elementByCss('meta[name="description"]')
+          .getAttribute('content')
+      )
+      .eql('Head One')
+
+    await browser.elementByCss('#to-head-2').click()
+    await browser.waitForElementByCss('#head-2', 3000)
+    await t
+      .expect(
+        await browser
+          .elementByCss('meta[name="description"]')
+          .getAttribute('content')
+      )
+      .eql('Head Two')
+
+    await browser.elementByCss('#to-head-1').click()
+
+    await browser.waitForElementByCss('#head-1', 3000)
+    await t
+      .expect(
+        await browser
+          .elementByCss('meta[name="description"]')
+          .getAttribute('content')
+      )
+      .eql('Head One')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should update title during client routing', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav/head-1')
+    await t.expect(await browser.eval('document.title')).eql('this is head-1')
+
+    await browser.elementByCss('#to-head-2').click()
+    await browser.waitForElementByCss('#head-2', 3000)
+
+    await t.expect(await browser.eval('document.title')).eql('this is head-2')
+
+    await browser.elementByCss('#to-head-1').click()
+    await browser.waitForElementByCss('#head-1', 3000)
+
+    await t.expect(await browser.eval('document.title')).eql('this is head-1')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should not error on module.exports + polyfills', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/read-only-object-error')
+    await t
+      .expect(await browser.elementByCss('body').text())
+      .contains('this is just a placeholder component')
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
+})
+
+test('should work on nested /index/index.js', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/nested-index/index')
+  await t
+    .expect(await browser.elementByCss('p').text())
+    .contains('This is an index.js nested in an index/ folder.')
+  await browser.close()
+})
+
+renderingSuite(
+  (p, q) => renderViaHTTP(t.fixtureCtx.appPort, p, q),
+  (p, q) => fetchViaHTTP(t.fixtureCtx.appPort, p, q)
+)
