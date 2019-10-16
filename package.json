@@ -108,7 +108,7 @@
     "rimraf": "2.6.3",
     "standard": "12.0.1",
     "taskr": "1.1.0",
-    "testcafe": "1.5.0",
+    "testcafe": "1.6.0",
     "tree-kill": "1.2.1",
     "typescript": "3.5.1",
     "typescript-eslint-parser": "22.0.0",
