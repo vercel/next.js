@@ -168,8 +168,10 @@ const nextServerlessLoader: loader.Loader = function() {
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
 
         if (sprData) {
-          result = JSON.stringify(renderOpts.sprData)
-
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify(sprData))
+          result = null
+        }
         if (fromExport) return { html: result, renderOpts }
         return result
       } catch (err) {
@@ -193,7 +195,9 @@ const nextServerlessLoader: loader.Loader = function() {
     export async function render (req, res) {
       try {
         const html = await renderReqToHTML(req, res)
-        sendHTML(req, res, html, {generateEtags: ${generateEtags}})
+        if (html) {
+          sendHTML(req, res, html, {generateEtags: ${generateEtags}})
+        }
       } catch(err) {
         console.error(err)
         res.statusCode = 500
