@@ -31,7 +31,7 @@ yarn
 yarn dev
 ```
 
-Notice that `yarn toolbox` (or `npm run toolbox`) should be rerun every time the `"reactToolbox"` configuration in `package.json` is changed, in order to update `static/theme.js` and `static/theme.css`. The `"reactToolbox"` configuration includes styling, and the list of react-toolbox components to include.
+Notice that `yarn toolbox` (or `npm run toolbox`) should be rerun every time the `"reactToolbox"` configuration in `package.json` is changed, in order to update `/theme.js` and `public/theme.css`. The `"reactToolbox"` configuration includes styling, and the list of react-toolbox components to include.
 
 ## The idea behind the example
 

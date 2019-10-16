@@ -13,7 +13,7 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, NextRouter }
+export { Router, RouterContext, NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 

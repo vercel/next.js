@@ -12,7 +12,8 @@ import {
   nextBuild,
   nextStart,
   nextExport,
-  startStaticServer
+  startStaticServer,
+  initNextServerScript
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -23,6 +24,23 @@ let appPort
 let buildId
 let distPagesDir
 let exportDir
+
+const startServer = async (optEnv = {}) => {
+  const scriptPath = join(appDir, 'server.js')
+  const env = Object.assign(
+    {},
+    { ...process.env },
+    { PORT: `${appPort}` },
+    optEnv
+  )
+
+  return initNextServerScript(
+    scriptPath,
+    /ready on/i,
+    env,
+    /ReferenceError: options is not defined/
+  )
+}
 
 const expectedManifestRoutes = () => ({
   '/': {
@@ -259,20 +277,36 @@ const runTests = (dev = false) => {
       expect(new Set(vals).size).toBe(1)
     })
 
-    it('should handle revalidating HTML correctly', async () => {
-      const route = '/blog/post-1/comment-1'
+    it('should not revalidate when set to false', async () => {
+      const route = '/something'
       const initialHtml = await renderViaHTTP(appPort, route)
-      expect(initialHtml).toMatch(/Post:.*?post-1/)
-      expect(initialHtml).toMatch(/Comment:.*?comment-1/)
+      let newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+
+      newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+
+      newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+    })
+
+    it('should handle revalidating HTML correctly', async () => {
+      const route = '/blog/post-2/comment-2'
+      const initialHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toMatch(/Post:.*?post-2/)
+      expect(initialHtml).toMatch(/Comment:.*?comment-2/)
+
+      let newHtml = await renderViaHTTP(appPort, route)
+      expect(newHtml).toBe(initialHtml)
 
       await waitFor(2 * 1000)
       await renderViaHTTP(appPort, route)
 
       await waitFor(2 * 1000)
-      const newHtml = await renderViaHTTP(appPort, route)
+      newHtml = await renderViaHTTP(appPort, route)
       expect(newHtml === initialHtml).toBe(false)
-      expect(newHtml).toMatch(/Post:.*?post-1/)
-      expect(newHtml).toMatch(/Comment:.*?comment-1/)
+      expect(newHtml).toMatch(/Post:.*?post-2/)
+      expect(newHtml).toMatch(/Comment:.*?comment-2/)
     })
 
     it('should handle revalidating JSON correctly', async () => {
@@ -281,11 +315,14 @@ const runTests = (dev = false) => {
       expect(initialJson).toMatch(/post-2/)
       expect(initialJson).toMatch(/comment-3/)
 
+      let newJson = await renderViaHTTP(appPort, route)
+      expect(newJson).toBe(initialJson)
+
       await waitFor(2 * 1000)
       await renderViaHTTP(appPort, route)
 
       await waitFor(2 * 1000)
-      const newJson = await renderViaHTTP(appPort, route)
+      newJson = await renderViaHTTP(appPort, route)
       expect(newJson === initialJson).toBe(false)
       expect(newJson).toMatch(/post-2/)
       expect(newJson).toMatch(/comment-3/)
@@ -314,11 +351,25 @@ describe('SPR Prerender', () => {
       )
       await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = nextStart(appDir, appPort)
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
+
+    it('renders data correctly', async () => {
+      const port = await findPort()
+      const server = await startServer({
+        BUILD_ID: buildId,
+        PORT: port
+      })
+      const data = await renderViaHTTP(
+        port,
+        `/_next/data/${buildId}/index.json`
+      )
+      await killApp(server)
+      expect(JSON.parse(data).pageProps.world).toBe('world')
+    })
 
     runTests()
   })

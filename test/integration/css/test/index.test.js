@@ -11,9 +11,11 @@ import {
   startApp,
   stopApp,
   File,
-  waitFor
+  waitFor,
+  renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -462,6 +464,19 @@ describe('CSS Support', () => {
           await browser.close()
         }
       }
+    })
+
+    it(`should've preloaded the CSS file and injected it in <head>`, async () => {
+      const content = await renderViaHTTP(appPort, '/page2')
+      const $ = cheerio.load(content)
+
+      const cssPreload = $('link[rel="preload"][as="style"]')
+      expect(cssPreload.length).toBe(1)
+      expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      const cssSheet = $('link[rel="stylesheet"]')
+      expect(cssSheet.length).toBe(1)
+      expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
     })
   })
 
