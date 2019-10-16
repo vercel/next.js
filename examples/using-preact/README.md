@@ -1,4 +1,4 @@
-# Hello World example
+# Preact example
 
 ## How to use
 
@@ -43,4 +43,5 @@ This example uses [Preact](https://github.com/developit/preact) instead of React
 
 Here's how we did it:
 
-- Use `next.config.js` to customize our webpack config to support [preact-compat](https://github.com/developit/preact-compat)
+- Use `next.config.js` to customize our webpack config by aliasing React to `preact/compat`
+- Use `server.js` to make our server use Preact by aliasing React to `preact/compat`
