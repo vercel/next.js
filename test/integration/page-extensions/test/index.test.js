@@ -1,23 +1,20 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 // test suits
 import hmr from './hmr'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Page Extensions', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Page Extensions')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
 
     // pre-build all pages at the start
-    await Promise.all([renderViaHTTP(context.appPort, '/hmr/some-page')])
+    await Promise.all([renderViaHTTP(ctx.appPort, '/hmr/some-page')])
   })
-  afterAll(() => killApp(context.server))
+  .after(ctx => killApp(ctx.server))
 
-  hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-})
+hmr((p, q) => renderViaHTTP(t.fixtureCtx.appPort, p, q))
