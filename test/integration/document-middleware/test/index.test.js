@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -9,38 +10,32 @@ import {
   killApp
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-
-let app
-let appPort
-
-describe('Document middleware', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(join(__dirname, '../'), appPort)
+fixture('Document middleware')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(join(__dirname, '../'), ctx.appPort)
   })
-  afterAll(() => killApp(app))
+  .after(ctx => killApp(ctx.app))
 
-  it('should render a page without error', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/hi there/i)
-  })
+test('should render a page without error', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await t.expect(html).match(/hi there/i)
+})
 
-  it('should set header in middleware and still render', async () => {
-    const res = await fetchViaHTTP(appPort, '/')
-    const html = await res.text()
-    const header = res.headers.get('next-middleware')
+test('should set header in middleware and still render', async t => {
+  const res = await fetchViaHTTP(t.fixtureCtx.appPort, '/')
+  const html = await res.text()
+  const header = res.headers.get('next-middleware')
 
-    expect(html).toMatch(/hi there/i)
-    expect(header).toBe('hi from middleware')
-  })
+  await t.expect(html).match(/hi there/i)
+  await t.expect(header).eql('hi from middleware')
+})
 
-  it('should set header and abort render on res.end()', async () => {
-    const res = await fetchViaHTTP(appPort, '/another')
-    const html = (await res.text()) || ''
-    const header = res.headers.get('next-middleware')
+test('should set header and abort render on res.end()', async t => {
+  const res = await fetchViaHTTP(t.fixtureCtx.appPort, '/another')
+  const html = (await res.text()) || ''
+  const header = res.headers.get('next-middleware')
 
-    expect(html.length).toBe(0)
-    expect(header).toBe('hit another!')
-  })
+  await t.expect(html.length).eql(0)
+  await t.expect(header).eql('hit another!')
 })
