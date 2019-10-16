@@ -288,29 +288,21 @@ export async function startStaticServer (dir) {
 }
 
 export async function check (contentFn, regex) {
-  let found = false
-  const timeout = setTimeout(async () => {
-    if (found) {
-      return
+  let checks = 1
+  let content
+
+  while (true) {
+    if (checks > 30) {
+      console.error('TIMED OUT CHECK: ', { regex, content })
+      throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
     }
-    let content
     try {
       content = await contentFn()
-    } catch (err) {
-      console.error('Error while getting content', { regex })
-    }
-    console.error('TIMED OUT CHECK: ', { regex, content })
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      const newContent = await contentFn()
-      if (regex.test(newContent)) {
-        found = true
-        clearTimeout(timeout)
+      if (regex.test(content)) {
         break
       }
       await waitFor(1000)
+      checks++
     } catch (ex) {}
   }
 }
@@ -346,30 +338,27 @@ export class File {
 
 // react-error-overlay uses an iframe so we have to read the contents from the frame
 export async function getReactErrorOverlayContent () {
-  let found = false
-  setTimeout(() => {
-    if (found) {
-      return
+  let checks = 1
+  while (true) {
+    if (checks > 30) {
+      console.error('TIMED OUT CHECK FOR IFRAME')
+      throw new Error('TIMED OUT CHECK FOR IFRAME')
     }
-    console.error('TIMED OUT CHECK FOR IFRAME')
-    throw new Error('TIMED OUT CHECK FOR IFRAME')
-  }, 1000 * 30)
-  while (!found) {
     try {
-      await Selector('iframe', { timeout: 10000 }).exists
+      const found = await Selector('iframe', { timeout: 1000 }).exists
 
-      found = true
-      return t.eval(
-        () =>
-          document.querySelector('iframe').contentWindow.document.body.innerHTML
-      )
-    } catch (ex) {
-      await waitFor(1000)
-    }
+      if (found) {
+        return t.eval(
+          () =>
+            document.querySelector('iframe').contentWindow.document.body
+              .innerHTML
+        )
+      }
+    } catch (_) {}
+
+    await waitFor(1000)
+    checks++
   }
-  return t.eval(
-    () => document.querySelector('iframe').contentWindow.document.body.innerHTML
-  )
 }
 
 export function getBrowserBodyText () {
