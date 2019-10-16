@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
@@ -15,13 +16,11 @@ import {
   getBrowserBodyText
 } from 'next-test-utils'
 
-const context = {}
-
 const doPing = page => {
   const controller = new AbortController()
   const signal = controller.signal
   return fetchViaHTTP(
-    context.appPort,
+    t.fixtureCtx.appPort,
     '/_next/webpack-hmr',
     { page },
     { signal }
@@ -37,82 +36,83 @@ const doPing = page => {
   })
 }
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('On Demand Entries', () => {
-  it('should pass', () => {})
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('On Demand Entries')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
   })
-  afterAll(() => {
-    killApp(context.server)
+  .after(async ctx => {
+    await killApp(ctx.server)
   })
 
-  it('should compile pages for SSR', async () => {
-    // The buffer of built page uses the on-demand-entries-ping to know which pages should be
-    // buffered. Therefore, we need to double each render call with a ping.
-    const pageContent = await renderViaHTTP(context.appPort, '/')
-    await doPing('/')
-    expect(pageContent.includes('Index Page')).toBeTruthy()
-  })
+test('should compile pages for SSR', async t => {
+  // The buffer of built page uses the on-demand-entries-ping to know which pages should be
+  // buffered. Therefore, we need to double each render call with a ping.
+  const pageContent = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await doPing('/')
+  await t.expect(pageContent.includes('Index Page')).ok()
+})
 
-  it('should compile pages for JSON page requests', async () => {
-    const pageContent = await renderViaHTTP(
-      context.appPort,
-      '/_next/static/development/pages/about.js'
-    )
-    expect(pageContent.includes('About Page')).toBeTruthy()
-  })
+test('should compile pages for JSON page requests', async t => {
+  const pageContent = await renderViaHTTP(
+    t.fixtureCtx.appPort,
+    '/_next/static/development/pages/about.js'
+  )
+  await t.expect(pageContent.includes('About Page')).ok()
+})
 
-  it('should dispose inactive pages', async () => {
-    const indexPagePath = resolve(
-      __dirname,
-      '../.next/static/development/pages/index.js'
-    )
-    expect(existsSync(indexPagePath)).toBeTruthy()
+test('should dispose inactive pages', async t => {
+  const indexPagePath = resolve(
+    __dirname,
+    '../.next/static/development/pages/index.js'
+  )
+  await t.expect(existsSync(indexPagePath)).ok()
 
-    // Render two pages after the index, since the server keeps at least two pages
-    await renderViaHTTP(context.appPort, '/about')
-    await doPing('/about')
-    const aboutPagePath = resolve(
-      __dirname,
-      '../.next/static/development/pages/about.js'
-    )
+  // Render two pages after the index, since the server keeps at least two pages
+  await renderViaHTTP(t.fixtureCtx.appPort, '/about')
+  await doPing('/about')
+  const aboutPagePath = resolve(
+    __dirname,
+    '../.next/static/development/pages/about.js'
+  )
 
-    await renderViaHTTP(context.appPort, '/third')
-    await doPing('/third')
-    const thirdPagePath = resolve(
-      __dirname,
-      '../.next/static/development/pages/third.js'
-    )
+  await renderViaHTTP(t.fixtureCtx.appPort, '/third')
+  await doPing('/third')
+  const thirdPagePath = resolve(
+    __dirname,
+    '../.next/static/development/pages/third.js'
+  )
+  let checks = 1
 
-    // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
-    // for disposing /about
-    while (true) {
-      await waitFor(1000 * 1)
-      // Assert that the two lastly demanded page are not disposed
-      expect(existsSync(aboutPagePath)).toBeTruthy()
-      expect(existsSync(thirdPagePath)).toBeTruthy()
-      if (!existsSync(indexPagePath)) return
+  while (true) {
+    if (checks > 30) {
+      throw new Error(
+        'exceeded max number of checks for disposing pages correctly'
+      )
     }
-  })
+    await waitFor(1000 * 1)
+    // Assert that the two lastly demanded page are not disposed
+    await t.expect(existsSync(aboutPagePath)).ok()
+    await t.expect(existsSync(thirdPagePath)).ok()
+    if (!existsSync(indexPagePath)) return
+    checks++
+  }
+})
 
-  it('should navigate to pages with dynamic imports', async () => {
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/nav')
+test('should navigate to pages with dynamic imports', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/nav')
 
-      await browser.eval('document.getElementById("to-dynamic").click()')
+    await browser.eval('document.getElementById("to-dynamic").click()')
 
-      await check(async () => {
-        const text = await getBrowserBodyText(browser)
-        return text
-      }, /Hello/)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
+    await check(async () => {
+      const text = await getBrowserBodyText(browser)
+      return text
+    }, /Hello/)
+  } finally {
+    if (browser) {
+      await browser.close()
     }
-  })
+  }
 })
