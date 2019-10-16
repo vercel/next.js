@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
@@ -10,103 +11,94 @@ import {
   killApp,
   nextBuild,
   startApp,
-  stopApp
+  stopApp,
+  waitFor
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+const appDir = join(__dirname, '../')
 
-describe('withRouter', () => {
-  const appDir = join(__dirname, '../')
-  let appPort
-  let server
-  let app
-
-  beforeAll(async () => {
+fixture('withRouter')
+  .before(async ctx => {
     await nextBuild(appDir)
-    app = nextServer({
+    ctx.app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
       quiet: true
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    ctx.server = await startApp(ctx.app)
+    ctx.appPort = ctx.server.address().port
   })
+  .after(ctx => stopApp(ctx.server))
 
-  afterAll(() => stopApp(server))
+test('allows observation of navigation events using withRouter', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/a')
+  await browser.waitForElementByCss('#page-a')
 
-  it('allows observation of navigation events using withRouter', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
+  let activePage = await browser.elementByCss('.active').text()
+  await t.expect(activePage).eql('Foo')
 
-    let activePage = await browser.elementByCss('.active').text()
-    expect(activePage).toBe('Foo')
+  await browser.elementByCss('button').click()
+  await browser.waitForElementByCss('#page-b')
 
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
+  activePage = await browser.elementByCss('.active').text()
+  await t.expect(activePage).eql('Bar')
 
-    activePage = await browser.elementByCss('.active').text()
-    expect(activePage).toBe('Bar')
-
-    await browser.close()
-  })
-
-  it('allows observation of navigation events using top level Router', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
-
-    let activePage = await browser
-      .elementByCss('.active-top-level-router')
-      .text()
-    expect(activePage).toBe('Foo')
-
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
-
-    activePage = await browser.elementByCss('.active-top-level-router').text()
-    expect(activePage).toBe('Bar')
-
-    await browser.close()
-  })
-
-  it('allows observation of navigation events using top level Router deprecated behavior', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
-
-    let activePage = await browser
-      .elementByCss('.active-top-level-router-deprecated-behavior')
-      .text()
-    expect(activePage).toBe('Foo')
-
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
-
-    activePage = await browser
-      .elementByCss('.active-top-level-router-deprecated-behavior')
-      .text()
-    expect(activePage).toBe('Bar')
-
-    await browser.close()
-  })
+  await browser.close()
 })
 
-describe('withRouter SSR', () => {
-  let server
-  let port
+test('allows observation of navigation events using top level Router', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/a')
+  await browser.waitForElementByCss('#page-a')
 
-  beforeAll(async () => {
-    port = await findPort()
-    server = await launchApp(join(__dirname, '..'), port)
+  let activePage = await browser.elementByCss('.active-top-level-router').text()
+  await t.expect(activePage).eql('Foo')
+
+  await browser.elementByCss('button').click()
+  await browser.waitForElementByCss('#page-b')
+
+  activePage = await browser.elementByCss('.active-top-level-router').text()
+  await t.expect(activePage).eql('Bar')
+
+  await browser.close()
+})
+
+test('allows observation of navigation events using top level Router deprecated behavior', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/a')
+  await browser.waitForElementByCss('#page-a')
+
+  let activePage = await browser
+    .elementByCss('.active-top-level-router-deprecated-behavior')
+    .text()
+  await t.expect(activePage).eql('Foo')
+
+  await browser.elementByCss('button').click()
+  await browser.waitForElementByCss('#page-b')
+
+  activePage = await browser
+    .elementByCss('.active-top-level-router-deprecated-behavior')
+    .text()
+  await t.expect(activePage).eql('Bar')
+
+  await browser.close()
+})
+
+fixture('withRouter SSR')
+  .before(async ctx => {
+    ctx.port = await findPort()
+    ctx.server = await launchApp(join(__dirname, '..'), ctx.port)
   })
-  afterAll(async () => {
-    await killApp(server)
+  .after(async ctx => {
+    await killApp(ctx.server)
   })
 
-  it('should show an error when trying to use router methods during SSR', async () => {
-    const browser = await webdriver(port, '/router-method-ssr')
-    expect(await getReactErrorOverlayContent(browser)).toMatch(
+test('should show an error when trying to use router methods during SSR', async t => {
+  const browser = await webdriver(t.fixtureCtx.port, '/router-method-ssr')
+  await waitFor(1000)
+  await t
+    .expect(await getReactErrorOverlayContent(browser))
+    .contains(
       `No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`
     )
-    await browser.close()
-  })
+  await browser.close()
 })
