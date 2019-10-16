@@ -101,6 +101,9 @@ class WdInterface {
       },
       getValue () {
         return el.value
+      },
+      moveTo () {
+        return t.hover(el)
       }
     }
   }
