@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -9,31 +10,24 @@ import {
   stopApp
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-let app
-let appPort
-let server
 const appDir = join(__dirname, '../')
 
-describe('Legacy Packages', () => {
-  beforeAll(async () => {
+fixture('Legacy Packages')
+  .before(async ctx => {
     await runNextCommand(['build', appDir])
 
-    app = nextServer({
+    ctx.app = nextServer({
       dir: appDir,
       dev: false,
       quiet: true
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    ctx.server = await startApp(ctx.app)
+    ctx.appPort = ctx.server.address().port
   })
+  .after(ctx => stopApp(ctx.server))
 
-  it('should support `node-gently` packages', async () => {
-    const res = await renderViaHTTP(appPort, '/api/hello')
-    expect(res).toMatch(/hello world/i)
-  })
-
-  afterAll(() => stopApp(server))
+test('should support `node-gently` packages', async t => {
+  const res = await renderViaHTTP(t.fixtureCtx.appPort, '/api/hello')
+  await t.expect(res).match(/hello world/i)
 })
