@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   nextServer,
@@ -9,31 +10,27 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+fixture('Production Custom Build Directory')
 
-describe('Production Custom Build Directory', () => {
-  describe('With basic usage', () => {
-    it('should render the page', async () => {
-      const result = await runNextCommand(['build', 'build'], {
-        cwd: join(__dirname, '..'),
-        stdout: true,
-        stderr: true
-      })
-      expect(result.stderr).toBe('')
-
-      const app = nextServer({
-        dir: join(__dirname, '../build'),
-        dev: false,
-        quiet: true
-      })
-
-      const server = await startApp(app)
-      const appPort = server.address().port
-
-      const html = await renderViaHTTP(appPort, '/')
-      expect(html).toMatch(/Hello World/)
-
-      await stopApp(server)
-    })
+test('should render the page', async t => {
+  const result = await runNextCommand(['build', 'build'], {
+    cwd: join(__dirname, '..'),
+    stdout: true,
+    stderr: true
   })
+  await t.expect(result.stderr).eql('')
+
+  const app = nextServer({
+    dir: join(__dirname, '../build'),
+    dev: false,
+    quiet: true
+  })
+
+  const server = await startApp(app)
+  const appPort = server.address().port
+
+  const html = await renderViaHTTP(appPort, '/')
+  await t.expect(html).match(/Hello World/)
+
+  await stopApp(server)
 })
