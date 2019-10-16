@@ -10,5 +10,5 @@ fixture('Build Stats Output')
 
 test('Shows correct package count in output', async t => {
   const { stdout } = await nextBuild(appDir, undefined, { stdout: true })
-  await t.expect(stdout).match(/\/something .*?6/)
+  await t.expect(stdout).match(/\/something .*?5/)
 })

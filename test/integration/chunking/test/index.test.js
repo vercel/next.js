@@ -4,6 +4,7 @@ import { t } from 'testcafe'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
+import cheerio from 'cheerio'
 
 const appDir = join(__dirname, '../')
 
@@ -70,6 +71,30 @@ test('should create a _buildManifest.js file', async t => {
       )
     )
     .eql(undefined) /* fs.access callback returns undefined if file exists */
+})
+
+test('should not preload the build manifest', async t => {
+  const indexPage = await readFile(
+    join(
+      appDir,
+      '.next',
+      'server',
+      'static',
+      t.fixtureCtx.buildId,
+      'pages',
+      'index.html'
+    )
+  )
+
+  const $ = cheerio.load(indexPage)
+  await t
+    .expect(
+      [].slice
+        .call($('link[rel="preload"][as="script"]'))
+        .map(e => e.attribs.href)
+        .some(entry => entry.includes('_buildManifest'))
+    )
+    .eql(false)
 })
 
 test('should not include more than one instance of react-dom', async t => {

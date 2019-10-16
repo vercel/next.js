@@ -12,9 +12,11 @@ import {
   startApp,
   stopApp,
   File,
-  waitFor
+  waitFor,
+  renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
@@ -396,6 +398,21 @@ test('should have CSS for page', async t => {
       await browser.close()
     }
   }
+})
+
+test(`should've preloaded the CSS file and injected it in <head>`, async t => {
+  const content = await renderViaHTTP(t.fixtureCtx.appPort, '/page2')
+  const $ = cheerio.load(content)
+
+  const cssPreload = $('link[rel="preload"][as="style"]')
+  await t.expect(cssPreload.length).eql(1)
+  await t
+    .expect(cssPreload.attr('href'))
+    .match(/^\/_next\/static\/css\/.*\.css$/)
+
+  const cssSheet = $('link[rel="stylesheet"]')
+  await t.expect(cssSheet.length).eql(1)
+  await t.expect(cssSheet.attr('href')).match(/^\/_next\/static\/css\/.*\.css$/)
 })
 
 fixture('CSS URL via `file-loader').before(async ctx => {
