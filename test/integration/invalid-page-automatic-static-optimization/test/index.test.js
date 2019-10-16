@@ -11,7 +11,7 @@ describe('Invalid Page automatic static optimization', () => {
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
 
     expect(stderr).toMatch(
-      /automatic static optimization failed: found pages without a React Component as default export in/
+      /Build optimization failed: found pages without a React Component as default export in/
     )
     expect(stderr).toMatch(/pages\/invalid/)
     expect(stderr).toMatch(/pages\/also-invalid/)

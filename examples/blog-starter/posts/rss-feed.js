@@ -11,7 +11,7 @@ const feed = {
   feed_url: `${siteMeta.siteUrl}/feed.json`,
   description: siteMeta.description,
   icon: `${siteMeta.siteUrl}/static/apple-touch-icon-152x152.png`,
-  favicon: `${siteMeta.siteUrl}/static/favicon.ico`,
+  favicon: `${siteMeta.siteUrl}/favicon.ico`,
   author: {
     name: siteMeta.author,
     url: siteMeta.siteUrl,

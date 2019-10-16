@@ -1,27 +1,26 @@
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { incrementCount, decrementCount, resetCount } from '../store'
-
-const countSelector = state => state.count
 
 const useCounter = () => {
+  const count = useSelector(state => state.count)
   const dispatch = useDispatch()
-  const increment = () => {
-    dispatch(incrementCount())
-  }
-  const decrement = () => {
-    dispatch(decrementCount())
-  }
-  const reset = () => {
-    dispatch(resetCount())
-  }
-
-  return { increment, decrement, reset }
+  const increment = () =>
+    dispatch({
+      type: 'INCREMENT'
+    })
+  const decrement = () =>
+    dispatch({
+      type: 'DECREMENT'
+    })
+  const reset = () =>
+    dispatch({
+      type: 'RESET'
+    })
+  return { count, increment, decrement, reset }
 }
 
-function Counter () {
-  const count = useSelector(countSelector)
-  const { increment, decrement, reset } = useCounter()
+const Counter = () => {
+  const { count, increment, decrement, reset } = useCounter()
   return (
     <div>
       <h1>
