@@ -207,7 +207,7 @@ test('should have the correct query string for a dynamic route', async t => {
 test('should have the correct query string for a spr route', async t => {
   const paramRaw = 'test % 123'
   const html = await fetchViaHTTP(t.fixtureCtx.appPort, `/dr/[slug]`, '', {
-    headers: { 'x-now-route-params': qs.stringify({ 1: paramRaw }) }
+    headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) }
   }).then(res => res.text())
   const $ = cheerio.load(html)
   const data = JSON.parse($('#__NEXT_DATA__').html())

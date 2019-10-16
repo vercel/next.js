@@ -1,4 +1,6 @@
-# Hello World example
+# Inferno example
+
+> **Important**: Inferno does not support hooks nor Suspense. It may work on development where React is utilized instead of Inferno, but it will break as soon as you try to build it or start it out of development.
 
 ## How to use
 
@@ -39,8 +41,9 @@ now
 
 ## The idea behind the example
 
-This example uses [Inferno](https://github.com/infernojs/inferno), an insanely fast, 9kb React-like library for building high-performance user interfaces on both the client and server. Here we've customized Next.js to use Inferno instead of React.
+This example uses [Inferno](https://github.com/infernojs/inferno), an insanely fast, 9kb React-like library for building high-performance user interfaces on both the client and server. Here we've customized Next.js to use Inferno instead of React in the production build.
 
 Here's how we did it:
 
 - Use `next.config.js` to customize our webpack config to support [inferno-compat](https://www.npmjs.com/package/inferno-compat)
+- Create `lib/inferno-compat.js` to polyfill the `React.createContext` API (required by Next.js) that is not available by `inferno-compat`
