@@ -141,6 +141,7 @@ export class Head extends Component<
     const { assetPrefix, files } = this.context._documentProps
     const cssFiles =
       files && files.length ? files.filter(f => /\.css$/.test(f)) : []
+
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach(file => {
       cssLinkElements.push(
@@ -150,9 +151,7 @@ export class Head extends Component<
           href={`${assetPrefix}/_next/${encodeURI(file)}`}
           as="style"
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
-      cssLinkElements.push(
+        />,
         <link
           key={file}
           nonce={this.props.nonce}
@@ -161,9 +160,9 @@ export class Head extends Component<
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
       )
-    }, [])
+    })
 
-    return cssFiles.length === 0 ? null : cssLinkElements
+    return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
   getPreloadDynamicChunks() {
@@ -200,37 +199,40 @@ export class Head extends Component<
 
   getPreloadMainLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
-    if (!files || files.length === 0) {
-      return null
-    }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files
-      .filter((file: string) => {
-        // `dynamicImports` will contain both `.js` and `.module.js` when the
-        // feature is enabled. This clause will filter down to the modern
-        // variants only.
-        // Also filter  out buildManifest because it should not be preloaded for performance reasons
-        return (
-          file.endsWith(getOptionalModernScriptVariant('.js')) &&
-          !file.includes('buildManifest')
-        )
-      })
-      .map((file: string) => {
-        return (
-          <link
-            key={file}
-            nonce={this.props.nonce}
-            rel="preload"
-            href={`${assetPrefix}/_next/${encodeURI(
-              file
-            )}${_devOnlyInvalidateCacheQueryString}`}
-            as="script"
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
-          />
-        )
-      })
-      .filter(Boolean)
+    const preloadFiles =
+      files && files.length
+        ? files.filter((file: string) => {
+            // `dynamicImports` will contain both `.js` and `.module.js` when
+            // the feature is enabled. This clause will filter down to the
+            // modern variants only.
+            //
+            // Also filter out buildManifest because it should not be preloaded
+            // for performance reasons.
+            return (
+              file.endsWith(getOptionalModernScriptVariant('.js')) &&
+              !file.includes('buildManifest')
+            )
+          })
+        : []
+
+    return preloadFiles.length === 0
+      ? null
+      : preloadFiles.map((file: string) => {
+          return (
+            <link
+              key={file}
+              nonce={this.props.nonce}
+              rel="preload"
+              href={`${assetPrefix}/_next/${encodeURI(
+                file
+              )}${_devOnlyInvalidateCacheQueryString}`}
+              as="script"
+              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            />
+          )
+        })
   }
 
   render() {
