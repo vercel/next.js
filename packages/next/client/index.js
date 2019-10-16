@@ -21,6 +21,8 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import initClientMiddleware from 'next-plugin-loader?middleware=init-client!'
 // eslint-disable-next-line
 import onErrorMiddleware from 'next-plugin-loader?middleware=on-error-client!'
+// eslint-disable-next-line
+import postHydrationMiddleware from 'next-plugin-loader?middleware=post-hydration!'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -88,6 +90,7 @@ class Container extends React.Component {
 
   componentDidMount () {
     this.scrollToHash()
+    postHydrationMiddleware()
 
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
