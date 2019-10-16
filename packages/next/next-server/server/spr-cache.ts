@@ -157,11 +157,9 @@ export async function setSprCache(
   }
 
   pathname = normalizePagePath(pathname)
-  const revalidateAfter = calculateRevalidate(pathname)
-
   cache.set(pathname, {
     ...data,
-    revalidateAfter,
+    revalidateAfter: calculateRevalidate(pathname),
   })
 
   // TODO: This option needs to cease to exist unless it stops mutating the
