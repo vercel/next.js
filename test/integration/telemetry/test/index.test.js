@@ -1,62 +1,61 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+fixture('Telemetry CLI')
 
-describe('Telemetry CLI', () => {
-  it('can print telemetry status', async () => {
-    const { stdout } = await runNextCommand(['telemetry'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/Status: .*/)
+test('can print telemetry status', async t => {
+  const { stdout } = await runNextCommand(['telemetry'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/Status: .*/)
+})
 
-  it('can enable telemetry with flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', '--enable'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/Success/)
-    expect(stdout).toMatch(/Status: Enabled/)
+test('can enable telemetry with flag', async t => {
+  const { stdout } = await runNextCommand(['telemetry', '--enable'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/Success/)
+  await t.expect(stdout).match(/Status: Enabled/)
+})
 
-  it('can disable telemetry with flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', '--disable'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/Your preference has been saved/)
-    expect(stdout).toMatch(/Status: Disabled/)
+test('can disable telemetry with flag', async t => {
+  const { stdout } = await runNextCommand(['telemetry', '--disable'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/Your preference has been saved/)
+  await t.expect(stdout).match(/Status: Disabled/)
+})
 
-  it('can enable telemetry without flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'enable'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/Success/)
-    expect(stdout).toMatch(/Status: Enabled/)
+test('can enable telemetry without flag', async t => {
+  const { stdout } = await runNextCommand(['telemetry', 'enable'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/Success/)
+  await t.expect(stdout).match(/Status: Enabled/)
+})
 
-  it('can re-enable telemetry', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'enable'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/Success/)
-    expect(stdout).toMatch(/Status: Enabled/)
+test('can re-enable telemetry', async t => {
+  const { stdout } = await runNextCommand(['telemetry', 'enable'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/Success/)
+  await t.expect(stdout).match(/Status: Enabled/)
+})
 
-  it('can disable telemetry without flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'disable'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/Your preference has been saved/)
-    expect(stdout).toMatch(/Status: Disabled/)
+test('can disable telemetry without flag', async t => {
+  const { stdout } = await runNextCommand(['telemetry', 'disable'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/Your preference has been saved/)
+  await t.expect(stdout).match(/Status: Disabled/)
+})
 
-  it('can re-disable telemetry', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'disable'], {
-      stdout: true
-    })
-    expect(stdout).toMatch(/already disabled/)
-    expect(stdout).toMatch(/Status: Disabled/)
+test('can re-disable telemetry', async t => {
+  const { stdout } = await runNextCommand(['telemetry', 'disable'], {
+    stdout: true
   })
+  await t.expect(stdout).match(/already disabled/)
+  await t.expect(stdout).match(/Status: Disabled/)
 })
