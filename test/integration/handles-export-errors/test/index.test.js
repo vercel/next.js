@@ -1,18 +1,18 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 const appDir = path.join(__dirname, '..')
 
-describe('Handles Errors During Export', () => {
-  it('Does not crash workers', async () => {
-    const { stdout, stderr } = await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true
-    })
+fixture('Handles Errors During Export')
 
-    expect(stdout + stderr).not.toMatch(/ERR_IPC_CHANNEL_CLOSED/)
+test('Does not crash workers', async t => {
+  const { stdout, stderr } = await nextBuild(appDir, [], {
+    stdout: true,
+    stderr: true
   })
+
+  await t.expect(stdout + stderr).notMatch(/ERR_IPC_CHANNEL_CLOSED/)
 })
