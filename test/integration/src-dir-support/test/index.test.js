@@ -230,7 +230,7 @@ function runTests (dev) {
 
 const nextConfig = join(appDir, 'next.config.js')
 
-fixture('Dynamic Routing')
+fixture('src dir support')
 
 fixture('dev mode')
   .before(async ctx => {
