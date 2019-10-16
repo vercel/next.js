@@ -133,13 +133,13 @@ const nextServerlessLoader: loader.Loader = function() {
             : `const params = {};`
         }
         ${
-          // Temporary work around -- `x-now-route-params` is a platform header
+          // Temporary work around: `x-now-route-matches` is a platform header
           // _only_ set for `Prerender` requests. We should move this logic
           // into our builder to ensure we're decoupled. However, this entails
           // removing reliance on `req.url` and using `req.query` instead
           // (which is needed for "custom routes" anyway).
           isDynamicRoute(page)
-            ? `const nowParams = req.headers && req.headers["x-now-route-params"]
+            ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
                     const { re, groups } = getRouteRegex("${page}");
@@ -160,7 +160,7 @@ const nextServerlessLoader: loader.Loader = function() {
                       groups
                     };
                   })()
-                )(req.headers["x-now-route-params"])
+                )(req.headers["x-now-route-matches"])
               : null;
           `
             : `const nowParams = null;`
