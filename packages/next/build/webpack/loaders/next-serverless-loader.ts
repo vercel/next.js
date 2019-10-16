@@ -167,7 +167,7 @@ const nextServerlessLoader: loader.Loader = function() {
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
 
-        if (sprData) {
+        if (sprData && !fromExport) {
           const payload = JSON.stringify(renderOpts.sprData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
@@ -178,6 +178,7 @@ const nextServerlessLoader: loader.Loader = function() {
           res.end(payload)
           return null
         }
+
         if (fromExport) return { html: result, renderOpts }
         return result
       } catch (err) {
