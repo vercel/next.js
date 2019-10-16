@@ -27,9 +27,7 @@ const nextPluginLoader: loader.Loader = function(source) {
       .map(plugin => {
         const pluginId = getPluginId(plugin.pkgName)
         pluginIds.push(pluginId)
-        return `import ${pluginId} from '${
-          plugin.directory
-        }/middleware/${middleware}'`
+        return `import ${pluginId} from '${plugin.directory}/src/${middleware}'`
       })
       .join('\n')}
 

@@ -3,10 +3,6 @@
   "version": "9.1.2-canary.1",
   "nextjs": {
     "name": "Google Analytics",
-    "middleware": [
-      "init-client",
-      "document-head-tags"
-    ],
     "required-env": [
       "GA_TRACKING_ID"
     ]

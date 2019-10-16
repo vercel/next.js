@@ -1,9 +1,12 @@
 import findUp from 'find-up'
+import fs from 'fs'
 import path from 'path'
+import { promisify } from 'util'
 import resolve from 'next/dist/compiled/resolve/index.js'
 
+const readdir = promisify(fs.readdir)
+
 export type PluginMetaData = {
-  middlewareVersion: number
   requiredEnv: string[]
   middleware: string[]
   pluginName: string
@@ -33,15 +36,14 @@ const exitWithError = (error: string) => {
   process.exit(1)
 }
 
-function collectPluginMeta(
+async function collectPluginMeta(
   env: ENV_OPTIONS,
   pluginPackagePath: string
-): PluginMetaData {
+): Promise<PluginMetaData> {
+  const pkgDir = path.dirname(pluginPackagePath)
   const pluginPackageJson = require(pluginPackagePath)
   const pluginMetaData: {
     name: string
-    version: number
-    middleware: string[]
     'required-env': string[]
   } = pluginPackageJson.nextjs
 
@@ -56,17 +58,30 @@ function collectPluginMeta(
   }
 
   // TODO: add err.sh explaining requirements
-  if (!Array.isArray(pluginMetaData.middleware)) {
+  let middleware: string[] = []
+  try {
+    middleware = await readdir(path.join(pkgDir, 'src'))
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error(err)
+    }
     exitWithError(
-      'Next.js plugins need to have a "nextjs.middleware" key in package.json'
+      `Failed to read src/ directory for Next.js plugin: ${pluginMetaData.name}`
     )
   }
 
+  // remove the extension from the middleware
+  middleware = middleware.map(item => {
+    const parts = item.split('.')
+    parts.pop()
+    return parts.join('.')
+  })
+
   const invalidMiddleware: string[] = []
 
-  for (const middleware of pluginMetaData.middleware) {
-    if (!VALID_MIDDLEWARE.includes(middleware)) {
-      invalidMiddleware.push(middleware)
+  for (const item of middleware) {
+    if (!VALID_MIDDLEWARE.includes(item)) {
+      invalidMiddleware.push(item)
     }
   }
 
@@ -105,10 +120,9 @@ function collectPluginMeta(
   }
 
   return {
-    directory: path.dirname(pluginPackagePath),
+    middleware,
+    directory: pkgDir,
     requiredEnv: pluginMetaData['required-env'],
-    middlewareVersion: pluginMetaData.version,
-    middleware: pluginMetaData.middleware,
     pluginName: pluginMetaData.name,
     pkgName: pluginPackageJson.name,
   }

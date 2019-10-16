@@ -3,12 +3,6 @@
   "version": "9.1.2-canary.1",
   "nextjs": {
     "name": "Sentry",
-    "middleware": [
-      "init-client",
-      "init-server",
-      "on-error-client",
-      "on-error-server"
-    ],
     "required-env": [
       "SENTRY_DSN",
       "SENTRY_RELEASE"

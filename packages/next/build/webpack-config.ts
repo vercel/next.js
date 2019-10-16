@@ -99,7 +99,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    ...VALID_MIDDLEWARE.map(name => new RegExp(`middleware/${name}`)),
+    ...VALID_MIDDLEWARE.map(name => new RegExp(`src/${name}`)),
   ]
 
   // Support for NODE_PATH

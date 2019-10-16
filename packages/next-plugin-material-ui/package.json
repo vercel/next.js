@@ -3,12 +3,6 @@
   "version": "9.1.2-canary.1",
   "nextjs": {
     "name": "Material UI",
-    "middleware": [
-      "init-client",
-      "get-styles-server",
-      "enhance-app-server",
-      "document-head-tags"
-    ],
     "required-env": []
   },
   "peerDependencies": {
