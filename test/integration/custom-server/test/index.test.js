@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
@@ -16,23 +17,17 @@ import {
 const appDir = join(__dirname, '../')
 const indexPg = new File(join(appDir, 'pages/index.js'))
 
-let appPort
-let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-
-const context = {}
-
-const startServer = async (optEnv = {}) => {
+const startServer = async (ctx, optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
-  context.appPort = appPort = await getPort()
+  ctx.appPort = await getPort()
   const env = Object.assign(
     {},
     clone(process.env),
-    { PORT: `${appPort}` },
+    { PORT: `${ctx.appPort}` },
     optEnv
   )
 
-  server = await initNextServerScript(
+  ctx.server = await initNextServerScript(
     scriptPath,
     /ready on/i,
     env,
@@ -40,94 +35,92 @@ const startServer = async (optEnv = {}) => {
   )
 }
 
-describe('Custom Server', () => {
-  describe('with dynamic assetPrefix', () => {
-    beforeAll(() => startServer())
-    afterAll(() => killApp(server))
+fixture('Custom Server')
 
-    it('should handle render with undefined query', async () => {
-      expect(await renderViaHTTP(appPort, '/no-query')).toMatch(/"query":/)
-    })
+fixture('with dynamic assetPrefix')
+  .before(ctx => startServer(ctx))
+  .after(ctx => killApp(ctx.server))
 
-    it('should set the assetPrefix dynamically', async () => {
-      const normalUsage = await renderViaHTTP(appPort, '/asset')
-      expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
+test('should handle render with undefined query', async t => {
+  await t
+    .expect(await renderViaHTTP(t.fixtureCtx.appPort, '/no-query'))
+    .match(/"query":/)
+})
 
-      const dynamicUsage = await renderViaHTTP(
-        appPort,
-        '/asset?setAssetPrefix=1'
-      )
-      expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
-    })
+test('should set the assetPrefix dynamically', async t => {
+  const normalUsage = await renderViaHTTP(t.fixtureCtx.appPort, '/asset')
+  await t.expect(normalUsage).notMatch(/127\.0\.0\.1/)
 
-    it('should handle null assetPrefix accordingly', async () => {
-      const normalUsage = await renderViaHTTP(
-        appPort,
-        '/asset?setEmptyAssetPrefix=1'
-      )
-      expect(normalUsage).toMatch(/"\/_next/)
-    })
+  const dynamicUsage = await renderViaHTTP(
+    t.fixtureCtx.appPort,
+    '/asset?setAssetPrefix=1'
+  )
+  await t.expect(dynamicUsage).match(/127\.0\.0\.1/)
+})
 
-    it('should set the assetPrefix to a given request', async () => {
-      for (let lc = 0; lc < 1000; lc++) {
-        const [normalUsage, dynamicUsage] = await Promise.all([
-          await renderViaHTTP(appPort, '/asset'),
-          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
-        ])
+test('should handle null assetPrefix accordingly', async t => {
+  const normalUsage = await renderViaHTTP(
+    t.fixtureCtx.appPort,
+    '/asset?setEmptyAssetPrefix=1'
+  )
+  await t.expect(normalUsage).match(/"\/_next/)
+})
 
-        expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
-        expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
-      }
-    })
+test('should set the assetPrefix to a given request', async t => {
+  for (let lc = 0; lc < 1000; lc++) {
+    const [normalUsage, dynamicUsage] = await Promise.all([
+      await renderViaHTTP(t.fixtureCtx.appPort, '/asset'),
+      await renderViaHTTP(t.fixtureCtx.appPort, '/asset?setAssetPrefix=1')
+    ])
 
-    it('should render nested index', async () => {
-      const html = await renderViaHTTP(appPort, '/dashboard')
-      expect(html).toMatch(/made it to dashboard/)
-    })
+    await t.expect(normalUsage).notMatch(/127\.0\.0\.1/)
+    await t.expect(dynamicUsage).match(/127\.0\.0\.1/)
+  }
+})
+
+test('should render nested index', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/dashboard')
+  await t.expect(html).match(/made it to dashboard/)
+})
+
+fixture('with generateEtags enabled')
+  .before(ctx => startServer(ctx, { GENERATE_ETAGS: 'true' }))
+  .after(ctx => killApp(ctx.server))
+
+test('response includes etag header', async t => {
+  const response = await fetchViaHTTP(t.fixtureCtx.appPort, '/')
+  await t.expect(response.headers.get('etag')).ok()
+})
+
+fixture('with generateEtags disabled')
+  .before(ctx => startServer(ctx, { GENERATE_ETAGS: 'false' }))
+  .after(ctx => killApp(ctx.server))
+
+test('response does not include etag header', async t => {
+  const response = await fetchViaHTTP(t.fixtureCtx.appPort, '/')
+  await t.expect(response.headers.get('etag')).eql(null)
+})
+
+fixture('HMR with custom server')
+  .before(ctx => startServer(ctx))
+  .after(ctx => {
+    killApp(ctx.server)
+    indexPg.restore()
   })
 
-  describe('with generateEtags enabled', () => {
-    beforeAll(() => startServer({ GENERATE_ETAGS: 'true' }))
-    afterAll(() => killApp(server))
+test('Should support HMR when rendering with /index pathname', async t => {
+  let browser
+  try {
+    browser = await webdriver(t.fixtureCtx.appPort, '/test-index-hmr')
+    const text = await browser.elementByCss('#go-asset').text()
+    await t.expect(text).eql('Asset')
 
-    it('response includes etag header', async () => {
-      const response = await fetchViaHTTP(appPort, '/')
-      expect(response.headers.get('etag')).toBeTruthy()
-    })
-  })
+    indexPg.replace('Asset', 'Asset!!')
 
-  describe('with generateEtags disabled', () => {
-    beforeAll(() => startServer({ GENERATE_ETAGS: 'false' }))
-    afterAll(() => killApp(server))
-
-    it('response does not include etag header', async () => {
-      const response = await fetchViaHTTP(appPort, '/')
-      expect(response.headers.get('etag')).toBeNull()
-    })
-  })
-
-  describe('HMR with custom server', () => {
-    beforeAll(() => startServer())
-    afterAll(() => {
-      killApp(server)
-      indexPg.restore()
-    })
-
-    it('Should support HMR when rendering with /index pathname', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/test-index-hmr')
-        const text = await browser.elementByCss('#go-asset').text()
-        expect(text).toBe('Asset')
-
-        indexPg.replace('Asset', 'Asset!!')
-
-        await check(() => browser.elementByCss('#go-asset').text(), /Asset!!/)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
+    await check(() => browser.elementByCss('#go-asset').text(), /Asset!!/)
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
+  }
 })
