@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -10,59 +11,55 @@ import {
   waitFor
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-
 const appDir = join(__dirname, '..')
-let output = ''
-let appPort
-let app
 
-const handleOutput = msg => {
-  output += msg
-}
-
-describe('Empty Project', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort, {
+fixture('Empty Project')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    const handleOutput = msg => {
+      ctx.output += msg
+    }
+    ctx.app = await launchApp(appDir, ctx.appPort, {
       onStdout: handleOutput,
       onStderr: handleOutput
     })
   })
-  afterAll(() => killApp(app))
+  .after(ctx => killApp(ctx.app))
 
-  it('It should show empty object warning on SSR', async () => {
-    output = ''
-    await renderViaHTTP(appPort, '/')
-    await waitFor(100)
-    expect(output).toMatch(/returned an empty object from `getInitialProps`/)
-  })
+test('It should show empty object warning on SSR', async t => {
+  t.fixtureCtx.output = ''
+  await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await waitFor(100)
+  await t
+    .expect(t.fixtureCtx.output)
+    .match(/returned an empty object from `getInitialProps`/)
+})
 
-  it('It should not show empty object warning for page without `getInitialProps`', async () => {
-    output = ''
-    await renderViaHTTP(appPort, '/static')
-    await waitFor(100)
-    expect(output).not.toMatch(
-      /returned an empty object from `getInitialProps`/
-    )
-  })
+test('It should not show empty object warning for page without `getInitialProps`', async t => {
+  t.fixtureCtx.output = ''
+  await renderViaHTTP(t.fixtureCtx.appPort, '/static')
+  await waitFor(100)
+  await t
+    .expect(t.fixtureCtx.output)
+    .notMatch(/returned an empty object from `getInitialProps`/)
+})
 
-  it('should show empty object warning during client transition', async () => {
-    const browser = await webdriver(appPort, '/static')
-    await browser.eval(`(function() {
-      window.gotWarn = false
-      const origWarn = console.warn
-      window.console.warn = function () {
-        if (arguments[0].match(/returned an empty object from \`getInitialProps\`/)) {
-          window.gotWarn = true
-        }
-        origWarn.apply(this, arguments)
+test('should show empty object warning during client transition', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/static')
+  await waitFor(1000)
+  await browser.eval(`(function() {
+    window.gotWarn = false
+    const origWarn = console.warn
+    window.console.warn = function () {
+      if (arguments[0].match(/returned an empty object from \`getInitialProps\`/)) {
+        window.gotWarn = true
       }
-      window.next.router.replace('/another')
-    })()`)
-    await waitFor(300)
-    const gotWarn = await browser.eval(`window.gotWarn`)
-    expect(gotWarn).toBe(true)
-    await browser.close()
-  })
+      origWarn.apply(this, arguments)
+    }
+    window.next.router.replace('/another')
+  })()`)
+  await waitFor(300)
+  const gotWarn = await browser.eval(`window.gotWarn`)
+  await t.expect(gotWarn).eql(true)
+  await browser.close()
 })
