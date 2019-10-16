@@ -9,7 +9,7 @@
     "dev": "lerna run build --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest",
-    "testall": "yarn check && yarn test test/**/*.test.js",
+    "testall": "yarn check && yarn test",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
     "test-take2": "yarn git-reset && yarn git-clean && yarn testall",
