@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
@@ -11,32 +12,27 @@ import {
   waitFor
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+const appDir = join(__dirname, '../')
 
-let appDir = join(__dirname, '../')
-let server
-let appPort
-
-describe('future.excludeDefaultMomentLocales', () => {
-  beforeAll(async () => {
+fixture('future.excludeDefaultMomentLocales')
+  .before(async ctx => {
     await nextBuild(appDir)
-    const app = nextServer({
+    ctx.app = nextServer({
       dir: appDir,
       dev: false,
       quiet: true
     })
-    server = await startApp(app)
-    appPort = server.address().port
+    ctx.server = await startApp(ctx.app)
+    ctx.appPort = ctx.server.address().port
     // wait for it to start up:
-    await renderViaHTTP(appPort, '/')
+    await renderViaHTTP(ctx.appPort, '/')
   })
-  afterAll(() => stopApp(server))
+  .after(ctx => stopApp(ctx.server))
 
-  it('should load momentjs', async () => {
-    const browser = await webdriver(appPort, '/')
-    await waitFor(5000)
-    expect(await browser.elementByCss('h1').text()).toMatch(/current time/i)
-    expect(await browser.eval('moment.locales()')).toStrictEqual(['en'])
-    await browser.close()
-  })
+test('should load momentjs', async t => {
+  const browser = await webdriver(t.fixtureCtx.appPort, '/')
+  await waitFor(5000)
+  await t.expect(await browser.elementByCss('h1').text()).match(/current time/i)
+  await t.expect(await browser.eval('moment.locales()')).eql(['en'])
+  await browser.close()
 })
