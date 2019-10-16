@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -11,61 +12,55 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-
 const appDir = join(__dirname, '../app')
-let appPort
-let app
 
 function runTests () {
-  it('should render styles during CSR', async () => {
-    const browser = await webdriver(appPort, '/')
+  test('should render styles during CSR', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/')
     const color = await browser.eval(
       `getComputedStyle(document.querySelector('button')).color`
     )
 
-    expect(color).toMatch('0, 255, 255')
+    await t.expect(color).contains('0, 255, 255')
   })
 
-  it('should render styles during CSR (AMP)', async () => {
-    const browser = await webdriver(appPort, '/amp')
+  test('should render styles during CSR (AMP)', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/amp')
     const color = await browser.eval(
       `getComputedStyle(document.querySelector('button')).color`
     )
 
-    expect(color).toMatch('0, 255, 255')
+    await t.expect(color).contains('0, 255, 255')
   })
 
-  it('should render styles during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/color:.*?cyan/)
+  test('should render styles during SSR', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+    await t.expect(html).match(/color:.*?cyan/)
   })
 
-  it('should render styles during SSR (AMP)', async () => {
-    const html = await renderViaHTTP(appPort, '/amp')
-    expect(html).toMatch(/color:.*?cyan/)
+  test('should render styles during SSR (AMP)', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/amp')
+    await t.expect(html).match(/color:.*?cyan/)
   })
 }
 
-describe('styled-jsx using in node_modules', () => {
-  describe('Production', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+fixture('styled-jsx using in node_modules')
 
-    runTests()
+fixture('Production')
+  .before(async ctx => {
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
   })
+  .after(ctx => killApp(ctx.app))
 
-  describe('Development', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+runTests()
 
-    runTests()
+fixture('Development')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
   })
-})
+  .after(ctx => killApp(ctx.app))
+
+runTests()
