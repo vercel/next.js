@@ -1,226 +1,185 @@
-/* eslint-env jest */
+/* global test */
+import 'testcafe'
 import webdriver from 'next-webdriver'
 import { check, waitFor, getBrowserBodyText } from 'next-test-utils'
 
 export default function (context) {
-  describe('Render via browser', () => {
-    it('should render the home page', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser.elementByCss('#home-page p').text()
+  test('should render the home page', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    const text = await browser.elementByCss('#home-page p').text()
 
-      expect(text).toBe('This is the home page')
-      await browser.close()
-    })
+    await t.expect(text).eql('This is the home page')
+    await browser.close()
+  })
 
-    it('should add trailing slash on Link', async () => {
-      const browser = await webdriver(context.port, '/')
-      const link = await browser
-        .elementByCss('#about-via-link')
-        .getAttribute('href')
+  test('should add trailing slash on Link', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    const link = await browser
+      .elementByCss('#about-via-link')
+      .getAttribute('href')
 
-      expect(link.substr(link.length - 1)).toBe('/')
-    })
+    await t.expect(link.substr(link.length - 1)).eql('/')
+  })
 
-    it('should not add trailing slash on Link when disabled', async () => {
-      const browser = await webdriver(context.portNoTrailSlash, '/')
-      const link = await browser
-        .elementByCss('#about-via-link')
-        .getAttribute('href')
+  test('should not add trailing slash on Link when disabled', async t => {
+    const browser = await webdriver(t.fixtureCtx.portNoTrailSlash, '/')
+    const link = await browser
+      .elementByCss('#about-via-link')
+      .getAttribute('href')
 
-      expect(link.substr(link.length - 1)).not.toBe('/')
-    })
+    await t.expect(link.substr(link.length - 1)).notEql('/')
+  })
 
-    it('should do navigations via Link', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#about-via-link')
-        .click()
-        .waitForElementByCss('#about-page')
-        .elementByCss('#about-page p')
-        .text()
+  test('should do navigations via Link', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#about-via-link').click()
+    await browser.waitForElementByCss('#about-page')
 
-      expect(text).toBe('This is the About page foo')
-      await browser.close()
-    })
+    const text = await browser.elementByCss('#about-page p').text()
+    await t.expect(text).eql('This is the About page foo')
+    await browser.close()
+  })
 
-    it('should do navigations via Router', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#about-via-router')
-        .click()
-        .waitForElementByCss('#about-page')
-        .elementByCss('#about-page p')
-        .text()
+  test('should do navigations via Router', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#about-via-router').click()
+    await browser.waitForElementByCss('#about-page')
 
-      expect(text).toBe('This is the About page foo')
-      await browser.close()
-    })
+    const text = await browser.elementByCss('#about-page p').text()
+    await t.expect(text).eql('This is the About page foo')
+    await browser.close()
+  })
 
-    it('should do run client side javascript', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#counter')
-        .click()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter-increase')
-        .click()
-        .elementByCss('#counter-increase')
-        .click()
-        .elementByCss('#counter-page p')
-        .text()
+  test('should do run client side javascript', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#counter').click()
+    await browser.waitForElementByCss('#counter-page')
 
-      expect(text).toBe('Counter: 2')
-      await browser.close()
-    })
+    await browser.elementByCss('#counter-increase').click()
 
-    it('should render pages using getInitialProps', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#get-initial-props')
-        .click()
-        .waitForElementByCss('#dynamic-page')
-        .elementByCss('#dynamic-page p')
-        .text()
+    await browser.elementByCss('#counter-increase').click()
 
-      expect(text).toBe('cool dynamic text')
-      await browser.close()
-    })
+    const text = await browser.elementByCss('#counter-page p').text()
+    await t.expect(text).eql('Counter: 2')
+    await browser.close()
+  })
 
-    it('should render dynamic pages with custom urls', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#dynamic-1')
-        .click()
-        .waitForElementByCss('#dynamic-page')
-        .elementByCss('#dynamic-page p')
-        .text()
+  test('should render pages using getInitialProps', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#get-initial-props').click()
+    await browser.waitForElementByCss('#dynamic-page')
 
-      expect(text).toBe('next export is nice')
-      await browser.close()
-    })
+    const text = await browser.elementByCss('#dynamic-page p').text()
+    await t.expect(text).eql('cool dynamic text')
+    await browser.close()
+  })
 
-    it('should support client side naviagtion', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#counter')
-        .click()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter-increase')
-        .click()
-        .elementByCss('#counter-increase')
-        .click()
-        .elementByCss('#counter-page p')
-        .text()
+  test('should render dynamic pages with custom urls', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#dynamic-1').click()
+    await browser.waitForElementByCss('#dynamic-page')
 
-      expect(text).toBe('Counter: 2')
+    const text = await browser.elementByCss('#dynamic-page p').text()
+    await t.expect(text).eql('next export is nice')
+    await browser.close()
+  })
 
-      // let's go back and come again to this page:
-      const textNow = await browser
-        .elementByCss('#go-back')
-        .click()
-        .waitForElementByCss('#home-page')
-        .elementByCss('#counter')
-        .click()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter-page p')
-        .text()
+  test('should support client side naviagtion', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#counter').click()
+    await browser.waitForElementByCss('#counter-page')
+    await browser.elementByCss('#counter-increase').click()
+    await browser.elementByCss('#counter-increase').click()
 
-      expect(textNow).toBe('Counter: 2')
+    const text = await browser.elementByCss('#counter-page p').text()
+    await t.expect(text).eql('Counter: 2')
 
-      await browser.close()
-    })
+    // let's go back and come again to this page:
+    await browser.elementByCss('#go-back').click()
+    await browser.waitForElementByCss('#home-page')
+    await browser.elementByCss('#counter').click()
+    await browser.waitForElementByCss('#counter-page')
 
-    it('should render dynamic import components in the client', async () => {
-      const browser = await webdriver(context.port, '/')
-      await browser
-        .elementByCss('#dynamic-imports-page')
-        .click()
-        .waitForElementByCss('#dynamic-imports-page')
+    const textNow = await browser.elementByCss('#counter-page p').text()
+    await t.expect(textNow).eql('Counter: 2')
+    await browser.close()
+  })
 
-      await check(
-        () => browser.elementByCss('#dynamic-imports-page p').text(),
-        /Welcome to dynamic imports/
-      )
+  test('should render dynamic import components in the client', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
+    await browser.elementByCss('#dynamic-imports-page').click()
+    await browser.waitForElementByCss('#dynamic-imports-page')
 
-      await browser.close()
-    })
+    await check(
+      () => browser.elementByCss('#dynamic-imports-page p').text(),
+      /Welcome to dynamic imports/
+    )
 
-    it('should render pages with url hash correctly', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.port, '/')
+    await browser.close()
+  })
 
-        // Check for the query string content
-        const text = await browser
-          .elementByCss('#with-hash')
-          .click()
-          .waitForElementByCss('#dynamic-page')
-          .elementByCss('#dynamic-page p')
-          .text()
+  test('should render pages with url hash correctly', async t => {
+    let browser
+    try {
+      browser = await webdriver(t.fixtureCtx.port, '/')
 
-        expect(text).toBe('zeit is awesome')
+      // Check for the query string content
+      await browser.elementByCss('#with-hash').click()
+      await browser.waitForElementByCss('#dynamic-page')
 
-        await check(() => browser.elementByCss('#hash').text(), /cool/)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
+      const text = await browser.elementByCss('#dynamic-page p').text()
+      await t.expect(text).eql('zeit is awesome')
+      await check(() => browser.elementByCss('#hash').text(), /cool/)
+    } finally {
+      if (browser) {
+        await browser.close()
       }
-    })
+    }
+  })
 
-    it('should navigate even if used a button inside <Link />', async () => {
-      const browser = await webdriver(context.port, '/button-link')
+  test('should navigate even if used a button inside <Link />', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/button-link')
 
-      const text = await browser
-        .elementByCss('button')
-        .click()
-        .waitForElementByCss('#home-page')
-        .elementByCss('#home-page p')
-        .text()
+    await browser.elementByCss('button').click()
+    await browser.waitForElementByCss('#home-page')
 
-      expect(text).toBe('This is the home page')
-      await browser.close()
-    })
+    const text = await browser.elementByCss('#home-page p').text()
+    await t.expect(text).eql('This is the home page')
+    await browser.close()
+  })
 
-    it('should update query after mount', async () => {
-      const browser = await webdriver(context.port, '/query?hello=1')
+  test('should update query after mount', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/query?hello=1')
 
-      await waitFor(1000)
-      const text = await browser.eval('document.body.innerHTML')
-      expect(text).toMatch(/hello/)
-      await browser.close()
-    })
+    await waitFor(1000)
+    const text = await browser.eval('document.body.innerHTML')
+    await t.expect(text).match(/hello/)
+    await browser.close()
+  })
 
-    describe('pages in the nested level: level1', () => {
-      it('should render the home page', async () => {
-        const browser = await webdriver(context.port, '/')
+  test('should render the home page', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
 
-        await browser.eval(
-          'document.getElementById("level1-home-page").click()'
-        )
+    await browser.eval('document.getElementById("level1-home-page").click()')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 home page/
-        )
+    await check(
+      () => getBrowserBodyText(browser),
+      /This is the Level1 home page/
+    )
 
-        await browser.close()
-      })
+    await browser.close()
+  })
 
-      it('should render the about page', async () => {
-        const browser = await webdriver(context.port, '/')
+  test('should render the about page', async t => {
+    const browser = await webdriver(t.fixtureCtx.port, '/')
 
-        await browser.eval(
-          'document.getElementById("level1-about-page").click()'
-        )
+    await browser.eval('document.getElementById("level1-about-page").click()')
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 about page/
-        )
+    await check(
+      () => getBrowserBodyText(browser),
+      /This is the Level1 about page/
+    )
 
-        await browser.close()
-      })
-    })
+    await browser.close()
   })
 }

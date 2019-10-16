@@ -1,88 +1,87 @@
-/* eslint-env jest */
+/* global test */
+import 'testcafe'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-export default function (context) {
-  describe('Render via SSR', () => {
-    it('should render the home page', async () => {
-      const html = await renderViaHTTP(context.port, '/')
-      expect(html).toMatch(/This is the home page/)
-    })
+export default function () {
+  test('should render the home page', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/')
+    await t.expect(html).match(/This is the home page/)
+  })
 
-    it('should render the about page', async () => {
-      const html = await renderViaHTTP(context.port, '/about')
-      expect(html).toMatch(/This is the About page foobar/)
-    })
+  test('should render the about page', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/about')
+    await t.expect(html).match(/This is the About page foobar/)
+  })
 
-    it('should render links correctly', async () => {
-      const html = await renderViaHTTP(context.port, '/')
-      const $ = cheerio.load(html)
-      const dynamicLink = $('#dynamic-1').prop('href')
-      const filePathLink = $('#path-with-extension').prop('href')
-      expect(dynamicLink).toEqual('/dynamic/one/')
-      expect(filePathLink).toEqual('/file-name.md')
-    })
+  test('should render links correctly', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/')
+    const $ = cheerio.load(html)
+    const dynamicLink = $('#dynamic-1').prop('href')
+    const filePathLink = $('#path-with-extension').prop('href')
+    await t.expect(dynamicLink).eql('/dynamic/one/')
+    await t.expect(filePathLink).eql('/file-name.md')
+  })
 
-    it('should render a page with getInitialProps', async () => {
-      const html = await renderViaHTTP(context.port, '/dynamic')
-      expect(html).toMatch(/cool dynamic text/)
-    })
+  test('should render a page with getInitialProps', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/dynamic')
+    await t.expect(html).match(/cool dynamic text/)
+  })
 
-    it('should render a dynamically rendered custom url page', async () => {
-      const html = await renderViaHTTP(context.port, '/dynamic/one')
-      expect(html).toMatch(/next export is nice/)
-    })
+  test('should render a dynamically rendered custom url page', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/dynamic/one')
+    await t.expect(html).match(/next export is nice/)
+  })
 
-    it('should render pages with dynamic imports', async () => {
-      const html = await renderViaHTTP(context.port, '/dynamic-imports')
-      expect(html).toMatch(/Welcome to dynamic imports/)
-    })
+  test('should render pages with dynamic imports', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/dynamic-imports')
+    await t.expect(html).match(/Welcome to dynamic imports/)
+  })
 
-    it('should render paths with extensions', async () => {
-      const html = await renderViaHTTP(context.port, '/file-name.md')
-      expect(html).toMatch(/this file has an extension/)
-    })
+  test('should render paths with extensions', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/file-name.md')
+    await t.expect(html).match(/this file has an extension/)
+  })
 
-    it('should give empty object for query if there is no query', async () => {
-      const html = await renderViaHTTP(
-        context.port,
-        '/get-initial-props-with-no-query'
-      )
-      expect(html).toMatch(/Query is: {}/)
-    })
+  test('should give empty object for query if there is no query', async t => {
+    const html = await renderViaHTTP(
+      t.fixtureCtx.port,
+      '/get-initial-props-with-no-query'
+    )
+    await t.expect(html).match(/Query is: {}/)
+  })
 
-    it('should render _error on 404.html even if not provided in exportPathMap', async () => {
-      const html = await renderViaHTTP(context.port, '/404.html')
-      // The default error page from the test server
-      // contains "404", so need to be specific here
-      expect(html).toMatch(/404.*page.*not.*found/i)
-    })
+  test('should render _error on 404.html even if not provided in exportPathMap', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/404.html')
+    // The default error page from the test server
+    // contains "404", so need to be specific here
+    await t.expect(html).match(/404.*page.*not.*found/i)
+  })
 
-    it('should not render _error on /404/index.html', async () => {
-      const html = await renderViaHTTP(context.port, '/404/index.html')
-      // The default error page from the test server
-      // contains "404", so need to be specific here
-      expect(html).not.toMatch(/404.*page.*not.*found/i)
-    })
+  test('should not render _error on /404/index.html', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/404/index.html')
+    // The default error page from the test server
+    // contains "404", so need to be specific here
+    await t.expect(html).notMatch(/404.*page.*not.*found/i)
+  })
 
-    it('Should serve static files', async () => {
-      const data = await renderViaHTTP(context.port, '/static/data/item.txt')
-      expect(data).toBe('item')
-    })
+  test('Should serve static files', async t => {
+    const data = await renderViaHTTP(t.fixtureCtx.port, '/static/data/item.txt')
+    await t.expect(data).eql('item')
+  })
 
-    it('Should serve public files', async () => {
-      const html = await renderViaHTTP(context.port, '/about')
-      const data = await renderViaHTTP(context.port, '/about/data.txt')
-      expect(html).toMatch(/This is the About page foobar/)
-      expect(data).toBe('data')
-    })
+  test('Should serve public files', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.port, '/about')
+    const data = await renderViaHTTP(t.fixtureCtx.port, '/about/data.txt')
+    await t.expect(html).match(/This is the About page foobar/)
+    await t.expect(data).eql('data')
+  })
 
-    it('Should render dynamic files with query', async () => {
-      const html = await renderViaHTTP(
-        context.port,
-        '/blog/nextjs/comment/test'
-      )
-      expect(html).toMatch(/Blog post nextjs comment test/)
-    })
+  test('Should render dynamic files with query', async t => {
+    const html = await renderViaHTTP(
+      t.fixtureCtx.port,
+      '/blog/nextjs/comment/test'
+    )
+    await t.expect(html).match(/Blog post nextjs comment test/)
   })
 }

@@ -1,27 +1,21 @@
-/* eslint-env jest */
+/* global test */
+import 'testcafe'
 import { join } from 'path'
 import { File, runNextCommand } from 'next-test-utils'
 
-export default function (context) {
-  describe('Dynamic routes export', () => {
-    const nextConfig = new File(join(context.appDir, 'next.config.js'))
-    beforeEach(() => {
-      nextConfig.replace('/blog/nextjs/comment/test', '/bad/path')
-    })
-    afterEach(() => {
-      nextConfig.restore()
-    })
+export default function () {
+  test('Should throw error not matched route', async t => {
+    const nextConfig = new File(join(t.fixtureCtx.appDir, 'next.config.js'))
+    nextConfig.replace('/blog/nextjs/comment/test', '/bad/path')
+    const outdir = join(t.fixtureCtx.appDir, 'outDynamic')
+    const { stderr } = await runNextCommand(
+      ['export', t.fixtureCtx.appDir, '--outdir', outdir],
+      { stderr: true }
+    ).catch(err => err)
 
-    it('Should throw error not matched route', async () => {
-      const outdir = join(context.appDir, 'outDynamic')
-      const { stderr } = await runNextCommand(
-        ['export', context.appDir, '--outdir', outdir],
-        { stderr: true }
-      ).catch(err => err)
-
-      expect(stderr).toContain(
-        'https://err.sh/zeit/next.js/export-path-mismatch'
-      )
-    })
+    await t
+      .expect(stderr)
+      .contains('https://err.sh/zeit/next.js/export-path-mismatch')
+    nextConfig.restore()
   })
 }

@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   nextBuild,
@@ -13,45 +14,22 @@ import {
   File
 } from 'next-test-utils'
 
+import fs from 'fs'
+import { promisify } from 'util'
 import ssr from './ssr'
 import browser from './browser'
 import dev from './dev'
-import { promisify } from 'util'
-import fs from 'fs'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
-
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 const writeFile = promisify(fs.writeFile)
 const mkdir = promisify(fs.mkdir)
 const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
-const context = {}
-context.appDir = appDir
-const devContext = {}
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
-describe('Static Export', () => {
-  it('should delete existing exported files', async () => {
-    const outdir = join(appDir, 'out')
-    const tempfile = join(outdir, 'temp.txt')
-
-    await mkdir(outdir).catch(e => {
-      if (e.code !== 'EEXIST') throw e
-    })
-    await writeFile(tempfile, 'Hello there')
-
-    await nextBuild(appDir)
-    await nextExport(appDir, { outdir })
-
-    let doesNotExist = false
-    await access(tempfile).catch(e => {
-      if (e.code === 'ENOENT') doesNotExist = true
-    })
-    expect(doesNotExist).toBe(true)
-  })
-  beforeAll(async () => {
+fixture('Static Export')
+  .before(async ctx => {
     const outdir = join(appDir, 'out')
     const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
 
@@ -66,36 +44,51 @@ describe('Static Export', () => {
     await nextExport(appDir, { outdir: outNoTrailSlash })
     nextConfig.restore()
 
-    context.server = await startStaticServer(outdir)
-    context.port = context.server.address().port
+    ctx.server = await startStaticServer(outdir)
+    ctx.port = ctx.server.address().port
 
-    context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
-    context.portNoTrailSlash = context.serverNoTrailSlash.address().port
+    ctx.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
+    ctx.portNoTrailSlash = ctx.serverNoTrailSlash.address().port
 
-    devContext.port = await findPort()
-    devContext.server = await launchApp(
-      join(__dirname, '../'),
-      devContext.port,
-      true
-    )
+    ctx.devPort = await findPort()
+    ctx.devServer = await launchApp(join(__dirname, '../'), ctx.devPort, true)
+    ctx.appDir = appDir
 
     // pre-build all pages at the start
     await Promise.all([
-      renderViaHTTP(devContext.port, '/'),
-      renderViaHTTP(devContext.port, '/dynamic/one')
+      renderViaHTTP(ctx.devPort, '/'),
+      renderViaHTTP(ctx.devPort, '/dynamic/one')
     ])
   })
-  afterAll(async () => {
+  .after(async ctx => {
     await Promise.all([
-      stopApp(context.server),
-      killApp(devContext.server),
-      stopApp(context.serverNoTrailSlash)
+      stopApp(ctx.server),
+      killApp(ctx.devServer),
+      stopApp(ctx.serverNoTrailSlash)
     ])
   })
 
-  ssr(context)
-  browser(context)
-  dev(devContext)
-  dynamic(context)
-  apiRoutes(context)
+test('should delete existing exported files', async t => {
+  const outdir = join(appDir, 'out')
+  const tempfile = join(outdir, 'temp.txt')
+
+  await mkdir(outdir).catch(e => {
+    if (e.code !== 'EEXIST') throw e
+  })
+  await writeFile(tempfile, 'Hello there')
+
+  await nextBuild(appDir)
+  await nextExport(appDir, { outdir })
+
+  let doesNotExist = false
+  await access(tempfile).catch(e => {
+    if (e.code === 'ENOENT') doesNotExist = true
+  })
+  await t.expect(doesNotExist).eql(true)
 })
+
+ssr()
+browser()
+dev()
+dynamic()
+apiRoutes()
