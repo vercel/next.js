@@ -35,7 +35,7 @@ export const calculateRevalidate = (pathname: string): number | false => {
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
-  if (!sprOptions.dev) return curTime
+  if (sprOptions.dev) return curTime
 
   const { initialRevalidateSeconds } = prerenderManifest.routes[pathname] || {
     initialRevalidateSeconds: 1,
@@ -157,9 +157,11 @@ export async function setSprCache(
   }
 
   pathname = normalizePagePath(pathname)
+  const revalidateAfter = calculateRevalidate(pathname)
+
   cache.set(pathname, {
     ...data,
-    revalidateAfter: calculateRevalidate(pathname),
+    revalidateAfter,
   })
 
   // TODO: This option needs to cease to exist unless it stops mutating the

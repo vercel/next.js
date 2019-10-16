@@ -594,6 +594,7 @@ export default class Server {
 
     // Complete the response with cached data if its present
     const cachedData = await getSprCache(sprCacheKey)
+
     if (cachedData) {
       const data = isSprData
         ? JSON.stringify(cachedData.pageData)
