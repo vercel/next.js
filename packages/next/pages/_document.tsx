@@ -208,11 +208,11 @@ export class Head extends Component<
             // the feature is enabled. This clause will filter down to the
             // modern variants only.
             //
-            // Also filter out buildManifest because it should not be preloaded
+            // Also filter out _buildManifest because it should not be preloaded
             // for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !file.includes('buildManifest')
+              !file.includes('_buildManifest')
             )
           })
         : []
