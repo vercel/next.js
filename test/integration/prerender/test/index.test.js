@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -7,6 +8,7 @@ import {
   renderViaHTTP,
   findPort,
   launchApp,
+  stopApp,
   killApp,
   waitFor,
   nextBuild,
@@ -15,89 +17,83 @@ import {
   startStaticServer
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
-let app
-let appPort
-let buildId
-let distPagesDir
-let exportDir
 
 const expectedManifestRoutes = () => ({
   '/': {
-    dataRoute: `/_next/data/${buildId}/index.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/index.json`,
     initialRevalidateSeconds: 1,
     srcRoute: null
   },
   '/blog/[post3]': {
-    dataRoute: `/_next/data/${buildId}/blog/[post3].json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/blog/[post3].json`,
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]'
   },
   '/blog/post-1': {
-    dataRoute: `/_next/data/${buildId}/blog/post-1.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/blog/post-1.json`,
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]'
   },
   '/blog/post-2': {
-    dataRoute: `/_next/data/${buildId}/blog/post-2.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/blog/post-2.json`,
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]'
   },
   '/blog/post-1/comment-1': {
-    dataRoute: `/_next/data/${buildId}/blog/post-1/comment-1.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/blog/post-1/comment-1.json`,
     initialRevalidateSeconds: 2,
     srcRoute: '/blog/[post]/[comment]'
   },
   '/blog/post-2/comment-2': {
-    dataRoute: `/_next/data/${buildId}/blog/post-2/comment-2.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/blog/post-2/comment-2.json`,
     initialRevalidateSeconds: 2,
     srcRoute: '/blog/[post]/[comment]'
   },
   '/another': {
-    dataRoute: `/_next/data/${buildId}/another.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/another.json`,
     initialRevalidateSeconds: 0,
     srcRoute: null
   },
   '/default-revalidate': {
-    dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/default-revalidate.json`,
     initialRevalidateSeconds: 1,
     srcRoute: null
   },
   '/something': {
-    dataRoute: `/_next/data/${buildId}/something.json`,
+    dataRoute: `/_next/data/${t.fixtureCtx.buildId}/something.json`,
     initialRevalidateSeconds: false,
     srcRoute: null
   }
 })
 
 const navigateTest = () => {
-  it('should navigate between pages successfully', async () => {
-    const browser = await webdriver(appPort, '/')
+  test('should navigate between pages successfully', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/')
     let text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
+    await t.expect(text).match(/hello.*?world/)
 
     // go to /another
     await browser.elementByCss('#another').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
+    await t.expect(text).match(/hello.*?world/)
 
     // go to /
     await browser.eval('window.didTransition = 1')
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#another')
     text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
-    expect(await browser.eval('window.didTransition')).toBe(1)
+    await t.expect(text).match(/hello.*?world/)
+    await t.expect(await browser.eval('window.didTransition')).eql(1)
 
     // go to /something
     await browser.elementByCss('#something').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
-    expect(await browser.eval('window.didTransition')).toBe(1)
+    await t.expect(text).match(/hello.*?world/)
+    await t.expect(await browser.eval('window.didTransition')).eql(1)
 
     // go to /
     await browser.elementByCss('#home').click()
@@ -107,8 +103,8 @@ const navigateTest = () => {
     await browser.elementByCss('#post-1').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/Post:.*?post-1/)
-    expect(await browser.eval('window.didTransition')).toBe(1)
+    await t.expect(text).match(/Post:.*?post-1/)
+    await t.expect(await browser.eval('window.didTransition')).eql(1)
 
     // go to /
     await browser.elementByCss('#home').click()
@@ -118,8 +114,8 @@ const navigateTest = () => {
     await browser.elementByCss('#comment-1').click()
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p:nth-child(2)').text()
-    expect(text).toMatch(/Comment:.*?comment-1/)
-    expect(await browser.eval('window.didTransition')).toBe(1)
+    await t.expect(text).match(/Comment:.*?comment-1/)
+    await t.expect(await browser.eval('window.didTransition')).eql(1)
 
     await browser.close()
   })
@@ -128,75 +124,78 @@ const navigateTest = () => {
 const runTests = (dev = false) => {
   navigateTest()
 
-  it('should SSR normal page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/hello.*?world/)
+  test('should SSR normal page correctly', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+    await t.expect(html).match(/hello.*?world/)
   })
 
-  it('should SSR SPR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/blog/post-1')
-    expect(html).toMatch(/Post:.*?post-1/)
+  test('should SSR SPR page correctly', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/blog/post-1')
+    await t.expect(html).match(/Post:.*?post-1/)
   })
 
-  it('should return data correctly', async () => {
+  test('should return data correctly', async t => {
     const data = JSON.parse(
       await renderViaHTTP(
-        appPort,
+        t.fixtureCtx.appPort,
         expectedManifestRoutes()['/something'].dataRoute
       )
     )
-    expect(data.pageProps.world).toBe('world')
+    await t.expect(data.pageProps.world).eql('world')
   })
 
-  it('should return data correctly for dynamic page', async () => {
+  test('should return data correctly for dynamic page', async t => {
     const data = JSON.parse(
       await renderViaHTTP(
-        appPort,
+        t.fixtureCtx.appPort,
         expectedManifestRoutes()['/blog/post-1'].dataRoute
       )
     )
-    expect(data.pageProps.post).toBe('post-1')
+    await t.expect(data.pageProps.post).eql('post-1')
   })
 
-  it('should return data correctly for dynamic page (non-seeded)', async () => {
+  test('should return data correctly for dynamic page (non-seeded)', async t => {
     const data = JSON.parse(
       await renderViaHTTP(
-        appPort,
+        t.fixtureCtx.appPort,
         expectedManifestRoutes()['/blog/post-1'].dataRoute.replace(
           /post-1/,
           'post-3'
         )
       )
     )
-    expect(data.pageProps.post).toBe('post-3')
+    await t.expect(data.pageProps.post).eql('post-3')
   })
 
-  it('should navigate to a normal page and back', async () => {
-    const browser = await webdriver(appPort, '/')
+  test('should navigate to a normal page and back', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/')
     let text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
+    await t.expect(text).match(/hello.*?world/)
 
     await browser.elementByCss('#normal').click()
     await browser.waitForElementByCss('#normal-text')
     text = await browser.elementByCss('#normal-text').text()
-    expect(text).toMatch(/a normal page/)
+    await t.expect(text).match(/a normal page/)
   })
 
   if (dev) {
-    it('should always call getStaticProps without caching in dev', async () => {
-      const initialHtml = await renderViaHTTP(appPort, '/something')
-      expect(initialHtml).toMatch(/hello.*?world/)
+    test('should always call getStaticProps without caching in dev', async t => {
+      const initialHtml = await renderViaHTTP(
+        t.fixtureCtx.appPort,
+        '/something'
+      )
+      await t.expect(initialHtml).match(/hello.*?world/)
 
-      const newHtml = await renderViaHTTP(appPort, '/something')
-      expect(newHtml).toMatch(/hello.*?world/)
-      expect(initialHtml !== newHtml).toBe(true)
+      const newHtml = await renderViaHTTP(t.fixtureCtx.appPort, '/something')
+      await t.expect(newHtml).match(/hello.*?world/)
+      await t.expect(initialHtml !== newHtml).eql(true)
 
-      const newerHtml = await renderViaHTTP(appPort, '/something')
-      expect(newerHtml).toMatch(/hello.*?world/)
-      expect(newHtml !== newerHtml).toBe(true)
+      const newerHtml = await renderViaHTTP(t.fixtureCtx.appPort, '/something')
+      await t.expect(newerHtml).match(/hello.*?world/)
+      await t.expect(newHtml !== newerHtml).eql(true)
     })
 
-    it('should error on bad object from getStaticProps', async () => {
+    test('should error on bad object from getStaticProps', async t => {
       const indexPage = join(__dirname, '../pages/index.js')
       const origContent = await fs.readFile(indexPage, 'utf8')
       await fs.writeFile(
@@ -205,36 +204,41 @@ const runTests = (dev = false) => {
       )
       await waitFor(1000)
       try {
-        const html = await renderViaHTTP(appPort, '/')
-        expect(html).toMatch(/Additional keys were returned/)
+        const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+        await t.expect(html).match(/Additional keys were returned/)
       } finally {
         await fs.writeFile(indexPage, origContent)
       }
     })
   } else {
-    it('outputs a prerender-manifest correctly', async () => {
+    test('outputs a prerender-manifest correctly', async t => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
-      const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+      const escapedBuildId = t.fixtureCtx.buildId.replace(
+        /[|\\{}()[\]^$+*?.-]/g,
+        '\\$&'
+      )
 
-      expect(manifest.version).toBe(1)
-      expect(manifest.routes).toEqual(expectedManifestRoutes())
-      expect(manifest.dynamicRoutes).toEqual({
+      await t.expect(manifest.version).eql(1)
+      await t.expect(manifest.routes).eql(expectedManifestRoutes())
+      await t.expect(manifest.dynamicRoutes).eql({
         '/blog/[post]': {
-          dataRoute: `/_next/data/${buildId}/blog/[post].json`,
+          dataRoute: `/_next/data/${t.fixtureCtx.buildId}/blog/[post].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)(?:\\/)?$'
         },
         '/blog/[post]/[comment]': {
-          dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
+          dataRoute: `/_next/data/${
+            t.fixtureCtx.buildId
+          }/blog/[post]/[comment].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
         }
       })
     })
 
-    it('outputs prerendered files correctly', async () => {
+    test('outputs prerendered files correctly', async t => {
       const routes = [
         '/another',
         '/something',
@@ -243,146 +247,157 @@ const runTests = (dev = false) => {
       ]
 
       for (const route of routes) {
-        await fs.access(join(distPagesDir, `${route}.html`), fs.constants.F_OK)
-        await fs.access(join(distPagesDir, `${route}.json`), fs.constants.F_OK)
+        await fs.access(
+          join(t.fixtureCtx.distPagesDir, `${route}.html`),
+          fs.constants.F_OK
+        )
+        await fs.access(
+          join(t.fixtureCtx.distPagesDir, `${route}.json`),
+          fs.constants.F_OK
+        )
       }
     })
 
-    it('should handle de-duping correctly', async () => {
+    test('should handle de-duping correctly', async t => {
       let vals = new Array(10).fill(null)
 
       vals = await Promise.all(
-        vals.map(() => renderViaHTTP(appPort, '/blog/post-10'))
+        vals.map(() => renderViaHTTP(t.fixtureCtx.appPort, '/blog/post-10'))
       )
       const val = vals[0]
-      expect(val).toMatch(/Post:.*?post-10/)
-      expect(new Set(vals).size).toBe(1)
+      await t.expect(val).match(/Post:.*?post-10/)
+      await t.expect(new Set(vals).size).eql(1)
     })
 
-    it('should not revalidate when set to false', async () => {
+    test('should not revalidate when set to false', async t => {
       const route = '/something'
-      const initialHtml = await renderViaHTTP(appPort, route)
-      let newHtml = await renderViaHTTP(appPort, route)
-      expect(initialHtml).toBe(newHtml)
+      const initialHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      let newHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(initialHtml).eql(newHtml)
 
-      newHtml = await renderViaHTTP(appPort, route)
-      expect(initialHtml).toBe(newHtml)
+      newHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(initialHtml).eql(newHtml)
 
-      newHtml = await renderViaHTTP(appPort, route)
-      expect(initialHtml).toBe(newHtml)
+      newHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(initialHtml).eql(newHtml)
     })
 
-    it('should handle revalidating HTML correctly', async () => {
-      const route = '/blog/post-1/comment-1'
-      const initialHtml = await renderViaHTTP(appPort, route)
-      expect(initialHtml).toMatch(/Post:.*?post-1/)
-      expect(initialHtml).toMatch(/Comment:.*?comment-1/)
+    test('should handle revalidating HTML correctly', async t => {
+      const route = '/blog/post-2/comment-2'
+      const initialHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(initialHtml).match(/Post:.*?post-2/)
+      await t.expect(initialHtml).match(/Comment:.*?comment-2/)
 
-      let newHtml = await renderViaHTTP(appPort, route)
-      expect(newHtml).toBe(initialHtml)
-
-      await waitFor(2 * 1000)
-      await renderViaHTTP(appPort, route)
+      let newHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(newHtml).eql(initialHtml)
 
       await waitFor(2 * 1000)
-      newHtml = await renderViaHTTP(appPort, route)
-      expect(newHtml === initialHtml).toBe(false)
-      expect(newHtml).toMatch(/Post:.*?post-1/)
-      expect(newHtml).toMatch(/Comment:.*?comment-1/)
+      await renderViaHTTP(t.fixtureCtx.appPort, route)
+
+      await waitFor(2 * 1000)
+      newHtml = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(newHtml === initialHtml).eql(false)
+      await t.expect(newHtml).match(/Post:.*?post-2/)
+      await t.expect(newHtml).match(/Comment:.*?comment-2/)
     })
 
-    it('should handle revalidating JSON correctly', async () => {
-      const route = `/_next/data/${buildId}/blog/post-2/comment-3.json`
-      const initialJson = await renderViaHTTP(appPort, route)
-      expect(initialJson).toMatch(/post-2/)
-      expect(initialJson).toMatch(/comment-3/)
+    test('should handle revalidating JSON correctly', async t => {
+      const route = `/_next/data/${
+        t.fixtureCtx.buildId
+      }/blog/post-2/comment-3.json`
+      const initialJson = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(initialJson).match(/post-2/)
+      await t.expect(initialJson).match(/comment-3/)
 
-      let newJson = await renderViaHTTP(appPort, route)
-      expect(newJson).toBe(initialJson)
+      let newJson = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(newJson).eql(initialJson)
 
       await waitFor(2 * 1000)
-      await renderViaHTTP(appPort, route)
+      await renderViaHTTP(t.fixtureCtx.appPort, route)
 
       await waitFor(2 * 1000)
-      newJson = await renderViaHTTP(appPort, route)
-      expect(newJson === initialJson).toBe(false)
-      expect(newJson).toMatch(/post-2/)
-      expect(newJson).toMatch(/comment-3/)
+      newJson = await renderViaHTTP(t.fixtureCtx.appPort, route)
+      await t.expect(newJson === initialJson).eql(false)
+      await t.expect(newJson).match(/post-2/)
+      await t.expect(newJson).match(/comment-3/)
     })
   }
 }
 
-describe('SPR Prerender', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
+fixture('SPR Prerender')
 
-    runTests(true)
+fixture('dev mode')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
+    ctx.buildId = 'development'
   })
+  .after(ctx => killApp(ctx.app))
 
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`,
-        'utf8'
+runTests(true)
+
+fixture('serverless mode')
+  .before(async ctx => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { target: 'serverless' }`,
+      'utf8'
+    )
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+    ctx.distPagesDir = join(appDir, '.next/serverless/pages')
+    ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+fixture('production mode')
+  .before(async ctx => {
+    try {
+      await fs.unlink(nextConfig)
+    } catch (_) {}
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+    ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    ctx.distPagesDir = join(appDir, '.next/server/static', ctx.buildId, 'pages')
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+fixture('export mode')
+  .before(async ctx => {
+    ctx.exportDir = join(appDir, 'out')
+    await nextBuild(appDir)
+    await nextExport(appDir, { outdir: ctx.exportDir })
+    ctx.app = await startStaticServer(ctx.exportDir)
+    ctx.appPort = ctx.app.address().port
+    ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+  })
+  .after(ctx => stopApp(ctx.app))
+
+test('should copy prerender files correctly', async t => {
+  const routes = [
+    '/another',
+    '/something',
+    '/blog/post-1',
+    '/blog/post-2/comment-2'
+  ]
+
+  for (const route of routes) {
+    await fs.access(join(t.fixtureCtx.exportDir, `${route}.html`))
+    await fs.access(
+      join(
+        t.fixtureCtx.exportDir,
+        '_next/data',
+        t.fixtureCtx.buildId,
+        `${route}.json`
       )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      distPagesDir = join(appDir, '.next/serverless/pages')
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('production mode', () => {
-    beforeAll(async () => {
-      try {
-        await fs.unlink(nextConfig)
-      } catch (_) {}
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('export mode', () => {
-    beforeAll(async () => {
-      exportDir = join(appDir, 'out')
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir: exportDir })
-      app = await startStaticServer(exportDir)
-      appPort = app.address().port
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-
-    it('should copy prerender files correctly', async () => {
-      const routes = [
-        '/another',
-        '/something',
-        '/blog/post-1',
-        '/blog/post-2/comment-2'
-      ]
-
-      for (const route of routes) {
-        await fs.access(join(exportDir, `${route}.html`))
-        await fs.access(join(exportDir, '_next/data', buildId, `${route}.json`))
-      }
-    })
-
-    navigateTest()
-  })
+    )
+  }
 })
+
+navigateTest()
