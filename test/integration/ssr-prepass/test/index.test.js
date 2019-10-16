@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   killApp,
@@ -9,22 +10,17 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
-
 const appDir = join(__dirname, '../')
-let appPort
-let app
 
-describe('SSR Prepass', () => {
-  beforeAll(async () => {
+fixture('SSR Prepass')
+  .before(async ctx => {
     await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
   })
-  afterAll(() => killApp(app))
+  .after(ctx => killApp(ctx.app))
 
-  it('should not externalize when used outside Next.js', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/hello.*?world/)
-  })
+test('should not externalize when used outside Next.js', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await t.expect(html).match(/hello.*?world/)
 })
