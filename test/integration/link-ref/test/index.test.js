@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -11,13 +12,10 @@ import {
   waitFor
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-let app
-let appPort
 const appDir = join(__dirname, '..')
 
 const noError = async pathname => {
-  const browser = await webdriver(appPort, '/')
+  const browser = await webdriver(t.fixtureCtx.appPort, '/')
   await browser.eval(`(function() {
     window.caughtErrors = []
     const origError = window.console.error
@@ -29,12 +27,12 @@ const noError = async pathname => {
   })()`)
   await waitFor(1000)
   const numErrors = await browser.eval(`window.caughtErrors.length`)
-  expect(numErrors).toBe(0)
+  await t.expect(numErrors).eql(0)
   await browser.close()
 }
 
 const didPreload = async pathname => {
-  const browser = await webdriver(appPort, pathname)
+  const browser = await webdriver(t.fixtureCtx.appPort, pathname)
   await waitFor(500)
   const links = await browser.elementsByCss('link[rel=preload]')
   let found = false
@@ -46,53 +44,51 @@ const didPreload = async pathname => {
       break
     }
   }
-  expect(found).toBe(true)
+  await t.expect(found).eql(true)
   await browser.close()
 }
 
-describe('Invalid hrefs', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+fixture('Invalid hrefs')
 
-    it('should not show error for functional component with forwardRef', async () => {
-      await noError('/functional')
-    })
-
-    it('should not show error for class component as child of next/link', async () => {
-      await noError('/class')
-    })
-
-    it('should handle child ref with React.createRef', async () => {
-      await noError('/child-ref')
-    })
-
-    it('should handle child ref that is a function', async () => {
-      await noError('/child-ref-func')
-    })
+fixture('dev mode')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
   })
+  .after(ctx => killApp(ctx.app))
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+test('should not show error for functional component with forwardRef', async t => {
+  await noError('/functional')
+})
 
-    it('should preload with forwardRef', async () => {
-      await didPreload('/functional')
-    })
+test('should not show error for class component as child of next/link', async t => {
+  await noError('/class')
+})
 
-    it('should preload with child ref with React.createRef', async () => {
-      await didPreload('/child-ref')
-    })
+test('should handle child ref with React.createRef', async t => {
+  await noError('/child-ref')
+})
 
-    it('should preload with child ref with function', async () => {
-      await didPreload('/child-ref-func')
-    })
+test('should handle child ref that is a function', async t => {
+  await noError('/child-ref-func')
+})
+
+fixture('production mode')
+  .before(async ctx => {
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
   })
+  .after(ctx => killApp(ctx.app))
+
+test('should preload with forwardRef', async t => {
+  await didPreload('/functional')
+})
+
+test('should preload with child ref with React.createRef', async t => {
+  await didPreload('/child-ref')
+})
+
+test('should preload with child ref with function', async t => {
+  await didPreload('/child-ref-func')
 })
