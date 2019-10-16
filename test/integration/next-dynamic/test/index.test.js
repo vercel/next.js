@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
@@ -14,55 +15,48 @@ import {
   stopApp
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-let app
-let appPort
-let server
 const appDir = join(__dirname, '../')
 
 function runTests () {
-  it('should render server value', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/the-server-value/i)
+  test('should render server value', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+    await t.expect(html).match(/the-server-value/i)
   })
 
-  it('should render dynamic server rendered values on client mount', async () => {
-    const browser = await webdriver(appPort, '/')
+  test('should render dynamic server rendered values on client mount', async t => {
+    const browser = await webdriver(t.fixtureCtx.appPort, '/')
     await waitFor(5000)
     const text = await browser.elementByCss('#first-render').text()
 
     // Failure case is 'Index<!-- -->3<!-- --><!-- -->'
-    expect(text).toBe('Index<!-- -->1<!-- -->2<!-- -->3')
+    await t.expect(text).eql('Index<!-- -->1<!-- -->2<!-- -->3')
   })
 }
 
-describe('next/dynamic', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+fixture('next/dynamic')
 
-    runTests(true)
+fixture('dev mode')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
   })
+  .after(ctx => killApp(ctx.app))
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await runNextCommand(['build', appDir])
+runTests(true)
 
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true
-      })
+fixture('production mode')
+  .before(async ctx => {
+    await runNextCommand(['build', appDir])
 
-      server = await startApp(app)
-      appPort = server.address().port
+    ctx.app = nextServer({
+      dir: appDir,
+      dev: false,
+      quiet: true
     })
-    afterAll(() => stopApp(server))
 
-    runTests()
+    ctx.server = await startApp(ctx.app)
+    ctx.appPort = ctx.server.address().port
   })
-})
+  .after(ctx => stopApp(ctx.server))
+
+runTests()
