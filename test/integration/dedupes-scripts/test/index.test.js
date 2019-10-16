@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
@@ -10,35 +11,30 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-
 const appDir = join(__dirname, '../')
-let appPort
-let app
 
-describe('De-dedupes scripts in _document', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
+fixture('De-dedupes scripts in _document')
+  .before(async ctx => {
     await nextBuild(appDir)
-    app = await nextStart(appDir, appPort)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
   })
-  afterAll(() => killApp(app))
+  .after(ctx => killApp(ctx.app))
 
-  it('Does not have duplicate script references', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
-    let foundDuplicate = false
-    const srcs = new Set()
+test('Does not have duplicate script references', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  const $ = cheerio.load(html)
+  let foundDuplicate = false
+  const srcs = new Set()
 
-    for (const script of $('script').toArray()) {
-      const { src } = script.attribs
-      if (!src || !src.startsWith('/_next/static')) continue
-      if (srcs.has(src)) {
-        console.error(`Found duplicate script ${src}`)
-        foundDuplicate = true
-      }
-      srcs.add(src)
+  for (const script of $('script').toArray()) {
+    const { src } = script.attribs
+    if (!src || !src.startsWith('/_next/static')) continue
+    if (srcs.has(src)) {
+      console.error(`Found duplicate script ${src}`)
+      foundDuplicate = true
     }
-    expect(foundDuplicate).toBe(false)
-  })
+    srcs.add(src)
+  }
+  await t.expect(foundDuplicate).eql(false)
 })
