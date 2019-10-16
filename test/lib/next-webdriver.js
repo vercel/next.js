@@ -95,6 +95,12 @@ class WdInterface {
         return t.eval(() => document.querySelector(sel)[attr], {
           dependencies: { sel, attr }
         })
+      },
+      type (text) {
+        return t.typeText(el, text)
+      },
+      getValue () {
+        return el.value
       }
     }
   }
