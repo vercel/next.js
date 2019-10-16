@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { writeFile, remove } from 'fs-extra'
@@ -12,68 +13,61 @@ import {
   File
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-
 const appDir = join(__dirname, '..')
-let appPort
-let app
 
 async function get$ (path, query) {
-  const html = await renderViaHTTP(appPort, path, query)
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, path, query)
   return cheerio.load(html)
 }
 
-describe('TypeScript Features', () => {
-  describe('default behavior', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+fixture('TypeScript Features')
 
-    it('should render the page', async () => {
-      const $ = await get$('/hello')
-      expect($('body').text()).toMatch(/Hello World/)
-    })
+fixture('default behavior')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.app))
 
-    it('should not fail to render when an inactive page has an error', async () => {
-      await killApp(app)
-      let evilFile = join(appDir, 'pages', 'evil.tsx')
-      try {
-        await writeFile(
-          evilFile,
-          `import React from 'react'
+test('should render the page', async t => {
+  const $ = await get$('/hello')
+  await t.expect($('body').text()).match(/Hello World/)
+})
+
+test('should not fail to render when an inactive page has an error', async t => {
+  await killApp(t.fixtureCtx.app)
+  let evilFile = join(appDir, 'pages', 'evil.tsx')
+  try {
+    await writeFile(
+      evilFile,
+      `import React from 'react'
 
 export default function EvilPage(): JSX.Element {
-  return <div notARealProp />
+return <div notARealProp />
 }
 `
-        )
-        app = await launchApp(appDir, appPort)
+    )
+    t.fixtureCtx.app = await launchApp(appDir, t.fixtureCtx.appPort)
 
-        const $ = await get$('/hello')
-        expect($('body').text()).toMatch(/Hello World/)
-      } finally {
-        await remove(evilFile)
-      }
-    })
-  })
+    const $ = await get$('/hello')
+    await t.expect($('body').text()).match(/Hello World/)
+  } finally {
+    await remove(evilFile)
+  }
+})
 
-  it('should compile the app', async () => {
+test('should compile the app', async t => {
+  const output = await nextBuild(appDir, [], { stdout: true })
+  await t.expect(output.stdout).match(/Compiled successfully/)
+})
+
+test('should compile async getInitialProps for _error', async t => {
+  const errorPage = new File(join(appDir, 'pages/_error.tsx'))
+  try {
+    errorPage.replace('static ', 'static async ')
     const output = await nextBuild(appDir, [], { stdout: true })
-    expect(output.stdout).toMatch(/Compiled successfully/)
-  })
-
-  describe('should compile with different types', () => {
-    it('should compile async getInitialProps for _error', async () => {
-      const errorPage = new File(join(appDir, 'pages/_error.tsx'))
-      try {
-        errorPage.replace('static ', 'static async ')
-        const output = await nextBuild(appDir, [], { stdout: true })
-        expect(output.stdout).toMatch(/Compiled successfully/)
-      } finally {
-        errorPage.restore()
-      }
-    })
-  })
+    await t.expect(output.stdout).match(/Compiled successfully/)
+  } finally {
+    errorPage.restore()
+  }
 })
