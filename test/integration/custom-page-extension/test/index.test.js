@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   nextBuild,
@@ -8,60 +9,56 @@ import {
   launchApp,
   killApp,
   renderViaHTTP,
-  killAll,
   File
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
-
 const appDir = join(__dirname, '..')
-let appPort
-let app
 
 const runTests = () => {
-  it('should work with normal page', async () => {
-    const html = await renderViaHTTP(appPort, '/blog')
-    expect(html).toContain('Blog - CPE')
+  test('should work with normal page', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/blog')
+    await t.expect(html).contains('Blog - CPE')
   })
 
-  it('should work dynamic page', async () => {
-    const html = await renderViaHTTP(appPort, '/blog/nextjs')
-    expect(html).toContain('Post - nextjs')
+  test('should work dynamic page', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/blog/nextjs')
+    await t.expect(html).contains('Post - nextjs')
   })
 }
 
-describe('Custom page extension', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTests()
+fixture('Custom page extension')
+
+fixture('dev mode')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+fixture('production mode')
+  .before(async ctx => {
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+const nextConfig = new File(join(appDir, 'next.config.js'))
+
+fixture('serverless mode')
+  .before(async ctx => {
+    nextConfig.replace('server', 'serverless')
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+  })
+  .after(async ctx => {
+    await killApp(ctx.app)
+    nextConfig.restore()
   })
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killAll(app))
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
-    beforeAll(async () => {
-      nextConfig.replace('server', 'serverless')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
-    runTests()
-  })
-})
+runTests()
