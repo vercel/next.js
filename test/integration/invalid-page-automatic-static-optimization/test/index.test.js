@@ -1,19 +1,20 @@
-/* eslint-env jest */
-/* global jasmine, test */
+/* global fixture, test */
+import 'testcafe'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = path.join(__dirname, '..')
 
-describe('Invalid Page automatic static optimization', () => {
-  it('Fails softly with descriptive error', async () => {
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+fixture('Invalid Page automatic static optimization')
 
-    expect(stderr).toMatch(
+test('Fails softly with descriptive error', async t => {
+  const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+  await t
+    .expect(stderr)
+    .match(
       /Build optimization failed: found pages without a React Component as default export in/
     )
-    expect(stderr).toMatch(/pages\/invalid/)
-    expect(stderr).toMatch(/pages\/also-invalid/)
-  })
+  await t.expect(stderr).match(/pages\/invalid/)
+  await t.expect(stderr).match(/pages\/also-invalid/)
 })
