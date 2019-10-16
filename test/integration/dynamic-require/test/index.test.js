@@ -1,22 +1,17 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { renderViaHTTP, launchApp, findPort, killApp } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
-
-let server
-let appPort
-
-describe('Dynamic require', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    server = await launchApp(join(__dirname, '../'), appPort)
+fixture('Dynamic require')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
   })
-  afterAll(() => killApp(server))
+  .after(ctx => killApp(ctx.server))
 
-  it('should not throw error when dynamic require is used', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/If you can see this then we are good/)
-  })
+test('should not throw error when dynamic require is used', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await t.expect(html).match(/If you can see this then we are good/)
 })
