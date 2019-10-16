@@ -1,29 +1,26 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Configuration', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+fixture('Configuration')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
   })
-  afterAll(() => {
-    killApp(context.server)
+  .after(async ctx => {
+    await killApp(ctx.server)
   })
 
-  describe('MDX Plugin support', () => {
-    it('should render an MDX page correctly', async () => {
-      expect(await renderViaHTTP(context.appPort, '/')).toMatch(/Hello MDX/)
-    })
+test('should render an MDX page correctly', async t => {
+  await t
+    .expect(await renderViaHTTP(t.fixtureCtx.appPort, '/'))
+    .match(/Hello MDX/)
+})
 
-    it('should render an MDX page with component correctly', async () => {
-      expect(await renderViaHTTP(context.appPort, '/button')).toMatch(
-        /Look, a button!/
-      )
-    })
-  })
+test('should render an MDX page with component correctly', async t => {
+  await t
+    .expect(await renderViaHTTP(t.fixtureCtx.appPort, '/button'))
+    .match(/Look, a button!/)
 })
