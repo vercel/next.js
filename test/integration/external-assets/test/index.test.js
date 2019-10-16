@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { join } from 'path'
 import {
   killApp,
@@ -10,20 +11,16 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-let appPort
-let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-describe('External Assets', () => {
-  beforeAll(async () => {
+fixture('External Assets')
+  .before(async ctx => {
     await nextBuild(appDir, [])
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
   })
-  afterAll(() => killApp(app))
+  .after(ctx => killApp(ctx.app))
 
-  it('should support Firebase', async () => {
-    const html = await renderViaHTTP(appPort, '/about/history')
-    expect(html).toMatch(/Hello Firebase: <!-- -->0/)
-  })
+test('should support Firebase', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/about/history')
+  await t.expect(html).match(/Hello Firebase: <!-- -->0/)
 })
