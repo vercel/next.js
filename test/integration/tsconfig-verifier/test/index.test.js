@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import path from 'path'
 import {
   exists,
@@ -10,82 +11,82 @@ import {
   createFile
 } from 'fs-extra'
 
-import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
+import {
+  launchApp,
+  findPort,
+  killApp,
+  renderViaHTTP,
+  didThrow
+} from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+const appDir = path.join(__dirname, '../')
+const tsConfig = path.join(appDir, 'tsconfig.json')
 
-describe('Fork ts checker plugin', () => {
-  const appDir = path.join(__dirname, '../')
-  const tsConfig = path.join(appDir, 'tsconfig.json')
-  let appPort
-  let app
-
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+fixture('Fork ts checker plugin')
+  .before(async ctx => {
+    ctx.appPort = await findPort()
+    ctx.app = await launchApp(appDir, ctx.appPort)
   })
-
-  afterAll(async () => {
-    await killApp(app)
+  .after(async ctx => {
+    await killApp(ctx.app)
     await remove(tsConfig)
   })
 
-  it('Creates a default tsconfig.json when one is missing', async () => {
-    expect(await exists(tsConfig)).toBe(true)
+test('Creates a default tsconfig.json when one is missing', async t => {
+  await t.expect(await exists(tsConfig)).eql(true)
 
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
+  const tsConfigContent = await readFile(tsConfig)
+  let parsedTsConfig
+  await didThrow(() => {
+    parsedTsConfig = JSON.parse(tsConfigContent)
+  }, false)
 
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
-  })
+  await t.expect(parsedTsConfig.exclude[0]).eql('node_modules')
+})
 
-  it('Works with an empty tsconfig.json (docs)', async () => {
-    await killApp(app)
+test('Works with an empty tsconfig.json (docs)', async t => {
+  await killApp(t.fixtureCtx.app)
 
-    await remove(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
+  await remove(tsConfig)
+  await new Promise(resolve => setTimeout(resolve, 500))
 
-    expect(await exists(tsConfig)).toBe(false)
+  await t.expect(await exists(tsConfig)).eql(false)
 
-    await createFile(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
+  await createFile(tsConfig)
+  await new Promise(resolve => setTimeout(resolve, 500))
 
-    expect(await readFile(tsConfig, 'utf8')).toBe('')
+  await t.expect(await readFile(tsConfig, 'utf8')).eql('')
 
-    await killApp(app)
-    await new Promise(resolve => setTimeout(resolve, 500))
+  await killApp(t.fixtureCtx.app)
+  await new Promise(resolve => setTimeout(resolve, 500))
 
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+  t.fixtureCtx.appPort = await findPort()
+  t.fixtureCtx.app = await launchApp(appDir, t.fixtureCtx.appPort)
 
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
+  const tsConfigContent = await readFile(tsConfig)
+  let parsedTsConfig
+  await didThrow(() => {
+    parsedTsConfig = JSON.parse(tsConfigContent)
+  }, false)
 
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
-  })
+  await t.expect(parsedTsConfig.exclude[0]).eql('node_modules')
+})
 
-  it('Updates an existing tsconfig.json with required value', async () => {
-    await killApp(app)
+test('Updates an existing tsconfig.json with required value', async t => {
+  await killApp(t.fixtureCtx.app)
 
-    let parsedTsConfig = await readJSON(tsConfig)
-    parsedTsConfig.compilerOptions.esModuleInterop = false
+  let parsedTsConfig = await readJSON(tsConfig)
+  parsedTsConfig.compilerOptions.esModuleInterop = false
 
-    await writeJSON(tsConfig, parsedTsConfig)
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+  await writeJSON(tsConfig, parsedTsConfig)
+  t.fixtureCtx.appPort = await findPort()
+  t.fixtureCtx.app = await launchApp(appDir, t.fixtureCtx.appPort)
 
-    parsedTsConfig = await readJSON(tsConfig)
-    expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(true)
-  })
+  parsedTsConfig = await readJSON(tsConfig)
+  await t.expect(parsedTsConfig.compilerOptions.esModuleInterop).eql(true)
+})
 
-  it('Renders a TypeScript page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/Hello TypeScript/)
-  })
+test('Renders a TypeScript page correctly', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  await t.expect(html).match(/Hello TypeScript/)
 })
