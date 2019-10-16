@@ -1,3 +1,5 @@
+const path = require('path')
+
 module.exports = {
   webpack: function (config, { dev }) {
     // For the development version, we'll use React.
@@ -8,9 +10,11 @@ module.exports = {
 
     config.resolve.alias = {
       ...config.resolve.alias,
-      react: 'inferno-compat',
-      'react-dom': 'inferno-compat'
+      react: path.resolve('./lib/inferno-compat.js'),
+      'react-dom': path.resolve('./lib/inferno-compat.js'),
+      'react-dom/server': 'inferno-server'
     }
+
     return config
   }
 }
