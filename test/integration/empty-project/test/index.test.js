@@ -1,28 +1,25 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import { t } from 'testcafe'
+
 import { join } from 'path'
 import fs from 'fs'
 import { fetchViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
-const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Empty Project', () => {
-  beforeAll(async () => {
+fixture('Empty Project')
+  .before(async ctx => {
     fs.unlinkSync(join(__dirname, '..', 'pages', '.gitkeep'))
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    ctx.appPort = await findPort()
+    ctx.server = await launchApp(join(__dirname, '../'), ctx.appPort)
   })
-
-  const fetch = (p, q) => fetchViaHTTP(context.appPort, p, q, { timeout: 5000 })
-
-  it('Should not time out and return 404', async () => {
-    const res = await fetch('/')
-    expect(res.status).toBe(404)
-  })
-
-  afterAll(() => {
-    killApp(context.server)
+  .after(ctx => {
+    killApp(ctx.server)
     fs.closeSync(fs.openSync(join(__dirname, '..', 'pages', '.gitkeep'), 'w'))
   })
+
+const fetch = (p, q) =>
+  fetchViaHTTP(t.fixtureCtx.appPort, p, q, { timeout: 5000 })
+
+test('Should not time out and return 404', async t => {
+  const res = await fetch('/')
+  await t.expect(res.status).eql(404)
 })
