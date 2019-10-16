@@ -1,18 +1,19 @@
-/* eslint-env jest */
-/* global jasmine, test */
+/* global fixture, test */
+import 'testcafe'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = path.join(__dirname, '..')
 
-describe('Handle non-page in pages when target: serverless', () => {
-  it('Fails softly with descriptive error', async () => {
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+fixture('Handle non-page in pages when target: serverless')
 
-    expect(stderr).toMatch(
+test('Fails softly with descriptive error', async t => {
+  const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+  await t
+    .expect(stderr)
+    .match(
       /webpack build failed: found page without a React Component as default export in/
     )
-    expect(stderr).toMatch(/pages\/invalid/)
-  })
+  await t.expect(stderr).match(/pages\/invalid/)
 })
