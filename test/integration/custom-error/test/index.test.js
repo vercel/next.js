@@ -1,5 +1,6 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -10,46 +11,38 @@ import {
   killApp
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
-let appPort
-let app
 
 const runTests = () => {
-  it('renders custom _error successfully', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/Custom error/)
+  test('renders custom _error successfully', async t => {
+    const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+    await t.expect(html).match(/Custom error/)
   })
 }
 
-describe('Custom _error', () => {
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+fixture('Custom _error')
 
-    runTests()
+fixture('production mode')
+  .before(async ctx => {
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+  })
+  .after(ctx => killApp(ctx.app))
+
+runTests()
+
+fixture('serverless mode')
+  .before(async ctx => {
+    await fs.writeFile(nextConfig, `module.exports = { target: 'serverless' }`)
+    await nextBuild(appDir)
+    ctx.appPort = await findPort()
+    ctx.app = await nextStart(appDir, ctx.appPort)
+  })
+  .after(async ctx => {
+    await killApp(ctx.app)
+    await fs.remove(nextConfig)
   })
 
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
-
-    runTests()
-  })
-})
+runTests()
