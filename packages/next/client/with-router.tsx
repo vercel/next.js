@@ -1,6 +1,6 @@
 import React from 'react'
 import { NextComponentType, NextPageContext } from '../next-server/lib/utils'
-import { NextRouter, RouterContext } from './router'
+import { NextRouter, useRouter } from './router'
 
 export type WithRouterProps = {
   router: NextRouter
@@ -16,17 +16,9 @@ export default function withRouter<
   C = NextPageContext
 >(
   ComposedComponent: NextComponentType<C, any, P>
-): React.ComponentClass<ExcludeRouterProps<P>> {
-  class WithRouteWrapper extends React.Component<ExcludeRouterProps<P>> {
-    static displayName?: string
-    static getInitialProps?: any
-    static contextType = RouterContext
-
-    context!: React.ContextType<typeof RouterContext>
-
-    render() {
-      return <ComposedComponent router={this.context} {...this.props as any} />
-    }
+): React.ComponentType<ExcludeRouterProps<P>> {
+  function WithRouteWrapper(props: any) {
+    return <ComposedComponent router={useRouter()} {...props} />
   }
 
   WithRouteWrapper.getInitialProps = ComposedComponent.getInitialProps
