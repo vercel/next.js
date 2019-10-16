@@ -1,15 +1,10 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import { nextBuild, nextServer, startApp, stopApp } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import fetch from 'node-fetch'
-
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-let server
-let scriptsUrls
-let baseResponseSize
 
 function getResponseSizes (resourceUrls) {
   return Promise.all(
@@ -31,15 +26,15 @@ function getResponseSizesKB (responseSizes) {
   return Math.ceil(responseSizeBytes / 1024)
 }
 
-describe('Production response size', () => {
-  beforeAll(async () => {
+fixture('Production response size')
+  .before(async ctx => {
     const dir = join(__dirname, '../')
 
     // Build next app
     await nextBuild(dir)
 
     // Start next app
-    server = await startApp(
+    ctx.server = await startApp(
       nextServer({
         dir,
         dev: false,
@@ -48,57 +43,55 @@ describe('Production response size', () => {
     )
 
     // Get the html document
-    let baseUrl = `http://localhost:${server.address().port}`
+    let baseUrl = `http://localhost:${ctx.server.address().port}`
     const htmlResponse = await fetch(baseUrl)
 
     // Find all script urls
     const html = await htmlResponse.text()
-    baseResponseSize = { url: baseUrl, bytes: html.length }
+    ctx.baseResponseSize = { url: baseUrl, bytes: html.length }
     const $ = cheerio.load(html)
-    scriptsUrls = $('script[src]')
+    ctx.scriptsUrls = $('script[src]')
       .map((i, el) => $(el).attr('src'))
       .get()
       .map(path => `${baseUrl}${path}`)
   })
-
-  afterAll(async () => {
+  .after(async ctx => {
     // Clean up
-    await stopApp(server)
+    await stopApp(ctx.server)
   })
 
-  it('should not increase the overall response size of default build', async () => {
-    const responseSizes = [
-      baseResponseSize,
-      ...(await getResponseSizes(
-        scriptsUrls.filter(path => !path.endsWith('.module.js'))
-      ))
-    ]
-    const responseSizeKilobytes = getResponseSizesKB(responseSizes)
-    console.log(
-      `Response Sizes for default:\n${responseSizes
-        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
-        .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
-    )
+test('should not increase the overall response size of default build', async t => {
+  const responseSizes = [
+    t.fixtureCtx.baseResponseSize,
+    ...(await getResponseSizes(
+      t.fixtureCtx.scriptsUrls.filter(path => !path.endsWith('.module.js'))
+    ))
+  ]
+  const responseSizeKilobytes = getResponseSizesKB(responseSizes)
+  console.log(
+    `Response Sizes for default:\n${responseSizes
+      .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+      .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
+  )
 
-    // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(213) // Kilobytes
-  })
+  // These numbers are without gzip compression!
+  await t.expect(responseSizeKilobytes <= 213).ok() // Kilobytes
+})
 
-  it('should not increase the overall response size of modern build', async () => {
-    const responseSizes = [
-      baseResponseSize,
-      ...(await getResponseSizes(
-        scriptsUrls.filter(path => path.endsWith('.module.js'))
-      ))
-    ]
-    const responseSizeKilobytes = getResponseSizesKB(responseSizes)
-    console.log(
-      `Response Sizes for modern:\n${responseSizes
-        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
-        .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
-    )
+test('should not increase the overall response size of modern build', async t => {
+  const responseSizes = [
+    t.fixtureCtx.baseResponseSize,
+    ...(await getResponseSizes(
+      t.fixtureCtx.scriptsUrls.filter(path => path.endsWith('.module.js'))
+    ))
+  ]
+  const responseSizeKilobytes = getResponseSizesKB(responseSizes)
+  console.log(
+    `Response Sizes for modern:\n${responseSizes
+      .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+      .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
+  )
 
-    // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(187) // Kilobytes
-  })
+  // These numbers are without gzip compression!
+  await t.expect(responseSizeKilobytes <= 187).ok() // Kilobytes
 })
