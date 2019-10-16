@@ -1,41 +1,42 @@
-/* eslint-env jest */
-/* global jasmine */
+/* global fixture, test */
+import 'testcafe'
+
 import fs from 'fs-extra'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
-
 const appDir = path.join(__dirname, '../app')
-let buildId
 
-describe('typeof window replace', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    buildId = await fs.readFile(path.join(appDir, '.next/BUILD_ID'), 'utf8')
-  })
+fixture('typeof window replace').before(async ctx => {
+  await nextBuild(appDir)
+  ctx.buildId = await fs.readFile(path.join(appDir, '.next/BUILD_ID'), 'utf8')
+})
 
-  it('Replaces `typeof window` with object for client code', async () => {
-    const content = await fs.readFile(
-      path.join(appDir, '.next/static/', buildId, 'pages/index.js'),
-      'utf8'
-    )
-    expect(content).toMatch(/Hello.*?,.*?("|')object("|')/)
-  })
+test('Replaces `typeof window` with object for client code', async t => {
+  const content = await fs.readFile(
+    path.join(appDir, '.next/static/', t.fixtureCtx.buildId, 'pages/index.js'),
+    'utf8'
+  )
+  await t.expect(content).match(/Hello.*?,.*?("|')object("|')/)
+})
 
-  it('Replaces `typeof window` with undefined for server code', async () => {
-    const content = await fs.readFile(
-      path.join(appDir, '.next/server/static', buildId, 'pages/index.js'),
-      'utf8'
-    )
-    expect(content).toMatch(/Hello.*?,.*?("|')undefined("|')/)
-  })
+test('Replaces `typeof window` with undefined for server code', async t => {
+  const content = await fs.readFile(
+    path.join(
+      appDir,
+      '.next/server/static',
+      t.fixtureCtx.buildId,
+      'pages/index.js'
+    ),
+    'utf8'
+  )
+  await t.expect(content).match(/Hello.*?,.*?("|')undefined("|')/)
+})
 
-  it('Does not replace `typeof window` for `node_modules` code', async () => {
-    const content = await fs.readFile(
-      path.join(appDir, '.next/static/', buildId, 'pages/index.js'),
-      'utf8'
-    )
-    expect(content).toMatch(/MyComp:.*?,.*?typeof window/)
-  })
+test('Does not replace `typeof window` for `node_modules` code', async t => {
+  const content = await fs.readFile(
+    path.join(appDir, '.next/static/', t.fixtureCtx.buildId, 'pages/index.js'),
+    'utf8'
+  )
+  await t.expect(content).match(/MyComp:.*?,.*?typeof window/)
 })
