@@ -345,6 +345,7 @@ export async function renderToHTML(
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
+  if (isSpr) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
