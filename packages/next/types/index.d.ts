@@ -1,6 +1,21 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
+// Adds root types to the exported declarations, some references are intentionally commented
+// because they are breaking TS autocompletion in VS Code
+// <reference path="../amp.d.ts" />
+/// <reference path="../app.d.ts" />
+// <reference path="../babel.d.ts" />
+/// <reference path="../client.d.ts" />
+/// <reference path="../config.d.ts" />
+/// <reference path="../constants.d.ts" />
+// <reference path="../data.d.ts" />
+/// <reference path="../document.d.ts" />
+/// <reference path="../dynamic.d.ts" />
+/// <reference path="../error.d.ts" />
+/// <reference path="../head.d.ts" />
+/// <reference path="../link.d.ts" />
+/// <reference path="../router.d.ts" />
 
 import React from 'react'
 
