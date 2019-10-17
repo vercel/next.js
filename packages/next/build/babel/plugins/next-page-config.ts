@@ -141,6 +141,21 @@ export default function nextPageConfig({
           ),
         ])
 
+        // register the variable to the scope to make TypeScript happy
+        path.parentPath.traverse(
+          {
+            VariableDeclaration(path, state) {
+              if (
+                path.node.declarations[0].id &&
+                (path.node.declarations[0].id as any).name !== pageComponentVar
+              )
+                return
+              path.parentPath.scope.registerDeclaration(path)
+            },
+          },
+          state
+        )
+
         path.node.declaration = t.identifier(pageComponentVar)
       },
     },
