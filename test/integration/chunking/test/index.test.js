@@ -1,8 +1,10 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import express from 'express'
 import { readdir, readFile, unlink, access } from 'fs-extra'
+import { nextServer, nextBuild, startApp, stopApp } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -94,5 +96,39 @@ describe('Chunking', () => {
       })
     })
     expect(misplacedReactDom).toBe(false)
+  })
+  describe('Dynamic loading chunks with assetPrefix', () => {
+    let appPort
+    let server
+    let staticServer
+    let app
+
+    beforeAll(async () => {
+      app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
+      staticServer = express()
+        .use('/_next', express.static(join(appDir, '.next')))
+        .listen(3333)
+    })
+
+    afterAll(() => {
+      staticServer.close()
+      stopApp(server)
+    })
+    it('should use correct urls for chunks', async () => {
+      const browser = await webdriver(appPort, '/page1')
+      await browser.waitForElementByCss('#page-2')
+      const scripts = await browser.elementsByCss('script[src*="/_next/"]')
+      for (let script of scripts) {
+        const src = await browser.getAttribute(script, 'src')
+        expect(src).toMatch(/^http:\/\/localhost:3333\/_next\//)
+      }
+    })
   })
 })

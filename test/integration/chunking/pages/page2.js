@@ -6,7 +6,7 @@ const One = dynamic(() => import('../components/one'))
 const Page = () => {
   console.log(_)
   return (
-    <div>
+    <div id='page-2'>
       page2
       <One />
     </div>
