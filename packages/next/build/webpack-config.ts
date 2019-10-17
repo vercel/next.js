@@ -846,7 +846,6 @@ export default async function getBaseWebpackConfig(
             checkSyntacticErrors: true,
             tsconfig: tsConfigPath,
             reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-            compilerOptions: { isolatedModules: true, noEmit: true },
             silent: true,
             formatter: 'codeframe',
           })
