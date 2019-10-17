@@ -8,7 +8,7 @@ This results in slower builds and can hurt Next.js' persistent caching of client
 
 #### Possible Ways to Fix It
 
-> Note: If this is a new project, or being built for the first time in your CI, you can ignore this error.
+> **Note**: If this is a new project, or being built for the first time in your CI, you can ignore this error.
 > However, you'll want to make sure it doesn't continue to happen and fix it if it does!
 
 Configure Next.js' cache to be persisted across builds. Next.js stores its cache in the `.next/cache` directory.
