@@ -10,7 +10,8 @@ import {
   killApp,
   nextBuild,
   startApp,
-  stopApp
+  stopApp,
+  renderViaHTTP
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -108,5 +109,10 @@ describe('withRouter SSR', () => {
       `No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`
     )
     await browser.close()
+  })
+
+  it('should resolve public fields', async () => {
+    const html = await renderViaHTTP(port, '/ssr')
+    expect(html).toMatch(/Pathname: \/ssr/)
   })
 })
