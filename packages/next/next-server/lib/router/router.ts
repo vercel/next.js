@@ -318,9 +318,14 @@ export default class Router implements BaseRouter {
         const rr = getRouteRegex(route)
         const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
-          console.error(
+          const error =
             'The provided `as` value is incompatible with the `href` value. This is invalid. https://err.sh/zeit/next.js/incompatible-href-as'
-          )
+
+          if (process.env.NODE_ENV !== 'production') {
+            throw new Error(error)
+          } else {
+            console.error(error)
+          }
           return resolve(false)
         }
 
@@ -623,9 +628,14 @@ export default class Router implements BaseRouter {
       (Component as any).__NEXT_SPR
     ) {
       let status: any
-      const { pathname } = parse(ctx.asPath || ctx.pathname)
+      // pathname should have leading slash
+      let { pathname } = parse(ctx.asPath || ctx.pathname)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
 
-      props = await fetch(`/_next/data${pathname}.json`)
+      props = await fetch(
+        // @ts-ignore __NEXT_DATA__
+        `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+      )
         .then(res => {
           if (!res.ok) {
             status = res.status

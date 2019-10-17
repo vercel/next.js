@@ -1,3 +1,3 @@
-import avatar from '../static/logo.png'
+import avatar from '../public/logo.png'
 
 export default () => <img src={avatar} />
