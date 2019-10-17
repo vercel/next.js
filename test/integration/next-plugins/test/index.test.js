@@ -64,6 +64,10 @@ function runTests () {
 describe('Next.js plugins', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -76,7 +80,7 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' } }`
+        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
       await nextBuild(appDir)
       appPort = await findPort()
@@ -91,13 +95,16 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' } }`
+        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(nextConfigPath)
+    })
 
     runTests()
   })

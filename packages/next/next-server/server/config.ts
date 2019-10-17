@@ -44,6 +44,7 @@ const defaultConfig: { [key: string]: any } = {
     documentMiddleware: false,
     granularChunks: false,
     modern: false,
+    plugins: false,
     profiling: false,
     publicDirectory: false,
     sprFlushToDisk: true,

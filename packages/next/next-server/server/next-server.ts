@@ -83,7 +83,7 @@ export default class Server {
     dev?: boolean
   }
   private compression?: Middleware
-  private onErrorMiddleware?: (err: Error) => void
+  private onErrorMiddleware?: ({ err }: { err: Error }) => void
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
@@ -156,7 +156,7 @@ export default class Server {
 
     // call init-server middleware, this is also handled
     // individually in serverless bundles when deployed
-    if (!dev) {
+    if (!dev && this.nextConfig.experimental.plugins) {
       const serverPath = join(
         this.distDir,
         this._isLikeServerless ? 'serverless' : 'server'
@@ -189,7 +189,7 @@ export default class Server {
 
   private logError(err: Error): void {
     if (this.onErrorMiddleware) {
-      this.onErrorMiddleware(err)
+      this.onErrorMiddleware({ err })
     }
     if (this.quiet) return
     // tslint:disable-next-line

@@ -40,7 +40,11 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import { collectPlugins, VALID_MIDDLEWARE } from './plugins/collect-plugins'
+import {
+  collectPlugins,
+  VALID_MIDDLEWARE,
+  PluginMetaData,
+} from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -72,9 +76,12 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
-  const plugins = await collectPlugins(dir, config.env)
-  pluginLoaderOptions.plugins = plugins
+  let plugins: PluginMetaData[] = []
 
+  if (config.experimental.plugins) {
+    plugins = await collectPlugins(dir, config.env)
+    pluginLoaderOptions.plugins = plugins
+  }
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -99,7 +106,9 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    ...VALID_MIDDLEWARE.map(name => new RegExp(`src/${name}`)),
+    ...(config.experimental.plugins
+      ? VALID_MIDDLEWARE.map(name => new RegExp(`src/${name}`))
+      : []),
   ]
 
   // Support for NODE_PATH
@@ -749,6 +758,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
           config.devIndicators.autoPrerender
+        ),
+        'process.env.__NEXT_PLUGINS': JSON.stringify(
+          config.experimental.plugins
         ),
         ...(isServer
           ? {
