@@ -14,11 +14,24 @@ import {
   nextBuild,
   nextStart,
   nextExport,
-  startStaticServer
+  startStaticServer,
+  initNextServerScript
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
+
+const startServer = async (optEnv = {}) => {
+  const scriptPath = join(appDir, 'server.js')
+  const env = Object.assign({}, { ...process.env }, optEnv)
+
+  return initNextServerScript(
+    scriptPath,
+    /ready on/i,
+    env,
+    /ReferenceError: options is not defined/
+  )
+}
 
 const expectedManifestRoutes = () => ({
   '/': {
@@ -321,6 +334,14 @@ const runTests = (dev = false) => {
       await t.expect(newJson).match(/post-2/)
       await t.expect(newJson).match(/comment-3/)
     })
+
+    test('should not fetch prerender data on mount', async t => {
+      const browser = await webdriver(t.fixtureCtx.appPort, '/blog/post-100')
+      await browser.eval('window.thisShouldStay = true')
+      await waitFor(2 * 1000)
+      const val = await browser.eval('window.thisShouldStay')
+      await t.expect(val).toBe(true)
+    })
   }
 }
 
@@ -350,6 +371,20 @@ fixture('serverless mode')
     ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
   })
   .after(ctx => killApp(ctx.app))
+
+test('renders data correctly', async t => {
+  const port = await findPort()
+  const server = await startServer({
+    BUILD_ID: t.fixtureCtx.buildId,
+    PORT: port
+  })
+  const data = await renderViaHTTP(
+    port,
+    `/_next/data/${t.fixtureCtx.buildId}/index.json`
+  )
+  await killApp(server)
+  await t.expect(JSON.parse(data).pageProps.world).eql('world')
+})
 
 runTests()
 

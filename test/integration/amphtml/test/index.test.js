@@ -204,6 +204,7 @@ test('should allow manually setting canonical', async t => {
   await t
     .expect($('link[rel=canonical]').attr('href'))
     .eql('/my-custom-canonical')
+  await t.expect($('link[rel=amphtml]').length).eql(1)
 })
 
 test('should allow manually setting amphtml rel', async t => {
