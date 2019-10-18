@@ -540,7 +540,7 @@ export async function renderToHTML(
     }
   }
 
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const docProps = await loadGetInitialProps(Document, { ...ctx, appProps: props, renderPage })
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
