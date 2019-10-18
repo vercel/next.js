@@ -282,7 +282,8 @@ export default async function getBaseWebpackConfig(
           reuseExistingChunk: true,
         },
       },
-      maxInitialRequests: 20,
+      maxInitialRequests: 25,
+      minSize: 20000,
     },
   }
 
