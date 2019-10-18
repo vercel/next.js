@@ -1,1 +1,1 @@
-export default () => <p>This is the CONTACT page.</p>
+export default () => <h1>This is the CONTACT page.</h1>
