@@ -14,7 +14,6 @@ export default function AmpScript (props) {
     <>
       <AmpIncludeAmpScript />
       <amp-script
-        id={props.id}
         layout={props.layout}
         width={props.width}
         height={props.height}
@@ -28,15 +27,25 @@ export default function AmpScript (props) {
           id={props.id}
           type='text/plain'
           target='amp-script'
-          dangerouslySetInnerHTML={{ __html: props.script }}
+          dangerouslySetInnerHTML={{
+            __html: generateInlineScript(props.script)
+          }}
         />
       )}
     </>
   )
 }
 
+function generateInlineScript (script) {
+  if (typeof script === 'function') {
+    return `${script.toString()}()`
+  }
+  return String(script)
+}
+
 AmpScript.propTypes = {
   id: PropTypes.string,
+  children: PropTypes.node.isRequired,
   layout: PropTypes.string.isRequired,
   width: PropTypes.string,
   height: PropTypes.string,

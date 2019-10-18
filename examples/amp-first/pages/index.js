@@ -129,7 +129,7 @@ const Home = props => (
                 <pre>{`<amp-state id="myState">
   <script type="application/json">
     {
-      "foo": "bar"
+      "message": "Hello World"
     }
   </script>
 </amp-state>`}</pre>
@@ -143,15 +143,14 @@ const Home = props => (
             Demo:
           </p>
 
-          <AmpState
-            id='message'
-            value={{
-              test: 'Hello World'
+          <AmpState id='myState'>
+            {{
+              message: 'Hello World'
             }}
-          />
+          </AmpState>
           <button
             on='tap:AMP.setState({
-           greeting: message
+           greeting: myState.message
          })'
           >
             Click
@@ -220,12 +219,12 @@ const Home = props => (
             id='hello-world'
             layout='fixed-height'
             height='64'
-            script={`
-            const btn = document.querySelector('button');
-            btn.addEventListener('click', () => {
-              document.body.textContent = 'Hello World!';
-            })
-        `}
+            script={() => {
+              const btn = document.querySelector('button')
+              btn.addEventListener('click', () => {
+                document.body.textContent = 'Hello World!'
+              })
+            }}
           >
             <button>Hello amp-script!</button>
           </AmpScript>

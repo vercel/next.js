@@ -13,10 +13,12 @@ export default function AmpState (props) {
     <>
       <AmpIncludeAmpBind />
       <amp-state id={props.id} src={props.src}>
-        {props.value && (
+        {props.children && (
           <script
             type='application/json'
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(props.value) }}
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(props.children)
+            }}
           />
         )}
       </amp-state>
@@ -26,12 +28,6 @@ export default function AmpState (props) {
 
 AmpState.propTypes = {
   id: PropTypes.string.isRequired,
-  src: PropTypes.string,
-  value: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.number,
-    PropTypes.object,
-    PropTypes.array,
-    PropTypes.bool
-  ])
+  children: PropTypes.node,
+  src: PropTypes.string
 }
