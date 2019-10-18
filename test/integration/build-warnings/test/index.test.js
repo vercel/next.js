@@ -49,7 +49,12 @@ describe('Build warnings', () => {
 
     const { stdout } = await nextBuild(appDir, undefined, {
       stdout: true,
-      env: { CI: '' }
+      env: {
+        CI: '',
+        CIRCLECI: '',
+        TRAVIS: '',
+        SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: ''
+      }
     })
     expect(stdout).not.toContain('no-cache')
   })
