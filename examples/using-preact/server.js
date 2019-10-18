@@ -1,7 +1,11 @@
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
+const moduleAlias = require('module-alias')
 
-require('@zeit/next-preact/alias')()
+moduleAlias.addAliases({
+  react: 'preact/compat',
+  'react-dom': 'preact/compat'
+})
 
 const { createServer } = require('http')
 const { parse } = require('url')
