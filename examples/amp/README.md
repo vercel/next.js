@@ -4,7 +4,7 @@
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example amp amp-app
@@ -39,4 +39,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to create AMP pages using Next.js and the experimental AMP feature. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page.
+This example shows how to create AMP pages using Next.js and the AMP feature. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page.

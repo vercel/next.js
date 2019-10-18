@@ -66,7 +66,7 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
-  pagesDir: string
+  pagesDir?: string
   publicDir: string
   pagesManifest: string
   buildId: string
@@ -85,7 +85,7 @@ export default class Server {
   }
   private compression?: Middleware
   router: Router
-  private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
   public constructor({
     dir = '.',
@@ -97,7 +97,6 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    this.pagesDir = findPagesDir(this.dir)
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
@@ -144,10 +143,12 @@ export default class Server {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
+    if (this.nextConfig.target === 'server') {
+      envConfig.setConfig({
+        serverRuntimeConfig,
+        publicRuntimeConfig,
+      })
+    }
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
@@ -167,7 +168,7 @@ export default class Server {
     })
   }
 
-  private currentPhase(): string {
+  protected currentPhase(): string {
     return PHASE_PRODUCTION_SERVER
   }
 
@@ -213,13 +214,17 @@ export default class Server {
   public async prepare(): Promise<void> {}
 
   // Backwards compatibility
-  private async close(): Promise<void> {}
+  protected async close(): Promise<void> {}
 
-  private setImmutableAssetCacheControl(res: ServerResponse) {
+  protected setImmutableAssetCacheControl(res: ServerResponse) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private generateRoutes(): Route[] {
+  protected generateRoutes(): Route[] {
+    const publicRoutes = fs.existsSync(this.publicDir)
+      ? this.generatePublicRoutes()
+      : []
+
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -249,10 +254,24 @@ export default class Server {
       {
         match: route('/_next/data/:path*'),
         fn: async (req, res, params, _parsedUrl) => {
-          // Make sure to 404 for /_next/data/ itself
-          if (!params.path) return this.render404(req, res, _parsedUrl)
-          // TODO: force `.json` to be present
-          const pathname = `/${params.path.join('/')}`.replace(/\.json$/, '')
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            return this.render404(req, res, _parsedUrl)
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          // show 404 if it doesn't end with .json
+          if (!params.path[params.path.length - 1].endsWith('.json')) {
+            return this.render404(req, res, _parsedUrl)
+          }
+
+          // re-create page's pathname
+          const pathname = `/${params.path.join('/')}`
+            .replace(/\.json$/, '')
+            .replace(/\/index$/, '/')
+
           req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
           await this.render(
@@ -271,6 +290,7 @@ export default class Server {
           await this.render404(req, res, parsedUrl)
         },
       },
+      ...publicRoutes,
       {
         // It's very important to keep this route's param optional.
         // (but it should support as many params as needed, separated by '/')
@@ -294,13 +314,6 @@ export default class Server {
         },
       },
     ]
-
-    if (
-      this.nextConfig.experimental.publicDirectory &&
-      fs.existsSync(this.publicDir)
-    ) {
-      routes.push(...this.generatePublicRoutes())
-    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -380,7 +393,7 @@ export default class Server {
    * Resolves path to resolver function
    * @param pathname path of request
    */
-  private resolveApiRequest(pathname: string) {
+  protected async resolveApiRequest(pathname: string): Promise<string | null> {
     return getPagePath(
       pathname,
       this.distDir,
@@ -389,7 +402,7 @@ export default class Server {
     )
   }
 
-  private generatePublicRoutes(): Route[] {
+  protected generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(
@@ -415,7 +428,7 @@ export default class Server {
     return routes
   }
 
-  private getDynamicRoutes() {
+  protected getDynamicRoutes() {
     const manifest = require(this.pagesManifest)
     const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
@@ -430,7 +443,7 @@ export default class Server {
     }
   }
 
-  private async run(
+  protected async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
@@ -454,7 +467,7 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  private async sendHTML(
+  protected async sendHTML(
     req: IncomingMessage,
     res: ServerResponse,
     html: string
@@ -604,8 +617,9 @@ export default class Server {
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
     if (isLikeServerless && isSprData) {
-      const curUrl = parseUrl(req.url || '', true)
-      req.url = `/_next/data${curUrl.pathname}.json`
+      let { pathname } = parseUrl(req.url || '', true)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      req.url = `/_next/data/${this.buildId}${pathname}.json`
     }
 
     const doRender = withCoalescedInvoke(async function(): Promise<{
@@ -849,7 +863,7 @@ export default class Server {
     return true
   }
 
-  private readBuildId(): string {
+  protected readBuildId(): string {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()

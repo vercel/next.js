@@ -4,7 +4,7 @@
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-asset-imports with-asset-imports-app
@@ -39,7 +39,7 @@ now
 
 ## The idea behind the example
 
-This example shows how to enable the imports of assets (images, videos, etc.) and get a URL pointing to `/static`.
+This example shows how to enable the imports of assets (images, videos, etc.) and get a URL pointing to `/public`.
 
 This is also configurable to point to a CDN changing the `baseUri` to the CDN domain, something similar to this:
 
@@ -47,7 +47,7 @@ This is also configurable to point to a CDN changing the `baseUri` to the CDN do
 [
   "transform-assets-import-to-string",
   {
-    "baseDir": "/static",
+    "baseDir": "/",
     "baseUri": "https://cdn.domain.com"
   }
 ]

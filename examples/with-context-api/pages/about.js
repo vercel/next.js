@@ -1,33 +1,34 @@
-import React, { Component } from 'react'
-/* First we import the consumer */
-import { CounterConsumer } from '../components/CounterProvider'
+import React from 'react'
 import Link from 'next/link'
+import { useCount, useDispatchCount } from '../components/Counter'
 
-export default class about extends Component {
-  render () {
-    return (
-      /* Then we use our context through render props */
-      <CounterConsumer>
-        {({ count, increase, increaseBy }) => (
-          <div>
-            <h1>ABOUT</h1>
-            <p>Counter: {count}</p>
-            <button onClick={increase}>Increase</button>
-            <button
-              onClick={() => {
-                increaseBy(15)
-              }}
-            >
-              Increase By 15
-            </button>
-            <p>
-              <Link href='/'>
-                <a>Home</a>
-              </Link>
-            </p>
-          </div>
-        )}
-      </CounterConsumer>
-    )
-  }
+const AboutPage = () => {
+  const count = useCount()
+  const dispatch = useDispatchCount()
+
+  const handleIncrease = event =>
+    dispatch({
+      type: 'INCREASE'
+    })
+  const handleIncrease15 = event =>
+    dispatch({
+      type: 'INCREASE_BY',
+      payload: 15
+    })
+
+  return (
+    <>
+      <h1>ABOUT</h1>
+      <p>Counter: {count}</p>
+      <button onClick={handleIncrease}>Increase</button>
+      <button onClick={handleIncrease15}>Increase By 15</button>
+      <p>
+        <Link href='/'>
+          <a>Home</a>
+        </Link>
+      </p>
+    </>
+  )
 }
+
+export default AboutPage

@@ -3,6 +3,7 @@
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
+import cheerio from 'cheerio'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -66,6 +67,20 @@ describe('Chunking', () => {
         join(appDir, '.next', 'static', buildId, '_buildManifest.js')
       )
     ).toBe(undefined) /* fs.access callback returns undefined if file exists */
+  })
+
+  it('should not preload the build manifest', async () => {
+    const indexPage = await readFile(
+      join(appDir, '.next', 'server', 'static', buildId, 'pages', 'index.html')
+    )
+
+    const $ = cheerio.load(indexPage)
+    expect(
+      [].slice
+        .call($('link[rel="preload"][as="script"]'))
+        .map(e => e.attribs.href)
+        .some(entry => entry.includes('_buildManifest'))
+    ).toBe(false)
   })
 
   it('should not include more than one instance of react-dom', async () => {

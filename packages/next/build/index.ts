@@ -1,36 +1,41 @@
 import chalk from 'chalk'
 import fs from 'fs'
+import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
+import nanoid from 'next/dist/compiled/nanoid/index.js'
+import path from 'path'
+import { promisify } from 'util'
+
+import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import { findPagesDir } from '../lib/find-pages-dir'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveReadDir } from '../lib/recursive-readdir'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
-  PAGES_MANIFEST,
   BUILD_MANIFEST,
+  PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../next-server/lib/constants'
+import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
-import path from 'path'
-import { promisify } from 'util'
-import Worker from 'jest-worker'
-
-import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import { recursiveDelete } from '../lib/recursive-delete'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
-  recordBuildDuration,
-  recordBuildOptimize,
-  recordNextPlugins,
-  recordVersion,
+  eventBuildDuration,
+  eventBuildOptimize,
+  eventNextPlugins,
+  eventVersion,
 } from '../telemetry/events'
+import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
+import createSpinner from './spinner'
 import {
   collectPages,
   getPageSizeInKb,
@@ -41,10 +46,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { findPagesDir } from '../lib/find-pages-dir'
-import createSpinner from './spinner'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
-import { isDynamicRoute } from '../next-server/lib/router/utils'
 
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
@@ -58,12 +59,21 @@ const staticCheckWorker = require.resolve('./utils')
 
 export type SprRoute = {
   initialRevalidateSeconds: number | false
+  srcRoute: string | null
+  dataRoute: string
+}
+
+export type DynamicSprRoute = {
+  routeRegex: string
+
+  dataRoute: string
+  dataRouteRegex: string
 }
 
 export type PrerenderManifest = {
   version: number
   routes: { [route: string]: SprRoute }
-  dynamicRoutes: string[]
+  dynamicRoutes: { [route: string]: DynamicSprRoute }
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -73,12 +83,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(
-    recordVersion({ cliCommand: 'build' }),
-    recordNextPlugins(path.resolve(dir))
-  )
-
   const buildSpinner = createSpinner({
     prefixText: 'Creating an optimized production build',
   })
@@ -87,13 +91,28 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+
+  const telemetry = new Telemetry({ distDir })
+
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
+  let hasPublicDir = false
+
+  let backgroundWork: (Promise<any> | undefined)[] = []
+  backgroundWork.push(
+    telemetry.record(eventVersion({ cliCommand: 'build' })),
+    eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
+  )
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
-  if (config.experimental.publicDirectory) {
+  try {
+    await fsStat(publicDir)
+    hasPublicDir = true
+  } catch (_) {}
+
+  if (hasPublicDir) {
     publicFiles = await recursiveReadDir(publicDir, /.*/)
   }
 
@@ -120,10 +139,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
   const conflictingPublicFiles: string[] = []
 
-  try {
-    await fsStat(path.join(publicDir, '_next'))
-    throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-  } catch (err) {}
+  if (hasPublicDir) {
+    try {
+      await fsStat(path.join(publicDir, '_next'))
+      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+    } catch (err) {}
+  }
 
   for (let file of publicFiles) {
     file = file
@@ -254,10 +275,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
     backgroundWork.push(
-      recordBuildDuration({
-        totalPageCount: pagePaths.length,
-        durationInSeconds: webpackBuildEnd[0],
-      })
+      telemetry.record(
+        eventBuildDuration({
+          totalPageCount: pagePaths.length,
+          durationInSeconds: webpackBuildEnd[0],
+        })
+      )
     )
   }
 
@@ -340,11 +363,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
           console.warn(
             chalk.bold.yellow(`Warning: `) +
               chalk.yellow(
-                `You have opted-out of Automatic Prerendering due to \`getInitialProps\` in \`pages/_app\`.`
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-automatic-prerendering\n'
+            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
           )
         }
       }
@@ -388,7 +411,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (invalidPages.size > 0) {
     throw new Error(
-      `automatic static optimization failed: found page${
+      `Build optimization failed: found page${
         invalidPages.size === 1 ? '' : 's'
       } without a React Component as default export in \n${[...invalidPages]
         .map(pg => `pages${pg}`)
@@ -513,6 +536,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
               exportConfig.initialPageRevalidationMap[page],
+            srcRoute: null,
+            dataRoute: path.posix.join(
+              '/_next/data',
+              buildId,
+              `${page === '/' ? '/index' : page}.json`
+            ),
           }
         } else {
           // For a dynamic SPR page, we did not copy its html nor data exports.
@@ -525,6 +554,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
             finalPrerenderRoutes[route] = {
               initialRevalidateSeconds:
                 exportConfig.initialPageRevalidationMap[route],
+              srcRoute: page,
+              dataRoute: path.posix.join(
+                '/_next/data',
+                buildId,
+                `${route === '/' ? '/index' : route}.json`
+              ),
             }
           }
         }
@@ -541,19 +576,37 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const analysisEnd = process.hrtime(analysisBegin)
   backgroundWork.push(
-    recordBuildOptimize({
-      durationInSeconds: analysisEnd[0],
-      totalPageCount: pagePaths.length,
-      staticPageCount: staticPages.size,
-      ssrPageCount: pagePaths.length - staticPages.size,
-    })
+    telemetry.record(
+      eventBuildOptimize({
+        durationInSeconds: analysisEnd[0],
+        totalPageCount: pagePaths.length,
+        staticPageCount: staticPages.size,
+        ssrPageCount: pagePaths.length - staticPages.size,
+      })
+    )
   )
 
   if (sprPages.size > 0) {
+    const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
+    tbdPrerenderRoutes.forEach(tbdRoute => {
+      const dataRoute = path.posix.join(
+        '/_next/data',
+        buildId,
+        `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
+      )
+
+      finalDynamicRoutes[tbdRoute] = {
+        routeRegex: getRouteRegex(tbdRoute).re.source,
+        dataRoute,
+        dataRouteRegex: getRouteRegex(
+          dataRoute.replace(/\.json$/, '')
+        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
+      }
+    })
     const prerenderManifest: PrerenderManifest = {
       version: 1,
       routes: finalPrerenderRoutes,
-      dynamicRoutes: tbdPrerenderRoutes.sort(),
+      dynamicRoutes: finalDynamicRoutes,
     }
 
     await fsWriteFile(

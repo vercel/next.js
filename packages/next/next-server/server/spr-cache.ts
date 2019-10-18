@@ -35,7 +35,7 @@ export const calculateRevalidate = (pathname: string): number | false => {
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
-  if (!sprOptions.dev) return curTime
+  if (sprOptions.dev) return curTime
 
   const { initialRevalidateSeconds } = prerenderManifest.routes[pathname] || {
     initialRevalidateSeconds: 1,
@@ -77,7 +77,7 @@ export function initializeSprCache({
           fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
         )
   } catch (_) {
-    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: [] }
+    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: {} }
   }
 
   cache = new LRUCache({
@@ -144,7 +144,14 @@ export async function setSprCache(
 ) {
   if (sprOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
+    // TODO: This is really bad. We shouldn't be mutating the manifest from the
+    // build.
     prerenderManifest.routes[pathname] = {
+      dataRoute: path.posix.join(
+        '/_next/data',
+        `${pathname === '/' ? '/index' : pathname}.json`
+      ),
+      srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
       initialRevalidateSeconds: revalidateSeconds,
     }
   }
@@ -155,6 +162,8 @@ export async function setSprCache(
     revalidateAfter: calculateRevalidate(pathname),
   })
 
+  // TODO: This option needs to cease to exist unless it stops mutating the
+  // `next build` output's manifest.
   if (sprOptions.flushToDisk) {
     try {
       await writeFile(getSeedPath(pathname, 'html'), data.html, 'utf8')
