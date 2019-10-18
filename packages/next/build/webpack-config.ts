@@ -174,7 +174,7 @@ export default async function getBaseWebpackConfig(
             'object-assign': path.join(
               __dirname,
               'polyfills',
-              'object-assign.cjs.js'
+              'object-assign.js'
             ),
             '@babel/runtime-corejs2/core-js/object/assign':
               'next/dist/build/polyfills/object-assign.js',

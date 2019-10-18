@@ -1,1 +1,1 @@
-export default Object.assign
+module.exports = Object.assign
