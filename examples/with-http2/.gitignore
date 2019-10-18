@@ -1,1 +1,5 @@
 *.pem
+
+.next
+node_modules
+out

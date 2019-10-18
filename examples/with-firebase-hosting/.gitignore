@@ -2,3 +2,7 @@ dist/
 
 # Firebase cache
 .firebase/
+
+.next
+node_modules
+out

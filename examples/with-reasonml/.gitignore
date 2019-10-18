@@ -3,3 +3,7 @@ bs
 lib/
 *.bs.js
 .bsb.lock
+
+.next
+node_modules
+out

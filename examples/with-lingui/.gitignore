@@ -1,2 +1,6 @@
 locale/_build
 locale/*/*.js
+
+.next
+node_modules
+out

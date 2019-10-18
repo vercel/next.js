@@ -1,1 +1,5 @@
 lang/.messages/
+
+.next
+node_modules
+out
