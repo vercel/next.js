@@ -121,6 +121,7 @@
     "terser": "4.0.0",
     "unfetch": "4.1.0",
     "url": "0.11.0",
+    "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.5",
     "webpack": "4.39.0",
     "webpack-dev-middleware": "3.7.0",

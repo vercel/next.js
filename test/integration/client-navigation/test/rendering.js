@@ -82,6 +82,16 @@ export default function (render, fetch) {
       )
     })
 
+    test('header helper dedupes tags with the same key as the default', async () => {
+      const html = await render('/head')
+      expect(html).toContain('<meta charSet="iso-8859-5"/>')
+      expect(html).not.toContain('<meta charSet="utf-8"/>')
+      expect(html).toContain(
+        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+      )
+      expect(html).not.toContain('<meta name="width=device-width"/>')
+    })
+
     test('header helper avoids dedupe of specific tags', async () => {
       const html = await render('/head')
       expect(html).toContain('<meta property="article:tag" content="tag1"/>')
