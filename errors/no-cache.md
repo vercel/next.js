@@ -15,16 +15,9 @@ Configure Next.js' cache to be persisted across builds. Next.js stores its cache
 
 Storing this folder across builds varies by CI provider. We've provided a list of a few common providers below.
 
-**AWS CodeBuild**
+**ZEIT Now**
 
-Add (or merge in) the following to your `buildspec.yml`:
-
-```yaml
-cache:
-  paths:
-    - 'node_modules/**/*' # Cache `node_modules` for faster `yarn` or `npm i`
-    - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
-```
+Next.js caching is automatically configured for you. There's no action required on your part.
 
 **CircleCI**
 
@@ -40,6 +33,18 @@ steps:
 ```
 
 If you do not have a `save_cache` key, please follow CircleCI's [documentation on setting up build caching](https://circleci.com/docs/2.0/caching/).
+
+**Travis CI**
+
+Add or merge the following into your `.travis.yml`:
+
+```yaml
+cache:
+  directories:
+    - $HOME/.cache/yarn
+    - node_modules
+    - .next/cache
+```
 
 **GitLab CI**
 
@@ -59,18 +64,13 @@ It is **not possible** to cache custom build files on Netlify. Please contact th
 
 You can investigate using a 3rd party solution (e.g. [`cache-me-outside`](https://github.com/DavidWells/cache-me-outside)) to manually cache the Next.js output.
 
-**Travis CI**
+**AWS CodeBuild**
 
-Add or merge the following into your `.travis.yml`:
+Add (or merge in) the following to your `buildspec.yml`:
 
 ```yaml
 cache:
-  directories:
-    - $HOME/.cache/yarn
-    - node_modules
-    - .next/cache
+  paths:
+    - 'node_modules/**/*' # Cache `node_modules` for faster `yarn` or `npm i`
+    - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
 ```
-
-**ZEIT Now**
-
-Next.js caching is automatically configured for you. There's no action required on your part.
