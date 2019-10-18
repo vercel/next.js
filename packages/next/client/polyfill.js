@@ -1,2 +1,2 @@
 import 'whatwg-fetch'
-Object.assign = require('object-assign')
+Object.assign = require('object.assign/polyfill')()
