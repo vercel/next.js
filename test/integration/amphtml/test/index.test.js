@@ -204,13 +204,13 @@ test('should allow manually setting canonical', async t => {
   await t
     .expect($('link[rel=canonical]').attr('href'))
     .eql('/my-custom-canonical')
-  await t.expect($('link[rel=amphtml]').length).eql(1)
 })
 
 test('should allow manually setting amphtml rel', async t => {
   const html = await renderViaHTTP(t.fixtureCtx.appPort, '/manual-rels')
   const $ = cheerio.load(html)
   await t.expect($('link[rel=amphtml]').attr('href')).eql('/my-custom-amphtml')
+  await t.expect($('link[rel=amphtml]').length).eql(1)
 })
 
 test('should combine style tags', async t => {

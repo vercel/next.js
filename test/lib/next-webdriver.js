@@ -1,4 +1,5 @@
 import { t, Selector } from 'testcafe'
+import { waitFor } from './next-test-utils'
 
 class WdInterface {
   async get (url) {
@@ -140,8 +141,12 @@ class WdInterface {
   close () {}
 }
 
-export default async function webdriver (appPort, pathname) {
+export default async function webdriver (appPort, pathname, skipWait = false) {
   const wd = new WdInterface()
   await wd.get(`http://localhost:${appPort}${pathname}`)
+  if (!skipWait) {
+    // allow hydration to occur, many tests assume this has happened
+    await waitFor(500)
+  }
   return wd
 }
