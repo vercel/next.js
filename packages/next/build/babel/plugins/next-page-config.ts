@@ -37,6 +37,7 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 interface ConfigState {
   isPrerender?: boolean
   bundleDropped?: boolean
+  defaultExportUpdated?: boolean
 }
 
 // config to parsing pageConfig for client bundles
@@ -116,7 +117,7 @@ export default function nextPageConfig({
         },
       },
       ExportDefaultDeclaration(path, state: ConfigState) {
-        if (!state.isPrerender) {
+        if (!state.isPrerender || state.defaultExportUpdated) {
           return
         }
         const prev = t.cloneDeep(path.node.declaration)
@@ -127,7 +128,8 @@ export default function nextPageConfig({
           prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
         }
 
-        path.insertBefore([
+        // @ts-ignore invalid return type
+        const [pageCompPath] = path.replaceWithMultiple([
           t.variableDeclaration('const', [
             t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
           ]),
@@ -139,9 +141,10 @@ export default function nextPageConfig({
             ),
             t.booleanLiteral(true)
           ),
+          t.exportDefaultDeclaration(t.identifier(pageComponentVar)),
         ])
-
-        path.node.declaration = t.identifier(pageComponentVar)
+        path.scope.registerDeclaration(pageCompPath)
+        state.defaultExportUpdated = true
       },
     },
   }
