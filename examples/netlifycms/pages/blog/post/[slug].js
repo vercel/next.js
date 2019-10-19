@@ -1,10 +1,12 @@
+import Layout from '../../../components/layout'
+
 const Post = ({ blogpost }) => {
   if (!blogpost) return <div>not found</div>
 
   const { html, attributes } = blogpost.default
 
   return (
-    <>
+    <Layout>
       <article>
         <h1>{attributes.title}</h1>
         <img src={attributes.thumbnail} />
@@ -18,7 +20,7 @@ const Post = ({ blogpost }) => {
           text-align: center;
         }
       `}</style>
-    </>
+    </Layout>
   )
 }
 

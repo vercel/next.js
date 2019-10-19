@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Layout from '../../components/layout'
 
 const importBlogPosts = async () => {
   // https://webpack.js.org/guides/dependency-management/#requirecontext
@@ -16,7 +17,7 @@ const importBlogPosts = async () => {
 }
 
 const Blog = ({ postsList }) => (
-  <div>
+  <Layout>
     {postsList.map(post => (
       <div key={post.slug} className='post'>
         <Link href='/blog/post/[slug]' as={`/blog/post/${post.slug}`}>
@@ -36,7 +37,7 @@ const Blog = ({ postsList }) => (
         max-height: 300px;
       }
     `}</style>
-  </div>
+  </Layout>
 )
 
 Blog.getInitialProps = async () => {
