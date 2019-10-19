@@ -82,6 +82,14 @@ describe('Invalid hrefs', () => {
     it('shows error when https://google.com is used as href on router.replace', async () => {
       await showsError('/second?method=replace', secondErrorRegex, true)
     })
+
+    it('shows error when dynamic route mismatch is used on Link', async () => {
+      await showsError(
+        '/dynamic-route-mismatch',
+        /The provided `as` value is incompatible with the `href` value/,
+        true
+      )
+    })
   })
 
   describe('production mode', () => {
@@ -92,27 +100,27 @@ describe('Invalid hrefs', () => {
     })
     afterAll(() => killApp())
 
-    it('shows error when mailto: is used as href on Link', async () => {
+    it('does not show error in production when mailto: is used as href on Link', async () => {
       await noError('/first')
     })
 
-    it('shows error when mailto: is used as href on router.push', async () => {
+    it('does not show error in production when mailto: is used as href on router.push', async () => {
       await noError('/first?method=push', true)
     })
 
-    it('shows error when mailto: is used as href on router.replace', async () => {
+    it('does not show error in production when mailto: is used as href on router.replace', async () => {
       await noError('/first?method=replace', true)
     })
 
-    it('shows error when https://google.com is used as href on Link', async () => {
+    it('does not show error in production when https://google.com is used as href on Link', async () => {
       await noError('/second')
     })
 
-    it('shows error when http://google.com is used as href on router.push', async () => {
+    it('does not show error in production when http://google.com is used as href on router.push', async () => {
       await noError('/second?method=push', true)
     })
 
-    it('shows error when https://google.com is used as href on router.replace', async () => {
+    it('does not show error in production when https://google.com is used as href on router.replace', async () => {
       await noError('/second?method=replace', true)
     })
   })

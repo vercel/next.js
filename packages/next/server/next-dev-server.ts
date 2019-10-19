@@ -22,8 +22,8 @@ import {
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { route } from '../next-server/server/router'
-import { recordVersion } from '../telemetry/events'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { eventVersion } from '../telemetry/events'
+import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
@@ -63,6 +63,11 @@ export default class DevServer extends Server {
           result.errors.filter(e => e.severity !== 'ERROR')
         )
       })
+    }
+    if (fs.existsSync(join(this.dir, 'static'))) {
+      console.warn(
+        `The static directory has been deprecated in favor of the public directory. https://err.sh/zeit/next.js/static-dir-deprecated`
+      )
     }
     this.pagesDir = findPagesDir(this.dir)
   }
@@ -201,8 +206,8 @@ export default class DevServer extends Server {
     await this.startWatcher()
     this.setDevReady!()
 
-    setTelemetryDir(this.distDir)
-    recordVersion({ cliCommand: 'dev' })
+    const telemetry = new Telemetry({ distDir: this.distDir })
+    telemetry.record(eventVersion({ cliCommand: 'dev' }))
   }
 
   protected async close() {
@@ -229,24 +234,21 @@ export default class DevServer extends Server {
 
     // check for a public file, throwing error if there's a
     // conflicting page
-    if (this.nextConfig.experimental.publicDirectory) {
-      if (await this.hasPublicFile(pathname!)) {
-        const pageFile = await findPageFile(
-          this.pagesDir!,
+    if (await this.hasPublicFile(pathname!)) {
+      const pageFile = await findPageFile(
+        this.pagesDir!,
+        normalizePagePath(pathname!),
+        this.nextConfig.pageExtensions
+      )
 
-          normalizePagePath(pathname!),
-          this.nextConfig.pageExtensions
+      if (pageFile) {
+        const err = new Error(
+          `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
         )
-
-        if (pageFile) {
-          const err = new Error(
-            `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
-          )
-          res.statusCode = 500
-          return this.renderError(err, req, res, pathname!, {})
-        }
-        return this.servePublic(req, res, pathname!)
+        res.statusCode = 500
+        return this.renderError(err, req, res, pathname!, {})
       }
+      return this.servePublic(req, res, pathname!)
     }
 
     const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {

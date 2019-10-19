@@ -25,8 +25,8 @@ import {
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
-import { recordVersion } from '../telemetry/events'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { eventVersion } from '../telemetry/events'
+import { Telemetry } from '../telemetry/storage'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -94,8 +94,8 @@ export default async function(
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
   if (!options.buildExport) {
-    setTelemetryDir(distDir)
-    recordVersion({ cliCommand: 'export' })
+    const telemetry = new Telemetry({ distDir })
+    telemetry.record(eventVersion({ cliCommand: 'export' }))
   }
 
   const subFolders = nextConfig.exportTrailingSlash
@@ -153,6 +153,13 @@ export default async function(
 
   // Initialize the output directory
   const outDir = options.outdir
+
+  if (outDir === join(dir, 'public')) {
+    throw new Error(
+      `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/zeit/next.js/can-not-output-to-public`
+    )
+  }
+
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
 
@@ -236,19 +243,16 @@ export default async function(
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
-  const sprDataDir = options.buildExport ? outDir : join(outDir, '_next/data')
+  const sprDataDir = options.buildExport
+    ? outDir
+    : join(outDir, '_next/data', buildId)
 
   const ampValidations: AmpPageStatus = {}
   let hadValidationError = false
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
-  if (
-    !options.buildExport &&
-    nextConfig.experimental &&
-    nextConfig.experimental.publicDirectory &&
-    existsSync(publicDir)
-  ) {
+  if (!options.buildExport && existsSync(publicDir)) {
     log('  copying "public" directory')
     await recursiveCopy(publicDir, outDir, {
       filter(path) {
