@@ -27,7 +27,7 @@ const Post = ({ blogpost }) => {
 Post.getInitialProps = async ({ query }) => {
   const { slug } = query
   const blogpost = await import(`../../../content/blogPosts/${slug}.md`).catch(
-    error => null
+    () => null
   )
   return { blogpost }
 }
