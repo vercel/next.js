@@ -24,7 +24,7 @@ const handleOutput = msg => {
 }
 
 async function get$ (path, query) {
-  const html = await renderViaHTTP(appPort, path)
+  const html = await renderViaHTTP(appPort, path, query)
   return cheerio.load(html)
 }
 
