@@ -9,7 +9,7 @@
     "export": "npm run build && next export"
   },
   "dependencies": {
-    "next": "^9.0.5",
+    "next": "latest",
     "react": "^16.9.0",
     "react-dom": "^16.9.0"
   },
