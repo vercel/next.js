@@ -1,7 +1,6 @@
 {
   "name": "nextjs-netlifycms",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "next",
@@ -9,9 +8,6 @@
     "start": "next start",
     "export": "npm run build && next export"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "next": "^9.0.5",
     "react": "^16.9.0",

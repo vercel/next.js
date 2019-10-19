@@ -1,6 +1,6 @@
-import { attributes, html } from '../content/home.md'
+import { attributes, html } from '../content/about.md'
 
-const Home = () => (
+const About = () => (
   <>
     <h1>{attributes.title}</h1>
     <div dangerouslySetInnerHTML={{ __html: html }} />
@@ -13,4 +13,4 @@ const Home = () => (
   </>
 )
 
-export default Home
+export default About
