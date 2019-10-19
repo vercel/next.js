@@ -46,9 +46,7 @@ describe('TypeScript Features', () => {
     })
 
     it('should report type checking to stdout', async () => {
-      expect(output).toContain(
-        'bundled successfully, waiting for typecheck results...'
-      )
+      expect(output).toContain('waiting for typecheck results...')
     })
 
     it('should not fail to render when an inactive page has an error', async () => {
