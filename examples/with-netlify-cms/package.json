@@ -1,7 +1,6 @@
 {
-  "name": "nextjs-netlifycms",
+  "name": "with-netlify-cms",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",

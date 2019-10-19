@@ -7,9 +7,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example netlifycms netlifycms-app
+npx create-next-app --example with-netlify-cms with-netlify-cms-app
 # or
-yarn create next-app --example netlifycms netlifycms-app
+yarn create next-app --example with-netlify-cms with-netlify-cms-app
 ```
 
 ### Download manually
@@ -17,7 +17,7 @@ yarn create next-app --example netlifycms netlifycms-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/netlifycms
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-netlify-cms
 cd nested-components
 ```
 
