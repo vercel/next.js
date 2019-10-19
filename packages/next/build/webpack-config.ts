@@ -126,6 +126,8 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
+  const typescriptTranspileOnly =
+    config.typescript && config.typescript.transpileOnly
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -839,6 +841,7 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
+        !typescriptTranspileOnly &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
