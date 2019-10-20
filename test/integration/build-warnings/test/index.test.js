@@ -2,6 +2,7 @@
 import 'testcafe'
 
 import { join } from 'path'
+import { remove } from 'fs-extra'
 import { nextBuild, File, waitFor } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -42,4 +43,36 @@ test('should shown warning about minification for minimizer', async t => {
   await t.expect(stderr).contains('optimization has been disabled')
 
   nextConfig.restore()
+})
+
+test('should not warn about missing cache in non-CI', async t => {
+  await remove(join(appDir, '.next'))
+
+  const { stdout } = await nextBuild(appDir, undefined, {
+    stdout: true,
+    env: {
+      CI: '',
+      CIRCLECI: '',
+      TRAVIS: '',
+      SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: ''
+    }
+  })
+  await t.expect(stdout).notContains('no-cache')
+})
+
+test('should warn about missing cache in CI', async t => {
+  await remove(join(appDir, '.next'))
+
+  let { stdout } = await nextBuild(appDir, undefined, {
+    stdout: true,
+    env: { CI: '1' }
+  })
+  await t.expect(stdout).contains('no-cache')
+
+  // Do not warn after cache is present
+  ;({ stdout } = await nextBuild(appDir, undefined, {
+    stdout: true,
+    env: { CI: '1' }
+  }))
+  await t.expect(stdout).notContains('no-cache')
 })
