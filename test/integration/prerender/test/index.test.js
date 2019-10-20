@@ -327,6 +327,14 @@ const runTests = (dev = false) => {
       expect(newJson).toMatch(/post-2/)
       expect(newJson).toMatch(/comment-3/)
     })
+
+    it('should not fetch prerender data on mount', async () => {
+      const browser = await webdriver(appPort, '/blog/post-100')
+      await browser.eval('window.thisShouldStay = true')
+      await waitFor(2 * 1000)
+      const val = await browser.eval('window.thisShouldStay')
+      expect(val).toBe(true)
+    })
   }
 }
 
