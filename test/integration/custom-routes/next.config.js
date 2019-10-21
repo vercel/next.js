@@ -7,11 +7,42 @@ module.exports = {
       },
       {
         source: '/another',
-        destination: '/one-more'
+        destination: '/multi-rewrites'
       },
       {
-        source: '/hello/:path*',
-        destination: '/?path=:path'
+        source: '/with-params/:path*',
+        destination: '/with-params?path=:path'
+      },
+      {
+        source: '/first',
+        destination: '/hello'
+      },
+      {
+        source: '/second',
+        destination: '/hello-again'
+      }
+    ]
+  },
+  async redirects () {
+    return [
+      {
+        source: '/redirect1',
+        destination: '/'
+      },
+      {
+        source: '/redirect2',
+        destination: '/',
+        statusCode: 301
+      },
+      {
+        source: '/redirect3',
+        destination: '/another',
+        statusCode: 302
+      },
+      {
+        source: '/redirect4',
+        destination: '/',
+        statusCode: 308
       }
     ]
   }
