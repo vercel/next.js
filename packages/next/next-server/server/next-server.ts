@@ -14,6 +14,7 @@ import {
   PHASE_PRODUCTION_SERVER,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  ROUTES_MANIFEST,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -33,8 +34,8 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
 import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
+import { fileExists } from '../../lib/file-exists'
 
 type NextConfig = any
 
@@ -62,6 +63,7 @@ export type ServerConstructor = {
 }
 
 export default class Server {
+  dev: boolean
   dir: string
   quiet: boolean
   nextConfig: NextConfig
@@ -83,6 +85,7 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
   }
+  private routesPromise?: Promise<void>
   private compression?: Middleware
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
@@ -94,6 +97,7 @@ export default class Server {
     conf = null,
     dev = false,
   }: ServerConstructor = {}) {
+    this.dev = dev
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -150,8 +154,12 @@ export default class Server {
       })
     }
 
-    const routes = this.generateRoutes()
-    this.router = new Router(routes)
+    this.router = new Router([])
+    this.routesPromise = this.generateRoutes().then(routes => {
+      this.router.routes = routes
+      this.routesPromise = undefined
+    })
+
     this.setAssetPrefix(assetPrefix)
 
     initializeSprCache({
@@ -220,9 +228,9 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  protected generateRoutes(): Route[] {
-    const publicRoutes = fs.existsSync(this.publicDir)
-      ? this.generatePublicRoutes()
+  protected async generateRoutes(): Promise<Route[]> {
+    const publicRoutes = (await fileExists(this.publicDir))
+      ? await this.generatePublicRoutes()
       : []
 
     const routes: Route[] = [
@@ -315,6 +323,76 @@ export default class Server {
       },
     ]
 
+    let rewrites: {
+      source: string
+      destination: string
+    }[] = []
+    let redirects: {
+      source: string
+      destination: string
+      statusCode?: number
+    }[] = []
+
+    if (this.dev) {
+      if (typeof this.nextConfig.rewrites === 'function') {
+        rewrites = await this.nextConfig.rewrites()
+      }
+      if (typeof this.nextConfig.redirects === 'function') {
+        redirects = await this.nextConfig.redirects()
+      }
+    } else {
+      // use built routes
+      const routesManifest = require(join(this.distDir, ROUTES_MANIFEST))
+      rewrites = routesManifest.rewrites
+      redirects = routesManifest.redirects
+    }
+
+    routes.push(
+      ...rewrites.map(rewrite => {
+        return {
+          match: route(rewrite.source),
+          fn: async (req, res, params, parsedUrl) => {
+            // TODO: investigate limiting rewrite depth
+            // to prevent accidental infinite rewrites
+            let destination = rewrite.destination
+
+            for (const key of Object.keys(params)) {
+              const param = params[key]
+              destination = destination.replace(
+                new RegExp(`:${key}`, 'g'),
+                param
+              )
+            }
+            const newParsedUrl = parseUrl(destination, true)
+            let newParams: { [name: string]: string } | false = false
+
+            const nextMatch = this.router.routes.find(route => {
+              newParams = route.match(rewrite.destination)
+              if (newParams) {
+                return true
+              }
+            })
+            // we should always find a match because we have a final catch all
+            // which will render 404 for us
+            return nextMatch!.fn(req, res, newParams as any, newParsedUrl)
+          },
+        } as Route
+      })
+    )
+
+    routes.push(
+      ...redirects.map(redirect => {
+        return {
+          match: route(redirect.source),
+          fn: async (req, res, params, parsedUrl) => {
+            res.statusCode = redirect.statusCode || 307
+            res.setHeader('Location', redirect.destination)
+            res.end()
+          },
+        } as Route
+      })
+    )
+
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
 
@@ -329,7 +407,6 @@ export default class Server {
           if (!pathname) {
             throw new Error('pathname is undefined')
           }
-
           await this.render(req, res, pathname, query, parsedUrl)
         },
       })
@@ -448,6 +525,9 @@ export default class Server {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ) {
+    if (this.routesPromise) {
+      await this.routesPromise
+    }
     this.handleCompression(req, res)
 
     try {

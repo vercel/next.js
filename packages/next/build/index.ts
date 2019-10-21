@@ -20,6 +20,7 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  ROUTES_MANIFEST,
 } from '../next-server/lib/constants'
 import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
 import loadConfig, {
@@ -89,6 +90,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const rewrites = []
+  const redirects = []
+
+  if (typeof config.rewrites === 'function') {
+    rewrites.push(...(await config.rewrites()))
+  }
+  if (typeof config.redirects === 'function') {
+    redirects.push(...(await config.redirects()))
+  }
 
   if (ciEnvironment.isCI) {
     const cacheDir = path.join(distDir, 'cache')
@@ -592,6 +602,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify({
+      rewrites,
+      redirects,
+    }),
+    'utf8'
+  )
+
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
 
