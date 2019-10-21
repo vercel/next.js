@@ -41,6 +41,16 @@ commands:
       - run:
           name: Linting
           command: yarn lint
+  yarn_react_canary:
+    steps:
+      - run:
+          name: Upgrade to React Canary
+          command: yarn upgrade react@canary react-dom@canary -W --dev # upgrade (vs add) will skip re-building Next.js, which doesn't bundle React internals (so this is OK!)
+  yarn_info:
+    steps:
+      - run:
+          name: React Versions
+          command: yarn why react && yarn why react-dom
   test_all:
     steps:
       - run:
@@ -114,11 +124,18 @@ jobs:
       - yarn_install
       - yarn_lint
       - *persist_to_workspace
+  build-react-canary:
+    executor: node
+    steps:
+      - *attach_workspace
+      - yarn_react_canary
+      - *persist_to_workspace
   test:
     parallelism: 3
     executor: node
     steps:
       - *attach_workspace
+      - yarn_info
       - test_all
       - *store_test_results
   test-ie11:
@@ -196,3 +213,19 @@ workflows:
               only:
                 - master
                 - canary
+  q12h-react-canary:
+    triggers:
+      - schedule:
+          cron: '0 0,12 * * *'
+          filters:
+            branches:
+              only:
+                - canary
+    jobs:
+      - build
+      - build-react-canary:
+          requires:
+            - build
+      - test:
+          requires:
+            - build-react-canary
