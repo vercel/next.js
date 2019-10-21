@@ -550,7 +550,28 @@ export default async function getBaseWebpackConfig(
 
             return /node_modules/.test(path)
           },
-          use: defaultLoaders.babel,
+          use: [
+            // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
+            // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
+            {
+              loader: 'cache-loader',
+              options: {
+                cacheContext: dir,
+                cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+                cacheIdentifier: `webpack${isServer ? '-server' : ''}${
+                  config.experimental.modern ? '-hasmodern' : ''
+                }`,
+              },
+            },
+            {
+              loader: 'thread-loader',
+              options: {
+                workers: 2,
+                workerParallelJobs: Infinity,
+              },
+            },
+            defaultLoaders.babel,
+          ],
         },
         config.experimental.css &&
           // Support CSS imports
