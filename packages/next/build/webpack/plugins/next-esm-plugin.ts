@@ -255,36 +255,35 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     // Hold back the main compilation until our Child Compiler has completed so its assets get optimized
-    let childProcessDone: (err?: Error) => void
-    const child = new Promise(resolve => (childProcessDone = resolve))
-    compilation.hooks.optimizeAssets.tapPromise(PLUGIN_NAME, () => child)
+    const child = new Promise((resolve, reject) => {
+      // Defer the child compiler until known main thread "dead time" (while Terser is doing minification in the background)
+      let started = false
+      compilation.hooks.optimizeChunkAssets.intercept({
+        call: () => {
+          // only run the first time optimizeChunkAssets is called
+          if (started) return
+          started = true
 
-    // Defer the child compiler until known main thread "dead time" (while Terser is doing minification in the background)
-    let started = false
-    compilation.hooks.optimizeChunkAssets.intercept({
-      call: () => {
-        // only run the first time optimizeChunkAssets is called
-        if (started) return
-        started = true
+          // Delay the Child Compiler until optimizeChunkAssets has had time to send work to the Terser pool
+          setTimeout(() => {
+            this.updateOptions(childCompiler)
 
-        // Delay the Child Compiler until optimizeChunkAssets has had time to send work to the Terser pool
-        setTimeout(() => {
-          this.updateOptions(childCompiler)
+            childCompiler.runAsChild((err, entries, childCompilation) => {
+              if (err) {
+                return reject(err)
+              }
 
-          childCompiler.runAsChild((err, entries, childCompilation) => {
-            if (err) {
-              return childProcessDone(err)
-            }
+              if (childCompilation.errors.length > 0) {
+                return reject(childCompilation.errors[0])
+              }
 
-            if (childCompilation.errors.length > 0) {
-              return childProcessDone(childCompilation.errors[0])
-            }
-
-            this.updateAssets(compilation, childCompilation)
-            childProcessDone()
-          })
-        }, 500)
-      },
+              this.updateAssets(compilation, childCompilation)
+              resolve()
+            })
+          }, 500)
+        },
+      })
     })
+    compilation.hooks.optimizeAssets.tapPromise(PLUGIN_NAME, () => child)
   }
 }
