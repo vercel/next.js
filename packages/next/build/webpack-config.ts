@@ -332,6 +332,12 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            // Relative requires don't need custom resolution.
+            const start = request.charAt(0);
+            if (start === '.' || start === '/') {
+              return callback();
+            }
+
             // Resolve the import with the webpack provided context, this
             // ensures we're resolving the correct version when multiple
             // exist.
