@@ -214,13 +214,6 @@ workflows:
                 - master
                 - canary
   q12h-react-canary:
-    triggers:
-      - schedule:
-          cron: '0 0,12 * * *'
-          filters:
-            branches:
-              only:
-                - canary
     jobs:
       - build
       - build-react-canary:
