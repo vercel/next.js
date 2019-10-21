@@ -45,7 +45,12 @@ commands:
     steps:
       - run:
           name: Upgrade to React Canary
-          command: yarn upgrade react@canary react-dom@canary -W # upgrade (vs add) will skip re-building Next.js, which doesn't bundle React internals (so this is OK!)
+          command: yarn upgrade react@canary react-dom@canary -W --dev # upgrade (vs add) will skip re-building Next.js, which doesn't bundle React internals (so this is OK!)
+  yarn_info:
+    steps:
+      - run:
+          name: React Versions
+          command: yarn why react && yarn why react-dom
   test_all:
     steps:
       - run:
@@ -130,6 +135,7 @@ jobs:
     executor: node
     steps:
       - *attach_workspace
+      - yarn_info
       - test_all
       - *store_test_results
   test-ie11:
