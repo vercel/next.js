@@ -230,8 +230,11 @@ export default class Server {
 
   protected async getCustomRoutes() {
     // use built routes
-    const routesManifest = require(join(this.distDir, ROUTES_MANIFEST))
-    return routesManifest
+    try {
+      return require(join(this.distDir, ROUTES_MANIFEST))
+    } catch (err) {
+      return { redirects: [], rewrites: [] }
+    }
   }
 
   protected async generateRoutes(): Promise<Route[]> {
