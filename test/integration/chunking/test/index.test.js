@@ -37,7 +37,12 @@ describe('Chunking', () => {
     } catch (e) {
       // Error here means old chunks don't exist, so we don't need to do anything
     }
-    await nextBuild(appDir)
+    const { stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    console.log(stdout)
+    console.error(stderr)
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
       .replace(/"static\\(.*?":)/g, '"static\\\\$1')
