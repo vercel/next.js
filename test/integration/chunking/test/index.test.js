@@ -6,7 +6,7 @@ import {
   findPort,
   waitFor,
   nextStart,
-  killApp,
+  killApp
 } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
 import cheerio from 'cheerio'
