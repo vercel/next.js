@@ -4,7 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-
+import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -22,7 +22,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -33,6 +33,8 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -56,6 +58,7 @@ export type ServerConstructor = {
    * Object what you would use in next.config.js - @default {}
    */
   conf?: NextConfig
+  dev?: boolean
 }
 
 export default class Server {
@@ -63,6 +66,7 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
+  pagesDir?: string
   publicDir: string
   pagesManifest: string
   buildId: string
@@ -81,20 +85,20 @@ export default class Server {
   }
   private compression?: Middleware
   router: Router
-  private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
   public constructor({
     dir = '.',
     staticMarkup = false,
     quiet = false,
     conf = null,
+    dev = false,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
-    // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.pagesManifest = join(
       this.distDir,
@@ -139,18 +143,32 @@ export default class Server {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
+    if (this.nextConfig.target === 'server') {
+      envConfig.setConfig({
+        serverRuntimeConfig,
+        publicRuntimeConfig,
+      })
+    }
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
-
     this.setAssetPrefix(assetPrefix)
+
+    initializeSprCache({
+      dev,
+      distDir: this.distDir,
+      pagesDir: join(
+        this.distDir,
+        this._isLikeServerless
+          ? SERVERLESS_DIRECTORY
+          : `${SERVER_DIRECTORY}/static/${this.buildId}`,
+        'pages'
+      ),
+      flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
+    })
   }
 
-  private currentPhase(): string {
+  protected currentPhase(): string {
     return PHASE_PRODUCTION_SERVER
   }
 
@@ -196,13 +214,17 @@ export default class Server {
   public async prepare(): Promise<void> {}
 
   // Backwards compatibility
-  private async close(): Promise<void> {}
+  protected async close(): Promise<void> {}
 
-  private setImmutableAssetCacheControl(res: ServerResponse) {
+  protected setImmutableAssetCacheControl(res: ServerResponse) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private generateRoutes(): Route[] {
+  protected generateRoutes(): Route[] {
+    const publicRoutes = fs.existsSync(this.publicDir)
+      ? this.generatePublicRoutes()
+      : []
+
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -230,12 +252,45 @@ export default class Server {
         },
       },
       {
+        match: route('/_next/data/:path*'),
+        fn: async (req, res, params, _parsedUrl) => {
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            return this.render404(req, res, _parsedUrl)
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          // show 404 if it doesn't end with .json
+          if (!params.path[params.path.length - 1].endsWith('.json')) {
+            return this.render404(req, res, _parsedUrl)
+          }
+
+          // re-create page's pathname
+          const pathname = `/${params.path.join('/')}`
+            .replace(/\.json$/, '')
+            .replace(/\/index$/, '/')
+
+          req.url = pathname
+          const parsedUrl = parseUrl(pathname, true)
+          await this.render(
+            req,
+            res,
+            pathname,
+            { _nextSprData: '1' },
+            parsedUrl
+          )
+        },
+      },
+      {
         match: route('/_next/:path*'),
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
         },
       },
+      ...publicRoutes,
       {
         // It's very important to keep this route's param optional.
         // (but it should support as many params as needed, separated by '/')
@@ -259,13 +314,6 @@ export default class Server {
         },
       },
     ]
-
-    if (
-      this.nextConfig.experimental.publicDirectory &&
-      fs.existsSync(this.publicDir)
-    ) {
-      routes.push(...this.generatePublicRoutes())
-    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -345,7 +393,7 @@ export default class Server {
    * Resolves path to resolver function
    * @param pathname path of request
    */
-  private resolveApiRequest(pathname: string) {
+  protected async resolveApiRequest(pathname: string): Promise<string | null> {
     return getPagePath(
       pathname,
       this.distDir,
@@ -354,7 +402,7 @@ export default class Server {
     )
   }
 
-  private generatePublicRoutes(): Route[] {
+  protected generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(
@@ -380,7 +428,7 @@ export default class Server {
     return routes
   }
 
-  private getDynamicRoutes() {
+  protected getDynamicRoutes() {
     const manifest = require(this.pagesManifest)
     const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
@@ -395,7 +443,7 @@ export default class Server {
     }
   }
 
-  private async run(
+  protected async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
@@ -419,7 +467,7 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  private async sendHTML(
+  protected async sendHTML(
     req: IncomingMessage,
     res: ServerResponse,
     html: string
@@ -485,6 +533,25 @@ export default class Server {
     )
   }
 
+  private __sendPayload(
+    res: ServerResponse,
+    payload: any,
+    type: string,
+    revalidate?: number | false
+  ) {
+    // TODO: ETag? Cache-Control headers? Next-specific headers?
+    res.setHeader('Content-Type', type)
+    res.setHeader('Content-Length', Buffer.byteLength(payload))
+
+    if (revalidate) {
+      res.setHeader(
+        'Cache-Control',
+        `s-maxage=${revalidate}, stale-while-revalidate`
+      )
+    }
+    res.end(payload)
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -492,24 +559,125 @@ export default class Server {
     query: ParsedUrlQuery = {},
     result: LoadComponentsReturnType,
     opts: any
-  ) {
+  ): Promise<string | null> {
     // handle static page
     if (typeof result.Component === 'string') {
       return result.Component
     }
 
-    // handle serverless
-    if (
+    // check request state
+    const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
-    ) {
-      return result.Component.renderReqToHTML(req, res)
+    const isSpr = !!result.unstable_getStaticProps
+
+    // non-spr requests should render like normal
+    if (!isSpr) {
+      // handle serverless
+      if (isLikeServerless) {
+        return result.Component.renderReqToHTML(req, res)
+      }
+
+      return renderToHTML(req, res, pathname, query, {
+        ...result,
+        ...opts,
+      })
     }
 
-    return renderToHTML(req, res, pathname, query, {
-      ...result,
-      ...opts,
+    // Toggle whether or not this is an SPR Data request
+    const isSprData = isSpr && query._nextSprData
+    if (isSprData) {
+      delete query._nextSprData
+    }
+    // Compute the SPR cache key
+    const sprCacheKey = parseUrl(req.url || '').pathname!
+
+    // Complete the response with cached data if its present
+    const cachedData = await getSprCache(sprCacheKey)
+    if (cachedData) {
+      const data = isSprData
+        ? JSON.stringify(cachedData.pageData)
+        : cachedData.html
+
+      this.__sendPayload(
+        res,
+        data,
+        isSprData ? 'application/json' : 'text/html; charset=utf-8',
+        cachedData.curRevalidate
+      )
+
+      // Stop the request chain here if the data we sent was up-to-date
+      if (!cachedData.isStale) {
+        return null
+      }
+    }
+
+    // If we're here, that means data is missing or it's stale.
+
+    // Serverless requests need its URL transformed back into the original
+    // request path (to emulate lambda behavior in production)
+    if (isLikeServerless && isSprData) {
+      let { pathname } = parseUrl(req.url || '', true)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      req.url = `/_next/data/${this.buildId}${pathname}.json`
+    }
+
+    const doRender = withCoalescedInvoke(async function(): Promise<{
+      html: string | null
+      sprData: any
+      sprRevalidate: number | false
+    }> {
+      let sprData: any
+      let html: string | null
+      let sprRevalidate: number | false
+
+      let renderResult
+      // handle serverless
+      if (isLikeServerless) {
+        renderResult = await result.Component.renderReqToHTML(req, res, true)
+
+        html = renderResult.html
+        sprData = renderResult.renderOpts.sprData
+        sprRevalidate = renderResult.renderOpts.revalidate
+      } else {
+        const renderOpts = {
+          ...result,
+          ...opts,
+        }
+        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+
+        html = renderResult
+        sprData = renderOpts.sprData
+        sprRevalidate = renderOpts.revalidate
+      }
+
+      return { html, sprData, sprRevalidate }
     })
+
+    return doRender(sprCacheKey, []).then(
+      async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
+        // Respond to the request if a payload wasn't sent above (from cache)
+        if (!isResSent(res)) {
+          this.__sendPayload(
+            res,
+            isSprData ? JSON.stringify(sprData) : html,
+            isSprData ? 'application/json' : 'text/html; charset=utf-8',
+            sprRevalidate
+          )
+        }
+
+        // Update the SPR cache if the head request
+        if (isOrigin) {
+          await setSprCache(
+            sprCacheKey,
+            { html: html!, pageData: sprData },
+            sprRevalidate
+          )
+        }
+
+        return null
+      }
+    )
   }
 
   public renderToHTML(
@@ -556,9 +724,20 @@ export default class Server {
                   req,
                   res,
                   dynamicRoute.page,
-                  { ...query, ...params },
+                  // only add params for SPR enabled pages
+                  {
+                    ...(result.unstable_getStaticProps
+                      ? { _nextSprData: query._nextSprData }
+                      : query),
+                    ...params,
+                  },
                   result,
-                  { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+                  {
+                    ...this.renderOpts,
+                    amphtml,
+                    hasAmp,
+                    dataOnly,
+                  }
                 )
               }
             )
@@ -684,7 +863,7 @@ export default class Server {
     return true
   }
 
-  private readBuildId(): string {
+  protected readBuildId(): string {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()

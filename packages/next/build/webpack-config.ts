@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
@@ -51,20 +52,22 @@ const escapePathVariables = (value: any) => {
 export default async function getBaseWebpackConfig(
   dir: string,
   {
-    dev = false,
-    isServer = false,
     buildId,
     config,
+    dev = false,
+    isServer = false,
+    pagesDir,
+    tracer,
     target = 'server',
     entrypoints,
-    tracer,
   }: {
-    tracer?: any
-    dev?: boolean
-    isServer?: boolean
     buildId: string
     config: any
+    dev?: boolean
+    isServer?: boolean
+    pagesDir: string
     target?: string
+    tracer?: any
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
@@ -76,6 +79,7 @@ export default async function getBaseWebpackConfig(
         isServer,
         hasModern: !!config.experimental.modern,
         distDir,
+        pagesDir,
         cwd: dir,
         cache: true,
       },
@@ -160,7 +164,7 @@ export default async function getBaseWebpackConfig(
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
-      [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
+      [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(!isServer
         ? {
@@ -227,7 +231,7 @@ export default async function getBaseWebpackConfig(
         react: {
           name: 'commons',
           chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-subscription)[\\/]/,
         },
       },
     },
@@ -241,7 +245,10 @@ export default async function getBaseWebpackConfig(
           // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          // This regex ignores nested copies of framework libraries so they're
+          // bundled with their issuer.
+          // https://github.com/zeit/next.js/pull/9012
+          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
         },
         lib: {
@@ -286,7 +293,8 @@ export default async function getBaseWebpackConfig(
           reuseExistingChunk: true,
         },
       },
-      maxInitialRequests: 20,
+      maxInitialRequests: 25,
+      minSize: 20000,
     },
   }
 
@@ -306,14 +314,10 @@ export default async function getBaseWebpackConfig(
       : config.crossOrigin
 
   let customAppFile: string | null = config.experimental.css
-    ? await findPageFile(
-        path.join(dir, 'pages'),
-        '/_app',
-        config.pageExtensions
-      )
+    ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
     : null
   if (customAppFile) {
-    customAppFile = path.resolve(path.join(dir, 'pages', customAppFile))
+    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -505,6 +509,7 @@ export default async function getBaseWebpackConfig(
       // The loaders Next.js provides
       alias: [
         'emit-file-loader',
+        'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
         'next-data-loader',
@@ -561,79 +566,127 @@ export default async function getBaseWebpackConfig(
         config.experimental.css &&
           // Support CSS imports
           ({
-            test: /\.css$/,
-            issuer: { include: [customAppFile].filter(Boolean) },
-            use: isServer
-              ? // Global CSS is ignored on the server because it's only needed
-                // on the client-side.
-                require.resolve('ignore-loader')
-              : [
-                  // During development we load CSS via JavaScript so we can
-                  // hot reload it without refreshing the page.
-                  dev && {
-                    loader: require.resolve('style-loader'),
-                    options: {
-                      // By default, style-loader injects CSS into the bottom
-                      // of <head>. This causes ordering problems between dev
-                      // and prod. To fix this, we render a <noscript> tag as
-                      // an anchor for the styles to be placed before. These
-                      // styles will be applied _before_ <style jsx global>.
-                      insert: (element: Node) => {
-                        // These elements should always exist. If they do not,
-                        // this code should fail.
-                        const anchorElement = document.querySelector(
-                          '#__next_css__DO_NOT_USE__'
-                        )!
-                        const parentNode = anchorElement.parentNode! // Normally <head>
+            oneOf: [
+              {
+                test: /\.css$/,
+                issuer: { include: [customAppFile].filter(Boolean) },
+                use: isServer
+                  ? // Global CSS is ignored on the server because it's only needed
+                    // on the client-side.
+                    require.resolve('ignore-loader')
+                  : [
+                      // During development we load CSS via JavaScript so we can
+                      // hot reload it without refreshing the page.
+                      dev && {
+                        loader: require.resolve('style-loader'),
+                        options: {
+                          // By default, style-loader injects CSS into the bottom
+                          // of <head>. This causes ordering problems between dev
+                          // and prod. To fix this, we render a <noscript> tag as
+                          // an anchor for the styles to be placed before. These
+                          // styles will be applied _before_ <style jsx global>.
+                          insert: function(element: Node) {
+                            // These elements should always exist. If they do not,
+                            // this code should fail.
+                            var anchorElement = document.querySelector(
+                              '#__next_css__DO_NOT_USE__'
+                            )!
+                            var parentNode = anchorElement.parentNode! // Normally <head>
 
-                        // Each style tag should be placed right before our
-                        // anchor. By inserting before and not after, we do not
-                        // need to track the last inserted element.
-                        parentNode.insertBefore(element, anchorElement)
+                            // Each style tag should be placed right before our
+                            // anchor. By inserting before and not after, we do not
+                            // need to track the last inserted element.
+                            parentNode.insertBefore(element, anchorElement)
+
+                            // Remember: this is development only code.
+                            //
+                            // After styles are injected, we need to remove the
+                            // <style> tags that set `body { display: none; }`.
+                            //
+                            // We use `requestAnimationFrame` as a way to defer
+                            // this operation since there may be multiple style
+                            // tags.
+                            ;(self.requestAnimationFrame || setTimeout)(
+                              function() {
+                                for (
+                                  var x = document.querySelectorAll(
+                                      '[data-next-hide-fouc]'
+                                    ),
+                                    i = x.length;
+                                  i--;
+
+                                ) {
+                                  x[i].parentNode!.removeChild(x[i])
+                                }
+                              }
+                            )
+                          },
+                        },
+                      },
+                      // When building for production we extract CSS into
+                      // separate files.
+                      !dev && {
+                        loader: MiniCssExtractPlugin.loader,
+                        options: {},
+                      },
+
+                      // Resolve CSS `@import`s and `url()`s
+                      {
+                        loader: require.resolve('css-loader'),
+                        options: { importLoaders: 1, sourceMap: true },
+                      },
+
+                      // Compile CSS
+                      {
+                        loader: require.resolve('postcss-loader'),
+                        options: {
+                          ident: 'postcss',
+                          plugins: () => [
+                            // Make Flexbox behave like the spec cross-browser.
+                            require('postcss-flexbugs-fixes'),
+                            // Run Autoprefixer and compile new CSS features.
+                            require('postcss-preset-env')({
+                              autoprefixer: {
+                                // Disable legacy flexbox support
+                                flexbox: 'no-2009',
+                              },
+                              // Enable CSS features that have shipped to the
+                              // web platform, i.e. in 2+ browsers unflagged.
+                              stage: 3,
+                            }),
+                          ],
+                          sourceMap: true,
+                        },
+                      },
+                    ].filter(Boolean),
+                // A global CSS import always has side effects. Webpack will tree
+                // shake the CSS without this option if the issuer claims to have
+                // no side-effects.
+                // See https://github.com/webpack/webpack/issues/6571
+                sideEffects: true,
+              },
+              {
+                test: /\.css$/,
+                use: isServer
+                  ? require.resolve('ignore-loader')
+                  : {
+                      loader: 'error-loader',
+                      options: {
+                        reason:
+                          `Global CSS ${chalk.bold(
+                            'cannot'
+                          )} be imported from files other than your ${chalk.bold(
+                            'Custom <App>'
+                          )}. Please move all global CSS imports to ${chalk.cyan(
+                            customAppFile
+                              ? path.relative(dir, customAppFile)
+                              : 'pages/_app.js'
+                          )}.\n` +
+                          `Read more: https://err.sh/next.js/global-css`,
                       },
                     },
-                  },
-                  // When building for production we extract CSS into
-                  // separate files.
-                  !dev && {
-                    loader: MiniCssExtractPlugin.loader,
-                    options: {},
-                  },
-
-                  // Resolve CSS `@import`s and `url()`s
-                  {
-                    loader: require.resolve('css-loader'),
-                    options: { importLoaders: 1, sourceMap: true },
-                  },
-
-                  // Compile CSS
-                  {
-                    loader: require.resolve('postcss-loader'),
-                    options: {
-                      ident: 'postcss',
-                      plugins: () => [
-                        // Make Flexbox behave like the spec cross-browser.
-                        require('postcss-flexbugs-fixes'),
-                        // Run Autoprefixer and compile new CSS features.
-                        require('postcss-preset-env')({
-                          autoprefixer: {
-                            // Disable legacy flexbox support
-                            flexbox: 'no-2009',
-                          },
-                          // Enable CSS features that have shipped to the
-                          // web platform, i.e. in 2+ browsers unflagged.
-                          stage: 3,
-                        }),
-                      ],
-                      sourceMap: true,
-                    },
-                  },
-                ].filter(Boolean),
-            // A global CSS import always has side effects. Webpack will tree
-            // shake the CSS without this option if the issuer claims to have
-            // no side-effects.
-            // See https://github.com/webpack/webpack/issues/6571
-            sideEffects: true,
+              },
+            ],
           } as webpack.RuleSetRule),
         config.experimental.css &&
           ({
@@ -797,17 +850,19 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
-        new ForkTsCheckerWebpackPlugin({
-          typescript: typeScriptPath,
-          async: dev,
-          useTypescriptIncrementalApi: true,
-          checkSyntacticErrors: true,
-          tsconfig: tsConfigPath,
-          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-          compilerOptions: { isolatedModules: true, noEmit: true },
-          silent: true,
-          formatter: 'codeframe',
-        }),
+        new ForkTsCheckerWebpackPlugin(
+          PnpWebpackPlugin.forkTsCheckerOptions({
+            typescript: typeScriptPath,
+            async: dev,
+            useTypescriptIncrementalApi: true,
+            checkSyntacticErrors: true,
+            tsconfig: tsConfigPath,
+            reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+            compilerOptions: { isolatedModules: true, noEmit: true },
+            silent: true,
+            formatter: 'codeframe',
+          })
+        ),
       config.experimental.modern &&
         !isServer &&
         !dev &&
@@ -875,6 +930,91 @@ export default async function getBaseWebpackConfig(
         '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
       )
     }
+  }
+
+  // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
+  if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
+    ;[].forEach.call(webpackConfig.module.rules, function(
+      rule: webpack.RuleSetRule
+    ) {
+      if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
+        return
+      }
+
+      const isSass =
+        rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
+      const isLess = rule.test.source === '\\.less$'
+      const isCss = rule.test.source === '\\.css$'
+
+      // Check if the rule we're iterating over applies to Sass, Less, or CSS
+      if (!(isSass || isLess || isCss)) {
+        return
+      }
+
+      ;[].forEach.call(rule.use, function(use: webpack.RuleSetUseItem) {
+        if (
+          !(
+            use &&
+            typeof use === 'object' &&
+            // Identify use statements only pertaining to `css-loader`
+            (use.loader === 'css-loader' ||
+              use.loader === 'css-loader/locals') &&
+            use.options &&
+            typeof use.options === 'object' &&
+            // The `minimize` property is a good heuristic that we need to
+            // perform this hack. The `minimize` property was only valid on
+            // old `css-loader` versions. Custom setups (that aren't next-sass
+            // or next-less) likely have the newer version.
+            // We still handle this gracefully below.
+            (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
+              Object.prototype.hasOwnProperty.call(
+                use.options,
+                'exportOnlyLocals'
+              ))
+          )
+        ) {
+          return
+        }
+
+        // Try to monkey patch within a try-catch. We shouldn't fail the build
+        // if we cannot pull this off.
+        // The user may not even be using the `next-sass` or `next-less`
+        // plugins.
+        // If it does work, great!
+        try {
+          // Resolve the version of `@zeit/next-css` as depended on by the Sass
+          // or Less plugin.
+          const correctNextCss = resolveRequest(
+            '@zeit/next-css',
+            isCss
+              ? // Resolve `@zeit/next-css` from the base directory
+                `${dir}/`
+              : // Else, resolve it from the specific plugins
+                require.resolve(
+                  isSass
+                    ? '@zeit/next-sass'
+                    : isLess
+                    ? '@zeit/next-less'
+                    : 'next'
+                )
+          )
+
+          // If we found `@zeit/next-css` ...
+          if (correctNextCss) {
+            // ... resolve the version of `css-loader` shipped with that
+            // package instead of whichever was hoisted highest in your
+            // `node_modules` tree.
+            const correctCssLoader = resolveRequest(use.loader, correctNextCss)
+            if (correctCssLoader) {
+              // We saved the user from a failed build!
+              use.loader = correctCssLoader
+            }
+          }
+        } catch (_) {
+          // The error is not required to be handled.
+        }
+      })
+    })
   }
 
   // Backwards compat for `main.js` entry key
