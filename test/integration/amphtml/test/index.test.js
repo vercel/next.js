@@ -27,7 +27,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 const context = {}
 
-describe('AMP Usage', () => {
+xdescribe('AMP Usage', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     app = nextServer({
