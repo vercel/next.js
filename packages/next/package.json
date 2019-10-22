@@ -69,7 +69,7 @@
     "@babel/preset-typescript": "7.3.3",
     "@babel/runtime": "7.4.5",
     "@babel/runtime-corejs2": "7.4.5",
-    "amphtml-validator": "1.0.26",
+    "amphtml-validator": "1.0.23",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
     "autodll-webpack-plugin": "0.4.2",
