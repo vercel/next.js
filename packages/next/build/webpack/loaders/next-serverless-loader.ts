@@ -70,6 +70,7 @@ const nextServerlessLoader: loader.Loader = function() {
   } else {
     return `
     import {parse} from 'url'
+    import {parse as parseQs} from 'querystring'
     import {renderToHTML} from 'next/dist/next-server/server/render';
     import {sendHTML} from 'next/dist/next-server/server/send-html';
     ${
@@ -131,7 +132,52 @@ const nextServerlessLoader: loader.Loader = function() {
             ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
-        const result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
+        ${
+          // Temporary work around: `x-now-route-matches` is a platform header
+          // _only_ set for `Prerender` requests. We should move this logic
+          // into our builder to ensure we're decoupled. However, this entails
+          // removing reliance on `req.url` and using `req.query` instead
+          // (which is needed for "custom routes" anyway).
+          isDynamicRoute(page)
+            ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
+              ? getRouteMatcher(
+                  (function() {
+                    const { re, groups } = getRouteRegex("${page}");
+                    return {
+                      re: {
+                        // Simulate a RegExp match from the \`req.url\` input
+                        exec: str => {
+                          const obj = parseQs(str);
+                          return Object.keys(obj).reduce(
+                            (prev, key) =>
+                              Object.assign(prev, {
+                                [key]: encodeURIComponent(obj[key])
+                              }),
+                            {}
+                          );
+                        }
+                      },
+                      groups
+                    };
+                  })()
+                )(req.headers["x-now-route-matches"])
+              : null;
+          `
+            : `const nowParams = null;`
+        }
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
+
+        if (sprData && !fromExport) {
+          const payload = JSON.stringify(renderOpts.sprData)
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Content-Length', Buffer.byteLength(payload))
+          res.setHeader(
+            'Cache-Control',
+            \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
+          )
+          res.end(payload)
+          return null
+        }
 
         if (fromExport) return { html: result, renderOpts }
         return result
@@ -156,7 +202,9 @@ const nextServerlessLoader: loader.Loader = function() {
     export async function render (req, res) {
       try {
         const html = await renderReqToHTML(req, res)
-        sendHTML(req, res, html, {generateEtags: ${generateEtags}})
+        if (html) {
+          sendHTML(req, res, html, {generateEtags: ${generateEtags}})
+        }
       } catch(err) {
         console.error(err)
         res.statusCode = 500

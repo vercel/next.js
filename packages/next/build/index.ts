@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import ciEnvironment from 'ci-info'
 import fs from 'fs'
 import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
@@ -47,6 +48,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
+const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
 const fsStat = promisify(fs.stat)
@@ -83,14 +85,33 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  const buildSpinner = createSpinner({
-    prefixText: 'Creating an optimized production build',
-  })
-
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+
+  if (ciEnvironment.isCI) {
+    const cacheDir = path.join(distDir, 'cache')
+    const hasCache = await fsAccess(cacheDir)
+      .then(() => true)
+      .catch(() => false)
+
+    if (!hasCache) {
+      // Intentionally not piping to stderr in case people fail in CI when
+      // stderr is detected.
+      console.log(
+        chalk.bold.yellow(`Warning: `) +
+          chalk.bold(
+            `No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
+          )
+      )
+      console.log('')
+    }
+  }
+
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
 
   const telemetry = new Telemetry({ distDir })
 

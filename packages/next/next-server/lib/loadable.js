@@ -22,6 +22,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
+import { useSubscription } from 'use-subscription'
 import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS = []
@@ -121,13 +122,19 @@ function createLoadableComponent (loadFn, options) {
     options
   )
 
-  let res = null
+  let subscription = null
 
   function init () {
-    if (!res) {
-      res = loadFn(opts.loader)
+    if (!subscription) {
+      const sub = new LoadableSubscription(loadFn, opts)
+      subscription = {
+        getCurrentValue: sub.getCurrentValue.bind(sub),
+        subscribe: sub.subscribe.bind(sub),
+        retry: sub.retry.bind(sub),
+        promise: sub.promise.bind(sub)
+      }
     }
-    return res.promise
+    return subscription.promise()
   }
 
   // Server only
@@ -151,113 +158,128 @@ function createLoadableComponent (loadFn, options) {
     })
   }
 
-  return class LoadableComponent extends React.Component {
-    constructor (props) {
-      super(props)
-      init()
+  const LoadableComponent = (props, ref) => {
+    init()
 
-      this.state = {
-        error: res.error,
-        pastDelay: false,
-        timedOut: false,
-        loading: res.loading,
-        loaded: res.loaded
-      }
+    const context = React.useContext(LoadableContext)
+    const state = useSubscription(subscription)
+
+    React.useImperativeHandle(ref, () => ({
+      retry: subscription.retry
+    }))
+
+    if (context && Array.isArray(opts.modules)) {
+      opts.modules.forEach(moduleName => {
+        context(moduleName)
+      })
     }
 
-    static preload () {
-      return init()
+    if (state.loading || state.error) {
+      return React.createElement(opts.loading, {
+        isLoading: state.loading,
+        pastDelay: state.pastDelay,
+        timedOut: state.timedOut,
+        error: state.error,
+        retry: subscription.retry
+      })
+    } else if (state.loaded) {
+      return opts.render(state.loaded, props)
+    } else {
+      return null
+    }
+  }
+
+  LoadableComponent.preload = () => init()
+  LoadableComponent.displayName = 'LoadableComponent'
+
+  return React.forwardRef(LoadableComponent)
+}
+
+class LoadableSubscription {
+  constructor (loadFn, opts) {
+    this._loadFn = loadFn
+    this._opts = opts
+    this._callbacks = new Set()
+    this._delay = null
+    this._timeout = null
+
+    this.retry()
+  }
+
+  promise () {
+    return this._res.promise
+  }
+
+  retry () {
+    this._clearTimeouts()
+    this._res = this._loadFn(this._opts.loader)
+
+    this._state = {
+      pastDelay: false,
+      timedOut: false
     }
 
-    static contextType = LoadableContext
-    // TODO: change it before next major React release
-    // eslint-disable-next-line
-    UNSAFE_componentWillMount() {
-      this._mounted = true
-      this._loadModule()
-    }
+    const { _res: res, _opts: opts } = this
 
-    _loadModule () {
-      if (this.context && Array.isArray(opts.modules)) {
-        opts.modules.forEach(moduleName => {
-          this.context(moduleName)
-        })
-      }
-
-      if (!res.loading) {
-        return
-      }
-
+    if (res.loading) {
       if (typeof opts.delay === 'number') {
         if (opts.delay === 0) {
-          this.setState({ pastDelay: true })
+          this._state.pastDelay = true
         } else {
           this._delay = setTimeout(() => {
-            this.setState({ pastDelay: true })
+            this._update({
+              pastDelay: true
+            })
           }, opts.delay)
         }
       }
 
       if (typeof opts.timeout === 'number') {
         this._timeout = setTimeout(() => {
-          this.setState({ timedOut: true })
+          this._update({ timedOut: true })
         }, opts.timeout)
       }
+    }
 
-      let update = () => {
-        if (!this._mounted) {
-          return
-        }
-
-        this.setState({
-          error: res.error,
-          loaded: res.loaded,
-          loading: res.loading
-        })
-
+    this._res.promise
+      .then(() => {
+        this._update()
         this._clearTimeouts()
-      }
+      })
+      // eslint-disable-next-line handle-callback-err
+      .catch(err => {
+        this._update()
+        this._clearTimeouts()
+      })
+    this._update({})
+  }
 
-      res.promise
-        .then(() => {
-          update()
-        })
-        // eslint-disable-next-line handle-callback-err
-        .catch(err => {
-          update()
-        })
+  _update (partial) {
+    this._state = {
+      ...this._state,
+      ...partial
     }
+    this._callbacks.forEach(callback => callback())
+  }
 
-    componentWillUnmount () {
-      this._mounted = false
-      this._clearTimeouts()
+  _clearTimeouts () {
+    clearTimeout(this._delay)
+    clearTimeout(this._timeout)
+  }
+
+  getCurrentValue () {
+    return {
+      ...this._state,
+      error: this._res.error,
+      loaded: this._res.loaded,
+      loading: this._res.loading
     }
+  }
 
-    _clearTimeouts () {
-      clearTimeout(this._delay)
-      clearTimeout(this._timeout)
-    }
-
-    retry = () => {
-      this.setState({ error: null, loading: true, timedOut: false })
-      res = loadFn(opts.loader)
-      this._loadModule()
-    }
-
-    render () {
-      if (this.state.loading || this.state.error) {
-        return React.createElement(opts.loading, {
-          isLoading: this.state.loading,
-          pastDelay: this.state.pastDelay,
-          timedOut: this.state.timedOut,
-          error: this.state.error,
-          retry: this.retry
-        })
-      } else if (this.state.loaded) {
-        return opts.render(this.state.loaded, this.props)
-      } else {
-        return null
-      }
+  subscribe (callback) {
+    this._callbacks.add(callback)
+    return () => {
+      this._callbacks.delete(callback)
     }
   }
 }
