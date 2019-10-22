@@ -43,6 +43,21 @@ module.exports = {
         source: '/redirect4',
         destination: '/',
         statusCode: 308
+      },
+      {
+        source: '/redir-chain1',
+        destination: '/redir-chain2',
+        statusCode: 301
+      },
+      {
+        source: '/redir-chain2',
+        destination: '/redir-chain3',
+        statusCode: 302
+      },
+      {
+        source: '/redir-chain3',
+        destination: '/',
+        statusCode: 303
       }
     ]
   }

@@ -32,6 +32,15 @@ const runTests = () => {
     expect(html).toMatch(/multi-rewrites/)
   })
 
+  it('should handle chained redirects successfully', async () => {
+    const res = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
+      redirect: 'manual'
+    })
+    const { pathname } = url.parse(res.headers.get('location'))
+    expect(res.status).toBe(303)
+    expect(pathname).toBe('/')
+  })
+
   it('should redirect successfully with default statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual'

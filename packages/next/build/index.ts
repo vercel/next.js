@@ -606,6 +606,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
+      version: 0,
       rewrites,
       redirects,
     }),

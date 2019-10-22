@@ -261,6 +261,22 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
+  protected async getCustomRoutes() {
+    const result = {
+      redirects: [],
+      rewrites: [],
+    }
+    const { redirects, rewrites } = this.nextConfig
+
+    if (typeof redirects === 'function') {
+      result.redirects = await redirects()
+    }
+    if (typeof rewrites === 'function') {
+      result.rewrites = await rewrites()
+    }
+    return result
+  }
+
   async generateRoutes() {
     const routes = await super.generateRoutes()
 
