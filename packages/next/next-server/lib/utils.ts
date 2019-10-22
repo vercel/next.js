@@ -163,7 +163,7 @@ export type NextApiRequest = IncomingMessage & {
    * Object of `query` values from url
    */
   query: {
-    [key: string]: string | string[]
+    [key: string]: string
   }
   /**
    * Object of `cookies` from header
