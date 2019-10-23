@@ -242,7 +242,7 @@ export default async function getBaseWebpackConfig(
         react: {
           name: 'commons',
           chunks: 'all',
-          test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+          test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-subscription)[\\/]/,
         },
       },
     },
@@ -259,7 +259,7 @@ export default async function getBaseWebpackConfig(
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
           // https://github.com/zeit/next.js/pull/9012
-          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
         },
         lib: {
@@ -304,7 +304,8 @@ export default async function getBaseWebpackConfig(
           reuseExistingChunk: true,
         },
       },
-      maxInitialRequests: 20,
+      maxInitialRequests: 25,
+      minSize: 20000,
     },
   }
 
