@@ -1,18 +1,17 @@
 import React from 'react'
 import App, { Container } from 'next/app'
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion'
 
 export default class MyApp extends App {
-
-  /** 
+  /**
    * Handle scrolling gracefully, since next/router scrolls to top
    * before exit animation is complete.
-   * 
+   *
    * Note that next/link components should also be using `scroll={false}`
    **/
-  onExitComplete() {
+  handleExitComplete () {
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 })
     }
   }
 
@@ -21,11 +20,15 @@ export default class MyApp extends App {
     return (
       <>
         <Container>
-          <AnimatePresence exitBeforeEnter onExitComplete={this.onExitComplete}>
-            <Component {...pageProps} key={router.route}/>
+          <AnimatePresence
+            exitBeforeEnter
+            onExitComplete={this.handleExitComplete}
+          >
+            <Component {...pageProps} key={router.route} />
           </AnimatePresence>
         </Container>
-        <style>{`
+        <style>
+          {`
           body {
             padding: 0;
             margin: 0;
@@ -38,7 +41,8 @@ export default class MyApp extends App {
             font-weight: 900;
             color: #222;
           }
-        `}</style>
+        `}
+        </style>
       </>
     )
   }
