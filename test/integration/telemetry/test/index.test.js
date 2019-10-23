@@ -2,7 +2,13 @@
 /* global jasmine */
 import path from 'path'
 import fs from 'fs-extra'
-import { runNextCommand } from 'next-test-utils'
+import {
+  runNextCommand,
+  launchApp,
+  findPort,
+  killApp,
+  waitFor
+} from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -64,7 +70,7 @@ describe('Telemetry CLI', () => {
     expect(stdout).toMatch(/Status: Disabled/)
   })
 
-  it('detects isSrcDir dir correctly', async () => {
+  it('detects isSrcDir dir correctly for `next build`', async () => {
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
@@ -84,5 +90,39 @@ describe('Telemetry CLI', () => {
     await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr2).toMatch(/isSrcDir.*?true/)
+  })
+
+  it('detects isSrcDir dir correctly for `next dev`', async () => {
+    let port = await findPort()
+    let stderr = ''
+
+    const handleStderr = msg => {
+      stderr += msg
+    }
+    let app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1
+      }
+    })
+    await waitFor(1000)
+    await killApp(app)
+    expect(stderr).toMatch(/isSrcDir.*?false/)
+
+    await fs.move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
+    stderr = ''
+
+    port = await findPort()
+    app = await launchApp(appDir, port, {
+      onStderr: handleStderr,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1
+      }
+    })
+    await waitFor(1000)
+    await killApp(app)
+    await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
+
+    expect(stderr).toMatch(/isSrcDir.*?true/)
   })
 })
