@@ -1,6 +1,6 @@
 # Tailwind CSS example
 
-This is an example of how you can include a global stylesheet in a next.js webapp.
+This is an example of using [Tailwind CSS](https://tailwindcss.com) in a Next.js project.
 
 ## How to use
 
@@ -23,9 +23,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-tailwindcss
 ```
 
-**Running**
-
-To get this example running you just need to
+Install it and run:
 
 ```bash
 npm install
@@ -35,41 +33,20 @@ yarn
 yarn dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) and try to modify `styles/index.css`.
-
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
 now
 ```
 
-### Extras
-
-In the `package.json` you'll see some extra commands.
-
-- `yarn dev:css`
-  - used by `yarn dev` generate css bundle and watch css files for changes
-  - includes css imported into `index.css`
-  - will **not** autoreload browser when css changes
-- `yarn build:css`
-  - used by `yarn build` to generate css bundle
-
-These can be used manually but using the usual commands will run them anyways.
-
 ## The idea behind the example
 
-This setup is a basic starting point for using tailwind css and next. Along with tailwind, this example
-also uses some other postcss plugins for imports, autoprefixing, and stripping whitespace/comments. The imports simply
-allow for an easy way to split up css files but still get one bundled css file in `static/css/bundle.css`.
-Changing stylesheets does not trigger auto-reloads. Setting up auto-reloads was avoided
-because the next.js read me does not recommend doing so. Although, that can easily be done with
-some webpack loaders. If you are curious about using loaders with next look at this
-[example](https://github.com/zeit/next.js/tree/canary/examples/with-global-stylesheet).
+This setup is a basic starting point for using [Tailwind CSS](https://tailwindcss.com) with Next.js. This example also includes the following [PostCSS](https://github.com/postcss/postcss) plugins:
+- [autoprefixer](https://github.com/postcss/autoprefixer) - Adds vendor prefixes to CSS rules in your stylesheet using values from [Can I Use](https://caniuse.com/)
+- [purgecss](https://github.com/FullHuman/purgecss) - Removes unused CSS
+- [cssnano](https://cssnano.co/) - Minifies CSS
+- [postcss-easy-import](https://github.com/TrySound/postcss-easy-import) - Allows importing one stylesheet into another
 
-This project shows how you can set it up. Have a look at:
-
-- pages/\_document.js
-- styles/config/postcss.config.js
-- styles/config/tailwind.config.js
-- styles/index.css
-- styles/button.css
+## Limitations
+### Dynamically generated class strings will be purged
+Purgecss takes a very straightforward approach to removing unused CSS. It simply searches an entire file for a string that matches a regular expression. As a result, class strings that are dynamically created in a template using string concatenation will be considered unused and removed from your stylesheet. Tailwind CSS addresses this problem in more detail in [their documentation](https://tailwindcss.com/docs/controlling-file-size#writing-purgeable-html).
