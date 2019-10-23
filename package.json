@@ -120,6 +120,10 @@
     "wd": "1.11.3",
     "webpack-bundle-analyzer": "3.3.2"
   },
+  "resolutions": {
+    "browserslist": "^4.7.1",
+    "caniuse-lite": "^1.0.30001002"
+  },
   "engines": {
     "node": ">= 8.0.0"
   }
