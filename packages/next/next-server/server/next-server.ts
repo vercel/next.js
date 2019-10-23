@@ -4,6 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
@@ -22,7 +23,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
+import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -32,9 +33,8 @@ import { getPagePath } from './require'
 import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
+import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
-import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -143,10 +143,12 @@ export default class Server {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
+    if (this.nextConfig.target === 'server') {
+      envConfig.setConfig({
+        serverRuntimeConfig,
+        publicRuntimeConfig,
+      })
+    }
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
@@ -219,6 +221,10 @@ export default class Server {
   }
 
   protected generateRoutes(): Route[] {
+    const publicRoutes = fs.existsSync(this.publicDir)
+      ? this.generatePublicRoutes()
+      : []
+
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -248,10 +254,24 @@ export default class Server {
       {
         match: route('/_next/data/:path*'),
         fn: async (req, res, params, _parsedUrl) => {
-          // Make sure to 404 for /_next/data/ itself
-          if (!params.path) return this.render404(req, res, _parsedUrl)
-          // TODO: force `.json` to be present
-          const pathname = `/${params.path.join('/')}`.replace(/\.json$/, '')
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            return this.render404(req, res, _parsedUrl)
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          // show 404 if it doesn't end with .json
+          if (!params.path[params.path.length - 1].endsWith('.json')) {
+            return this.render404(req, res, _parsedUrl)
+          }
+
+          // re-create page's pathname
+          const pathname = `/${params.path.join('/')}`
+            .replace(/\.json$/, '')
+            .replace(/\/index$/, '/')
+
           req.url = pathname
           const parsedUrl = parseUrl(pathname, true)
           await this.render(
@@ -270,6 +290,7 @@ export default class Server {
           await this.render404(req, res, parsedUrl)
         },
       },
+      ...publicRoutes,
       {
         // It's very important to keep this route's param optional.
         // (but it should support as many params as needed, separated by '/')
@@ -293,10 +314,6 @@ export default class Server {
         },
       },
     ]
-
-    if (fs.existsSync(this.publicDir)) {
-      routes.push(...this.generatePublicRoutes())
-    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -525,12 +542,18 @@ export default class Server {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
     res.setHeader('Content-Type', type)
     res.setHeader('Content-Length', Buffer.byteLength(payload))
-
-    if (revalidate) {
-      res.setHeader(
-        'Cache-Control',
-        `s-maxage=${revalidate}, stale-while-revalidate`
-      )
+    if (!this.renderOpts.dev) {
+      if (revalidate) {
+        res.setHeader(
+          'Cache-Control',
+          `s-maxage=${revalidate}, stale-while-revalidate`
+        )
+      } else if (revalidate === false) {
+        res.setHeader(
+          'Cache-Control',
+          `s-maxage=31536000, stale-while-revalidate`
+        )
+      }
     }
     res.end(payload)
   }
@@ -600,8 +623,9 @@ export default class Server {
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
     if (isLikeServerless && isSprData) {
-      const curUrl = parseUrl(req.url || '', true)
-      req.url = `/_next/data${curUrl.pathname}.json`
+      let { pathname } = parseUrl(req.url || '', true)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      req.url = `/_next/data/${this.buildId}${pathname}.json`
     }
 
     const doRender = withCoalescedInvoke(async function(): Promise<{

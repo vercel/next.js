@@ -1,4 +1,3 @@
-import { record } from '../storage'
 import findUp from 'find-up'
 
 const EVENT_PLUGIN_PRESENT = 'NEXT_PACKAGE_DETECTED'
@@ -159,32 +158,34 @@ const plugins = [
   '@apollo/react-ssr',
 ]
 
-export async function recordNextPlugins(dir: string) {
+export async function eventNextPlugins(
+  dir: string
+): Promise<Array<{ eventName: string; payload: EventPackageDetected }>> {
   try {
     const packageJsonPath = await findUp('package.json', { cwd: dir })
     if (!packageJsonPath) {
-      return
+      return []
     }
 
     const { dependencies = {}, devDependencies = {} } = require(packageJsonPath)
-    return record(
-      (plugins
-        .map(plugin => {
-          const version = dependencies[plugin] || devDependencies[plugin]
-          if (version) {
-            return { pluginName: plugin, pluginVersion: version }
-          }
-        })
-        .filter(Boolean) as {
-        pluginName: string
-        pluginVersion: string
-      }[]).map(({ pluginName, pluginVersion }) => ({
-        eventName: EVENT_PLUGIN_PRESENT,
-        payload: {
-          packageName: pluginName,
-          packageVersion: pluginVersion,
-        } as EventPackageDetected,
-      }))
-    )
-  } catch (_) {}
+    return (plugins
+      .map(plugin => {
+        const version = dependencies[plugin] || devDependencies[plugin]
+        if (version) {
+          return { pluginName: plugin, pluginVersion: version }
+        }
+      })
+      .filter(Boolean) as {
+      pluginName: string
+      pluginVersion: string
+    }[]).map(({ pluginName, pluginVersion }) => ({
+      eventName: EVENT_PLUGIN_PRESENT,
+      payload: {
+        packageName: pluginName,
+        packageVersion: pluginVersion,
+      } as EventPackageDetected,
+    }))
+  } catch (_) {
+    return []
+  }
 }

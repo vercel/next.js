@@ -1,4 +1,4 @@
-# Can't Override Next Props
+# Cannot output to /public
 
 #### Why This Error Occurred
 
