@@ -9,7 +9,7 @@
     "dev": "lerna run build --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest",
-    "testall": "yarn check && yarn run testonly -- --ci --reporters=default --reporters=jest-junit --forceExit --runInBand",
+    "testall": "yarn run testonly -- --ci --reporters=default --reporters=jest-junit --forceExit --runInBand",
     "pretest": "yarn run lint",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
