@@ -4,6 +4,7 @@ type EventCliSessionStarted = {
   nextVersion: string
   nodeVersion: string
   cliCommand: string
+  isSrcDir: boolean | null
 }
 
 export function eventVersion(
@@ -21,6 +22,7 @@ export function eventVersion(
         nextVersion: process.env.__NEXT_VERSION,
         nodeVersion: process.version,
         cliCommand: event.cliCommand,
+        isSrcDir: event.isSrcDir,
       } as EventCliSessionStarted,
     },
   ]
