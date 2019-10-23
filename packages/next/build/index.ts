@@ -125,7 +125,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     telemetry.record(
       eventVersion({
         cliCommand: 'build',
-        isSrcDir: pagesDir.startsWith('src'),
+        isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       })
     ),
     eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))

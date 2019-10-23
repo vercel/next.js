@@ -210,7 +210,7 @@ export default class DevServer extends Server {
     telemetry.record(
       eventVersion({
         cliCommand: 'dev',
-        isSrcDir: this.pagesDir!.startsWith('src'),
+        isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
       })
     )
   }
