@@ -7,10 +7,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "framer-motion": "^1.5.0",
+    "framer-motion": "latest",
     "next": "latest",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0"
+    "react": "16.11.0",
+    "react-dom": "16.11.0"
   },
   "license": "ISC"
 }
