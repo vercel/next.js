@@ -85,6 +85,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
+
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
@@ -108,10 +112,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       console.log('')
     }
   }
-
-  const buildSpinner = createSpinner({
-    prefixText: 'Creating an optimized production build',
-  })
 
   const telemetry = new Telemetry({ distDir })
 
