@@ -38,3 +38,5 @@ now
 ## The idea behind the example
 
 Framer [`Motion`](https://github.com/framer/motion) is a production-ready animation library. By using a custom [`<App>`](https://nextjs.org/docs#custom-app) along with Motion's [`AnimatePresence`](https://www.framer.com/api/motion/animate-presence/) component, transitions between Next pages becomes simple and declarative.
+
+When using Next's `<Link>` component, you will likely want to [disable the default scroll behavior](https://nextjs.org/docs#disabling-the-scroll-changes-to-top-on-page) for a more seamless navigation experience. Scrolling to the top of a page can be re-enabled by adding a `onExitComplete` callback on the `AnimatePresence` component.
