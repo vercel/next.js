@@ -1,4 +1,5 @@
 import isDockerFunction from 'is-docker'
+import isWslBoolean from 'is-wsl'
 import os from 'os'
 
 import * as ciEnvironment from './ci-info'
@@ -13,6 +14,7 @@ type AnonymousMeta = {
   memoryInMb: number
   isDocker: boolean
   isNowDev: boolean
+  isWsl: boolean
   isCI: boolean
   ciName: string | null
 }
@@ -39,6 +41,7 @@ export function getAnonymousMeta(): AnonymousMeta {
     // Environment information
     isDocker: isDockerFunction(),
     isNowDev: NOW_REGION === 'dev1',
+    isWsl: isWslBoolean,
     isCI: ciEnvironment.isCI,
     ciName: (ciEnvironment.isCI && ciEnvironment.name) || null,
   }
