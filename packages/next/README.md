@@ -1240,7 +1240,7 @@ Then, import `micro-cors` and [configure it](https://github.com/possibilities/mi
 import Cors from 'micro-cors'
 
 const cors = Cors({
-  allowedMethods: ['GET', 'HEAD'],
+  allowMethods: ['GET', 'HEAD'],
 })
 
 function Endpoint(req, res) {
