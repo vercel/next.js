@@ -35,7 +35,7 @@ commands:
     steps:
       - run:
           name: Installing Dependencies
-          command: yarn install --frozen-lockfile
+          command: yarn install --frozen-lockfile --check-files
   yarn_lint:
     steps:
       - run:
@@ -56,7 +56,7 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            yarn check && node run-tests.js $(
+            node run-tests.js $(
               circleci tests glob "test/**/*.test.*" | \
               circleci tests split
             )

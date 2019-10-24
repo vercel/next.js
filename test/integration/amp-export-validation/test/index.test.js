@@ -15,7 +15,7 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 
 let buildOutput
 
-xdescribe('AMP Validation on Export', () => {
+describe('AMP Validation on Export', () => {
   beforeAll(async () => {
     const { stdout = '', stderr = '' } = await nextBuild(appDir, [], {
       stdout: true,
