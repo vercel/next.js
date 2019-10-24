@@ -2316,14 +2316,18 @@ To learn more about TypeScript checkout its [documentation](https://www.typescri
 > **Note**: Next.js does not enable TypeScript's `strict` mode by default.
 > When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
 
-> **Note**: By default, Next.js reports all TypeScript errors during dev and prevents application build if any are detected.
-> If you don't want to leverage this behaviour and prefer to do type checks manually, set the following option in your `next.config.js`:
+> **Note**: By default, Next.js reports TypeScript errors during development for pages you are actively working on.
+> TypeScript errors for inactive pages do not block the development process.
+> Trying to run `next build` for an app that has TypeScript errors on any page will fail.
+> 
+> If you don't want to leverage this behavior and prefer to do type checks manually, set the following options in your `next.config.js`:
 >
 > ```js
 > // next.config.js
 > module.exports = {
 >   typescript: {
->     transpileOnly: true,
+>     ignoreDevErrors: true,
+>     ignoreBuildErrors: true,
 >   },
 > }
 > ```
