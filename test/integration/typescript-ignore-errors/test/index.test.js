@@ -20,10 +20,10 @@ describe('TypeScript with error handling options', () => {
     for (const ignoreBuildErrors of [false, true]) {
       describe(`ignoreDevErrors: ${ignoreDevErrors}, ignoreBuildErrors: ${ignoreBuildErrors}`, () => {
         beforeAll(() => {
-          const customConfig = {
+          const nextConfig = {
             typescript: { ignoreDevErrors, ignoreBuildErrors }
           }
-          nextConfigFile.replace('{}', JSON.stringify(customConfig))
+          nextConfigFile.replace('{}', JSON.stringify(nextConfig))
         })
         afterAll(() => {
           nextConfigFile.restore()
