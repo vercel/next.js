@@ -53,7 +53,8 @@ export default class DevServer extends Server {
       html: string,
       pathname: string
     ) => {
-      return AmpHtmlValidator.getInstance().then(validator => {
+      const validatorPath = this.nextConfig.amp && this.nextConfig.amp.validator
+      return AmpHtmlValidator.getInstance(validatorPath).then(validator => {
         const result = validator.validateString(html)
         ampValidation(
           pathname,
