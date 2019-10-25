@@ -36,7 +36,7 @@ describe('Chunking', () => {
       .replace(/"static\\(.*?":)/g, '"static\\\\$1')
       .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
 
-    console.log(stats)
+    console.error(stats)
     stats = JSON.parse(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
