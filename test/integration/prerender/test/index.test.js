@@ -5,6 +5,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
@@ -202,14 +203,20 @@ const runTests = (dev = false) => {
 
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
-      const initialHtml = await renderViaHTTP(appPort, '/something')
+      const initialRes = await fetchViaHTTP(appPort, '/something')
+      expect(initialRes.headers.get('cache-control')).toBeFalsy()
+      const initialHtml = await initialRes.text()
       expect(initialHtml).toMatch(/hello.*?world/)
 
-      const newHtml = await renderViaHTTP(appPort, '/something')
+      const newRes = await fetchViaHTTP(appPort, '/something')
+      expect(newRes.headers.get('cache-control')).toBeFalsy()
+      const newHtml = await newRes.text()
       expect(newHtml).toMatch(/hello.*?world/)
       expect(initialHtml !== newHtml).toBe(true)
 
-      const newerHtml = await renderViaHTTP(appPort, '/something')
+      const newerRes = await fetchViaHTTP(appPort, '/something')
+      expect(newerRes.headers.get('cache-control')).toBeFalsy()
+      const newerHtml = await newerRes.text()
       expect(newerHtml).toMatch(/hello.*?world/)
       expect(newHtml !== newerHtml).toBe(true)
     })
@@ -230,6 +237,15 @@ const runTests = (dev = false) => {
       }
     })
   } else {
+    it('should should use correct caching headers for a no-revalidate page', async () => {
+      const initialRes = await fetchViaHTTP(appPort, '/something')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        's-maxage=31536000, stale-while-revalidate'
+      )
+      const initialHtml = await initialRes.text()
+      expect(initialHtml).toMatch(/hello.*?world/)
+    })
+
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
