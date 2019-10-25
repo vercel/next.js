@@ -736,6 +736,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
           config.devIndicators.autoPrerender
         ),
+        'process.env.__NEXT_STRICT_MODE': JSON.stringify(
+          config.reactStrictMode
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
