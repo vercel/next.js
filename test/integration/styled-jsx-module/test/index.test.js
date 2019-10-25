@@ -27,7 +27,7 @@ function runTests () {
     expect(color).toMatch('0, 255, 255')
   })
 
-  xit('should render styles during CSR (AMP)', async () => {
+  it('should render styles during CSR (AMP)', async () => {
     const browser = await webdriver(appPort, '/amp')
     const color = await browser.eval(
       `getComputedStyle(document.querySelector('button')).color`
@@ -41,7 +41,7 @@ function runTests () {
     expect(html).toMatch(/color:.*?cyan/)
   })
 
-  xit('should render styles during SSR (AMP)', async () => {
+  it('should render styles during SSR (AMP)', async () => {
     const html = await renderViaHTTP(appPort, '/amp')
     expect(html).toMatch(/color:.*?cyan/)
   })

@@ -95,7 +95,7 @@ export default async function(
   const distDir = join(dir, nextConfig.distDir)
   if (!options.buildExport) {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record(eventVersion({ cliCommand: 'export' }))
+    telemetry.record(eventVersion({ cliCommand: 'export', isSrcDir: null }))
   }
 
   const subFolders = nextConfig.exportTrailingSlash
