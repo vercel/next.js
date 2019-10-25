@@ -361,7 +361,7 @@ const runTests = (dev = false) => {
     it('should not error when flushing cache files', async () => {
       await fetchViaHTTP(appPort, '/user/user-1/profile')
       await waitFor(500)
-      expect(stderr).not.toMatch(/user\/user-1/)
+      expect(stderr).not.toMatch(/Failed to update prerender files for/)
     })
   }
 }
