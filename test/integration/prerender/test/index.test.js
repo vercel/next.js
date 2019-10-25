@@ -266,10 +266,10 @@ const runTests = (dev = false) => {
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
         },
-        '/user/[user]': {
-          dataRoute: `/_next/data/${buildId}/user/[user].json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/user\\/([^\\/]+?)(?:\\/)?$'
+        '/user/[user]/profile': {
+          dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
+          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
+          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
         }
       })
     })
