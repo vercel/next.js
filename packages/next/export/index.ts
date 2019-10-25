@@ -267,7 +267,7 @@ export default async function(
     {
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: threads > 1,
       exposedMethods: ['default'],
     }
   ) as any
