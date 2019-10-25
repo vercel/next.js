@@ -100,7 +100,7 @@
     "lru-cache": "5.1.1",
     "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.1",
-    "native-url": "0.1.2",
+    "native-url": "0.2.0",
     "node-fetch": "2.6.0",
     "ora": "3.4.0",
     "path-to-regexp": "2.1.0",
