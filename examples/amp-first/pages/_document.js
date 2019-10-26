@@ -1,28 +1,25 @@
-import Document, { Head, Main, NextScript } from 'next/document'
-import flush from 'styled-jsx/server'
+// _document is only rendered on the server side and not on the client side
+// Event handlers like onClick can't be added to this file
 
-// The language used for all documents.
-const DEFAULT_LANG = 'en'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-/**
- * A custom document that allows setting the <html lang=en> attribute.
- */
-export default class MyDocument extends Document {
-  static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage()
-    const styles = flush()
-    return { html, head, errorHtml, chunks, styles }
+class MyDocument extends Document {
+  static async getInitialProps (ctx) {
+    const initialProps = await Document.getInitialProps(ctx)
+    return { ...initialProps }
   }
+
   render () {
     return (
-      <html lang={DEFAULT_LANG} amp=''>
+      <Html lang='en'>
         <Head />
         <body>
-          {this.props.customValue}
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }
+
+export default MyDocument

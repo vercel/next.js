@@ -11,48 +11,6 @@ export const config = { amp: true }
 
 const Home = props => (
   <>
-    <style jsx>{`
-      code,
-      pre {
-        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
-          Courier, monospace;
-        background: #f2f2f2;
-        padding: 2px 3px;
-        font-size: 13px;
-      }
-      main {
-        margin: 0 auto;
-        max-width: 800px;
-      }
-      main > * + * {
-        margin: 4rem 0.5rem;
-      }
-      .title {
-        text-align: center;
-        padding-top: 4rem;
-      }
-      .hero {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        grid-gap: 1rem;
-      }
-      .hero > a {
-        display: block;
-        padding: 1rem;
-        text-align: left;
-        text-decoration: none;
-        background-color: #005af0;
-      }
-      .hero h3 {
-        margin: 0;
-        color: #067df7;
-        color: #fff;
-      }
-      .hero p {
-        margin: 0;
-        color: #fff;
-      }
-    `}</style>
     <Layout
       title='Welcome to AMP'
       description='Learn how to build an AMP First with Next.js.'
@@ -231,6 +189,48 @@ const Home = props => (
         </section>
       </main>
     </Layout>
+    <style jsx>{`
+      code,
+      pre {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+          Courier, monospace;
+        background: #f2f2f2;
+        padding: 2px 3px;
+        font-size: 13px;
+      }
+      main {
+        margin: 0 auto;
+        max-width: 800px;
+      }
+      main > * + * {
+        margin: 4rem 0.5rem;
+      }
+      .title {
+        text-align: center;
+        padding-top: 4rem;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-gap: 1rem;
+      }
+      .hero > a {
+        display: block;
+        padding: 1rem;
+        text-align: left;
+        text-decoration: none;
+        background-color: #005af0;
+      }
+      .hero h3 {
+        margin: 0;
+        color: #067df7;
+        color: #fff;
+      }
+      .hero p {
+        margin: 0;
+        color: #fff;
+      }
+    `}</style>
   </>
 )
 
