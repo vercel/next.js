@@ -146,6 +146,7 @@ export class Head extends Component<
     cssFiles.forEach(file => {
       cssLinkElements.push(
         <link
+          key="${file}-preload"
           nonce={this.props.nonce}
           rel="preload"
           href={`${assetPrefix}/_next/${encodeURI(file)}`}

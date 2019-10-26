@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactStrictMode: false,
 }
 
 const experimentalWarning = execOnce(() => {
