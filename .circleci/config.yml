@@ -36,6 +36,8 @@ commands:
       - run:
           name: Installing Dependencies
           command: yarn install --frozen-lockfile --check-files
+      - run: google-chrome --version
+      - run: chromedriver --version
   yarn_lint:
     steps:
       - run:
