@@ -1,6 +1,7 @@
 /* global location */
 import React from 'react'
 import ReactDOM from 'react-dom'
+import {} from 'react-dom/experimental'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
