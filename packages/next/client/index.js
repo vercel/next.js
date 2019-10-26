@@ -1,7 +1,6 @@
 /* global location */
 import React from 'react'
 import ReactDOM from 'react-dom'
-import {} from 'react-dom/experimental'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
@@ -18,6 +17,8 @@ import { RouterContext } from '../next-server/lib/router-context'
 import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+
+/// <reference types="react-dom/experimental" />
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
