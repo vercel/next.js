@@ -71,7 +71,6 @@ export default class Server {
   pagesManifest: string
   buildId: string
   renderOpts: {
-    deferScripts: boolean
     poweredByHeader: boolean
     ampBindInitData: boolean
     staticMarkup: boolean
@@ -122,7 +121,6 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     this.renderOpts = {
-      deferScripts: this.nextConfig.experimental.deferScripts,
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,

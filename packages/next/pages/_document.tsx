@@ -487,7 +487,7 @@ export class NextScript extends Component<OriginProps> {
   static safariNomoduleFix =
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
-  getDynamicChunks(defer?: boolean) {
+  getDynamicChunks() {
     const { dynamicImports, assetPrefix, files } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
@@ -503,8 +503,8 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          defer={defer}
-          async={!defer}
+          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
+          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -517,7 +517,7 @@ export class NextScript extends Component<OriginProps> {
     })
   }
 
-  getScripts(defer?: boolean) {
+  getScripts() {
     const { assetPrefix, files } = this.context._documentProps
     if (!files || files.length === 0) {
       return null
@@ -544,8 +544,8 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          defer={defer}
-          async={!defer}
+          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
+          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           {...modernProps}
         />
@@ -577,8 +577,8 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       devFiles,
       __NEXT_DATA__,
-      deferScripts,
     } = this.context._documentProps
+    const deferScripts: any = process.env.__NEXT_DEFER_SCRIPTS
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     if (inAmpMode) {
@@ -741,8 +741,8 @@ export class NextScript extends Component<OriginProps> {
         ) : null}
         {page !== '/_error' && pageScript}
         {appScript}
-        {staticMarkup ? null : this.getDynamicChunks(deferScripts)}
-        {staticMarkup ? null : this.getScripts(deferScripts)}
+        {staticMarkup ? null : this.getDynamicChunks()}
+        {staticMarkup ? null : this.getScripts()}
       </>
     )
   }
