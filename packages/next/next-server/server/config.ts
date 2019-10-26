@@ -47,6 +47,7 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     publicDirectory: false,
     sprFlushToDisk: true,
+    deferScripts: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
