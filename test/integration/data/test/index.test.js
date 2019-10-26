@@ -15,7 +15,7 @@ let appPort
 let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-describe('AMP Bind Initial Data', () => {
+describe.skip('AMP Bind Initial Data', () => {
   beforeAll(async () => {
     appPort = await findPort()
     server = await launchApp(appDir, appPort)

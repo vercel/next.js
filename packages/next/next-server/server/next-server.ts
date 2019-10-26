@@ -4,6 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
@@ -22,7 +23,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
+import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -32,9 +33,8 @@ import { getPagePath } from './require'
 import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
+import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
-import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -542,12 +542,18 @@ export default class Server {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
     res.setHeader('Content-Type', type)
     res.setHeader('Content-Length', Buffer.byteLength(payload))
-
-    if (revalidate) {
-      res.setHeader(
-        'Cache-Control',
-        `s-maxage=${revalidate}, stale-while-revalidate`
-      )
+    if (!this.renderOpts.dev) {
+      if (revalidate) {
+        res.setHeader(
+          'Cache-Control',
+          `s-maxage=${revalidate}, stale-while-revalidate`
+        )
+      } else if (revalidate === false) {
+        res.setHeader(
+          'Cache-Control',
+          `s-maxage=31536000, stale-while-revalidate`
+        )
+      }
     }
     res.end(payload)
   }
