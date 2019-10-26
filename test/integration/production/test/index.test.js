@@ -674,7 +674,7 @@ describe('Production Usage', () => {
         continue
       }
 
-      if (!script.attribs.async) {
+      if (script.attribs.async !== '') {
         missing = true
       }
     }
