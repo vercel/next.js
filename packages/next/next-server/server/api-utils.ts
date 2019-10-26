@@ -119,7 +119,15 @@ export function getQueryParser({ url }: IncomingMessage) {
 
     const query: { [key: string]: string | string[] } = {}
     for (const [key, value] of params) {
-      query[key] = value
+      if (query[key]) {
+        if (Array.isArray(query[key])) {
+          ;(query[key] as string[]).push(value)
+        } else {
+          query[key] = [query[key], value]
+        }
+      } else {
+        query[key] = value
+      }
     }
 
     return query
