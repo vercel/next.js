@@ -1,7 +1,6 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import { NextComponentType, NextPageContext } from '../next-server/lib/utils'
-import { NextRouter } from './router'
+import { NextRouter, RouterContext } from './router'
 
 export type WithRouterProps = {
   router: NextRouter
@@ -21,19 +20,12 @@ export default function withRouter<
   class WithRouteWrapper extends React.Component<ExcludeRouterProps<P>> {
     static displayName?: string
     static getInitialProps?: any
-    static contextTypes = {
-      router: PropTypes.object,
-    }
+    static contextType = RouterContext
 
-    context!: WithRouterProps
+    context!: React.ContextType<typeof RouterContext>
 
     render() {
-      return (
-        <ComposedComponent
-          router={this.context.router}
-          {...this.props as any}
-        />
-      )
+      return <ComposedComponent router={this.context} {...this.props as any} />
     }
   }
 

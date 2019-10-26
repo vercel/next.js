@@ -207,7 +207,12 @@ export default class DevServer extends Server {
     this.setDevReady!()
 
     const telemetry = new Telemetry({ distDir: this.distDir })
-    telemetry.record(eventVersion({ cliCommand: 'dev' }))
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'dev',
+        isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+      })
+    )
   }
 
   protected async close() {

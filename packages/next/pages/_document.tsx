@@ -137,24 +137,33 @@ export class Head extends Component<
 
   context!: React.ContextType<typeof DocumentComponentContext>
 
-  getCssLinks() {
+  getCssLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
     const cssFiles =
       files && files.length ? files.filter(f => /\.css$/.test(f)) : []
 
-    return cssFiles.length === 0
-      ? null
-      : cssFiles.map((file: string) => {
-          return (
-            <link
-              key={file}
-              nonce={this.props.nonce}
-              rel="stylesheet"
-              href={`${assetPrefix}/_next/${encodeURI(file)}`}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
-          )
-        })
+    const cssLinkElements: JSX.Element[] = []
+    cssFiles.forEach(file => {
+      cssLinkElements.push(
+        <link
+          key="${file}-preload"
+          nonce={this.props.nonce}
+          rel="preload"
+          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          as="style"
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        />,
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="stylesheet"
+          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        />
+      )
+    })
+
+    return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
   getPreloadDynamicChunks() {
@@ -189,37 +198,42 @@ export class Head extends Component<
     )
   }
 
-  getPreloadMainLinks() {
+  getPreloadMainLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
-    if (!files || files.length === 0) {
-      return null
-    }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files
-      .map((file: string) => {
-        // `dynamicImports` will contain both `.js` and `.module.js` when the
-        // feature is enabled. This clause will filter down to the modern
-        // variants only.
-        // This also filters out non-JS assets.
-        if (!file.endsWith(getOptionalModernScriptVariant('.js'))) {
-          return null
-        }
+    const preloadFiles =
+      files && files.length
+        ? files.filter((file: string) => {
+            // `dynamicImports` will contain both `.js` and `.module.js` when
+            // the feature is enabled. This clause will filter down to the
+            // modern variants only.
+            //
+            // Also filter out _buildManifest because it should not be
+            // preloaded for performance reasons.
+            return (
+              file.endsWith(getOptionalModernScriptVariant('.js')) &&
+              !file.includes('_buildManifest')
+            )
+          })
+        : []
 
-        return (
-          <link
-            key={file}
-            nonce={this.props.nonce}
-            rel="preload"
-            href={`${assetPrefix}/_next/${encodeURI(
-              file
-            )}${_devOnlyInvalidateCacheQueryString}`}
-            as="script"
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
-          />
-        )
-      })
-      .filter(Boolean)
+    return preloadFiles.length === 0
+      ? null
+      : preloadFiles.map((file: string) => {
+          return (
+            <link
+              key={file}
+              nonce={this.props.nonce}
+              rel="preload"
+              href={`${assetPrefix}/_next/${encodeURI(
+                file
+              )}${_devOnlyInvalidateCacheQueryString}`}
+              as="script"
+              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+            />
+          )
+        })
   }
 
   render() {
@@ -260,49 +274,53 @@ export class Head extends Component<
     let hasCanonicalRel = false
 
     // show warning and remove conflicting amp head tags
-    head = !inAmpMode
-      ? head
-      : React.Children.map(head || [], child => {
-          if (!child) return child
-          const { type, props } = child
-          let badProp: string = ''
+    head = React.Children.map(head || [], child => {
+      if (!child) return child
+      const { type, props } = child
 
-          if (type === 'meta' && props.name === 'viewport') {
-            badProp = 'name="viewport"'
-          } else if (type === 'link' && props.rel === 'canonical') {
-            hasCanonicalRel = true
-          } else if (type === 'link' && props.rel === 'amphtml') {
-            hasAmphtmlRel = true
-          } else if (type === 'script') {
-            // only block if
-            // 1. it has a src and isn't pointing to ampproject's CDN
-            // 2. it is using dangerouslySetInnerHTML without a type or
-            // a type of text/javascript
-            if (
-              (props.src && props.src.indexOf('ampproject') < -1) ||
-              (props.dangerouslySetInnerHTML &&
-                (!props.type || props.type === 'text/javascript'))
-            ) {
-              badProp = '<script'
-              Object.keys(props).forEach(prop => {
-                badProp += ` ${prop}="${props[prop]}"`
-              })
-              badProp += '/>'
-            }
-          }
+      if (inAmpMode) {
+        let badProp: string = ''
 
-          if (badProp) {
-            console.warn(
-              `Found conflicting amp tag "${
-                child.type
-              }" with conflicting prop ${badProp} in ${
-                __NEXT_DATA__.page
-              }. https://err.sh/next.js/conflicting-amp-tag`
-            )
-            return null
+        if (type === 'meta' && props.name === 'viewport') {
+          badProp = 'name="viewport"'
+        } else if (type === 'link' && props.rel === 'canonical') {
+          hasCanonicalRel = true
+        } else if (type === 'script') {
+          // only block if
+          // 1. it has a src and isn't pointing to ampproject's CDN
+          // 2. it is using dangerouslySetInnerHTML without a type or
+          // a type of text/javascript
+          if (
+            (props.src && props.src.indexOf('ampproject') < -1) ||
+            (props.dangerouslySetInnerHTML &&
+              (!props.type || props.type === 'text/javascript'))
+          ) {
+            badProp = '<script'
+            Object.keys(props).forEach(prop => {
+              badProp += ` ${prop}="${props[prop]}"`
+            })
+            badProp += '/>'
           }
-          return child
-        })
+        }
+
+        if (badProp) {
+          console.warn(
+            `Found conflicting amp tag "${
+              child.type
+            }" with conflicting prop ${badProp} in ${
+              __NEXT_DATA__.page
+            }. https://err.sh/next.js/conflicting-amp-tag`
+          )
+          return null
+        }
+      } else {
+        // non-amp mode
+        if (type === 'link' && props.rel === 'amphtml') {
+          hasAmphtmlRel = true
+        }
+      }
+      return child
+    })
 
     // try to parse styles from fragment for backwards compat
     const curStyles: React.ReactElement[] = Array.isArray(styles)

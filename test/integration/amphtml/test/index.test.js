@@ -200,6 +200,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/manual-rels')
       const $ = cheerio.load(html)
       expect($('link[rel=amphtml]').attr('href')).toBe('/my-custom-amphtml')
+      expect($('link[rel=amphtml]')).toHaveLength(1)
     })
   })
 

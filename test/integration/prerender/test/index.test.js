@@ -5,6 +5,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
@@ -12,7 +13,8 @@ import {
   nextBuild,
   nextStart,
   nextExport,
-  startStaticServer
+  startStaticServer,
+  initNextServerScript
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -23,6 +25,24 @@ let appPort
 let buildId
 let distPagesDir
 let exportDir
+let stderr
+
+const startServer = async (optEnv = {}) => {
+  const scriptPath = join(appDir, 'server.js')
+  const env = Object.assign(
+    {},
+    { ...process.env },
+    { PORT: `${appPort}` },
+    optEnv
+  )
+
+  return initNextServerScript(
+    scriptPath,
+    /ready on/i,
+    env,
+    /ReferenceError: options is not defined/
+  )
+}
 
 const expectedManifestRoutes = () => ({
   '/': {
@@ -184,14 +204,20 @@ const runTests = (dev = false) => {
 
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
-      const initialHtml = await renderViaHTTP(appPort, '/something')
+      const initialRes = await fetchViaHTTP(appPort, '/something')
+      expect(initialRes.headers.get('cache-control')).toBeFalsy()
+      const initialHtml = await initialRes.text()
       expect(initialHtml).toMatch(/hello.*?world/)
 
-      const newHtml = await renderViaHTTP(appPort, '/something')
+      const newRes = await fetchViaHTTP(appPort, '/something')
+      expect(newRes.headers.get('cache-control')).toBeFalsy()
+      const newHtml = await newRes.text()
       expect(newHtml).toMatch(/hello.*?world/)
       expect(initialHtml !== newHtml).toBe(true)
 
-      const newerHtml = await renderViaHTTP(appPort, '/something')
+      const newerRes = await fetchViaHTTP(appPort, '/something')
+      expect(newerRes.headers.get('cache-control')).toBeFalsy()
+      const newerHtml = await newerRes.text()
       expect(newerHtml).toMatch(/hello.*?world/)
       expect(newHtml !== newerHtml).toBe(true)
     })
@@ -212,6 +238,15 @@ const runTests = (dev = false) => {
       }
     })
   } else {
+    it('should should use correct caching headers for a no-revalidate page', async () => {
+      const initialRes = await fetchViaHTTP(appPort, '/something')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        's-maxage=31536000, stale-while-revalidate'
+      )
+      const initialHtml = await initialRes.text()
+      expect(initialHtml).toMatch(/hello.*?world/)
+    })
+
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
@@ -230,6 +265,11 @@ const runTests = (dev = false) => {
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+        },
+        '/user/[user]/profile': {
+          dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
+          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
+          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
         }
       })
     })
@@ -259,20 +299,36 @@ const runTests = (dev = false) => {
       expect(new Set(vals).size).toBe(1)
     })
 
-    it('should handle revalidating HTML correctly', async () => {
-      const route = '/blog/post-1/comment-1'
+    it('should not revalidate when set to false', async () => {
+      const route = '/something'
       const initialHtml = await renderViaHTTP(appPort, route)
-      expect(initialHtml).toMatch(/Post:.*?post-1/)
-      expect(initialHtml).toMatch(/Comment:.*?comment-1/)
+      let newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+
+      newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+
+      newHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toBe(newHtml)
+    })
+
+    it('should handle revalidating HTML correctly', async () => {
+      const route = '/blog/post-2/comment-2'
+      const initialHtml = await renderViaHTTP(appPort, route)
+      expect(initialHtml).toMatch(/Post:.*?post-2/)
+      expect(initialHtml).toMatch(/Comment:.*?comment-2/)
+
+      let newHtml = await renderViaHTTP(appPort, route)
+      expect(newHtml).toBe(initialHtml)
 
       await waitFor(2 * 1000)
       await renderViaHTTP(appPort, route)
 
       await waitFor(2 * 1000)
-      const newHtml = await renderViaHTTP(appPort, route)
+      newHtml = await renderViaHTTP(appPort, route)
       expect(newHtml === initialHtml).toBe(false)
-      expect(newHtml).toMatch(/Post:.*?post-1/)
-      expect(newHtml).toMatch(/Comment:.*?comment-1/)
+      expect(newHtml).toMatch(/Post:.*?post-2/)
+      expect(newHtml).toMatch(/Comment:.*?comment-2/)
     })
 
     it('should handle revalidating JSON correctly', async () => {
@@ -281,14 +337,31 @@ const runTests = (dev = false) => {
       expect(initialJson).toMatch(/post-2/)
       expect(initialJson).toMatch(/comment-3/)
 
+      let newJson = await renderViaHTTP(appPort, route)
+      expect(newJson).toBe(initialJson)
+
       await waitFor(2 * 1000)
       await renderViaHTTP(appPort, route)
 
       await waitFor(2 * 1000)
-      const newJson = await renderViaHTTP(appPort, route)
+      newJson = await renderViaHTTP(appPort, route)
       expect(newJson === initialJson).toBe(false)
       expect(newJson).toMatch(/post-2/)
       expect(newJson).toMatch(/comment-3/)
+    })
+
+    it('should not fetch prerender data on mount', async () => {
+      const browser = await webdriver(appPort, '/blog/post-100')
+      await browser.eval('window.thisShouldStay = true')
+      await waitFor(2 * 1000)
+      const val = await browser.eval('window.thisShouldStay')
+      expect(val).toBe(true)
+    })
+
+    it('should not error when flushing cache files', async () => {
+      await fetchViaHTTP(appPort, '/user/user-1/profile')
+      await waitFor(500)
+      expect(stderr).not.toMatch(/Failed to update prerender files for/)
     })
   }
 }
@@ -313,12 +386,31 @@ describe('SPR Prerender', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = nextStart(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
+
+    it('renders data correctly', async () => {
+      const port = await findPort()
+      const server = await startServer({
+        BUILD_ID: buildId,
+        PORT: port
+      })
+      const data = await renderViaHTTP(
+        port,
+        `/_next/data/${buildId}/index.json`
+      )
+      await killApp(server)
+      expect(JSON.parse(data).pageProps.world).toBe('world')
+    })
 
     runTests()
   })
@@ -329,8 +421,13 @@ describe('SPR Prerender', () => {
         await fs.unlink(nextConfig)
       } catch (_) {}
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
