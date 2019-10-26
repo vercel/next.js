@@ -669,13 +669,12 @@ describe('Production Usage', () => {
     let missing = false
 
     for (const script of $('script').toArray()) {
-      const { async, type } = script.attribs
       // application/json doesn't need defer
-      if (type === 'application/json') {
+      if (script.attribs.type === 'application/json') {
         continue
       }
 
-      if (!async) {
+      if (!script.attribs.async) {
         missing = true
       }
     }
