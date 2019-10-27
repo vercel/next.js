@@ -5,9 +5,7 @@ module.exports = {
       // Transform all direct `react-native` imports to `react-native-web`
       'react-native$': 'react-native-web'
     }
-    defaultLoaders.babel.options.plugins = [
-      ['react-native-web', { commonjs: true }]
-    ]
+    config.resolve.extensions.push('.web.js', '.web.ts', '.web.tsx')
     return config
   }
 }
