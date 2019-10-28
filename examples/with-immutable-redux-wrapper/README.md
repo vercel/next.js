@@ -1,6 +1,6 @@
 # Immutable Redux Example
 
-> This example and documentation is based on the [with-redux](https://github.com/zeit/next.js/tree/master/examples/with-redux) example.
+> This example and documentation is based on the [with-redux-wrapper](https://github.com/zeit/next.js/tree/master/examples/with-redux-wrapper) example.
 
 ## How to use
 
