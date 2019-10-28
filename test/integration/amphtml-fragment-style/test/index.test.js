@@ -17,7 +17,7 @@ let appPort
 let server
 let app
 
-xdescribe('AMP Fragment Styles', () => {
+describe('AMP Fragment Styles', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     app = nextServer({

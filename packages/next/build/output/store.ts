@@ -78,7 +78,7 @@ store.subscribe(state => {
   }
 
   if (state.typeChecking) {
-    Log.info('bundled successfully, waiting for typecheck results ...')
+    Log.info('bundled successfully, waiting for typecheck results...')
     return
   }
 

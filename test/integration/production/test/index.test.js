@@ -663,6 +663,24 @@ describe('Production Usage', () => {
     }
   })
 
+  it('should have async on all script tags', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    let missing = false
+
+    for (const script of $('script').toArray()) {
+      // application/json doesn't need defer
+      if (script.attribs.type === 'application/json') {
+        continue
+      }
+
+      if (script.attribs.async !== '') {
+        missing = true
+      }
+    }
+    expect(missing).toBe(false)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
