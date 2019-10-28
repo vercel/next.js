@@ -29,7 +29,7 @@ export default class TaskRunner {
 
     if (this.maxConcurrentWorkers > 1) {
       this.workers = new Worker(worker, {
-        enableWorkerThreads: true,
+        enableWorkerThreads: this.useWorkerThreads,
         numWorkers: this.maxConcurrentWorkers,
       })
       this.boundWorkers = options => this.workers.default(options)
