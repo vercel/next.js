@@ -34,9 +34,11 @@ describe('Chunking', () => {
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
       .replace(/"static\\(.*?":?)/g, '"static\\\\$1')
+      .replace(/("static\\.*?)\\(polyfill\.js":)/g, '$1\\\\$2')
       .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
 
     stats = JSON.parse(stats)
+    // console.log(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
   })
