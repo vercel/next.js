@@ -85,4 +85,19 @@ describe('config', () => {
     )
     expect(config.target).toBe('serverless')
   })
+
+  it('Should throw when next.config.ts is there', () => {
+    try {
+      loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        join(__dirname, '_resolvedata', 'typescript-config')
+      )
+      // makes sure we don't just pass if the loadConfig passes while it should fail
+      throw new Error('failed')
+    } catch (err) {
+      expect(err.message).toMatch(
+        /next.config.ts not supported. Compile it to next.config.js/
+      )
+    }
+  })
 })

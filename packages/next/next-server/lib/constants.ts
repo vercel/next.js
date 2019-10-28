@@ -9,6 +9,7 @@ export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const SERVERLESS_DIRECTORY = 'serverless'
 export const CONFIG_FILE = 'next.config.js'
+export const TS_CONFIG_FILE = 'next.config.ts'
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'

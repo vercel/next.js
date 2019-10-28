@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import findUp from 'find-up'
 import os from 'os'
 
-import { CONFIG_FILE } from '../lib/constants'
+import { CONFIG_FILE, TS_CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
@@ -118,10 +118,19 @@ export default function loadConfig(
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
+
+  const tsPath = findUp.sync(TS_CONFIG_FILE, {
+    cwd: dir,
+  })
+  if (tsPath && tsPath.length) {
+    throw new Error(
+      'next.config.ts not supported. Compile it to next.config.js'
+    )
+  }
+
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir,
   })
-
   // If config file was found
   if (path && path.length) {
     const userConfigModule = require(path)
