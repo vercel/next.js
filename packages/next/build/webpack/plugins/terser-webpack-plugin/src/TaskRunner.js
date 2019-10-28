@@ -10,13 +10,14 @@ const writeFileP = promisify(writeFile)
 const readFileP = promisify(readFile)
 
 export default class TaskRunner {
-  constructor({ distDir, cpus, cache }) {
+  constructor({ distDir, cpus, cache, workerThreads }) {
     if (cache) {
       mkdirp.sync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
     }
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     this.maxConcurrentWorkers = cpus
+    this.useWorkerThreads = workerThreads
   }
 
   run(tasks, callback) {
