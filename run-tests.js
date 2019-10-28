@@ -8,7 +8,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const NUM_RETRIES = 2
-const DEFAULT_CONCURRENCY = 3
+const DEFAULT_CONCURRENCY = 2
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
