@@ -48,7 +48,7 @@ const defaultConfig: { [key: string]: any } = {
     publicDirectory: false,
     sprFlushToDisk: true,
     deferScripts: false,
-    workerThreads: true,
+    workerThreads: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
