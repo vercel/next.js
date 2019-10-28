@@ -54,17 +54,17 @@ test('should not output client pages for AMP only', async t => {
   const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
   const ampOnly = ['only-amp', 'root-hmr']
   for (const pg of ampOnly) {
-    didThrow(() =>
+    await didThrow(() =>
       accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
     )
-    didThrow(
+    await didThrow(
       () =>
         accessSync(
           join(appDir, '.next/server/static', buildId, 'pages', pg + '.html')
         ),
       false
     )
-    didThrow(() =>
+    await didThrow(() =>
       accessSync(
         join(appDir, '.next/server/static', buildId, 'pages', pg + '.js')
       )
