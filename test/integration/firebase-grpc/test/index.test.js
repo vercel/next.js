@@ -8,7 +8,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = path.join(__dirname, '..')
 const nextConfig = path.join(appDir, 'next.config.js')
 
-describe('Builds with firebase dependency only sequentially', () => {
+describe('Building Firebase', () => {
   it('Throws an error when building with firebase dependency with worker_threads', async () => {
     await fs.writeFile(
       nextConfig,
