@@ -126,6 +126,9 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
+  const ignoreTypeScriptErrors = dev
+    ? config.typescript && config.typescript.ignoreDevErrors
+    : config.typescript && config.typescript.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -845,6 +848,7 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
+        !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
