@@ -146,6 +146,7 @@ export class Head extends Component<
     cssFiles.forEach(file => {
       cssLinkElements.push(
         <link
+          key="${file}-preload"
           nonce={this.props.nonce}
           rel="preload"
           href={`${assetPrefix}/_next/${encodeURI(file)}`}
@@ -514,7 +515,8 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          async
+          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
+          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -554,7 +556,8 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          async
+          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
+          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           {...modernProps}
         />
@@ -587,6 +590,7 @@ export class NextScript extends Component<OriginProps> {
       devFiles,
       __NEXT_DATA__,
     } = this.context._documentProps
+    const deferScripts: any = process.env.__NEXT_DEFER_SCRIPTS
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     if (inAmpMode) {
@@ -641,7 +645,8 @@ export class NextScript extends Component<OriginProps> {
 
     const pageScript = [
       <script
-        async
+        defer={deferScripts}
+        async={!deferScripts}
         data-next-page={page}
         key={page}
         src={
@@ -655,7 +660,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          async
+          defer={deferScripts}
+          async={!deferScripts}
           data-next-page={page}
           key={`${page}-modern`}
           src={
@@ -674,7 +680,8 @@ export class NextScript extends Component<OriginProps> {
 
     const appScript = [
       <script
-        async
+        defer={deferScripts}
+        async={!deferScripts}
         data-next-page="/_app"
         src={
           assetPrefix +
@@ -688,7 +695,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          async
+          defer={deferScripts}
+          async={!deferScripts}
           data-next-page="/_app"
           src={
             assetPrefix +

@@ -35,7 +35,7 @@ steps:
     displayName: Cache Yarn packages
 
   - script: |
-      yarn --frozen-lockfile --check-files
+      yarn install --frozen-lockfile --check-files
     displayName: 'Install dependencies'
 
   - script: |
