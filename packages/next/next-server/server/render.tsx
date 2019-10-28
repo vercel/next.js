@@ -286,7 +286,7 @@ export async function renderToHTML(
   }
 
   if (!!unstable_getStaticParams && !isSpr) {
-    console.error(
+    throw new Error(
       `unstable_getStaticParams was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticParams does nothing`
     )
   }

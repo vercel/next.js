@@ -239,9 +239,24 @@ const runTests = (dev = false) => {
     })
 
     it('should show error when getStaticParams is used without getStaticProps', async () => {
-      await renderViaHTTP(appPort, '/no-getStaticProps')
+      const pagePath = join(appDir, 'pages/no-getStaticProps.js')
+      await fs.writeFile(
+        pagePath,
+        `
+        export async function unstable_getStaticParams() {
+          return []
+        }
+
+        export default () => 'hi'
+      `,
+        'utf8'
+      )
+
+      const html = await renderViaHTTP(appPort, '/no-getStaticProps')
+      await fs.remove(pagePath)
       await waitFor(500)
-      expect(stderr).toMatch(
+
+      expect(html).toMatch(
         /unstable_getStaticParams was added without a unstable_getStaticProps in/
       )
     })
