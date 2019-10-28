@@ -9,7 +9,7 @@
   "dependencies": {
     "immutable": "4.0.0-rc.9",
     "next": "latest",
-    "next-redux-wrapper": "2.0.0-beta.6",
+    "next-redux-wrapper": "4.0.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "react-redux": "^5.0.1",

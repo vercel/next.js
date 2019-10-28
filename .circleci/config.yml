@@ -36,6 +36,11 @@ commands:
       - run:
           name: Installing Dependencies
           command: yarn install --frozen-lockfile --check-files
+      - run:
+          name: Install correct Chrome Driver version
+          command: yarn add chromedriver@76 -W
+      - run: google-chrome --version
+      - run: chromedriver --version
   yarn_lint:
     steps:
       - run:

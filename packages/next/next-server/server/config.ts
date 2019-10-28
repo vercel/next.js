@@ -47,12 +47,14 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     publicDirectory: false,
     sprFlushToDisk: true,
+    deferScripts: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactStrictMode: false,
 }
 
 const experimentalWarning = execOnce(() => {
