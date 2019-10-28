@@ -213,7 +213,7 @@ export default async function ({
     await writeFileP(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {
-    console.error(`\nError occurred prerendering ${path}:`, error)
+    console.error(`\nError occurred prerendering page "${path}":`, error)
     return { ...results, error: true }
   }
 }

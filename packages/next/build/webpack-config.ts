@@ -724,6 +724,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
+        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
+          config.experimental.deferScripts
+        ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
@@ -735,6 +738,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
           config.devIndicators.autoPrerender
+        ),
+        'process.env.__NEXT_STRICT_MODE': JSON.stringify(
+          config.reactStrictMode
         ),
         ...(isServer
           ? {

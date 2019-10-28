@@ -75,7 +75,7 @@ test('should not increase the overall response size of default build', async t =
   )
 
   // These numbers are without gzip compression!
-  await t.expect(responseSizeKilobytes <= 213).ok() // Kilobytes
+  await t.expect(responseSizeKilobytes <= 221).ok() // Kilobytes
 })
 
 test('should not increase the overall response size of modern build', async t => {
@@ -93,5 +93,5 @@ test('should not increase the overall response size of modern build', async t =>
   )
 
   // These numbers are without gzip compression!
-  await t.expect(responseSizeKilobytes <= 187).ok() // Kilobytes
+  await t.expect(responseSizeKilobytes <= 199).ok() // Kilobytes
 })

@@ -206,6 +206,26 @@ function runTests (serverless = false) {
     await t.expect(data).eql({ message: 'Parsed body' })
   })
 
+  test('should return empty query object', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/query',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+    await t.expect(data).eql({})
+  })
+
+  test('should parse query correctly', async t => {
+    const data = await fetchViaHTTP(
+      t.fixtureCtx.appPort,
+      '/api/query?a=1&b=2&a=3',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+    await t.expect(data).eql({ a: ['1', '3'], b: '2' })
+  })
+
   test('should return empty cookies object', async t => {
     const data = await fetchViaHTTP(
       t.fixtureCtx.appPort,

@@ -6,6 +6,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   stopApp,
@@ -193,17 +194,20 @@ const runTests = (dev = false) => {
 
   if (dev) {
     test('should always call getStaticProps without caching in dev', async t => {
-      const initialHtml = await renderViaHTTP(
-        t.fixtureCtx.appPort,
-        '/something'
-      )
+      const initialRes = await fetchViaHTTP(t.fixtureCtx.appPort, '/something')
+      await t.expect(initialRes.headers.get('cache-control')).notOk()
+      const initialHtml = await initialRes.text()
       await t.expect(initialHtml).match(/hello.*?world/)
 
-      const newHtml = await renderViaHTTP(t.fixtureCtx.appPort, '/something')
+      const newRes = await fetchViaHTTP(t.fixtureCtx.appPort, '/something')
+      await t.expect(newRes.headers.get('cache-control')).notOk()
+      const newHtml = await newRes.text()
       await t.expect(newHtml).match(/hello.*?world/)
       await t.expect(initialHtml !== newHtml).eql(true)
 
-      const newerHtml = await renderViaHTTP(t.fixtureCtx.appPort, '/something')
+      const newerRes = await fetchViaHTTP(t.fixtureCtx.appPort, '/something')
+      await t.expect(newerRes.headers.get('cache-control')).notOk()
+      const newerHtml = await newerRes.text()
       await t.expect(newerHtml).match(/hello.*?world/)
       await t.expect(newHtml !== newerHtml).eql(true)
     })
@@ -224,6 +228,15 @@ const runTests = (dev = false) => {
       }
     })
   } else {
+    test('should should use correct caching headers for a no-revalidate page', async t => {
+      const initialRes = await fetchViaHTTP(t.fixtureCtx.appPort, '/something')
+      await t
+        .expect(initialRes.headers.get('cache-control'))
+        .eql('s-maxage=31536000, stale-while-revalidate')
+      const initialHtml = await initialRes.text()
+      await t.expect(initialHtml).match(/hello.*?world/)
+    })
+
     test('outputs a prerender-manifest correctly', async t => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
@@ -247,6 +260,13 @@ const runTests = (dev = false) => {
           }/blog/[post]/[comment].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+        },
+        '/user/[user]/profile': {
+          dataRoute: `/_next/data/${
+            t.fixtureCtx.buildId
+          }/user/[user]/profile.json`,
+          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
+          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
         }
       })
     })
@@ -340,7 +360,15 @@ const runTests = (dev = false) => {
       await browser.eval('window.thisShouldStay = true')
       await waitFor(2 * 1000)
       const val = await browser.eval('window.thisShouldStay')
-      await t.expect(val).toBe(true)
+      await t.expect(val).eql(true)
+    })
+
+    test('should not error when flushing cache files', async t => {
+      await fetchViaHTTP(t.fixtureCtx.appPort, '/user/user-1/profile')
+      await waitFor(500)
+      await t
+        .expect(t.fixtureCtx.stderr)
+        .notMatch(/Failed to update prerender files for/)
     })
   }
 }
@@ -350,7 +378,12 @@ fixture('SPR Prerender')
 fixture('dev mode')
   .before(async ctx => {
     ctx.appPort = await findPort()
-    ctx.app = await launchApp(appDir, ctx.appPort)
+    ctx.stderr = ''
+    ctx.app = await launchApp(appDir, ctx.appPort, {
+      onStderr: msg => {
+        ctx.stderr += msg
+      }
+    })
     ctx.buildId = 'development'
   })
   .after(ctx => killApp(ctx.app))
@@ -365,8 +398,13 @@ fixture('serverless mode')
       'utf8'
     )
     await nextBuild(appDir)
+    ctx.stderr = ''
     ctx.appPort = await findPort()
-    ctx.app = await nextStart(appDir, ctx.appPort)
+    ctx.app = await nextStart(appDir, ctx.appPort, {
+      onStderr: msg => {
+        ctx.stderr += msg
+      }
+    })
     ctx.distPagesDir = join(appDir, '.next/serverless/pages')
     ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
   })
@@ -394,8 +432,13 @@ fixture('production mode')
       await fs.unlink(nextConfig)
     } catch (_) {}
     await nextBuild(appDir)
+    ctx.stderr = ''
     ctx.appPort = await findPort()
-    ctx.app = await nextStart(appDir, ctx.appPort)
+    ctx.app = await nextStart(appDir, ctx.appPort, {
+      onStderr: msg => {
+        ctx.stderr += msg
+      }
+    })
     ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     ctx.distPagesDir = join(appDir, '.next/server/static', ctx.buildId, 'pages')
   })

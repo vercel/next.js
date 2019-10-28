@@ -5,7 +5,9 @@ import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
+import mkdirpOrig from 'mkdirp'
 
+const mkdirp = promisify(mkdirpOrig)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
 
@@ -166,7 +168,9 @@ export async function setSprCache(
   // `next build` output's manifest.
   if (sprOptions.flushToDisk) {
     try {
-      await writeFile(getSeedPath(pathname, 'html'), data.html, 'utf8')
+      const seedPath = getSeedPath(pathname, 'html')
+      await mkdirp(path.dirname(seedPath))
+      await writeFile(seedPath, data.html, 'utf8')
       await writeFile(
         getSeedPath(pathname, 'json'),
         JSON.stringify(data.pageData),

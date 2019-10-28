@@ -632,7 +632,9 @@ test('should clear all core performance marks', async t => {
     ]
 
     await Promise.all(
-      allPerfMarks.map(name => t.expect(currentPerfMarks).notContains({ name }))
+      allPerfMarks.map(async name => {
+        await t.expect(currentPerfMarks).notContains({ name })
+      })
     )
   } finally {
     if (browser) {
@@ -657,6 +659,24 @@ test('should not clear custom performance marks', async t => {
       await browser.close()
     }
   }
+})
+
+test('should have async on all script tags', async t => {
+  const html = await renderViaHTTP(t.fixtureCtx.appPort, '/')
+  const $ = cheerio.load(html)
+  let missing = false
+
+  for (const script of $('script').toArray()) {
+    // application/json doesn't need defer
+    if (script.attribs.type === 'application/json') {
+      continue
+    }
+
+    if (script.attribs.async !== '') {
+      missing = true
+    }
+  }
+  await t.expect(missing).eql(false)
 })
 
 dynamicImportTests((p, q) => renderViaHTTP(t.fixtureCtx.appPort, p, q))
