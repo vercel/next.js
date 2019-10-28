@@ -33,9 +33,9 @@ describe('Chunking', () => {
     await nextBuild(appDir)
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
-      .replace(/"static\\(.*?":?)/g, '"static\\\\$1')
-      .replace(/("static\\.*?)\\(polyfill\.js":)/g, '$1\\\\$2')
-      .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
+      .replace(/"static\\(.*?":?)/g, match => match.replace('\\', '\\\\'))
+    // .replace(/("static\\.*?)\\(polyfill\.js":)/g, '$1\\\\$2')
+    // .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
 
     stats = JSON.parse(stats)
     // console.log(stats)
