@@ -337,7 +337,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
-    enableWorkerThreads: config.experimental.cpus > 1,
+    enableWorkerThreads: config.experimental.workerThreads,
   })
 
   const analysisBegin = process.hrtime()

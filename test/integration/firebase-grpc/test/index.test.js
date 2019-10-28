@@ -9,29 +9,25 @@ const appDir = path.join(__dirname, '..')
 const nextConfig = path.join(appDir, 'next.config.js')
 
 describe('Builds with firebase dependency only sequentially', () => {
-  it('Throws an error when building with firebase dependency in parallel', async () => {
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { experimental: { cpus: 2 } }`
-    )
+  it('Throws an error when building with firebase dependency with worker_threads', async () => {
+    await fs.remove(nextConfig)
     const results = await nextBuild(appDir, [], { stdout: true, stderr: true })
     expect(results.stdout + results.stderr).toMatch(/Build error occurred/)
     expect(results.stdout + results.stderr).toMatch(
       /grpc_node\.node\. Module did not self-register\./
     )
-    await fs.remove(nextConfig)
   })
 
-  it('Throws no error when building with firebase dependency in sequence', async () => {
+  it('Throws no error when building with firebase dependency without worker_threads', async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { experimental: { cpus: 1 } }`
+      `module.exports = { experimental: { workerThreads: false } }`
     )
     const results = await nextBuild(appDir, [], { stdout: true, stderr: true })
+    await fs.remove(nextConfig)
     expect(results.stdout + results.stderr).not.toMatch(/Build error occurred/)
     expect(results.stdout + results.stderr).not.toMatch(
       /grpc_node\.node\. Module did not self-register\./
     )
-    await fs.remove(nextConfig)
   })
 })
