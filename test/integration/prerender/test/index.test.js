@@ -237,6 +237,14 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
+
+    it('should show error when getStaticParams is used without getStaticProps', async () => {
+      await renderViaHTTP(appPort, '/no-getStaticProps')
+      await waitFor(500)
+      expect(stderr).toMatch(
+        /unstable_getStaticParams was added without a unstable_getStaticProps in/
+      )
+    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -370,7 +378,11 @@ describe('SPR Prerender', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
