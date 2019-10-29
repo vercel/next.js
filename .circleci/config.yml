@@ -36,11 +36,7 @@ commands:
       - run:
           name: Installing Dependencies
           command: yarn install --frozen-lockfile --check-files
-      - run:
-          name: Install correct Chrome Driver version
-          command: yarn add chromedriver@76 -W && git checkout yarn.lock package.json
       - run: google-chrome --version
-      - run: chromedriver --version
   yarn_lint:
     steps:
       - run:
@@ -59,12 +55,12 @@ commands:
   test_all:
     steps:
       - run:
+          name: List Browsers
+          command: yarn testcafe --list-browsers
+      - run:
           name: Run All Tests
           command: |
-            node run-tests.js $(
-              circleci tests glob "test/**/*.test.*" | \
-              circleci tests split
-            )
+            yarn test test/integration/amphtml/test/index.test.js
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   test_browser:

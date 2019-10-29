@@ -4,7 +4,6 @@ pool:
 variables:
   NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
-  CHROMEDRIVER_VERSION: '76.0.3809.68'
 
 strategy:
   maxParallel: 10
@@ -39,9 +38,9 @@ steps:
     displayName: 'Install dependencies'
 
   - script: |
-      yarn add chromedriver@76 -W
-    displayName: 'Install correct Chrome Driver version'
+      yarn testcafe --list-browsers
+    displayName: 'List browsers'
 
   - script: |
-      node run-tests.js -c 2 -g $(group)
+      yarn test test/integration/amphtml/test/index.test.js
     displayName: 'Run tests'
