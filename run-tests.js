@@ -72,5 +72,6 @@ const { BROWSER } = process.env
       children.delete(child)
     })
     console.error(err)
+    process.exit(1)
   })
 })()

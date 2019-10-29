@@ -65,6 +65,7 @@ commands:
               circleci tests split
             )
           environment:
+            BROWSER: 'chrome'
             NEXT_TELEMETRY_DISABLED: '1'
   test_browser:
     parameters:

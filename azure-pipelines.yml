@@ -2,6 +2,7 @@ pool:
   vmImage: 'vs2017-win2016'
 
 variables:
+  BROWSER: 'chrome'
   NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
 
