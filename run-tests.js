@@ -1,14 +1,11 @@
 const path = require('path')
 const _glob = require('glob')
 const { promisify } = require('util')
-const { Sema } = require('async-sema')
-const { spawn, exec: execOrig } = require('child_process')
+const { spawn } = require('child_process')
 
 const glob = promisify(_glob)
-const exec = promisify(execOrig)
-
-const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
+const { BROWSER } = process.env
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -18,54 +15,38 @@ const DEFAULT_CONCURRENCY = 2
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
-  console.log('Running tests with concurrency:', concurrency)
   let tests = process.argv.filter(arg => arg.endsWith('.test.js'))
 
   if (tests.length === 0) {
-    tests = await glob('**/*.test.js', {
+    tests = (await glob('**/*.test.js', {
       nodir: true,
       cwd: path.join(__dirname, 'test')
-    })
+    })).map(f => path.join('test', f).replace(/\\/g, '/'))
   }
-
-  let testNames = [
-    ...new Set(
-      tests.map(f => {
-        let name = `${path
-          .dirname(f)
-          .replace(/\\/g, '/')
-          .replace(/\/test$/, '')}/`
-        if (!name.startsWith('test/')) name = `test/${name}`
-        return name
-      })
-    )
-  ]
 
   if (groupArg) {
     const groupParts = groupArg.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
-    const numPerGroup = Math.ceil(testNames.length / groupTotal)
+    const numPerGroup = Math.ceil(tests.length / groupTotal)
     let offset = groupPos === 1 ? 0 : (groupPos - 1) * numPerGroup - 1
     // if there's an odd number of suites give the first group the extra
-    if (testNames.length % 2 !== 0 && groupPos !== 1) offset++
-    testNames = testNames.splice(offset, numPerGroup)
+    if (tests.length % 2 !== 0 && groupPos !== 1) offset++
+    tests = tests.splice(offset, numPerGroup)
   }
 
-  const sema = new Sema(concurrency, { capacity: testNames.length })
-  const jestPath = path.join(
-    path.dirname(require.resolve('jest-cli/package')),
-    'bin/jest.js'
-  )
+  console.log('Running tests with concurrency:', concurrency)
   const children = new Set()
-
-  const runTest = (test = '') =>
+  const runTests = (tests = []) =>
     new Promise((resolve, reject) => {
       const child = spawn(
-        'node',
-        [jestPath, '--runInBand', '--forceExit', '--verbose', test],
+        'yarn',
+        [...(BROWSER ? ['testonly', BROWSER] : ['test']), ...tests],
         {
-          stdio: 'inherit'
+          stdio: 'inherit',
+          env: {
+            ...process.env
+          }
         }
       )
       children.add(child)
@@ -76,32 +57,20 @@ const DEFAULT_CONCURRENCY = 2
       })
     })
 
-  await Promise.all(
-    testNames.map(async test => {
-      await sema.acquire()
-      let passed = false
+  const numTestsEach = tests.length / concurrency
+  const testGroups = []
 
-      for (let i = 0; i < NUM_RETRIES + 1; i++) {
-        try {
-          await runTest(test)
-          passed = true
-          break
-        } catch (err) {
-          if (i < NUM_RETRIES) {
-            try {
-              console.log('Cleaning test files for', test)
-              await exec(`git clean -fdx "${path.join(__dirname, test)}"`)
-              await exec(`git checkout "${path.join(__dirname, test)}"`)
-            } catch (err) {}
-          }
-        }
-      }
-      if (!passed) {
-        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
-        children.forEach(child => child.kill())
-        process.exit(1)
-      }
-      sema.release()
+  for (let i = 0; i < concurrency; i++) {
+    testGroups.push(
+      tests.splice(0, i === concurrency - 1 ? tests.length : numTestsEach)
+    )
+  }
+
+  await Promise.all(testGroups.map(group => runTests(group))).catch(err => {
+    children.forEach(child => {
+      child.kill()
+      children.delete(child)
     })
-  )
+    console.error(err)
+  })
 })()
