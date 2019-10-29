@@ -1,5 +1,6 @@
 {
   "skipJsErrors": true,
+  "quarantineMode": true,
   "stopOnFirstFail": true,
   "disablePageCaching": true,
   "src": ["test/**/*.test.js"]
