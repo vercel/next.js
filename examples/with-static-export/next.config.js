@@ -12,10 +12,7 @@ module.exports = {
     const pages = postList.reduce(
       (pages, post) =>
         Object.assign({}, pages, {
-          [`/post/${post.id}`]: {
-            page: '/post/[id]',
-            query: { id: post.id }
-          }
+          [`/post/${post.id}`]: { page: '/post/[id]' }
         }),
       {}
     )
