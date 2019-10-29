@@ -337,7 +337,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
-    enableWorkerThreads: true,
+    enableWorkerThreads: config.experimental.workerThreads,
   })
 
   const analysisBegin = process.hrtime()
@@ -471,6 +471,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       sprPages,
       silent: true,
       buildExport: true,
+      threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }
