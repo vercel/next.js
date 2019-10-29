@@ -119,15 +119,6 @@ export default function loadConfig(
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
 
-  const tsPath = findUp.sync(TS_CONFIG_FILE, {
-    cwd: dir,
-  })
-  if (tsPath && tsPath.length) {
-    throw new Error(
-      'next.config.ts not supported. Compile it to next.config.js'
-    )
-  }
-
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir,
   })
@@ -170,6 +161,15 @@ export default function loadConfig(
     }
 
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+  } else {
+    const tsPath = findUp.sync(TS_CONFIG_FILE, {
+      cwd: dir,
+    })
+    if (tsPath && tsPath.length) {
+      throw new Error(
+        'next.config.ts not supported. Compile it to next.config.js'
+      )
+    }
   }
 
   return defaultConfig
