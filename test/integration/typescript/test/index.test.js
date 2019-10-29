@@ -24,14 +24,27 @@ fixture('TypeScript Features')
 
 fixture('default behavior')
   .before(async ctx => {
+    ctx.output = ''
+    const handleOutput = msg => {
+      ctx.output += msg
+    }
     ctx.appPort = await findPort()
-    ctx.app = await launchApp(appDir, ctx.appPort)
+    ctx.app = await launchApp(appDir, ctx.appPort, {
+      onStdout: handleOutput,
+      onStderr: handleOutput
+    })
   })
   .after(ctx => killApp(ctx.app))
 
 test('should render the page', async t => {
   const $ = await get$('/hello')
   await t.expect($('body').text()).match(/Hello World/)
+})
+
+test('should report type checking to stdout', async t => {
+  await t
+    .expect(t.fixtureCtx.output)
+    .contains('waiting for typecheck results...')
 })
 
 test('should not fail to render when an inactive page has an error', async t => {
@@ -60,6 +73,8 @@ test('should compile the app', async t => {
   const output = await nextBuild(appDir, [], { stdout: true })
   await t.expect(output.stdout).match(/Compiled successfully/)
 })
+
+fixture('should compile with different types')
 
 test('should compile async getInitialProps for _error', async t => {
   const errorPage = new File(join(appDir, 'pages/_error.tsx'))
