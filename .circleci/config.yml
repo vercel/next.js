@@ -60,7 +60,10 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            yarn test
+            node run-tests.js $(
+              circleci tests glob "test/**/*.test.*" | \
+              circleci tests split
+            )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   test_browser:
