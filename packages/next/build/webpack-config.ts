@@ -132,6 +132,9 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
+  const ignoreTypeScriptErrors = dev
+    ? config.typescript && config.typescript.ignoreDevErrors
+    : config.typescript && config.typescript.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -193,11 +196,12 @@ export default async function getBaseWebpackConfig(
   const webpackMode = dev ? 'development' : 'production'
 
   const terserPluginConfig = {
-    parallel: true,
-    sourceMap: false,
     cache: true,
     cpus: config.experimental.cpus,
     distDir: distDir,
+    parallel: true,
+    sourceMap: false,
+    workerThreads: config.experimental.workerThreads,
   }
   const terserOptions = {
     parse: {
@@ -749,6 +753,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
+        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
+          config.experimental.deferScripts
+        ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
@@ -867,6 +874,7 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
+        !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,

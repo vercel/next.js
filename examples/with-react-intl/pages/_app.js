@@ -1,9 +1,13 @@
 import App from 'next/app'
 import React from 'react'
-import { IntlProvider } from 'react-intl'
+import { createIntl, createIntlCache, RawIntlProvider } from 'react-intl'
+
+// This is optional but highly recommended
+// since it prevents memory leak
+const cache = createIntlCache()
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
+  static async getInitialProps ({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -21,10 +25,18 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps, locale, messages } = this.props
 
+    const intl = createIntl(
+      {
+        locale,
+        messages
+      },
+      cache
+    )
+
     return (
-      <IntlProvider locale={locale} messages={messages}>
+      <RawIntlProvider value={intl}>
         <Component {...pageProps} />
-      </IntlProvider>
+      </RawIntlProvider>
     )
   }
 }
