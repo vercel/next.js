@@ -13,7 +13,7 @@ module.exports = {
       (pages, post) =>
         Object.assign({}, pages, {
           [`/post/${post.id}`]: {
-            page: '/post',
+            page: '/post/[id]',
             query: { id: post.id }
           }
         }),
