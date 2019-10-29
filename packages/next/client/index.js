@@ -372,11 +372,19 @@ async function doRender ({ App, Component, props, err }) {
     appProps
   })
 
-  // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(
+  const elem = (
     <AppContainer>
       <App {...appProps} />
-    </AppContainer>,
+    </AppContainer>
+  )
+
+  // We catch runtime errors using componentDidCatch which will trigger renderError
+  renderReactElement(
+    process.env.__NEXT_STRICT_MODE ? (
+      <React.StrictMode>{elem}</React.StrictMode>
+    ) : (
+      elem
+    ),
     appElement
   )
 

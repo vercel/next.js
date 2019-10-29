@@ -25,6 +25,7 @@ let appPort
 let buildId
 let distPagesDir
 let exportDir
+let stderr
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -236,6 +237,29 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
+
+    it('should show error when getStaticParams is used without getStaticProps', async () => {
+      const pagePath = join(appDir, 'pages/no-getStaticProps.js')
+      await fs.writeFile(
+        pagePath,
+        `
+        export async function unstable_getStaticParams() {
+          return []
+        }
+
+        export default () => 'hi'
+      `,
+        'utf8'
+      )
+
+      const html = await renderViaHTTP(appPort, '/no-getStaticProps')
+      await fs.remove(pagePath)
+      await waitFor(500)
+
+      expect(html).toMatch(
+        /unstable_getStaticParams was added without a unstable_getStaticProps in/
+      )
+    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -264,6 +288,11 @@ const runTests = (dev = false) => {
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+        },
+        '/user/[user]/profile': {
+          dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
+          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
+          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
         }
       })
     })
@@ -351,6 +380,12 @@ const runTests = (dev = false) => {
       const val = await browser.eval('window.thisShouldStay')
       expect(val).toBe(true)
     })
+
+    it('should not error when flushing cache files', async () => {
+      await fetchViaHTTP(appPort, '/user/user-1/profile')
+      await waitFor(500)
+      expect(stderr).not.toMatch(/Failed to update prerender files for/)
+    })
   }
 }
 
@@ -358,7 +393,11 @@ describe('SPR Prerender', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
@@ -374,8 +413,13 @@ describe('SPR Prerender', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = nextStart(appDir, appPort)
+      app = nextStart(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
@@ -404,8 +448,13 @@ describe('SPR Prerender', () => {
         await fs.unlink(nextConfig)
       } catch (_) {}
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
