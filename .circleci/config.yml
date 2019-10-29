@@ -135,7 +135,7 @@ jobs:
       - yarn_react_integration
       - *persist_to_workspace
   test:
-    parallelism: 1
+    parallelism: 3
     executor: node
     steps:
       - *attach_workspace
