@@ -1,7 +1,7 @@
 const path = require('path')
 const _glob = require('glob')
 const { promisify } = require('util')
-const { spawn } = require('child_process')
+const spawn = require('cross-spawn')
 
 const glob = promisify(_glob)
 const DEFAULT_CONCURRENCY = 2
