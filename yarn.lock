@@ -12264,13 +12264,6 @@ react-is@16.8.6, react-is@^16.8.1, react-is@^16.8.4:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.8.6.tgz#5bbc1e2d29141c9fbdfed456343fe2bc430a6a16"
   integrity sha512-aUk3bHfZ2bRSVFFbbeVS4i+lNPZr3/WM5jT2J5omUVV1zzcs1nAaf3l51ctA5FFvCRbhrH0bdAsRRQddFJZPtA==
 
-react-ssr-prepass@1.0.5:
-  version "1.0.5"
-  resolved "https://registry.yarnpkg.com/react-ssr-prepass/-/react-ssr-prepass-1.0.5.tgz#63ce763b2deb81949b20ccb2c64503ca53c562ba"
-  integrity sha512-A8QXXIHBpzr5/bnG3rwFgJWU6gLo7/dcW1bBIluoBI2hMyC+uuMRO+rXEtUpX6AVDhWfdFVi2I7kvWUDIRgDtA==
-  dependencies:
-    object-is "^1.0.1"
-
 react-ssr-prepass@1.0.7:
   version "1.0.7"
   resolved "https://registry.yarnpkg.com/react-ssr-prepass/-/react-ssr-prepass-1.0.7.tgz#6b6fac5b4d3a8f10e6a45f33798c7cdf7a164eeb"
