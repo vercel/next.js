@@ -171,11 +171,12 @@ export default async function getBaseWebpackConfig(
   const webpackMode = dev ? 'development' : 'production'
 
   const terserPluginConfig = {
-    parallel: true,
-    sourceMap: false,
     cache: true,
     cpus: config.experimental.cpus,
     distDir: distDir,
+    parallel: true,
+    sourceMap: false,
+    workerThreads: config.experimental.workerThreads,
   }
   const terserOptions = {
     parse: {
