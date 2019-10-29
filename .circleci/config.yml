@@ -60,7 +60,7 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            yarn test test/integration/amphtml/test/index.test.js
+            yarn test
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   test_browser:
