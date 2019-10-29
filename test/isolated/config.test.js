@@ -86,7 +86,7 @@ describe('config', () => {
     expect(config.target).toBe('serverless')
   })
 
-  it('Should throw when next.config.ts is there', () => {
+  it('Should throw  error when next.config.ts is there', () => {
     try {
       loadConfig(
         PHASE_DEVELOPMENT_SERVER,
@@ -96,8 +96,16 @@ describe('config', () => {
       throw new Error('failed')
     } catch (err) {
       expect(err.message).toMatch(
-        /next.config.ts not supported. Compile it to next.config.js/
+        /Configuring Next.js via next.config.ts is not supported. Please replace the file with next.config.js. Alternatively, you can compile next.config.ts on each change, but this is not recommended/
       )
     }
+  })
+
+  it('Should Ignore next.config.ts when next.config.js and next.config.ts are there', () => {
+    const config = loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      join(__dirname, '_resolvedata', 'js-ts-config')
+    )
+    expect(config.customConfigFileExt).toBe('js')
   })
 })
