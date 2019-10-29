@@ -34,6 +34,7 @@ fixture('Enabled')
 
 test('Adds the build indicator container', async t => {
   const browser = await webdriver(t.fixtureCtx.appPort, '/')
+  await waitFor(500)
   const html = await browser.eval('document.body.innerHTML')
   await t.expect(html).match(/__next-build-watcher/)
   await browser.close()
@@ -82,6 +83,7 @@ fixture('Disabled with next.config.js')
 
 test('Does not add the build indicator container', async t => {
   const browser = await webdriver(t.fixtureCtx.appPort, '/')
+  await waitFor(500)
   const html = await browser.eval('document.body.innerHTML')
   await t.expect(html).notMatch(/__next-build-watcher/)
   await browser.close()
