@@ -4,17 +4,15 @@ module.exports = {
   experimental: {
     granularChunks: true
   },
-  webpack (config, { isServer }) {
+  webpack (config) {
     config.plugins = config.plugins || []
     config.plugins.push(
-      isServer
-        ? new BundleAnalyzerPlugin({
-          analyzerMode: 'disabled',
-          generateStatsFile: true
-        })
-        : new BundleAnalyzerPlugin()
+      new BundleAnalyzerPlugin({
+        analyzerMode: 'disabled',
+        generateStatsFile: true
+      })
     )
     return config
   },
-  assetPrefix: 'http://localhost:3333'
+  assetPrefix: 'http://prefix.localhost:32433'
 }
