@@ -16,6 +16,7 @@ const appDir = join(__dirname, '..')
 
 const noError = async pathname => {
   const browser = await webdriver(t.fixtureCtx.appPort, '/')
+  await waitFor(500)
   await browser.eval(`(function() {
     window.caughtErrors = []
     const origError = window.console.error

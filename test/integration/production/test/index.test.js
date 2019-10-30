@@ -14,7 +14,6 @@ import {
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
-import security from './security'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -681,4 +680,3 @@ test('should have async on all script tags', async t => {
 
 dynamicImportTests((p, q) => renderViaHTTP(t.fixtureCtx.appPort, p, q))
 processEnv()
-security()

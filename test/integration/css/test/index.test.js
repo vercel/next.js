@@ -148,10 +148,10 @@ test(`should've emitted a source map`, async t => {
     join(cssFolder, cssMapFiles[0]),
     'utf8'
   )).trim()
+  let { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+  // remove windows line endings
+  sourcesContent[0] = sourcesContent[0].replace(/\r\n/g, '\n')
 
-  const { version, mappings, sourcesContent } = JSON.parse(
-    cssMapContent.replace(/\r\n/g, '\n')
-  )
   await t.expect({ version, mappings, sourcesContent }).eql({
     mappings:
       'AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF',
