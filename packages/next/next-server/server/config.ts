@@ -1,11 +1,13 @@
 import chalk from 'chalk'
 import findUp from 'find-up'
 import os from 'os'
+import { basename, extname } from 'path'
 
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
+const reactModes = ['legacy', 'blocking', 'concurrent']
 
 const defaultConfig: { [key: string]: any } = {
   env: [],
@@ -47,12 +49,16 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     publicDirectory: false,
     sprFlushToDisk: true,
+    deferScripts: false,
+    reactMode: 'legacy',
+    workerThreads: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactStrictMode: false,
 }
 
 const experimentalWarning = execOnce(() => {
@@ -158,7 +164,37 @@ export default function loadConfig(
       )
     }
 
+    if (
+      userConfig.experimental &&
+      userConfig.experimental.reactMode &&
+      !reactModes.includes(userConfig.experimental.reactMode)
+    ) {
+      throw new Error(
+        `Specified React Mode is invalid. Provided: ${
+          userConfig.experimental.reactMode
+        } should be one of ${reactModes.join(', ')}`
+      )
+    }
+
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+  } else {
+    const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
+    const nonJsPath = findUp.sync(
+      [
+        `${configBaseName}.jsx`,
+        `${configBaseName}.ts`,
+        `${configBaseName}.tsx`,
+        `${configBaseName}.json`,
+      ],
+      { cwd: dir }
+    )
+    if (nonJsPath && nonJsPath.length) {
+      throw new Error(
+        `Configuring Next.js via '${basename(
+          nonJsPath
+        )}' is not supported. Please replace the file with 'next.config.js'.`
+      )
+    }
   }
 
   return defaultConfig
