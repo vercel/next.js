@@ -96,7 +96,7 @@ describe('config', () => {
       throw new Error('failed')
     } catch (err) {
       expect(err.message).toMatch(
-        /Configuring Next.js via next.config.ts is not supported. Please replace the file with next.config.js. Alternatively, you can compile next.config.ts on each change, but this is not recommended/
+        /Configuring Next.js via 'next.config.(ts|jsx|tsx|json)' is not supported. Please replace the file with 'next.config.js'./
       )
     }
   })

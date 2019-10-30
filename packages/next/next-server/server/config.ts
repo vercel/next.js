@@ -166,6 +166,7 @@ export default function loadConfig(
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
       [
+        `${configBaseName}.jsx`,
         `${configBaseName}.ts`,
         `${configBaseName}.tsx`,
         `${configBaseName}.json`,
@@ -176,7 +177,9 @@ export default function loadConfig(
     )
     if (nonJsPath && nonJsPath.length) {
       throw new Error(
-        'Configuring Next.js via next.config.ts is not supported. Please replace the file with next.config.js. Alternatively, you can compile next.config.ts on each change, but this is not recommended'
+        `Configuring Next.js via '${basename(
+          nonJsPath
+        )}' is not supported. Please replace the file with 'next.config.js'.`
       )
     }
   }
