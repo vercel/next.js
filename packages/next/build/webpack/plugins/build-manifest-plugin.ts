@@ -95,29 +95,24 @@ export default class BuildManifestPlugin {
           }
 
           const filesForEntry: string[] = []
-          for (const chunk of entrypoint.chunks) {
-            // If there's no name or no files
-            if (!chunk.name || !chunk.files) {
+
+          // getFiles() - helper function to read the files for an entrypoint from stats object
+          for (const file of entrypoint.getFiles()) {
+            if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file)) {
               continue
             }
 
-            for (const file of chunk.files) {
-              if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file)) {
-                continue
-              }
-
-              // Only `.js` and `.css` files are added for now. In the future we can also handle other file types.
-              if (!/\.js$/.test(file) && !/\.css$/.test(file)) {
-                continue
-              }
-
-              // The page bundles are manually added to _document.js as they need extra properties
-              if (IS_BUNDLED_PAGE_REGEX.exec(file)) {
-                continue
-              }
-
-              filesForEntry.push(file.replace(/\\/g, '/'))
+            // Only `.js` and `.css` files are added for now. In the future we can also handle other file types.
+            if (!/\.js$/.test(file) && !/\.css$/.test(file)) {
+              continue
             }
+
+            // The page bundles are manually added to _document.js as they need extra properties
+            if (IS_BUNDLED_PAGE_REGEX.exec(file)) {
+              continue
+            }
+
+            filesForEntry.push(file.replace(/\\/g, '/'))
           }
 
           assetMap.pages[`/${pagePath.replace(/\\/g, '/')}`] = [
