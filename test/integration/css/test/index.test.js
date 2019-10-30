@@ -11,9 +11,11 @@ import {
   startApp,
   stopApp,
   File,
-  waitFor
+  waitFor,
+  renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -463,6 +465,19 @@ describe('CSS Support', () => {
         }
       }
     })
+
+    it(`should've preloaded the CSS file and injected it in <head>`, async () => {
+      const content = await renderViaHTTP(appPort, '/page2')
+      const $ = cheerio.load(content)
+
+      const cssPreload = $('link[rel="preload"][as="style"]')
+      expect(cssPreload.length).toBe(1)
+      expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      const cssSheet = $('link[rel="stylesheet"]')
+      expect(cssSheet.length).toBe(1)
+      expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+    })
   })
 
   describe('CSS URL via `file-loader', () => {
@@ -486,11 +501,11 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(static\/media\/dark\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
-      expect(mediaFiles.length).toBe(2)
+      expect(mediaFiles.length).toBe(3)
       expect(
         mediaFiles
           .map(fileName =>
@@ -503,6 +518,7 @@ describe('CSS Support', () => {
       ).toMatchInlineSnapshot(`
         Array [
           "dark.svg",
+          "dark2.svg",
           "light.svg",
         ]
       `)

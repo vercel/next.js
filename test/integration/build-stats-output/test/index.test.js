@@ -9,6 +9,6 @@ const appDir = join(__dirname, '../react-site')
 describe('Build Stats Output', () => {
   it('Shows correct package count in output', async () => {
     const { stdout } = await nextBuild(appDir, undefined, { stdout: true })
-    expect(stdout).toMatch(/\/something .*?5/)
+    expect(stdout).toMatch(/\/something .*?4/)
   })
 })

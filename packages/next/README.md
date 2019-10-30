@@ -286,8 +286,6 @@ function MyImage() {
 export default MyImage
 ```
 
-To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`.
-
 _Note: Don't name the `public` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
 ### Dynamic Routing
@@ -1242,7 +1240,7 @@ Then, import `micro-cors` and [configure it](https://github.com/possibilities/mi
 import Cors from 'micro-cors'
 
 const cors = Cors({
-  allowedMethods: ['GET', 'HEAD'],
+  allowMethods: ['GET', 'HEAD'],
 })
 
 function Endpoint(req, res) {
@@ -2045,7 +2043,7 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
 
 #### Runtime configuration
 
-> **Warning:** Note that this option is not available when using `target: 'serverless'`
+> **Warning:** Note that these options are not available when using `target: 'serverless'`
 
 > **Warning:** Generally you want to use build-time configuration to provide your configuration.
 > The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic static optimization](#automatic-static-optimization)**.
@@ -2317,6 +2315,41 @@ To learn more about TypeScript checkout its [documentation](https://www.typescri
 
 > **Note**: Next.js does not enable TypeScript's `strict` mode by default.
 > When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
+
+> **Note**: By default, Next.js reports TypeScript errors during development for pages you are actively working on.
+> TypeScript errors for inactive pages **do not** block the development process.
+>
+> If you don't want to leverage this behavior and instead, e.g. prefer your editor's integration, you can set the following option in `next.config.js`:
+>
+> ```js
+> // next.config.js
+> module.exports = {
+>   typescript: {
+>     ignoreDevErrors: true,
+>   },
+> }
+> ```
+>
+> Next.js will still fail your **production build** (`next build`) when TypeScript errors are present in your project.
+>
+> If you'd like Next.js to dangerously produce production code even when your application is broken, you can set the following option in your `next.config.js`.
+> Be sure you are running type checks as part of your build or deploy process!
+>
+> ```js
+> // next.config.js
+> module.exports = {
+>   typescript: {
+>     // !! WARN !!
+>     // Dangerously allow production builds to successfully complete even if
+>     // your project has type errors.
+>     //
+>     // This option is rarely needed, and should be reserved for advanced
+>     // setups. You may be looking for `ignoreDevErrors` instead.
+>     // !! WARN !!
+>     ignoreBuildErrors: true,
+>   },
+> }
+> ```
 
 ### Exported types
 

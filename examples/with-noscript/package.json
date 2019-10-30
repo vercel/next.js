@@ -9,8 +9,7 @@
   "dependencies": {
     "next": "latest",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-lazyload": "^2.2.7"
+    "react-dom": "^16.7.0"
   },
   "license": "ISC"
 }

@@ -1,5 +1,4 @@
 import React, { ErrorInfo } from 'react'
-import PropTypes from 'prop-types'
 import {
   execOnce,
   loadGetInitialProps,
@@ -7,7 +6,7 @@ import {
   AppInitialProps,
   AppPropsType,
 } from '../next-server/lib/utils'
-import { Router, makePublicRouterInstance } from '../client/router'
+import { Router } from '../client/router'
 
 export { AppInitialProps }
 
@@ -31,17 +30,8 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   P & AppProps<CP>,
   S
 > {
-  static childContextTypes = {
-    router: PropTypes.object,
-  }
   static origGetInitialProps = appGetInitialProps
   static getInitialProps = appGetInitialProps
-
-  getChildContext() {
-    return {
-      router: makePublicRouterInstance(this.props.router),
-    }
-  }
 
   // Kept here for backwards compatibility.
   // When someone ended App they could call `super.componentDidCatch`.

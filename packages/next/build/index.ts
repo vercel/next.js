@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import ciEnvironment from 'ci-info'
 import fs from 'fs'
 import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
@@ -25,12 +26,12 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import {
-  recordBuildDuration,
-  recordBuildOptimize,
-  recordNextPlugins,
-  recordVersion,
+  eventBuildDuration,
+  eventBuildOptimize,
+  eventNextPlugins,
+  eventVersion,
 } from '../telemetry/events'
-import { setDistDir as setTelemetryDir } from '../telemetry/storage'
+import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
@@ -47,6 +48,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
+const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
 const fsStat = promisify(fs.stat)
@@ -83,15 +85,36 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  const buildSpinner = createSpinner({
-    prefixText: 'Creating an optimized production build',
-  })
-
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  setTelemetryDir(distDir)
+
+  if (ciEnvironment.isCI) {
+    const cacheDir = path.join(distDir, 'cache')
+    const hasCache = await fsAccess(cacheDir)
+      .then(() => true)
+      .catch(() => false)
+
+    if (!hasCache) {
+      // Intentionally not piping to stderr in case people fail in CI when
+      // stderr is detected.
+      console.log(
+        chalk.bold.yellow(`Warning: `) +
+          chalk.bold(
+            `No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
+          )
+      )
+      console.log('')
+    }
+  }
+
+  const buildSpinner = createSpinner({
+    prefixText: 'Creating an optimized production build',
+  })
+
+  const telemetry = new Telemetry({ distDir })
+
   const publicDir = path.join(dir, 'public')
   const pagesDir = findPagesDir(dir)
   let publicFiles: string[] = []
@@ -99,8 +122,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   let backgroundWork: (Promise<any> | undefined)[] = []
   backgroundWork.push(
-    recordVersion({ cliCommand: 'build' }),
-    recordNextPlugins(path.resolve(dir))
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'build',
+        isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+      })
+    ),
+    eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
   )
 
   await verifyTypeScriptSetup(dir, pagesDir)
@@ -273,10 +301,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
     backgroundWork.push(
-      recordBuildDuration({
-        totalPageCount: pagePaths.length,
-        durationInSeconds: webpackBuildEnd[0],
-      })
+      telemetry.record(
+        eventBuildDuration({
+          totalPageCount: pagePaths.length,
+          durationInSeconds: webpackBuildEnd[0],
+        })
+      )
     )
   }
 
@@ -307,7 +337,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
-    enableWorkerThreads: true,
+    enableWorkerThreads: config.experimental.workerThreads,
   })
 
   const analysisBegin = process.hrtime()
@@ -407,7 +437,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (invalidPages.size > 0) {
     throw new Error(
-      `automatic static optimization failed: found page${
+      `Build optimization failed: found page${
         invalidPages.size === 1 ? '' : 's'
       } without a React Component as default export in \n${[...invalidPages]
         .map(pg => `pages${pg}`)
@@ -441,6 +471,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       sprPages,
       silent: true,
       buildExport: true,
+      threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }
@@ -535,6 +566,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             srcRoute: null,
             dataRoute: path.posix.join(
               '/_next/data',
+              buildId,
               `${page === '/' ? '/index' : page}.json`
             ),
           }
@@ -552,6 +584,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               srcRoute: page,
               dataRoute: path.posix.join(
                 '/_next/data',
+                buildId,
                 `${route === '/' ? '/index' : route}.json`
               ),
             }
@@ -570,12 +603,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const analysisEnd = process.hrtime(analysisBegin)
   backgroundWork.push(
-    recordBuildOptimize({
-      durationInSeconds: analysisEnd[0],
-      totalPageCount: pagePaths.length,
-      staticPageCount: staticPages.size,
-      ssrPageCount: pagePaths.length - staticPages.size,
-    })
+    telemetry.record(
+      eventBuildOptimize({
+        durationInSeconds: analysisEnd[0],
+        totalPageCount: pagePaths.length,
+        staticPageCount: staticPages.size,
+        ssrPageCount: pagePaths.length - staticPages.size,
+      })
+    )
   )
 
   if (sprPages.size > 0) {
@@ -583,6 +618,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     tbdPrerenderRoutes.forEach(tbdRoute => {
       const dataRoute = path.posix.join(
         '/_next/data',
+        buildId,
         `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
       )
 

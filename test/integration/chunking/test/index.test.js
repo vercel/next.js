@@ -1,8 +1,16 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import {
+  nextBuild,
+  findPort,
+  waitFor,
+  nextStart,
+  killApp
+} from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
+import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -29,7 +37,12 @@ describe('Chunking', () => {
     } catch (e) {
       // Error here means old chunks don't exist, so we don't need to do anything
     }
-    await nextBuild(appDir)
+    const { stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true
+    })
+    console.log(stdout)
+    console.error(stderr)
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
       .replace(/"static\\(.*?":)/g, '"static\\\\$1')
@@ -68,6 +81,20 @@ describe('Chunking', () => {
     ).toBe(undefined) /* fs.access callback returns undefined if file exists */
   })
 
+  it('should not preload the build manifest', async () => {
+    const indexPage = await readFile(
+      join(appDir, '.next', 'server', 'static', buildId, 'pages', 'index.html')
+    )
+
+    const $ = cheerio.load(indexPage)
+    expect(
+      [].slice
+        .call($('link[rel="preload"][as="script"]'))
+        .map(e => e.attribs.href)
+        .some(entry => entry.includes('_buildManifest'))
+    ).toBe(false)
+  })
+
   it('should not include more than one instance of react-dom', async () => {
     const misplacedReactDom = stats.chunks.some(chunk => {
       if (chunk.names.includes('framework')) {
@@ -79,5 +106,20 @@ describe('Chunking', () => {
       })
     })
     expect(misplacedReactDom).toBe(false)
+  })
+
+  it('should hydrate with granularChunks config', async () => {
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort)
+
+    const browser = await webdriver(appPort, '/page2')
+    await waitFor(1000)
+    const text = await browser.elementByCss('#padded-str').text()
+
+    expect(text).toBe('__rad__')
+
+    await browser.close()
+
+    await killApp(app)
   })
 })
