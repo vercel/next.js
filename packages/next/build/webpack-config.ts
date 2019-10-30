@@ -71,6 +71,69 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   const distDir = path.join(dir, config.distDir)
+  const webpackMode = dev ? 'development' : 'production'
+  const crossOrigin =
+    !config.crossOrigin && config.experimental.modern
+      ? 'anonymous'
+      : config.crossOrigin
+
+  const definePluginEnv = {
+    ...Object.keys(config.env).reduce((acc, key) => {
+      if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
+        throw new Error(
+          `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
+        )
+      }
+
+      return {
+        ...acc,
+        [`process.env.${key}`]: JSON.stringify(config.env[key]),
+      }
+    }, {}),
+    'process.env.NODE_ENV': JSON.stringify(webpackMode),
+    'process.crossOrigin': JSON.stringify(crossOrigin),
+    'process.browser': JSON.stringify(!isServer),
+    'process.env.__NEXT_TEST_MODE': JSON.stringify(
+      process.env.__NEXT_TEST_MODE
+    ),
+    // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
+    ...(dev && !isServer
+      ? {
+          'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
+        }
+      : {}),
+    'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
+      config.exportTrailingSlash
+    ),
+    'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
+      config.experimental.deferScripts
+    ),
+    'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
+      config.experimental.modern && !dev
+    ),
+    'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
+      config.experimental.granularChunks && !dev
+    ),
+    'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
+      config.devIndicators.buildActivity
+    ),
+    'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
+      config.devIndicators.autoPrerender
+    ),
+    'process.env.__NEXT_STRICT_MODE': JSON.stringify(config.reactStrictMode),
+    'process.env.__NEXT_REACT_MODE': JSON.stringify(
+      config.experimental.reactMode
+    ),
+    ...(isServer
+      ? {
+          // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
+          // This is typically found in unmaintained modules from the
+          // pre-webpack era (common in server-side code)
+          'global.GENTLY': JSON.stringify(false),
+        }
+      : undefined),
+  }
+
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -81,6 +144,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         cache: true,
+        definePluginEnv: JSON.stringify(definePluginEnv),
       },
     },
     // Backwards compat
@@ -167,8 +231,6 @@ export default async function getBaseWebpackConfig(
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
   }
-
-  const webpackMode = dev ? 'development' : 'production'
 
   const terserPluginConfig = {
     cache: true,
@@ -298,11 +360,6 @@ export default async function getBaseWebpackConfig(
       ? splitChunksConfigs.prodGranular
       : splitChunksConfigs.prod
   }
-
-  const crossOrigin =
-    !config.crossOrigin && config.experimental.modern
-      ? 'anonymous'
-      : config.crossOrigin
 
   let customAppFile: string | null = config.experimental.css
     ? await findPageFile(pagesDir, '/_app', config.pageExtensions)
@@ -707,64 +764,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
-      new webpack.DefinePlugin({
-        ...Object.keys(config.env).reduce((acc, key) => {
-          if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
-            throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/zeit/next.js/env-key-not-allowed`
-            )
-          }
-
-          return {
-            ...acc,
-            [`process.env.${key}`]: JSON.stringify(config.env[key]),
-          }
-        }, {}),
-        'process.env.NODE_ENV': JSON.stringify(webpackMode),
-        'process.crossOrigin': JSON.stringify(crossOrigin),
-        'process.browser': JSON.stringify(!isServer),
-        'process.env.__NEXT_TEST_MODE': JSON.stringify(
-          process.env.__NEXT_TEST_MODE
-        ),
-        // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
-        ...(dev && !isServer
-          ? {
-              'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
-            }
-          : {}),
-        'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
-          config.exportTrailingSlash
-        ),
-        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
-          config.experimental.deferScripts
-        ),
-        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
-          config.experimental.modern && !dev
-        ),
-        'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
-          config.experimental.granularChunks && !dev
-        ),
-        'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
-          config.devIndicators.buildActivity
-        ),
-        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
-          config.devIndicators.autoPrerender
-        ),
-        'process.env.__NEXT_STRICT_MODE': JSON.stringify(
-          config.reactStrictMode
-        ),
-        'process.env.__NEXT_REACT_MODE': JSON.stringify(
-          config.experimental.reactMode
-        ),
-        ...(isServer
-          ? {
-              // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
-              // This is typically found in unmaintained modules from the
-              // pre-webpack era (common in server-side code)
-              'global.GENTLY': JSON.stringify(false),
-            }
-          : undefined),
-      }),
+      new webpack.DefinePlugin(definePluginEnv),
       !isServer &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,

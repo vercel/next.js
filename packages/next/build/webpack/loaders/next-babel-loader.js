@@ -68,6 +68,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
+                opts.definePluginEnv +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -88,6 +89,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.isModern
       delete loader.hasModern
       delete loader.pagesDir
+      delete loader.definePluginEnv
       return { loader, custom }
     },
     config (
