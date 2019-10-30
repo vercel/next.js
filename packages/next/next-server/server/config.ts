@@ -1,8 +1,8 @@
 import chalk from 'chalk'
 import findUp from 'find-up'
 import os from 'os'
-
-import { CONFIG_FILE, TS_CONFIG_FILE } from '../lib/constants'
+import { basename, extname } from 'path'
+import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
@@ -163,10 +163,18 @@ export default function loadConfig(
 
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
   } else {
-    const tsPath = findUp.sync(TS_CONFIG_FILE, {
-      cwd: dir,
-    })
-    if (tsPath && tsPath.length) {
+    const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
+    const nonJsPath = findUp.sync(
+      [
+        `${configBaseName}.ts`,
+        `${configBaseName}.tsx`,
+        `${configBaseName}.json`,
+      ],
+      {
+        cwd: dir,
+      }
+    )
+    if (nonJsPath && nonJsPath.length) {
       throw new Error(
         'Configuring Next.js via next.config.ts is not supported. Please replace the file with next.config.js. Alternatively, you can compile next.config.ts on each change, but this is not recommended'
       )
