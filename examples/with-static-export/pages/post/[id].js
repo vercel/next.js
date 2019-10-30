@@ -14,15 +14,17 @@ export default class extends Component {
   }
 
   render () {
+    const { title, body } = this.props
+
     return (
       <main>
         <Head>
-          <title>{this.props.title}</title>
+          <title>{title}</title>
         </Head>
 
-        <h1>{this.props.title}</h1>
+        <h1>{title}</h1>
 
-        <p>{this.props.body}</p>
+        <p>{body}</p>
 
         <Link href='/'>
           <a>Go back to home</a>
