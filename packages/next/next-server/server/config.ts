@@ -7,6 +7,7 @@ import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
+const reactModes = ['legacy', 'blocking', 'concurrent']
 
 const defaultConfig: { [key: string]: any } = {
   env: [],
@@ -49,6 +50,7 @@ const defaultConfig: { [key: string]: any } = {
     publicDirectory: false,
     sprFlushToDisk: true,
     deferScripts: false,
+    reactMode: 'legacy',
     workerThreads: false,
   },
   future: {
@@ -159,6 +161,18 @@ export default function loadConfig(
       // TODO: change error message tone to "Only compatible with [fat] server mode"
       throw new Error(
         'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+      )
+    }
+
+    if (
+      userConfig.experimental &&
+      userConfig.experimental.reactMode &&
+      !reactModes.includes(userConfig.experimental.reactMode)
+    ) {
+      throw new Error(
+        `Specified React Mode is invalid. Provided: ${
+          userConfig.experimental.reactMode
+        } should be one of ${reactModes.join(', ')}`
       )
     }
 
