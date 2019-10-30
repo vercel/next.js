@@ -229,13 +229,11 @@ export default async function getBaseWebpackConfig(
       },
     },
     prodGranular: {
-      chunks: 'initial',
+      chunks: 'all',
       cacheGroups: {
         default: false,
         vendors: false,
         framework: {
-          // Framework chunk applies to modules in dynamic chunks, unlike shared chunks
-          // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
