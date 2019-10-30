@@ -29,14 +29,18 @@
  *
  * Original source from which this was built upon - https://github.com/prateekbh/babel-esm-plugin
  */
+
+import path from 'path'
 import {
-  Compiler,
   compilation,
-  Plugin,
-  RuleSetRule,
-  RuleSetLoader,
+  Compiler,
   Output,
+  Plugin,
+  RuleSetLoader,
+  RuleSetRule,
 } from 'webpack'
+
+import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../../../lib/constants'
 
 const SingleEntryPlugin = require('webpack/lib/SingleEntryPlugin')
 const MultiEntryPlugin = require('webpack/lib/MultiEntryPlugin')
@@ -224,8 +228,27 @@ export default class NextEsmPlugin implements Plugin {
     }
 
     Object.keys(compilerEntries).forEach(entry => {
-      const entryFiles = compilerEntries[entry]
+      const entryFiles = compilerEntries[entry] as (string[] | string)
+
       if (Array.isArray(entryFiles)) {
+        const polyfillIndex = entryFiles.findIndex(file => {
+          return (
+            path.resolve(childCompiler.context, file) ===
+            path.resolve(
+              childCompiler.context,
+              NEXT_PROJECT_ROOT_DIST_CLIENT,
+              'polyfills.js'
+            )
+          )
+        })
+        if (polyfillIndex !== -1) {
+          entryFiles[polyfillIndex] = path.resolve(
+            childCompiler.context,
+            NEXT_PROJECT_ROOT_DIST_CLIENT,
+            'polyfills.module.js'
+          )
+        }
+
         new MultiEntryPlugin(compiler.context, entryFiles, entry).apply(
           childCompiler
         )
