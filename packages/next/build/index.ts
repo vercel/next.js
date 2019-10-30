@@ -339,6 +339,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     numWorkers: config.experimental.cpus,
     enableWorkerThreads: config.experimental.workerThreads,
   })
+  staticCheckWorkers.getStdout().pipe(process.stdout)
+  staticCheckWorkers.getStderr().pipe(process.stderr)
 
   const analysisBegin = process.hrtime()
   await Promise.all(
