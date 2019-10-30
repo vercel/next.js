@@ -18,6 +18,8 @@ import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
+/// <reference types="react-dom/experimental" />
+
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
@@ -236,18 +238,32 @@ export async function renderError (props) {
 
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
+let reactRoot = null
 function renderReactElement (reactEl, domEl) {
   // mark start of hydrate/render
   if (SUPPORTS_PERFORMANCE_USER_TIMING) {
     performance.mark('beforeRender')
   }
 
-  // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-    isInitialRender = false
+  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+    let callback = markRenderComplete
+    if (!reactRoot) {
+      const opts = { hydrate: true }
+      reactRoot =
+        process.env.__NEXT_REACT_MODE === 'concurrent'
+          ? ReactDOM.createRoot(domEl, opts)
+          : ReactDOM.createBlockingRoot(domEl, opts)
+      callback = markHydrateComplete
+    }
+    reactRoot.render(reactEl, callback)
   } else {
-    ReactDOM.render(reactEl, domEl, markRenderComplete)
+    // The check for `.hydrate` is there to support React alternatives like preact
+    if (isInitialRender) {
+      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      isInitialRender = false
+    } else {
+      ReactDOM.render(reactEl, domEl, markRenderComplete)
+    }
   }
 
   if (onPerfEntry) {

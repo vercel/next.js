@@ -75,6 +75,11 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 2,
     srcRoute: '/blog/[post]/[comment]'
   },
+  '/blog/post.1': {
+    dataRoute: `/_next/data/${buildId}/blog/post.1.json`,
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]'
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 0,
