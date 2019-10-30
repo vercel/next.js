@@ -1,3 +1,3 @@
 module.exports = {
-  customConfigFileExt: 'js'
+  __test__ext: 'js'
 }

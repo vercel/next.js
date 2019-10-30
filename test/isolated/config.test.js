@@ -106,6 +106,6 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
-    expect(config.customConfigFileExt).toBe('js')
+    expect(config.__test__ext).toBe('js')
   })
 })
