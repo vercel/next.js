@@ -2317,10 +2317,9 @@ To learn more about TypeScript checkout its [documentation](https://www.typescri
 > When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
 
 > **Note**: By default, Next.js reports TypeScript errors during development for pages you are actively working on.
-> TypeScript errors for inactive pages do not block the development process.
-> Trying to run `next build` for an app that has TypeScript errors on any page will fail.
+> TypeScript errors for inactive pages **do not** block the development process.
 >
-> If you don't want to leverage this behavior and prefer to do type checks manually, set the following options in your `next.config.js`:
+> If you don't want to leverage this behavior and instead, e.g. prefer your editor's integration, you can set the following option in `next.config.js`:
 >
 > ```js
 > // next.config.js
