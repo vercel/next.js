@@ -1,9 +1,14 @@
 const path = require('path')
 const _glob = require('glob')
 const { promisify } = require('util')
+const { Sema } = require('async-sema')
 const spawn = require('cross-spawn')
+const { exec: execOrig } = require('child_process')
 
 const glob = promisify(_glob)
+const exec = promisify(execOrig)
+
+const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const { BROWSER } = process.env
 
@@ -15,13 +20,14 @@ const { BROWSER } = process.env
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
+  console.log('Running tests with concurrency:', concurrency)
   let tests = process.argv.filter(arg => arg.endsWith('.test.js'))
 
   if (tests.length === 0) {
     tests = (await glob('**/*.test.js', {
       nodir: true,
       cwd: path.join(__dirname, 'test')
-    })).map(f => path.join('test', f).replace(/\\/g, '/'))
+    })).map(file => path.join('test', file).replace(/\\/g, '/'))
   }
 
   if (groupArg) {
@@ -35,20 +41,14 @@ const { BROWSER } = process.env
     tests = tests.splice(offset, numPerGroup)
   }
 
-  console.log('Running tests with concurrency:', concurrency)
+  const sema = new Sema(concurrency, { capacity: tests.length })
   const children = new Set()
-  const runTests = (tests = []) =>
+
+  const runTest = (test = '') =>
     new Promise((resolve, reject) => {
-      const child = spawn(
-        'yarn',
-        [...(BROWSER ? ['testonly', BROWSER] : ['test']), ...tests],
-        {
-          stdio: 'inherit',
-          env: {
-            ...process.env
-          }
-        }
-      )
+      const child = spawn('yarn', ['testonly', BROWSER || 'chrome', test], {
+        stdio: 'inherit'
+      })
       children.add(child)
       child.on('exit', code => {
         children.delete(child)
@@ -57,21 +57,32 @@ const { BROWSER } = process.env
       })
     })
 
-  const numTestsEach = tests.length / concurrency
-  const testGroups = []
+  await Promise.all(
+    tests.map(async test => {
+      await sema.acquire()
+      let passed = false
 
-  for (let i = 0; i < concurrency; i++) {
-    testGroups.push(
-      tests.splice(0, i === concurrency - 1 ? tests.length : numTestsEach)
-    )
-  }
-
-  await Promise.all(testGroups.map(group => runTests(group))).catch(err => {
-    children.forEach(child => {
-      child.kill()
-      children.delete(child)
+      for (let i = 0; i < NUM_RETRIES + 1; i++) {
+        try {
+          await runTest(test)
+          passed = true
+          break
+        } catch (err) {
+          if (i < NUM_RETRIES) {
+            try {
+              console.log('Cleaning test files for', test)
+              await exec(`git clean -fdx "${path.join(__dirname, test)}"`)
+              await exec(`git checkout "${path.join(__dirname, test)}"`)
+            } catch (err) {}
+          }
+        }
+      }
+      if (!passed) {
+        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+        children.forEach(child => child.kill())
+        process.exit(1)
+      }
+      sema.release()
     })
-    console.error(err)
-    process.exit(1)
-  })
+  )
 })()
