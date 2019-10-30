@@ -17,18 +17,18 @@ export default function withRouter<
 >(
   ComposedComponent: NextComponentType<C, any, P>
 ): React.ComponentType<ExcludeRouterProps<P>> {
-  function WithRouteWrapper(props: any) {
+  function WithRouterWrapper(props: any) {
     return <ComposedComponent router={useRouter()} {...props} />
   }
 
-  WithRouteWrapper.getInitialProps = ComposedComponent.getInitialProps
+  WithRouterWrapper.getInitialProps = ComposedComponent.getInitialProps
   // This is needed to allow checking for custom getInitialProps in _app
-  ;(WithRouteWrapper as any).origGetInitialProps = (ComposedComponent as any).origGetInitialProps
+  ;(WithRouterWrapper as any).origGetInitialProps = (ComposedComponent as any).origGetInitialProps
   if (process.env.NODE_ENV !== 'production') {
     const name =
       ComposedComponent.displayName || ComposedComponent.name || 'Unknown'
-    WithRouteWrapper.displayName = `withRouter(${name})`
+    WithRouterWrapper.displayName = `withRouter(${name})`
   }
 
-  return WithRouteWrapper
+  return WithRouterWrapper
 }
