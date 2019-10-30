@@ -13,6 +13,5 @@ module.exports = {
       })
     )
     return config
-  },
-  assetPrefix: 'http://prefix.localhost:32433'
+  }
 }
