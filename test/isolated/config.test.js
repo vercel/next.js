@@ -86,7 +86,7 @@ describe('config', () => {
     expect(config.target).toBe('serverless')
   })
 
-  it('Should throw  error when next.config.ts is there', () => {
+  it('Should throw an error when next.config.js is not present', () => {
     try {
       loadConfig(
         PHASE_DEVELOPMENT_SERVER,
@@ -101,7 +101,7 @@ describe('config', () => {
     }
   })
 
-  it('Should Ignore next.config.ts when next.config.js and next.config.ts are there', () => {
+  it('Should not throw an error when two versions of next.config.js are present', () => {
     const config = loadConfig(
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'js-ts-config')
