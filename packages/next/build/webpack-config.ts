@@ -106,15 +106,21 @@ export default async function getBaseWebpackConfig(
     ? {
         // Backwards compatibility
         'main.js': [],
-        [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
+        [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
           `.${path.sep}` +
-          path.relative(
-            dir,
-            path.join(
-              NEXT_PROJECT_ROOT_DIST_CLIENT,
-              dev ? `next-dev.js` : 'next.js'
-            )
-          ),
+            path.relative(
+              dir,
+              path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'polyfills.js')
+            ),
+          `.${path.sep}` +
+            path.relative(
+              dir,
+              path.join(
+                NEXT_PROJECT_ROOT_DIST_CLIENT,
+                dev ? `next-dev.js` : 'next.js'
+              )
+            ),
+        ],
       }
     : undefined
 
@@ -163,6 +169,15 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
+
+      // Stub packages that are polyfilled
+      // - Object.assign
+      '@babel/runtime-corejs2/core-js/object/assign':
+        'next/dist/build/polyfills/object-assign.js',
+      'object.assign/polyfill$':
+        'next/dist/build/polyfills/object.assign-polyfill.js',
+      'object.assign/implementation$':
+        'next/dist/build/polyfills/object.assign-implementation.js',
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
@@ -216,6 +231,12 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        polyfills: {
+          chunks: 'all',
+          name: 'polyfills',
+          test: /[\\/]node_modules[\\/](object-assign)[\\/]/,
+          enforce: true,
+        },
         commons: {
           name: 'commons',
           chunks: 'all',
@@ -233,6 +254,13 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        polyfills: {
+          chunks: 'all',
+          name: 'polyfills',
+          test: /[\\/]node_modules[\\/](object-assign)[\\/]/,
+          priority: 50,
+          enforce: true,
+        },
         framework: {
           chunks: 'all',
           name: 'framework',
@@ -338,9 +366,9 @@ export default async function getBaseWebpackConfig(
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            const start = request.charAt(0);
+            const start = request.charAt(0)
             if (start === '.' || start === '/') {
-              return callback();
+              return callback()
             }
 
             // Resolve the import with the webpack provided context, this
@@ -1038,7 +1066,7 @@ export default async function getBaseWebpackConfig(
         // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
-          originalFile,
+          ...originalFile,
         ]
       }
       delete entry['main.js']
