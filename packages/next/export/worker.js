@@ -93,7 +93,7 @@ export default async function ({
     }
 
     const baseDir = join(outDir, dirname(htmlFilename))
-    const htmlFilepath = join(outDir, htmlFilename)
+    let htmlFilepath = join(outDir, htmlFilename)
 
     await mkdirp(baseDir)
     let html
@@ -117,6 +117,12 @@ export default async function ({
       // prerendered the file
       if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
+      if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+        // make sure it ends with .html if the name contains a dot
+        htmlFilename += '.html'
+        htmlFilepath += '.html'
+      }
+
       renderMethod = mod.renderReqToHTML
       const result = await renderMethod(req, res, true)
       curRenderOpts = result.renderOpts || {}
@@ -137,6 +143,16 @@ export default async function ({
       // prerendered the file
       if (renderedDuringBuild(components.unstable_getStaticProps)) {
         return results
+      }
+
+      // TODO: de-dupe the logic here between serverless and server mode
+      if (
+        components.unstable_getStaticProps &&
+        !htmlFilepath.endsWith('.html')
+      ) {
+        // make sure it ends with .html if the name contains a dot
+        htmlFilepath += '.html'
+        htmlFilename += '.html'
       }
 
       if (typeof components.Component === 'string') {
