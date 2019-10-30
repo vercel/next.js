@@ -167,6 +167,7 @@ export default function loadConfig(
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
       [
+        `${configBaseName}.jsx`,
         `${configBaseName}.ts`,
         `${configBaseName}.tsx`,
         `${configBaseName}.json`,
