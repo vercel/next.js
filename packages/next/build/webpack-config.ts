@@ -126,6 +126,9 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
+  const ignoreTypeScriptErrors = dev
+    ? config.typescript && config.typescript.ignoreDevErrors
+    : config.typescript && config.typescript.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -168,11 +171,12 @@ export default async function getBaseWebpackConfig(
   const webpackMode = dev ? 'development' : 'production'
 
   const terserPluginConfig = {
-    parallel: true,
-    sourceMap: false,
     cache: true,
     cpus: config.experimental.cpus,
     distDir: distDir,
+    parallel: true,
+    sourceMap: false,
+    workerThreads: config.experimental.workerThreads,
   }
   const terserOptions = {
     parse: {
@@ -225,13 +229,11 @@ export default async function getBaseWebpackConfig(
       },
     },
     prodGranular: {
-      chunks: 'initial',
+      chunks: 'all',
       cacheGroups: {
         default: false,
         vendors: false,
         framework: {
-          // Framework chunk applies to modules in dynamic chunks, unlike shared chunks
-          // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
@@ -329,6 +331,15 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (notExternalModules.indexOf(request) !== -1) {
+              return callback()
+            }
+
+            // Relative requires don't need custom resolution, because they
+            // are relative to requests we've already resolved here.
+            // Absolute requires (require('/foo')) are extremely uncommon, but
+            // also have no need for customization as they're already resolved.
+            const start = request.charAt(0)
+            if (start === '.' || start === '/') {
               return callback()
             }
 
@@ -742,6 +753,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
+        'process.env.__NEXT_REACT_MODE': JSON.stringify(
+          config.experimental.reactMode
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -845,6 +859,7 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
+        !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,

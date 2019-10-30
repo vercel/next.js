@@ -349,11 +349,13 @@ export default class HotReloader {
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     const tsConfigPath = join(this.dir, 'tsconfig.json')
     const useTypeScript = await fileExists(tsConfigPath)
+    const ignoreTypeScriptErrors =
+      this.config.typescript && this.config.typescript.ignoreDevErrors
 
     watchCompilers(
       multiCompiler.compilers[0],
       multiCompiler.compilers[1],
-      useTypeScript,
+      useTypeScript && !ignoreTypeScriptErrors,
       ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
     )
 
