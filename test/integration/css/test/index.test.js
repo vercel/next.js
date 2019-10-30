@@ -149,7 +149,9 @@ test(`should've emitted a source map`, async t => {
     'utf8'
   )).trim()
 
-  const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+  const { version, mappings, sourcesContent } = JSON.parse(
+    cssMapContent.replace(/\r\n/g, '\n')
+  )
   await t.expect({ version, mappings, sourcesContent }).eql({
     mappings:
       'AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF',
