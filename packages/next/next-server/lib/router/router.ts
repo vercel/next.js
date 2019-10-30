@@ -71,6 +71,7 @@ export default class Router implements BaseRouter {
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
   _wrapApp: (App: ComponentType) => any
+  historyId: number
 
   static events: MittEmitter = mitt()
 
@@ -126,6 +127,8 @@ export default class Router implements BaseRouter {
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
+    // we use a historyId to enable ignoring invalid popstates
+    this.historyId = Math.random()
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -137,17 +140,6 @@ export default class Router implements BaseRouter {
       )
 
       window.addEventListener('popstate', this.onPopState)
-      window.addEventListener('unload', () => {
-        // Workaround for popstate firing on initial page load when
-        // navigating back from an external site
-        if (history.state) {
-          const { url, as, options }: any = history.state
-          this.changeState('replaceState', url, as, {
-            ...options,
-            fromExternal: true,
-          })
-        }
-      })
     }
   }
 
@@ -178,7 +170,7 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (e.state.options && e.state.options.fromExternal) {
+    if (e.state.options && e.state.options.historyId !== this.historyId) {
       return
     }
 
@@ -384,7 +376,18 @@ export default class Router implements BaseRouter {
 
     if (method !== 'pushState' || getURL() !== as) {
       // @ts-ignore method should always exist on history
-      window.history[method]({ url, as, options }, null, as)
+      window.history[method](
+        {
+          url,
+          as,
+          options: {
+            ...options,
+            historyId: this.historyId,
+          },
+        },
+        null,
+        as
+      )
     }
   }
 
