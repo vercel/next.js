@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import findUp from 'find-up'
 import os from 'os'
 import { basename, extname } from 'path'
+
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 
@@ -119,10 +120,10 @@ export default function loadConfig(
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
-
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir,
   })
+
   // If config file was found
   if (path && path.length) {
     const userConfigModule = require(path)
@@ -170,13 +171,13 @@ export default function loadConfig(
         `${configBaseName}.tsx`,
         `${configBaseName}.json`,
       ],
-      {
-        cwd: dir,
-      }
+      { cwd: dir }
     )
     if (nonJsPath && nonJsPath.length) {
       throw new Error(
-        'Configuring Next.js via next.config.ts is not supported. Please replace the file with next.config.js. Alternatively, you can compile next.config.ts on each change, but this is not recommended'
+        `Configuring Next.js via '${basename(
+          nonJsPath
+        )}' is not supported. Please replace the file with 'next.config.js'.`
       )
     }
   }
