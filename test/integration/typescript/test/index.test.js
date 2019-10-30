@@ -17,6 +17,11 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 let appPort
 let app
+let output
+
+const handleOutput = msg => {
+  output += msg
+}
 
 async function get$ (path, query) {
   const html = await renderViaHTTP(appPort, path, query)
@@ -26,14 +31,22 @@ async function get$ (path, query) {
 describe('TypeScript Features', () => {
   describe('default behavior', () => {
     beforeAll(async () => {
+      output = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStdout: handleOutput,
+        onStderr: handleOutput
+      })
     })
     afterAll(() => killApp(app))
 
     it('should render the page', async () => {
       const $ = await get$('/hello')
       expect($('body').text()).toMatch(/Hello World/)
+    })
+
+    it('should report type checking to stdout', async () => {
+      expect(output).toContain('waiting for typecheck results...')
     })
 
     it('should not fail to render when an inactive page has an error', async () => {
