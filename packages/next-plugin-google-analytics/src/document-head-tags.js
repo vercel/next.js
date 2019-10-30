@@ -10,11 +10,11 @@ export default async function headTags () {
       <script
         dangerouslySetInnerHTML={{
           __html: `
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '${process.env.GA_TRACKING_ID}');
-    `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.GA_TRACKING_ID}');
+          `
         }}
       />
     </>

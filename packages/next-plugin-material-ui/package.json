@@ -6,6 +6,7 @@
     "required-env": []
   },
   "peerDependencies": {
+    "@material-ui/styles": "*",
     "next": "*"
   }
 }
