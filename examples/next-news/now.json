@@ -1,0 +1,4 @@
+{
+  "builds": [{ "src": "package.json", "use": "@now/next@canary" }]
+}
+
