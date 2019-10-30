@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
 import resolve from 'next/dist/compiled/resolve/index.js'
+import { execOnce } from '../../next-server/lib/utils'
 
 const readdir = promisify(fs.readdir)
 
@@ -12,6 +13,8 @@ export type PluginMetaData = {
   pluginName: string
   directory: string
   pkgName: string
+  version: string
+  config?: { [name: string]: any }
 }
 
 // currently supported middleware
@@ -124,6 +127,7 @@ async function collectPluginMeta(
     middleware,
     directory: pkgDir,
     requiredEnv: pluginMetaData['required-env'],
+    version: pluginPackageJson.version,
     pluginName: pluginMetaData.name,
     pkgName: pluginPackageJson.name,
   }
@@ -144,61 +148,54 @@ export const getPluginId = (pkg: string): string => {
   return pkg
 }
 
-export function getSeparatedPlugins(
-  plugins: PluginMetaData[]
-): SeparatedPlugins {
-  const appMiddlewarePlugins = []
-  const documentMiddlewarePlugins = []
-
-  for (const plugin of plugins) {
-    let addedFor_app = false
-    let addedFor_document = false
-
-    // TODO: add checking if valid middleware export
-    for (const middleware of plugin.middleware) {
-      if (!addedFor_app && middleware.startsWith('_app.')) {
-        appMiddlewarePlugins.push(plugin)
-        addedFor_app = true
-      }
-      if (!addedFor_document && middleware.startsWith('_document.')) {
-        documentMiddlewarePlugins.push(plugin)
-        addedFor_document = true
-      }
+type PluginConfig =
+  | string
+  | {
+      name: string
+      config: { [name: string]: any }
     }
-  }
 
-  return {
-    appMiddlewarePlugins,
-    documentMiddlewarePlugins,
-  }
-}
-
-export async function collectPlugins(
+async function _collectPlugins(
   dir: string,
-  env: ENV_OPTIONS
+  env: ENV_OPTIONS,
+  pluginsConfig: PluginConfig[] | undefined
 ): Promise<PluginMetaData[]> {
-  const rootPackageJsonPath = await findUp('package.json', { cwd: dir })
-  if (!rootPackageJsonPath) {
-    return []
-  }
-  const rootPackageJson = require(rootPackageJsonPath)
+  const hasPluginConfig = Array.isArray(pluginsConfig)
+  let nextPluginNames: string[] = []
 
-  let dependencies: string[] = []
-  if (rootPackageJson.dependencies) {
-    dependencies = dependencies.concat(
-      Object.keys(rootPackageJson.dependencies)
+  if (hasPluginConfig) {
+    console.log('Found plugins config, auto detecting plugins disabled')
+    nextPluginNames = pluginsConfig!.map(config =>
+      typeof config === 'string' ? config : config.name
     )
-  }
+  } else {
+    const rootPackageJsonPath = await findUp('package.json', { cwd: dir })
+    if (!rootPackageJsonPath) {
+      console.log('Failed to load plugins, no package.json')
+      return []
+    }
+    const rootPackageJson = require(rootPackageJsonPath)
+    let dependencies: string[] = []
+    if (rootPackageJson.dependencies) {
+      dependencies = dependencies.concat(
+        Object.keys(rootPackageJson.dependencies)
+      )
+    }
 
-  if (rootPackageJson.devDependencies) {
-    dependencies = dependencies.concat(
-      Object.keys(rootPackageJson.devDependencies)
-    )
-  }
+    if (rootPackageJson.devDependencies) {
+      dependencies = dependencies.concat(
+        Object.keys(rootPackageJson.devDependencies)
+      )
+    }
 
-  const nextPluginNames = dependencies.filter(name => {
-    return name.startsWith('next-plugin-') || name.startsWith('@next/plugin-')
-  })
+    // find packages with the naming convention
+    // @scope/next-plugin-[name]
+    // @next/plugin-[name]
+    // next-plugin-[name]
+    nextPluginNames = dependencies.filter(name => {
+      return name.match(/(^@next\/plugin|next-plugin-)/)
+    })
+  }
 
   const nextPluginMetaData = await Promise.all(
     nextPluginNames.map(name =>
@@ -212,5 +209,30 @@ export async function collectPlugins(
     )
   )
 
+  for (const plugin of nextPluginMetaData) {
+    // Add plugin config from `next.config.js`
+    if (hasPluginConfig) {
+      const curPlugin = pluginsConfig!.find(
+        config =>
+          config && typeof config === 'object' && config.name === plugin.pkgName
+      )
+      if (curPlugin && typeof curPlugin === 'object') {
+        plugin.config = curPlugin.config
+      }
+    }
+    console.log(
+      `Loaded plugin: ${plugin.pkgName}${
+        plugin.version ? `@${plugin.version}` : ''
+      }`
+    )
+  }
+  console.log()
+
   return nextPluginMetaData
 }
+
+// only execute it once between server/client configs
+// since the plugins need to match
+export const collectPlugins = execOnce(
+  _collectPlugins
+) as typeof _collectPlugins

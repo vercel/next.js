@@ -18,6 +18,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let app
 let appPort
+let stdout
 const appDir = join(__dirname, '../app')
 const nextConfigPath = join(appDir, 'next.config.js')
 
@@ -59,6 +60,12 @@ function runTests () {
     await waitFor(250)
     expect(await browser.eval('window.didClientInit')).toBe(true)
   })
+
+  it('should list loaded plugins', async () => {
+    expect(stdout).toMatch(/loaded plugin: @next\/plugin-google-analytics/i)
+    expect(stdout).toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
+    expect(stdout).toMatch(/loaded plugin: next-plugin-normal/i)
+  })
 }
 
 describe('Next.js plugins', () => {
@@ -69,11 +76,44 @@ describe('Next.js plugins', () => {
         `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStdout (msg) {
+          stdout += msg
+        }
+      })
     })
     afterAll(() => killApp(app))
 
     runTests(true)
+
+    it('should disable auto detecting plugins when plugin config is used', async () => {
+      await killApp(app)
+      await fs.writeFile(
+        nextConfigPath,
+        `
+      module.exports = {
+        experimental: {
+          plugins: true
+        },
+        plugins: [
+          '@next/plugin-google-analytics'
+        ],
+        env: {
+          GA_TRACKING_ID: 'my-tracking-id'
+        }
+      }`
+      )
+      appPort = await findPort()
+      stdout = ''
+      app = await launchApp(appDir, appPort, {
+        onStdout (msg) {
+          stdout += msg
+        }
+      })
+      expect(stdout).toMatch(/loaded plugin: @next\/plugin-google-analytics/i)
+      expect(stdout).not.toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
+      expect(stdout).not.toMatch(/loaded plugin: next-plugin-normal/i)
+    })
   })
 
   describe('production mode', () => {
@@ -82,7 +122,10 @@ describe('Next.js plugins', () => {
         nextConfigPath,
         `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
-      await nextBuild(appDir)
+      const results = await nextBuild(appDir, undefined, {
+        stdout: true
+      })
+      stdout = results.stdout
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -97,7 +140,10 @@ describe('Next.js plugins', () => {
         nextConfigPath,
         `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
-      await nextBuild(appDir)
+      const results = await nextBuild(appDir, undefined, {
+        stdout: true
+      })
+      stdout = results.stdout
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })

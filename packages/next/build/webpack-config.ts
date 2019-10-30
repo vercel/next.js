@@ -79,7 +79,7 @@ export default async function getBaseWebpackConfig(
   let plugins: PluginMetaData[] = []
 
   if (config.experimental.plugins) {
-    plugins = await collectPlugins(dir, config.env)
+    plugins = await collectPlugins(dir, config.env, config.plugins)
     pluginLoaderOptions.plugins = plugins
   }
   const distDir = path.join(dir, config.distDir)
