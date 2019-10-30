@@ -12,9 +12,9 @@ const steps = [
 export default () => {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <React.Fragment>
+    <>
       <Button
-        variant="primary"
+        variant='primary'
         onClick={() => setIsOpen(true)}
         style={{ margin: 20 }}
       >
@@ -24,11 +24,11 @@ export default () => {
         <Wizard
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
-          title="Simple Wizard"
-          description="Simple Wizard Description"
+          title='Simple Wizard'
+          description='Simple Wizard Description'
           steps={steps}
         />
       )}
-    </React.Fragment>
+    </>
   )
 }
