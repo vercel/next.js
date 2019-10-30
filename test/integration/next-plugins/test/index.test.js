@@ -86,33 +86,48 @@ describe('Next.js plugins', () => {
 
     runTests(true)
 
-    it('should disable auto detecting plugins when plugin config is used', async () => {
-      await killApp(app)
-      await fs.writeFile(
-        nextConfigPath,
-        `
-      module.exports = {
-        experimental: {
-          plugins: true
-        },
-        plugins: [
-          '@next/plugin-google-analytics'
-        ],
-        env: {
-          GA_TRACKING_ID: 'my-tracking-id'
-        }
-      }`
-      )
-      appPort = await findPort()
-      stdout = ''
-      app = await launchApp(appDir, appPort, {
-        onStdout (msg) {
-          stdout += msg
-        }
+    describe('with plugin config', () => {
+      beforeAll(async () => {
+        await killApp(app)
+        await fs.writeFile(
+          nextConfigPath,
+          `
+        module.exports = {
+          experimental: {
+            plugins: true
+          },
+          plugins: [
+            {
+              name: '@next/plugin-google-analytics',
+              config: { hello: 'world' }
+            }
+          ],
+          env: {
+            GA_TRACKING_ID: 'my-tracking-id'
+          }
+        }`
+        )
+        appPort = await findPort()
+        stdout = ''
+        app = await launchApp(appDir, appPort, {
+          onStdout (msg) {
+            stdout += msg
+          }
+        })
       })
-      expect(stdout).toMatch(/loaded plugin: @next\/plugin-google-analytics/i)
-      expect(stdout).not.toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
-      expect(stdout).not.toMatch(/loaded plugin: next-plugin-normal/i)
+      afterAll(() => killApp(app))
+
+      it('should disable auto detecting plugins when plugin config is used', async () => {
+        expect(stdout).toMatch(/loaded plugin: @next\/plugin-google-analytics/i)
+        expect(stdout).not.toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
+        expect(stdout).not.toMatch(/loaded plugin: next-plugin-normal/i)
+      })
+
+      it('should expose a plugins config', async () => {
+        const browser = await webdriver(appPort, '/')
+        await waitFor(500)
+        expect(await browser.eval('window.initClientConfig')).toBe('world')
+      })
     })
   })
 
