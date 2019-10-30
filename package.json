@@ -28,25 +28,6 @@
     "next": "./packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
-  "lint-staged": {
-    "*.js": [
-      "prettier --write",
-      "standard --fix",
-      "git add"
-    ],
-    "*.tsx": [
-      "prettier --write",
-      "git add"
-    ],
-    "*.ts": [
-      "prettier --write",
-      "git add"
-    ],
-    "*.md": [
-      "prettier --write",
-      "git add"
-    ]
-  },
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
@@ -97,7 +78,7 @@
     "jest-cli": "24.8.0",
     "jest-junit": "6.4.0",
     "lerna": "3.14.1",
-    "lint-staged": "8.1.7",
+    "lint-staged": "9.4.2",
     "mkdirp": "0.5.1",
     "moment": "^2.24.0",
     "node-fetch": "2.6.0",
@@ -111,6 +92,7 @@
     "release": "6.0.1",
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
+    "shell-quote": "1.7.2",
     "standard": "12.0.1",
     "taskr": "1.1.0",
     "tree-kill": "1.2.1",
