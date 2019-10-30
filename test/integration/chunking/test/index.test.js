@@ -1,8 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import webdriver from 'next-webdriver'
-import express from 'express'
 import {
   nextBuild,
   findPort,
@@ -11,7 +9,6 @@ import {
   killApp
 } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
-import { nextServer, nextBuild, startApp, stopApp } from 'next-test-utils'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
@@ -110,41 +107,6 @@ describe('Chunking', () => {
     })
     expect(misplacedReactDom).toBe(false)
   })
-  
-  describe('assetPrefix support', () => {
-    let appPort
-    let server
-    let staticServer
-    let app
-
-    beforeAll(async () => {
-      app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true
-      })
-
-      server = await startApp(app)
-      appPort = server.address().port
-      staticServer = express()
-        .use('/_next', express.static(join(appDir, '.next')))
-        .listen(32433)
-    })
-
-    afterAll(() => {
-      staticServer.close()
-      stopApp(server)
-    })
-
-    it('should use correct urls for chunks', async () => {
-      const browser = await webdriver(appPort, '/page1')
-      await browser.waitForElementByCss('#page-2')
-      const scripts = await browser.elementsByCss('script[src*="/_next/"]')
-      for (let script of scripts) {
-        const src = await browser.getAttribute(script, 'src')
-        expect(src).toMatch(/^http:\/\/prefix\.localhost:32433\/_next\//)
-      }
-    })
 
   it('should hydrate with granularChunks config', async () => {
     const appPort = await findPort()
