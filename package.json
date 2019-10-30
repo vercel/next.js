@@ -62,7 +62,7 @@
     "babel-jest": "24.8.0",
     "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
-    "chromedriver": "76.0.1",
+    "chromedriver": "78.0.1",
     "clone": "2.1.2",
     "coveralls": "3.0.3",
     "cross-spawn": "6.0.5",
