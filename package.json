@@ -9,7 +9,7 @@
     "dev": "lerna run build --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest",
-    "testall": "yarn check && yarn run testonly -- --ci --reporters=default --reporters=jest-junit --forceExit --runInBand",
+    "testall": "yarn run testonly -- --ci --reporters=default --reporters=jest-junit --forceExit --runInBand",
     "pretest": "yarn run lint",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
@@ -81,7 +81,7 @@
     "babel-jest": "24.8.0",
     "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
-    "chromedriver": "75.1.0",
+    "chromedriver": "76.0.1",
     "clone": "2.1.2",
     "coveralls": "3.0.3",
     "cross-spawn": "6.0.5",
@@ -107,7 +107,7 @@
     "prettier": "1.17.1",
     "react": "16.10.2",
     "react-dom": "16.10.2",
-    "react-ssr-prepass": "1.0.5",
+    "react-ssr-prepass": "1.0.7",
     "release": "6.0.1",
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
@@ -119,6 +119,10 @@
     "wait-port": "0.2.2",
     "wd": "1.11.3",
     "webpack-bundle-analyzer": "3.3.2"
+  },
+  "resolutions": {
+    "browserslist": "^4.7.1",
+    "caniuse-lite": "^1.0.30001002"
   },
   "engines": {
     "node": ">= 8.0.0"
