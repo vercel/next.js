@@ -41,7 +41,7 @@ type AmpStatus = {
   code: string
 }
 
-type AmpPageStatus = {
+export type AmpPageStatus = {
   [page: string]: { errors: AmpStatus[]; warnings: AmpStatus[] }
 }
 

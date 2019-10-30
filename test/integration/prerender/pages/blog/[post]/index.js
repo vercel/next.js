@@ -18,6 +18,10 @@ export async function unstable_getStaticProps ({ params }) {
     })
   }
 
+  if (params.post === 'post-100') {
+    throw new Error('such broken..')
+  }
+
   return {
     props: {
       post: params.post,

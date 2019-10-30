@@ -7,7 +7,7 @@ Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
 3. Install the dependencies: `yarn`
 4. Run `yarn dev` to build and watch for code changes
 5. In a new terminal, run `yarn types` to compile declaration files from TypeScript
-6. The development branch is `canary`. On a release, the relevant parts of the changes in the `canary` branch are rebased into `master`.
+6. The development branch is `canary` (this is the branch pull requests should be made against). On a release, the relevant parts of the changes in the `canary` branch are rebased into `master`.
 
 > You may need to run `yarn types` again if your types get outdated.
 

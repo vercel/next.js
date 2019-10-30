@@ -158,6 +158,7 @@ type RenderOpts = {
     props: any
     revalidate: number | false
   }
+  unstable_getStaticParams?: () => void
 }
 
 function renderDocument(
@@ -209,8 +210,8 @@ function renderDocument(
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
       <AmpStateContext.Provider value={ampState}>
-        <Document
-          __NEXT_DATA__={{
+        {Document.renderDocument(Document, {
+          __NEXT_DATA__: {
             dataManager: dataManagerData,
             props, // The result of getInitialProps
             page: pathname, // The rendered page
@@ -224,21 +225,21 @@ function renderDocument(
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-          }}
-          dangerousAsPath={dangerousAsPath}
-          canonicalBase={canonicalBase}
-          ampPath={ampPath}
-          inAmpMode={inAmpMode}
-          isDevelopment={!!dev}
-          hasCssMode={hasCssMode}
-          hybridAmp={hybridAmp}
-          staticMarkup={staticMarkup}
-          devFiles={devFiles}
-          files={files}
-          dynamicImports={dynamicImports}
-          assetPrefix={assetPrefix}
-          {...docProps}
-        />
+          },
+          dangerousAsPath,
+          canonicalBase,
+          ampPath,
+          inAmpMode,
+          isDevelopment: !!dev,
+          hasCssMode,
+          hybridAmp,
+          staticMarkup,
+          devFiles,
+          files,
+          dynamicImports,
+          assetPrefix,
+          ...docProps,
+        })}
       </AmpStateContext.Provider>
     )
   )
@@ -268,6 +269,7 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
     unstable_getStaticProps,
+    unstable_getStaticParams,
   } = renderOpts
 
   const isSpr = !!unstable_getStaticProps
@@ -281,6 +283,12 @@ export async function renderToHTML(
 
   if (hasPageGetInitialProps && isSpr) {
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (!!unstable_getStaticParams && !isSpr) {
+    throw new Error(
+      `unstable_getStaticParams was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticParams does nothing`
+    )
   }
 
   if (dev) {
@@ -313,6 +321,7 @@ export async function renderToHTML(
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
+  if (isSpr) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 

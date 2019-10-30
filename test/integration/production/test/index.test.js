@@ -377,8 +377,10 @@ describe('Production Usage', () => {
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
       const file = await renderViaHTTP(appPort, '/file')
+      const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
       expect(data).toBe('data')
       expect(file).toBe('test')
+      expect(legacy).toMatch(`new static folder`)
     })
 
     it('should reload the page on page script error', async () => {
@@ -659,6 +661,24 @@ describe('Production Usage', () => {
         await browser.close()
       }
     }
+  })
+
+  it('should have async on all script tags', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    let missing = false
+
+    for (const script of $('script').toArray()) {
+      // application/json doesn't need defer
+      if (script.attribs.type === 'application/json') {
+        continue
+      }
+
+      if (script.attribs.async !== '') {
+        missing = true
+      }
+    }
+    expect(missing).toBe(false)
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

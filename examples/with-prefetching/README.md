@@ -4,7 +4,7 @@
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-prefetching with-prefetching-app
@@ -42,5 +42,7 @@ now
 This example features:
 
 - An app with four simple pages
-- The "about" page uses the imperative (i.e.: "manual") prefetching API to prefetch on hover
-- It will prefetch all the pages in the background except the "contact" page
+
+  - Home/Features: Default api
+  - About: Imperative api
+  - Contact: Disable api

@@ -47,12 +47,15 @@ const defaultConfig: { [key: string]: any } = {
     profiling: false,
     publicDirectory: false,
     sprFlushToDisk: true,
+    deferScripts: false,
+    workerThreads: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactStrictMode: false,
 }
 
 const experimentalWarning = execOnce(() => {
@@ -75,6 +78,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       userConfig[key] !== defaultConfig[key]
     ) {
       experimentalWarning()
+    }
+
+    if (key === 'distDir' && userConfig[key] === 'public') {
+      throw new Error(
+        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+      )
     }
 
     const maybeObject = userConfig[key]
@@ -105,7 +114,7 @@ function normalizeConfig(phase: string, config: any) {
 export default function loadConfig(
   phase: string,
   dir: string,
-  customConfig: any
+  customConfig?: object | null
 ) {
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
@@ -141,12 +150,14 @@ export default function loadConfig(
     if (
       userConfig.target &&
       userConfig.target !== 'server' &&
-      userConfig.publicRuntimeConfig &&
-      Object.keys(userConfig.publicRuntimeConfig).length !== 0
+      ((userConfig.publicRuntimeConfig &&
+        Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
+        (userConfig.serverRuntimeConfig &&
+          Object.keys(userConfig.serverRuntimeConfig).length !== 0))
     ) {
       // TODO: change error message tone to "Only compatible with [fat] server mode"
       throw new Error(
-        'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+        'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
     }
 
