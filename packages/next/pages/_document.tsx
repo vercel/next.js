@@ -146,6 +146,7 @@ export class Head extends Component<
     cssFiles.forEach(file => {
       cssLinkElements.push(
         <link
+          key="${file}-preload"
           nonce={this.props.nonce}
           rel="preload"
           href={`${assetPrefix}/_next/${encodeURI(file)}`}
@@ -273,49 +274,53 @@ export class Head extends Component<
     let hasCanonicalRel = false
 
     // show warning and remove conflicting amp head tags
-    head = !inAmpMode
-      ? head
-      : React.Children.map(head || [], child => {
-          if (!child) return child
-          const { type, props } = child
-          let badProp: string = ''
+    head = React.Children.map(head || [], child => {
+      if (!child) return child
+      const { type, props } = child
 
-          if (type === 'meta' && props.name === 'viewport') {
-            badProp = 'name="viewport"'
-          } else if (type === 'link' && props.rel === 'canonical') {
-            hasCanonicalRel = true
-          } else if (type === 'link' && props.rel === 'amphtml') {
-            hasAmphtmlRel = true
-          } else if (type === 'script') {
-            // only block if
-            // 1. it has a src and isn't pointing to ampproject's CDN
-            // 2. it is using dangerouslySetInnerHTML without a type or
-            // a type of text/javascript
-            if (
-              (props.src && props.src.indexOf('ampproject') < -1) ||
-              (props.dangerouslySetInnerHTML &&
-                (!props.type || props.type === 'text/javascript'))
-            ) {
-              badProp = '<script'
-              Object.keys(props).forEach(prop => {
-                badProp += ` ${prop}="${props[prop]}"`
-              })
-              badProp += '/>'
-            }
-          }
+      if (inAmpMode) {
+        let badProp: string = ''
 
-          if (badProp) {
-            console.warn(
-              `Found conflicting amp tag "${
-                child.type
-              }" with conflicting prop ${badProp} in ${
-                __NEXT_DATA__.page
-              }. https://err.sh/next.js/conflicting-amp-tag`
-            )
-            return null
+        if (type === 'meta' && props.name === 'viewport') {
+          badProp = 'name="viewport"'
+        } else if (type === 'link' && props.rel === 'canonical') {
+          hasCanonicalRel = true
+        } else if (type === 'script') {
+          // only block if
+          // 1. it has a src and isn't pointing to ampproject's CDN
+          // 2. it is using dangerouslySetInnerHTML without a type or
+          // a type of text/javascript
+          if (
+            (props.src && props.src.indexOf('ampproject') < -1) ||
+            (props.dangerouslySetInnerHTML &&
+              (!props.type || props.type === 'text/javascript'))
+          ) {
+            badProp = '<script'
+            Object.keys(props).forEach(prop => {
+              badProp += ` ${prop}="${props[prop]}"`
+            })
+            badProp += '/>'
           }
-          return child
-        })
+        }
+
+        if (badProp) {
+          console.warn(
+            `Found conflicting amp tag "${
+              child.type
+            }" with conflicting prop ${badProp} in ${
+              __NEXT_DATA__.page
+            }. https://err.sh/next.js/conflicting-amp-tag`
+          )
+          return null
+        }
+      } else {
+        // non-amp mode
+        if (type === 'link' && props.rel === 'amphtml') {
+          hasAmphtmlRel = true
+        }
+      }
+      return child
+    })
 
     // try to parse styles from fragment for backwards compat
     const curStyles: React.ReactElement[] = Array.isArray(styles)
@@ -516,7 +521,8 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          async
+          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
+          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -556,7 +562,8 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          async
+          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
+          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           {...modernProps}
         />
@@ -589,6 +596,7 @@ export class NextScript extends Component<OriginProps> {
       devFiles,
       __NEXT_DATA__,
     } = this.context._documentProps
+    const deferScripts: any = process.env.__NEXT_DEFER_SCRIPTS
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     if (inAmpMode) {
@@ -643,7 +651,8 @@ export class NextScript extends Component<OriginProps> {
 
     const pageScript = [
       <script
-        async
+        defer={deferScripts}
+        async={!deferScripts}
         data-next-page={page}
         key={page}
         src={
@@ -657,7 +666,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          async
+          defer={deferScripts}
+          async={!deferScripts}
           data-next-page={page}
           key={`${page}-modern`}
           src={
@@ -676,7 +686,8 @@ export class NextScript extends Component<OriginProps> {
 
     const appScript = [
       <script
-        async
+        defer={deferScripts}
+        async={!deferScripts}
         data-next-page="/_app"
         src={
           assetPrefix +
@@ -690,7 +701,8 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          async
+          defer={deferScripts}
+          async={!deferScripts}
           data-next-page="/_app"
           src={
             assetPrefix +

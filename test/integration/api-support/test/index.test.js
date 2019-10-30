@@ -180,6 +180,23 @@ function runTests (serverless = false) {
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
+  it('should return empty query object', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/query', null, {}).then(
+      res => res.ok && res.json()
+    )
+    expect(data).toEqual({})
+  })
+
+  it('should parse query correctly', async () => {
+    const data = await fetchViaHTTP(
+      appPort,
+      '/api/query?a=1&b=2&a=3',
+      null,
+      {}
+    ).then(res => res.ok && res.json())
+    expect(data).toEqual({ a: ['1', '3'], b: '2' })
+  })
+
   it('should return empty cookies object', async () => {
     const data = await fetchViaHTTP(appPort, '/api/cookies', null, {}).then(
       res => res.ok && res.json()

@@ -200,6 +200,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/manual-rels')
       const $ = cheerio.load(html)
       expect($('link[rel=amphtml]').attr('href')).toBe('/my-custom-amphtml')
+      expect($('link[rel=amphtml]')).toHaveLength(1)
     })
   })
 
@@ -225,6 +226,27 @@ describe('AMP Usage', () => {
 
       expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
       expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
+    })
+  })
+
+  describe('AMP dev no-warn', () => {
+    let dynamicAppPort
+    let ampDynamic
+
+    it('should not warn on valid amp', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout (msg) {
+          inspectPayload += msg
+        }
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/only-amp')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).not.toContain('warn')
     })
   })
 
