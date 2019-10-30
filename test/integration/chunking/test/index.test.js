@@ -97,7 +97,8 @@ describe('Chunking', () => {
     })
     expect(misplacedReactDom).toBe(false)
   })
-  describe('Dynamic loading chunks with assetPrefix', () => {
+  
+  describe('assetPrefix support', () => {
     let appPort
     let server
     let staticServer
@@ -114,20 +115,21 @@ describe('Chunking', () => {
       appPort = server.address().port
       staticServer = express()
         .use('/_next', express.static(join(appDir, '.next')))
-        .listen(3333)
+        .listen(32433)
     })
 
     afterAll(() => {
       staticServer.close()
       stopApp(server)
     })
+
     it('should use correct urls for chunks', async () => {
       const browser = await webdriver(appPort, '/page1')
       await browser.waitForElementByCss('#page-2')
       const scripts = await browser.elementsByCss('script[src*="/_next/"]')
       for (let script of scripts) {
         const src = await browser.getAttribute(script, 'src')
-        expect(src).toMatch(/^http:\/\/localhost:3333\/_next\//)
+        expect(src).toMatch(/^http:\/\/prefix\.localhost:32433\/_next\//)
       }
     })
   })
