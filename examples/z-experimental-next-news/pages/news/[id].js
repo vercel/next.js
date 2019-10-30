@@ -12,9 +12,11 @@ export async function unstable_getStaticProps ({ params }) {
 
 function News ({ page, stories }) {
   const offset = (page - 1) * 30
-  return <Page>
-    <Stories page={page} offset={offset} stories={stories} />
-  </Page>
+  return (
+    <Page>
+      <Stories page={page} offset={offset} stories={stories} />
+    </Page>
+  )
 }
 
 export default News

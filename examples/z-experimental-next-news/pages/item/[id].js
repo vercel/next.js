@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react'
+import React, { useState, useEffect } from 'react'
 import Page from '../../components/page'
 import Item from '../../components/item'
 import getItem from '../../lib/get-item'
@@ -10,16 +10,18 @@ export async function unstable_getStaticProps ({ params }) {
   return { props: { story } }
 }
 
-function ItemPage({ story }) {
+function ItemPage ({ story }) {
   const [comments, setComments] = useState(null)
   useEffect(() => {
     getComments(story.comments)
-        .then((comments) => setComments(comments))
-        .catch((err) => console.error(err))
+      .then(comments => setComments(comments))
+      .catch(err => console.error(err))
   }, [])
-  return <Page>
-    <Item story={story} comments={comments} />
-  </Page>
+  return (
+    <Page>
+      <Item story={story} comments={comments} />
+    </Page>
+  )
 }
 
 export default ItemPage
