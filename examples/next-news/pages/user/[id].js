@@ -1,1 +1,1 @@
-export default () => <div>user page (WIP)</div>
+export default () => <>user page (WIP)</>

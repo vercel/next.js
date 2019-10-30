@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {useState, useEffect} from 'react'
 import Page from '../../components/page'
 import Item from '../../components/item'
 import getItem from '../../lib/get-item'
@@ -10,30 +10,16 @@ export async function unstable_getStaticProps ({ params }) {
   return { props: { story } }
 }
 
-export default class extends React.Component {
-  constructor (props) {
-    super(props)
-    this.state = {}
-  }
-
-  render () {
-    const { story } = this.props
-    const comments = this.state.comments || this.props.comments
-    return <Page>
-      <Item story={story} comments={comments} />
-    </Page>
-  }
-
-  componentDidMount () {
-    if (!this.props.comments) {
-      // populate comments client side
-      getComments(this.props.story.comments)
-        .then((comments) => {
-          this.setState({ comments })
-        })
-        .catch((err) => {
-          console.error(err)
-        })
-    }
-  }
+function ItemPage({ story }) {
+  const [comments, setComments] = useState(null)
+  useEffect(() => {
+    getComments(story.comments)
+        .then((comments) => setComments(comments))
+        .catch((err) => console.error(err))
+  }, [])
+  return <Page>
+    <Item story={story} comments={comments} />
+  </Page>
 }
+
+export default ItemPage
