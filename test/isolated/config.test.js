@@ -85,4 +85,27 @@ describe('config', () => {
     )
     expect(config.target).toBe('serverless')
   })
+
+  it('Should throw an error when next.config.js is not present', () => {
+    try {
+      loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        join(__dirname, '_resolvedata', 'typescript-config')
+      )
+      // makes sure we don't just pass if the loadConfig passes while it should fail
+      throw new Error('failed')
+    } catch (err) {
+      expect(err.message).toMatch(
+        /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'./
+      )
+    }
+  })
+
+  it('Should not throw an error when two versions of next.config.js are present', () => {
+    const config = loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      join(__dirname, '_resolvedata', 'js-ts-config')
+    )
+    expect(config.__test__ext).toBe('js')
+  })
 })
