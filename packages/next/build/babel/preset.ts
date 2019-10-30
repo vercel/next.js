@@ -39,6 +39,7 @@ function styledJsxOptions(options: StyledJsxBabelOptions) {
 type NextBabelPresetOptions = {
   'preset-env'?: any
   'preset-react'?: any
+  'preset-typescript'?: any
   'class-properties'?: any
   'transform-runtime'?: any
   'experimental-modern-preset'?: PluginItem
@@ -116,7 +117,10 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      require('@babel/preset-typescript'),
+      [
+        require('@babel/preset-typescript'),
+        { ...options['preset-typescript'] },
+      ],
     ],
     plugins: [
       [
