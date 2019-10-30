@@ -43,6 +43,7 @@ type NextBabelPresetOptions = {
   'transform-runtime'?: any
   'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
+  'jsx-pragma'?: boolean
 }
 
 type BabelPreset = {
@@ -119,7 +120,7 @@ module.exports = (
       require('@babel/preset-typescript'),
     ],
     plugins: [
-      [
+      options['jsx-pragma'] !== false && [
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:

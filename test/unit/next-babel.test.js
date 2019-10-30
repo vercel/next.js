@@ -29,6 +29,13 @@ const babel = (code, esm = false, presetOptions = {}) =>
 
 describe('next/babel', () => {
   describe('jsx-pragma', () => {
+    it('should be optional', () => {
+      const output = babel(`const a = () => <a href="/">home</a>;`, true, {
+        'jsx-pragma': false
+      })
+      // it should not add a React import:
+      expect(output).not.toMatch(`import React from"react"`)
+    })
     it('should transform JSX to use a local identifier in modern mode', () => {
       const output = babel(`const a = () => <a href="/">home</a>;`, true)
 
