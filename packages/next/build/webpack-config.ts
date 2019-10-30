@@ -338,9 +338,9 @@ export default async function getBaseWebpackConfig(
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            const start = request.charAt(0);
+            const start = request.charAt(0)
             if (start === '.' || start === '/') {
-              return callback();
+              return callback()
             }
 
             // Resolve the import with the webpack provided context, this
