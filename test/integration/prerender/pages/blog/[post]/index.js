@@ -3,11 +3,7 @@ import Link from 'next/link'
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticParams () {
-  return [
-    '/blog/post-1',
-    { post: 'post-2' },
-    '/blog/[post3]'
-  ]
+  return ['/blog/post-1', { post: 'post-2' }, '/blog/[post3]']
 }
 
 // eslint-disable-next-line camelcase
