@@ -8,7 +8,7 @@ module.exports = withCSS(
   withTM({
     transpileModules: ['@patternfly'],
     // Webpack config from https://github.com/patternfly/patternfly-react-seed/blob/master/webpack.common.js
-    webpack(config) {
+    webpack (config) {
       config.module.rules.push({
         test: /\.(svg|ttf|eot|woff|woff2)$/,
         // only process modules with this loader
