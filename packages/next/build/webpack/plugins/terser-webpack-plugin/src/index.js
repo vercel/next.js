@@ -182,7 +182,7 @@ export class TerserPlugin {
 
             // if we are using babel cache we can't rely on the page-config
             // plugin to update this value so check for it manually
-            if (input.indexOf(prerenderId) > -1) {
+            if (file.match(/pages(\\|\/)/) && input.indexOf(prerenderId) > -1) {
               sprStatus.used = true
             }
 
