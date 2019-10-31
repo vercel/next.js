@@ -479,10 +479,6 @@ describe('SPR Prerender', () => {
         nextConfig,
         `module.exports = { exportTrailingSlash: true }`
       )
-      // TODO: investigate stale cache causing iSSG to break on export when a
-      // previous build was done with exportTrailingSlash disabled and then the
-      // following with it enabled
-      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
