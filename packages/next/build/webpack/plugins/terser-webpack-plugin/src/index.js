@@ -180,21 +180,6 @@ export class TerserPlugin {
               inputSourceMap = null
             }
 
-            // if we are using babel cache we can't rely on the page-config
-            // plugin to update this value so check for it manually
-            if (file.match(/pages(\\|\/)/) && input.indexOf(prerenderId) > -1) {
-              sprStatus.used = true
-            }
-
-            // force dead-code elimination for SPR related code if not used
-            const { compress } = this.options.terserOptions
-            if (compress) {
-              if (!compress.global_defs) {
-                compress.global_defs = {}
-              }
-              compress.global_defs['self.__HAS_SPR'] = !!sprStatus.used
-            }
-
             const task = {
               file,
               input,
