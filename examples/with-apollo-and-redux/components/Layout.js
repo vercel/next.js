@@ -1,5 +1,10 @@
-export default ({ children }) => (
+import React from 'react'
+import Nav from './Nav'
+import PropTypes from 'prop-types'
+
+const Layout = ({ children }) => (
   <main>
+    <Nav />
     {children}
     <style jsx global>{`
       * {
@@ -27,8 +32,9 @@ export default ({ children }) => (
         background-color: #22bad9;
         border: 0;
         color: white;
-        display: flex;
+        display: inline-flex;
         padding: 5px 7px;
+        margin-right: 1px;
       }
       button:active {
         background-color: #1b9db7;
@@ -37,6 +43,19 @@ export default ({ children }) => (
       button:focus {
         outline: none;
       }
+
+      hr {
+        height: 1px;
+        border: none;
+        background: #ececec;
+        margin: 20px 0;
+      }
     `}</style>
   </main>
 )
+
+Layout.propTypes = {
+  children: PropTypes.node.isRequired
+}
+
+export default Layout
