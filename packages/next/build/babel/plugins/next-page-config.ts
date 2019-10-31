@@ -4,12 +4,12 @@ import * as BabelTypes from '@babel/types'
 import { PageConfig } from '../../../types'
 
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
+export const prerenderId = '__NEXT_SPR'
 export const sprStatus = { used: false }
 
 const configKeys = new Set(['amp'])
 const pageComponentVar = '__NEXT_COMP'
 // this value can't be optimized by terser so the shorter the better
-const prerenderId = '__NEXT_SPR'
 const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 const EXPORT_NAME_GET_STATIC_PARAMS = 'unstable_getStaticParams'
 

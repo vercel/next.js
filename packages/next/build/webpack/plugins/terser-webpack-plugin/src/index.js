@@ -6,7 +6,10 @@ import { SourceMapConsumer } from 'source-map'
 import { SourceMapSource, RawSource } from 'webpack-sources'
 import { RequestShortener } from 'webpack'
 import TaskRunner from './TaskRunner'
-import { sprStatus } from '../../../../babel/plugins/next-page-config'
+import {
+  prerenderId,
+  sprStatus,
+} from '../../../../babel/plugins/next-page-config'
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/
 
@@ -175,6 +178,12 @@ export class TerserPlugin {
             } else {
               input = asset.source()
               inputSourceMap = null
+            }
+
+            // if we are using babel cache we can't rely on the page-config
+            // plugin to update this value so check for it manually
+            if (input.indexOf(prerenderId) > -1) {
+              sprStatus.used = true
             }
 
             // force dead-code elimination for SPR related code if not used
