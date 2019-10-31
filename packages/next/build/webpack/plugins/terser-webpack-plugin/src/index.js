@@ -6,10 +6,6 @@ import { SourceMapConsumer } from 'source-map'
 import { SourceMapSource, RawSource } from 'webpack-sources'
 import { RequestShortener } from 'webpack'
 import TaskRunner from './TaskRunner'
-import {
-  prerenderId,
-  sprStatus,
-} from '../../../../babel/plugins/next-page-config'
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/
 
