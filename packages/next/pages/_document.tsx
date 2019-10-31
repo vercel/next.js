@@ -15,11 +15,11 @@ import {
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 // @ts-ignore
-import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags!'
+import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags-server!'
 // @ts-ignore
-import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags!'
+import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags-server!'
 // @ts-ignore
-import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props!'
+import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props-server!'
 // @ts-ignore
 import enhanceAppMiddleware from 'next-plugin-loader?middleware=enhance-app-server!'
 // @ts-ignore

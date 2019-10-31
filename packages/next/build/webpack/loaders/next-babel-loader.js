@@ -56,8 +56,7 @@ module.exports = babelLoader.custom(babel => {
         isModern: opts.isModern,
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
-        appMiddlewarePlugins: opts.appMiddlewarePlugins,
-        documentMiddlewarePlugins: opts.documentMiddlewarePlugins
+        babelPresetPlugins: opts.babelPresetPlugins
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -90,8 +89,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.isModern
       delete loader.hasModern
       delete loader.pagesDir
-      delete loader.appMiddlewarePlugins
-      delete loader.documentMiddlewarePlugins
+      delete loader.babelPresetPlugins
       return { loader, custom }
     },
     config (
@@ -103,8 +101,7 @@ module.exports = babelLoader.custom(babel => {
           isModern,
           hasModern,
           pagesDir,
-          appMiddlewarePlugins,
-          documentMiddlewarePlugins
+          babelPresetPlugins
         }
       }
     ) {
@@ -193,6 +190,13 @@ module.exports = babelLoader.custom(babel => {
           plugins: [commonJsItem]
         }
       ]
+
+      for (const plugin of babelPresetPlugins) {
+        require(join(plugin.dir, 'src', 'babel-preset-build.js'))(
+          options,
+          plugin.config || {}
+        )
+      }
 
       return options
     }

@@ -77,10 +77,20 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   let plugins: PluginMetaData[] = []
+  let babelPresetPlugins: { dir: string; config: any }[] = []
 
   if (config.experimental.plugins) {
     plugins = await collectPlugins(dir, config.env, config.plugins)
     pluginLoaderOptions.plugins = plugins
+
+    for (const plugin of plugins) {
+      if (plugin.middleware.includes('babel-preset-build')) {
+        babelPresetPlugins.push({
+          dir: plugin.directory,
+          config: plugin.config,
+        })
+      }
+    }
   }
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -92,6 +102,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         cache: true,
+        babelPresetPlugins,
         hasModern: !!config.experimental.modern,
       },
     },
@@ -506,7 +517,7 @@ export default async function getBaseWebpackConfig(
         ...entrypoints,
         ...(isServer
           ? {
-              'init-server.js': 'next-plugin-loader?middleware=init-server!',
+              'init-server.js': 'next-plugin-loader?middleware=on-init-server!',
               'on-error-server.js':
                 'next-plugin-loader?middleware=on-error-server!',
             }

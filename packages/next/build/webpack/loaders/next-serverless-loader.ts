@@ -56,7 +56,7 @@ const nextServerlessLoader: loader.Loader = function() {
     }
       import { parse } from 'url'
       import { apiResolver } from 'next/dist/next-server/server/api-utils'
-      import initServer from 'next-plugin-loader?middleware=init-server!'
+      import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
 
       export default async (req, res) => {
@@ -83,7 +83,7 @@ const nextServerlessLoader: loader.Loader = function() {
     import {parse as parseQs} from 'querystring'
     import {renderToHTML} from 'next/dist/next-server/server/render';
     import {sendHTML} from 'next/dist/next-server/server/send-html';
-    import initServer from 'next-plugin-loader?middleware=init-server!'
+    import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
     ${
       isDynamicRoute(page)

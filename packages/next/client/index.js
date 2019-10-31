@@ -89,7 +89,7 @@ class Container extends React.Component {
 
     if (process.env.__NEXT_PLUGINS) {
       // eslint-disable-next-line
-      import('next-plugin-loader?middleware=post-hydration!')
+      import('next-plugin-loader?middleware=unstable-post-hydration!')
         .then(mod => {
           return mod.default()
         })
@@ -197,7 +197,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   // call init-client middleware
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
-    import('next-plugin-loader?middleware=init-client!')
+    import('next-plugin-loader?middleware=on-init-client!')
       .then(mod => {
         return mod.default({ router })
       })

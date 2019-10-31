@@ -144,7 +144,10 @@ describe('Next.js plugins', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(nextConfigPath)
+    })
 
     runTests()
   })
