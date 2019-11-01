@@ -290,7 +290,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     if (
       error.indexOf('private-next-pages') > -1 ||
-      error.indexOf('__internal_fetch')
+      error.indexOf('__next_polyfill__') > -1
     ) {
       throw new Error(
         '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'

@@ -1,1 +1,1 @@
-import '__internal_fetch'
+import '__next_polyfill__fetch'
