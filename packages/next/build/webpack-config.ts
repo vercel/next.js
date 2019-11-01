@@ -55,7 +55,7 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
-function getOptimizedAliases(isServer: boolean) {
+function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   if (isServer) {
     return {}
   }
