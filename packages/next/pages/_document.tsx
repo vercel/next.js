@@ -21,9 +21,9 @@ import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags
 // @ts-ignore
 import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props-server!'
 // @ts-ignore
-import enhanceAppMiddleware from 'next-plugin-loader?middleware=enhance-app-server!'
+import enhanceAppMiddleware from 'next-plugin-loader?middleware=unstable-enhance-app-server!'
 // @ts-ignore
-import getStylesMiddleware from 'next-plugin-loader?middleware=get-styles-server!'
+import getStylesMiddleware from 'next-plugin-loader?middleware=unstable-get-styles-server!'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 

@@ -22,16 +22,16 @@ export const VALID_MIDDLEWARE = [
   'document-head-tags-server',
   'document-body-tags-server',
   'document-html-props-server',
-  'enhance-app-server',
-  'get-styles-server',
   'on-init-client',
   'on-init-server',
   'on-error-server',
   'on-error-client',
   'on-error-client',
   'on-error-server',
-  'unstable-post-hydration',
   'babel-preset-build',
+  'unstable-post-hydration',
+  'unstable-get-styles-server',
+  'unstable-enhance-app-server',
 ]
 
 type ENV_OPTIONS = { [name: string]: string }
