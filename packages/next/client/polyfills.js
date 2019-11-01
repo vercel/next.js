@@ -1,2 +1,1 @@
-import * as fetch from 'whatwg-fetch'
-window.fetch = fetch
+import '__internal_fetch'

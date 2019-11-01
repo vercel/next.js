@@ -62,6 +62,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
   return {
+    __internal_fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
     'whatwg-fetch$': stubWindowFetch,
