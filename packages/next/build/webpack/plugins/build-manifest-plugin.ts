@@ -86,6 +86,8 @@ export default class BuildManifestPlugin {
         for (const [, entrypoint] of compilation.entrypoints.entries()) {
           let result = ROUTE_NAME_REGEX.exec(entrypoint.name)
 
+          // Polyfill.js needs to be part of /_app
+          // We add it as its own entry now and later merge it into /_app
           if (entrypoint.name === CLIENT_STATIC_FILES_POLYFILLS) {
             result = [, 'polyfills']
           }
@@ -131,6 +133,7 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
+        // Merge polyfills entry into /_app
         if (typeof assetMap.pages['/polyfills'] !== 'undefined') {
           assetMap.pages['/_app'].push(
             assetMap.pages['/polyfills'].find(page =>

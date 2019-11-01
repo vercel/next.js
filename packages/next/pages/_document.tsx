@@ -744,6 +744,9 @@ export class NextScript extends Component<OriginProps> {
       ),
     ]
 
+    // polyfills.js has to be rendered as nomodule without async
+    // It also has to be the first script to load
+    // So  we extract out the polyfills chunk to load it separately
     const polyfillScript = this.context._documentProps.files.find(file =>
       file.includes('polyfills')
     )
