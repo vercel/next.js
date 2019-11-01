@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@next/plugin-google-analytics": "latest",
+    "@zeit/next-plugin-scope": "latest",
+    "next-plugin-normal": "latest"
+  }
+}

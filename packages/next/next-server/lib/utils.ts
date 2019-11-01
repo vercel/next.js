@@ -153,6 +153,9 @@ export type DocumentProps = DocumentInitialProps & {
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
+  htmlProps: any
+  bodyTags: any[]
+  headTags: any[]
 }
 
 /**
@@ -200,11 +203,14 @@ export type NextApiResponse<T = any> = ServerResponse & {
  */
 export function execOnce(this: any, fn: (...args: any) => any) {
   let used = false
+  let result: any = null
+
   return (...args: any) => {
     if (!used) {
       used = true
-      fn.apply(this, args)
+      result = fn.apply(this, args)
     }
+    return result
   }
 }
 

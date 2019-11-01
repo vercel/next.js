@@ -14,6 +14,16 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
+// @ts-ignore
+import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags-server!'
+// @ts-ignore
+import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags-server!'
+// @ts-ignore
+import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props-server!'
+// @ts-ignore
+import enhanceAppMiddleware from 'next-plugin-loader?middleware=unstable-enhance-app-server!'
+// @ts-ignore
+import getStylesMiddleware from 'next-plugin-loader?middleware=unstable-get-styles-server!'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -48,15 +58,27 @@ function getOptionalModernScriptVariant(path: string) {
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
+  static headTagsMiddleware = headTagsMiddleware
+  static bodyTagsMiddleware = bodyTagsMiddleware
+  static htmlPropsMiddleware = htmlPropsMiddleware
+
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
-  static async getInitialProps({
-    renderPage,
-  }: DocumentContext): Promise<DocumentInitialProps> {
-    const { html, head, dataOnly } = await renderPage()
-    const styles = flush()
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
+    const enhancers = await enhanceAppMiddleware(ctx)
+    const enhanceApp = (App: any) => {
+      for (const enhancer of enhancers) {
+        App = enhancer(App)
+      }
+      return (props: any) => <App {...props} />
+    }
+
+    const { html, head, dataOnly } = await ctx.renderPage({ enhanceApp })
+    const styles = [...flush(), ...(await getStylesMiddleware(ctx))]
     return { html, head, styles, dataOnly }
   }
 
@@ -108,9 +130,10 @@ export class Html extends Component<
   context!: React.ContextType<typeof DocumentComponentContext>
 
   render() {
-    const { inAmpMode } = this.context._documentProps
+    const { inAmpMode, htmlProps } = this.context._documentProps
     return (
       <html
+        {...htmlProps}
         {...this.props}
         amp={inAmpMode ? '' : undefined}
         data-ampdevmode={
@@ -246,6 +269,7 @@ export class Head extends Component<
       canonicalBase,
       __NEXT_DATA__,
       dangerousAsPath,
+      headTags,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
@@ -474,6 +498,7 @@ export class Head extends Component<
             {styles || null}
           </>
         )}
+        {React.createElement(React.Fragment, {}, ...(headTags || []))}
       </head>
     )
   }
@@ -595,6 +620,7 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       devFiles,
       __NEXT_DATA__,
+      bodyTags,
     } = this.context._documentProps
     const deferScripts: any = process.env.__NEXT_DEFER_SCRIPTS
     const { _devOnlyInvalidateCacheQueryString } = this.context
@@ -636,6 +662,7 @@ export class NextScript extends Component<OriginProps> {
                 />
               ))
             : null}
+          {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
         </>
       )
     }
@@ -761,6 +788,7 @@ export class NextScript extends Component<OriginProps> {
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
+        {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
       </>
     )
   }
