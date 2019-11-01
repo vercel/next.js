@@ -83,7 +83,7 @@ const expectedManifestRoutes = () => ({
   },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
-    initialRevalidateSeconds: 0,
+    initialRevalidateSeconds: 1,
     srcRoute: null
   },
   '/blog': {
