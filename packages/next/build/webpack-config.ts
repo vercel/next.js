@@ -17,9 +17,8 @@ import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_PATH,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-  CLIENT_STATIC_FILES_POLYFILLS,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
@@ -150,7 +149,7 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
-        [CLIENT_STATIC_FILES_POLYFILLS]: path.join(
+        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
           'polyfills.js'
         ),
@@ -545,14 +544,10 @@ export default async function getBaseWebpackConfig(
         if (
           !dev &&
           (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
-            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK ||
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
-        }
-
-        // Add the polyfills.js as a chunk
-        if (chunk.name === CLIENT_STATIC_FILES_POLYFILLS) {
-          return chunk.name.replace(/\.js$/, '.[contenthash].js')
         }
 
         return '[name]'

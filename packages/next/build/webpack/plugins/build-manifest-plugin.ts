@@ -1,14 +1,15 @@
 import devalue from 'devalue'
+import { Compiler } from 'webpack'
+import { RawSource } from 'webpack-sources'
+
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
-  CLIENT_STATIC_FILES_POLYFILLS,
 } from '../../../next-server/lib/constants'
-import { Compiler } from 'webpack'
-import { RawSource } from 'webpack-sources'
 
 interface AssetMap {
   devFiles: string[]
@@ -88,8 +89,8 @@ export default class BuildManifestPlugin {
 
           // Polyfill.js needs to be part of /_app
           // We add it as its own entry now and later merge it into /_app
-          if (entrypoint.name === CLIENT_STATIC_FILES_POLYFILLS) {
-            result = [, 'polyfills']
+          if (entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS) {
+            result = [, 'polyfills'] as any
           }
 
           if (!result) {
@@ -138,7 +139,7 @@ export default class BuildManifestPlugin {
           assetMap.pages['/_app'].push(
             assetMap.pages['/polyfills'].find(page =>
               page.includes('polyfills')
-            )
+            )!
           )
 
           delete assetMap.pages['/polyfills']
