@@ -5,6 +5,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
+  CLIENT_STATIC_FILES_POLYFILLS,
 } from '../../../next-server/lib/constants'
 import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
@@ -83,7 +84,12 @@ export default class BuildManifestPlugin {
 
         // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
         for (const [, entrypoint] of compilation.entrypoints.entries()) {
-          const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
+          let result = ROUTE_NAME_REGEX.exec(entrypoint.name)
+
+          if (entrypoint.name === CLIENT_STATIC_FILES_POLYFILLS) {
+            result = [, 'polyfills']
+          }
+
           if (!result) {
             continue
           }
@@ -123,6 +129,16 @@ export default class BuildManifestPlugin {
 
         if (typeof assetMap.pages['/index'] !== 'undefined') {
           assetMap.pages['/'] = assetMap.pages['/index']
+        }
+
+        if (typeof assetMap.pages['/polyfills'] !== 'undefined') {
+          assetMap.pages['/_app'].push(
+            assetMap.pages['/polyfills'].find(page =>
+              page.includes('polyfills')
+            )
+          )
+
+          delete assetMap.pages['/polyfills']
         }
 
         // Add the runtime build manifest file (generated later in this file)

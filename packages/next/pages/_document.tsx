@@ -213,7 +213,7 @@ export class Head extends Component<
             // preloaded for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !file.includes('_buildManifest')
+              !/(_buildManifest|polyfills)/.test(file)
             )
           })
         : []
@@ -544,7 +544,7 @@ export class NextScript extends Component<OriginProps> {
 
     return files.map((file: string) => {
       // Only render .js files here
-      if (!/\.js$/.test(file)) {
+      if (!/\.js$/.test(file) || /polyfills/.test(file)) {
         return null
       }
 
@@ -717,6 +717,18 @@ export class NextScript extends Component<OriginProps> {
       ),
     ]
 
+    const polyfillScript = this.context._documentProps.files.find(file =>
+      file.includes('polyfills')
+    )
+    const polyfillScriptTag = polyfillScript ? (
+      <script
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+        noModule={true}
+        src={`${assetPrefix}/_next/${polyfillScript}${_devOnlyInvalidateCacheQueryString}`}
+      />
+    ) : null
+
     return (
       <>
         {devFiles
@@ -757,16 +769,7 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         ) : null}
-        <script
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-          noModule={true}
-          src={
-            assetPrefix +
-            `/_next/static/${buildId}/polyfill.js` +
-            _devOnlyInvalidateCacheQueryString
-          }
-        />
+        {polyfillScriptTag}
         {page !== '/_error' && pageScript}
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}

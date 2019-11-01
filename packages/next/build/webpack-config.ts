@@ -19,6 +19,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  CLIENT_STATIC_FILES_POLYFILLS,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
@@ -116,11 +117,10 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
-        [path.join(
-          CLIENT_STATIC_FILES_PATH,
-          buildId,
-          'polyfill.js'
-        )]: path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'polyfill.js'),
+        [CLIENT_STATIC_FILES_POLYFILLS]: path.join(
+          NEXT_PROJECT_ROOT_DIST_CLIENT,
+          'polyfills.js'
+        ),
       }
     : undefined
 
@@ -171,21 +171,10 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
       ...(!isServer
         ? {
+            // Alias fetch
             unfetch: path.join(__dirname, 'polyfills', 'fetch.js'),
             'isomorphic-unfetch': path.join(__dirname, 'polyfills', 'fetch.js'),
             'whatwg-fetch': path.join(__dirname, 'polyfills', 'fetch.js'),
-            'object-assign': path.join(
-              __dirname,
-              'polyfills',
-              'object-assign.js'
-            ),
-            'object.assign$': path.join(
-              __dirname,
-              'polyfills',
-              'object-assign.js'
-            ),
-            '@babel/runtime-corejs2/core-js/object/assign':
-              'next/dist/build/polyfills/object-assign.js',
           }
         : {}),
     },
@@ -514,6 +503,12 @@ export default async function getBaseWebpackConfig(
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
+
+        // Add the polyfills.js as a chunk
+        if (chunk.name === CLIENT_STATIC_FILES_POLYFILLS) {
+          return chunk.name.replace(/\.js$/, '.[contenthash].js')
+        }
+
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
