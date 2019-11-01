@@ -152,7 +152,7 @@ function createApolloClient (initialState = {}, { getToken }) {
   }
 
   const httpLink = new HttpLink({
-    uri: 'https://api.graph.cool/simple/v1/cj5geu3slxl7t0127y8sity9r', // Server URL (must be absolute)
+    uri: 'http://localhost:3000/api/graphql', // Server URL (must be absolute)
     credentials: 'same-origin',
     fetch,
     fetchOptions

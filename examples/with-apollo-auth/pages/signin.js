@@ -18,11 +18,10 @@ const SigninPage = () => (
 )
 
 SigninPage.getInitialProps = async context => {
-  const { loggedInUser } = await checkLoggedIn(context.apolloClient)
+  const data = await checkLoggedIn(context.apolloClient)
 
-  if (loggedInUser.user) {
-    // Already signed in? No need to continue.
-    // Throw them back to the main page
+  if (data.me) {
+    // If not signed in, send them somewhere more useful
     redirect(context, '/')
   }
 

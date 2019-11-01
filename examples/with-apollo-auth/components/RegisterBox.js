@@ -5,14 +5,8 @@ import cookie from 'cookie'
 import redirect from '../lib/redirect'
 
 const CREATE_USER = gql`
-  mutation Create($name: String!, $email: String!, $password: String!) {
-    createUser(
-      name: $name
-      authProvider: { email: { email: $email, password: $password } }
-    ) {
-      id
-    }
-    signinUser(email: { email: $email, password: $password }) {
+  mutation register($email: String, $name: String, $password: String) {
+    register(email: $email, name: $name, password: $password) {
       token
     }
   }
@@ -23,7 +17,7 @@ const RegisterBox = () => {
 
   const onCompleted = data => {
     // Store the token in cookie
-    document.cookie = cookie.serialize('token', data.signinUser.token, {
+    document.cookie = cookie.serialize('token', data.register.token, {
       maxAge: 30 * 24 * 60 * 60, // 30 days
       path: '/' // make cookie available for all routes underneath "/"
     })

@@ -4,8 +4,8 @@ export default apolloClient =>
   apolloClient
     .query({
       query: gql`
-        query getUser {
-          user {
+        query me {
+          me {
             id
             name
           }
@@ -13,9 +13,9 @@ export default apolloClient =>
       `
     })
     .then(({ data }) => {
-      return { loggedInUser: data }
+      return { ...data }
     })
-    .catch(() => {
+    .catch(e => {
       // Fail gracefully
-      return { loggedInUser: {} }
+      return {}
     })

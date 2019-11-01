@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "postinstall": "prisma2 generate"
   },
   "dependencies": {
     "@apollo/react-hooks": "^3.0.1",
@@ -15,14 +16,20 @@
     "apollo-client": "2.6.4",
     "apollo-link-context": "^1.0.8",
     "apollo-link-http": "1.5.15",
+    "apollo-server-micro": "^2.9.7",
+    "bcryptjs": "^2.4.3",
     "cookie": "^0.3.1",
     "graphql": "14.0.2",
     "graphql-tag": "2.10.1",
     "https-proxy-agent": "^2.2.1",
     "isomorphic-unfetch": "^2.0.0",
+    "jsonwebtoken": "^8.5.1",
     "next": "latest",
     "prop-types": "^15.6.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "prisma2": "^2.0.0-preview015"
   }
 }

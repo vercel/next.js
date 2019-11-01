@@ -23,21 +23,21 @@ const IndexPage = ({ loggedInUser }) => {
 
   return (
     <div>
-      Hello {loggedInUser.user.name}!<br />
+      Hello {loggedInUser.name}!<br />
       <button onClick={signout}>Sign out</button>
     </div>
   )
 }
 
 IndexPage.getInitialProps = async context => {
-  const { loggedInUser } = await checkLoggedIn(context.apolloClient)
+  const data = await checkLoggedIn(context.apolloClient)
 
-  if (!loggedInUser.user) {
+  if (!data.me) {
     // If not signed in, send them somewhere more useful
     redirect(context, '/signin')
   }
 
-  return { loggedInUser }
+  return { loggedInUser: data.me }
 }
 
 export default withApollo(IndexPage)

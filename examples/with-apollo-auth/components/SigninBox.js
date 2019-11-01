@@ -5,8 +5,8 @@ import cookie from 'cookie'
 import redirect from '../lib/redirect'
 
 const SIGN_IN = gql`
-  mutation Signin($email: String!, $password: String!) {
-    signinUser(email: { email: $email, password: $password }) {
+  mutation login($email: String, $password: String) {
+    login(email: $email, password: $password) {
       token
     }
   }
@@ -18,8 +18,7 @@ const SigninBox = () => {
 
   const onCompleted = data => {
     // Store the token in cookie
-    document.cookie = cookie.serialize('token', data.signinUser.token, {
-      sameSite: true,
+    document.cookie = cookie.serialize('token', data.login.token, {
       path: '/',
       maxAge: 30 * 24 * 60 * 60 // 30 days
     })
