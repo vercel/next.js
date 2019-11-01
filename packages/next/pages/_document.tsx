@@ -602,15 +602,17 @@ export class NextScript extends Component<OriginProps> {
     const { assetPrefix, polyfillFiles } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return polyfillFiles.map(polyfill => (
-      <script
-        key={polyfill}
-        nonce={this.props.nonce}
-        crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        noModule={true}
-        src={`${assetPrefix}/_next/${polyfill}${_devOnlyInvalidateCacheQueryString}`}
-      />
-    ))
+    return polyfillFiles
+      .filter(polyfill => !/\.module\.js$/.test(polyfill))
+      .map(polyfill => (
+        <script
+          key={polyfill}
+          nonce={this.props.nonce}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          noModule={true}
+          src={`${assetPrefix}/_next/${polyfill}${_devOnlyInvalidateCacheQueryString}`}
+        />
+      ))
   }
 
   static getInlineScriptSource(documentProps: DocumentProps) {
