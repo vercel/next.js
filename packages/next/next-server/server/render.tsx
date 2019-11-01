@@ -427,9 +427,9 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(
-          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:\n\n\treturn { props: { title: 'My Title', content: '...' }\n\nKeys that need moved: ${invalidKeys.join(
-            ', '
-          )}.
+          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
+            `\n\n\treturn { props: { title: 'My Title', content: '...' }` +
+            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.
         `
         )
       }
@@ -442,12 +442,13 @@ export async function renderToHTML(
             }', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
                 data.revalidate
-              )}' or using \`Math.round()\` if you're computing the value.`
+              )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.revalidate < 0) {
+        } else if (data.revalidate <= 0) {
           throw new Error(
-            `A page's revalidate option can not be less than zero. A revalidate option of zero means to revalidate _after_ every request.` +
-              `\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).`
+            `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
         } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
