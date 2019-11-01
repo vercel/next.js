@@ -37,6 +37,7 @@ import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
 import { fileExists } from '../../lib/file-exists'
+import flattenRoutes from '../../lib/flatten-routes'
 
 type NextConfig = any
 
@@ -363,62 +364,52 @@ export default class Server {
       redirects: (rewrite & { statusCode?: number })[]
     } = await this.getCustomRoutes()
 
-    const buildCustomRoute = (
-      type: 'rewrite' | 'redirect',
-      options: { source: string; destination: string; statusCode?: number }
-    ) => {
-      return {
-        [type]: true,
-        match: route(options.source),
-        fn: async (req, res, params, parsedUrl) => {
-          // TODO: investigate limiting chain depth
-          // to prevent accidental infinite chaining
-          let { destination } = options
-          let nextParsedUrl = parsedUrl
-
-          if (type === 'rewrite') {
-            for (const key of Object.keys(params)) {
-              const param = params[key]
-              destination = destination.replace(
-                new RegExp(`:${key}`, 'g'),
-                param
-              )
-            }
-            nextParsedUrl = parseUrl(destination, true)
-          }
-          let newParams: { [name: string]: string } | false = false
-
-          const nextMatch = this.router.routes.find(route => {
-            newParams = route.match(options.destination)
-            if (newParams) {
-              return true
-            }
-          }) as Route
-
-          if (type === 'redirect' && !(nextMatch as any).redirect) {
-            // we reached the end of the redirect chain can now handle it
-            res.setHeader('Location', destination)
+    routes.push(
+      ...flattenRoutes(redirects).map(redirect => {
+        return {
+          match: route(redirect.source),
+          fn: async (req, res, params, parsedUrl) => {
             // TODO: investigate which statusCode to honor in the chain
             // the first or the last, this honors the last since we don't
             // want to create a permanent redirect to the wrong place
             // if the chain leads to a temporary redirect
-            res.statusCode = options.statusCode || 307
+            res.setHeader('Location', redirect.destination)
+            res.statusCode = redirect.statusCode || 307
             res.end()
-            return
-          }
-          // we should always find a match because we have a final catch all
-          // which will render 404 for us
-          return nextMatch.fn(req, res, newParams || {}, nextParsedUrl)
-        },
-      } as Route
-    }
+          },
+        } as Route
+      })
+    )
 
-    for (const redirect of redirects) {
-      routes.push(buildCustomRoute('redirect', redirect))
-    }
-    for (const rewrite of rewrites) {
-      routes.push(buildCustomRoute('rewrite', rewrite))
-    }
+    routes.push(
+      ...flattenRoutes(rewrites).map(rewrite => {
+        return {
+          match: route(rewrite.source),
+          fn: async (req, res, params, parsedUrl) => {
+            let destinationUrl = rewrite.destination
+
+            for (const key of Object.keys(params)) {
+              const param = params[key]
+              destinationUrl = destinationUrl.replace(
+                new RegExp(`:${key}`, 'g'),
+                param
+              )
+            }
+            const nextParsedUrl = parseUrl(destinationUrl, true)
+
+            let newParams
+            const destinationRoute = this.router.routes.find(route => {
+              newParams = route.match(rewrite.destination)
+              if (newParams) return true
+            }) as Route
+
+            // we should always find a match because we have a final catch all
+            // which will render 404 for us
+            return destinationRoute.fn(req, res, newParams || {}, nextParsedUrl)
+          },
+        } as Route
+      })
+    )
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()

@@ -53,5 +53,6 @@ export default function flattenRoutes(routes: Redirect[]): Redirect[] {
     }
     delete r.matcher
   })
+
   return tmpRoutes
 }
