@@ -625,11 +625,7 @@ export default class Router implements BaseRouter {
     const { Component: App } = this.components['/_app']
     let props
 
-    if (
-      // @ts-ignore workaround for dead-code elimination
-      (self.__HAS_SPR || process.env.NODE_ENV !== 'production') &&
-      (Component as any).__NEXT_SPR
-    ) {
+    if ((Component as any).__NEXT_SPR) {
       let status: any
       // pathname should have leading slash
       let { pathname } = parse(ctx.asPath || ctx.pathname)

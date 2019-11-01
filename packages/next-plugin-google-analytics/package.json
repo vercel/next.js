@@ -1,0 +1,13 @@
+{
+  "name": "@next/plugin-google-analytics",
+  "version": "9.1.2-canary.1",
+  "nextjs": {
+    "name": "Google Analytics",
+    "required-env": [
+      "GA_TRACKING_ID"
+    ]
+  },
+  "peerDependencies": {
+    "next": "*"
+  }
+}
