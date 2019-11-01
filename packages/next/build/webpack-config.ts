@@ -118,7 +118,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
     ...(config.experimental.plugins
-      ? VALID_MIDDLEWARE.map(name => new RegExp(`src/${name}`))
+      ? VALID_MIDDLEWARE.map(name => new RegExp(`src(\\\\|/)${name}`))
       : []),
   ]
 
