@@ -87,6 +87,17 @@ class Container extends React.Component {
   componentDidMount () {
     this.scrollToHash()
 
+    if (process.env.__NEXT_PLUGINS) {
+      // eslint-disable-next-line
+      import('next-plugin-loader?middleware=unstable-post-hydration!')
+        .then(mod => {
+          return mod.default()
+        })
+        .catch(err => {
+          console.error('Error calling post-hydration for plugins', err)
+        })
+    }
+
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
     if (
@@ -182,6 +193,19 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       render({ App, Component, props, err, emitter })
     }
   })
+
+  // call init-client middleware
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-init-client!')
+      .then(mod => {
+        return mod.default({ router })
+      })
+      .catch(err => {
+        console.error('Error calling client-init for plugins', err)
+      })
+  }
+
   const renderCtx = { App, Component, props, err: initialErr, emitter }
   render(renderCtx)
 
@@ -211,6 +235,16 @@ export async function renderError (props) {
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+  }
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-error-client!')
+      .then(mod => {
+        return mod.default({ err })
+      })
+      .catch(err => {
+        console.error('error calling on-error-client for plugins', err)
+      })
   }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.

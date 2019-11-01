@@ -309,7 +309,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     )
   }
-
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
   })
