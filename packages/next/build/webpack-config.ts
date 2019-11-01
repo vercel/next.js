@@ -55,6 +55,19 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
+function getOptimizedAliases(isServer: boolean) {
+  if (isServer) {
+    return {}
+  }
+
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  return {
+    unfetch$: stubWindowFetch,
+    'isomorphic-unfetch$': stubWindowFetch,
+    'whatwg-fetch$': stubWindowFetch,
+  }
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -201,14 +214,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...(!isServer
-        ? {
-            // Alias fetch
-            unfetch: path.join(__dirname, 'polyfills', 'fetch.js'),
-            'isomorphic-unfetch': path.join(__dirname, 'polyfills', 'fetch.js'),
-            'whatwg-fetch': path.join(__dirname, 'polyfills', 'fetch.js'),
-          }
-        : {}),
+      ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
