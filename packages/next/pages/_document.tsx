@@ -604,6 +604,7 @@ export class NextScript extends Component<OriginProps> {
 
     return polyfillFiles.map(polyfill => (
       <script
+        key={polyfill}
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
         noModule={true}
