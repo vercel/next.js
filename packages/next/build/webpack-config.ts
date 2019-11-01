@@ -555,7 +555,6 @@ export default async function getBaseWebpackConfig(
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
-
         return '[name]'
       },
       libraryTarget: isServer ? 'commonjs2' : 'var',
