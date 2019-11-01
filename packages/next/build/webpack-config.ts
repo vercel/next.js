@@ -35,10 +35,16 @@ import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 // @ts-ignore: JS file
+import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import {
+  collectPlugins,
+  VALID_MIDDLEWARE,
+  PluginMetaData,
+} from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -70,17 +76,34 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  let plugins: PluginMetaData[] = []
+  let babelPresetPlugins: { dir: string; config: any }[] = []
+
+  if (config.experimental.plugins) {
+    plugins = await collectPlugins(dir, config.env, config.plugins)
+    pluginLoaderOptions.plugins = plugins
+
+    for (const plugin of plugins) {
+      if (plugin.middleware.includes('babel-preset-build')) {
+        babelPresetPlugins.push({
+          dir: plugin.directory,
+          config: plugin.config,
+        })
+      }
+    }
+  }
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
       options: {
         isServer,
-        hasModern: !!config.experimental.modern,
         distDir,
         pagesDir,
         cwd: dir,
         cache: true,
+        babelPresetPlugins,
+        hasModern: !!config.experimental.modern,
       },
     },
     // Backwards compat
@@ -88,6 +111,16 @@ export default async function getBaseWebpackConfig(
       loader: 'noop-loader',
     },
   }
+
+  const babelIncludeRegexes: RegExp[] = [
+    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]client/,
+    /next[\\/]dist[\\/]pages/,
+    /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    ...(config.experimental.plugins
+      ? VALID_MIDDLEWARE.map(name => new RegExp(`src/${name}`))
+      : []),
+  ]
 
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
@@ -334,6 +367,12 @@ export default async function getBaseWebpackConfig(
               return callback()
             }
 
+            // make sure we don't externalize anything that is
+            // supposed to be transpiled
+            if (babelIncludeRegexes.some(r => r.test(request))) {
+              return callback()
+            }
+
             // Relative requires don't need custom resolution, because they
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
@@ -476,6 +515,13 @@ export default async function getBaseWebpackConfig(
       return {
         ...(clientEntries ? clientEntries : {}),
         ...entrypoints,
+        ...(isServer
+          ? {
+              'init-server.js': 'next-plugin-loader?middleware=on-init-server!',
+              'on-error-server.js':
+                'next-plugin-loader?middleware=on-error-server!',
+            }
+          : {}),
       }
     },
     output: {
@@ -515,6 +561,7 @@ export default async function getBaseWebpackConfig(
         'next-data-loader',
         'next-serverless-loader',
         'noop-loader',
+        'next-plugin-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -542,23 +589,11 @@ export default async function getBaseWebpackConfig(
           },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [
-            dir,
-            /next[\\/]dist[\\/]next-server[\\/]lib/,
-            /next[\\/]dist[\\/]client/,
-            /next[\\/]dist[\\/]pages/,
-            /[\\/](strip-ansi|ansi-regex)[\\/]/,
-          ],
+          include: [dir, ...babelIncludeRegexes],
           exclude: (path: string) => {
-            if (
-              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
-              /next[\\/]dist[\\/]client/.test(path) ||
-              /next[\\/]dist[\\/]pages/.test(path) ||
-              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
-            ) {
+            if (babelIncludeRegexes.some(r => r.test(path))) {
               return false
             }
-
             return /node_modules/.test(path)
           },
           use: defaultLoaders.babel,
@@ -749,6 +784,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
           config.devIndicators.autoPrerender
+        ),
+        'process.env.__NEXT_PLUGINS': JSON.stringify(
+          config.experimental.plugins
         ),
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode

@@ -189,6 +189,9 @@ function renderDocument(
     devFiles,
     files,
     dynamicImports,
+    htmlProps,
+    bodyTags,
+    headTags,
   }: RenderOpts & {
     dataManagerData: string
     props: any
@@ -204,6 +207,9 @@ function renderDocument(
     dynamicImports: ManifestItem[]
     files: string[]
     devFiles: string[]
+    htmlProps: any
+    bodyTags: any
+    headTags: any
   }
 ): string {
   return (
@@ -238,6 +244,9 @@ function renderDocument(
           files,
           dynamicImports,
           assetPrefix,
+          htmlProps,
+          bodyTags,
+          headTags,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -271,6 +280,29 @@ export async function renderToHTML(
     unstable_getStaticProps,
     unstable_getStaticParams,
   } = renderOpts
+
+  const callMiddleware = async (method: string, args: any[], props = false) => {
+    let results: any = props ? {} : []
+
+    if ((Document as any)[`${method}Middleware`]) {
+      const curResults = await (Document as any)[`${method}Middleware`](...args)
+      if (props) {
+        for (const result of curResults) {
+          results = {
+            ...results,
+            ...result,
+          }
+        }
+      } else {
+        results = curResults
+      }
+    }
+    return results
+  }
+
+  const headTags = (...args: any) => callMiddleware('headTags', args)
+  const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
+  const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
   const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
@@ -547,8 +579,8 @@ export async function renderToHTML(
       )
     }
   }
-
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const documentCtx = { ...ctx, renderPage }
+  const docProps = await loadGetInitialProps(Document, documentCtx)
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
@@ -596,6 +628,9 @@ export async function renderToHTML(
     dataManagerData,
     ampState,
     props,
+    headTags: await headTags(documentCtx),
+    bodyTags: await bodyTags(documentCtx),
+    htmlProps: await htmlProps(documentCtx),
     docProps,
     pathname,
     ampPath,
