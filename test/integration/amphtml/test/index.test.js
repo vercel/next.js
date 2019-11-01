@@ -229,6 +229,27 @@ describe('AMP Usage', () => {
     })
   })
 
+  describe('AMP dev no-warn', () => {
+    let dynamicAppPort
+    let ampDynamic
+
+    it('should not warn on valid amp', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout (msg) {
+          inspectPayload += msg
+        }
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/only-amp')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).not.toContain('warn')
+    })
+  })
+
   describe('AMP dev mode', () => {
     let dynamicAppPort
     let ampDynamic

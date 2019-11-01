@@ -319,7 +319,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     )
   }
-
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
   })
@@ -347,8 +346,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
-    enableWorkerThreads: true,
+    enableWorkerThreads: config.experimental.workerThreads,
   })
+  staticCheckWorkers.getStdout().pipe(process.stdout)
+  staticCheckWorkers.getStderr().pipe(process.stderr)
 
   const analysisBegin = process.hrtime()
   await Promise.all(
@@ -481,6 +482,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       sprPages,
       silent: true,
       buildExport: true,
+      threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
     }

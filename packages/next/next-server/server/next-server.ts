@@ -88,6 +88,7 @@ export default class Server {
   }
   private routesPromise?: Promise<void>
   private compression?: Middleware
+  private onErrorMiddleware?: ({ err }: { err: Error }) => void
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
@@ -163,6 +164,21 @@ export default class Server {
 
     this.setAssetPrefix(assetPrefix)
 
+    // call init-server middleware, this is also handled
+    // individually in serverless bundles when deployed
+    if (!dev && this.nextConfig.experimental.plugins) {
+      const serverPath = join(
+        this.distDir,
+        this._isLikeServerless ? 'serverless' : 'server'
+      )
+      const initServer = require(join(serverPath, 'init-server.js')).default
+      this.onErrorMiddleware = require(join(
+        serverPath,
+        'on-error-server.js'
+      )).default
+      initServer()
+    }
+
     initializeSprCache({
       dev,
       distDir: this.distDir,
@@ -181,10 +197,13 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  private logError(...args: any): void {
+  private logError(err: Error): void {
+    if (this.onErrorMiddleware) {
+      this.onErrorMiddleware({ err })
+    }
     if (this.quiet) return
     // tslint:disable-next-line
-    console.error(...args)
+    console.error(err)
   }
 
   private handleRequest(

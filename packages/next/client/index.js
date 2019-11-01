@@ -18,6 +18,8 @@ import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
+/// <reference types="react-dom/experimental" />
+
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
@@ -84,6 +86,17 @@ class Container extends React.Component {
 
   componentDidMount () {
     this.scrollToHash()
+
+    if (process.env.__NEXT_PLUGINS) {
+      // eslint-disable-next-line
+      import('next-plugin-loader?middleware=unstable-post-hydration!')
+        .then(mod => {
+          return mod.default()
+        })
+        .catch(err => {
+          console.error('Error calling post-hydration for plugins', err)
+        })
+    }
 
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
@@ -180,6 +193,19 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       render({ App, Component, props, err, emitter })
     }
   })
+
+  // call init-client middleware
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-init-client!')
+      .then(mod => {
+        return mod.default({ router })
+      })
+      .catch(err => {
+        console.error('Error calling client-init for plugins', err)
+      })
+  }
+
   const renderCtx = { App, Component, props, err: initialErr, emitter }
   render(renderCtx)
 
@@ -210,6 +236,16 @@ export async function renderError (props) {
   if (process.env.NODE_ENV !== 'production') {
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
   }
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-error-client!')
+      .then(mod => {
+        return mod.default({ err })
+      })
+      .catch(err => {
+        console.error('error calling on-error-client for plugins', err)
+      })
+  }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
@@ -236,18 +272,32 @@ export async function renderError (props) {
 
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
+let reactRoot = null
 function renderReactElement (reactEl, domEl) {
   // mark start of hydrate/render
   if (SUPPORTS_PERFORMANCE_USER_TIMING) {
     performance.mark('beforeRender')
   }
 
-  // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-    isInitialRender = false
+  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+    let callback = markRenderComplete
+    if (!reactRoot) {
+      const opts = { hydrate: true }
+      reactRoot =
+        process.env.__NEXT_REACT_MODE === 'concurrent'
+          ? ReactDOM.createRoot(domEl, opts)
+          : ReactDOM.createBlockingRoot(domEl, opts)
+      callback = markHydrateComplete
+    }
+    reactRoot.render(reactEl, callback)
   } else {
-    ReactDOM.render(reactEl, domEl, markRenderComplete)
+    // The check for `.hydrate` is there to support React alternatives like preact
+    if (isInitialRender) {
+      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      isInitialRender = false
+    } else {
+      ReactDOM.render(reactEl, domEl, markRenderComplete)
+    }
   }
 
   if (onPerfEntry) {
