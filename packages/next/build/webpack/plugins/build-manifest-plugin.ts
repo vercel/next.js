@@ -134,7 +134,7 @@ export default class BuildManifestPlugin {
         }
 
         // Create a separate entry  for polyfills
-        assetMap.pages['/polyfills'] = polyfillFiles
+        assetMap.pages['/_polyfills'] = polyfillFiles
 
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be

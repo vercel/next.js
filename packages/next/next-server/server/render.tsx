@@ -491,7 +491,7 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, '/_app'),
     ]),
   ]
-  const polyfillFiles = getPageFiles(buildManifest, '/polyfills')
+  const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
 
   const renderElementToString = staticMarkup
     ? renderToStaticMarkup

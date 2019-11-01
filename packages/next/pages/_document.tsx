@@ -236,7 +236,7 @@ export class Head extends Component<
             // preloaded for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !/(_buildManifest|polyfills)/.test(file)
+              !file.includes('_buildManifest')
             )
           })
         : []
@@ -569,7 +569,7 @@ export class NextScript extends Component<OriginProps> {
 
     return files.map((file: string) => {
       // Only render .js files here
-      if (!/\.js$/.test(file) || /polyfills/.test(file)) {
+      if (!/\.js$/.test(file)) {
         return null
       }
 
