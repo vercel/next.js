@@ -161,20 +161,23 @@ async function _collectPlugins(
   env: ENV_OPTIONS,
   pluginsConfig: PluginConfig[] | undefined
 ): Promise<PluginMetaData[]> {
-  const hasPluginConfig = Array.isArray(pluginsConfig)
   let nextPluginNames: string[] = []
+  const skippedPluginNames: string[] = []
+  const hasPluginConfig = Array.isArray(pluginsConfig)
 
-  if (hasPluginConfig) {
-    console.log('Found plugins config, auto detecting plugins disabled')
-    nextPluginNames = pluginsConfig!.map(config =>
-      typeof config === 'string' ? config : config.name
-    )
-  } else {
-    const rootPackageJsonPath = await findUp('package.json', { cwd: dir })
-    if (!rootPackageJsonPath) {
-      console.log('Failed to load plugins, no package.json')
-      return []
-    }
+  const nextPluginConfigNames = hasPluginConfig
+    ? pluginsConfig!.map(config =>
+        typeof config === 'string' ? config : config.name
+      )
+    : null
+
+  const rootPackageJsonPath = await findUp('package.json', { cwd: dir })
+  if (!rootPackageJsonPath && !nextPluginConfigNames) {
+    console.log('Failed to load plugins, no package.json')
+    return []
+  }
+
+  if (rootPackageJsonPath) {
     const rootPackageJson = require(rootPackageJsonPath)
     let dependencies: string[] = []
     if (rootPackageJson.dependencies) {
@@ -193,9 +196,20 @@ async function _collectPlugins(
     // @scope/next-plugin-[name]
     // @next/plugin-[name]
     // next-plugin-[name]
-    nextPluginNames = dependencies.filter(name => {
+    const filteredDeps = dependencies.filter(name => {
       return name.match(/(^@next\/plugin|next-plugin-)/)
     })
+
+    if (nextPluginConfigNames) {
+      for (const dep of filteredDeps) {
+        if (!nextPluginConfigNames.includes(dep)) {
+          skippedPluginNames.push(dep)
+        }
+      }
+      nextPluginNames = nextPluginConfigNames
+    } else {
+      nextPluginNames = filteredDeps
+    }
   }
 
   const nextPluginMetaData = await Promise.all(
@@ -225,6 +239,12 @@ async function _collectPlugins(
       `Loaded plugin: ${plugin.pkgName}${
         plugin.version ? `@${plugin.version}` : ''
       }`
+    )
+  }
+
+  if (skippedPluginNames.length) {
+    console.log(
+      `Plugins config used skipped loading: ${skippedPluginNames.join(', ')}`
     )
   }
   console.log()
