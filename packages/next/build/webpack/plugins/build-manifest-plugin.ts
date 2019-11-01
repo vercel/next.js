@@ -76,6 +76,12 @@ export default class BuildManifestPlugin {
             ? mainJsChunk.files.filter((file: string) => /\.js$/.test(file))
             : []
 
+        const polyfillChunk = chunks.find(
+          c => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+        )
+        const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
+        // TODO: invariant that polyfill files is only a single file (?)
+
         for (const filePath of Object.keys(compilation.assets)) {
           const path = filePath.replace(/\\/g, '/')
           if (/^static\/development\/dll\//.test(path)) {
@@ -85,14 +91,7 @@ export default class BuildManifestPlugin {
 
         // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
         for (const [, entrypoint] of compilation.entrypoints.entries()) {
-          let result = ROUTE_NAME_REGEX.exec(entrypoint.name)
-
-          // Polyfill.js needs to be part of /_app
-          // We add it as its own entry now and later merge it into /_app
-          if (entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS) {
-            result = [, 'polyfills'] as any
-          }
-
+          const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
           if (!result) {
             continue
           }
@@ -135,15 +134,7 @@ export default class BuildManifestPlugin {
         }
 
         // Merge polyfills entry into /_app
-        if (typeof assetMap.pages['/polyfills'] !== 'undefined') {
-          assetMap.pages['/_app'].push(
-            assetMap.pages['/polyfills'].find(page =>
-              page.includes('polyfills')
-            )!
-          )
-
-          delete assetMap.pages['/polyfills']
-        }
+        assetMap.pages['/_app'].push(...polyfillFiles)
 
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
