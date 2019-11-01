@@ -80,7 +80,6 @@ export default class BuildManifestPlugin {
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
         const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
-        // TODO: invariant that polyfill files is only a single file (?)
 
         for (const filePath of Object.keys(compilation.assets)) {
           const path = filePath.replace(/\\/g, '/')
