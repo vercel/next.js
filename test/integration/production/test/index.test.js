@@ -672,7 +672,7 @@ describe('Production Usage', () => {
       // application/json doesn't need defer
       if (
         script.attribs.type === 'application/json' ||
-        script.src.includes('polyfills')
+        script.attribs.src.includes('polyfills')
       ) {
         continue
       }
