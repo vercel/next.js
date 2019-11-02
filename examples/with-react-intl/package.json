@@ -2,15 +2,16 @@
   "name": "with-react-intl",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "node --icu-data-dir=node_modules/full-icu server.js",
     "build": "next build && node ./scripts/default-lang",
-    "start": "NODE_ENV=production node server.js"
+    "start": "NODE_ENV=production node --icu-data-dir=node_modules/full-icu server.js"
   },
   "dependencies": {
     "@formatjs/intl-relativetimeformat": "^2.8.2",
     "@formatjs/intl-utils": "^0.6.1",
     "accepts": "^1.3.7",
     "babel-plugin-react-intl": "^4.1.14",
+    "full-icu": "^1.3.0",
     "glob": "^7.1.4",
     "intl": "^1.2.5",
     "next": "latest",
