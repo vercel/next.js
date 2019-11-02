@@ -135,7 +135,7 @@ export function getQueryParser({ url }: IncomingMessage) {
 }
 
 /**
- * Parse cookeies from `req` header
+ * Parse cookies from `req` header
  * @param req request object
  */
 export function getCookieParser(req: IncomingMessage) {
