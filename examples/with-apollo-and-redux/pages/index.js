@@ -1,53 +1,52 @@
 import React from 'react'
-import { bindActionCreators } from 'redux'
-import { connect } from 'react-redux'
-import { startClock, addCount, serverRenderClock } from '../lib/store'
-
-import App from '../components/App'
-import Header from '../components/Header'
-import Page from '../components/Page'
+import { useDispatch } from 'react-redux'
+import { withRedux } from '../lib/redux'
+import { compose } from 'redux'
+import { withApollo } from '../lib/apollo'
+import useInterval from '../lib/useInterval'
+import Layout from '../components/Layout'
+import Clock from '../components/Clock'
+import Counter from '../components/Counter'
 import Submit from '../components/Submit'
 import PostList from '../components/PostList'
-import withApollo from '../lib/withApollo'
 
-class Index extends React.Component {
-  static getInitialProps ({ store, isServer }) {
-    store.dispatch(serverRenderClock(isServer))
-    store.dispatch(addCount())
-
-    return { isServer }
-  }
-
-  componentDidMount () {
-    this.timer = this.props.startClock()
-  }
-
-  componentWillUnmount () {
-    clearInterval(this.timer)
-  }
-
-  render () {
-    return (
-      <App>
-        <Header />
-        <Page title='Index' />
-        <Submit />
-        <PostList />
-      </App>
-    )
-  }
+const IndexPage = () => {
+  // Tick the time every second
+  const dispatch = useDispatch()
+  useInterval(() => {
+    dispatch({
+      type: 'TICK',
+      light: true,
+      lastUpdate: Date.now()
+    })
+  }, 1000)
+  return (
+    <Layout>
+      {/* Redux */}
+      <Clock />
+      <Counter />
+      <hr />
+      {/* Apollo */}
+      <Submit />
+      <PostList />
+    </Layout>
+  )
 }
 
-const mapDispatchToProps = dispatch => {
-  return {
-    addCount: bindActionCreators(addCount, dispatch),
-    startClock: bindActionCreators(startClock, dispatch)
-  }
+IndexPage.getInitialProps = ({ reduxStore }) => {
+  // Tick the time once, so we'll have a
+  // valid time before first render
+  const { dispatch } = reduxStore
+  dispatch({
+    type: 'TICK',
+    light: typeof window === 'object',
+    lastUpdate: Date.now()
+  })
+
+  return {}
 }
 
-export default withApollo(
-  connect(
-    null,
-    mapDispatchToProps
-  )(Index)
-)
+export default compose(
+  withApollo,
+  withRedux
+)(IndexPage)

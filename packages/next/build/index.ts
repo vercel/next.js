@@ -288,7 +288,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.error(error)
     console.error()
 
-    if (error.indexOf('private-next-pages') > -1) {
+    if (
+      error.indexOf('private-next-pages') > -1 ||
+      error.indexOf('__next_polyfill__') > -1
+    ) {
       throw new Error(
         '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
       )
@@ -309,7 +312,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     )
   }
-
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
   })
@@ -339,6 +341,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     numWorkers: config.experimental.cpus,
     enableWorkerThreads: config.experimental.workerThreads,
   })
+  staticCheckWorkers.getStdout().pipe(process.stdout)
+  staticCheckWorkers.getStderr().pipe(process.stderr)
 
   const analysisBegin = process.hrtime()
   await Promise.all(

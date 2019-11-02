@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { withRouter } from 'next/router'
 
-const Header = ({ router: { pathname } }) => (
+const Nav = ({ router: { pathname } }) => (
   <header>
     <Link href='/'>
       <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
@@ -28,4 +28,4 @@ const Header = ({ router: { pathname } }) => (
   </header>
 )
 
-export default withRouter(Header)
+export default withRouter(Nav)
