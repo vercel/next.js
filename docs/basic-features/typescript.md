@@ -1,0 +1,45 @@
+# TypeScript
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
+  </ul>
+</details>
+<br/>
+
+Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/) experience out of the box, similar to an IDE.
+
+To get started, create an empty `tsconfig.json` file in the root of your project:
+
+```bash
+touch tsconfig.json
+```
+
+Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
+
+> Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
+
+Then, run `next` (normally `npm run dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install typescript, @types/react, and @types/node by running:
+#
+#         yarn add --dev typescript @types/react @types/node
+#
+# ...
+```
+
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!.
+
+> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
+
+> Next.js `strict` mode is disabled by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
+
+By default, Next.js reports TypeScript errors during development for pages you are actively working on. TypeScript errors for inactive pages **do not** block the development process.
+
+If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](https://www.notion.so/zeithq/Ignoring-TypeScript-errors-26509e6dcfaf4d45a9715f24bcd6a82c).
