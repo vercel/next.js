@@ -126,7 +126,7 @@ async function collectPluginMeta(
 
   return {
     middleware,
-    directory: pkgDir,
+    directory: pkgDir.replace(/\\/g, '/'),
     requiredEnv: pluginMetaData['required-env'],
     version: pluginPackageJson.version,
     pluginName: pluginMetaData.name,
