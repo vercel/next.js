@@ -596,6 +596,25 @@ export class NextScript extends Component<OriginProps> {
     })
   }
 
+  getPolyfillScripts() {
+    // polyfills.js has to be rendered as nomodule without async
+    // It also has to be the first script to load
+    const { assetPrefix, polyfillFiles } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
+
+    return polyfillFiles
+      .filter(polyfill => !/\.module\.js$/.test(polyfill))
+      .map(polyfill => (
+        <script
+          key={polyfill}
+          nonce={this.props.nonce}
+          crossOrigin={this.props.crossOrigin || process.crossOrigin}
+          noModule={true}
+          src={`${assetPrefix}/_next/${polyfill}${_devOnlyInvalidateCacheQueryString}`}
+        />
+      ))
+  }
+
   static getInlineScriptSource(documentProps: DocumentProps) {
     const { __NEXT_DATA__ } = documentProps
     try {
@@ -784,6 +803,7 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         ) : null}
+        {this.getPolyfillScripts()}
         {page !== '/_error' && pageScript}
         {appScript}
         {staticMarkup ? null : this.getDynamicChunks()}

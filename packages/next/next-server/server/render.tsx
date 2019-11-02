@@ -188,6 +188,7 @@ function renderDocument(
     staticMarkup,
     devFiles,
     files,
+    polyfillFiles,
     dynamicImports,
     htmlProps,
     bodyTags,
@@ -207,6 +208,7 @@ function renderDocument(
     dynamicImports: ManifestItem[]
     files: string[]
     devFiles: string[]
+    polyfillFiles: string[]
     htmlProps: any
     bodyTags: any
     headTags: any
@@ -242,6 +244,7 @@ function renderDocument(
           staticMarkup,
           devFiles,
           files,
+          polyfillFiles,
           dynamicImports,
           assetPrefix,
           htmlProps,
@@ -488,6 +491,7 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, '/_app'),
     ]),
   ]
+  const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
 
   const renderElementToString = staticMarkup
     ? renderToStaticMarkup
@@ -642,6 +646,7 @@ export async function renderToHTML(
     dynamicImports,
     files,
     devFiles,
+    polyfillFiles,
   })
 
   if (inAmpMode && html) {
