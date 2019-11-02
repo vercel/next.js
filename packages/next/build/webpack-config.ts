@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
@@ -52,6 +53,20 @@ const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
+}
+
+function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
+  if (isServer) {
+    return {}
+  }
+
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  return {
+    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
+    unfetch$: stubWindowFetch,
+    'isomorphic-unfetch$': stubWindowFetch,
+    'whatwg-fetch$': stubWindowFetch,
+  }
 }
 
 export default async function getBaseWebpackConfig(
@@ -148,6 +163,10 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
+        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
+          NEXT_PROJECT_ROOT_DIST_CLIENT,
+          'polyfills.js'
+        ),
       }
     : undefined
 
@@ -196,6 +215,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
+      ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
@@ -531,7 +551,8 @@ export default async function getBaseWebpackConfig(
         if (
           !dev &&
           (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
-            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK ||
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }

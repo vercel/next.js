@@ -150,6 +150,7 @@ export type DocumentProps = DocumentInitialProps & {
   hasCssMode: boolean
   devFiles: string[]
   files: string[]
+  polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
