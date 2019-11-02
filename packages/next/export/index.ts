@@ -3,7 +3,7 @@ import { copyFile as copyFileOrig, existsSync, readFileSync } from 'fs'
 import Worker from 'jest-worker'
 import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
-import { dirname, join, resolve } from 'path'
+import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -321,7 +321,12 @@ export default async function(
       Object.keys(prerenderManifest.routes).map(async route => {
         route = route === '/' ? '/index' : route
         const orig = join(distPagesDir, route)
-        const htmlDest = join(outDir, `${route}.html`)
+        const htmlDest = join(
+          outDir,
+          `${route}${
+            subFolders && route !== '/index' ? `${sep}index` : ''
+          }.html`
+        )
         const jsonDest = join(sprDataDir, `${route}.json`)
 
         await mkdirp(dirname(htmlDest))
