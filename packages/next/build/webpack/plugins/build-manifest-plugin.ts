@@ -115,8 +115,11 @@ export default class BuildManifestPlugin {
               if (IS_BUNDLED_PAGE_REGEX.exec(file)) {
                 continue
               }
-
-              filesForEntry.push(file.replace(/\\/g, '/'))
+              if (/\.css$/.test(file)) {
+                filesForEntry.unshift(file.replace(/\\/g, '/'))
+              } else {
+                filesForEntry.push(file.replace(/\\/g, '/'))
+              }
             }
           }
 
