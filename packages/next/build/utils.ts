@@ -77,7 +77,7 @@ export function printTreeView(
           item.startsWith('/_')
             ? ' '
             : pageInfo && pageInfo.static
-            ? chalk.bold('*')
+            ? '*'
             : serverless
             ? 'λ'
             : 'σ'
@@ -118,11 +118,7 @@ export function printTreeView(
                 'getInitialProps'
               )})`,
             ],
-        [
-          chalk.bold('*'),
-          '(Static File)',
-          'page was prerendered as static HTML',
-        ],
+        ['*', '(Static File)', 'page was prerendered as static HTML'],
       ],
       {
         align: ['l', 'l', 'l'],
