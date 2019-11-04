@@ -127,7 +127,8 @@
     "webpack": "4.39.0",
     "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0",
-    "webpack-sources": "1.4.3"
+    "webpack-sources": "1.4.3",
+    "whatwg-fetch": "3.0.0"
   },
   "peerDependencies": {
     "react": "^16.6.0",
