@@ -25,8 +25,14 @@ import {
 } from '../next-server/lib/constants'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
+import {
+  collectPlugins,
+  PluginMetaData,
+  VALID_MIDDLEWARE,
+} from './plugins/collect-plugins'
+// @ts-ignore: JS file
+import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
@@ -35,17 +41,10 @@ import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
-// @ts-ignore: JS file
-import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import {
-  collectPlugins,
-  VALID_MIDDLEWARE,
-  PluginMetaData,
-} from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -829,11 +828,6 @@ export default async function getBaseWebpackConfig(
           filename: REACT_LOADABLE_MANIFEST,
         }),
       !isServer && new DropClientPage(),
-      new ChunkGraphPlugin(buildId, {
-        dir,
-        distDir,
-        isServer,
-      }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.

@@ -45,7 +45,6 @@ import {
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
 const fsAccess = promisify(fs.access)
@@ -347,8 +346,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
-      const chunks = getPageChunks(page)
-
       const actualPage = page === '/' ? '/index' : page
       const size = await getPageSizeInKb(
         actualPage,
@@ -434,7 +431,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
+      pageInfos.set(page, { size, serverBundle, static: isStatic })
     })
   )
   staticCheckWorkers.end()
