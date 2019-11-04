@@ -35,7 +35,6 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { fileExists } from '../../lib/file-exists'
 
 type NextConfig = any
 
