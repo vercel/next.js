@@ -1,0 +1,272 @@
+{
+  "routes": [
+    { "title": "Getting Started", "path": "/docs/getting-started.md" },
+    {
+      "title": "Basic Features",
+      "routes": [
+        {
+          "title": "Built-in CSS Support",
+          "path": "/docs/basic-features/built-in-css-support.md"
+        },
+        {
+          "title": "Static File Serving",
+          "path": "/docs/basic-features/static-file-serving.md"
+        },
+        {
+          "title": "Populating `<head>`",
+          "path": "/docs/basic-features/populating-head.md"
+        },
+        {
+          "title": "TypeScript",
+          "path": "/docs/basic-features/typescript.md"
+        }
+      ]
+    },
+    {
+      "title": "Pages",
+      "routes": [
+        {
+          "title": "Introduction",
+          "path": "/docs/pages/introduction.md"
+        },
+        {
+          "title": "SSR with getInitialProps",
+          "path": "/docs/pages/ssr-with-getInitialProps.md"
+        },
+        {
+          "title": "Custom `<App>`",
+          "path": "/docs/pages/custom-app.md"
+        },
+        {
+          "title": "Custom `<Document>`",
+          "path": "/docs/pages/custom-document.md"
+        },
+        {
+          "title": "Custom Error Page",
+          "path": "/docs/pages/custom-error-page.md"
+        },
+        {
+          "title": "TypeScript",
+          "path": "/docs/pages/typescript.md"
+        }
+      ]
+    },
+    {
+      "title": "Routing",
+      "routes": [
+        {
+          "title": "Introduction",
+          "path": "/docs/routing/introduction.md"
+        },
+        {
+          "title": "Using `<Link>`",
+          "path": "/docs/routing/using-link.md"
+        },
+        {
+          "title": "Dynamic Routes",
+          "path": "/docs/routing/dynamic-routes.md"
+        },
+        {
+          "title": "useRouter",
+          "path": "/docs/routing/useRouter.md"
+        },
+        {
+          "title": "withRouter",
+          "path": "/docs/routing/withRouter.md"
+        },
+        {
+          "title": "Imperatively",
+          "path": "/docs/routing/imperatively.md"
+        },
+        {
+          "title": "Router Object",
+          "path": "/docs/routing/router-object.md"
+        }
+      ]
+    },
+    {
+      "title": "API Routes",
+      "routes": [
+        {
+          "title": "Introduction",
+          "path": "/docs/api-routes/introduction.md"
+        },
+        {
+          "title": "Dynamic API Routes",
+          "path": "/docs/api-routes/dynamic-api-routes.md"
+        },
+        {
+          "title": "API Middlewares",
+          "path": "/docs/api-routes/api-middlewares.md"
+        },
+        {
+          "title": "Response Helpers",
+          "path": "/docs/api-routes/response-helpers.md"
+        },
+        {
+          "title": "TypeScript",
+          "path": "/docs/api-routes/typescript.md"
+        }
+      ]
+    },
+    {
+      "title": "AMP Support",
+      "routes": [
+        {
+          "title": "Introduction",
+          "path": "/docs/amp-support/introduction.md"
+        },
+        {
+          "title": "Enabling AMP",
+          "path": "/docs/amp-support/enabling-amp.md"
+        },
+        {
+          "title": "AMP in Static HTML export",
+          "path": "/docs/amp-support/amp-in-static-html-export.md"
+        },
+        {
+          "title": "Adding AMP Components",
+          "path": "/docs/amp-support/adding-amp-components.md"
+        },
+        {
+          "title": "AMP Validation",
+          "path": "/docs/amp-support/amp-validation.md"
+        },
+        {
+          "title": "TypeScript",
+          "path": "/docs/amp-support/typescript.md"
+        }
+      ]
+    },
+    {
+      "title": "API Reference",
+      "routes": [
+        {
+          "title": "Router",
+          "routes": [
+            {
+              "title": "Router.push",
+              "path": "/docs/api-reference/router/router.push.md"
+            },
+            {
+              "title": "Router.replace",
+              "path": "/docs/api-reference/router/router.replace.md"
+            },
+            {
+              "title": "Router.beforePopState",
+              "path": "/docs/api-reference/router/router.beforePopState.md"
+            },
+            {
+              "title": "Router Events",
+              "path": "/docs/api-reference/router/router-events.md"
+            }
+          ]
+        },
+        {
+          "title": "next.config.js",
+          "routes": [
+            {
+              "title": "Introduction",
+              "path": "/docs/api-reference/next.config.js/introduction.md"
+            },
+            {
+              "title": "Environment Variables",
+              "path": "/docs/api-reference/next.config.js/environment-variables.md"
+            },
+            {
+              "title": "Custom Page Extensions",
+              "path": "/docs/api-reference/next.config.js/custom-page-extensions.md"
+            },
+            {
+              "title": "CDN Support with Asset Prefix",
+              "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
+            },
+            {
+              "title": "Build Target",
+              "path": "/docs/api-reference/next.config.js/build-target.md"
+            },
+            {
+              "title": "Custom Webpack Config",
+              "path": "/docs/api-reference/next.config.js/custom-webpack-config.md"
+            },
+            {
+              "title": "Compression",
+              "path": "/docs/api-reference/next.config.js/compression.md"
+            },
+            {
+              "title": "Static Optimization Indicator",
+              "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
+            },
+            {
+              "title": "Runtime Configuration",
+              "path": "/docs/api-reference/next.config.js/runtime-configuration.md"
+            },
+            {
+              "title": "Disabling x-powered-by",
+              "path": "/docs/api-reference/next.config.js/disabling-x-powered-by.md"
+            },
+            {
+              "title": "Disabling ETag Generation",
+              "path": "/docs/api-reference/next.config.js/disabling-etag-generation.md"
+            },
+            {
+              "title": "Setting a custom build directory",
+              "path": "/docs/api-reference/next.config.js/setting-a-custom-build-directory.md"
+            },
+            {
+              "title": "Configuring the Build ID",
+              "path": "/docs/api-reference/next.config.js/configuring-the-build-id.md"
+            },
+            {
+              "title": "Configuring onDemandEntries",
+              "path": "/docs/api-reference/next.config.js/configuring-onDemandEntries.md"
+            },
+            {
+              "title": "Ignoring TypeScript Errors",
+              "path": "/docs/api-reference/next.config.js/ignoring-typescript-errors.md"
+            },
+            {
+              "title": "exportPathMap",
+              "path": "/docs/api-reference/next.config.js/exportPathMap.md"
+            }
+          ]
+        },
+        { "title": "Next.js CLI", "path": "/docs/api-reference/next-cli.md" }
+      ]
+    },
+    {
+      "title": "Advanced Features",
+      "routes": [
+        {
+          "title": "Custom Configuration",
+          "path": "/docs/advanced-features/custom-configuration.md"
+        },
+        {
+          "title": "Dynamic Import",
+          "path": "/docs/advanced-features/dynamic-import.md"
+        },
+        {
+          "title": "Automatic Static Optimization",
+          "path": "/docs/advanced-features/automatic-static-optimization.md"
+        },
+        {
+          "title": "Static HTML Export",
+          "path": "/docs/advanced-features/static-html-export.md"
+        },
+        {
+          "title": "Server-Side and Client-Side",
+          "path": "/docs/advanced-features/server-side-and-client-side.md"
+        },
+        {
+          "title": "Customizing Babel Config",
+          "path": "/docs/advanced-features/customizing-babel-config.md"
+        },
+        {
+          "title": "Custom Server",
+          "path": "/docs/advanced-features/custom-server.md"
+        }
+      ]
+    },
+    { "title": "FAQ", "path": "/docs/faq.md" }
+  ]
+}

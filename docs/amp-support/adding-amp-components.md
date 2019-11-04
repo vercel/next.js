@@ -1,4 +1,4 @@
-# Adding AMP components
+# Adding AMP Components
 
 The AMP community provides [many components](https://amp.dev/documentation/components/) to make AMP pages more interactive. You can add these components to your page by using `next/head`, as in the following example:
 
