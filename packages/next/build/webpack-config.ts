@@ -293,6 +293,9 @@ export default async function getBaseWebpackConfig(
           // https://github.com/zeit/next.js/pull/9012
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
+          // Don't let webpack eliminate this chunk (prevents this chunk from
+          // becoming a part of the commons chunk)
+          enforce: true,
         },
         lib: {
           test(module: { size: Function; identifier: Function }): boolean {
