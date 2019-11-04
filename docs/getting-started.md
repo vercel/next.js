@@ -53,4 +53,4 @@ So far, we get:
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages/`
-- Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](https://www.notion.so/zeithq/Static-file-serving-dd0d3668525c45708a75ac42ef8cd4f3) inside your project)
+- Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](/docs/basic-features/static-file-serving.md) inside your project)

@@ -14,7 +14,7 @@
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to use custom route patterns.
 
-> Before deciding to use a custom a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d).**
+> Before deciding to use a custom a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
 
 Take a look at the following example of a custom server:
 
@@ -75,7 +75,7 @@ The above `next` import is a function that receives an object with the following
 - `dev`: `Boolean` - Whether or not to launch Next.js in dev mode. Defaults `false`
 - `dir`: `String` - Location of the Next.js project. Defaults to `'.'`
 - `quiet`: `Boolean` - Hide error messages containing server information. Defaults to `false`
-- `conf`: `object` - The same object you would use in [next.config.js](https://www.notion.so/zeithq/next-config-js-1e246c8572eb43f6ab6a7738df3d42e4). Defaults to `{}`
+- `conf`: `object` - The same object you would use in [next.config.js](/docs/api-reference/next.config.js/introduction.md). Defaults to `{}`
 
 The returned `app` can then be used to let Next.js handle requests as required.
 
@@ -93,11 +93,11 @@ module.exports = {
 
 > Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
 
-> You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; for that refer to [`Router.beforePopState`](https://www.notion.so/zeithq/Router-beforePopState-89a44d2739a443568840805afd926010).
+> You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; for that refer to [`Router.beforePopState`](/docs/api-reference/router/router.beforePopState.md).
 
 ## Dynamic `assetPrefix`
 
-Sometimes you may need to set the [`assetPrefix`](https://www.notion.so/zeithq/CDN-support-with-Asset-Prefix-60e1185b675748f19daa224f13f77ebf) dynamically. This is useful when changing the `assetPrefix` based on incoming requests.
+Sometimes you may need to set the [`assetPrefix`](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) dynamically. This is useful when changing the `assetPrefix` based on incoming requests.
 
 For that, you can use `app.setAssetPrefix`, as in the following example:
 

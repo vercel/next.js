@@ -42,4 +42,4 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 
 By default, Next.js reports TypeScript errors during development for pages you are actively working on. TypeScript errors for inactive pages **do not** block the development process.
 
-If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](https://www.notion.so/zeithq/Ignoring-TypeScript-errors-26509e6dcfaf4d45a9715f24bcd6a82c).
+If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).

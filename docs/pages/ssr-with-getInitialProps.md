@@ -10,7 +10,7 @@
 
 In React we can use [Hooks](https://reactjs.org/docs/hooks-intro.html) in function components, or [State and Lifecycle](https://reactjs.org/docs/state-and-lifecycle.html) in class components, to do client-side data fetching, and even though it works very well, there's also the need for **initial data population**, it means sending the page with the data already populated from the server, this is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 
-> Even though `getInitialProps` is very useful, please keep in mind that it'll disable [Automatic Static Optimization](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d).
+> Even though `getInitialProps` is very useful, please keep in mind that it'll disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
 Next.js comes with `getInitialProps`, which is an [`async`](https://zeit.co/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods). Take a look at the following example:
 
@@ -54,9 +54,9 @@ export default Page
 
 Data returned from `getInitialProps` is serialized when server rendering, similar to what [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) does. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`<Link>`](https://www.notion.so/zeithq/Using-Link-9656279e431e4497a25db38c75e31126) component or by using the [Router API](https://www.notion.so/zeithq/Router-push-769f057793c549e3a7190c7f1896c602).
+For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`<Link>`](/docs/routing/using-link.md) component or by using the [Router API](/docs/api-reference/router/router.push.md).
 
-> If you want to know about what we mean by **server** and **client**, read [this section](https://www.notion.so/zeithq/Server-Side-and-Client-Side-c9bebb21fc8740ac9ea0256b64c5d5e3).
+> If you want to know about what we mean by **server** and **client**, read [this section](/docs/advanced-features/server-side-and-client-side.md).
 
 ## Context Object
 

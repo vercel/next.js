@@ -26,7 +26,7 @@ export default Page
 
 To work with code that only works in one side, read the sections below.
 
-> [Dynamic imports](https://www.notion.so/zeithq/Dynamic-Import-54ba1c80c36b48a1a783cd39df4afebe) can also help you handle code that only loads when required.
+> [Dynamic imports](/docs/advanced-features/dynamic-import.md) can also help you handle code that only loads when required.
 
 ## Client-side only code
 
@@ -73,7 +73,7 @@ export default Page
 
 ## Server-side only code
 
-Following the `userAgent` example from above, we can make it always available to the page by adding [`getInitialProps`](https://www.notion.so/zeithq/SSR-with-getInitialProps-1a3c793f0b8542b99a87d48dcd56f5ba), like so:
+Following the `userAgent` example from above, we can make it always available to the page by adding [`getInitialProps`](/docs/pages/ssr-with-getInitialProps.md), like so:
 
 ```jsx
 import { useState, useEffect } from 'react'

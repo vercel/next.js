@@ -8,7 +8,7 @@
 </details>
 <br/>
 
-If you want to access the [`router`](https://www.notion.so/zeithq/Router-Object-580270ec245444ed9253c529b1db0315) object inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
+If you want to access the [`router`](/docs/routing/router-object.md) object inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -33,6 +33,6 @@ export default function ActiveLink({ children, href }) {
 }
 ```
 
-The `router` object returned by `useRouter()` is defined [here](https://www.notion.so/zeithq/Router-Object-580270ec245444ed9253c529b1db0315).
+The `router` object returned by `useRouter()` is defined [here](/docs/routing/router-object.md).
 
-> `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](https://www.notion.so/zeithq/withRouter-ebcdae351eae4b8f84db2f2a26d0e505) or wrap your class in a function component.
+> `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](/docs/routing/withRouter.md) or wrap your class in a function component.

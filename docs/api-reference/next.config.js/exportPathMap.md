@@ -1,6 +1,6 @@
 # exportPathMap
 
-> This feature is exclusive of `next export`.Please refer to [Static HTML export](https://www.notion.so/zeithq/Static-HTML-export-2657c5c1bbcd457a94562194f944978c) if you want to learn more about it.
+> This feature is exclusive of `next export`.Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
 
 <details>
   <summary><b>Examples</b></summary>
@@ -42,7 +42,7 @@ The pages will then be exported as HTML files, for example, `/about` will become
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
 - `dir` - Absolute path to the project directory
 - `outDir` - Absolute path to the `out/` directory (configurable with `-o`). When `dev` is `true` the value of `outDir` will be `null`.
-- `distDir` - Absolute path to the `.next/` directory (configurable with the [`distDir`](https://www.notion.so/zeithq/Setting-a-custom-build-directory-bc0d64ba3d784e129650ac10d3a93654) config)
+- `distDir` - Absolute path to the `.next/` directory (configurable with the [`distDir`](/docs/api-reference/next.config.js/setting-a-custom-build-directory.md) config)
 - `buildId` - The generated build id
 
 The returned object is a map of pages where the `key` is the `pathname` and the `value` is an object that accepts the following fields:

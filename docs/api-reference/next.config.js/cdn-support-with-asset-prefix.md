@@ -13,4 +13,4 @@ module.exports = {
 }
 ```
 
-Next.js will automatically use your prefix in the scripts it loads, but this has no effect whatsoever on the [public](https://www.notion.so/zeithq/Static-file-serving-dd0d3668525c45708a75ac42ef8cd4f3) folder; if you want to serve those assets over a CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/canary/examples/with-universal-configuration-build-time).
+Next.js will automatically use your prefix in the scripts it loads, but this has no effect whatsoever on the [public](/docs/basic-features/static-file-serving.md) folder; if you want to serve those assets over a CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/canary/examples/with-universal-configuration-build-time).

@@ -28,8 +28,8 @@ export default (req, res) => {
 
 For an API route to work, you need to export as default a function (a.k.a **request handler**), which then receives the following parameters:
 
-- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some pre-built middlewares you can see [here](https://www.notion.so/zeithq/API-Middlewares-96bca263874e4712936b87d15d428446)
-- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some helper functions you can see [here](https://www.notion.so/zeithq/Response-helpers-703b943e7b4740478184fa1b5266881d)
+- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some pre-built middlewares you can see [here](/docs/api-routes/api-middlewares.md)
+- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some helper functions you can see [here](/docs/api-routes/response-helpers.md)
 
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
 
@@ -43,6 +43,6 @@ export default (req, res) => {
 }
 ```
 
-> API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with [micro-cors](https://www.notion.so/zeithq/API-Middlewares-96bca263874e4712936b87d15d428446#2aaf9e63b00244fdbce512116692772b).
+> API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with [micro-cors](/docs/api-routes/api-middlewares.md#micro-support).
 
 > API Routes do not increase your client-side bundle size. They are server-side only bundles.

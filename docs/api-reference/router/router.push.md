@@ -8,7 +8,7 @@
 </details>
 <br/>
 
-Handles client-side transitions, this method is useful for cases where [`<Link>`](https://www.notion.so/zeithq/Using-Link-9656279e431e4497a25db38c75e31126) is not enough.
+Handles client-side transitions, this method is useful for cases where [`<Link>`](/docs/routing/using-link.md) is not enough.
 
 ```jsx
 import Router from 'next/router'
@@ -51,7 +51,7 @@ function Page() {
 
 ## With URL object
 
-You can use an URL object in the same way you can use it for [`<Link>`](https://www.notion.so/zeithq/Using-Link-9656279e431e4497a25db38c75e31126). Works for both the `url` and `as` parameters:
+You can use an URL object in the same way you can use it for [`<Link>`](/docs/routing/using-link.md). Works for both the `url` and `as` parameters:
 
 ```jsx
 import Router from 'next/router'
@@ -86,7 +86,7 @@ export default ReadMore
 
 Shallow routing allows you to change the URL without running `getInitialProps`.
 
-You'll receive the updated `pathname` and the `query` via the [`router`](https://www.notion.so/zeithq/Router-Object-580270ec245444ed9253c529b1db0315) object (added by[`useRouter`](https://www.notion.so/zeithq/useRouter-9366b2aaca924f3db8bed5a43aa887ad) or [`withRouter`](https://www.notion.so/zeithq/withRouter-ebcdae351eae4b8f84db2f2a26d0e505)), without losing state.
+You'll receive the updated `pathname` and the `query` via the [`router`](/docs/routing/router-object.md) object (added by[`useRouter`](/docs/routing/useRouter.md) or [`withRouter`](/docs/routing/withRouter.md)), without losing state.
 
 To enable shallow routing, set the `shallow` option to `true`. Consider the following example:
 

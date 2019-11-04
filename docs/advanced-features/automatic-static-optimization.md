@@ -26,9 +26,9 @@ And if you add `getInitialProps` to the page, it will then be JavaScript, like s
 .next/server/static/${BUILD_ID}/about.js
 ```
 
-In development you'll know if `pages/about.js` is optimized or not thanks to the included [static optimization indicator](https://www.notion.so/zeithq/Static-Optimization-Indicator-82769ca8b46d4d95b95046f19aad21da).
+In development you'll know if `pages/about.js` is optimized or not thanks to the included [static optimization indicator](/docs/api-reference/next.config.js/static-optimization-indicator.md).
 
 ## Caveats
 
-- If you have a [custom `<App>`](https://www.notion.so/zeithq/Custom-App-ee9e71d6b13848f1b58ae97b6690508a) with `getInitialProps` then this optimization will be disabled for all pages.
-- If you have a [custom `<Document>`](https://www.notion.so/zeithq/Custom-Document-b9ece843914443519c952a53ecc4d389) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered. `ctx.req` will be `undefined` for pages that are prerendered.
+- If you have a [custom `<App>`](/docs/pages/custom-app.md) with `getInitialProps` then this optimization will be disabled for all pages.
+- If you have a [custom `<Document>`](/docs/pages/custom-document.md) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered. `ctx.req` will be `undefined` for pages that are prerendered.

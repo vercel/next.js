@@ -21,14 +21,14 @@
 
 <details>
   <summary>How can I change the internal webpack configs?</summary>
-  <p>Next.js tries its best to remove the overhead of webpack configurations, but for advanced cases where more control is needed, refer to the <a href="https://www.notion.so/zeithq/Custom-webpack-config-72339a3fd8b74922bede834bb1eb1dff">custom webpack config documentation</a>.</p>
+  <p>Next.js tries its best to remove the overhead of webpack configurations, but for advanced cases where more control is needed, refer to the <a href="/docs/api-reference/next.config.js/custom-webpack-config.md">custom webpack config documentation</a>.</p>
 </details>
 
 <details>
   <summary>What syntactic features are transpiled? How do I change them?</summary>
   <p>We track V8. Since V8 has wide support for ES6 and async and await, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.</p>
 
-  <p>See the documentation about <a href="https://www.notion.so/zeithq/Customizing-Babel-config-b908176e87634b7190cfdbe4d540eb29">customizing babel config</a> for more information.</p>
+  <p>See the documentation about <a href="/docs/advanced-features/customizing-babel-config.md">customizing babel config</a> for more information.</p>
 </details>
 
 <details>
@@ -42,7 +42,7 @@
 
 <details>
   <summary>How do I fetch data?</summary>
-  <p>It's up to you. You can use the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">fetch API</a> inside your React components, or <a href="https://www.notion.so/zeithq/SSR-with-getInitialProps-1a3c793f0b8542b99a87d48dcd56f5ba">getInitialProps</a> for initial data population.</p>
+  <p>It's up to you. You can use the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">fetch API</a> inside your React components, or <a href="/docs/pages/ssr-with-getInitialProps.md">getInitialProps</a> for initial data population.</p>
 </details>
 
 <details>
@@ -57,7 +57,7 @@
 
 <details>
   <summary>Can I use a CDN for static assets?</summary>
-  <p>Yes. You can read more about it <a href="https://www.notion.so/zeithq/CDN-support-with-Asset-Prefix-60e1185b675748f19daa224f13f77ebf">here</a>.</p>
+  <p>Yes. You can read more about it <a href="/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md">here</a>.</p>
 </details>
 
 <details>

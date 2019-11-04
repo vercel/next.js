@@ -31,4 +31,4 @@ export default MyApp
 
 The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
 
-> Adding a custom `getInitialProps` in your `<App>` will disable [Automatic Static Optimization](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d).
+> Adding a custom `getInitialProps` in your `<App>` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).

@@ -6,7 +6,7 @@ Next.js supports various build targets, each changing the way your application i
 
 > This is the default target, however, we highly recommend the [`serverless` target](#serverless-target). The `serverless` target enforces additional constraints to keep you in the [Pit of Success](https://blog.codinghorror.com/falling-into-the-pit-of-success/).
 
-This target is compatible with both `next start` and [custom server](https://www.notion.so/zeithq/Custom-Server-7cc0448e06204feaa02d769b4c961615) setups (it's mandatory for a custom server).
+This target is compatible with both `next start` and [custom server](/docs/advanced-features/custom-server.md) setups (it's mandatory for a custom server).
 
 Your application will be built and deployed as a monolith. This is the default target and no action is required on your part to opt-in.
 

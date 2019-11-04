@@ -56,7 +56,7 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 - Predefined routes take precedence over dynamic routes. Take a look at the following examples:
   - `pages/post/create.js` - Will match `/post/create`
   - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. but not `/post/create`
-- Pages that are statically optimized by [Automatic Static Optimization](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
+- Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
 

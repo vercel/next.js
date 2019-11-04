@@ -12,9 +12,9 @@
 
 The exported app supports almost every feature of Next.js, including dynamic routes, prefetching, preloading and dynamic imports.
 
-The way `next export` works is by prerendering all pages to HTML; it does so based on a mapping mapping called [`exportPathMap`](https://www.notion.so/zeithq/exportPathMap-fc734ed5116646c0924c6801f1c4339f).
+The way `next export` works is by prerendering all pages to HTML; it does so based on a mapping mapping called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md).
 
-> If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [Automatic Static Optimization](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d).
+> If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
 ## How to use it
 
@@ -46,7 +46,7 @@ Then you'll have a static version of your app in the `out` directory.
 
 By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` with routes for the pages inside the `pages` directory.
 
-> To learn more about `exportPathMap` please visit the [documentation for the `exportPathMap` API](https://www.notion.so/zeithq/exportPathMap-fc734ed5116646c0924c6801f1c4339f).
+> To learn more about `exportPathMap` please visit the [documentation for the `exportPathMap` API](/docs/api-reference/next.config.js/exportPathMap.md).
 
 ## Deployment
 
@@ -62,5 +62,5 @@ A deployment to GitHub Pages has an additional step, [documented here](https://g
 
 ## Caveats
 
-- With `next export`, we build a HTML version of your app. At export time we will run the [`getInitialProps`](https://www.notion.so/zeithq/SSR-with-getInitialProps-1a3c793f0b8542b99a87d48dcd56f5ba) in your pages. The `req` and `res` fields of the [`context`](https://www.notion.so/zeithq/SSR-with-getInitialProps-1a3c793f0b8542b99a87d48dcd56f5ba#4daf39a25a4147c38df57988bf413149) object will be empty objects during export as there is no server running.
+- With `next export`, we build a HTML version of your app. At export time we will run the [`getInitialProps`](/docs/pages/ssr-with-getInitialProps.md) in your pages. The `req` and `res` fields of the [`context`](/docs/pages/ssr-with-getInitialProps.md#context-object) object will be empty objects during export as there is no server running.
 - You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you need to do dynamic rendering use Next.js without this feature.

@@ -1,6 +1,6 @@
 # Router Object
 
-The following is the definition of the `router` object returned by both [`useRouter`](https://www.notion.so/zeithq/useRouter-9366b2aaca924f3db8bed5a43aa887ad) and [`withRouter`](https://www.notion.so/zeithq/withRouter-ebcdae351eae4b8f84db2f2a26d0e505):
+The following is the definition of the `router` object returned by both [`useRouter`](/docs/routing/useRouter.md) and [`withRouter`](/docs/routing/withRouter.md):
 
 - `route`: `String` - Current route
 - `pathname`: `String` - Current path excluding the query string
@@ -15,4 +15,4 @@ Additionally, useful methods from the `Router API` are also included:
 
 The second `as` parameter for `push` and `replace` is an optional decoration of the URL. Useful for dynamic routes.
 
-> The `query` object will be empty during prerendering if the page is [statically optimized](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d).
+> The `query` object will be empty during prerendering if the page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).

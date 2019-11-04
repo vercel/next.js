@@ -8,7 +8,7 @@
 </details>
 <br/>
 
-`<Link>` should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](https://www.notion.so/zeithq/Router-push-769f057793c549e3a7190c7f1896c602).
+`<Link>` should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/router/router.push.md).
 
 The following example shows the basic usage of the Router API:
 

@@ -1,6 +1,6 @@
 # Static Optimization Indicator
 
-When a page qualifies for [Automatic Static Optimization](https://www.notion.so/zeithq/Automatic-Static-Optimization-172e00fb49b548f9ab196a5bf754ca2d) we show an indicator to let you know.
+When a page qualifies for [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) we show an indicator to let you know.
 
 This is helpful since automatic static optimization can be very beneficial and knowing immediately in development if the page qualifies can be useful.
 
