@@ -77,7 +77,7 @@ export function printTreeView(
           item.startsWith('/_')
             ? ' '
             : pageInfo && pageInfo.static
-            ? chalk.bold('⚡')
+            ? chalk.bold('*')
             : serverless
             ? 'λ'
             : 'σ'
@@ -119,7 +119,7 @@ export function printTreeView(
               )})`,
             ],
         [
-          chalk.bold('⚡'),
+          chalk.bold('*'),
           '(Static File)',
           'page was prerendered as static HTML',
         ],
