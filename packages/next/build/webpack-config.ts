@@ -65,6 +65,8 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
     'whatwg-fetch$': stubWindowFetch,
+
+    url: 'native-url',
   }
 }
 
