@@ -56,6 +56,10 @@ const renames = [
     srcGlob: '.next/static/chunks/commons!(*.module.js)',
     dest: '.next/static/chunks/commons.HASH.js'
   },
+  {
+    srcGlob: '.next/static/chunks/framework!(*.module.js)',
+    dest: '.next/static/chunks/framework.HASH.js'
+  },
   // modern
   {
     srcGlob: '.next/static/runtime/main-*.module.js',
@@ -68,6 +72,10 @@ const renames = [
   {
     srcGlob: '.next/static/chunks/commons*.module.js',
     dest: '.next/static/chunks/commons.HASH.module.js'
+  },
+  {
+    srcGlob: '.next/static/chunks/framework*.module.js',
+    dest: '.next/static/chunks/framework.HASH.module.js'
   },
   // misc
   {
