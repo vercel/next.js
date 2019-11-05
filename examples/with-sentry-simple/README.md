@@ -47,43 +47,39 @@ now
 
 ## About Example
 
-This is a simple example showing how to use [Sentry](https://sentry.io) to catch & report errors on both client + server side.
-
-- `_app.js` renders on both the server and client. It initializes Sentry to catch any unhandled exceptions
-- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overriden so those exceptions can be passed along to Sentry
-- `next.config.js` enables source maps in production for Sentry and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
-
-**Note**: Source maps will not be sent to Sentry when running locally (because Sentry cannot access your `localhost`). To accurately test client-side source maps, please deploy to Now.
-
-**Note**: Server-side source maps will not work unless you [manually upload them to Sentry](https://docs.sentry.io/platforms/node/sourcemaps/#making-source-maps-available-to-sentry).
-
-**Note**: Error handling [works differently in production](https://nextjs.org/docs#custom-error-handling). Some exceptions will not be sent to Sentry in development mode (i.e. `npm run dev`).
-
-**Note**: The build output will contain warning about unhandled Promise rejections. This caused by the test pages, and is expected.
-
-**Note**: The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
+This example uses the new [next-plugin-sentry](https://github.com/zeit/next.js/tree/canary/packages/next-plugin-sentry) package to catch & report errors on both client + server side.
 
 ### Configuration
 
-You will need a _Sentry DSN_ for your project. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN (Public)**.
+You will need a [Sentry DSN](https://sentry.io) for your project. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN (Public)**.
 
-The Sentry DSN should then be updated in `_app.js`.
+The Sentry DSN should then be updated in `next.config.js`.
 
 ```js
-Sentry.init({
-  dsn: 'PUT_YOUR_SENTRY_DSN_HERE',
+module.exports = withSourceMaps({
+  env: {
+    SENTRY_DSN: 'hello-world',
+    // would want to synchronously grab git commit id here for
+    // best debugging experience
+    SENTRY_RELEASE: '0.0.1'
+  }
 })
 ```
 
+### Notes
+
+- Source maps will not be sent to Sentry when running locally (because Sentry cannot access your `localhost`). To accurately test client-side source maps, please deploy to Now.
+- Server-side source maps will not work unless you [manually upload them to Sentry](https://docs.sentry.io/platforms/node/sourcemaps/#making-source-maps-available-to-sentry).
+- Error handling [works differently in production](https://nextjs.org/docs#custom-error-handling). Some exceptions will not be sent to Sentry in development mode (i.e. `npm run dev`).
+- The build output will contain warning about unhandled Promise rejections. This caused by the test pages, and is expected.
+- The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
+
 ### Disabling Sentry during development
 
-An easy way to disable Sentry while developing is to set its `enabled` flag based off of the `NODE_ENV` environment variable, which is [properly configured by the `next` subcommands](https://nextjs.org/docs#production-deployment).
+Sentry can be disabled by not providing a DSN. Modify `next.config.js` to remove the DSN based on the environment.
 
 ```js
-Sentry.init({
-  dsn: 'PUT_YOUR_SENTRY_DSN_HERE',
-  enabled: process.env.NODE_ENV === 'production',
-})
+SENTRY_DSN: process.env.NODE_ENV === 'production' && 'YOUR-DSN'
 ```
 
 ### Hosting source maps vs. uploading them to Sentry
