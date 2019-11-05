@@ -670,7 +670,10 @@ describe('Production Usage', () => {
 
     for (const script of $('script').toArray()) {
       // application/json doesn't need defer
-      if (script.attribs.type === 'application/json') {
+      if (
+        script.attribs.type === 'application/json' ||
+        script.attribs.src.includes('polyfills')
+      ) {
         continue
       }
 

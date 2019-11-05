@@ -68,14 +68,13 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   )
 
   return {
-    // Alias fetch
-    __internal_fetch: require.resolve('whatwg-fetch'),
+    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
     'whatwg-fetch$': stubWindowFetch,
 
     // Alias Object.assign
-    '__internal_object-assign': require.resolve('object-assign'),
+    '__next_polyfill_object-assign': require.resolve('object-assign'),
     'object-assign$': stubWindowObjectAssign,
     'object.assign$': stubWindowObjectAssign,
     'object.assign/polyfill$': stubWindowObjectAssign,

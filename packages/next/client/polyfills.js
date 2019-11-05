@@ -1,2 +1,2 @@
-import '__internal_fetch'
-Object.assign = require('__internal_object-assign')
+import '__next_polyfill__fetch'
+Object.assign = require('__next_polyfill_object-assign')
