@@ -125,6 +125,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       eventVersion({
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+        hasNowJson: fs.existsSync(path.join(dir, 'now.json')),
       })
     ),
     eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))

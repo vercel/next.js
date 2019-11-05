@@ -5,6 +5,7 @@ type EventCliSessionStarted = {
   nodeVersion: string
   cliCommand: string
   isSrcDir: boolean | null
+  hasNowJson: boolean
 }
 
 export function eventVersion(
@@ -23,6 +24,7 @@ export function eventVersion(
         nodeVersion: process.version,
         cliCommand: event.cliCommand,
         isSrcDir: event.isSrcDir,
+        hasNowJson: event.hasNowJson,
       } as EventCliSessionStarted,
     },
   ]
