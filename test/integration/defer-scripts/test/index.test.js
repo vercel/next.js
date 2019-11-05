@@ -40,7 +40,8 @@ describe('Defer Scripts', () => {
     for (const script of $('script').toArray()) {
       const { defer, type, src } = script.attribs
       // application/json doesn't need defer
-      if (type === 'application/json' || /polyfill\.js$/.test(src)) {
+      // polyfills cannot be deferred or async'd
+      if (type === 'application/json' || src.includes('polyfills')) {
         continue
       }
 

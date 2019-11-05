@@ -1,13 +1,13 @@
-import App from '../components/App'
-import Header from '../components/Header'
+import Layout from '../components/Layout'
 import Submit from '../components/Submit'
 import PostList from '../components/PostList'
-import withApollo from '../lib/withApollo'
+import { withApollo } from '../lib/apollo'
 
-export default withApollo(() => (
-  <App>
-    <Header />
+const ApolloPage = () => (
+  <Layout>
     <Submit />
     <PostList />
-  </App>
-))
+  </Layout>
+)
+
+export default withApollo(ApolloPage)
