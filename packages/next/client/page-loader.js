@@ -98,7 +98,7 @@ export default class PageLoader {
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
-              if (!document.querySelector(`script[src^="${d}"]`)) {
+              if (/\.js$/.test(d) && !document.querySelector(`script[src^="${d}"]`)) {
                 this.loadScript(d, route, false)
               }
             })
