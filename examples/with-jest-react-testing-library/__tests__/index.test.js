@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import React from 'react'
-import { render } from 'react-testing-library'
+import { render } from '@testing-library/react'
 
 import App from '../pages/index.js'
 
