@@ -15,10 +15,22 @@ module.exports = withCSS(
         // if they live under a 'fonts' or 'pficon' directory
         include: [
           path.resolve(__dirname, 'node_modules/patternfly/dist/fonts'),
-          path.resolve(__dirname, 'node_modules/@patternfly/react-core/dist/styles/assets/fonts'),
-          path.resolve(__dirname, 'node_modules/@patternfly/react-core/dist/styles/assets/pficon'),
-          path.resolve(__dirname, 'node_modules/@patternfly/patternfly/assets/fonts'),
-          path.resolve(__dirname, 'node_modules/@patternfly/patternfly/assets/pficon')
+          path.resolve(
+            __dirname,
+            'node_modules/@patternfly/react-core/dist/styles/assets/fonts'
+          ),
+          path.resolve(
+            __dirname,
+            'node_modules/@patternfly/react-core/dist/styles/assets/pficon'
+          ),
+          path.resolve(
+            __dirname,
+            'node_modules/@patternfly/patternfly/assets/fonts'
+          ),
+          path.resolve(
+            __dirname,
+            'node_modules/@patternfly/patternfly/assets/pficon'
+          )
         ],
         use: {
           loader: 'file-loader',

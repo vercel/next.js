@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.11.0",
+    "react-dom": "^16.11.0"
   },
   "devDependencies": {
-    "@babel/core": "7.3.4",
-    "babel-jest": "24.1.0",
-    "jest": "24.1.0",
-    "react-testing-library": "^5.4.2"
+    "@babel/core": "7.6.4",
+    "@testing-library/react": "9.3.2",
+    "babel-jest": "24.9.0",
+    "jest": "24.9.0"
   },
   "scripts": {
     "test": "jest",
