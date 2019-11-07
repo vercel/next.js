@@ -47,7 +47,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import flattenRoutes from '../lib/flatten-routes'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -94,10 +93,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const redirects = []
 
   if (typeof config.redirects === 'function') {
-    redirects.push(...flattenRoutes(await config.redirects()))
+    redirects.push(...(await config.redirects()))
   }
   if (typeof config.rewrites === 'function') {
-    rewrites.push(...flattenRoutes(await config.rewrites()))
+    rewrites.push(...(await config.rewrites()))
   }
 
   if (ciEnvironment.isCI) {

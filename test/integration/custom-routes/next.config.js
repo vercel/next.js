@@ -10,21 +10,25 @@ module.exports = {
         destination: '/multi-rewrites'
       },
       {
-        source: '/with-params/:path*',
-        destination: '/with-params?path=:path'
-      },
-      {
         source: '/first',
         destination: '/hello'
       },
       {
         source: '/second',
         destination: '/hello-again'
+      },
+      {
+        source: '/something',
+        destination: '/blog/something'
       }
     ]
   },
   async redirects () {
     return [
+      {
+        source: '/hello/:id/another',
+        destination: '/blog/:id'
+      },
       {
         source: '/redirect1',
         destination: '/'

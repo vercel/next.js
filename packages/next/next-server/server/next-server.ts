@@ -37,7 +37,7 @@ import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
 import { fileExists } from '../../lib/file-exists'
-import flattenRoutes from '../../lib/flatten-routes'
+import pathToRegexp from 'path-to-regexp'
 
 type NextConfig = any
 
@@ -369,48 +369,61 @@ export default class Server {
       redirects: (rewrite & { statusCode?: number })[]
     } = await this.getCustomRoutes()
 
-    routes.push(
-      ...flattenRoutes(redirects).map(redirect => {
-        return {
-          match: route(redirect.source),
-          fn: async (req, res, params, parsedUrl) => {
-            // TODO: investigate which statusCode to honor in the chain
-            // the first or the last, this honors the last since we don't
-            // want to create a permanent redirect to the wrong place
-            // if the chain leads to a temporary redirect
-            res.setHeader('Location', redirect.destination)
-            res.statusCode = redirect.statusCode || 307
-            res.end()
-          },
-        } as Route
-      })
-    )
+    const getCustomRoute = (
+      r: { source: string; destination: string; statusCode?: number },
+      type: 'redirect' | 'rewrite'
+    ) => ({
+      ...r,
+      type,
+      matcher: route(r.source),
+    })
+
+    const customRoutes = [
+      ...redirects.map(r => getCustomRoute(r, 'redirect')),
+      ...rewrites.map(r => getCustomRoute(r, 'rewrite')),
+    ]
 
     routes.push(
-      ...flattenRoutes(rewrites).map(rewrite => {
+      ...customRoutes.map((r, idx) => {
         return {
-          match: route(rewrite.source),
+          match: r.matcher,
           fn: async (req, res, params, parsedUrl) => {
-            let destinationUrl = rewrite.destination
+            let destinationCompiler = pathToRegexp.compile(r.destination)
+            let newUrl = destinationCompiler(params) // /blog/123
+            let newParams = params // { id: 123 }
+            let statusCode = r.statusCode
+            const followingRoutes = [...customRoutes].splice(
+              idx,
+              customRoutes.length - idx
+            )
 
-            for (const key of Object.keys(params)) {
-              const param = params[key]
-              destinationUrl = destinationUrl.replace(
-                new RegExp(`:${key}`, 'g'),
-                param
-              )
+            for (const followingRoute of followingRoutes) {
+              if (r.type === 'redirect' && followingRoute.type !== 'redirect') {
+                continue
+              }
+              const curParams = followingRoute.matcher(newUrl)
+
+              if (curParams) {
+                destinationCompiler = pathToRegexp.compile(
+                  followingRoute.destination
+                )
+                newUrl = destinationCompiler(newParams)
+                statusCode = followingRoute.statusCode || 307
+                newParams = curParams
+              }
             }
-            const nextParsedUrl = parseUrl(destinationUrl, true)
 
-            let newParams
-            const destinationRoute = this.router.routes.find(route => {
-              newParams = route.match(rewrite.destination)
-              if (newParams) return true
-            }) as Route
-
-            // we should always find a match because we have a final catch all
-            // which will render 404 for us
-            return destinationRoute.fn(req, res, newParams || {}, nextParsedUrl)
+            if (r.type === 'redirect') {
+              // TODO: investigate which statusCode to honor in the chain
+              // the first or the last, this honors the last since we don't
+              // want to create a permanent redirect to the wrong place
+              // if the chain leads to a temporary redirect
+              res.setHeader('Location', newUrl)
+              res.statusCode = statusCode || 307
+              res.end()
+              return
+            }
+            return this.render(req, res, newUrl, newParams, parsedUrl)
           },
         } as Route
       })

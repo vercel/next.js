@@ -309,7 +309,10 @@ export default class Router implements BaseRouter {
         const { pathname: asPathname } = parse(as)
         const rr = getRouteRegex(route)
         const routeMatch = getRouteMatcher(rr)(asPathname)
-        if (!routeMatch) {
+
+        // If they are using a custom route they might not have any
+        // params that we could parse out (might not want to allow this)
+        if (!routeMatch && !options._h) {
           const error =
             'The provided `as` value is incompatible with the `href` value. This is invalid. https://err.sh/zeit/next.js/incompatible-href-as'
 
