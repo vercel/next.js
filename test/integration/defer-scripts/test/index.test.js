@@ -38,9 +38,10 @@ describe('Defer Scripts', () => {
     let missing = false
 
     for (const script of $('script').toArray()) {
-      const { defer, type } = script.attribs
+      const { defer, type, src } = script.attribs
       // application/json doesn't need defer
-      if (type === 'application/json') {
+      // polyfills cannot be deferred or async'd
+      if (type === 'application/json' || src.includes('polyfills')) {
         continue
       }
 

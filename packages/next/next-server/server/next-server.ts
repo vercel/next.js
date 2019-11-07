@@ -262,6 +262,21 @@ export default class Server {
     const publicRoutes = (await fileExists(this.publicDir))
       ? await this.generatePublicRoutes()
       : []
+    const staticFilesRoute = fs.existsSync(join(this.dir, 'static'))
+      ? [
+          {
+            // It's very important to keep this route's param optional.
+            // (but it should support as many params as needed, separated by '/')
+            // Otherwise this will lead to a pretty simple DOS attack.
+            // See more: https://github.com/zeit/next.js/issues/2617
+            match: route('/static/:path*'),
+            fn: async (req, res, params, parsedUrl) => {
+              const p = join(this.dir, 'static', ...(params.path || []))
+              await this.serveStatic(req, res, p, parsedUrl)
+            },
+          } as Route,
+        ]
+      : []
 
     const routes: Route[] = [
       {
@@ -329,17 +344,7 @@ export default class Server {
         },
       },
       ...publicRoutes,
-      {
-        // It's very important to keep this route's param optional.
-        // (but it should support as many params as needed, separated by '/')
-        // Otherwise this will lead to a pretty simple DOS attack.
-        // See more: https://github.com/zeit/next.js/issues/2617
-        match: route('/static/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
-          const p = join(this.dir, 'static', ...(params.path || []))
-          await this.serveStatic(req, res, p, parsedUrl)
-        },
-      },
+      ...staticFilesRoute,
       {
         match: route('/api/:path*'),
         fn: async (req, res, params, parsedUrl) => {

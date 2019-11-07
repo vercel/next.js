@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
@@ -24,8 +25,14 @@ import {
 } from '../next-server/lib/constants'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
+import {
+  collectPlugins,
+  PluginMetaData,
+  VALID_MIDDLEWARE,
+} from './plugins/collect-plugins'
+// @ts-ignore: JS file
+import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
@@ -34,17 +41,10 @@ import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
-// @ts-ignore: JS file
-import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import {
-  collectPlugins,
-  VALID_MIDDLEWARE,
-  PluginMetaData,
-} from './plugins/collect-plugins'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -52,6 +52,20 @@ const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
+}
+
+function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
+  if (isServer) {
+    return {}
+  }
+
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  return {
+    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
+    unfetch$: stubWindowFetch,
+    'isomorphic-unfetch$': stubWindowFetch,
+    'whatwg-fetch$': stubWindowFetch,
+  }
 }
 
 export default async function getBaseWebpackConfig(
@@ -118,7 +132,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
     ...(config.experimental.plugins
-      ? VALID_MIDDLEWARE.map(name => new RegExp(`src/${name}`))
+      ? VALID_MIDDLEWARE.map(name => new RegExp(`src(\\\\|/)${name}`))
       : []),
   ]
 
@@ -148,6 +162,10 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
+        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
+          NEXT_PROJECT_ROOT_DIST_CLIENT,
+          'polyfills.js'
+        ),
       }
     : undefined
 
@@ -196,6 +214,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
+      ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
@@ -274,6 +293,9 @@ export default async function getBaseWebpackConfig(
           // https://github.com/zeit/next.js/pull/9012
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
+          // Don't let webpack eliminate this chunk (prevents this chunk from
+          // becoming a part of the commons chunk)
+          enforce: true,
         },
         lib: {
           test(module: { size: Function; identifier: Function }): boolean {
@@ -531,7 +553,8 @@ export default async function getBaseWebpackConfig(
         if (
           !dev &&
           (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
-            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK ||
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
@@ -808,11 +831,6 @@ export default async function getBaseWebpackConfig(
           filename: REACT_LOADABLE_MANIFEST,
         }),
       !isServer && new DropClientPage(),
-      new ChunkGraphPlugin(buildId, {
-        dir,
-        distDir,
-        isServer,
-      }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.

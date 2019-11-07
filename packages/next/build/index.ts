@@ -46,7 +46,6 @@ import {
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import flattenRoutes from '../lib/flatten-routes'
 
@@ -299,7 +298,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.error(error)
     console.error()
 
-    if (error.indexOf('private-next-pages') > -1) {
+    if (
+      error.indexOf('private-next-pages') > -1 ||
+      error.indexOf('__next_polyfill__') > -1
+    ) {
       throw new Error(
         '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
       )
@@ -355,8 +357,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
-      const chunks = getPageChunks(page)
-
       const actualPage = page === '/' ? '/index' : page
       const size = await getPageSizeInKb(
         actualPage,
@@ -442,7 +442,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
+      pageInfos.set(page, { size, serverBundle, static: isStatic })
     })
   )
   staticCheckWorkers.end()
