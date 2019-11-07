@@ -14,6 +14,10 @@ const clientGlobs = [
     ]
   },
   {
+    name: 'Legacy Client Bundles (polyfills)',
+    globs: ['.next/static/runtime/+(polyfills)-!(*.module.js)']
+  },
+  {
     name: 'Client Pages',
     globs: ['.next/static/*/pages/**/!(*.module.js)']
   },
@@ -45,8 +49,16 @@ const renames = [
     dest: '.next/static/runtime/webpack-HASH.js'
   },
   {
+    srcGlob: '.next/static/runtime/polyfills-!(*.module.js)',
+    dest: '.next/static/runtime/polyfills-HASH.js'
+  },
+  {
     srcGlob: '.next/static/chunks/commons!(*.module.js)',
     dest: '.next/static/chunks/commons.HASH.js'
+  },
+  {
+    srcGlob: '.next/static/chunks/framework!(*.module.js)',
+    dest: '.next/static/chunks/framework.HASH.js'
   },
   // modern
   {
@@ -60,6 +72,10 @@ const renames = [
   {
     srcGlob: '.next/static/chunks/commons*.module.js',
     dest: '.next/static/chunks/commons.HASH.module.js'
+  },
+  {
+    srcGlob: '.next/static/chunks/framework*.module.js',
+    dest: '.next/static/chunks/framework.HASH.module.js'
   },
   // misc
   {

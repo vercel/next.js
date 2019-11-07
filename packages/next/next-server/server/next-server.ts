@@ -4,6 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
@@ -22,7 +23,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { NextApiRequest, NextApiResponse, isResSent } from '../lib/utils'
+import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -32,9 +33,8 @@ import { getPagePath } from './require'
 import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
+import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
-import { initializeSprCache, getSprCache, setSprCache } from './spr-cache'
 
 type NextConfig = any
 
@@ -84,6 +84,7 @@ export default class Server {
     dev?: boolean
   }
   private compression?: Middleware
+  private onErrorMiddleware?: ({ err }: { err: Error }) => void
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
@@ -154,6 +155,21 @@ export default class Server {
     this.router = new Router(routes)
     this.setAssetPrefix(assetPrefix)
 
+    // call init-server middleware, this is also handled
+    // individually in serverless bundles when deployed
+    if (!dev && this.nextConfig.experimental.plugins) {
+      const serverPath = join(
+        this.distDir,
+        this._isLikeServerless ? 'serverless' : 'server'
+      )
+      const initServer = require(join(serverPath, 'init-server.js')).default
+      this.onErrorMiddleware = require(join(
+        serverPath,
+        'on-error-server.js'
+      )).default
+      initServer()
+    }
+
     initializeSprCache({
       dev,
       distDir: this.distDir,
@@ -172,10 +188,13 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  private logError(...args: any): void {
+  private logError(err: Error): void {
+    if (this.onErrorMiddleware) {
+      this.onErrorMiddleware({ err })
+    }
     if (this.quiet) return
     // tslint:disable-next-line
-    console.error(...args)
+    console.error(err)
   }
 
   private handleRequest(
@@ -223,6 +242,21 @@ export default class Server {
   protected generateRoutes(): Route[] {
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
+      : []
+    const staticFilesRoute = fs.existsSync(join(this.dir, 'static'))
+      ? [
+          {
+            // It's very important to keep this route's param optional.
+            // (but it should support as many params as needed, separated by '/')
+            // Otherwise this will lead to a pretty simple DOS attack.
+            // See more: https://github.com/zeit/next.js/issues/2617
+            match: route('/static/:path*'),
+            fn: async (req, res, params, parsedUrl) => {
+              const p = join(this.dir, 'static', ...(params.path || []))
+              await this.serveStatic(req, res, p, parsedUrl)
+            },
+          } as Route,
+        ]
       : []
 
     const routes: Route[] = [
@@ -291,17 +325,7 @@ export default class Server {
         },
       },
       ...publicRoutes,
-      {
-        // It's very important to keep this route's param optional.
-        // (but it should support as many params as needed, separated by '/')
-        // Otherwise this will lead to a pretty simple DOS attack.
-        // See more: https://github.com/zeit/next.js/issues/2617
-        match: route('/static/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
-          const p = join(this.dir, 'static', ...(params.path || []))
-          await this.serveStatic(req, res, p, parsedUrl)
-        },
-      },
+      ...staticFilesRoute,
       {
         match: route('/api/:path*'),
         fn: async (req, res, params, parsedUrl) => {
@@ -542,12 +566,18 @@ export default class Server {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
     res.setHeader('Content-Type', type)
     res.setHeader('Content-Length', Buffer.byteLength(payload))
-
-    if (revalidate) {
-      res.setHeader(
-        'Cache-Control',
-        `s-maxage=${revalidate}, stale-while-revalidate`
-      )
+    if (!this.renderOpts.dev) {
+      if (revalidate) {
+        res.setHeader(
+          'Cache-Control',
+          `s-maxage=${revalidate}, stale-while-revalidate`
+        )
+      } else if (revalidate === false) {
+        res.setHeader(
+          'Cache-Control',
+          `s-maxage=31536000, stale-while-revalidate`
+        )
+      }
     }
     res.end(payload)
   }

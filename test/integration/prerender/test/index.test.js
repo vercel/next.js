@@ -5,12 +5,14 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
   waitFor,
   nextBuild,
   nextStart,
+  stopApp,
   nextExport,
   startStaticServer,
   initNextServerScript
@@ -24,6 +26,7 @@ let appPort
 let buildId
 let distPagesDir
 let exportDir
+let stderr
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -73,9 +76,19 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 2,
     srcRoute: '/blog/[post]/[comment]'
   },
+  '/blog/post.1': {
+    dataRoute: `/_next/data/${buildId}/blog/post.1.json`,
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]'
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
-    initialRevalidateSeconds: 0,
+    initialRevalidateSeconds: 1,
+    srcRoute: null
+  },
+  '/blog': {
+    dataRoute: `/_next/data/${buildId}/blog.json`,
+    initialRevalidateSeconds: 10,
     srcRoute: null
   },
   '/default-revalidate': {
@@ -202,14 +215,20 @@ const runTests = (dev = false) => {
 
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
-      const initialHtml = await renderViaHTTP(appPort, '/something')
+      const initialRes = await fetchViaHTTP(appPort, '/something')
+      expect(initialRes.headers.get('cache-control')).toBeFalsy()
+      const initialHtml = await initialRes.text()
       expect(initialHtml).toMatch(/hello.*?world/)
 
-      const newHtml = await renderViaHTTP(appPort, '/something')
+      const newRes = await fetchViaHTTP(appPort, '/something')
+      expect(newRes.headers.get('cache-control')).toBeFalsy()
+      const newHtml = await newRes.text()
       expect(newHtml).toMatch(/hello.*?world/)
       expect(initialHtml !== newHtml).toBe(true)
 
-      const newerHtml = await renderViaHTTP(appPort, '/something')
+      const newerRes = await fetchViaHTTP(appPort, '/something')
+      expect(newerRes.headers.get('cache-control')).toBeFalsy()
+      const newerHtml = await newerRes.text()
       expect(newerHtml).toMatch(/hello.*?world/)
       expect(newHtml !== newerHtml).toBe(true)
     })
@@ -229,7 +248,39 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
+
+    it('should show error when getStaticParams is used without getStaticProps', async () => {
+      const pagePath = join(appDir, 'pages/no-getStaticProps.js')
+      await fs.writeFile(
+        pagePath,
+        `
+        export async function unstable_getStaticParams() {
+          return []
+        }
+
+        export default () => 'hi'
+      `,
+        'utf8'
+      )
+
+      const html = await renderViaHTTP(appPort, '/no-getStaticProps')
+      await fs.remove(pagePath)
+      await waitFor(500)
+
+      expect(html).toMatch(
+        /unstable_getStaticParams was added without a unstable_getStaticProps in/
+      )
+    })
   } else {
+    it('should should use correct caching headers for a no-revalidate page', async () => {
+      const initialRes = await fetchViaHTTP(appPort, '/something')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        's-maxage=31536000, stale-while-revalidate'
+      )
+      const initialHtml = await initialRes.text()
+      expect(initialHtml).toMatch(/hello.*?world/)
+    })
+
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
@@ -248,6 +299,11 @@ const runTests = (dev = false) => {
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
           routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+        },
+        '/user/[user]/profile': {
+          dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
+          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
+          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
         }
       })
     })
@@ -335,6 +391,12 @@ const runTests = (dev = false) => {
       const val = await browser.eval('window.thisShouldStay')
       expect(val).toBe(true)
     })
+
+    it('should not error when flushing cache files', async () => {
+      await fetchViaHTTP(appPort, '/user/user-1/profile')
+      await waitFor(500)
+      expect(stderr).not.toMatch(/Failed to update prerender files for/)
+    })
   }
 }
 
@@ -342,7 +404,11 @@ describe('SPR Prerender', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
@@ -358,8 +424,13 @@ describe('SPR Prerender', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = nextStart(appDir, appPort)
+      app = nextStart(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
@@ -384,12 +455,15 @@ describe('SPR Prerender', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      try {
-        await fs.unlink(nextConfig)
-      } catch (_) {}
+      await fs.remove(nextConfig)
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        }
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
@@ -401,15 +475,22 @@ describe('SPR Prerender', () => {
   describe('export mode', () => {
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { exportTrailingSlash: true }`
+      )
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
       appPort = app.address().port
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await stopApp(app)
+      await fs.remove(nextConfig)
+    })
 
-    it('should copy prerender files correctly', async () => {
+    it('should copy prerender files and honor exportTrailingSlash', async () => {
       const routes = [
         '/another',
         '/something',
@@ -418,7 +499,7 @@ describe('SPR Prerender', () => {
       ]
 
       for (const route of routes) {
-        await fs.access(join(exportDir, `${route}.html`))
+        await fs.access(join(exportDir, `${route}/index.html`))
         await fs.access(join(exportDir, '_next/data', buildId, `${route}.json`))
       }
     })
