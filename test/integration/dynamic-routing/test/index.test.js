@@ -235,20 +235,24 @@ function runTests (dev) {
         version: 0,
         dynamicRoutes: [
           {
-            page: '/blog/[name]/comment/[id].js',
-            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/\\[id\\]\\.js(?:\\/)?$'
+            page: '/blog/[name]/comment/[id]',
+            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
           },
           {
-            page: '/[name]/[comment].js',
-            regex: '^\\/([^\\/]+?)\\/\\[comment\\]\\.js(?:\\/)?$'
+            page: '/on-mount/[post]',
+            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'
           },
           {
-            page: '/[name]/comments.js',
-            regex: '^\\/([^\\/]+?)\\/comments\\.js(?:\\/)?$'
+            page: '/[name]',
+            regex: '^\\/([^\\/]+?)(?:\\/)?$'
           },
           {
-            page: '/[name]/index.js',
-            regex: '^\\/([^\\/]+?)\\/index\\.js(?:\\/)?$'
+            page: '/[name]/comments',
+            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$'
+          },
+          {
+            page: '/[name]/[comment]',
+            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           }
         ]
       })
