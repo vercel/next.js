@@ -6,6 +6,7 @@ type EventCliSessionStarted = {
   cliCommand: string
   isSrcDir: boolean | null
   hasNowJson: boolean
+  isCustomServer: boolean | null
 }
 
 export function eventVersion(
@@ -25,6 +26,7 @@ export function eventVersion(
         cliCommand: event.cliCommand,
         isSrcDir: event.isSrcDir,
         hasNowJson: event.hasNowJson,
+        isCustomServer: event.isCustomServer,
       } as EventCliSessionStarted,
     },
   ]

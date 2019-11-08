@@ -57,7 +57,11 @@ const nextDev: cliCommand = argv => {
 
   startedDevelopmentServer(appUrl)
 
-  startServer({ dir, dev: true }, port, args['--hostname'])
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    port,
+    args['--hostname']
+  )
     .then(async app => {
       await app.prepare()
     })

@@ -100,6 +100,7 @@ export default async function(
         cliCommand: 'export',
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
       })
     )
   }

@@ -41,8 +41,9 @@ export default class DevServer extends Server {
   private setDevReady?: Function
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
+  private isCustomServer: boolean
 
-  constructor(options: ServerConstructor) {
+  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ErrorDebug
@@ -69,6 +70,7 @@ export default class DevServer extends Server {
         `The static directory has been deprecated in favor of the public directory. https://err.sh/zeit/next.js/static-dir-deprecated`
       )
     }
+    this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
   }
 
@@ -212,6 +214,7 @@ export default class DevServer extends Server {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
+        isCustomServer: this.isCustomServer,
       })
     )
   }

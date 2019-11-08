@@ -126,6 +126,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
       })
     ),
     eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
