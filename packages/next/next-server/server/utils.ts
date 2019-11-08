@@ -21,7 +21,7 @@ export function cleanAmpPath(pathname: string): string {
     pathname = pathname.replace(/\?amp=(y|yes|true|1)/, '?')
   }
   if (pathname.match(/&amp=(y|yes|true|1)/)) {
-    pathname = pathname.replace(/\?amp=(y|yes|true|1)/, '')
+    pathname = pathname.replace(/&amp=(y|yes|true|1)/, '')
   }
   pathname = pathname.replace(/\?$/, '')
   return pathname
