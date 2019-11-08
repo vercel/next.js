@@ -468,7 +468,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId)
 
-  const dynamicRoutes = pagePaths.filter(page => isDynamicRoute(page))
+  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify(
