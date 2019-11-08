@@ -118,7 +118,7 @@
     "string-hash": "1.1.3",
     "strip-ansi": "5.2.0",
     "style-loader": "1.0.0",
-    "styled-jsx": "3.2.2",
+    "styled-jsx": "3.2.4",
     "terser": "4.0.0",
     "unfetch": "4.1.0",
     "url": "0.11.0",
