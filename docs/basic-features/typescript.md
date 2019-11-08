@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
   </ul>
 </details>
-<br/>
 
 Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/) experience out of the box, similar to an IDE.
 

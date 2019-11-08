@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/using-router">Using Router</a></li>
   </ul>
 </details>
-<br/>
 
 `<Link>` should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/router/router.push.md).
 

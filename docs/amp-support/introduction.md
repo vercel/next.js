@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">AMP</a></li>
   </ul>
 </details>
-<br/>
 
 AMP means "_Accelerated Mobile Pages_", and it's, in short words: A faster HTML.
 

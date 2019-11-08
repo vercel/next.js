@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/basic-css">Basic CSS</a></li>
   </ul>
 </details>
-<br/>
 
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
@@ -58,7 +57,6 @@ Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) fo
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-fela">Fela</a></li>
   </ul>
 </details>
-<br/>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 

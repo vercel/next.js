@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
-<br/>
 
 If you want to access the [`router`](/docs/routing/router-object.md) object inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
 

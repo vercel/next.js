@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
   </ul>
 </details>
-<br/>
 
 `next export` allows you to export your app to static HTML, which can be run standalone without the need of a Node.js server.
 

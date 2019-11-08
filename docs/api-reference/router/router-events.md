@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-loading">With a page loading indicator</a></li>
   </ul>
 </details>
-<br/>
 
 You can listen to different events happening inside the Router. Here's a list of supported events:
 

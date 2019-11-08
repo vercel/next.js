@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-dynamic-import">Dynamic Import</a></li>
   </ul>
 </details>
-<br/>
 
 Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dynamic-import) for JavaScript. With it you can import JavaScript modules (inc. React Components) dynamically and work with them. They also work with SSR.
 

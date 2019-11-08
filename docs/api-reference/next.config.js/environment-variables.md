@@ -7,7 +7,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-now-env">With Now env</a></li>
   </ul>
 </details>
-<br/>
 
 To add environment variables to the JavaScript bundle, open `next.config.js` and add the `env` config:
 

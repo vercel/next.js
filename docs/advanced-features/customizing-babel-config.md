@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-custom-babel-config">Customizing babel configuration</a></li>
   </ul>
 </details>
-<br/>
 
 Next.js includes the `next/babel` preset to your app, it includes everything needed to transpile React applications and server-side code. But if you want to extend the default Babel configs, it's also possible.
 

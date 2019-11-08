@@ -8,7 +8,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-static-export">Static Export</a></li>
   </ul>
 </details>
-<br/>
 
 Let's start with an example, to create a custom `exportPathMap` for an app with the following pages:
 

@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/hello-world">Hello World</a></li>
   </ul>
 </details>
-<br/>
 
 Client-side transitions between routes can be enabled via the `<Link>` component.
 

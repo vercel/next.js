@@ -10,7 +10,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/ssr-caching">SSR Catching</a></li>
   </ul>
 </details>
-<br/>
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to use custom route patterns.
 

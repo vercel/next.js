@@ -10,7 +10,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/api-routes-rest">API Routes with REST</a></li>
   </ul>
 </details>
-<br/>
 
 API routes provides a straightforward solution to build your **API** with Next.js.
 

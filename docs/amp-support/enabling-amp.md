@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">AMP</a></li>
   </ul>
 </details>
-<br/>
 
 To enable AMP support for a page, add the following config to your page:
 

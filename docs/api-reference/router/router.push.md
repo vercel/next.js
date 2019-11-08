@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/using-router">Using Router</a></li>
   </ul>
 </details>
-<br/>
 
 Handles client-side transitions, this method is useful for cases where [`<Link>`](/docs/routing/using-link.md) is not enough.
 
@@ -82,7 +81,6 @@ export default ReadMore
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing">Shallow Routing</a></li>
   </ul>
 </details>
-<br/>
 
 Shallow routing allows you to change the URL without running `getInitialProps`.
 

@@ -6,7 +6,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/data-fetch">Data fetch</a></li>
   </ul>
 </details>
-<br/>
 
 In React we can use [Hooks](https://reactjs.org/docs/hooks-intro.html) in function components, or [State and Lifecycle](https://reactjs.org/docs/state-and-lifecycle.html) in class components, to do client-side data fetching, and even though it works very well, there's also the need for **initial data population**, it means sending the page with the data already populated from the server, this is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 

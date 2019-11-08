@@ -7,7 +7,6 @@
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/layout-component">Layout Component</a></li>
   </ul>
 </details>
-<br/>
 
 We expose a built-in component for appending elements to the `<head>` of the page:
 
