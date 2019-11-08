@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve, join } from 'path'
+import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'

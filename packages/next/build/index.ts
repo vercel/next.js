@@ -6,7 +6,7 @@ import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-
+import findUp from 'find-up'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -125,7 +125,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       eventVersion({
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
-        hasNowJson: fs.existsSync(path.join(dir, 'now.json')),
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
       })
     ),
     eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))

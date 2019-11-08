@@ -6,7 +6,7 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-
+import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
@@ -211,6 +211,7 @@ export default class DevServer extends Server {
       eventVersion({
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
       })
     )
   }
