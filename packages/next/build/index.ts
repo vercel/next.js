@@ -47,6 +47,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import pathToRegexp from 'path-to-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -610,12 +611,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
 
+  const buildCustomRoute = (r: { source: string }) => {
+    return {
+      ...r,
+      regex: pathToRegexp(r.source).source,
+    }
+  }
+
+  // TODO: add dynamic-routes to the manifest also
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
       version: 0,
-      rewrites,
-      redirects,
+      redirects: redirects.map(r => buildCustomRoute(r)),
+      rewrites: rewrites.map(r => buildCustomRoute(r)),
     }),
     'utf8'
   )
