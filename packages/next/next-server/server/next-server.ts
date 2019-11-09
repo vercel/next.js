@@ -390,10 +390,7 @@ export default class Server {
               let newUrl = destinationCompiler(params) // /blog/123
               let newParams = params // { id: 123 }
               let statusCode = r.statusCode
-              const followingRoutes = customRoutes.slice(
-                idx,
-                idx + (customRoutes.length - idx)
-              )
+              const followingRoutes = customRoutes.slice(idx)
 
               for (const followingRoute of followingRoutes) {
                 if (
