@@ -202,6 +202,7 @@ export default class DevServer extends Server {
       const { redirects, rewrites } = this.customRoutes
 
       if (redirects.length || rewrites.length) {
+        // TODO: don't reach into router instance
         this.router.routes = this.generateRoutes()
       }
     }
