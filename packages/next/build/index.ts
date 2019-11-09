@@ -481,21 +481,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await writeBuildId(distDir, buildId)
 
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
-  await fsWriteFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify(
-      {
-        version: 0,
-        dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-          page,
-          regex: getRouteRegex(page).re.source,
-        })),
-      },
-      null,
-      2
-    )
-  )
-
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
@@ -637,7 +622,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const buildCustomRoute = (r: { source: string }) => {
     return {
       ...r,
-      regex: pathToRegexp(r.source).source,
+      regex: pathToRegexp(r.source, [], {
+        strict: true,
+        sensitive: false,
+      }).source,
     }
   }
 
@@ -645,9 +633,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
-      version: 0,
+      version: 1,
       redirects: redirects.map(r => buildCustomRoute(r)),
       rewrites: rewrites.map(r => buildCustomRoute(r)),
+      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+        page,
+        regex: getRouteRegex(page).re.source,
+      })),
     }),
     'utf8'
   )
