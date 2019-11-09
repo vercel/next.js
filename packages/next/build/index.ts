@@ -97,11 +97,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const rewrites = []
   const redirects = []
 
-  if (typeof config.redirects === 'function') {
-    redirects.push(...(await config.redirects()))
+  if (typeof config.experimental.redirects === 'function') {
+    redirects.push(...(await config.experimental.redirects()))
   }
-  if (typeof config.rewrites === 'function') {
-    rewrites.push(...(await config.rewrites()))
+  if (typeof config.experimental.rewrites === 'function') {
+    rewrites.push(...(await config.experimental.rewrites()))
   }
 
   if (ciEnvironment.isCI) {

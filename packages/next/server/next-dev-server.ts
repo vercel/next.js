@@ -275,7 +275,7 @@ export default class DevServer extends Server {
       redirects: [],
       rewrites: [],
     }
-    const { redirects, rewrites } = this.nextConfig
+    const { redirects, rewrites } = this.nextConfig.experimental
 
     if (typeof redirects === 'function') {
       result.redirects = await redirects()
