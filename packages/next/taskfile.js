@@ -18,6 +18,8 @@ const babelClientOpts = {
     '@babel/preset-react'
   ],
   plugins: [
+    // workaround for @taskr/esnext bug replacing `-import` with `-require(`
+    '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
     [
       '@babel/plugin-transform-runtime',
