@@ -280,7 +280,9 @@ export default class DevServer extends Server {
   }
 
   // override production loading of routes-manifest
-  protected getCustomRoutes() {}
+  protected getCustomRoutes() {
+    return this.customRoutes
+  }
 
   private async loadCustomRoutes() {
     const result = {
