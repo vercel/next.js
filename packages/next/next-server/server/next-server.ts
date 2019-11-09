@@ -38,6 +38,9 @@ import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
 import { fileExists } from '../../lib/file-exists'
 import pathToRegexp from 'path-to-regexp'
+import pathMatch from './lib/path-match'
+
+const customRoute = pathMatch(true)
 
 type NextConfig = any
 
@@ -375,7 +378,7 @@ export default class Server {
     ) => ({
       ...r,
       type,
-      matcher: route(r.source),
+      matcher: customRoute(r.source),
     })
 
     const customRoutes = [
@@ -401,6 +404,13 @@ export default class Server {
               if (r.type === 'redirect' && followingRoute.type !== 'redirect') {
                 continue
               }
+
+              if (isDynamicRoute(followingRoute.destination)) {
+                throw new Error(
+                  `Routing a custom route to a dynamic page is currently not supported. This behavior is being investigated`
+                )
+              }
+
               const curParams = followingRoute.matcher(newUrl)
 
               if (curParams) {
