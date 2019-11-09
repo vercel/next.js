@@ -6,7 +6,7 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-
+import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
@@ -41,8 +41,9 @@ export default class DevServer extends Server {
   private setDevReady?: Function
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
+  private isCustomServer: boolean
 
-  constructor(options: ServerConstructor) {
+  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ErrorDebug
@@ -69,6 +70,7 @@ export default class DevServer extends Server {
         `The static directory has been deprecated in favor of the public directory. https://err.sh/zeit/next.js/static-dir-deprecated`
       )
     }
+    this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
   }
 
@@ -211,6 +213,8 @@ export default class DevServer extends Server {
       eventVersion({
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
+        isCustomServer: this.isCustomServer,
       })
     )
   }
