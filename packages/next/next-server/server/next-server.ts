@@ -410,7 +410,7 @@ export default class Server {
                   followingRoute.destination
                 )
                 newUrl = destinationCompiler(newParams)
-                statusCode = followingRoute.statusCode || 307
+                statusCode = followingRoute.statusCode
                 newParams = curParams
               }
             }
