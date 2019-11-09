@@ -7,7 +7,7 @@ export async function unstable_getStaticProps () {
       world: 'world',
       time: new Date().getTime()
     },
-    revalidate: 0
+    revalidate: 1
   }
 }
 

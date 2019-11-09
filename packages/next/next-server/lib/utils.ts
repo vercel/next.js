@@ -150,9 +150,13 @@ export type DocumentProps = DocumentInitialProps & {
   hasCssMode: boolean
   devFiles: string[]
   files: string[]
+  polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
   canonicalBase: string
+  htmlProps: any
+  bodyTags: any[]
+  headTags: any[]
 }
 
 /**
@@ -200,11 +204,14 @@ export type NextApiResponse<T = any> = ServerResponse & {
  */
 export function execOnce(this: any, fn: (...args: any) => any) {
   let used = false
+  let result: any = null
+
   return (...args: any) => {
     if (!used) {
       used = true
-      fn.apply(this, args)
+      result = fn.apply(this, args)
     }
+    return result
   }
 }
 
@@ -233,11 +240,11 @@ export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
   P = {}
->(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
+>(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
-    if (Component.prototype && Component.prototype.getInitialProps) {
+    if (App.prototype && App.prototype.getInitialProps) {
       const message = `"${getDisplayName(
-        Component
+        App
       )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
@@ -245,11 +252,17 @@ export async function loadGetInitialProps<
   // when called from _app `ctx` is nested in `ctx`
   const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
-  if (!Component.getInitialProps) {
+  if (!App.getInitialProps) {
+    if (ctx.ctx && ctx.Component) {
+      // @ts-ignore pageProps default
+      return {
+        pageProps: await loadGetInitialProps(ctx.Component, ctx.ctx),
+      }
+    }
     return {} as any
   }
 
-  const props = await Component.getInitialProps(ctx)
+  const props = await App.getInitialProps(ctx)
 
   if (res && isResSent(res)) {
     return props
@@ -257,7 +270,7 @@ export async function loadGetInitialProps<
 
   if (!props) {
     const message = `"${getDisplayName(
-      Component
+      App
     )}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
     throw new Error(message)
   }
@@ -266,7 +279,7 @@ export async function loadGetInitialProps<
     if (Object.keys(props).length === 0 && !ctx.ctx) {
       console.warn(
         `${getDisplayName(
-          Component
+          App
         )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/zeit/next.js/empty-object-getInitialProps`
       )
     }

@@ -225,6 +225,38 @@ function runTests (dev) {
       await fs.access(bundlePath + '.js', fs.constants.F_OK)
       await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
     })
+
+    it('should output a routes-manifest correctly', async () => {
+      const manifest = await fs.readJson(
+        join(appDir, '.next/routes-manifest.json')
+      )
+
+      expect(manifest).toEqual({
+        version: 0,
+        dynamicRoutes: [
+          {
+            page: '/blog/[name]/comment/[id]',
+            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
+          },
+          {
+            page: '/on-mount/[post]',
+            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'
+          },
+          {
+            page: '/[name]',
+            regex: '^\\/([^\\/]+?)(?:\\/)?$'
+          },
+          {
+            page: '/[name]/comments',
+            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$'
+          },
+          {
+            page: '/[name]/[comment]',
+            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+          }
+        ]
+      })
+    })
   }
 }
 
@@ -269,7 +301,7 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe('SSR production mode', () => {
+  describe('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

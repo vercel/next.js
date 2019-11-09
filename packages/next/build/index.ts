@@ -6,7 +6,7 @@ import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-
+import findUp from 'find-up'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -20,8 +20,13 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  ROUTES_MANIFEST,
 } from '../next-server/lib/constants'
-import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
+import {
+  getRouteRegex,
+  isDynamicRoute,
+  getSortedRoutes,
+} from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
@@ -45,7 +50,6 @@ import {
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
 const fsAccess = promisify(fs.access)
@@ -126,6 +130,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       eventVersion({
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
       })
     ),
     eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
@@ -288,7 +294,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.error(error)
     console.error()
 
-    if (error.indexOf('private-next-pages') > -1) {
+    if (
+      error.indexOf('private-next-pages') > -1 ||
+      error.indexOf('__next_polyfill__') > -1
+    ) {
       throw new Error(
         '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
       )
@@ -309,7 +318,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     )
   }
-
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
   })
@@ -339,12 +347,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     numWorkers: config.experimental.cpus,
     enableWorkerThreads: config.experimental.workerThreads,
   })
+  staticCheckWorkers.getStdout().pipe(process.stdout)
+  staticCheckWorkers.getStderr().pipe(process.stderr)
 
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
-      const chunks = getPageChunks(page)
-
       const actualPage = page === '/' ? '/index' : page
       const size = await getPageSizeInKb(
         actualPage,
@@ -430,7 +438,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      pageInfos.set(page, { size, chunks, serverBundle, static: isStatic })
+      pageInfos.set(page, { size, serverBundle, static: isStatic })
     })
   )
   staticCheckWorkers.end()
@@ -461,6 +469,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
+
+  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify(
+      {
+        version: 0,
+        dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+          page,
+          regex: getRouteRegex(page).re.source,
+        })),
+      },
+      null,
+      2
+    )
+  )
+
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 

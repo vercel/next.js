@@ -1273,7 +1273,6 @@ export default (req, res) => {
     <li><a href="/examples/custom-server-express">Express integration</a></li>
     <li><a href="/examples/custom-server-hapi">Hapi integration</a></li>
     <li><a href="/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="/examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="/examples/ssr-caching">SSR caching</a></li>
   </ul>
 </details>
@@ -1533,33 +1532,26 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 
 - Persisting layout between page changes
 - Keeping state when navigating pages
-- Custom error handling using `componentDidCatch`
 - Inject additional data into pages (for example by processing GraphQL queries)
 
 To override, create the `./pages/_app.js` file and override the App class as shown below:
 
 ```js
-import React from 'react'
-import App from 'next/app'
-
-class MyApp extends App {
-  // Only uncomment this method if you have blocking data requirements for
-  // every single page in your application. This disables the ability to
-  // perform automatic static optimization, causing every page in your app to
-  // be server-side rendered.
-  //
-  // static async getInitialProps(appContext) {
-  //   // calls page's `getInitialProps` and fills `appProps.pageProps`
-  //   const appProps = await App.getInitialProps(appContext);
-  //
-  //   return { ...appProps }
-  // }
-
-  render() {
-    const { Component, pageProps } = this.props
-    return <Component {...pageProps} />
-  }
+function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
 }
+
+// Only uncomment this method if you have blocking data requirements for
+// every single page in your application. This disables the ability to
+// perform automatic static optimization, causing every page in your app to
+// be server-side rendered.
+//
+// MyApp.getInitialProps = async (appContext) => {
+//   // calls page's `getInitialProps` and fills `appProps.pageProps`
+//   const appProps = await App.getInitialProps(appContext);
+//
+//   return { ...appProps }
+// }
 
 export default MyApp
 ```
