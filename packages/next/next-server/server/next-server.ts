@@ -414,10 +414,6 @@ export default class Server {
             }
 
             if (r.type === 'redirect') {
-              // TODO: investigate which statusCode to honor in the chain
-              // the first or the last, this honors the last since we don't
-              // want to create a permanent redirect to the wrong place
-              // if the chain leads to a temporary redirect
               res.setHeader('Location', newUrl)
               res.statusCode = statusCode || 307
               res.end()
