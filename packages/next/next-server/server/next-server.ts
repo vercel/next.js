@@ -168,11 +168,11 @@ export default class Server {
       })
     }
 
-    if (dev) {
-      // make TypeScript happy, it's handled in prepare()
-      this.customRoutes = { redirects: [], rewrites: [] }
-    } else {
-      this.customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    this.customRoutes = { redirects: [], rewrites: [] }
+    if (!dev) {
+      try {
+        this.customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+      } catch (_) {}
     }
 
     this.router = new Router(this.generateRoutes())
