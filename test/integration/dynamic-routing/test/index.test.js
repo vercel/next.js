@@ -232,7 +232,9 @@ function runTests (dev) {
       )
 
       expect(manifest).toEqual({
-        version: 0,
+        version: 1,
+        rewrites: [],
+        redirects: [],
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',
