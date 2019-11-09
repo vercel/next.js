@@ -17,6 +17,10 @@ module.exports = {
         {
           source: '/second',
           destination: '/hello-again'
+        },
+        {
+          source: '/test/:path',
+          destination: '/:path'
         }
       ]
     },

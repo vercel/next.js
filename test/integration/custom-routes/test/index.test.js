@@ -50,6 +50,15 @@ const runTests = () => {
     expect(pathname).toBe('/')
   })
 
+  it('should redirect with params successfully', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello/123/another', undefined, {
+      redirect: 'manual'
+    })
+    const { pathname } = url.parse(res.headers.get('location'))
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/blog/123')
+  })
+
   it('should redirect successfully with provided statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect2', undefined, {
       redirect: 'manual'
@@ -57,6 +66,11 @@ const runTests = () => {
     const { pathname } = url.parse(res.headers.get('location'))
     expect(res.status).toBe(301)
     expect(pathname).toBe('/')
+  })
+
+  it('should rewrite with params successfully', async () => {
+    const html = await renderViaHTTP(appPort, '/test/hello')
+    expect(html).toMatch(/Hello/)
   })
 
   it('should work successfully on the client', async () => {
