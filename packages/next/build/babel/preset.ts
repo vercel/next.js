@@ -116,7 +116,7 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      require('@babel/preset-typescript'),
+      [require('@babel/preset-typescript'), { allowNamespaces: true }],
     ],
     plugins: [
       [

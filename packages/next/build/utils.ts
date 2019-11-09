@@ -2,16 +2,15 @@ import chalk from 'chalk'
 import fs from 'fs'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
+import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
 
-import { isValidElementType } from 'react-is'
+import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 const fsStatPromise = promisify(fs.stat)
 const fileStats: { [k: string]: Promise<fs.Stats> } = {}
@@ -36,7 +35,6 @@ export function collectPages(
 export interface PageInfo {
   isAmp?: boolean
   size: number
-  chunks?: ReturnType<typeof getPageChunks>
   static?: boolean
   serverBundle: string
 }
@@ -57,7 +55,7 @@ export function printTreeView(
   }
 
   const messages: string[][] = [
-    ['Page', 'Size', 'Files', 'Packages'].map(entry => chalk.underline(entry)),
+    ['Page', 'Size'].map(entry => chalk.underline(entry)),
   ]
 
   list
@@ -79,22 +77,18 @@ export function printTreeView(
           item.startsWith('/_')
             ? ' '
             : pageInfo && pageInfo.static
-            ? chalk.bold('⚡')
+            ? '*'
             : serverless
             ? 'λ'
             : 'σ'
         } ${item}`,
-        ...(pageInfo
-          ? [
-              pageInfo.isAmp
-                ? chalk.cyan('AMP')
-                : pageInfo.size >= 0
-                ? getPrettySize(pageInfo.size)
-                : '',
-              pageInfo.chunks ? pageInfo.chunks.internal.size.toString() : '',
-              pageInfo.chunks ? pageInfo.chunks.external.size.toString() : '',
-            ]
-          : ['', '', '']),
+        pageInfo
+          ? pageInfo.isAmp
+            ? chalk.cyan('AMP')
+            : pageInfo.size >= 0
+            ? getPrettySize(pageInfo.size)
+            : ''
+          : '',
       ])
     })
 
@@ -124,11 +118,7 @@ export function printTreeView(
                 'getInitialProps'
               )})`,
             ],
-        [
-          chalk.bold('⚡'),
-          '(Static File)',
-          'page was prerendered as static HTML',
-        ],
+        ['*', '(Static File)', 'page was prerendered as static HTML'],
       ],
       {
         align: ['l', 'l', 'l'],
