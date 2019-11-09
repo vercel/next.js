@@ -44,9 +44,13 @@ const customRoute = pathMatch(true)
 
 type NextConfig = any
 
-type rewrite = {
+type Rewrite = {
   source: string
   destination: string
+}
+
+type Redirect = Rewrite & {
+  statusCode?: number
 }
 
 type Middleware = (
@@ -73,7 +77,6 @@ export type ServerConstructor = {
 }
 
 export default class Server {
-  dev: boolean
   dir: string
   quiet: boolean
   nextConfig: NextConfig
@@ -99,9 +102,9 @@ export default class Server {
   private onErrorMiddleware?: ({ err }: { err: Error }) => void
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
-  protected customRoutes: {
-    rewrites: rewrite[]
-    redirects: (rewrite & { statusCode?: number })[]
+  protected customRoutes?: {
+    rewrites: Rewrite[]
+    redirects: Redirect[]
   }
 
   public constructor({
@@ -111,7 +114,6 @@ export default class Server {
     conf = null,
     dev = false,
   }: ServerConstructor = {}) {
-    this.dev = dev
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -166,13 +168,6 @@ export default class Server {
         serverRuntimeConfig,
         publicRuntimeConfig,
       })
-    }
-
-    this.customRoutes = { redirects: [], rewrites: [] }
-    if (!dev) {
-      try {
-        this.customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
-      } catch (_) {}
     }
 
     this.router = new Router(this.generateRoutes())
@@ -262,10 +257,17 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
+  protected getCustomRoutes() {
+    this.customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+  }
+
   protected generateRoutes(): Route[] {
+    this.getCustomRoutes()
+
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
+
     const staticFilesRoute = fs.existsSync(join(this.dir, 'static'))
       ? [
           {
@@ -362,65 +364,70 @@ export default class Server {
       },
     ]
 
-    const { redirects = [], rewrites = [] } = this.customRoutes
+    if (this.customRoutes) {
+      const { redirects, rewrites } = this.customRoutes
 
-    const getCustomRoute = (
-      r: { source: string; destination: string; statusCode?: number },
-      type: 'redirect' | 'rewrite'
-    ) => ({
-      ...r,
-      type,
-      matcher: customRoute(r.source),
-    })
-
-    const customRoutes = [
-      ...redirects.map(r => getCustomRoute(r, 'redirect')),
-      ...rewrites.map(r => getCustomRoute(r, 'rewrite')),
-    ]
-
-    routes.push(
-      ...customRoutes.map((r, idx) => {
-        return {
-          match: r.matcher,
-          fn: async (req, res, params, parsedUrl) => {
-            let destinationCompiler = pathToRegexp.compile(r.destination)
-            let newUrl = destinationCompiler(params) // /blog/123
-            let newParams = params // { id: 123 }
-            let statusCode = r.statusCode
-            const followingRoutes = customRoutes.slice(
-              idx,
-              idx + (customRoutes.length - idx)
-            )
-
-            for (const followingRoute of followingRoutes) {
-              if (r.type === 'redirect' && followingRoute.type !== 'redirect') {
-                continue
-              }
-
-              // TODO: add an error if they try to rewrite to a dynamic page
-              const curParams = followingRoute.matcher(newUrl)
-
-              if (curParams) {
-                destinationCompiler = pathToRegexp.compile(
-                  followingRoute.destination
-                )
-                newUrl = destinationCompiler(newParams)
-                statusCode = followingRoute.statusCode
-                newParams = curParams
-              }
-            }
-
-            if (r.type === 'redirect') {
-              res.setHeader('Location', newUrl)
-              res.statusCode = statusCode || 307
-              res.end()
-              return
-            }
-            return this.render(req, res, newUrl, newParams, parsedUrl)
-          },
-        } as Route
+      const getCustomRoute = (
+        r: { source: string; destination: string; statusCode?: number },
+        type: 'redirect' | 'rewrite'
+      ) => ({
+        ...r,
+        type,
+        matcher: customRoute(r.source),
       })
-    )
+
+      const customRoutes = [
+        ...redirects.map(r => getCustomRoute(r, 'redirect')),
+        ...rewrites.map(r => getCustomRoute(r, 'rewrite')),
+      ]
+
+      routes.push(
+        ...customRoutes.map((r, idx) => {
+          return {
+            match: r.matcher,
+            fn: async (req, res, params, parsedUrl) => {
+              let destinationCompiler = pathToRegexp.compile(r.destination)
+              let newUrl = destinationCompiler(params) // /blog/123
+              let newParams = params // { id: 123 }
+              let statusCode = r.statusCode
+              const followingRoutes = customRoutes.slice(
+                idx,
+                idx + (customRoutes.length - idx)
+              )
+
+              for (const followingRoute of followingRoutes) {
+                if (
+                  r.type === 'redirect' &&
+                  followingRoute.type !== 'redirect'
+                ) {
+                  continue
+                }
+
+                // TODO: add an error if they try to rewrite to a dynamic page
+                const curParams = followingRoute.matcher(newUrl)
+
+                if (curParams) {
+                  destinationCompiler = pathToRegexp.compile(
+                    followingRoute.destination
+                  )
+                  newUrl = destinationCompiler(newParams)
+                  statusCode = followingRoute.statusCode
+                  newParams = curParams
+                }
+              }
+
+              if (r.type === 'redirect') {
+                res.setHeader('Location', newUrl)
+                res.statusCode = statusCode || 307
+                res.end()
+                return
+              }
+              return this.render(req, res, newUrl, newParams, parsedUrl)
+            },
+          } as Route
+        })
+      )
+    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()

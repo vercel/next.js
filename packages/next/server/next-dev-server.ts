@@ -196,7 +196,8 @@ export default class DevServer extends Server {
 
   async prepare() {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
-    this.customRoutes = await this.getCustomRoutes()
+    await this.loadCustomRoutes()
+
     const { redirects, rewrites } = this.customRoutes
 
     if (redirects.length || rewrites.length) {
@@ -276,7 +277,10 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
-  private async getCustomRoutes() {
+  // override production loading of routes-manifest
+  private getCustomRoutes() {}
+
+  private async loadCustomRoutes() {
     const result = {
       redirects: [],
       rewrites: [],
@@ -289,7 +293,7 @@ export default class DevServer extends Server {
     if (typeof rewrites === 'function') {
       result.rewrites = await rewrites()
     }
-    return result
+    this.customRoutes = result
   }
 
   generateRoutes() {
