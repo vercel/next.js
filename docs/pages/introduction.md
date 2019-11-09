@@ -1,4 +1,4 @@
-# Introduction
+# Pages
 
 Every file in the `pages` folder in the root directory of your project is called a `page`. Every page has a React component as `default` export like in the following example:
 

@@ -1,4 +1,4 @@
-# Introduction
+# API Routes
 
 <details>
   <summary><b>Examples</b></summary>

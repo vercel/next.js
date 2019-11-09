@@ -1,4 +1,4 @@
-# Introduction
+# Routing
 
 Next.js has a file-system based router, every `page` inside the `pages` folder defines a new route. To give you a better idea of how it works take a look into the routes handled by the following pages:
 

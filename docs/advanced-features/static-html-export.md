@@ -61,5 +61,5 @@ A deployment to GitHub Pages has an additional step, [documented here](https://g
 
 ## Caveats
 
-- With `next export`, we build a HTML version of your app. At export time we will run the [`getInitialProps`](/docs/pages/ssr-with-getInitialProps.md) in your pages. The `req` and `res` fields of the [`context`](/docs/pages/ssr-with-getInitialProps.md#context-object) object will be empty objects during export as there is no server running.
-- You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you need to do dynamic rendering use Next.js without this feature.
+- With `next export`, we build a HTML version of your app. At export time we will run the [`getInitialProps`](/docs/pages/ssr-with-getInitialProps.md) in your pages. The `req` and `res` fields of the [`context`](/docs/pages/ssr-with-getInitialProps.md#context-object) object will be empty objects during export as there is no server running
+- You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you need to do dynamic rendering use Next.js without this feature

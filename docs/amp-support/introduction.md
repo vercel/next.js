@@ -1,4 +1,4 @@
-# Introduction
+# AMP Support
 
 <details>
   <summary><b>Examples</b></summary>
