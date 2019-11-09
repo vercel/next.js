@@ -629,7 +629,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
-  // TODO: add dynamic-routes to the manifest also
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({

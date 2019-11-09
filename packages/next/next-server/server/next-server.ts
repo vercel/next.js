@@ -387,7 +387,7 @@ export default class Server {
             let newUrl = destinationCompiler(params) // /blog/123
             let newParams = params // { id: 123 }
             let statusCode = r.statusCode
-            const followingRoutes = [...customRoutes].splice(
+            const followingRoutes = customRoutes.slice(
               idx,
               customRoutes.length - idx
             )
@@ -397,12 +397,7 @@ export default class Server {
                 continue
               }
 
-              if (isDynamicRoute(followingRoute.destination)) {
-                throw new Error(
-                  `Routing a custom route to a dynamic page is currently not supported. This behavior is being investigated`
-                )
-              }
-
+              // TODO: add an error if they try to rewrite to a dynamic page
               const curParams = followingRoute.matcher(newUrl)
 
               if (curParams) {
