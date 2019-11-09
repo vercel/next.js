@@ -20,8 +20,13 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  ROUTES_MANIFEST,
 } from '../next-server/lib/constants'
-import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
+import {
+  getRouteRegex,
+  isDynamicRoute,
+  getSortedRoutes,
+} from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
@@ -464,6 +469,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
+
+  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify(
+      {
+        version: 0,
+        dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+          page,
+          regex: getRouteRegex(page).re.source,
+        })),
+      },
+      null,
+      2
+    )
+  )
+
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
