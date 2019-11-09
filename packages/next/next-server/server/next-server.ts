@@ -258,11 +258,11 @@ export default class Server {
   }
 
   protected getCustomRoutes() {
-    this.customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
   protected generateRoutes(): Route[] {
-    this.getCustomRoutes()
+    this.customRoutes = this.getCustomRoutes()
 
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
