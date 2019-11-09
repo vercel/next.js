@@ -362,8 +362,8 @@ export default class Server {
       destination: string
     }
     const {
-      redirects,
-      rewrites,
+      redirects = [],
+      rewrites = [],
     }: {
       rewrites: rewrite[]
       redirects: (rewrite & { statusCode?: number })[]
