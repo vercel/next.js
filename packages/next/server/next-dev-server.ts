@@ -196,6 +196,12 @@ export default class DevServer extends Server {
 
   async prepare() {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    this.customRoutes = await this.getCustomRoutes()
+    const { redirects, rewrites } = this.customRoutes
+
+    if (redirects.length || rewrites.length) {
+      this.router.routes = this.generateRoutes()
+    }
 
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
@@ -270,7 +276,7 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
-  protected async getCustomRoutes() {
+  private async getCustomRoutes() {
     const result = {
       redirects: [],
       rewrites: [],
@@ -286,8 +292,8 @@ export default class DevServer extends Server {
     return result
   }
 
-  async generateRoutes() {
-    const routes = await super.generateRoutes()
+  generateRoutes() {
+    const routes = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes

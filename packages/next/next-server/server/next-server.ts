@@ -44,6 +44,11 @@ const customRoute = pathMatch(true)
 
 type NextConfig = any
 
+type rewrite = {
+  source: string
+  destination: string
+}
+
 type Middleware = (
   req: IncomingMessage,
   res: ServerResponse,
@@ -90,11 +95,14 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
   }
-  private routesPromise?: Promise<void>
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => void
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  protected customRoutes: {
+    rewrites: rewrite[]
+    redirects: (rewrite & { statusCode?: number })[]
+  }
 
   public constructor({
     dir = '.',
@@ -160,12 +168,14 @@ export default class Server {
       })
     }
 
-    this.router = new Router([])
-    this.routesPromise = this.generateRoutes().then(routes => {
-      this.router.routes = routes
-      this.routesPromise = undefined
-    })
+    if (dev) {
+      // make TypeScript happy, it's handled in prepare()
+      this.customRoutes = { redirects: [], rewrites: [] }
+    } else {
+      this.customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    }
 
+    this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
     // call init-server middleware, this is also handled
@@ -252,18 +262,9 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  protected async getCustomRoutes() {
-    // use built routes
-    try {
-      return require(join(this.distDir, ROUTES_MANIFEST))
-    } catch (err) {
-      return { redirects: [], rewrites: [] }
-    }
-  }
-
-  protected async generateRoutes(): Promise<Route[]> {
-    const publicRoutes = (await fileExists(this.publicDir))
-      ? await this.generatePublicRoutes()
+  protected generateRoutes(): Route[] {
+    const publicRoutes = fs.existsSync(this.publicDir)
+      ? this.generatePublicRoutes()
       : []
     const staticFilesRoute = fs.existsSync(join(this.dir, 'static'))
       ? [
@@ -360,17 +361,8 @@ export default class Server {
         },
       },
     ]
-    type rewrite = {
-      source: string
-      destination: string
-    }
-    const {
-      redirects = [],
-      rewrites = [],
-    }: {
-      rewrites: rewrite[]
-      redirects: (rewrite & { statusCode?: number })[]
-    } = await this.getCustomRoutes()
+
+    const { redirects = [], rewrites = [] } = this.customRoutes
 
     const getCustomRoute = (
       r: { source: string; destination: string; statusCode?: number },
@@ -568,9 +560,6 @@ export default class Server {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ) {
-    if (this.routesPromise) {
-      await this.routesPromise
-    }
     this.handleCompression(req, res)
 
     try {
