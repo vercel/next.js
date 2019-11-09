@@ -362,7 +362,7 @@ export default class Server {
       },
     ]
 
-    const { redirects = [], rewrites = [] } = this.customRoutes
+    const { redirects, rewrites } = this.customRoutes
 
     const getCustomRoute = (
       r: { source: string; destination: string; statusCode?: number },
@@ -389,7 +389,6 @@ export default class Server {
             let statusCode = r.statusCode
             const followingRoutes = customRoutes.slice(
               idx,
-              idx + (customRoutes.length - idx)
             )
 
             for (const followingRoute of followingRoutes) {
