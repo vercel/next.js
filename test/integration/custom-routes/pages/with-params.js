@@ -5,6 +5,6 @@ const Page = () => {
   return <p>{JSON.stringify(query)}</p>
 }
 
-Page.getInitialProps = () => ({ hello: 'world' })
+Page.getInitialProps = () => ({ hello: 'GIPGIP' })
 
 export default Page
