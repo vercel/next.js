@@ -21,6 +21,14 @@ module.exports = {
         {
           source: '/test/:path',
           destination: '/:path'
+        },
+        {
+          source: '/test-overwrite/:something/:another',
+          destination: '/params/this-should-be-the-value'
+        },
+        {
+          source: '/params/:something',
+          destination: '/with-params'
         }
       ]
     },
