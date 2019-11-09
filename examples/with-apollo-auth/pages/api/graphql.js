@@ -8,7 +8,7 @@ const photon = new Photon()
 const JWT_SECRET = 'PleaseUseBetterStorageForThisSecret'
 
 const getUserId = (req) => {
-  const Authorization = req.headers && req.headers.authorization || ''
+  const Authorization = req.headers && req.headers.authorization ? req.headers.authorization : ''
   if (Authorization) {
     const token = Authorization.replace('Bearer ', '')
     const verifiedToken = jwt.verify(token, JWT_SECRET)
