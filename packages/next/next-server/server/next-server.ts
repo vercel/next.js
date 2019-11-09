@@ -389,7 +389,7 @@ export default class Server {
             let statusCode = r.statusCode
             const followingRoutes = customRoutes.slice(
               idx,
-              customRoutes.length - idx
+              idx + (customRoutes.length - idx)
             )
 
             for (const followingRoute of followingRoutes) {
