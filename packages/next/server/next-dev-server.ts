@@ -196,6 +196,16 @@ export default class DevServer extends Server {
 
   async prepare() {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    await this.loadCustomRoutes()
+
+    if (this.customRoutes) {
+      const { redirects, rewrites } = this.customRoutes
+
+      if (redirects.length || rewrites.length) {
+        // TODO: don't reach into router instance
+        this.router.routes = this.generateRoutes()
+      }
+    }
 
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
@@ -268,6 +278,27 @@ export default class DevServer extends Server {
     }
 
     return super.run(req, res, parsedUrl)
+  }
+
+  // override production loading of routes-manifest
+  protected getCustomRoutes() {
+    return this.customRoutes
+  }
+
+  private async loadCustomRoutes() {
+    const result = {
+      redirects: [],
+      rewrites: [],
+    }
+    const { redirects, rewrites } = this.nextConfig.experimental
+
+    if (typeof redirects === 'function') {
+      result.redirects = await redirects()
+    }
+    if (typeof rewrites === 'function') {
+      result.rewrites = await rewrites()
+    }
+    this.customRoutes = result
   }
 
   generateRoutes() {

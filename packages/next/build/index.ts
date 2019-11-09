@@ -51,6 +51,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import pathToRegexp from 'path-to-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -93,6 +94,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const rewrites = []
+  const redirects = []
+
+  if (typeof config.experimental.redirects === 'function') {
+    redirects.push(...(await config.experimental.redirects()))
+  }
+  if (typeof config.experimental.rewrites === 'function') {
+    rewrites.push(...(await config.experimental.rewrites()))
+  }
 
   if (ciEnvironment.isCI) {
     const cacheDir = path.join(distDir, 'cache')
@@ -471,21 +481,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await writeBuildId(distDir, buildId)
 
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
-  await fsWriteFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify(
-      {
-        version: 0,
-        dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-          page,
-          regex: getRouteRegex(page).re.source,
-        })),
-      },
-      null,
-      2
-    )
-  )
-
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
@@ -623,6 +618,31 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+
+  const buildCustomRoute = (r: { source: string }) => {
+    return {
+      ...r,
+      regex: pathToRegexp(r.source, [], {
+        strict: true,
+        sensitive: false,
+      }).source,
+    }
+  }
+
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      redirects: redirects.map(r => buildCustomRoute(r)),
+      rewrites: rewrites.map(r => buildCustomRoute(r)),
+      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+        page,
+        regex: getRouteRegex(page).re.source,
+      })),
+    }),
+    'utf8'
+  )
+
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
 
