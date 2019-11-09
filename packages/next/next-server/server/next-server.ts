@@ -40,7 +40,7 @@ import { fileExists } from '../../lib/file-exists'
 import pathToRegexp from 'path-to-regexp'
 import pathMatch from './lib/path-match'
 
-const customRoute = pathMatch(true)
+const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
 
@@ -373,7 +373,7 @@ export default class Server {
       ) => ({
         ...r,
         type,
-        matcher: customRoute(r.source),
+        matcher: getCustomRouteMatcher(r.source),
       })
 
       const customRoutes = [
