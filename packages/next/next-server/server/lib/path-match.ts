@@ -7,7 +7,10 @@ const pathToRegexp = require('path-to-regexp')
 export default () => {
   return (path: string) => {
     const keys: any[] = []
-    const re = pathToRegexp(path, keys, {})
+    const re = pathToRegexp(path, keys, {
+      strict: true,
+      sensitive: false,
+    })
 
     return (pathname: string | undefined, params?: any) => {
       const m = re.exec(pathname)
