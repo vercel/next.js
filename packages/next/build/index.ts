@@ -619,9 +619,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
 
-  const buildCustomRoute = (r: { source: string }) => {
+  const buildCustomRoute = (
+    r: {
+      source: string
+      statusCode?: number
+    },
+    isRedirect = false
+  ) => {
     return {
       ...r,
+      ...(isRedirect
+        ? {
+            statusCode: r.statusCode || 307,
+          }
+        : {}),
       regex: pathToRegexp(r.source, [], {
         strict: true,
         sensitive: false,
@@ -633,7 +644,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
       version: 1,
-      redirects: redirects.map(r => buildCustomRoute(r)),
+      redirects: redirects.map(r => buildCustomRoute(r, true)),
       rewrites: rewrites.map(r => buildCustomRoute(r)),
       dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
         page,
