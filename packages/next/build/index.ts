@@ -21,6 +21,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
   ROUTES_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -619,13 +620,28 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
 
-  const buildCustomRoute = (r: { source: string }) => {
+  const buildCustomRoute = (
+    r: {
+      source: string
+      statusCode?: number
+    },
+    isRedirect = false
+  ) => {
+    const keys: any[] = []
+    const routeRegex = pathToRegexp(r.source, keys, {
+      strict: true,
+      sensitive: false,
+    })
+
     return {
       ...r,
-      regex: pathToRegexp(r.source, [], {
-        strict: true,
-        sensitive: false,
-      }).source,
+      ...(isRedirect
+        ? {
+            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
+          }
+        : {}),
+      regex: routeRegex.source,
+      regexKeys: keys.map(k => k.name),
     }
   }
 
@@ -633,7 +649,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
       version: 1,
-      redirects: redirects.map(r => buildCustomRoute(r)),
+      redirects: redirects.map(r => buildCustomRoute(r, true)),
       rewrites: rewrites.map(r => buildCustomRoute(r)),
       dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
         page,

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import url from 'url'
+import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -18,6 +19,8 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let appDir = join(__dirname, '..')
+const nextConfigPath = join(appDir, 'next.config.js')
+let nextConfigContent
 let appPort
 let app
 
@@ -125,6 +128,26 @@ describe('Custom routes', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
+    runTests()
+  })
+
+  describe('serverless mode', () => {
+    beforeAll(async () => {
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace(/\/\/ target/, 'target'),
+        'utf8'
+      )
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
+    })
+
     runTests()
   })
 })

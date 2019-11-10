@@ -3,7 +3,7 @@ import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
 
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
@@ -16,6 +16,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
   ROUTES_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -415,7 +416,7 @@ export default class Server {
 
               if (r.type === 'redirect') {
                 res.setHeader('Location', newUrl)
-                res.statusCode = statusCode || 307
+                res.statusCode = statusCode || DEFAULT_REDIRECT_STATUS
                 res.end()
                 return
               }
@@ -692,6 +693,14 @@ export default class Server {
     if (!isSpr) {
       // handle serverless
       if (isLikeServerless) {
+        const curUrl = parseUrl(req.url!, true)
+        req.url = formatUrl({
+          ...curUrl,
+          query: {
+            ...curUrl.query,
+            ...query,
+          },
+        })
         return result.Component.renderReqToHTML(req, res)
       }
 
