@@ -626,6 +626,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     },
     isRedirect = false
   ) => {
+    const keys: any[] = []
+    const routeRegex = pathToRegexp(r.source, keys, {
+      strict: true,
+      sensitive: false,
+    })
+
     return {
       ...r,
       ...(isRedirect
@@ -633,10 +639,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
             statusCode: r.statusCode || 307,
           }
         : {}),
-      regex: pathToRegexp(r.source, [], {
-        strict: true,
-        sensitive: false,
-      }).source,
+      regex: routeRegex.source,
+      regexKeys: keys.map(k => k.name),
     }
   }
 
