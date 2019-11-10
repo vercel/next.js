@@ -3,7 +3,7 @@ import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
 
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
@@ -692,6 +692,14 @@ export default class Server {
     if (!isSpr) {
       // handle serverless
       if (isLikeServerless) {
+        const curUrl = parseUrl(req.url!, true)
+        req.url = formatUrl({
+          ...curUrl,
+          query: {
+            ...curUrl.query,
+            ...query,
+          },
+        })
         return result.Component.renderReqToHTML(req, res)
       }
 
