@@ -35,6 +35,7 @@ const urlPropertyFields = [
   'query',
   'asPath',
   'components',
+  'isReady',
   'isFallback',
   'basePath',
 ]

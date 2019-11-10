@@ -54,6 +54,7 @@ class ServerRouter implements NextRouter {
   route: string
   pathname: string
   query: ParsedUrlQuery
+  isReady: boolean
   asPath: string
   basePath: string
   events: any
@@ -71,6 +72,7 @@ class ServerRouter implements NextRouter {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
+    this.isReady = false
     this.asPath = as
     this.isFallback = isFallback
     this.basePath = basePath
