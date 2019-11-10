@@ -24,7 +24,7 @@ let nextConfigContent
 let appPort
 let app
 
-const runTests = () => {
+const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
     const html = await renderViaHTTP(appPort, '/first')
     expect(html).toMatch(/hello/)
@@ -109,6 +109,120 @@ const runTests = () => {
     expect(await browser.eval('window.location.href')).toMatch(/\/second$/)
     expect(await getBrowserBodyText(browser)).toMatch(/Hello again/)
   })
+
+  if (!isDev) {
+    it('should output routes-manifest successfully', async () => {
+      const manifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+      expect(manifest).toEqual({
+        version: 1,
+        redirects: [
+          {
+            source: '/hello/:id/another',
+            destination: '/blog/:id',
+            statusCode: 307,
+            regex: '^\\/hello\\/([^\\/]+?)\\/another$',
+            regexKeys: ['id']
+          },
+          {
+            source: '/redirect1',
+            destination: '/',
+            statusCode: 307,
+            regex: '^\\/redirect1$',
+            regexKeys: []
+          },
+          {
+            source: '/redirect2',
+            destination: '/',
+            statusCode: 301,
+            regex: '^\\/redirect2$',
+            regexKeys: []
+          },
+          {
+            source: '/redirect3',
+            destination: '/another',
+            statusCode: 302,
+            regex: '^\\/redirect3$',
+            regexKeys: []
+          },
+          {
+            source: '/redirect4',
+            destination: '/',
+            statusCode: 308,
+            regex: '^\\/redirect4$',
+            regexKeys: []
+          },
+          {
+            source: '/redir-chain1',
+            destination: '/redir-chain2',
+            statusCode: 301,
+            regex: '^\\/redir-chain1$',
+            regexKeys: []
+          },
+          {
+            source: '/redir-chain2',
+            destination: '/redir-chain3',
+            statusCode: 302,
+            regex: '^\\/redir-chain2$',
+            regexKeys: []
+          },
+          {
+            source: '/redir-chain3',
+            destination: '/',
+            statusCode: 303,
+            regex: '^\\/redir-chain3$',
+            regexKeys: []
+          }
+        ],
+        rewrites: [
+          {
+            source: '/',
+            destination: '/another',
+            regex: '^\\/$',
+            regexKeys: []
+          },
+          {
+            source: '/another',
+            destination: '/multi-rewrites',
+            regex: '^\\/another$',
+            regexKeys: []
+          },
+          {
+            source: '/first',
+            destination: '/hello',
+            regex: '^\\/first$',
+            regexKeys: []
+          },
+          {
+            source: '/second',
+            destination: '/hello-again',
+            regex: '^\\/second$',
+            regexKeys: []
+          },
+          {
+            source: '/test/:path',
+            destination: '/:path',
+            regex: '^\\/test\\/([^\\/]+?)$',
+            regexKeys: ['path']
+          },
+          {
+            source: '/test-overwrite/:something/:another',
+            destination: '/params/this-should-be-the-value',
+            regex: '^\\/test-overwrite\\/([^\\/]+?)\\/([^\\/]+?)$',
+            regexKeys: ['something', 'another']
+          },
+          {
+            source: '/params/:something',
+            destination: '/with-params',
+            regex: '^\\/params\\/([^\\/]+?)$',
+            regexKeys: ['something']
+          }
+        ],
+        dynamicRoutes: []
+      })
+    })
+  }
 }
 
 describe('Custom routes', () => {
@@ -118,7 +232,7 @@ describe('Custom routes', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {
