@@ -16,6 +16,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
   ROUTES_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -415,7 +416,7 @@ export default class Server {
 
               if (r.type === 'redirect') {
                 res.setHeader('Location', newUrl)
-                res.statusCode = statusCode || 307
+                res.statusCode = statusCode || DEFAULT_REDIRECT_STATUS
                 res.end()
                 return
               }

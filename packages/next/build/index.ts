@@ -21,6 +21,7 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
   ROUTES_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -636,7 +637,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...r,
       ...(isRedirect
         ? {
-            statusCode: r.statusCode || 307,
+            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
           }
         : {}),
       regex: routeRegex.source,
