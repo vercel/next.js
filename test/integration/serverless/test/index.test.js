@@ -111,9 +111,33 @@ describe('Serverless', () => {
     const browser = await webdriver(appPort, '/')
     try {
       const text = await browser
-        .elementByCss('a')
+        .elementByCss('#fetchlink')
         .click()
         .waitForElementByCss('.fetch-page')
+        .elementByCss('#text')
+        .text()
+
+      expect(text).toMatch(/fetch page/)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should render correctly when importing isomorphic-unfetch CJS', async () => {
+    const url = `http://localhost:${appPort}/fetch-cjs`
+    const res = await fetch(url)
+    expect(res.status).toBe(200)
+    const text = await res.text()
+    expect(text.includes('failed')).toBe(false)
+  })
+
+  it('should render correctly when importing isomorphic-unfetch CJS on the client side', async () => {
+    const browser = await webdriver(appPort, '/')
+    try {
+      const text = await browser
+        .elementByCss('#fetchcjslink')
+        .click()
+        .waitForElementByCss('.fetch-cjs-page')
         .elementByCss('#text')
         .text()
 
