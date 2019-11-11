@@ -22,4 +22,12 @@ describe('Chunking (minimal)', () => {
     )
     expect(manifest).not.toMatch(/\.js/)
   })
+
+  it('should have an empty modern client-manifest', async () => {
+    const manifest = await readFile(
+      join(appDir, '.next/static', buildId, '_buildManifest.module.js'),
+      'utf8'
+    )
+    expect(manifest).not.toMatch(/\.js/)
+  })
 })
