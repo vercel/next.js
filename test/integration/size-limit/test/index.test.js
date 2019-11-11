@@ -11,19 +11,19 @@ let server
 let scriptsUrls
 let baseResponseSize
 
-function getResponseSizes (resourceUrls) {
+function getResponseSizes(resourceUrls) {
   return Promise.all(
     resourceUrls.map(async url => {
       const context = await fetch(url).then(res => res.text())
       return {
         url,
-        bytes: context.length
+        bytes: context.length,
       }
     })
   )
 }
 
-function getResponseSizesKB (responseSizes) {
+function getResponseSizesKB(responseSizes) {
   const responseSizeBytes = responseSizes.reduce(
     (accumulator, responseSizeObj) => accumulator + responseSizeObj.bytes,
     0
@@ -43,7 +43,7 @@ describe('Production response size', () => {
       nextServer({
         dir,
         dev: false,
-        quiet: true
+        quiet: true,
       })
     )
 
@@ -71,7 +71,7 @@ describe('Production response size', () => {
       baseResponseSize,
       ...(await getResponseSizes(
         scriptsUrls.filter(path => !path.endsWith('.module.js'))
-      ))
+      )),
     ]
     const responseSizeKilobytes = getResponseSizesKB(responseSizes)
     console.log(
@@ -89,7 +89,7 @@ describe('Production response size', () => {
       baseResponseSize,
       ...(await getResponseSizes(
         scriptsUrls.filter(path => path.endsWith('.module.js'))
-      ))
+      )),
     ]
     const responseSizeKilobytes = getResponseSizesKB(responseSizes)
     console.log(

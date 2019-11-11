@@ -3,7 +3,7 @@ const withImages = require('next-images')
 
 module.exports = withImages(
   withSass({
-    webpack (config) {
+    webpack(config) {
       config.module.rules.push({
         test: /\.(png|svg|eot|otf|ttf|woff|woff2)$/,
         use: {
@@ -12,12 +12,12 @@ module.exports = withImages(
             limit: 100000,
             publicPath: './',
             outputPath: 'static/',
-            name: '[name].[ext]'
-          }
-        }
+            name: '[name].[ext]',
+          },
+        },
       })
 
       return config
-    }
+    },
   })
 )

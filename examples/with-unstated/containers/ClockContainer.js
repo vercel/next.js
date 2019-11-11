@@ -3,9 +3,9 @@ import { Container } from 'unstated'
 export default class ClockContainer extends Container {
   state = {
     lastUpdate: 0,
-    light: false
+    light: false,
   }
-  constructor () {
+  constructor() {
     super()
     this.interval = setInterval(() => {
       this.setState(state => ({ light: !state.light, lastUpdate: Date.now() }))

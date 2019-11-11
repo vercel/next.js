@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 export default class Index extends React.Component {
-  static getInitialProps ({ req }) {
+  static getInitialProps({ req }) {
     if (req) {
       // Runs only in the server
       const faker = require('faker')
@@ -14,14 +14,14 @@ export default class Index extends React.Component {
     return { name: 'Arunoda' }
   }
 
-  render () {
+  render() {
     const { name } = this.props
     return (
       <div>
         <h1>Home Page</h1>
         <p>Welcome, {name}</p>
         <div>
-          <Link href='/about'>
+          <Link href="/about">
             <a>About Page</a>
           </Link>
         </div>

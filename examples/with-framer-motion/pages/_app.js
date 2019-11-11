@@ -9,13 +9,13 @@ export default class MyApp extends App {
    *
    * Note that next/link components should also be using `scroll={false}`
    **/
-  handleExitComplete () {
+  handleExitComplete() {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0 })
     }
   }
 
-  render () {
+  render() {
     const { Component, pageProps, router } = this.props
     return (
       <>

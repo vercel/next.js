@@ -7,7 +7,7 @@ export const people = [
     hair_color: 'blond',
     skin_color: 'fair',
     eye_color: 'blue',
-    gender: 'male'
+    gender: 'male',
   },
   {
     id: '2',
@@ -17,7 +17,7 @@ export const people = [
     hair_color: 'n/a',
     skin_color: 'gold',
     eye_color: 'yellow',
-    gender: 'n/a'
+    gender: 'n/a',
   },
   {
     id: '3',
@@ -27,7 +27,7 @@ export const people = [
     hair_color: 'n/a',
     skin_color: 'white, blue',
     eye_color: 'red',
-    gender: 'n/a'
+    gender: 'n/a',
   },
   {
     id: '4',
@@ -37,7 +37,7 @@ export const people = [
     hair_color: 'none',
     skin_color: 'white',
     eye_color: 'yellow',
-    gender: 'male'
+    gender: 'male',
   },
   {
     id: '5',
@@ -47,7 +47,7 @@ export const people = [
     hair_color: 'brown',
     skin_color: 'light',
     eye_color: 'brown',
-    gender: 'female'
+    gender: 'female',
   },
   {
     id: '6',
@@ -57,7 +57,7 @@ export const people = [
     hair_color: 'brown, grey',
     skin_color: 'light',
     eye_color: 'blue',
-    gender: 'male'
+    gender: 'male',
   },
   {
     id: '7',
@@ -67,7 +67,7 @@ export const people = [
     hair_color: 'brown',
     skin_color: 'light',
     eye_color: 'blue',
-    gender: 'female'
+    gender: 'female',
   },
   {
     id: '8',
@@ -77,7 +77,7 @@ export const people = [
     hair_color: 'n/a',
     skin_color: 'white, red',
     eye_color: 'red',
-    gender: 'n/a'
+    gender: 'n/a',
   },
   {
     id: '9',
@@ -87,7 +87,7 @@ export const people = [
     hair_color: 'black',
     skin_color: 'light',
     eye_color: 'brown',
-    gender: 'male'
+    gender: 'male',
   },
   {
     id: '10',
@@ -97,6 +97,6 @@ export const people = [
     hair_color: 'auburn, white',
     skin_color: 'fair',
     eye_color: 'blue-gray',
-    gender: 'male'
-  }
+    gender: 'male',
+  },
 ]

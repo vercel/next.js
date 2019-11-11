@@ -12,18 +12,18 @@ const Index = () => (
     <h1>React ESI demo app</h1>
     <main>
       <p>Welcome to my news website!</p>
-      <Link href='/article'>
+      <Link href="/article">
         <a>Go to an article</a>
       </Link>
     </main>
 
     {/* TODO: introduce a layout */}
-    <TopArticlesESI from='the main page' />
+    <TopArticlesESI from="the main page" />
     <BreakingNewsESI />
   </div>
 )
 
-Index.getInitialProps = async function ({ res }) {
+Index.getInitialProps = async function({ res }) {
   if (res) res.set('Cache-Control', 's-maxage: 10')
   return {}
 }

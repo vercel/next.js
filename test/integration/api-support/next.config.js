@@ -1,3 +1,3 @@
 module.exports = {
-  target: 'server'
+  target: 'server',
 }

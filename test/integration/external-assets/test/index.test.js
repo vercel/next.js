@@ -6,7 +6,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')

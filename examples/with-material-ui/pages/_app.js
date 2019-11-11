@@ -6,7 +6,7 @@ import CssBaseline from '@material-ui/core/CssBaseline'
 import theme from '../src/theme'
 
 export default class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
 
     return (

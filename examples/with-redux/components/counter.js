@@ -6,15 +6,15 @@ const useCounter = () => {
   const dispatch = useDispatch()
   const increment = () =>
     dispatch({
-      type: 'INCREMENT'
+      type: 'INCREMENT',
     })
   const decrement = () =>
     dispatch({
-      type: 'DECREMENT'
+      type: 'DECREMENT',
     })
   const reset = () =>
     dispatch({
-      type: 'RESET'
+      type: 'RESET',
     })
   return { count, increment, decrement, reset }
 }

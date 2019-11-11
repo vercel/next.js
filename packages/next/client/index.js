@@ -7,7 +7,7 @@ import mitt from '../next-server/lib/mitt'
 import {
   loadGetInitialProps,
   getURL,
-  SUPPORTS_PERFORMANCE_USER_TIMING
+  SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../next-server/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from '../next-server/lib/runtime-config'
@@ -42,7 +42,7 @@ const {
   buildId,
   assetPrefix,
   runtimeConfig,
-  dynamicIds
+  dynamicIds,
 } = data
 
 const d = JSON.parse(window.__NEXT_DATA__.dataManager)
@@ -56,7 +56,7 @@ __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
-  publicRuntimeConfig: runtimeConfig || {}
+  publicRuntimeConfig: runtimeConfig || {},
 })
 
 const asPath = getURL()
@@ -80,11 +80,11 @@ let Component
 let App, onPerfEntry
 
 class Container extends React.Component {
-  componentDidCatch (err, info) {
+  componentDidCatch(err, info) {
     this.props.fn(err, info)
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.scrollToHash()
 
     if (process.env.__NEXT_PLUGINS) {
@@ -110,24 +110,24 @@ class Container extends React.Component {
           '?' +
           stringifyQs({
             ...router.query,
-            ...parseQs(location.search.substr(1))
+            ...parseQs(location.search.substr(1)),
           }),
         asPath,
         {
           // WARNING: `_h` is an internal option for handing Next.js
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
-          _h: 1
+          _h: 1,
         }
       )
     }
   }
 
-  componentDidUpdate () {
+  componentDidUpdate() {
     this.scrollToHash()
   }
 
-  scrollToHash () {
+  scrollToHash() {
     let { hash } = location
     hash = hash && hash.substring(1)
     if (!hash) return
@@ -140,7 +140,7 @@ class Container extends React.Component {
     setTimeout(() => el.scrollIntoView(), 0)
   }
 
-  render () {
+  render() {
     return this.props.children
   }
 }
@@ -155,7 +155,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
   if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function ({ name, startTime, value }) {
+    onPerfEntry = function({ name, startTime, value }) {
       mod.unstable_onPerformanceData({ name, startTime, value })
     }
   }
@@ -191,7 +191,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
       render({ App, Component, props, err, emitter })
-    }
+    },
   })
 
   // call init-client middleware
@@ -212,7 +212,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   return emitter
 }
 
-export async function render (props) {
+export async function render(props) {
   if (props.err) {
     await renderError(props)
     return
@@ -228,7 +228,7 @@ export async function render (props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (props) {
+export async function renderError(props) {
   const { App, err } = props
 
   // In development runtime errors are caught by react-error-overlay
@@ -260,7 +260,7 @@ export async function renderError (props) {
     Component: ErrorComponent,
     AppTree,
     router,
-    ctx: { err, pathname: page, query, asPath, AppTree }
+    ctx: { err, pathname: page, query, asPath, AppTree },
   }
 
   const initProps = props.props
@@ -273,7 +273,7 @@ export async function renderError (props) {
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
-function renderReactElement (reactEl, domEl) {
+function renderReactElement(reactEl, domEl) {
   // mark start of hydrate/render
   if (SUPPORTS_PERFORMANCE_USER_TIMING) {
     performance.mark('beforeRender')
@@ -305,7 +305,7 @@ function renderReactElement (reactEl, domEl) {
   }
 }
 
-function markHydrateComplete () {
+function markHydrateComplete() {
   if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
 
   performance.mark('afterHydrate') // mark end of hydration
@@ -323,7 +323,7 @@ function markHydrateComplete () {
   clearMarks()
 }
 
-function markRenderComplete () {
+function markRenderComplete() {
   if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
 
   performance.mark('afterRender') // mark end of render
@@ -348,19 +348,22 @@ function markRenderComplete () {
   clearMarks()
 }
 
-function clearMarks () {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    mark => performance.clearMarks(mark)
-  )
+function clearMarks() {
+  ;[
+    'beforeRender',
+    'afterHydrate',
+    'afterRender',
+    'routeChange',
+  ].forEach(mark => performance.clearMarks(mark))
   ;[
     'Next.js-before-hydration',
     'Next.js-hydration',
     'Next.js-route-change-to-render',
-    'Next.js-render'
+    'Next.js-render',
   ].forEach(measure => performance.clearMeasures(measure))
 }
 
-function AppContainer ({ children }) {
+function AppContainer({ children }) {
   return (
     <Container
       fn={error =>
@@ -389,7 +392,7 @@ const wrapApp = App => props => {
   )
 }
 
-async function doRender ({ App, Component, props, err }) {
+async function doRender({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (
@@ -404,7 +407,7 @@ async function doRender ({ App, Component, props, err }) {
       router,
       AppTree,
       Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath, AppTree }
+      ctx: { err, pathname, query, asPath, AppTree },
     }
     props = await loadGetInitialProps(App, appCtx)
   }
@@ -419,7 +422,7 @@ async function doRender ({ App, Component, props, err }) {
   emitter.emit('before-reactdom-render', {
     Component,
     ErrorComponent,
-    appProps
+    appProps,
   })
 
   const elem = (

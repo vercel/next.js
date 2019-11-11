@@ -8,7 +8,7 @@ const loadJSONInPage = pageContent => {
   return JSON.parse(page('#__next').text())
 }
 
-export default function (context) {
+export default function(context) {
   describe('Render in development mode', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')

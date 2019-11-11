@@ -11,21 +11,21 @@ describe('CLI Usage', () => {
   describe('no command', () => {
     test('--help', async () => {
       const help = await runNextCommand(['--help'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Usage/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['-h'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Usage/)
     })
 
     test('--version', async () => {
       const output = await runNextCommand(['--version'], {
-        stdout: true
+        stdout: true,
       })
       expect(output.stdout).toMatch(
         new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`)
@@ -34,7 +34,7 @@ describe('CLI Usage', () => {
 
     test('-v', async () => {
       const output = await runNextCommand(['--version'], {
-        stdout: true
+        stdout: true,
       })
       expect(output.stdout).toMatch(
         new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`)
@@ -44,7 +44,7 @@ describe('CLI Usage', () => {
   describe('build', () => {
     test('--help', async () => {
       const help = await runNextCommand(['build', '--help'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(
         /Compiles the application for production deployment/
@@ -53,7 +53,7 @@ describe('CLI Usage', () => {
 
     test('-h', async () => {
       const help = await runNextCommand(['build', '-h'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(
         /Compiles the application for production deployment/
@@ -64,14 +64,14 @@ describe('CLI Usage', () => {
   describe('dev', () => {
     test('--help', async () => {
       const help = await runNextCommand(['dev', '--help'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in development mode/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['dev', '-h'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in development mode/)
     })
@@ -116,14 +116,14 @@ describe('CLI Usage', () => {
   describe('start', () => {
     test('--help', async () => {
       const help = await runNextCommand(['start', '--help'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['start', '-h'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
     })
@@ -132,14 +132,14 @@ describe('CLI Usage', () => {
   describe('export', () => {
     test('--help', async () => {
       const help = await runNextCommand(['export', '--help'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Exports the application/)
     })
 
     test('-h', async () => {
       const help = await runNextCommand(['export', '-h'], {
-        stdout: true
+        stdout: true,
       })
       expect(help.stdout).toMatch(/Exports the application/)
     })

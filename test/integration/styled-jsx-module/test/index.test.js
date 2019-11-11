@@ -8,7 +8,7 @@ import {
   nextStart,
   nextBuild,
   launchApp,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -17,7 +17,7 @@ const appDir = join(__dirname, '../app')
 let appPort
 let app
 
-function runTests () {
+function runTests() {
   it('should render styles during CSR', async () => {
     const browser = await webdriver(appPort, '/')
     const color = await browser.eval(

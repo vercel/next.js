@@ -5,13 +5,13 @@ import NextEditor from '../components/NextEditor'
 const IndexPage = props => {
   return (
     <React.Fragment>
-      <Link href='/multiple'>
+      <Link href="/multiple">
         <a>Go to multiple</a>
       </Link>
       <hr />
       <NextEditor
-        slateKey='someUniqueKey'
-        defaultValue='This is editable plain text, just like a <textarea>!'
+        slateKey="someUniqueKey"
+        defaultValue="This is editable plain text, just like a <textarea>!"
       />
     </React.Fragment>
   )

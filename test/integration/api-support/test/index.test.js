@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
-  File
+  File,
 } from 'next-test-utils'
 import json from '../big.json'
 import { createServer } from 'http'
@@ -20,7 +20,7 @@ let appPort
 let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-function runTests (serverless = false) {
+function runTests(serverless = false) {
   it('should render page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/API - support/)
@@ -85,9 +85,9 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify([{ title: 'Nextjs' }])
+      body: JSON.stringify([{ title: 'Nextjs' }]),
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
@@ -97,9 +97,9 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: `{"message":Invalid"}`
+      body: `{"message":Invalid"}`,
     })
     expect(data.status).toEqual(400)
     expect(data.statusText).toEqual('Invalid JSON')
@@ -109,9 +109,9 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify(json)
+      body: JSON.stringify(json),
     })
 
     expect(data.status).toEqual(413)
@@ -122,9 +122,9 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/big-parse', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify(json)
+      body: JSON.stringify(json),
     })
 
     expect(data.status).toEqual(200)
@@ -133,7 +133,7 @@ function runTests (serverless = false) {
   it('should parse urlencoded body', async () => {
     const body = {
       title: 'Nextjs',
-      description: 'The React Framework for Production'
+      description: 'The React Framework for Production',
     }
 
     const formBody = Object.keys(body)
@@ -145,14 +145,14 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-Form-urlencoded'
+        'Content-Type': 'application/x-www-Form-urlencoded',
       },
-      body: formBody
+      body: formBody,
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual({
       title: 'Nextjs',
-      description: 'The React Framework for Production'
+      description: 'The React Framework for Production',
     })
   })
 
@@ -160,9 +160,9 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/no-parsing', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify([{ title: 'Nextjs' }])
+      body: JSON.stringify([{ title: 'Nextjs' }]),
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
@@ -172,9 +172,9 @@ function runTests (serverless = false) {
     const data = await fetchViaHTTP(appPort, '/api/parsing', null, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+        'Content-Type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify([{ title: 'Nextjs' }])
+      body: JSON.stringify([{ title: 'Nextjs' }]),
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual({ message: 'Parsed body' })
@@ -207,15 +207,15 @@ function runTests (serverless = false) {
   it('should return cookies object', async () => {
     const data = await fetchViaHTTP(appPort, '/api/cookies', null, {
       headers: {
-        Cookie: 'nextjs=cool;'
-      }
+        Cookie: 'nextjs=cool;',
+      },
     }).then(res => res.ok && res.json())
     expect(data).toEqual({ nextjs: 'cool' })
   })
 
   it('should return 200 on POST on pages', async () => {
     const res = await fetchViaHTTP(appPort, '/user', null, {
-      method: 'POST'
+      method: 'POST',
     })
 
     expect(res.status).toEqual(200)
@@ -223,7 +223,7 @@ function runTests (serverless = false) {
 
   it('should return JSON on post on API', async () => {
     const data = await fetchViaHTTP(appPort, '/api/blog?title=Nextjs', null, {
-      method: 'POST'
+      method: 'POST',
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])

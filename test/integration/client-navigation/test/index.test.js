@@ -10,7 +10,7 @@ import {
   launchApp,
   fetchViaHTTP,
   renderViaHTTP,
-  getReactErrorOverlayContent
+  getReactErrorOverlayContent,
 } from 'next-test-utils'
 
 const context = {}
@@ -52,7 +52,7 @@ describe('Client Navigation', () => {
       '/nav/as-path-using-router',
       '/nav/url-prop-change',
 
-      '/nested-cdm/index'
+      '/nested-cdm/index',
     ]
     await Promise.all(
       prerender.map(route => renderViaHTTP(context.appPort, route))
@@ -106,12 +106,12 @@ describe('Client Navigation', () => {
       expect(JSON.parse(urlResult)).toMatchObject({
         query: { added: 'yes' },
         pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes'
+        asPath: '/nav/url-prop-change?added=yes',
       })
       expect(JSON.parse(previousUrlResult)).toMatchObject({
         query: {},
         pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change'
+        asPath: '/nav/url-prop-change',
       })
 
       await browser.close()

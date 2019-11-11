@@ -6,16 +6,16 @@ const nextConfig = {
   bundleAnalyzerConfig: {
     server: {
       analyzerMode: 'static',
-      reportFilename: '../bundles/server.html'
+      reportFilename: '../bundles/server.html',
     },
     browser: {
       analyzerMode: 'static',
-      reportFilename: '../bundles/client.html'
-    }
+      reportFilename: '../bundles/client.html',
+    },
   },
-  webpack (config) {
+  webpack(config) {
     return config
-  }
+  },
 }
 
 module.exports = withBundleAnalyzer(nextConfig)
