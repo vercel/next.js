@@ -50,6 +50,8 @@ describe('create next app', () => {
     expect(
       fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
     ).toBeTruthy()
+    // ensure git is setup
+    expect(fs.existsSync(path.join(cwd, projectName, '.git'))).toBeTruthy()
   })
 
   it('invalid example name', async () => {
@@ -75,6 +77,10 @@ describe('create next app', () => {
     ).toBeTruthy()
     expect(
       fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+    ).toBeTruthy()
+    // check we copied default `.gitignore`
+    expect(
+      fs.existsSync(path.join(cwd, projectName, '.gitignore'))
     ).toBeTruthy()
   })
 })
