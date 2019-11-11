@@ -70,7 +70,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
     const enhancers = await enhanceAppMiddleware(ctx)
-    const enhanceApp = (App: any) => {
+    const enhanceApp: any = (App: any) => {
       for (const enhancer of enhancers) {
         App = enhancer(App)
       }
