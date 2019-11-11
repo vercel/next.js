@@ -1,5 +1,3 @@
-/* global window */
-
 import Router from 'next/router'
 import { setupPing, currentPage, closePing } from './on-demand-entries-utils'
 

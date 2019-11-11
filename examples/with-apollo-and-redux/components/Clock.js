@@ -5,7 +5,7 @@ const useClock = () => {
   return useSelector(
     state => ({
       lastUpdate: state.lastUpdate,
-      light: state.light
+      light: state.light,
     }),
     shallowEqual
   )

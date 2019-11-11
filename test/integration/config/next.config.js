@@ -5,20 +5,20 @@ module.exports = withCSS(
   withSass({
     onDemandEntries: {
       // Make sure entries are not getting disposed.
-      maxInactiveAge: 1000 * 60 * 60
+      maxInactiveAge: 1000 * 60 * 60,
     },
     poweredByHeader: false,
     cssModules: true,
     serverRuntimeConfig: {
-      mySecret: 'secret'
+      mySecret: 'secret',
     },
     publicRuntimeConfig: {
-      staticFolder: '/static'
+      staticFolder: '/static',
     },
     env: {
-      customVar: 'hello'
+      customVar: 'hello',
     },
-    webpack (config, { buildId, webpack }) {
+    webpack(config, { buildId, webpack }) {
       // When next-css is `npm link`ed we have to solve loaders from the project root
       const nextLocation = path.join(
         require.resolve('next/package.json'),
@@ -34,11 +34,11 @@ module.exports = withCSS(
       }
       config.plugins.push(
         new webpack.DefinePlugin({
-          'process.env.CONFIG_BUILD_ID': JSON.stringify(buildId)
+          'process.env.CONFIG_BUILD_ID': JSON.stringify(buildId),
         })
       )
 
       return config
-    }
+    },
   })
 )

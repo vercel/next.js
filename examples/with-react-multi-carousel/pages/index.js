@@ -9,17 +9,17 @@ import 'react-multi-carousel/lib/styles.css'
 
 const styles = theme => ({
   root: {
-    textAlign: 'center'
+    textAlign: 'center',
   },
   title: {
     maxWidth: 400,
     margin: 'auto',
-    marginTop: 10
-  }
+    marginTop: 10,
+  },
 })
 
 class Index extends React.Component {
-  static getInitialProps ({ req, isServer }) {
+  static getInitialProps({ req, isServer }) {
     let userAgent
     let deviceType
     if (req) {
@@ -37,7 +37,7 @@ class Index extends React.Component {
     }
     return { deviceType }
   }
-  render () {
+  render() {
     const { classes } = this.props
     const images = [
       'https://images.unsplash.com/photo-1549989476-69a92fa57c36?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=60',
@@ -51,21 +51,21 @@ class Index extends React.Component {
       'https://images.unsplash.com/photo-1549737328-8b9f3252b927?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=60',
       'https://images.unsplash.com/photo-1549833284-6a7df91c1f65?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=60',
       'https://images.unsplash.com/photo-1549985908-597a09ef0a7c?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=60',
-      'https://images.unsplash.com/photo-1550064824-8f993041ffd3?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=60'
+      'https://images.unsplash.com/photo-1550064824-8f993041ffd3?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=800&q=60',
     ]
     const responsive = {
       desktop: {
         breakpoint: { max: 3000, min: 1024 },
-        items: 3
+        items: 3,
       },
       tablet: {
         breakpoint: { max: 1024, min: 464 },
-        items: 2
+        items: 2,
       },
       mobile: {
         breakpoint: { max: 464, min: 0 },
-        items: 1
-      }
+        items: 1,
+      },
     }
     return (
       <div className={classes.root}>
@@ -75,8 +75,8 @@ class Index extends React.Component {
           showDots={false}
           slidesToSlide={1}
           infinite
-          containerClass='container-with-dots'
-          itemClass='image-item'
+          containerClass="container-with-dots"
+          itemClass="image-item"
           deviceType={this.props.deviceType}
         >
           {images.map(image => {

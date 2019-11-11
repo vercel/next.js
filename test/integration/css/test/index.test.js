@@ -12,7 +12,7 @@ import {
   stopApp,
   File,
   waitFor,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
@@ -158,10 +158,9 @@ describe('CSS Support', () => {
       const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
-      const cssMapContent = (await readFile(
-        join(cssFolder, cssMapFiles[0]),
-        'utf8'
-      )).trim()
+      const cssMapContent = (
+        await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+      ).trim()
 
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
@@ -216,7 +215,7 @@ describe('CSS Support', () => {
 
     it('should fail to build', async () => {
       const { stderr } = await nextBuild(appDir, [], {
-        stderr: true
+        stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
@@ -235,7 +234,7 @@ describe('CSS Support', () => {
 
     it('should fail to build', async () => {
       const { stderr } = await nextBuild(appDir, [], {
-        stderr: true
+        stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
@@ -254,7 +253,7 @@ describe('CSS Support', () => {
 
     it('should fail to build', async () => {
       const { stderr } = await nextBuild(appDir, [], {
-        stderr: true
+        stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
@@ -440,7 +439,7 @@ describe('CSS Support', () => {
       const server = nextServer({
         dir: appDir,
         dev: false,
-        quiet: true
+        quiet: true,
       })
 
       app = await startApp(server)
@@ -578,7 +577,7 @@ describe('CSS Support', () => {
       const server = nextServer({
         dir: appDir,
         dev: false,
-        quiet: true
+        quiet: true,
       })
 
       app = await startApp(server)

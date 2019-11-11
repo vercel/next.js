@@ -1,4 +1,3 @@
-'use strict'
 let globalSetup
 
 if (process.env.BROWSERSTACK) {
@@ -6,7 +5,7 @@ if (process.env.BROWSERSTACK) {
   const browserStackLocal = new Local()
   const localBrowserStackOpts = {
     key: process.env.BROWSERSTACK_ACCESS_KEY,
-    localIdentifier: new Date().getTime() // Adding a unique local identifier to run parallel tests on BrowserStack
+    localIdentifier: new Date().getTime(), // Adding a unique local identifier to run parallel tests on BrowserStack
   }
   global.browserStackLocal = browserStackLocal
 
@@ -23,13 +22,13 @@ if (process.env.BROWSERSTACK) {
   const chromedriver = require('chromedriver')
   const waitPort = require('wait-port')
 
-  globalSetup = async function globalSetup () {
+  globalSetup = async function globalSetup() {
     chromedriver.start()
 
     // https://github.com/giggio/node-chromedriver/issues/117
     await waitPort({
       port: 9515,
-      timeout: 1000 * 60 * 2 // 2 Minutes
+      timeout: 1000 * 60 * 2, // 2 Minutes
     })
   }
 }

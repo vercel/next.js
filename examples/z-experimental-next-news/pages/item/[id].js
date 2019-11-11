@@ -4,19 +4,18 @@ import Item from '../../components/item'
 import getItem from '../../lib/get-item'
 import getComments from '../../lib/get-comments'
 
-// eslint-disable-next-line camelcase
-export async function unstable_getStaticProps ({ params }) {
+export async function unstable_getStaticProps({ params }) {
   const story = await getItem(params.id)
   return { props: { story } }
 }
 
-function ItemPage ({ story }) {
+function ItemPage({ story }) {
   const [comments, setComments] = useState(null)
   useEffect(() => {
     getComments(story.comments)
       .then(comments => setComments(comments))
       .catch(err => console.error(err))
-  }, [])
+  }, [story.comments])
   return (
     <Page>
       <Item story={story} comments={comments} />

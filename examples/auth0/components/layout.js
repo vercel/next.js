@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import Header from './header'
 
-function Layout ({ user, loading = false, children }) {
+function Layout({ user, loading = false, children }) {
   return (
     <>
       <Head>
@@ -11,7 +11,7 @@ function Layout ({ user, loading = false, children }) {
       <Header user={user} loading={loading} />
 
       <main>
-        <div className='container'>{children}</div>
+        <div className="container">{children}</div>
       </main>
 
       <style jsx>{`

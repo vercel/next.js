@@ -8,7 +8,7 @@ import {
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -23,7 +23,7 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

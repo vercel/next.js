@@ -1,5 +1,3 @@
-'use strict'
-
 // error messages can be strings of objects
 exports['default'] = {
   errors: api => {
@@ -39,8 +37,8 @@ exports['default'] = {
             } else {
               return error
             }
-          }
-        }
+          },
+        },
       },
 
       // ///////////
@@ -59,7 +57,7 @@ exports['default'] = {
       missingParams: (data, missingParams) => {
         return data.connection.localize([
           'actionhero.errors.missingParams',
-          { param: missingParams[0] }
+          { param: missingParams[0] },
         ])
       },
 
@@ -72,7 +70,7 @@ exports['default'] = {
       unsupportedServerType: data => {
         return data.connection.localize([
           'actionhero.errors.unsupportedServerType',
-          { type: data.connection.type }
+          { type: data.connection.type },
         ])
       },
 
@@ -92,7 +90,7 @@ exports['default'] = {
       dataLengthTooLarge: (maxLength, receivedLength) => {
         return api.i18n.localize([
           'actionhero.errors.dataLengthTooLarge',
-          { maxLength: maxLength, receivedLength: receivedLength }
+          { maxLength: maxLength, receivedLength: receivedLength },
         ])
       },
 
@@ -115,7 +113,7 @@ exports['default'] = {
       fileReadError: (connection, error) => {
         return connection.localize([
           'actionhero.errors.fileReadError',
-          { error: String(error) }
+          { error: String(error) },
         ])
       },
 
@@ -126,14 +124,14 @@ exports['default'] = {
       verbNotFound: (connection, verb) => {
         return connection.localize([
           'actionhero.errors.verbNotFound',
-          { verb: verb }
+          { verb: verb },
         ])
       },
 
       verbNotAllowed: (connection, verb) => {
         return connection.localize([
           'actionhero.errors.verbNotAllowed',
-          { verb: verb }
+          { verb: verb },
         ])
       },
 
@@ -144,14 +142,14 @@ exports['default'] = {
       connectionNotInRoom: (connection, room) => {
         return connection.localize([
           'actionhero.errors.connectionNotInRoom',
-          { room: room }
+          { room: room },
         ])
       },
 
       connectionAlreadyInRoom: (connection, room) => {
         return connection.localize([
           'actionhero.errors.connectionAlreadyInRoom',
-          { room: room }
+          { room: room },
         ])
       },
 
@@ -171,7 +169,7 @@ exports['default'] = {
 
       connectionRoomRequired: room => {
         return api.i18n.localize('actionhero.errors.connectionRoomRequired')
-      }
+      },
     }
-  }
+  },
 }

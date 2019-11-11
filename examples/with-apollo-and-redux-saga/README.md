@@ -48,12 +48,7 @@ const mapStateToProps = state => ({
   location: state.form.location,
 })
 
-export default withReduxSaga(
-  connect(
-    mapStateToProps,
-    null
-  )(Index)
-)
+export default withReduxSaga(connect(mapStateToProps, null)(Index))
 ```
 
 `connect` must go inside `withReduxSaga` otherwise `connect` will not be able to find the store.

@@ -6,11 +6,11 @@ import MuiLink from '@material-ui/core/Link'
 import ProTip from '../src/ProTip'
 import Link from '../src/Link'
 
-function Copyright () {
+function Copyright() {
   return (
-    <Typography variant='body2' color='textSecondary' align='center'>
+    <Typography variant="body2" color="textSecondary" align="center">
       {'Copyright © '}
-      <MuiLink color='inherit' href='https://material-ui.com/'>
+      <MuiLink color="inherit" href="https://material-ui.com/">
         Your Website
       </MuiLink>{' '}
       {new Date().getFullYear()}
@@ -19,14 +19,14 @@ function Copyright () {
   )
 }
 
-export default function Index () {
+export default function Index() {
   return (
-    <Container maxWidth='sm'>
+    <Container maxWidth="sm">
       <Box my={4}>
-        <Typography variant='h4' component='h1' gutterBottom>
+        <Typography variant="h4" component="h1" gutterBottom>
           Next.js example
         </Typography>
-        <Link href='/about' color='secondary'>
+        <Link href="/about" color="secondary">
           Go to the about page
         </Link>
         <ProTip />
