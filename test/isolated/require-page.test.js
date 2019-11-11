@@ -5,7 +5,7 @@ import { SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next/constants'
 import {
   requirePage,
   getPagePath,
-  pageNotFoundError
+  pageNotFoundError,
 } from 'next/dist/next-server/server/require'
 import { normalizePagePath } from 'next/dist/next-server/server/normalize-page-path'
 

@@ -3,18 +3,18 @@ import Comment from '../components/comment'
 import CommentForm from '../components/comment-form'
 
 export default ({ story, comments = null }) => (
-  <div className='item'>
+  <div className="item">
     <Story {...story} />
 
-    <div className='form'>
+    <div className="form">
       <CommentForm />
     </div>
 
-    <div className='comments'>
+    <div className="comments">
       {comments ? (
         comments.map(comment => <Comment key={comment.id} {...comment} />)
       ) : (
-        <div className='loading'>Loading…</div>
+        <div className="loading">Loading…</div>
       )}
     </div>
 

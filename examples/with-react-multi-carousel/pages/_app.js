@@ -12,12 +12,12 @@ import JssProvider from 'react-jss/lib/JssProvider'
 import getPageContext from '../src/getPageContext'
 
 class MyApp extends App {
-  constructor () {
+  constructor() {
     super()
     this.pageContext = getPageContext()
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
       <>

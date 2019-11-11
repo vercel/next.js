@@ -5,8 +5,8 @@ import Nav from './Nav'
 const messages = defineMessages({
   title: {
     id: 'title',
-    defaultMessage: 'React Intl Next.js Example'
-  }
+    defaultMessage: 'React Intl Next.js Example',
+  },
 })
 
 export default ({ title, children }) => {
@@ -15,7 +15,7 @@ export default ({ title, children }) => {
   return (
     <div>
       <Head>
-        <meta name='viewport' content='width=device-width, initial-scale=1' />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title || intl.formatMessage(messages.title)}</title>
       </Head>
 

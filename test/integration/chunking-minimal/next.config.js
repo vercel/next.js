@@ -1,6 +1,6 @@
 module.exports = {
   experimental: {
     modern: true,
-    granularChunks: true
-  }
+    granularChunks: true,
+  },
 }

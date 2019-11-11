@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    ampBindInitData: true
-  }
+    ampBindInitData: true,
+  },
 }

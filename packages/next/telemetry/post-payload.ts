@@ -23,6 +23,9 @@ export function _postPayload(endpoint: string, body: object) {
         // We swallow errors when telemetry cannot be sent
       })
       // Ensure promise is voided
-      .then(() => {}, () => {})
+      .then(
+        () => {},
+        () => {}
+      )
   )
 }

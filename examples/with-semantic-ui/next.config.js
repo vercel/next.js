@@ -2,7 +2,7 @@ const withCSS = require('@zeit/next-css')
 
 module.exports = withCSS({
   target: 'serverless',
-  webpack (config) {
+  webpack(config) {
     config.module.rules.push({
       test: /\.(png|svg|eot|otf|ttf|woff|woff2)$/,
       use: {
@@ -11,10 +11,10 @@ module.exports = withCSS({
           limit: 8192,
           publicPath: '/_next/static/',
           outputPath: 'static/',
-          name: '[name].[ext]'
-        }
-      }
+          name: '[name].[ext]',
+        },
+      },
     })
     return config
-  }
+  },
 })
