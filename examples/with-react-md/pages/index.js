@@ -73,7 +73,6 @@ export default () => {
   return (
     <div>
       <Head>
-        <link rel="stylesheet" href="/react-md.light_blue-yellow.min.css" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css?family=Roboto:300,400,500"
