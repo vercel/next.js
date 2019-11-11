@@ -6,7 +6,7 @@ import {
   fetchViaHTTP,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 
 // test suits

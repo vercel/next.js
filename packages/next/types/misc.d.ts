@@ -83,7 +83,7 @@ declare module 'autodll-webpack-plugin' {
       entry?: webpack.Entry
       config?: webpack.Configuration
     })
-    apply: webpack.Plugin['apply']
+    apply: webpack.Plugin['apply'];
     [k: string]: any
   }
 

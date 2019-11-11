@@ -12,7 +12,7 @@ const handle = app.getRequestHandler()
 
 const firebase = admin.initializeApp(
   {
-    credential: admin.credential.cert(require('./credentials/server'))
+    credential: admin.credential.cert(require('./credentials/server')),
   },
   'server'
 )
@@ -29,7 +29,7 @@ app.prepare().then(() => {
       resave: false,
       rolling: true,
       httpOnly: true,
-      cookie: { maxAge: 604800000 } // week
+      cookie: { maxAge: 604800000 }, // week
     })
   )
 

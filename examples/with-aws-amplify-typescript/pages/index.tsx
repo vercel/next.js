@@ -67,6 +67,9 @@ const reducer: React.Reducer<State, Action> = (state, action) => {
         draft.currentName = action.payload
       })
     }
+    default: {
+      return state
+    }
   }
 }
 

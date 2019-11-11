@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject, format } from 'url'
+import { parse, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -14,9 +14,9 @@ import {
   SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
+import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { isDynamicRoute } from './utils/is-dynamic'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'

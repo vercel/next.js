@@ -5,6 +5,7 @@ export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
+export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const SERVERLESS_DIRECTORY = 'serverless'
@@ -28,3 +29,4 @@ export const IS_BUNDLED_PAGE_REGEX = /^static[/\\][^/\\]+[/\\]pages.*\.js$/
 // matches static/<buildid>/pages/:page*.js
 export const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
 export const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
+export const DEFAULT_REDIRECT_STATUS = 307

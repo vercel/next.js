@@ -1,7 +1,7 @@
 /* global document, window */
 import mitt from '../next-server/lib/mitt'
 
-function supportsPreload (el) {
+function supportsPreload(el) {
   try {
     return el.relList.supports('preload')
   } catch {
@@ -11,7 +11,7 @@ function supportsPreload (el) {
 
 const hasPreload = supportsPreload(document.createElement('link'))
 
-function preloadScript (url) {
+function preloadScript(url) {
   const link = document.createElement('link')
   link.rel = 'preload'
   link.crossOrigin = process.crossOrigin
@@ -21,7 +21,7 @@ function preloadScript (url) {
 }
 
 export default class PageLoader {
-  constructor (buildId, assetPrefix) {
+  constructor(buildId, assetPrefix) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
@@ -42,13 +42,13 @@ export default class PageLoader {
   }
 
   // Returns a promise for the dependencies for a particular route
-  getDependencies (route) {
+  getDependencies(route) {
     return this.promisedBuildManifest.then(
       man => (man[route] && man[route].map(url => `/_next/${url}`)) || []
     )
   }
 
-  normalizeRoute (route) {
+  normalizeRoute(route) {
     if (route[0] !== '/') {
       throw new Error(`Route name should start with a "/", got "${route}"`)
     }
@@ -58,11 +58,11 @@ export default class PageLoader {
     return route.replace(/\/$/, '')
   }
 
-  loadPage (route) {
+  loadPage(route) {
     return this.loadPageScript(route).then(v => v.page)
   }
 
-  loadPageScript (route) {
+  loadPageScript(route) {
     route = this.normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
@@ -98,7 +98,10 @@ export default class PageLoader {
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
-              if (/\.js$/.test(d) && !document.querySelector(`script[src^="${d}"]`)) {
+              if (
+                /\.js$/.test(d) &&
+                !document.querySelector(`script[src^="${d}"]`)
+              ) {
                 this.loadScript(d, route, false)
               }
             })
@@ -113,7 +116,7 @@ export default class PageLoader {
     })
   }
 
-  async loadRoute (route) {
+  async loadRoute(route) {
     route = this.normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
@@ -123,7 +126,7 @@ export default class PageLoader {
     this.loadScript(url, route, true)
   }
 
-  loadScript (url, route, isPage) {
+  loadScript(url, route, isPage) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
       script.type = 'module'
@@ -142,7 +145,7 @@ export default class PageLoader {
   }
 
   // This method if called by the route code.
-  registerPage (route, regFn) {
+  registerPage(route, regFn) {
     const register = () => {
       try {
         const mod = regFn()
@@ -177,7 +180,7 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch (route, isDependency) {
+  async prefetch(route, isDependency) {
     route = this.normalizeRoute(route)
     let scriptRoute = `${route === '/' ? '/index' : route}.js`
 
@@ -192,8 +195,8 @@ export default class PageLoader {
       (isDependency
         ? route
         : `/_next/static/${encodeURIComponent(
-          this.buildId
-        )}/pages${scriptRoute}`)
+            this.buildId
+          )}/pages${scriptRoute}`)
 
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.
@@ -239,7 +242,10 @@ export default class PageLoader {
     } else {
       return new Promise(resolve => {
         window.addEventListener('load', () => {
-          this.loadPage(route).then(() => resolve(), () => resolve())
+          this.loadPage(route).then(
+            () => resolve(),
+            () => resolve()
+          )
         })
       })
     }

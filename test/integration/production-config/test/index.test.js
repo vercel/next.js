@@ -7,7 +7,7 @@ import {
   nextBuild,
   startApp,
   stopApp,
-  runNextCommand
+  runNextCommand,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -23,7 +23,7 @@ describe('Production Config Usage', () => {
     const app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
     server = await startApp(app)
     appPort = server.address().port
@@ -44,7 +44,7 @@ describe('Production Config Usage', () => {
       const result = await runNextCommand(['build', appDir], {
         env: { ENABLE_ENV_FAIL_UNDERSCORE: true },
         stdout: true,
-        stderr: true
+        stderr: true,
       })
 
       expect(result.stderr).toMatch(/The key "__NEXT_MY_VAR" under/)
@@ -54,7 +54,7 @@ describe('Production Config Usage', () => {
       const result = await runNextCommand(['build', appDir], {
         env: { ENABLE_ENV_FAIL_NODE: true },
         stdout: true,
-        stderr: true
+        stderr: true,
       })
 
       expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
@@ -64,7 +64,7 @@ describe('Production Config Usage', () => {
       const result = await runNextCommand(['build', appDir], {
         env: { ENABLE_ENV_WITH_UNDERSCORES: true },
         stdout: true,
-        stderr: true
+        stderr: true,
       })
 
       expect(result.stderr).not.toMatch(/The key "SOME__ENV__VAR" under/)
@@ -84,7 +84,7 @@ describe('Production Config Usage', () => {
   })
 })
 
-async function testBrowser () {
+async function testBrowser() {
   const browser = await webdriver(appPort, '/')
   const element = await browser.elementByCss('#mounted')
   const text = await element.text()

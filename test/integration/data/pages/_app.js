@@ -2,7 +2,7 @@ import React, { Suspense } from 'react'
 import App from 'next/app'
 
 class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     if (typeof window === 'undefined') {
       return <Component {...pageProps} />
