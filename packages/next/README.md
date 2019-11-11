@@ -1116,7 +1116,7 @@ export default withRouter(MyLink)
   </ul>
 </details>
 
-API routes provides a straightforward solution to build your **API** with Next.js.
+API routes provide a straightforward solution to build your **API** with Next.js.
 Start by creating the `api/` folder inside the `./pages/` folder.
 
 Every file inside `./pages/api` is mapped to `/api/*`.
