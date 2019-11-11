@@ -251,7 +251,9 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      this.isSsr = false
+      if (!options._h) {
+        this.isSsr = false
+      }
       // marking route changes as a navigation start entry
       if (SUPPORTS_PERFORMANCE_USER_TIMING) {
         performance.mark('routeChange')
