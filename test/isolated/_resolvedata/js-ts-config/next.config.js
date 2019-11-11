@@ -1,3 +1,3 @@
 module.exports = {
-  __test__ext: 'js'
+  __test__ext: 'js',
 }

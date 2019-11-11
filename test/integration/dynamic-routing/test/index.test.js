@@ -10,7 +10,7 @@ import {
   killApp,
   waitFor,
   nextBuild,
-  nextStart
+  nextStart,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -21,7 +21,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests (dev) {
+function runTests(dev) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -238,25 +238,25 @@ function runTests (dev) {
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',
-            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
+            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$',
           },
           {
             page: '/on-mount/[post]',
-            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'
+            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
           },
           {
             page: '/[name]',
-            regex: '^\\/([^\\/]+?)(?:\\/)?$'
+            regex: '^\\/([^\\/]+?)(?:\\/)?$',
           },
           {
             page: '/[name]/comments',
-            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$'
+            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$',
           },
           {
             page: '/[name]/[comment]',
-            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-          }
-        ]
+            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
+          },
+        ],
       })
     })
   }

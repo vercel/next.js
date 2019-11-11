@@ -1,7 +1,7 @@
 import React from 'react'
 
 class Error extends React.Component {
-  static async getInitialProps ({ req, res, err }) {
+  static async getInitialProps({ req, res, err }) {
     if (req.url !== '/404.html') {
       await Promise.reject(new Error('an error in error'))
     }
@@ -9,7 +9,7 @@ class Error extends React.Component {
     return { statusCode }
   }
 
-  render () {
+  render() {
     return (
       <p>
         {this.props.statusCode

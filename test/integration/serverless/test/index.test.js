@@ -10,7 +10,7 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 import qs from 'querystring'
 import fetch from 'node-fetch'
@@ -231,7 +231,7 @@ describe('Serverless', () => {
   it('should have the correct query string for a spr route', async () => {
     const paramRaw = 'test % 123'
     const html = await fetchViaHTTP(appPort, `/dr/[slug]`, '', {
-      headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) }
+      headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) },
     }).then(res => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())

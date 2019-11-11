@@ -29,9 +29,9 @@ afterEach(async () => {
 describe('recursiveCopy', () => {
   it('should work', async () => {
     await recursiveCopy(srcDir, destDir, {
-      filter (path) {
+      filter(path) {
         return path !== '/folder1/file1'
-      }
+      },
     })
 
     expect(await fs.pathExists(join(destDir, '.hidden'))).toBe(true)

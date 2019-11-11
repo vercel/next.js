@@ -31,7 +31,7 @@ describe('config', () => {
 
   it('Should pass the customConfig correctly', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      customConfig: true
+      customConfig: true,
     })
     expect(config.customConfig).toBe(true)
   })
@@ -44,7 +44,7 @@ describe('config', () => {
   it('Should assign object defaults deeply to customConfig', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
       customConfig: true,
-      onDemandEntries: { custom: true }
+      onDemandEntries: { custom: true },
     })
     expect(config.customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
@@ -52,7 +52,7 @@ describe('config', () => {
 
   it('Should allow setting objects which do not have defaults', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      bogusSetting: { custom: true }
+      bogusSetting: { custom: true },
     })
     expect(config.bogusSetting).toBeDefined()
     expect(config.bogusSetting.custom).toBe(true)
@@ -60,7 +60,7 @@ describe('config', () => {
 
   it('Should override defaults for arrays from user arrays', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
-      pageExtensions: ['.bogus']
+      pageExtensions: ['.bogus'],
     })
     expect(config.pageExtensions).toEqual(['.bogus'])
   })

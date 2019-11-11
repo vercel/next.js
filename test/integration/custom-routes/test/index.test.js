@@ -13,7 +13,7 @@ import {
   fetchViaHTTP,
   renderViaHTTP,
   getBrowserBodyText,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -37,7 +37,7 @@ const runTests = (isDev = false) => {
 
   it('should handle chained redirects successfully', async () => {
     const res = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
-      redirect: 'manual'
+      redirect: 'manual',
     })
     const { pathname } = url.parse(res.headers.get('location'))
     expect(res.status).toBe(303)
@@ -46,7 +46,7 @@ const runTests = (isDev = false) => {
 
   it('should redirect successfully with default statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
-      redirect: 'manual'
+      redirect: 'manual',
     })
     const { pathname } = url.parse(res.headers.get('location'))
     expect(res.status).toBe(307)
@@ -55,7 +55,7 @@ const runTests = (isDev = false) => {
 
   it('should redirect with params successfully', async () => {
     const res = await fetchViaHTTP(appPort, '/hello/123/another', undefined, {
-      redirect: 'manual'
+      redirect: 'manual',
     })
     const { pathname } = url.parse(res.headers.get('location'))
     expect(res.status).toBe(307)
@@ -64,7 +64,7 @@ const runTests = (isDev = false) => {
 
   it('should redirect successfully with provided statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect2', undefined, {
-      redirect: 'manual'
+      redirect: 'manual',
     })
     const { pathname } = url.parse(res.headers.get('location'))
     expect(res.status).toBe(301)
@@ -123,103 +123,103 @@ const runTests = (isDev = false) => {
             destination: '/blog/:id',
             statusCode: 307,
             regex: '^\\/hello\\/([^\\/]+?)\\/another$',
-            regexKeys: ['id']
+            regexKeys: ['id'],
           },
           {
             source: '/redirect1',
             destination: '/',
             statusCode: 307,
             regex: '^\\/redirect1$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/redirect2',
             destination: '/',
             statusCode: 301,
             regex: '^\\/redirect2$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/redirect3',
             destination: '/another',
             statusCode: 302,
             regex: '^\\/redirect3$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/redirect4',
             destination: '/',
             statusCode: 308,
             regex: '^\\/redirect4$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/redir-chain1',
             destination: '/redir-chain2',
             statusCode: 301,
             regex: '^\\/redir-chain1$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/redir-chain2',
             destination: '/redir-chain3',
             statusCode: 302,
             regex: '^\\/redir-chain2$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/redir-chain3',
             destination: '/',
             statusCode: 303,
             regex: '^\\/redir-chain3$',
-            regexKeys: []
-          }
+            regexKeys: [],
+          },
         ],
         rewrites: [
           {
             source: '/',
             destination: '/another',
             regex: '^\\/$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/another',
             destination: '/multi-rewrites',
             regex: '^\\/another$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/first',
             destination: '/hello',
             regex: '^\\/first$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/second',
             destination: '/hello-again',
             regex: '^\\/second$',
-            regexKeys: []
+            regexKeys: [],
           },
           {
             source: '/test/:path',
             destination: '/:path',
             regex: '^\\/test\\/([^\\/]+?)$',
-            regexKeys: ['path']
+            regexKeys: ['path'],
           },
           {
             source: '/test-overwrite/:something/:another',
             destination: '/params/this-should-be-the-value',
             regex: '^\\/test-overwrite\\/([^\\/]+?)\\/([^\\/]+?)$',
-            regexKeys: ['something', 'another']
+            regexKeys: ['something', 'another'],
           },
           {
             source: '/params/:something',
             destination: '/with-params',
             regex: '^\\/params\\/([^\\/]+?)$',
-            regexKeys: ['something']
-          }
+            regexKeys: ['something'],
+          },
         ],
-        dynamicRoutes: []
+        dynamicRoutes: [],
       })
     })
   }
