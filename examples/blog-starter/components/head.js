@@ -9,41 +9,41 @@ const defaultOGImage = siteMeta.image
 
 const Head = props => (
   <NextHead>
-    <meta charSet='UTF-8' />
+    <meta charSet="UTF-8" />
     <title>
       {props.title ? `${props.title} - ${siteMeta.title}` : siteMeta.title}
     </title>
     <meta
-      name='description'
+      name="description"
       content={props.description || defaultDescription}
     />
-    <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <link
-      rel='alternate'
-      title='RSS Feed'
-      type='application/json'
+      rel="alternate"
+      title="RSS Feed"
+      type="application/json"
       href={`${siteMeta.siteUrl}/feed.json`}
     />
 
-    <meta property='og:url' content={props.url || defaultOGURL} />
-    <meta property='og:title' content={props.title || ''} />
+    <meta property="og:url" content={props.url || defaultOGURL} />
+    <meta property="og:title" content={props.title || ''} />
     <meta
-      property='og:description'
+      property="og:description"
       content={props.description || defaultDescription}
     />
-    <meta name='twitter:site' content={props.url || defaultOGURL} />
-    <meta name='twitter:card' content='summary_large_image' />
+    <meta name="twitter:site" content={props.url || defaultOGURL} />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
-      name='twitter:image'
+      name="twitter:image"
       content={`${siteMeta.siteUrl}${props.ogImage || defaultOGImage}`}
     />
     <meta
-      property='og:image'
+      property="og:image"
       content={`${siteMeta.siteUrl}${props.ogImage || defaultOGImage}`}
     />
-    <meta property='og:image:width' content='1200' />
-    <meta property='og:image:height' content='630' />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
   </NextHead>
 )
 
@@ -51,7 +51,7 @@ Head.propTypes = {
   title: string,
   description: string,
   url: string,
-  ogImage: string
+  ogImage: string,
 }
 
 export default Head

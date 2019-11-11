@@ -2,7 +2,7 @@ import * as React from 'react'
 import { UniversalPortal } from '@jesstelford/react-portal-universal'
 
 export default class Index extends React.Component {
-  constructor () {
+  constructor() {
     super(...arguments)
     this.state = { opened: true }
   }
@@ -15,21 +15,21 @@ export default class Index extends React.Component {
     this.setState({ opened: false })
   }
 
-  render () {
+  render() {
     return (
       <React.Fragment>
         {/* A portal that is adjacent to its target */}
-        <div id='target' />
-        <UniversalPortal selector='#target'>
+        <div id="target" />
+        <UniversalPortal selector="#target">
           <h1>Hello Portal</h1>
         </UniversalPortal>
 
         {/* Open a modal in a portal that is elsewhere in the react tree */}
-        <button type='button' onClick={this.open}>
+        <button type="button" onClick={this.open}>
           Open Modal
         </button>
         {this.state.opened && (
-          <UniversalPortal selector='#modal'>
+          <UniversalPortal selector="#modal">
             <div
               style={{
                 position: 'fixed',
@@ -37,7 +37,7 @@ export default class Index extends React.Component {
                 top: 0,
                 right: 0,
                 bottom: 0,
-                left: 0
+                left: 0,
               }}
             >
               <div
@@ -48,17 +48,17 @@ export default class Index extends React.Component {
                   right: '10%',
                   bottom: '10%',
                   left: '10%',
-                  padding: '1em'
+                  padding: '1em',
                 }}
               >
                 <p>
                   This modal is rendered using{' '}
-                  <a href='https://www.npmjs.com/package/@jesstelford/react-portal-universal'>
+                  <a href="https://www.npmjs.com/package/@jesstelford/react-portal-universal">
                     <code>@jesstelford/react-portal-universal</code>
                   </a>
                   .
                 </p>
-                <button type='button' onClick={this.close}>
+                <button type="button" onClick={this.close}>
                   Close Modal
                 </button>
               </div>

@@ -1,5 +1,3 @@
-'use strict'
-
 const fs = require('fs')
 const cluster = require('cluster')
 
@@ -9,19 +7,19 @@ exports['default'] = {
 
     // console logger
     if (cluster.isMaster) {
-      logger.transports.push(function (api, winston) {
+      logger.transports.push(function(api, winston) {
         return new winston.transports.Console({
           colorize: true,
           level: 'info',
-          timestamp: function () {
+          timestamp: function() {
             return api.id + ' @ ' + new Date().toISOString()
-          }
+          },
         })
       })
     }
 
     // file logger
-    logger.transports.push(function (api, winston) {
+    logger.transports.push(function(api, winston) {
       if (api.config.general.paths.log.length === 1) {
         const logDirectory = api.config.general.paths.log[0]
         try {
@@ -37,9 +35,9 @@ exports['default'] = {
         filename:
           api.config.general.paths.log[0] + '/' + api.pids.title + '.log',
         level: 'info',
-        timestamp: function () {
+        timestamp: function() {
           return api.id + ' @ ' + new Date().toISOString()
-        }
+        },
       })
     })
 
@@ -53,13 +51,13 @@ exports['default'] = {
     // logger.colors = {good: 'blue', bad: 'red'};
 
     return logger
-  }
+  },
 }
 
 exports.test = {
   logger: api => {
     return {
-      transports: null
+      transports: null,
     }
-  }
+  },
 }

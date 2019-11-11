@@ -9,6 +9,6 @@ export default initAuth0({
   postLogoutRedirectUri: process.env.POST_LOGOUT_REDIRECT_URI,
   session: {
     cookieSecret: process.env.SESSION_COOKIE_SECRET,
-    cookieLifetime: process.env.SESSION_COOKIE_LIFETIME
-  }
+    cookieLifetime: process.env.SESSION_COOKIE_LIFETIME,
+  },
 })

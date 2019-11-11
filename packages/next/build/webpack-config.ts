@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
@@ -24,8 +25,14 @@ import {
 } from '../next-server/lib/constants'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
+import {
+  collectPlugins,
+  PluginMetaData,
+  VALID_MIDDLEWARE,
+} from './plugins/collect-plugins'
+// @ts-ignore: JS file
+import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
@@ -34,7 +41,6 @@ import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
-// @ts-ignore: JS file
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
@@ -46,6 +52,20 @@ const escapePathVariables = (value: any) => {
   return typeof value === 'string'
     ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
     : value
+}
+
+function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
+  if (isServer) {
+    return {}
+  }
+
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  return {
+    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
+    unfetch$: stubWindowFetch,
+    'isomorphic-unfetch$': stubWindowFetch,
+    'whatwg-fetch$': stubWindowFetch,
+  }
 }
 
 export default async function getBaseWebpackConfig(
@@ -70,17 +90,34 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
   }
 ): Promise<webpack.Configuration> {
+  let plugins: PluginMetaData[] = []
+  let babelPresetPlugins: { dir: string; config: any }[] = []
+
+  if (config.experimental.plugins) {
+    plugins = await collectPlugins(dir, config.env, config.plugins)
+    pluginLoaderOptions.plugins = plugins
+
+    for (const plugin of plugins) {
+      if (plugin.middleware.includes('babel-preset-build')) {
+        babelPresetPlugins.push({
+          dir: plugin.directory,
+          config: plugin.config,
+        })
+      }
+    }
+  }
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
       options: {
         isServer,
-        hasModern: !!config.experimental.modern,
         distDir,
         pagesDir,
         cwd: dir,
         cache: true,
+        babelPresetPlugins,
+        hasModern: !!config.experimental.modern,
       },
     },
     // Backwards compat
@@ -88,6 +125,16 @@ export default async function getBaseWebpackConfig(
       loader: 'noop-loader',
     },
   }
+
+  const babelIncludeRegexes: RegExp[] = [
+    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]client/,
+    /next[\\/]dist[\\/]pages/,
+    /[\\/](strip-ansi|ansi-regex)[\\/]/,
+    ...(config.experimental.plugins
+      ? VALID_MIDDLEWARE.map(name => new RegExp(`src(\\\\|/)${name}`))
+      : []),
+  ]
 
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
@@ -115,6 +162,10 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
+        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
+          NEXT_PROJECT_ROOT_DIST_CLIENT,
+          'polyfills.js'
+        ),
       }
     : undefined
 
@@ -126,6 +177,9 @@ export default async function getBaseWebpackConfig(
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
+  const ignoreTypeScriptErrors = dev
+    ? config.typescript && config.typescript.ignoreDevErrors
+    : config.typescript && config.typescript.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -160,6 +214,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
+      ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
@@ -168,11 +223,12 @@ export default async function getBaseWebpackConfig(
   const webpackMode = dev ? 'development' : 'production'
 
   const terserPluginConfig = {
-    parallel: true,
-    sourceMap: false,
     cache: true,
     cpus: config.experimental.cpus,
     distDir: distDir,
+    parallel: true,
+    sourceMap: false,
+    workerThreads: config.experimental.workerThreads,
   }
   const terserOptions = {
     parse: {
@@ -225,13 +281,11 @@ export default async function getBaseWebpackConfig(
       },
     },
     prodGranular: {
-      chunks: 'initial',
+      chunks: 'all',
       cacheGroups: {
         default: false,
         vendors: false,
         framework: {
-          // Framework chunk applies to modules in dynamic chunks, unlike shared chunks
-          // TODO(atcastle): Analyze if other cache groups should be set to 'all' as well
           chunks: 'all',
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
@@ -239,6 +293,9 @@ export default async function getBaseWebpackConfig(
           // https://github.com/zeit/next.js/pull/9012
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
           priority: 40,
+          // Don't let webpack eliminate this chunk (prevents this chunk from
+          // becoming a part of the commons chunk)
+          enforce: true,
         },
         lib: {
           test(module: { size: Function; identifier: Function }): boolean {
@@ -282,7 +339,8 @@ export default async function getBaseWebpackConfig(
           reuseExistingChunk: true,
         },
       },
-      maxInitialRequests: 20,
+      maxInitialRequests: 25,
+      minSize: 20000,
     },
   }
 
@@ -328,6 +386,21 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (notExternalModules.indexOf(request) !== -1) {
+              return callback()
+            }
+
+            // make sure we don't externalize anything that is
+            // supposed to be transpiled
+            if (babelIncludeRegexes.some(r => r.test(request))) {
+              return callback()
+            }
+
+            // Relative requires don't need custom resolution, because they
+            // are relative to requests we've already resolved here.
+            // Absolute requires (require('/foo')) are extremely uncommon, but
+            // also have no need for customization as they're already resolved.
+            const start = request.charAt(0)
+            if (start === '.' || start === '/') {
               return callback()
             }
 
@@ -464,6 +537,13 @@ export default async function getBaseWebpackConfig(
       return {
         ...(clientEntries ? clientEntries : {}),
         ...entrypoints,
+        ...(isServer
+          ? {
+              'init-server.js': 'next-plugin-loader?middleware=on-init-server!',
+              'on-error-server.js':
+                'next-plugin-loader?middleware=on-error-server!',
+            }
+          : {}),
       }
     },
     output: {
@@ -473,7 +553,8 @@ export default async function getBaseWebpackConfig(
         if (
           !dev &&
           (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
-            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK ||
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
         ) {
           return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
@@ -503,15 +584,13 @@ export default async function getBaseWebpackConfig(
         'next-data-loader',
         'next-serverless-loader',
         'noop-loader',
-      ].reduce(
-        (alias, loader) => {
-          // using multiple aliases to replace `resolveLoader.modules`
-          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+        'next-plugin-loader',
+      ].reduce((alias, loader) => {
+        // using multiple aliases to replace `resolveLoader.modules`
+        alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
 
-          return alias
-        },
-        {} as Record<string, string>
-      ),
+        return alias
+      }, {} as Record<string, string>),
       modules: [
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
@@ -530,23 +609,11 @@ export default async function getBaseWebpackConfig(
           },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [
-            dir,
-            /next[\\/]dist[\\/]next-server[\\/]lib/,
-            /next[\\/]dist[\\/]client/,
-            /next[\\/]dist[\\/]pages/,
-            /[\\/](strip-ansi|ansi-regex)[\\/]/,
-          ],
+          include: [dir, ...babelIncludeRegexes],
           exclude: (path: string) => {
-            if (
-              /next[\\/]dist[\\/]next-server[\\/]lib/.test(path) ||
-              /next[\\/]dist[\\/]client/.test(path) ||
-              /next[\\/]dist[\\/]pages/.test(path) ||
-              /[\\/](strip-ansi|ansi-regex)[\\/]/.test(path)
-            ) {
+            if (babelIncludeRegexes.some(r => r.test(path))) {
               return false
             }
-
             return /node_modules/.test(path)
           },
           use: defaultLoaders.babel,
@@ -723,6 +790,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
+        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
+          config.experimental.deferScripts
+        ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
@@ -734,6 +804,15 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
           config.devIndicators.autoPrerender
+        ),
+        'process.env.__NEXT_PLUGINS': JSON.stringify(
+          config.experimental.plugins
+        ),
+        'process.env.__NEXT_STRICT_MODE': JSON.stringify(
+          config.reactStrictMode
+        ),
+        'process.env.__NEXT_REACT_MODE': JSON.stringify(
+          config.experimental.reactMode
         ),
         ...(isServer
           ? {
@@ -749,11 +828,6 @@ export default async function getBaseWebpackConfig(
           filename: REACT_LOADABLE_MANIFEST,
         }),
       !isServer && new DropClientPage(),
-      new ChunkGraphPlugin(buildId, {
-        dir,
-        distDir,
-        isServer,
-      }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -838,6 +912,7 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer &&
         useTypeScript &&
+        !ignoreTypeScriptErrors &&
         new ForkTsCheckerWebpackPlugin(
           PnpWebpackPlugin.forkTsCheckerOptions({
             typescript: typeScriptPath,
@@ -920,7 +995,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
+  // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
     ;[].forEach.call(webpackConfig.module.rules, function(
       rule: webpack.RuleSetRule
@@ -933,9 +1008,10 @@ export default async function getBaseWebpackConfig(
         rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
       const isLess = rule.test.source === '\\.less$'
       const isCss = rule.test.source === '\\.css$'
+      const isStylus = rule.test.source === '\\.styl$'
 
       // Check if the rule we're iterating over applies to Sass, Less, or CSS
-      if (!(isSass || isLess || isCss)) {
+      if (!(isSass || isLess || isCss || isStylus)) {
         return
       }
 
@@ -951,8 +1027,8 @@ export default async function getBaseWebpackConfig(
             typeof use.options === 'object' &&
             // The `minimize` property is a good heuristic that we need to
             // perform this hack. The `minimize` property was only valid on
-            // old `css-loader` versions. Custom setups (that aren't next-sass
-            // or next-less) likely have the newer version.
+            // old `css-loader` versions. Custom setups (that aren't next-sass,
+            // next-less or next-stylus) likely have the newer version.
             // We still handle this gracefully below.
             (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
               Object.prototype.hasOwnProperty.call(
@@ -966,12 +1042,12 @@ export default async function getBaseWebpackConfig(
 
         // Try to monkey patch within a try-catch. We shouldn't fail the build
         // if we cannot pull this off.
-        // The user may not even be using the `next-sass` or `next-less`
-        // plugins.
+        // The user may not even be using the `next-sass` or `next-less` or
+        // `next-stylus` plugins.
         // If it does work, great!
         try {
-          // Resolve the version of `@zeit/next-css` as depended on by the Sass
-          // or Less plugin.
+          // Resolve the version of `@zeit/next-css` as depended on by the Sass,
+          // Less or Stylus plugin.
           const correctNextCss = resolveRequest(
             '@zeit/next-css',
             isCss
@@ -983,6 +1059,8 @@ export default async function getBaseWebpackConfig(
                     ? '@zeit/next-sass'
                     : isLess
                     ? '@zeit/next-less'
+                    : isStylus
+                    ? '@zeit/next-stylus'
                     : 'next'
                 )
           )

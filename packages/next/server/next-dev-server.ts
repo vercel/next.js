@@ -6,7 +6,7 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-
+import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
@@ -41,8 +41,9 @@ export default class DevServer extends Server {
   private setDevReady?: Function
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
+  private isCustomServer: boolean
 
-  constructor(options: ServerConstructor) {
+  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ErrorDebug
@@ -69,6 +70,7 @@ export default class DevServer extends Server {
         `The static directory has been deprecated in favor of the public directory. https://err.sh/zeit/next.js/static-dir-deprecated`
       )
     }
+    this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
   }
 
@@ -194,6 +196,16 @@ export default class DevServer extends Server {
 
   async prepare() {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    await this.loadCustomRoutes()
+
+    if (this.customRoutes) {
+      const { redirects, rewrites } = this.customRoutes
+
+      if (redirects.length || rewrites.length) {
+        // TODO: don't reach into router instance
+        this.router.routes = this.generateRoutes()
+      }
+    }
 
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
@@ -207,7 +219,14 @@ export default class DevServer extends Server {
     this.setDevReady!()
 
     const telemetry = new Telemetry({ distDir: this.distDir })
-    telemetry.record(eventVersion({ cliCommand: 'dev' }))
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'dev',
+        isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
+        isCustomServer: this.isCustomServer,
+      })
+    )
   }
 
   protected async close() {
@@ -259,6 +278,27 @@ export default class DevServer extends Server {
     }
 
     return super.run(req, res, parsedUrl)
+  }
+
+  // override production loading of routes-manifest
+  protected getCustomRoutes() {
+    return this.customRoutes
+  }
+
+  private async loadCustomRoutes() {
+    const result = {
+      redirects: [],
+      rewrites: [],
+    }
+    const { redirects, rewrites } = this.nextConfig.experimental
+
+    if (typeof redirects === 'function') {
+      result.redirects = await redirects()
+    }
+    if (typeof rewrites === 'function') {
+      result.rewrites = await rewrites()
+    }
+    this.customRoutes = result
   }
 
   generateRoutes() {
@@ -354,6 +394,7 @@ export default class DevServer extends Server {
             continue
           }
 
+          // eslint-disable-next-line no-loop-func
           return this.hotReloader!.ensurePage(dynamicRoute.page).then(() => {
             pathname = dynamicRoute.page
             query = Object.assign({}, query, params)

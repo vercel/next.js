@@ -1116,7 +1116,7 @@ export default withRouter(MyLink)
   </ul>
 </details>
 
-API routes provides a straightforward solution to build your **API** with Next.js.
+API routes provide a straightforward solution to build your **API** with Next.js.
 Start by creating the `api/` folder inside the `./pages/` folder.
 
 Every file inside `./pages/api` is mapped to `/api/*`.
@@ -1240,7 +1240,7 @@ Then, import `micro-cors` and [configure it](https://github.com/possibilities/mi
 import Cors from 'micro-cors'
 
 const cors = Cors({
-  allowedMethods: ['GET', 'HEAD'],
+  allowMethods: ['GET', 'HEAD'],
 })
 
 function Endpoint(req, res) {
@@ -1273,7 +1273,6 @@ export default (req, res) => {
     <li><a href="/examples/custom-server-express">Express integration</a></li>
     <li><a href="/examples/custom-server-hapi">Hapi integration</a></li>
     <li><a href="/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="/examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="/examples/ssr-caching">SSR caching</a></li>
   </ul>
 </details>
@@ -1533,33 +1532,26 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 
 - Persisting layout between page changes
 - Keeping state when navigating pages
-- Custom error handling using `componentDidCatch`
 - Inject additional data into pages (for example by processing GraphQL queries)
 
 To override, create the `./pages/_app.js` file and override the App class as shown below:
 
 ```js
-import React from 'react'
-import App from 'next/app'
-
-class MyApp extends App {
-  // Only uncomment this method if you have blocking data requirements for
-  // every single page in your application. This disables the ability to
-  // perform automatic static optimization, causing every page in your app to
-  // be server-side rendered.
-  //
-  // static async getInitialProps(appContext) {
-  //   // calls page's `getInitialProps` and fills `appProps.pageProps`
-  //   const appProps = await App.getInitialProps(appContext);
-  //
-  //   return { ...appProps }
-  // }
-
-  render() {
-    const { Component, pageProps } = this.props
-    return <Component {...pageProps} />
-  }
+function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
 }
+
+// Only uncomment this method if you have blocking data requirements for
+// every single page in your application. This disables the ability to
+// perform automatic static optimization, causing every page in your app to
+// be server-side rendered.
+//
+// MyApp.getInitialProps = async (appContext) => {
+//   // calls page's `getInitialProps` and fills `appProps.pageProps`
+//   const appProps = await App.getInitialProps(appContext);
+//
+//   return { ...appProps }
+// }
 
 export default MyApp
 ```
@@ -2315,6 +2307,41 @@ To learn more about TypeScript checkout its [documentation](https://www.typescri
 
 > **Note**: Next.js does not enable TypeScript's `strict` mode by default.
 > When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
+
+> **Note**: By default, Next.js reports TypeScript errors during development for pages you are actively working on.
+> TypeScript errors for inactive pages **do not** block the development process.
+>
+> If you don't want to leverage this behavior and instead, e.g. prefer your editor's integration, you can set the following option in `next.config.js`:
+>
+> ```js
+> // next.config.js
+> module.exports = {
+>   typescript: {
+>     ignoreDevErrors: true,
+>   },
+> }
+> ```
+>
+> Next.js will still fail your **production build** (`next build`) when TypeScript errors are present in your project.
+>
+> If you'd like Next.js to dangerously produce production code even when your application is broken, you can set the following option in your `next.config.js`.
+> Be sure you are running type checks as part of your build or deploy process!
+>
+> ```js
+> // next.config.js
+> module.exports = {
+>   typescript: {
+>     // !! WARN !!
+>     // Dangerously allow production builds to successfully complete even if
+>     // your project has type errors.
+>     //
+>     // This option is rarely needed, and should be reserved for advanced
+>     // setups. You may be looking for `ignoreDevErrors` instead.
+>     // !! WARN !!
+>     ignoreBuildErrors: true,
+>   },
+> }
+> ```
 
 ### Exported types
 

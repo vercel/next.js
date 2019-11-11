@@ -1,4 +1,3 @@
-'use strict'
 try {
   const ts = require('typescript')
   const extname = require('path').extname
@@ -11,19 +10,20 @@ try {
       target: 'ES2017',
       esModuleInterop: true,
       moduleResolution: 'node',
-      jsx: 'react'
+      jsx: 'react',
     },
-    exclude: ['./dist/**', './*.d.ts', './constants.d.ts']
+    exclude: ['./dist/**', './*.d.ts', './constants.d.ts'],
   }
 
-  module.exports = function (task) {
-    task.plugin('typescript', { every: true }, function * (file, options) {
+  module.exports = function(task) {
+    // eslint-disable-next-line require-yield
+    task.plugin('typescript', { every: true }, function*(file, options) {
       const opts = {
         fileName: file.base,
         compilerOptions: {
           ...config.compilerOptions,
-          ...options
-        }
+          ...options,
+        },
       }
 
       const ext = extname(file.base)
@@ -46,7 +46,7 @@ try {
         this._.files.push({
           dir: file.dir,
           base: `${file.base}.map`,
-          data: Buffer.from(JSON.stringify(result.sourceMapText), 'utf8')
+          data: Buffer.from(JSON.stringify(result.sourceMapText), 'utf8'),
         })
       }
 

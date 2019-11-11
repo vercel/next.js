@@ -5,17 +5,17 @@ import { loadExampleData, loadingExampleDataFailure } from '../store'
 
 class DataList extends Component {
   state = {
-    isDataLoading: false
+    isDataLoading: false,
   }
 
-  componentDidMount () {
+  componentDidMount() {
     const { loadExampleData, loadingExampleDataFailure } = this.props
     const self = this
 
     this.setState({ isDataLoading: true })
     window
       .fetch('https://jsonplaceholder.typicode.com/users')
-      .then(function (response) {
+      .then(function(response) {
         if (response.status !== 200) {
           console.log(
             'Looks like there was a problem. Status Code: ' + response.status
@@ -24,19 +24,19 @@ class DataList extends Component {
           self.setState({ isDataLoading: false })
           return
         }
-        response.json().then(function (data) {
+        response.json().then(function(data) {
           loadExampleData(data)
           self.setState({ isDataLoading: false })
         })
       })
-      .catch(function (err) {
+      .catch(function(err) {
         console.log('Fetch Error :-S', err)
         loadingExampleDataFailure()
         self.setState({ isDataLoading: false })
       })
   }
 
-  render () {
+  render() {
     const { exampleData, error } = this.props
     const { isDataLoading } = this.state
 
@@ -56,14 +56,11 @@ class DataList extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   const { exampleData, error } = state
   return { exampleData, error }
 }
 const mapDispatchToProps = dispatch =>
   bindActionCreators({ loadExampleData, loadingExampleDataFailure }, dispatch)
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(DataList)
+export default connect(mapStateToProps, mapDispatchToProps)(DataList)

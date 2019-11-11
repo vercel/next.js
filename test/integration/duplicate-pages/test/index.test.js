@@ -8,7 +8,7 @@ import {
   launchApp,
   renderViaHTTP,
   killApp,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -31,7 +31,7 @@ describe('Handles Duplicate Pages', () => {
       const appPort = await findPort()
       const app = await launchApp(appDir, appPort, {
         onStdout: handleOutput,
-        onStderr: handleOutput
+        onStderr: handleOutput,
       })
       await renderViaHTTP(appPort, '/hello')
       await waitFor(3000)

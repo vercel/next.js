@@ -6,7 +6,7 @@ import {
   runNextCommand,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -17,14 +17,14 @@ describe('Production Custom Build Directory', () => {
       const result = await runNextCommand(['build', 'build'], {
         cwd: join(__dirname, '..'),
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(result.stderr).toBe('')
 
       const app = nextServer({
         dir: join(__dirname, '../build'),
         dev: false,
-        quiet: true
+        quiet: true,
       })
 
       const server = await startApp(app)

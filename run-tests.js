@@ -8,7 +8,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const NUM_RETRIES = 2
-const DEFAULT_CONCURRENCY = 3
+const DEFAULT_CONCURRENCY = 2
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -24,7 +24,7 @@ const DEFAULT_CONCURRENCY = 3
   if (tests.length === 0) {
     tests = await glob('**/*.test.js', {
       nodir: true,
-      cwd: path.join(__dirname, 'test')
+      cwd: path.join(__dirname, 'test'),
     })
   }
 
@@ -38,7 +38,7 @@ const DEFAULT_CONCURRENCY = 3
         if (!name.startsWith('test/')) name = `test/${name}`
         return name
       })
-    )
+    ),
   ]
 
   if (groupArg) {
@@ -65,7 +65,7 @@ const DEFAULT_CONCURRENCY = 3
         'node',
         [jestPath, '--runInBand', '--forceExit', '--verbose', test],
         {
-          stdio: 'inherit'
+          stdio: 'inherit',
         }
       )
       children.add(child)

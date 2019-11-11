@@ -7,7 +7,7 @@ import {
   findPort,
   launchApp,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -15,7 +15,7 @@ let appPort
 let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-describe('AMP Bind Initial Data', () => {
+describe.skip('AMP Bind Initial Data', () => {
   beforeAll(async () => {
     appPort = await findPort()
     server = await launchApp(appDir, appPort)
@@ -25,8 +25,8 @@ describe('AMP Bind Initial Data', () => {
   it('responds with json with accept header on page', async () => {
     const data = await fetchViaHTTP(appPort, '/', null, {
       headers: {
-        accept: 'application/amp.bind+json'
-      }
+        accept: 'application/amp.bind+json',
+      },
     }).then(res => res.ok && res.text())
 
     let isJSON = false

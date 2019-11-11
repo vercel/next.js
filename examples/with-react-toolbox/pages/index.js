@@ -7,7 +7,7 @@ import Button from 'react-toolbox/lib/button/Button'
 export default () => (
   <div>
     <Head>
-      <link href='/theme.css' rel='stylesheet' />
+      <link href="/theme.css" rel="stylesheet" />
     </Head>
     <ThemeProvider theme={theme}>
       <Button raised primary>
