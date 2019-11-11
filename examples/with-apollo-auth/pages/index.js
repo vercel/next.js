@@ -10,7 +10,7 @@ const IndexPage = ({ loggedInUser }) => {
 
   const signout = () => {
     document.cookie = cookie.serialize('token', '', {
-      maxAge: -1 // Expire the cookie immediately
+      maxAge: -1, // Expire the cookie immediately
     })
 
     // Force a reload of all the current queries now that the user is

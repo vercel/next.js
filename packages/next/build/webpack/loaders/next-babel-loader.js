@@ -3,6 +3,7 @@ import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
 
 // increment 'd' to invalidate cache
+// eslint-disable-next-line no-useless-concat
 const cacheKey = 'babel-cache-' + 'd' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
@@ -15,19 +16,19 @@ const getModernOptions = (babelOptions = {}) => {
   )
 
   presetEnvOptions.targets = {
-    esmodules: true
+    esmodules: true,
   }
   presetEnvOptions.exclude = [
     ...(presetEnvOptions.exclude || []),
     // Blacklist accidental inclusions
     'transform-regenerator',
-    'transform-async-to-generator'
+    'transform-async-to-generator',
   ]
 
   return {
     ...babelOptions,
     'preset-env': presetEnvOptions,
-    'transform-runtime': transformRuntimeOptions
+    'transform-runtime': transformRuntimeOptions,
   }
 }
 
@@ -36,7 +37,7 @@ const nextBabelPresetModern = presetOptions => context =>
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
-    type: 'preset'
+    type: 'preset',
   })
   const applyCommonJs = babel.createConfigItem(
     require('../../babel/plugins/commonjs'),
@@ -50,21 +51,21 @@ module.exports = babelLoader.custom(babel => {
   const configs = new Set()
 
   return {
-    customOptions (opts) {
+    customOptions(opts) {
       const custom = {
         isServer: opts.isServer,
         isModern: opts.isModern,
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
-        babelPresetPlugins: opts.babelPresetPlugins
+        babelPresetPlugins: opts.babelPresetPlugins,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
         opts.cache
           ? {
-            cacheCompression: false,
-            cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
-            cacheIdentifier:
+              cacheCompression: false,
+              cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
+              cacheIdentifier:
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
@@ -73,13 +74,13 @@ module.exports = babelLoader.custom(babel => {
                   babel.loadPartialConfig({
                     filename,
                     cwd: opts.cwd,
-                    sourceFileName: filename
+                    sourceFileName: filename,
                   }).options
-                )
-          }
+                ),
+            }
           : {
-            cacheDirectory: false
-          },
+              cacheDirectory: false,
+            },
         opts
       )
 
@@ -92,7 +93,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.babelPresetPlugins
       return { loader, custom }
     },
-    config (
+    config(
       cfg,
       {
         source,
@@ -101,8 +102,8 @@ module.exports = babelLoader.custom(babel => {
           isModern,
           hasModern,
           pagesDir,
-          babelPresetPlugins
-        }
+          babelPresetPlugins,
+        },
       }
     ) {
       const filename = this.resourcePath
@@ -140,7 +141,7 @@ module.exports = babelLoader.custom(babel => {
         const nextDataPlugin = babel.createConfigItem(
           [
             require('../../babel/plugins/next-data'),
-            { key: basename(filename) + '-' + hash(filename) }
+            { key: basename(filename) + '-' + hash(filename) },
           ],
           { type: 'plugin' }
         )
@@ -159,7 +160,7 @@ module.exports = babelLoader.custom(babel => {
         const presetItemModern = babel.createConfigItem(
           nextBabelPresetModern(nextPreset.options),
           {
-            type: 'preset'
+            type: 'preset',
           }
         )
 
@@ -175,7 +176,7 @@ module.exports = babelLoader.custom(babel => {
       options.plugins.push([
         require.resolve('babel-plugin-transform-define'),
         { 'typeof window': isServer ? 'undefined' : 'object' },
-        'next-js-transform-define-instance'
+        'next-js-transform-define-instance',
       ])
 
       // As next-server/lib has stateful modules we have to transpile commonjs
@@ -185,10 +186,10 @@ module.exports = babelLoader.custom(babel => {
           test: [
             /next[\\/]dist[\\/]next-server[\\/]lib/,
             /next[\\/]dist[\\/]client/,
-            /next[\\/]dist[\\/]pages/
+            /next[\\/]dist[\\/]pages/,
           ],
-          plugins: [commonJsItem]
-        }
+          plugins: [commonJsItem],
+        },
       ]
 
       for (const plugin of babelPresetPlugins) {
@@ -199,6 +200,6 @@ module.exports = babelLoader.custom(babel => {
       }
 
       return options
-    }
+    },
   }
 })

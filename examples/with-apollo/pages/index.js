@@ -10,11 +10,12 @@ const IndexPage = props => (
     <Header />
     <InfoBox>
       ℹ️ This example shows how to fetch all initial apollo queries on the
-      server. If you <a href='/'>reload</a> this page you won't see a loader
+      server. If you <a href="/">reload</a> this page you won't see a loader
       since Apollo fetched all needed data on the server. This prevents{' '}
       <a
-        href='https://nextjs.org/blog/next-9#automatic-static-optimization'
-        target='_blank'
+        href="https://nextjs.org/blog/next-9#automatic-static-optimization"
+        target="_blank"
+        rel="noopener noreferrer"
       >
         automatic static optimization
       </a>{' '}

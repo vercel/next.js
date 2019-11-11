@@ -6,32 +6,32 @@ export default ({ id, title, date, url, user, score, commentsCount }) => {
   const { host } = parse(url)
   return (
     <div>
-      <div className='title'>
+      <div className="title">
         {url ? (
           <a href={url}>{title}</a>
         ) : (
-          <Link href='/item/[id]' as={`/item/${id}`}>
+          <Link href="/item/[id]" as={`/item/${id}`}>
             <a>{title}</a>
           </Link>
         )}
         {url && (
-          <span className='source'>
+          <span className="source">
             <a href={`http://${host}`}>{host.replace(/^www\./, '')}</a>
           </span>
         )}
       </div>
-      <div className='meta'>
+      <div className="meta">
         {score} {plural(score, 'point')} by{' '}
-        <Link href='/user/[id]' as={`/user/${user}`}>
+        <Link href="/user/[id]" as={`/user/${user}`}>
           <a>{user}</a>
         </Link>{' '}
-        <Link href='/item/[id]' as={`/item/${id}`}>
+        <Link href="/item/[id]" as={`/item/${id}`}>
           <a>
             {timeAgo(new Date(date)) /* note: we re-hydrate due to ssr */} ago
           </a>
         </Link>{' '}
         |{' '}
-        <Link href='/item/[id]' as={`/item/${id}`}>
+        <Link href="/item/[id]" as={`/item/${id}`}>
           <a>
             {commentsCount} {plural(commentsCount, 'comment')}
           </a>

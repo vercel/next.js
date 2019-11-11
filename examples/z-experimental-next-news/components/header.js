@@ -4,22 +4,22 @@ import Link from 'next/link'
 
 export default () => (
   <header>
-    <div className='left'>
-      <Link href='/'>
+    <div className="left">
+      <Link href="/">
         <a>
-          <span className='logo'>
+          <span className="logo">
             <Logo />
           </span>
-          <span className='title'>Hacker Next</span>
+          <span className="title">Hacker Next</span>
         </a>
       </Link>
-      <div className='nav'>
+      <div className="nav">
         <Nav />
       </div>
     </div>
-    <div className='right'>
-      <Link href='/login'>
-        <a className='login'>login</a>
+    <div className="right">
+      <Link href="/login">
+        <a className="login">login</a>
       </Link>
     </div>
 

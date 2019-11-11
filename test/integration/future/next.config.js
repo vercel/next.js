@@ -1,5 +1,5 @@
 module.exports = {
   future: {
-    excludeDefaultMomentLocales: true
-  }
+    excludeDefaultMomentLocales: true,
+  },
 }

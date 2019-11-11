@@ -14,14 +14,14 @@ module.exports = withCSS({
             callback()
           }
         },
-        ...(typeof origExternals[0] === 'function' ? [] : origExternals)
+        ...(typeof origExternals[0] === 'function' ? [] : origExternals),
       ]
 
       config.module.rules.unshift({
         test: antStyles,
-        use: 'null-loader'
+        use: 'null-loader',
       })
     }
     return config
-  }
+  },
 })

@@ -5,7 +5,7 @@ import PageCount from './PageCount'
 import Clock from './Clock'
 import Placeholder from './Placeholder'
 
-function Page ({ clock, placeholder, linkTo, title }) {
+function Page({ clock, placeholder, linkTo, title }) {
   return (
     <React.Fragment>
       <h1>{title}</h1>

@@ -17,7 +17,7 @@ import fetch from 'isomorphic-unfetch'
  * @param {Object} [config]
  * @param {Boolean} [config.ssr=true]
  */
-export function withApollo (PageComponent, { ssr = true } = {}) {
+export function withApollo(PageComponent, { ssr = true } = {}) {
   const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
     const client = apolloClient || initApolloClient(apolloState, { getToken })
     return (
@@ -45,7 +45,7 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
       // Used for getDataFromTree rendering
       apolloClient: PropTypes.object,
       // Used for client/server rendering
-      apolloState: PropTypes.object
+      apolloState: PropTypes.object,
     }
   }
 
@@ -58,7 +58,7 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
       const apolloClient = (ctx.apolloClient = initApolloClient(
         {},
         {
-          getToken: () => getToken(ctx.req)
+          getToken: () => getToken(ctx.req),
         }
       ))
 
@@ -82,7 +82,7 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
               <AppTree
                 pageProps={{
                   ...pageProps,
-                  apolloClient
+                  apolloClient,
                 }}
               />
             )
@@ -104,7 +104,7 @@ export function withApollo (PageComponent, { ssr = true } = {}) {
 
       return {
         ...pageProps,
-        apolloState
+        apolloState,
       }
     }
   }
@@ -118,7 +118,7 @@ let apolloClient = null
  * Always creates a new apollo client on the server
  * Creates or reuses apollo client in the browser.
  */
-function initApolloClient (...args) {
+function initApolloClient(...args) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (typeof window === 'undefined') {
@@ -138,7 +138,7 @@ function initApolloClient (...args) {
  * @param  {Object} [initialState={}]
  * @param  {Object} config
  */
-function createApolloClient (initialState = {}, { getToken }) {
+function createApolloClient(initialState = {}, { getToken }) {
   const fetchOptions = {}
 
   // If you are using a https_proxy, add fetchOptions with 'https-proxy-agent' agent instance
@@ -155,7 +155,7 @@ function createApolloClient (initialState = {}, { getToken }) {
     uri: 'https://api.graph.cool/simple/v1/cj5geu3slxl7t0127y8sity9r', // Server URL (must be absolute)
     credentials: 'same-origin',
     fetch,
-    fetchOptions
+    fetchOptions,
   })
 
   const authLink = setContext((request, { headers }) => {
@@ -163,8 +163,8 @@ function createApolloClient (initialState = {}, { getToken }) {
     return {
       headers: {
         ...headers,
-        authorization: token ? `Bearer ${token}` : ''
-      }
+        authorization: token ? `Bearer ${token}` : '',
+      },
     }
   })
 
@@ -172,7 +172,7 @@ function createApolloClient (initialState = {}, { getToken }) {
   return new ApolloClient({
     ssrMode: typeof window === 'undefined', // Disables forceFetch on the server (so queries are only run once)
     link: authLink.concat(httpLink),
-    cache: new InMemoryCache().restore(initialState)
+    cache: new InMemoryCache().restore(initialState),
   })
 }
 
@@ -180,7 +180,7 @@ function createApolloClient (initialState = {}, { getToken }) {
  * Get the user token from cookie
  * @param {Object} req
  */
-function getToken (req) {
+function getToken(req) {
   const cookies = cookie.parse(req ? req.headers.cookie || '' : document.cookie)
   return cookies.token
 }

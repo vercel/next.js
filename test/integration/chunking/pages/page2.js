@@ -9,15 +9,15 @@ const Page = () => {
   const [str, setStr] = useState('rad')
   useEffect(() => {
     setStr(_.pad(str, 7, '_'))
-  }, [])
+  }, [str])
 
   console.log(_)
   return (
     <div>
       page2
-      <p id='padded-str'>{str}</p>
+      <p id="padded-str">{str}</p>
       <One />
-      <Link href='/page3'>Page3</Link>
+      <Link href="/page3">Page3</Link>
     </div>
   )
 }

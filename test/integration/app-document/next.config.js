@@ -1,3 +1,3 @@
 module.exports = {
-  crossOrigin: 'anonymous'
+  crossOrigin: 'anonymous',
 }

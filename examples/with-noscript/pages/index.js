@@ -1,7 +1,7 @@
 import React from 'react'
 import Noscript from '../components/Noscript'
 
-export default function IndexPage () {
+export default function IndexPage() {
   return (
     <>
       <h1>noscript</h1>

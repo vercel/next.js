@@ -394,6 +394,7 @@ export default class DevServer extends Server {
             continue
           }
 
+          // eslint-disable-next-line no-loop-func
           return this.hotReloader!.ensurePage(dynamicRoute.page).then(() => {
             pathname = dynamicRoute.page
             query = Object.assign({}, query, params)

@@ -9,13 +9,13 @@ const {
   BROWSER_NAME,
   BROWSERSTACK,
   BROWSERSTACK_USERNAME,
-  BROWSERSTACK_ACCESS_KEY
+  BROWSERSTACK_ACCESS_KEY,
 } = process.env
 
 let browser
 let initialWindow
 let browserOptions = {
-  browserName: BROWSER_NAME || 'chrome'
+  browserName: BROWSER_NAME || 'chrome',
 }
 let deviceIP = 'localhost'
 
@@ -31,23 +31,23 @@ if (isBrowserStack) {
   const safariOpts = {
     os: 'OS X',
     os_version: 'Mojave',
-    browser: 'Safari'
+    browser: 'Safari',
   }
   const ieOpts = {
     os: 'Windows',
     os_version: '10',
-    browser: 'IE'
+    browser: 'IE',
   }
   const firefoxOpts = {
     os: 'Windows',
     os_version: '10',
-    browser: 'Firefox'
+    browser: 'Firefox',
   }
   const sharedOpts = {
     'browserstack.local': true,
     'browserstack.video': false,
     'browserstack.localIdentifier':
-      global.browserStackLocal.localIdentifierFlag
+      global.browserStackLocal.localIdentifierFlag,
   }
 
   browserOptions = {
@@ -56,7 +56,7 @@ if (isBrowserStack) {
 
     ...(isIE ? ieOpts : {}),
     ...(isSafari ? safariOpts : {}),
-    ...(isFirefox ? firefoxOpts : {})
+    ...(isFirefox ? firefoxOpts : {}),
   }
 }
 
@@ -73,7 +73,7 @@ const newTabPg = `
 `
 
 class CustomEnvironment extends NodeEnvironment {
-  async createBrowser () {
+  async createBrowser() {
     // always create new browser session if not BrowserStack
     if (!browser && isBrowserStack) {
       browser = wd.promiseChainRemote(
@@ -148,7 +148,7 @@ class CustomEnvironment extends NodeEnvironment {
     }
   }
 
-  async freshWindow (tries = 0) {
+  async freshWindow(tries = 0) {
     if (tries > 3) throw new Error('failed to get fresh browser window')
     // Since we need a fresh start for each window
     // we have to force a new tab which can be disposed
@@ -183,6 +183,7 @@ class CustomEnvironment extends NodeEnvironment {
           if (win && win !== initialWindow && startWindows.indexOf(win) < 0) {
             return win
           }
+          return false
         })
       )
     } catch (err) {
@@ -190,12 +191,12 @@ class CustomEnvironment extends NodeEnvironment {
     }
   }
 
-  async setup () {
+  async setup() {
     await super.setup()
     await this.createBrowser()
   }
 
-  async teardown () {
+  async teardown() {
     await super.teardown()
     if (this.server) this.server.close()
   }

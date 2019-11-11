@@ -8,7 +8,7 @@ const Page = ({ id }) => {
 Page.getInitialProps = ({ query }) => {
   const id = Number.parseInt(query.id, 10)
   return {
-    id
+    id,
   }
 }
 

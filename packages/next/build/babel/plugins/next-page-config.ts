@@ -90,9 +90,7 @@ export default function nextPageConfig({
                       'unknown'
 
                     throw new Error(
-                      `Invalid page config export found. Expected object but got ${
-                        declaration.init.type
-                      } in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                      `Invalid page config export found. Expected object but got ${declaration.init.type} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
                     )
                   }
 

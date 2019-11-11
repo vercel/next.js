@@ -77,9 +77,7 @@ const nextDev: cliCommand = argv => {
             scriptLine => scriptLine[1] === 'next'
           )
           if (nextScript) {
-            errorMessage += `\nUse \`npm run ${
-              nextScript[0]
-            } -- -p <some other port>\`.`
+            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
           }
         }
         // tslint:disable-next-line

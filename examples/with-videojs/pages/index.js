@@ -3,7 +3,7 @@ import React from 'react'
 import Player from '../components/Player'
 
 export default class Index extends React.Component {
-  render () {
+  render() {
     const videoJsOptions = {
       techOrder: ['youtube'],
       autoplay: true,
@@ -11,15 +11,15 @@ export default class Index extends React.Component {
       sources: [
         {
           src: 'https://www.youtube.com/watch?v=jiLkBxw2pbs',
-          type: 'video/youtube'
-        }
-      ]
+          type: 'video/youtube',
+        },
+      ],
     }
 
     return (
       <div>
         <Head>
-          <link rel='stylesheet' href='/_next/static/style.css' />
+          <link rel="stylesheet" href="/_next/static/style.css" />
         </Head>
 
         <Player {...videoJsOptions} />

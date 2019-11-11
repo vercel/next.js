@@ -2,7 +2,7 @@ const fetch = require('isomorphic-unfetch')
 const React = require('react')
 
 export default class extends React.Component {
-  static async getInitialProps () {
+  static async getInitialProps() {
     try {
       const res = await fetch('')
       const text = await res.text()
@@ -16,13 +16,13 @@ export default class extends React.Component {
       return { error: err.toString() }
     }
   }
-  render () {
+  render() {
     const { failed, error, text } = this.props
     return (
-      <div className='fetch-cjs-page'>
+      <div className="fetch-cjs-page">
         {failed ? 'failed' : ''}
         {error}
-        <div id='text'>{text}</div>
+        <div id="text">{text}</div>
       </div>
     )
   }

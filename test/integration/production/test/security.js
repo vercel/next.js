@@ -7,7 +7,7 @@ import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
 // Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
-async function checkInjected (browser) {
+async function checkInjected(browser) {
   const start = Date.now()
   while (Date.now() - start < 15000) {
     const bodyText = await getBrowserBodyText(browser)
@@ -35,7 +35,7 @@ module.exports = context => {
         `/../../../info.json`,
         `/../../info.json`,
         `/../info.json`,
-        `/info.json`
+        `/info.json`,
       ]
 
       for (const path of pathsToCheck) {

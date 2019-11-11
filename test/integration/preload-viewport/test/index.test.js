@@ -7,7 +7,7 @@ import {
   runNextCommand,
   startApp,
   stopApp,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -24,7 +24,7 @@ describe('Prefetching Links in viewport', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

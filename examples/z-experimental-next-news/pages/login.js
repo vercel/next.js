@@ -1,6 +1,6 @@
 import LoginForm from '../components/login-form'
 
-function Login () {
+function Login() {
   return <LoginForm />
 }
 
