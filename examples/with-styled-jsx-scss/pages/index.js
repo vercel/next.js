@@ -1,7 +1,7 @@
 const backgroundColor = '#eee'
 
 export default () => (
-  <div className='hello'>
+  <div className="hello">
     <p>Hello World</p>
     <style jsx>{`
       $color: red;

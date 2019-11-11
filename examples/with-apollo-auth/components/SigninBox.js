@@ -21,7 +21,7 @@ const SigninBox = () => {
     document.cookie = cookie.serialize('token', data.signinUser.token, {
       sameSite: true,
       path: '/',
-      maxAge: 30 * 24 * 60 * 60 // 30 days
+      maxAge: 30 * 24 * 60 * 60, // 30 days
     })
     // Force a reload of all the current queries now that the user is
     // logged in
@@ -37,7 +37,7 @@ const SigninBox = () => {
 
   const [signinUser, { error }] = useMutation(SIGN_IN, {
     onCompleted,
-    onError
+    onError,
   })
 
   const email = useRef(null)
@@ -51,21 +51,21 @@ const SigninBox = () => {
         signinUser({
           variables: {
             email: email.current.value,
-            password: password.current.value
-          }
+            password: password.current.value,
+          },
         })
 
         email.current.value = password.current.value = ''
       }}
     >
       {error && <p>No user found with that information.</p>}
-      <input name='email' placeholder='Email' ref={email} />
+      <input name="email" placeholder="Email" ref={email} />
       <br />
       <input
-        name='password'
-        placeholder='Password'
+        name="password"
+        placeholder="Password"
         ref={password}
-        type='password'
+        type="password"
       />
       <br />
       <button>Sign in</button>

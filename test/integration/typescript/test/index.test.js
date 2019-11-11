@@ -9,7 +9,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  File
+  File,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -23,7 +23,7 @@ const handleOutput = msg => {
   output += msg
 }
 
-async function get$ (path, query) {
+async function get$(path, query) {
   const html = await renderViaHTTP(appPort, path, query)
   return cheerio.load(html)
 }
@@ -35,7 +35,7 @@ describe('TypeScript Features', () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         onStdout: handleOutput,
-        onStderr: handleOutput
+        onStderr: handleOutput,
       })
     })
     afterAll(() => killApp(app))

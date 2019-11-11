@@ -10,7 +10,7 @@ export const withUserAgent = Page => {
 
     return {
       ...(Page.getInitialProps ? await Page.getInitialProps(context) : {}),
-      userAgent
+      userAgent,
     }
   }
 

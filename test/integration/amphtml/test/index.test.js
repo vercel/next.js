@@ -16,7 +16,7 @@ import {
   getBrowserBodyText,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -33,7 +33,7 @@ describe('AMP Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -226,6 +226,27 @@ describe('AMP Usage', () => {
 
       expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
       expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
+    })
+  })
+
+  describe('AMP dev no-warn', () => {
+    let dynamicAppPort
+    let ampDynamic
+
+    it('should not warn on valid amp', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          inspectPayload += msg
+        },
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/only-amp')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).not.toContain('warn')
     })
   })
 

@@ -53,8 +53,8 @@ describe('Build warnings', () => {
         CI: '',
         CIRCLECI: '',
         TRAVIS: '',
-        SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: ''
-      }
+        SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: '',
+      },
     })
     expect(stdout).not.toContain('no-cache')
   })
@@ -64,14 +64,14 @@ describe('Build warnings', () => {
 
     let { stdout } = await nextBuild(appDir, undefined, {
       stdout: true,
-      env: { CI: '1' }
+      env: { CI: '1' },
     })
     expect(stdout).toContain('no-cache')
 
     // Do not warn after cache is present
     ;({ stdout } = await nextBuild(appDir, undefined, {
       stdout: true,
-      env: { CI: '1' }
+      env: { CI: '1' },
     }))
     expect(stdout).not.toContain('no-cache')
   })

@@ -1,6 +1,6 @@
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 
-export default function initializeBuildWatcher () {
+export default function initializeBuildWatcher() {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
@@ -51,9 +51,10 @@ export default function initializeBuildWatcher () {
     } catch {}
   })
 
-  function handleMessage (event) {
+  function handleMessage(event) {
     const obj = JSON.parse(event.data)
 
+    // eslint-disable-next-line default-case
     switch (obj.action) {
       case 'building':
         timeoutId && clearTimeout(timeoutId)
@@ -73,7 +74,7 @@ export default function initializeBuildWatcher () {
     }
   }
 
-  function updateContainer () {
+  function updateContainer() {
     if (isBuilding) {
       container.classList.add(`${prefix}building`)
     } else {
@@ -88,7 +89,7 @@ export default function initializeBuildWatcher () {
   }
 }
 
-function createContainer (prefix) {
+function createContainer(prefix) {
   const container = document.createElement('div')
   container.id = `${prefix}container`
   container.innerHTML = `
@@ -116,7 +117,7 @@ function createContainer (prefix) {
   return container
 }
 
-function createCss (prefix) {
+function createCss(prefix) {
   const css = document.createElement('style')
   css.textContent = `
     #${prefix}container {

@@ -1,9 +1,9 @@
 import Link from 'next/link'
 
 export default () => (
-  <div id='button-link-page'>
+  <div id="button-link-page">
     <div>
-      <Link href='/'>
+      <Link href="/">
         <button>Go Back</button>
       </Link>
     </div>

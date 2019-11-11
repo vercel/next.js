@@ -19,7 +19,7 @@ describe('AMP Validation on Export', () => {
   beforeAll(async () => {
     const { stdout = '', stderr = '' } = await nextBuild(appDir, [], {
       stdout: true,
-      stderr: true
+      stderr: true,
     })
     await nextExport(appDir, { outdir: outDir })
     buildOutput = stdout + stderr
@@ -60,7 +60,7 @@ describe('AMP Validation on Export', () => {
     try {
       const { stdout, stderr } = await runNextCommand(['export', appDir], {
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(stdout).toMatch(
         /warn.*The tag 'amp-video extension \.js script' is missing/
@@ -87,7 +87,7 @@ describe('AMP Validation on Export', () => {
     try {
       const { stdout, stderr } = await runNextCommand(['export', appDir], {
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(stdout).toMatch(
         /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
@@ -114,7 +114,7 @@ describe('AMP Validation on Export', () => {
     try {
       const { stdout, stderr } = await runNextCommand(['export', appDir], {
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(stdout).toMatch(
         /warn.*The tag 'amp-video extension \.js script' is missing/

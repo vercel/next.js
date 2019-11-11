@@ -14,7 +14,6 @@ const nextExport: cliCommand = argv => {
       '--silent': Boolean,
       '--outdir': String,
       '--threads': Number,
-      '--concurrency': Number,
 
       // Aliases
       '-h': '--help',
@@ -54,7 +53,6 @@ const nextExport: cliCommand = argv => {
   const options = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
-    concurrency: args['--concurrency'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
   }
 

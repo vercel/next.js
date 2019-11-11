@@ -1,0 +1,18 @@
+{
+  "name": "next-news",
+  "license": "MIT",
+  "dependencies": {
+    "firebase": "^7.2.1",
+    "ms": "^2.1.2",
+    "next": "^9.1.2-canary.7",
+    "nprogress": "^0.2.0",
+    "react": "^16.10.2",
+    "react-dom": "^16.10.2",
+    "url-parse": "^1.4.7"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}

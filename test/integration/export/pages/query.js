@@ -1,10 +1,10 @@
 import { Component } from 'react'
 
 class Page extends Component {
-  static getInitialProps ({ query }) {
+  static getInitialProps({ query }) {
     return { query }
   }
-  render () {
+  render() {
     return JSON.stringify(this.props.query, null, 2)
   }
 }

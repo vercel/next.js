@@ -1,6 +1,6 @@
 module.exports = {
   experimental: {
     modern: true,
-    publicDirectory: true
-  }
+    publicDirectory: true,
+  },
 }
