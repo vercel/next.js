@@ -7,5 +7,5 @@ import placeholder from './placeholder/reducers'
 export default combineReducers({
   clock,
   count,
-  placeholder
+  placeholder,
 })

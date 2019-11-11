@@ -22,15 +22,15 @@ exports['default'] = {
       // the name of the method by which to determine the connection's locale
       // by default, every request will be in the 'en' locale
       // this method will be called witin the localiazation middleware on all requests
-      determineConnectionLocale: 'api.i18n.determineConnectionLocale'
+      determineConnectionLocale: 'api.i18n.determineConnectionLocale',
     }
-  }
+  },
 }
 
 exports.test = {
   i18n: api => {
     return {
-      updateFiles: true
+      updateFiles: true,
     }
-  }
+  },
 }

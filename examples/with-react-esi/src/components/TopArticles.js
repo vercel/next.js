@@ -4,7 +4,7 @@ import React from 'react'
  * Return the top articles of the month. Can be cached 1 hour.
  */
 export default class TopArticles extends React.Component {
-  static async getInitialProps ({ props, req, res }) {
+  static async getInitialProps({ props, req, res }) {
     if (res) {
       // server side, cache this fragment for 1 hour
       res.set('Cache-Control', 'public, s-maxage=3600')
@@ -20,20 +20,20 @@ export default class TopArticles extends React.Component {
             articles: [
               {
                 title: 'Lorem ipsum dolor',
-                body: 'Phasellus aliquet pellentesque dolor nec volutpat.'
+                body: 'Phasellus aliquet pellentesque dolor nec volutpat.',
               },
               {
                 title: 'Donec ut porttitor nisl',
-                body: 'Praesent vel odio vel dui pellentesque sodales.'
-              }
-            ]
+                body: 'Praesent vel odio vel dui pellentesque sodales.',
+              },
+            ],
           }),
         2000
       )
     })
   }
 
-  render () {
+  render() {
     return (
       <section>
         <h1>Top articles</h1>

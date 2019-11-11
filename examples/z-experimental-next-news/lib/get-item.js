@@ -13,14 +13,14 @@ export default async id => {
   }
 }
 
-export function observe (id, fn) {
+export function observe(id, fn) {
   const onval = data => fn(transform(data.val()))
   const item = db.child('item').child(id)
   item.on('value', onval)
   return () => item.off('value', onval)
 }
 
-export function transform (val) {
+export function transform(val) {
   return {
     id: val.id,
     url: val.url,
@@ -31,6 +31,6 @@ export function transform (val) {
     comments: val.kids || [],
     commentsCount: val.descendants,
     score: val.score,
-    title: val.title
+    title: val.title,
   }
 }

@@ -3,7 +3,7 @@ import Clock from './clock'
 import Counter from './counter'
 import DataList from './data-list'
 
-function Examples ({ lastUpdate, light }) {
+function Examples({ lastUpdate, light }) {
   return (
     <div>
       <Clock lastUpdate={lastUpdate} light={light} />
@@ -13,7 +13,7 @@ function Examples ({ lastUpdate, light }) {
   )
 }
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   const { lastUpdate, light } = state
   return { lastUpdate, light }
 }
