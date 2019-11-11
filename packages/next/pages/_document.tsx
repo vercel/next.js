@@ -231,7 +231,12 @@ export class Head extends Component<
             // `dynamicImports` will contain both `.js` and `.module.js` when
             // the feature is enabled. This clause will filter down to the
             // modern variants only.
-            return file.endsWith(getOptionalModernScriptVariant('.js'))
+            //
+            // Also filter out _buildManifest because it should not be
+            return (
+              file.endsWith(getOptionalModernScriptVariant('.js')) &&
+              !file.includes('_buildManifest')
+            )
           })
         : []
 
