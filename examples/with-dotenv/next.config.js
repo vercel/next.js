@@ -1,22 +1,7 @@
 require('dotenv').config()
-
-const path = require('path')
-const Dotenv = require('dotenv-webpack')
-
 module.exports = {
-  webpack: config => {
-    config.plugins = config.plugins || []
-
-    config.plugins = [
-      ...config.plugins,
-
-      // Read the .env file
-      new Dotenv({
-        path: path.join(__dirname, '.env'),
-        systemvars: true,
-      }),
-    ]
-
-    return config
+  env: {
+    // Reference a variable that was defined in the .env file and make it available at Build Time
+    TEST_VAR: process.env.TEST_VAR,
   },
 }
