@@ -71,7 +71,7 @@ export default class Router implements BaseRouter {
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
   _wrapApp: (App: ComponentType) => any
-  isInitialPg: boolean
+  isSsr: boolean
 
   static events: MittEmitter = mitt()
 
@@ -129,7 +129,7 @@ export default class Router implements BaseRouter {
     this._wrapApp = wrapApp
     // make sure to ignore extra popState in safari on navigating
     // back from external site
-    this.isInitialPg = true
+    this.isSsr = true
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -173,7 +173,7 @@ export default class Router implements BaseRouter {
     // can be caused by navigating back from an external site
     if (
       e.state &&
-      this.isInitialPg &&
+      this.isSsr &&
       e.state.url === this.pathname &&
       e.state.as === this.asPath
     ) {
@@ -251,7 +251,7 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      this.isInitialPg = false
+      this.isSsr = false
       // marking route changes as a navigation start entry
       if (SUPPORTS_PERFORMANCE_USER_TIMING) {
         performance.mark('routeChange')
