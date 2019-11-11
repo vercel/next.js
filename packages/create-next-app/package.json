@@ -40,7 +40,7 @@
     "make-dir": "3.0.0",
     "promisepipe": "3.0.0",
     "prompts": "2.1.0",
-    "rimraf": "2.6.3",
+    "rimraf": "3.0.0",
     "tar": "4.4.10",
     "typescript": "^3.5.3",
     "update-check": "1.5.3",
