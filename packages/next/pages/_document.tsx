@@ -233,6 +233,7 @@ export class Head extends Component<
             // modern variants only.
             //
             // Also filter out _buildManifest because it should not be
+            // preloaded for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
               !file.includes('_buildManifest')
