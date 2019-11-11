@@ -25,5 +25,5 @@ export default createFragmentContainer(BlogPosts, {
         }
       }
     }
-  `
+  `,
 })

@@ -78,6 +78,7 @@ function unique() {
     // is not rendered as well
     if (keys.has(`.$${h.key}`)) return false
 
+    // eslint-disable-next-line default-case
     switch (h.type) {
       case 'title':
       case 'base':

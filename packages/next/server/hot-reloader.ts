@@ -58,9 +58,10 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
   // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
   if (req.headers['access-control-request-headers']) {
-    res.setHeader('Access-Control-Allow-Headers', req.headers[
-      'access-control-request-headers'
-    ] as string)
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] as string
+    )
   }
 
   if (req.method === 'OPTIONS') {
@@ -73,7 +74,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/:buildId/pages/:path*.js(.map)?'
+  '/_next/static/:buildId/pages/:path*.js(\\.map|)'
 )
 
 // Recursively look up the issuer till it ends up at the root
@@ -349,11 +350,13 @@ export default class HotReloader {
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     const tsConfigPath = join(this.dir, 'tsconfig.json')
     const useTypeScript = await fileExists(tsConfigPath)
+    const ignoreTypeScriptErrors =
+      this.config.typescript && this.config.typescript.ignoreDevErrors
 
     watchCompilers(
       multiCompiler.compilers[0],
       multiCompiler.compilers[1],
-      useTypeScript,
+      useTypeScript && !ignoreTypeScriptErrors,
       ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
     )
 
@@ -453,9 +456,7 @@ export default class HotReloader {
 
     if (this.config.webpackDevMiddleware) {
       console.log(
-        `> Using "webpackDevMiddleware" config function defined in ${
-          this.config.configOrigin
-        }.`
+        `> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`
       )
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(
         webpackDevMiddlewareConfig

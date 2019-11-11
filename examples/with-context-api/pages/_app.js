@@ -2,7 +2,7 @@ import App from 'next/app'
 import { CounterProvider } from '../components/Counter'
 
 class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
       <CounterProvider>

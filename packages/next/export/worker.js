@@ -15,10 +15,10 @@ const mkdirp = promisify(mkdirpModule)
 const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {
-  nextExport: true
+  nextExport: true,
 }
 
-export default async function ({
+export default async function({
   path,
   pathMap,
   distDir,
@@ -29,10 +29,10 @@ export default async function ({
   buildExport,
   serverRuntimeConfig,
   subFolders,
-  serverless
+  serverless,
 }) {
   let results = {
-    ampValidations: []
+    ampValidations: [],
   }
 
   try {
@@ -47,7 +47,7 @@ export default async function ({
       if (params) {
         query = {
           ...query,
-          ...params
+          ...params,
         }
       } else {
         throw new Error(
@@ -62,20 +62,20 @@ export default async function ({
       setHeader: () => {},
       hasHeader: () => false,
       removeHeader: () => {},
-      getHeaderNames: () => []
+      getHeaderNames: () => [],
     }
 
     const req = {
       url: path,
-      ...headerMocks
+      ...headerMocks,
     }
     const res = {
-      ...headerMocks
+      ...headerMocks,
     }
 
     envConfig.setConfig({
       serverRuntimeConfig,
-      publicRuntimeConfig: renderOpts.runtimeConfig
+      publicRuntimeConfig: renderOpts.runtimeConfig,
     })
 
     let htmlFilename = `${filePath}${sep}index.html`
@@ -93,7 +93,7 @@ export default async function ({
     }
 
     const baseDir = join(outDir, dirname(htmlFilename))
-    const htmlFilepath = join(outDir, htmlFilename)
+    let htmlFilepath = join(outDir, htmlFilename)
 
     await mkdirp(baseDir)
     let html
@@ -117,6 +117,12 @@ export default async function ({
       // prerendered the file
       if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
+      if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+        // make sure it ends with .html if the name contains a dot
+        htmlFilename += '.html'
+        htmlFilepath += '.html'
+      }
+
       renderMethod = mod.renderReqToHTML
       const result = await renderMethod(req, res, true)
       curRenderOpts = result.renderOpts || {}
@@ -139,6 +145,16 @@ export default async function ({
         return results
       }
 
+      // TODO: de-dupe the logic here between serverless and server mode
+      if (
+        components.unstable_getStaticProps &&
+        !htmlFilepath.endsWith('.html')
+      ) {
+        // make sure it ends with .html if the name contains a dot
+        htmlFilepath += '.html'
+        htmlFilename += '.html'
+      }
+
       if (typeof components.Component === 'string') {
         html = components.Component
       } else {
@@ -158,8 +174,8 @@ export default async function ({
           page,
           result: {
             errors,
-            warnings
-          }
+            warnings,
+          },
         })
       }
     }

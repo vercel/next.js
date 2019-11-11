@@ -1,10 +1,10 @@
 import React, { Component } from 'react'
 
 export default class StyleStateFul extends Component {
-  render () {
+  render() {
     return (
       <React.Fragment>
-        <div className='hmr-style-page'>
+        <div className="hmr-style-page">
           <p>
             This is the style page.
             <style jsx>{`

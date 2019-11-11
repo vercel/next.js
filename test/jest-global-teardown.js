@@ -1,5 +1,3 @@
-'use strict'
-
 let globalTeardown = () => {}
 const browser = global.bsBrowser
 

@@ -22,6 +22,7 @@ export type LoadComponentsReturnType = {
     props: any
     revalidate: number | false
   }
+  unstable_getStaticParams?: () => void
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -42,6 +43,7 @@ export async function loadComponents(
       Head: Component.Head,
       pageConfig: Component.config || {},
       unstable_getStaticProps: Component.unstable_getStaticProps,
+      unstable_getStaticParams: Component.unstable_getStaticParams,
     }
   }
   const documentPath = join(
@@ -90,5 +92,6 @@ export async function loadComponents(
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
+    unstable_getStaticParams: ComponentMod.unstable_getStaticParams,
   }
 }

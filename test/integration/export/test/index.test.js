@@ -10,7 +10,7 @@ import {
   killApp,
   findPort,
   renderViaHTTP,
-  File
+  File,
 } from 'next-test-utils'
 
 import ssr from './ssr'
@@ -82,14 +82,14 @@ describe('Static Export', () => {
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(devContext.port, '/'),
-      renderViaHTTP(devContext.port, '/dynamic/one')
+      renderViaHTTP(devContext.port, '/dynamic/one'),
     ])
   })
   afterAll(async () => {
     await Promise.all([
       stopApp(context.server),
       killApp(devContext.server),
-      stopApp(context.serverNoTrailSlash)
+      stopApp(context.serverNoTrailSlash),
     ])
   })
 

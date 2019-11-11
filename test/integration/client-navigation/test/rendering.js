@@ -4,8 +4,8 @@ import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 
-export default function (render, fetch) {
-  async function get$ (path, query) {
+export default function(render, fetch) {
+  async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }

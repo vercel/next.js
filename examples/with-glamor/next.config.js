@@ -8,9 +8,9 @@ module.exports = {
       plugins: [
         ...(plugins || []),
         new webpack.ProvidePlugin({
-          Glamor: 'glamor/react'
-        })
-      ]
+          Glamor: 'glamor/react',
+        }),
+      ],
     }
-  }
+  },
 }

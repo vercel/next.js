@@ -3,9 +3,9 @@ import { copyFile as copyFileOrig, existsSync, readFileSync } from 'fs'
 import Worker from 'jest-worker'
 import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
-import { dirname, join, resolve } from 'path'
+import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
-
+import findUp from 'find-up'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
 import { API_ROUTE } from '../lib/constants'
@@ -95,7 +95,14 @@ export default async function(
   const distDir = join(dir, nextConfig.distDir)
   if (!options.buildExport) {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record(eventVersion({ cliCommand: 'export', isSrcDir: null }))
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'export',
+        isSrcDir: null,
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
+      })
+    )
   }
 
   const subFolders = nextConfig.exportTrailingSlash
@@ -267,7 +274,7 @@ export default async function(
     {
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
     }
   ) as any
@@ -321,7 +328,12 @@ export default async function(
       Object.keys(prerenderManifest.routes).map(async route => {
         route = route === '/' ? '/index' : route
         const orig = join(distPagesDir, route)
-        const htmlDest = join(outDir, `${route}.html`)
+        const htmlDest = join(
+          outDir,
+          `${route}${
+            subFolders && route !== '/index' ? `${sep}index` : ''
+          }.html`
+        )
         const jsonDest = join(sprDataDir, `${route}.json`)
 
         await mkdirp(dirname(htmlDest))
