@@ -1,11 +1,11 @@
 import React, { Component } from 'react'
 
 export default class extends Component {
-  static getInitialProps ({ res }) {
+  static getInitialProps({ res }) {
     res.end('hi')
   }
 
-  render () {
+  render() {
     return <div>hi</div>
   }
 }

@@ -2,11 +2,11 @@ const DOMAttributeNames = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
-  httpEquiv: 'http-equiv'
+  httpEquiv: 'http-equiv',
 }
 
 export default class HeadManager {
-  constructor () {
+  constructor() {
     this.updatePromise = null
   }
 
@@ -19,7 +19,7 @@ export default class HeadManager {
     }))
   }
 
-  doUpdateHead (head) {
+  doUpdateHead(head) {
     const tags = {}
     head.forEach(h => {
       const components = tags[h.type] || []
@@ -35,7 +35,7 @@ export default class HeadManager {
     })
   }
 
-  updateTitle (component) {
+  updateTitle(component) {
     let title = ''
     if (component) {
       const { children } = component.props
@@ -44,7 +44,7 @@ export default class HeadManager {
     if (title !== document.title) document.title = title
   }
 
-  updateElements (type, components) {
+  updateElements(type, components) {
     const headEl = document.getElementsByTagName('head')[0]
     const headCountEl = headEl.querySelector('meta[name=next-head-count]')
     if (process.env.NODE_ENV !== 'production') {
@@ -89,7 +89,7 @@ export default class HeadManager {
   }
 }
 
-function reactElementToDOM ({ type, props }) {
+function reactElementToDOM({ type, props }) {
   const el = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue

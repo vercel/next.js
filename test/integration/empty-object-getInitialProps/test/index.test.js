@@ -7,7 +7,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -26,7 +26,7 @@ describe('Empty Project', () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort, {
       onStdout: handleOutput,
-      onStderr: handleOutput
+      onStderr: handleOutput,
     })
   })
   afterAll(() => killApp(app))

@@ -2,7 +2,7 @@ import firebase from 'firebase'
 
 try {
   firebase.initializeApp({
-    databaseURL: 'https://hacker-news.firebaseio.com'
+    databaseURL: 'https://hacker-news.firebaseio.com',
   })
 } catch (err) {
   // we skip the "already exists" message which is

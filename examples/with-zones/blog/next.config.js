@@ -4,6 +4,6 @@ module.exports = {
   target: 'serverless',
   assetPrefix,
   env: {
-    ASSET_PREFIX: assetPrefix
-  }
+    ASSET_PREFIX: assetPrefix,
+  },
 }

@@ -202,6 +202,7 @@ export function ampValidation(
       amp: Object.keys(amp)
         .filter(k => k !== page)
         .sort()
+        // eslint-disable-next-line no-sequences
         .reduce((a, c) => ((a[c] = amp[c]), a), {} as any),
     })
     return
@@ -211,6 +212,7 @@ export function ampValidation(
   buildStore.setState({
     amp: Object.keys(newAmp)
       .sort()
+      // eslint-disable-next-line no-sequences
       .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as any),
   })
 }

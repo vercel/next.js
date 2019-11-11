@@ -585,15 +585,12 @@ export default async function getBaseWebpackConfig(
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
-      ].reduce(
-        (alias, loader) => {
-          // using multiple aliases to replace `resolveLoader.modules`
-          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+      ].reduce((alias, loader) => {
+        // using multiple aliases to replace `resolveLoader.modules`
+        alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
 
-          return alias
-        },
-        {} as Record<string, string>
-      ),
+        return alias
+      }, {} as Record<string, string>),
       modules: [
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable

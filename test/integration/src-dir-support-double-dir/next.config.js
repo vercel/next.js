@@ -1,6 +1,6 @@
 module.exports = {
   target: 'serverless',
   experimental: {
-    modern: true
-  }
+    modern: true,
+  },
 }

@@ -19,8 +19,8 @@ const importBlogPosts = async () => {
 const Blog = ({ postsList }) => (
   <Layout>
     {postsList.map(post => (
-      <div key={post.slug} className='post'>
-        <Link href='/blog/post/[slug]' as={`/blog/post/${post.slug}`}>
+      <div key={post.slug} className="post">
+        <Link href="/blog/post/[slug]" as={`/blog/post/${post.slug}`}>
           <a>
             <img src={post.attributes.thumbnail} />
             <h2>{post.attributes.title}</h2>

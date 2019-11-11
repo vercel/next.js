@@ -4,17 +4,17 @@ import Link from 'next/link'
 export default ({ stories, page = 1, offset = null }) => (
   <div>
     {stories.map((story, i) => (
-      <div key={story.id} className='item'>
+      <div key={story.id} className="item">
         {offset != null ? (
-          <span className='count'>{i + offset + 1}</span>
+          <span className="count">{i + offset + 1}</span>
         ) : null}
-        <div className='story'>
+        <div className="story">
           <Story {...story} />
         </div>
       </div>
     ))}
-    <footer className='footer'>
-      <Link href='/news/[id]' as={`/news/${page + 1}`}>
+    <footer className="footer">
+      <Link href="/news/[id]" as={`/news/${page + 1}`}>
         <a>More</a>
       </Link>
     </footer>

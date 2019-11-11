@@ -4,7 +4,7 @@ import Head from 'next/head'
 import fetch from 'isomorphic-unfetch'
 
 export default class extends Component {
-  static async getInitialProps ({ query }) {
+  static async getInitialProps({ query }) {
     // fetch single post detail
     const response = await fetch(
       `https://jsonplaceholder.typicode.com/posts/${query.id}`
@@ -13,7 +13,7 @@ export default class extends Component {
     return { ...post }
   }
 
-  render () {
+  render() {
     const { title, body } = this.props
 
     return (
@@ -26,7 +26,7 @@ export default class extends Component {
 
         <p>{body}</p>
 
-        <Link href='/'>
+        <Link href="/">
           <a>Go back to home</a>
         </Link>
       </main>

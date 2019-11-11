@@ -2,21 +2,21 @@ import { actionTypes } from './actions'
 
 export const initialState = {
   data: null,
-  error: false
+  error: false,
 }
 
-function reducer (state = initialState, action) {
+function reducer(state = initialState, action) {
   switch (action.type) {
     case actionTypes.LOAD_DATA_SUCCESS:
       return {
         ...state,
-        ...{ data: action.data }
+        ...{ data: action.data },
       }
 
     case actionTypes.LOAD_DATA_ERROR:
       return {
         ...state,
-        ...{ error: action.error }
+        ...{ error: action.error },
       }
 
     default:

@@ -48,7 +48,7 @@ export const withRedux = (PageComponent, { ssr = true } = {}) => {
       // Pass props to PageComponent
       return {
         ...pageProps,
-        initialReduxState: reduxStore.getState()
+        initialReduxState: reduxStore.getState(),
       }
     }
   }

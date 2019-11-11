@@ -1,10 +1,10 @@
-import { format, UrlObject, URLFormatOptions } from 'url'
-import { ServerResponse, IncomingMessage } from 'http'
-import { ComponentType } from 'react'
+import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
+import { ComponentType } from 'react'
+import { format, URLFormatOptions, UrlObject } from 'url'
+
 import { ManifestItem } from '../server/render'
 import { NextRouter } from './router/router'
-import { DocumentContext as DocumentComponentContext } from './document-context'
 
 /**
  * Types used by both next and next-server
@@ -85,7 +85,7 @@ export interface NextPageContext {
   /**
    * Error object if encountered during rendering
    */
-  err?: Error & { statusCode?: number } | null
+  err?: (Error & { statusCode?: number }) | null
   /**
    * `HTTP` request object.
    */

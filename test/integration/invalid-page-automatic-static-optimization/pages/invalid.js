@@ -1,5 +1,5 @@
 const obj = {
-  something: 'idk'
+  something: 'idk',
 }
 
 export default obj

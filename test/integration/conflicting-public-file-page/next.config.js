@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    publicDirectory: true
-  }
+    publicDirectory: true,
+  },
 }

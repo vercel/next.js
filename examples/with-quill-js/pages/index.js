@@ -4,7 +4,7 @@ import 'react-quill/dist/quill.snow.css'
 
 const QuillNoSSRWrapper = dynamic(import('react-quill'), {
   ssr: false,
-  loading: () => <p>Loading ...</p>
+  loading: () => <p>Loading ...</p>,
 })
 
 const modules = {
@@ -16,15 +16,15 @@ const modules = {
       { list: 'ordered' },
       { list: 'bullet' },
       { indent: '-1' },
-      { indent: '+1' }
+      { indent: '+1' },
     ],
     ['link', 'image', 'video'],
-    ['clean']
+    ['clean'],
   ],
   clipboard: {
     // toggle to add extra line breaks when pasting HTML:
-    matchVisual: false
-  }
+    matchVisual: false,
+  },
 }
 /*
  * Quill editor formats
@@ -44,9 +44,9 @@ const formats = [
   'indent',
   'link',
   'image',
-  'video'
+  'video',
 ]
 
 export default () => (
-  <QuillNoSSRWrapper modules={modules} formats={formats} theme='snow' />
+  <QuillNoSSRWrapper modules={modules} formats={formats} theme="snow" />
 )

@@ -2,7 +2,7 @@
 import webdriver from 'next-webdriver'
 import { check, waitFor, getBrowserBodyText } from 'next-test-utils'
 
-export default function (context) {
+export default function(context) {
   describe('Render via browser', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')

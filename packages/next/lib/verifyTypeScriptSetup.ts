@@ -46,6 +46,7 @@ async function checkDependencies({
   const missingPackages = requiredPackages.filter(p => {
     try {
       resolutions.set(p.pkg, resolveRequest(p.file, `${dir}/`))
+      return false
     } catch (_) {
       return true
     }
