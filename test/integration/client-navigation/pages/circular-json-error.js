@@ -1,4 +1,4 @@
-function CircularJSONErrorPage () {
+function CircularJSONErrorPage() {
   return <div>This won't render</div>
 }
 

@@ -1,4 +1,4 @@
-function Hi () {
+function Hi() {
   return (
     <div>
       <p>Hello world!</p>

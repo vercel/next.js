@@ -10,7 +10,7 @@ import {
   killApp,
   waitFor,
   nextBuild,
-  nextStart
+  nextStart,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -21,7 +21,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests (dev) {
+function runTests(dev) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -225,6 +225,40 @@ function runTests (dev) {
       await fs.access(bundlePath + '.js', fs.constants.F_OK)
       await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
     })
+
+    it('should output a routes-manifest correctly', async () => {
+      const manifest = await fs.readJson(
+        join(appDir, '.next/routes-manifest.json')
+      )
+
+      expect(manifest).toEqual({
+        version: 1,
+        rewrites: [],
+        redirects: [],
+        dynamicRoutes: [
+          {
+            page: '/blog/[name]/comment/[id]',
+            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$',
+          },
+          {
+            page: '/on-mount/[post]',
+            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
+          },
+          {
+            page: '/[name]',
+            regex: '^\\/([^\\/]+?)(?:\\/)?$',
+          },
+          {
+            page: '/[name]/comments',
+            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$',
+          },
+          {
+            page: '/[name]/[comment]',
+            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
+          },
+        ],
+      })
+    })
   }
 }
 
@@ -269,7 +303,7 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe('SSR production mode', () => {
+  describe('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,

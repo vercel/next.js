@@ -5,7 +5,7 @@ import waitPort from 'wait-port'
 const doHeadless = process.env.HEADLESS !== 'false'
 let driverPort = 9515
 
-let webdriver = async function (appPort, pathname) {
+let webdriver = async function(appPort, pathname) {
   if (typeof appPort === 'undefined') {
     throw new Error('appPort is undefined')
   }
@@ -33,7 +33,7 @@ let webdriver = async function (appPort, pathname) {
         // https://github.com/giggio/node-chromedriver/issues/117
         await waitPort({
           port: driverPort,
-          timeout: 1000 * 30 // 30 seconds
+          timeout: 1000 * 30, // 30 seconds
         })
         continue
       }
@@ -47,7 +47,7 @@ let webdriver = async function (appPort, pathname) {
   throw new Error(`Couldn't start the browser for url: ${url}`)
 }
 
-function getBrowser (url, timeout) {
+function getBrowser(url, timeout) {
   const browser = wd.promiseChainRemote(`http://localhost:${driverPort}/`)
 
   return new Promise((resolve, reject) => {
@@ -63,9 +63,9 @@ function getBrowser (url, timeout) {
         browserName: 'chrome',
         ...(doHeadless
           ? {
-            chromeOptions: { args: ['--headless'] }
-          }
-          : {})
+              chromeOptions: { args: ['--headless'] },
+            }
+          : {}),
       })
       .get(url, err => {
         if (timeouted) {

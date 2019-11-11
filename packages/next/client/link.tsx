@@ -1,4 +1,3 @@
-/* global __NEXT_DATA__ */
 declare const __NEXT_DATA__: any
 
 import { resolve, parse, UrlObject } from 'url'

@@ -144,9 +144,7 @@ export default class BuildManifestPlugin {
           )
           if (this.modern) {
             assetMap.pages['/_app'].push(
-              `${CLIENT_STATIC_FILES_PATH}/${
-                this.buildId
-              }/_buildManifest.module.js`
+              `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
             )
           }
         }
@@ -161,27 +159,23 @@ export default class BuildManifestPlugin {
         )
 
         if (this.clientManifest) {
-          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
-            this.buildId
-          }/_buildManifest.js`
+          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
           compilation.assets[clientManifestPath] = new RawSource(
             `self.__BUILD_MANIFEST = ${generateClientManifest(
               assetMap,
               false
-            )};` + `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+            )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
           )
 
           if (this.modern) {
-            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
-              this.buildId
-            }/_buildManifest.module.js`
+            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
 
             compilation.assets[modernClientManifestPath] = new RawSource(
               `self.__BUILD_MANIFEST = ${generateClientManifest(
                 assetMap,
                 true
-              )};` + `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+              )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
             )
           }
         }

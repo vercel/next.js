@@ -6,12 +6,12 @@ const Page = () => (
     <Head>
       <title>Home | next-plugins</title>
     </Head>
-    <p id='home'>Home</p>
-    <Link href='/another'>
-      <a id='to-another'>another</a>
+    <p id="home">Home</p>
+    <Link href="/another">
+      <a id="to-another">another</a>
     </Link>
-    <Link href='/something'>
-      <a id='to-something'>something</a>
+    <Link href="/something">
+      <a id="to-something">something</a>
     </Link>
   </>
 )

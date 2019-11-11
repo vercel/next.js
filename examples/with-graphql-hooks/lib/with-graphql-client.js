@@ -6,7 +6,7 @@ import { getInitialState } from 'graphql-hooks-ssr'
 export default App => {
   return class GraphQLHooks extends React.Component {
     static displayName = 'GraphQLHooks(App)'
-    static async getInitialProps (ctx) {
+    static async getInitialProps(ctx) {
       const { Component, router } = ctx
 
       let appProps = {}
@@ -30,7 +30,7 @@ export default App => {
                 graphQLClient={graphQLClient}
               />
             ),
-            client: graphQLClient
+            client: graphQLClient,
           })
         } catch (error) {
           // Prevent GraphQL hooks client errors from crashing SSR.
@@ -46,16 +46,16 @@ export default App => {
 
       return {
         ...appProps,
-        graphQLState
+        graphQLState,
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       this.graphQLClient = initGraphQL(props.graphQLState)
     }
 
-    render () {
+    render() {
       return <App {...this.props} graphQLClient={this.graphQLClient} />
     }
   }

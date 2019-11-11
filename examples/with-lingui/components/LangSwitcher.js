@@ -4,16 +4,16 @@ import { t, Trans } from '@lingui/macro'
 
 const availableLanguageNames = {
   en: t`English`,
-  sv: t`Swedish`
+  sv: t`Swedish`,
 }
 const availableLanguages = Object.keys(availableLanguageNames)
 
 export default () => {
-  function onSubmit (evt) {
+  function onSubmit(evt) {
     evt.preventDefault()
     Router.push({
       pathname: window.location.pathname,
-      query: { lang: evt.currentTarget.lang.value }
+      query: { lang: evt.currentTarget.lang.value },
     })
   }
 
@@ -23,7 +23,7 @@ export default () => {
         <form onSubmit={onSubmit}>
           <select
             key={i18n.language}
-            name='lang'
+            name="lang"
             defaultValue={availableLanguages.find(
               lang => lang !== i18n.language
             )}

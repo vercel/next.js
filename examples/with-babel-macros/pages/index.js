@@ -8,7 +8,7 @@ const whoami = preval`
 
 export default WhoAmI
 
-function WhoAmI () {
+function WhoAmI() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center' }}>
       <h1>

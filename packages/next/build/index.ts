@@ -6,7 +6,7 @@ import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { promisify } from 'util'
-
+import findUp from 'find-up'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -20,8 +20,14 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  ROUTES_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
-import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
+import {
+  getRouteRegex,
+  isDynamicRoute,
+  getSortedRoutes,
+} from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
@@ -46,6 +52,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import pathToRegexp from 'path-to-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -88,6 +95,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const rewrites = []
+  const redirects = []
+
+  if (typeof config.experimental.redirects === 'function') {
+    redirects.push(...(await config.experimental.redirects()))
+  }
+  if (typeof config.experimental.rewrites === 'function') {
+    rewrites.push(...(await config.experimental.rewrites()))
+  }
 
   if (ciEnvironment.isCI) {
     const cacheDir = path.join(distDir, 'cache')
@@ -125,6 +141,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       eventVersion({
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
       })
     ),
     eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
@@ -276,7 +294,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('private-next-pages') > -1 &&
       error.indexOf('does not contain a default export') > -1
     ) {
-      const page_name_regex = /\'private-next-pages\/(?<page_name>[^\']*)\'/
+      const page_name_regex = /'private-next-pages\/(?<page_name>[^']*)'/
       const parsed = page_name_regex.exec(error)
       const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(
@@ -462,6 +480,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
+
+  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
@@ -599,6 +619,46 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+
+  const buildCustomRoute = (
+    r: {
+      source: string
+      statusCode?: number
+    },
+    isRedirect = false
+  ) => {
+    const keys: any[] = []
+    const routeRegex = pathToRegexp(r.source, keys, {
+      strict: true,
+      sensitive: false,
+    })
+
+    return {
+      ...r,
+      ...(isRedirect
+        ? {
+            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
+          }
+        : {}),
+      regex: routeRegex.source,
+      regexKeys: keys.map(k => k.name),
+    }
+  }
+
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      redirects: redirects.map(r => buildCustomRoute(r, true)),
+      rewrites: rewrites.map(r => buildCustomRoute(r)),
+      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+        page,
+        regex: getRouteRegex(page).re.source,
+      })),
+    }),
+    'utf8'
+  )
+
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
 

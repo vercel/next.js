@@ -5,9 +5,9 @@ module.exports = withCSS({
   cssModules: true,
   cssLoaderOptions: {
     camelCase: true,
-    namedExport: true
+    namedExport: true,
   },
-  webpack (config, options) {
+  webpack(config, options) {
     if (!options.isServer) {
       /* Using next-css */
       for (let entry of options.defaultLoaders.css) {
@@ -49,5 +49,5 @@ module.exports = withCSS({
     }
 
     return config
-  }
+  },
 })

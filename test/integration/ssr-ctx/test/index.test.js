@@ -6,7 +6,7 @@ import {
   findPort,
   nextStart,
   nextBuild,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30

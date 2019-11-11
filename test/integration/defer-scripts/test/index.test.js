@@ -6,7 +6,7 @@ import {
   runNextCommand,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
@@ -24,7 +24,7 @@ describe('Defer Scripts', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

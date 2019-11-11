@@ -5,30 +5,30 @@ import Router from 'next/router'
 let counter = 0
 
 export default class extends Component {
-  increase () {
+  increase() {
     counter++
     this.forceUpdate()
   }
 
-  visitQueryStringPage () {
+  visitQueryStringPage() {
     const href = { pathname: '/nav/querystring', query: { id: 10 } }
     const as = { pathname: '/nav/querystring/10', hash: '10' }
     Router.push(href, as)
   }
 
-  render () {
+  render() {
     return (
-      <div id='counter-page'>
-        <Link href='/no-such-page'>
-          <a id='no-such-page'>No Such Page</a>
+      <div id="counter-page">
+        <Link href="/no-such-page">
+          <a id="no-such-page">No Such Page</a>
         </Link>
         <br />
-        <Link href='/no-such-page' prefetch>
-          <a id='no-such-page-prefetch'>No Such Page (with prefetch)</a>
+        <Link href="/no-such-page" prefetch>
+          <a id="no-such-page-prefetch">No Such Page (with prefetch)</a>
         </Link>
         <p>This is the home.</p>
-        <div id='counter'>Counter: {counter}</div>
-        <button id='increase' onClick={() => this.increase()}>
+        <div id="counter">Counter: {counter}</div>
+        <button id="increase" onClick={() => this.increase()}>
           Increase
         </button>
       </div>
