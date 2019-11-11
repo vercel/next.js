@@ -9,7 +9,7 @@ import { AmpIncludeAmpScript } from './AmpCustomElement'
  *
  * @param {Props} props
  */
-export default function AmpScript (props) {
+export default function AmpScript(props) {
   return (
     <>
       <AmpIncludeAmpScript />
@@ -25,10 +25,10 @@ export default function AmpScript (props) {
       {props.script && (
         <script
           id={props.id}
-          type='text/plain'
-          target='amp-script'
+          type="text/plain"
+          target="amp-script"
           dangerouslySetInnerHTML={{
-            __html: generateInlineScript(props.script)
+            __html: generateInlineScript(props.script),
           }}
         />
       )}
@@ -36,7 +36,7 @@ export default function AmpScript (props) {
   )
 }
 
-function generateInlineScript (script) {
+function generateInlineScript(script) {
   if (typeof script === 'function') {
     return `${script.toString()}()`
   }
@@ -49,6 +49,6 @@ AmpScript.propTypes = {
   layout: PropTypes.string.isRequired,
   width: PropTypes.string,
   height: PropTypes.string,
-  script: PropTypes.string,
-  src: PropTypes.string
+  script: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+  src: PropTypes.string,
 }

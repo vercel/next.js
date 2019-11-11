@@ -4,7 +4,7 @@ import AmpState from '../components/amp/AmpState'
 import AmpScript from '../components/amp/AmpScript'
 import {
   AmpIncludeAmpList,
-  AmpIncludeAmpCarousel
+  AmpIncludeAmpCarousel,
 } from '../components/amp/AmpCustomElement'
 
 export const config = { amp: true }
@@ -12,25 +12,25 @@ export const config = { amp: true }
 const Home = props => (
   <>
     <Layout
-      title='Welcome to AMP'
-      description='Learn how to build an AMP First with Next.js.'
+      title="Welcome to AMP"
+      description="Learn how to build an AMP First with Next.js."
     >
       <main>
-        <h1 className='title'>Welcome to AMP ⚡</h1>
-        <p className='description'>
+        <h1 className="title">Welcome to AMP ⚡</h1>
+        <p className="description">
           To get started, edit <code>pages/index.js</code> and save to reload.
         </p>
 
-        <section className='hero'>
-          <a href='https://nextjs.org/learn/basics/getting-started'>
+        <section className="hero">
+          <a href="https://nextjs.org/learn/basics/getting-started">
             <h3>Getting Started &rarr;</h3>
             <p>Learn more about Next</p>
           </a>
-          <a href='https://nextjs.org/docs#amp-support'>
+          <a href="https://nextjs.org/docs#amp-support">
             <h3>AMP Support in Next.js &rarr;</h3>
             <p>Learn how to build AMP sites with Next.js</p>
           </a>
-          <a href='https://amp.dev/documentation/components/?format=websites'>
+          <a href="https://amp.dev/documentation/components/?format=websites">
             <h3>AMP Components &rarr;</h3>
             <p>See which components are available.</p>
           </a>
@@ -46,25 +46,25 @@ const Home = props => (
           </p>
           <AmpIncludeAmpCarousel />
           <amp-carousel
-            type='slides'
-            width='800'
-            height='300'
-            layout='responsive'
+            type="slides"
+            width="800"
+            height="300"
+            layout="responsive"
           >
             <amp-img
-              src='https://unsplash.it/800/300?id=123'
-              layout='fill'
-              alt='demo image'
+              src="https://unsplash.it/800/300?id=123"
+              layout="fill"
+              alt="demo image"
             />
             <amp-img
-              src='https://unsplash.it/800/300?id=124'
-              layout='fill'
-              alt='demo image'
+              src="https://unsplash.it/800/300?id=124"
+              layout="fill"
+              alt="demo image"
             />
             <amp-img
-              src='https://unsplash.it/800/300?id=125'
-              layout='fill'
-              alt='demo image'
+              src="https://unsplash.it/800/300?id=125"
+              layout="fill"
+              alt="demo image"
             />
           </amp-carousel>
         </section>
@@ -101,19 +101,19 @@ const Home = props => (
             Demo:
           </p>
 
-          <AmpState id='myState'>
+          <AmpState id="myState">
             {{
-              message: 'Hello World'
+              message: 'Hello World',
             }}
           </AmpState>
           <button
-            on='tap:AMP.setState({
+            on="tap:AMP.setState({
            greeting: myState.message
-         })'
+         })"
           >
             Click
           </button>
-          <span data-amp-bind-text='greeting' />
+          <span data-amp-bind-text="greeting" />
         </section>
 
         <section>
@@ -126,17 +126,17 @@ const Home = props => (
 
           <AmpIncludeAmpList />
           <amp-list
-            src='https://amp.dev/documentation/examples/api/photo-stream'
-            layout='fixed-height'
-            height='64'
-            binding='no'
+            src="https://amp.dev/documentation/examples/api/photo-stream"
+            layout="fixed-height"
+            height="64"
+            binding="no"
           >
-            <template type='amp-mustache'>
+            <template type="amp-mustache">
               <amp-img
                 src={`{{imageUrl}}`}
-                width='64'
-                height='64'
-                alt='demo image'
+                width="64"
+                height="64"
+                alt="demo image"
               />
             </template>
           </amp-list>
@@ -146,7 +146,7 @@ const Home = props => (
           <h3>amp-script</h3>
           <p>
             Checkout the{' '}
-            <a href='https://amp.dev/documentation/components/amp-script/'>
+            <a href="https://amp.dev/documentation/components/amp-script/">
               amp-script
             </a>{' '}
             helper here: <code>components/amp/AmpScript.js</code> for embedding
@@ -154,7 +154,7 @@ const Home = props => (
           </p>
 
           <AmpScript
-            layout='container'
+            layout="container"
             src={`${props.host}/static/amp-script/hello.js`}
           >
             <button>Hello amp-script!</button>
@@ -163,20 +163,20 @@ const Home = props => (
           <p>
             The helper also supports embedding inline scripts. Good to know:
             Next.js uses{' '}
-            <a href='https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer'>
+            <a href="https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer">
               AMP Optimizer
             </a>{' '}
             under the hood, which automatically adds the needed script hashes
             for{' '}
-            <a href='https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element'>
+            <a href="https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element">
               inline amp-scripts
             </a>
             .
           </p>
           <AmpScript
-            id='hello-world'
-            layout='fixed-height'
-            height='64'
+            id="hello-world"
+            layout="fixed-height"
+            height="64"
             script={() => {
               const btn = document.querySelector('button')
               btn.addEventListener('click', () => {
@@ -239,7 +239,7 @@ Home.getInitialProps = async ({ req }) => {
   return { host: `${getProtocol(req)}://${req.headers.host}` }
 }
 
-function getProtocol (req) {
+function getProtocol(req) {
   if (req.connection.encrypted) {
     return 'https'
   }

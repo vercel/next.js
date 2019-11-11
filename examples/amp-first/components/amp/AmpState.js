@@ -8,16 +8,16 @@ import { AmpIncludeAmpBind } from './AmpCustomElement'
  *
  * @param {Props} props
  */
-export default function AmpState (props) {
+export default function AmpState(props) {
   return (
     <>
       <AmpIncludeAmpBind />
       <amp-state id={props.id} src={props.src}>
         {props.children && (
           <script
-            type='application/json'
+            type="application/json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(props.children)
+              __html: JSON.stringify(props.children),
             }}
           />
         )}
@@ -28,6 +28,6 @@ export default function AmpState (props) {
 
 AmpState.propTypes = {
   id: PropTypes.string.isRequired,
-  children: PropTypes.node,
-  src: PropTypes.string
+  children: PropTypes.any,
+  src: PropTypes.string,
 }
