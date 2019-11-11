@@ -561,8 +561,7 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix } = this.context._documentProps
-    let { files } = this.context._documentProps
+    const { assetPrefix, files } = this.context._documentProps
     if (!files || files.length === 0) {
       return null
     }
