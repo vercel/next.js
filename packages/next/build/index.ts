@@ -294,7 +294,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('private-next-pages') > -1 &&
       error.indexOf('does not contain a default export') > -1
     ) {
-      const page_name_regex = /\'private-next-pages\/(?<page_name>[^\']*)\'/
+      const page_name_regex = /'private-next-pages\/(?<page_name>[^']*)'/
       const parsed = page_name_regex.exec(error)
       const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(

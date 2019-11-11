@@ -2,8 +2,9 @@ import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
+import pathToRegexp from 'path-to-regexp'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
+import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
@@ -11,12 +12,12 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  DEFAULT_REDIRECT_STATUS,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
+  ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  ROUTES_MANIFEST,
-  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -28,6 +29,7 @@ import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
+import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
@@ -37,9 +39,6 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
-import { fileExists } from '../../lib/file-exists'
-import pathToRegexp from 'path-to-regexp'
-import pathMatch from './lib/path-match'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -996,9 +995,7 @@ export default class Server {
     } catch (err) {
       if (!fs.existsSync(buildIdFile)) {
         throw new Error(
-          `Could not find a valid build in the '${
-            this.distDir
-          }' directory! Try building your app with 'next build' before starting the server.`
+          `Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`
         )
       }
 

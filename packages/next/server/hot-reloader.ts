@@ -58,9 +58,10 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
   // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
   if (req.headers['access-control-request-headers']) {
-    res.setHeader('Access-Control-Allow-Headers', req.headers[
-      'access-control-request-headers'
-    ] as string)
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] as string
+    )
   }
 
   if (req.method === 'OPTIONS') {
@@ -455,9 +456,7 @@ export default class HotReloader {
 
     if (this.config.webpackDevMiddleware) {
       console.log(
-        `> Using "webpackDevMiddleware" config function defined in ${
-          this.config.configOrigin
-        }.`
+        `> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`
       )
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(
         webpackDevMiddlewareConfig
