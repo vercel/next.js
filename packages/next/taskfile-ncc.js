@@ -3,7 +3,8 @@ const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, relative } = require('path')
 
 module.exports = function(task) {
-  task.plugin('ncc', {}, function(file, options) {
+  // eslint-disable-next-line require-yield
+  task.plugin('ncc', {}, function*(file, options) {
     return ncc(join(__dirname, file.dir, file.base), {
       // cannot bundle
       externals: ['chokidar'],

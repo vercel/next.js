@@ -5,7 +5,8 @@ const extname = require('path').extname
 const transform = require('@babel/core').transform
 
 module.exports = function(task) {
-  task.plugin('babel', {}, function(file, babelOpts, { stripExtension } = {}) {
+  // eslint-disable-next-line require-yield
+  task.plugin('babel', {}, function*(file, babelOpts, { stripExtension } = {}) {
     const options = {
       ...babelOpts,
       compact: true,

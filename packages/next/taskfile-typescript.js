@@ -16,7 +16,8 @@ try {
   }
 
   module.exports = function(task) {
-    task.plugin('typescript', { every: true }, function(file, options) {
+    // eslint-disable-next-line require-yield
+    task.plugin('typescript', { every: true }, function*(file, options) {
       const opts = {
         fileName: file.base,
         compilerOptions: {
