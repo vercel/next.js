@@ -53,6 +53,10 @@ function getOptionalModernScriptVariant(path: string) {
   return path
 }
 
+function isLowPriority(file: string) {
+  return file.includes('_buildManifest')
+}
+
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -232,11 +236,11 @@ export class Head extends Component<
             // the feature is enabled. This clause will filter down to the
             // modern variants only.
             //
-            // Also filter out _buildManifest because it should not be
+            // Also filter out low priority files because they should not be
             // preloaded for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !file.includes('_buildManifest')
+              !isLowPriority(file)
             )
           })
         : []
@@ -557,25 +561,27 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files } = this.context._documentProps
+    const { assetPrefix } = this.context._documentProps
+    let { files } = this.context._documentProps
     if (!files || files.length === 0) {
       return null
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file: string) => {
-      // Only render .js files here
-      if (!/\.js$/.test(file)) {
-        return null
-      }
+    const normalScripts = files.filter(
+      file => file.endsWith('.js') && !isLowPriority(file)
+    )
+    const lowPriorityScripts = files.filter(
+      file => file.endsWith('.js') && isLowPriority(file)
+    )
 
+    return [...normalScripts, ...lowPriorityScripts].map(file => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = /\.module\.js$/.test(file)
+        modernProps = file.endsWith('.module.js')
           ? { type: 'module' }
           : { noModule: true }
       }
-
       return (
         <script
           key={file}
@@ -803,18 +809,6 @@ export class NextScript extends Component<OriginProps> {
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
         {React.createElement(React.Fragment, {}, ...(bodyTags || []))}
-        {process.env.__NEXT_GRANULAR_CHUNKS ? (
-          <script
-            async
-            nonce={this.props.nonce}
-            crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            src={
-              assetPrefix +
-              `/_next/static/${buildId}/_buildManifest.js` +
-              _devOnlyInvalidateCacheQueryString
-            }
-          />
-        ) : null}
       </>
     )
   }
