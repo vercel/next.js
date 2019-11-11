@@ -132,6 +132,23 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
+        // Create a separate entry  for polyfills
+        assetMap.pages['/_polyfills'] = polyfillFiles
+
+        // Add the runtime build manifest file (generated later in this file)
+        // as a dependency for the app. If the flag is false, the file won't be
+        // downloaded by the client.
+        if (this.clientManifest) {
+          assetMap.pages['/_app'].push(
+            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+          )
+          if (this.modern) {
+            assetMap.pages['/_app'].push(
+              `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
+            )
+          }
+        }
+
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
@@ -150,6 +167,17 @@ export default class BuildManifestPlugin {
               false
             )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
           )
+
+          if (this.modern) {
+            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
+
+            compilation.assets[modernClientManifestPath] = new RawSource(
+              `self.__BUILD_MANIFEST = ${generateClientManifest(
+                assetMap,
+                true
+              )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+            )
+          }
         }
         callback()
       }
