@@ -5,7 +5,7 @@ import withRedux from 'next-redux-wrapper'
 import { initStore } from '../store'
 
 class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
+  static async getInitialProps({ Component, router, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -15,7 +15,7 @@ class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps, store } = this.props
     return (
       <Provider store={store}>

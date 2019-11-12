@@ -7,7 +7,7 @@ export default () => {
     <div>
       <h3>Post #{router.query.id}</h3>
       <p>Lorem ipsum</p>
-      <Link href='/blog'>
+      <Link href="/blog">
         <a>Back to blog</a>
       </Link>
     </div>

@@ -6,7 +6,7 @@ import {
   fetchViaHTTP,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 
@@ -27,7 +27,7 @@ describe('Configuration', () => {
       renderViaHTTP(context.appPort, '/next-config'),
       renderViaHTTP(context.appPort, '/build-id'),
       renderViaHTTP(context.appPort, '/webpack-css'),
-      renderViaHTTP(context.appPort, '/module-only-component')
+      renderViaHTTP(context.appPort, '/module-only-component'),
     ])
   })
 

@@ -17,7 +17,7 @@ import _pkg from 'next/package.json'
 export const nextServer = server
 export const pkg = _pkg
 
-export function initNextServerScript (
+export function initNextServerScript(
   scriptPath,
   successRegexp,
   env,
@@ -26,7 +26,7 @@ export function initNextServerScript (
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
 
-    function handleStdout (data) {
+    function handleStdout(data) {
       const message = data.toString()
       if (successRegexp.test(message)) {
         resolve(instance)
@@ -34,7 +34,7 @@ export function initNextServerScript (
       process.stdout.write(message)
     }
 
-    function handleStderr (data) {
+    function handleStderr(data) {
       const message = data.toString()
       if (failRegexp && failRegexp.test(message)) {
         instance.kill()
@@ -57,27 +57,27 @@ export function initNextServerScript (
   })
 }
 
-export function renderViaAPI (app, pathname, query) {
+export function renderViaAPI(app, pathname, query) {
   const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
-export function renderViaHTTP (appPort, pathname, query) {
+export function renderViaHTTP(appPort, pathname, query) {
   return fetchViaHTTP(appPort, pathname, query).then(res => res.text())
 }
 
-export function fetchViaHTTP (appPort, pathname, query, opts) {
+export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${
     query ? `?${qs.stringify(query)}` : ''
   }`
   return fetch(url, opts)
 }
 
-export function findPort () {
+export function findPort() {
   return getPort()
 }
 
-export function runNextCommand (argv, options = {}) {
+export function runNextCommand(argv, options = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
@@ -90,7 +90,7 @@ export function runNextCommand (argv, options = {}) {
       ...options.spawnOptions,
       cwd,
       env,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
     })
 
     if (typeof options.instance === 'function') {
@@ -99,14 +99,14 @@ export function runNextCommand (argv, options = {}) {
 
     let stderrOutput = ''
     if (options.stderr) {
-      instance.stderr.on('data', function (chunk) {
+      instance.stderr.on('data', function(chunk) {
         stderrOutput += chunk
       })
     }
 
     let stdoutOutput = ''
     if (options.stdout) {
-      instance.stdout.on('data', function (chunk) {
+      instance.stdout.on('data', function(chunk) {
         stdoutOutput += chunk
       })
     }
@@ -114,7 +114,7 @@ export function runNextCommand (argv, options = {}) {
     instance.on('close', () => {
       resolve({
         stdout: stdoutOutput,
-        stderr: stderrOutput
+        stderr: stderrOutput,
       })
     })
 
@@ -126,19 +126,19 @@ export function runNextCommand (argv, options = {}) {
   })
 }
 
-export function runNextCommandDev (argv, stdOut, opts = {}) {
+export function runNextCommandDev(argv, stdOut, opts = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
   const env = {
     ...process.env,
     NODE_ENV: undefined,
     __NEXT_TEST_MODE: 'true',
-    ...opts.env
+    ...opts.env,
   }
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
 
-    function handleStdout (data) {
+    function handleStdout(data) {
       const message = data.toString()
       if (/ready on/i.test(message)) {
         resolve(stdOut ? message : instance)
@@ -149,7 +149,7 @@ export function runNextCommandDev (argv, stdOut, opts = {}) {
       process.stdout.write(message)
     }
 
-    function handleStderr (data) {
+    function handleStderr(data) {
       const message = data.toString()
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
@@ -172,23 +172,23 @@ export function runNextCommandDev (argv, stdOut, opts = {}) {
 }
 
 // Launch the app in dev mode.
-export function launchApp (dir, port, opts) {
+export function launchApp(dir, port, opts) {
   return runNextCommandDev([dir, '-p', port], undefined, opts)
 }
 
-export function nextBuild (dir, args = [], opts = {}) {
+export function nextBuild(dir, args = [], opts = {}) {
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport (dir, { outdir }, opts = {}) {
+export function nextExport(dir, { outdir }, opts = {}) {
   return runNextCommand(['export', dir, '--outdir', outdir], opts)
 }
 
-export function nextStart (dir, port, opts = {}) {
+export function nextStart(dir, port, opts = {}) {
   return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
 }
 
-export function buildTS (args = [], cwd, env = {}) {
+export function buildTS(args = [], cwd, env = {}) {
   cwd = cwd || path.dirname(require.resolve('next/package'))
   env = { ...process.env, NODE_ENV: undefined, ...env }
 
@@ -217,7 +217,7 @@ export function buildTS (args = [], cwd, env = {}) {
 }
 
 // Kill a launched app
-export async function killApp (instance) {
+export async function killApp(instance) {
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, err => {
       if (err) {
@@ -242,7 +242,7 @@ export async function killApp (instance) {
   })
 }
 
-export async function startApp (app) {
+export async function startApp(app) {
   await app.prepare()
   const handler = app.getRequestHandler()
   const server = http.createServer(handler)
@@ -252,32 +252,32 @@ export async function startApp (app) {
   return server
 }
 
-export async function stopApp (server) {
+export async function stopApp(server) {
   if (server.__app) {
     await server.__app.close()
   }
   await promiseCall(server, 'close')
 }
 
-function promiseCall (obj, method, ...args) {
+function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
-      function (err, res) {
+      function(err, res) {
         if (err) return reject(err)
         resolve(res)
-      }
+      },
     ]
 
     obj[method](...newArgs)
   })
 }
 
-export function waitFor (millis) {
+export function waitFor(millis) {
   return new Promise(resolve => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer (dir) {
+export async function startStaticServer(dir) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
@@ -286,7 +286,7 @@ export async function startStaticServer (dir) {
   return server
 }
 
-export async function check (contentFn, regex) {
+export async function check(contentFn, regex) {
   let found = false
   const timeout = setTimeout(async () => {
     if (found) {
@@ -315,36 +315,36 @@ export async function check (contentFn, regex) {
 }
 
 export class File {
-  constructor (path) {
+  constructor(path) {
     this.path = path
     this.originalContent = existsSync(this.path)
       ? readFileSync(this.path, 'utf8')
       : null
   }
 
-  write (content) {
+  write(content) {
     if (!this.originalContent) {
       this.originalContent = content
     }
     writeFileSync(this.path, content, 'utf8')
   }
 
-  replace (pattern, newValue) {
+  replace(pattern, newValue) {
     const newContent = this.originalContent.replace(pattern, newValue)
     this.write(newContent)
   }
 
-  delete () {
+  delete() {
     unlinkSync(this.path)
   }
 
-  restore () {
+  restore() {
     this.write(this.originalContent)
   }
 }
 
 // react-error-overlay uses an iframe so we have to read the contents from the frame
-export async function getReactErrorOverlayContent (browser) {
+export async function getReactErrorOverlayContent(browser) {
   let found = false
   setTimeout(() => {
     if (found) {
@@ -375,6 +375,6 @@ export async function getReactErrorOverlayContent (browser) {
   )
 }
 
-export function getBrowserBodyText (browser) {
+export function getBrowserBodyText(browser) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }

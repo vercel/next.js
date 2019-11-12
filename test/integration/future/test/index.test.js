@@ -8,7 +8,7 @@ import {
   startApp,
   stopApp,
   renderViaHTTP,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -23,7 +23,7 @@ describe('future.excludeDefaultMomentLocales', () => {
     const app = nextServer({
       dir: appDir,
       dev: false,
-      quiet: true
+      quiet: true,
     })
     server = await startApp(app)
     appPort = server.address().port

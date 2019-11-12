@@ -1,3 +1,3 @@
 module.exports = {
-  experimental: { modern: true }
+  experimental: { modern: true },
 }

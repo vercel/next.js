@@ -56,15 +56,25 @@ const nextServerlessLoader: loader.Loader = function() {
     }
       import { parse } from 'url'
       import { apiResolver } from 'next/dist/next-server/server/api-utils'
+      import initServer from 'next-plugin-loader?middleware=on-init-server!'
+      import onError from 'next-plugin-loader?middleware=on-error-server!'
 
-      export default (req, res) => {
-        const params = ${
-          isDynamicRoute(page)
-            ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
-            : `{}`
+      export default async (req, res) => {
+        try {
+          await initServer()
+          const params = ${
+            isDynamicRoute(page)
+              ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
+              : `{}`
+          }
+          const resolver = require('${absolutePagePath}')
+          apiResolver(req, res, params, resolver)
+        } catch (error) {
+          await onError(err)
+          console.error(err)
+          res.statusCode = 500
+          res.end('Internal Server Error')
         }
-        const resolver = require('${absolutePagePath}')
-        apiResolver(req, res, params, resolver)
       }
     `
   } else {
@@ -73,6 +83,8 @@ const nextServerlessLoader: loader.Loader = function() {
     import {parse as parseQs} from 'querystring'
     import {renderToHTML} from 'next/dist/next-server/server/render';
     import {sendHTML} from 'next/dist/next-server/server/send-html';
+    import initServer from 'next-plugin-loader?middleware=on-init-server!'
+    import onError from 'next-plugin-loader?middleware=on-error-server!'
     ${
       isDynamicRoute(page)
         ? `import {getRouteMatcher, getRouteRegex} from 'next/dist/next-server/lib/router/utils';`
@@ -201,11 +213,13 @@ const nextServerlessLoader: loader.Loader = function() {
     }
     export async function render (req, res) {
       try {
+        await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
           sendHTML(req, res, html, {generateEtags: ${generateEtags}})
         }
       } catch(err) {
+        await onError(err)
         console.error(err)
         res.statusCode = 500
         res.end('Internal Server Error')

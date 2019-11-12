@@ -3,13 +3,13 @@ import Link from 'next/link'
 const Layout = ({ children }) => (
   <>
     <nav>
-      <Link href='/'>
+      <Link href="/">
         <a>home</a>
       </Link>
-      <Link href='/blog'>
+      <Link href="/blog">
         <a>blog</a>
       </Link>
-      <Link href='/about'>
+      <Link href="/about">
         <a>about</a>
       </Link>
     </nav>

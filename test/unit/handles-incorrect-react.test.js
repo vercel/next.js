@@ -2,7 +2,7 @@
 import path from 'path'
 
 jest.mock('react', () => ({
-  Suspense: undefined
+  Suspense: undefined,
 }))
 
 const nextDir = path.dirname(require.resolve('next/package'))

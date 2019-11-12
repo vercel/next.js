@@ -5,7 +5,7 @@ import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
-
+import findUp from 'find-up'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
 import { API_ROUTE } from '../lib/constants'
@@ -95,7 +95,14 @@ export default async function(
   const distDir = join(dir, nextConfig.distDir)
   if (!options.buildExport) {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record(eventVersion({ cliCommand: 'export', isSrcDir: null }))
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'export',
+        isSrcDir: null,
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
+      })
+    )
   }
 
   const subFolders = nextConfig.exportTrailingSlash

@@ -1,13 +1,15 @@
 import devalue from 'devalue'
+import { Compiler } from 'webpack'
+import { RawSource } from 'webpack-sources'
+
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
-import { Compiler } from 'webpack'
-import { RawSource } from 'webpack-sources'
 
 interface AssetMap {
   devFiles: string[]
@@ -27,7 +29,7 @@ const generateClientManifest = (
   const appDependencies = new Set(assetMap.pages['/_app'])
 
   Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
-    if (page === '/_app') return
+    if (page === '/_app' || page === '/_polyfills') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
     const filteredDeps = dependencies.filter(
@@ -73,6 +75,11 @@ export default class BuildManifestPlugin {
           mainJsChunk && mainJsChunk.files.length > 0
             ? mainJsChunk.files.filter((file: string) => /\.js$/.test(file))
             : []
+
+        const polyfillChunk = chunks.find(
+          c => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+        )
+        const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
 
         for (const filePath of Object.keys(compilation.assets)) {
           const path = filePath.replace(/\\/g, '/')
@@ -125,6 +132,9 @@ export default class BuildManifestPlugin {
           assetMap.pages['/'] = assetMap.pages['/index']
         }
 
+        // Create a separate entry  for polyfills
+        assetMap.pages['/_polyfills'] = polyfillFiles
+
         // Add the runtime build manifest file (generated later in this file)
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
@@ -134,9 +144,7 @@ export default class BuildManifestPlugin {
           )
           if (this.modern) {
             assetMap.pages['/_app'].push(
-              `${CLIENT_STATIC_FILES_PATH}/${
-                this.buildId
-              }/_buildManifest.module.js`
+              `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
             )
           }
         }
@@ -151,27 +159,23 @@ export default class BuildManifestPlugin {
         )
 
         if (this.clientManifest) {
-          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
-            this.buildId
-          }/_buildManifest.js`
+          const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
           compilation.assets[clientManifestPath] = new RawSource(
             `self.__BUILD_MANIFEST = ${generateClientManifest(
               assetMap,
               false
-            )};` + `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+            )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
           )
 
           if (this.modern) {
-            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${
-              this.buildId
-            }/_buildManifest.module.js`
+            const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
 
             compilation.assets[modernClientManifestPath] = new RawSource(
               `self.__BUILD_MANIFEST = ${generateClientManifest(
                 assetMap,
                 true
-              )};` + `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+              )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
             )
           }
         }

@@ -34,7 +34,7 @@ const Index = injectState(
             ))}
             <tr>
               <td>&nbsp;</td>
-              <td colSpan='3'>
+              <td colSpan="3">
                 <button onClick={fetchMore} disabled={ajaxStatus}>
                   {ajaxStatus ? 'loading' : 'fetch more'}
                 </button>

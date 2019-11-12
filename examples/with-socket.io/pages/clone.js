@@ -4,14 +4,14 @@ import fetch from 'isomorphic-unfetch'
 
 class ChatTwo extends Component {
   // fetch old messages data from the server
-  static async getInitialProps ({ req }) {
+  static async getInitialProps({ req }) {
     const response = await fetch('http://localhost:3000/messages/chat2')
     const messages = await response.json()
     return { messages }
   }
 
   static defaultProps = {
-    messages: []
+    messages: [],
   }
 
   // init state with the prefetched messages
@@ -20,7 +20,7 @@ class ChatTwo extends Component {
     newMessage: 0,
     messages: this.props.messages,
     subscribe: false,
-    subscribed: false
+    subscribed: false,
   }
 
   subscribe = () => {
@@ -31,21 +31,21 @@ class ChatTwo extends Component {
       this.setState({ subscribed: true })
     }
   }
-  componentDidMount () {
+  componentDidMount() {
     this.subscribe()
   }
 
-  componentDidUpdate () {
+  componentDidUpdate() {
     this.subscribe()
   }
 
-  static getDerivedStateFromProps (props, state) {
+  static getDerivedStateFromProps(props, state) {
     if (props.socket && !state.subscribe) return { subscribe: true }
     return null
   }
 
   // close socket connection
-  componentWillUnmount () {
+  componentWillUnmount() {
     this.props.socket.off('message.chat1', this.handleOtherMessage)
     this.props.socket.off('message.chat2', this.handleMessage)
   }
@@ -70,7 +70,7 @@ class ChatTwo extends Component {
     // create message object
     const message = {
       id: new Date().getTime(),
-      value: this.state.field
+      value: this.state.field,
     }
 
     // send object to WS server
@@ -79,11 +79,11 @@ class ChatTwo extends Component {
     // add it to state and clean current input value
     this.setState(state => ({
       field: '',
-      messages: state.messages.concat(message)
+      messages: state.messages.concat(message),
     }))
   }
 
-  render () {
+  render() {
     return (
       <main>
         <div>
@@ -106,8 +106,8 @@ class ChatTwo extends Component {
           <form onSubmit={e => this.handleSubmit(e)}>
             <input
               onChange={this.handleChange}
-              type='text'
-              placeholder='Hello world!'
+              type="text"
+              placeholder="Hello world!"
               value={this.state.field}
             />
             <button>Send</button>

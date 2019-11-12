@@ -11,8 +11,7 @@ const Header = styled.div`
 `
 
 const Button = styled.button`
-  ${tw`bg-blue-500 text-white font-mono px-4 py-2 rounded`}
-  :hover {
+  ${tw`bg-blue-500 text-white font-mono px-4 py-2 rounded`} :hover {
     ${tw`bg-blue-700`}
   }
 `
