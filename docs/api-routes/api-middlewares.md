@@ -1,6 +1,6 @@
 # API Middlewares
 
-API routes provides built in middlewares which parse the incoming request (`req`). Those middlewares are:
+API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
 
 - `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
 - `req.query` - An object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
