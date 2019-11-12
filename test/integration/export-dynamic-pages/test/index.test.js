@@ -12,7 +12,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 
