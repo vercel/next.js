@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-// import Link from 'next/link'
 import unfetchImp from 'unfetch'
 import isomorphicUnfetchImp from 'isomorphic-unfetch'
 
