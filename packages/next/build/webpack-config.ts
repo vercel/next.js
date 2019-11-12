@@ -59,16 +59,21 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     return {}
   }
 
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  const stubFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
     // Polyfill: Window#fetch
     __next_polyfill__fetch: require.resolve('whatwg-fetch'),
-    unfetch$: stubWindowFetch,
-    'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': stubWindowFetch,
+    unfetch$: stubFetch,
+    'isomorphic-unfetch$': stubFetch,
+    'whatwg-fetch': path.join(
+      __dirname,
+      'polyfills',
+      'fetch',
+      'whatwg-fetch.js'
+    ),
 
     // Polyfill: Object.assign
     __next_polyfill__object_assign: require.resolve('object-assign'),
@@ -523,7 +528,7 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isServer
         ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
-      minimize: !(dev || isServer),
+      minimize: false, //!(dev || isServer),
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
