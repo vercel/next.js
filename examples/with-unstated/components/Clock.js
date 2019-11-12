@@ -1,7 +1,7 @@
 export default ({
   clock: {
-    state: { lastUpdate, light }
-  }
+    state: { lastUpdate, light },
+  },
 }) => {
   return (
     <div className={light ? 'light' : ''}>

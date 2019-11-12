@@ -17,7 +17,7 @@ const Button = styled('button')`
 `
 
 const IndexPage = () => (
-  <Button primary color='green'>
+  <Button primary color="green">
     A styled button
   </Button>
 )

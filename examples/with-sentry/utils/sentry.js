@@ -9,7 +9,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
     dsn: process.env.SENTRY_DSN,
     release,
     maxBreadcrumbs: 50,
-    attachStacktrace: true
+    attachStacktrace: true,
   }
 
   // When we're developing locally
@@ -25,8 +25,8 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
     sentryOptions.integrations = [
       new SentryIntegrations.Debug({
         // Trigger DevTools debugger instead of using console.log
-        debugger: false
-      })
+        debugger: false,
+      }),
     ]
   }
 
@@ -86,6 +86,6 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
       })
 
       return Sentry.captureException(err)
-    }
+    },
   }
 }

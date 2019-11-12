@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic'
 
 const BrowserLoaded = dynamic(async () => () => <div>Browser hydrated</div>, {
-  ssr: false
+  ssr: false,
 })
 
 export default () => (

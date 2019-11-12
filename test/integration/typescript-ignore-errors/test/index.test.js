@@ -7,7 +7,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  File
+  File,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -21,7 +21,7 @@ describe('TypeScript with error handling options', () => {
       describe(`ignoreDevErrors: ${ignoreDevErrors}, ignoreBuildErrors: ${ignoreBuildErrors}`, () => {
         beforeAll(() => {
           const nextConfig = {
-            typescript: { ignoreDevErrors, ignoreBuildErrors }
+            typescript: { ignoreDevErrors, ignoreBuildErrors },
           }
           nextConfigFile.replace('{}', JSON.stringify(nextConfig))
         })
@@ -40,7 +40,7 @@ describe('TypeScript with error handling options', () => {
               const appPort = await findPort()
               app = await launchApp(appDir, appPort, {
                 onStdout: msg => (output += msg),
-                onStderr: msg => (output += msg)
+                onStderr: msg => (output += msg),
               })
               await renderViaHTTP(appPort, '')
 
@@ -64,7 +64,7 @@ describe('TypeScript with error handling options', () => {
           async () => {
             const { stdout, stderr } = await nextBuild(appDir, [], {
               stdout: true,
-              stderr: true
+              stderr: true,
             })
 
             if (ignoreBuildErrors) {

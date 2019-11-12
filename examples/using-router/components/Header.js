@@ -2,9 +2,9 @@ import Router from 'next/router'
 
 export default () => (
   <div>
-    <Link href='/'>Home</Link>
-    <Link href='/about'>About</Link>
-    <Link href='/error'>Error</Link>
+    <Link href="/">Home</Link>
+    <Link href="/about">About</Link>
+    <Link href="/error">Error</Link>
   </div>
 )
 
@@ -12,7 +12,7 @@ export default () => (
 // but this example shows how you can also access the router
 // and use it manually
 
-function onClickHandler (href) {
+function onClickHandler(href) {
   return e => {
     e.preventDefault()
     Router.push(href)
@@ -20,7 +20,7 @@ function onClickHandler (href) {
 }
 
 const Link = ({ children, href }) => (
-  <a href='#' onClick={onClickHandler(href)}>
+  <a href="#" onClick={onClickHandler(href)}>
     {children}
     <style jsx>{`
       a {

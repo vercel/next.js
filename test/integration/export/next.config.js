@@ -4,39 +4,39 @@ module.exports = phase => {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
     publicRuntimeConfig: {
-      foo: 'foo'
+      foo: 'foo',
     },
     serverRuntimeConfig: {
-      bar: 'bar'
+      bar: 'bar',
     },
     exportTrailingSlash: true,
-    exportPathMap: function () {
+    exportPathMap: function() {
       return {
         '/': { page: '/' },
         '/about': { page: '/about' },
         '/button-link': { page: '/button-link' },
         '/get-initial-props-with-no-query': {
-          page: '/get-initial-props-with-no-query'
+          page: '/get-initial-props-with-no-query',
         },
         '/counter': { page: '/counter' },
         '/dynamic-imports': { page: '/dynamic-imports' },
         '/dynamic': { page: '/dynamic', query: { text: 'cool dynamic text' } },
         '/dynamic/one': {
           page: '/dynamic',
-          query: { text: 'next export is nice' }
+          query: { text: 'next export is nice' },
         },
         '/dynamic/two': {
           page: '/dynamic',
-          query: { text: 'zeit is awesome' }
+          query: { text: 'zeit is awesome' },
         },
         '/file-name.md': {
           page: '/dynamic',
-          query: { text: 'this file has an extension' }
+          query: { text: 'this file has an extension' },
         },
         '/query': { page: '/query', query: { a: 'blue' } },
         // API route
-        '/blog/nextjs/comment/test': { page: '/blog/[post]/comment/[id]' }
+        '/blog/nextjs/comment/test': { page: '/blog/[post]/comment/[id]' },
       }
-    } // end exportPathMap
+    }, // end exportPathMap
   }
 }

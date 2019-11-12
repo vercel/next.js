@@ -1,4 +1,4 @@
-export default function Bar () {
+export default function Bar() {
   return (
     <div>
       <span>Bar!</span>

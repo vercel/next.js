@@ -10,7 +10,7 @@ import {
   killApp,
   nextBuild,
   startApp,
-  stopApp
+  stopApp,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -26,7 +26,7 @@ describe('withRouter', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

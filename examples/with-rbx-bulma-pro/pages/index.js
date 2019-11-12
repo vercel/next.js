@@ -8,9 +8,9 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href='https://github.com/zeit/next.js#getting-started'>
+            <Link href="https://github.com/zeit/next.js#getting-started">
               <a>
-                <Title as='h3'>Getting Started &rarr;</Title>
+                <Title as="h3">Getting Started &rarr;</Title>
                 <p>Learn more about Next on Github and in their examples</p>
               </a>
             </Link>
@@ -20,9 +20,9 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href='https://github.com/zeit/next.js/tree/master/examples'>
+            <Link href="https://github.com/zeit/next.js/tree/master/examples">
               <a>
-                <Title as='h3'>Examples &rarr;</Title>
+                <Title as="h3">Examples &rarr;</Title>
                 <p>
                   Find other example boilerplates on the{' '}
                   <code>create-next-app</code> site
@@ -35,9 +35,9 @@ const Home = () => (
       <Card>
         <Card.Content>
           <Content>
-            <Link href='https://github.com/zeit/next.js/tree/canary/packages/create-next-app'>
+            <Link href="https://github.com/zeit/next.js/tree/canary/packages/create-next-app">
               <a>
-                <Title as='h3'>Create Next App &rarr;</Title>
+                <Title as="h3">Create Next App &rarr;</Title>
                 <p>Was this tool helpful? Let us know how we can improve it</p>
               </a>
             </Link>

@@ -16,14 +16,14 @@ const ActiveLink = ({ children, activeClassName, ...props }) => {
   return (
     <Link {...props}>
       {React.cloneElement(child, {
-        className: className || null
+        className: className || null,
       })}
     </Link>
   )
 }
 
 ActiveLink.propTypes = {
-  activeClassName: PropTypes.string.isRequired
+  activeClassName: PropTypes.string.isRequired,
 }
 
 export default ActiveLink

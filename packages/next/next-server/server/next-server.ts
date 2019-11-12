@@ -2,8 +2,9 @@ import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
+import pathToRegexp from 'path-to-regexp'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
@@ -11,8 +12,10 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  DEFAULT_REDIRECT_STATUS,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
+  ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
 } from '../lib/constants'
@@ -26,6 +29,7 @@ import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
+import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
@@ -36,7 +40,18 @@ import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage, isInternalUrl } from './utils'
 
+const getCustomRouteMatcher = pathMatch(true)
+
 type NextConfig = any
+
+type Rewrite = {
+  source: string
+  destination: string
+}
+
+type Redirect = Rewrite & {
+  statusCode?: number
+}
 
 type Middleware = (
   req: IncomingMessage,
@@ -87,6 +102,10 @@ export default class Server {
   private onErrorMiddleware?: ({ err }: { err: Error }) => void
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  protected customRoutes?: {
+    rewrites: Rewrite[]
+    redirects: Redirect[]
+  }
 
   public constructor({
     dir = '.',
@@ -151,8 +170,7 @@ export default class Server {
       })
     }
 
-    const routes = this.generateRoutes()
-    this.router = new Router(routes)
+    this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
     // call init-server middleware, this is also handled
@@ -239,10 +257,17 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
+  protected getCustomRoutes() {
+    return require(join(this.distDir, ROUTES_MANIFEST))
+  }
+
   protected generateRoutes(): Route[] {
+    this.customRoutes = this.getCustomRoutes()
+
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
+
     const staticFilesRoute = fs.existsSync(join(this.dir, 'static'))
       ? [
           {
@@ -338,6 +363,68 @@ export default class Server {
         },
       },
     ]
+
+    if (this.customRoutes) {
+      const { redirects, rewrites } = this.customRoutes
+
+      const getCustomRoute = (
+        r: { source: string; destination: string; statusCode?: number },
+        type: 'redirect' | 'rewrite'
+      ) => ({
+        ...r,
+        type,
+        matcher: getCustomRouteMatcher(r.source),
+      })
+
+      const customRoutes = [
+        ...redirects.map(r => getCustomRoute(r, 'redirect')),
+        ...rewrites.map(r => getCustomRoute(r, 'rewrite')),
+      ]
+
+      routes.push(
+        ...customRoutes.map((r, idx) => {
+          return {
+            match: r.matcher,
+            fn: async (req, res, params, parsedUrl) => {
+              let destinationCompiler = pathToRegexp.compile(r.destination)
+              let newUrl = destinationCompiler(params) // /blog/123
+              let newParams = params // { id: 123 }
+              let statusCode = r.statusCode
+              const followingRoutes = customRoutes.slice(idx + 1)
+
+              for (const followingRoute of followingRoutes) {
+                if (
+                  r.type === 'redirect' &&
+                  followingRoute.type !== 'redirect'
+                ) {
+                  continue
+                }
+
+                // TODO: add an error if they try to rewrite to a dynamic page
+                const curParams = followingRoute.matcher(newUrl)
+
+                if (curParams) {
+                  destinationCompiler = pathToRegexp.compile(
+                    followingRoute.destination
+                  )
+                  newUrl = destinationCompiler(newParams)
+                  statusCode = followingRoute.statusCode
+                  newParams = { ...newParams, ...curParams }
+                }
+              }
+
+              if (r.type === 'redirect') {
+                res.setHeader('Location', newUrl)
+                res.statusCode = statusCode || DEFAULT_REDIRECT_STATUS
+                res.end()
+                return
+              }
+              return this.render(req, res, newUrl, newParams, parsedUrl)
+            },
+          } as Route
+        })
+      )
+    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -605,6 +692,14 @@ export default class Server {
     if (!isSpr) {
       // handle serverless
       if (isLikeServerless) {
+        const curUrl = parseUrl(req.url!, true)
+        req.url = formatUrl({
+          ...curUrl,
+          query: {
+            ...curUrl.query,
+            ...query,
+          },
+        })
         return result.Component.renderReqToHTML(req, res)
       }
 
@@ -900,9 +995,7 @@ export default class Server {
     } catch (err) {
       if (!fs.existsSync(buildIdFile)) {
         throw new Error(
-          `Could not find a valid build in the '${
-            this.distDir
-          }' directory! Try building your app with 'next build' before starting the server.`
+          `Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`
         )
       }
 

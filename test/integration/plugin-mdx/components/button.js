@@ -6,7 +6,7 @@ export default ({ children }) => (
       color: 'black',
       padding: '0.5em 1em',
       cursor: 'pointer',
-      fontSize: '1.1em'
+      fontSize: '1.1em',
     }}
   >
     {children}

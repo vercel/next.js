@@ -4,23 +4,22 @@ import fs from 'fs'
 
 let inspector
 try {
-  // eslint-disable-next-line node/no-unsupported-features/node-builtins
   inspector = require('inspector')
 } catch (e) {
   console.log('Unable to CPU profile in < node 8.0')
 }
 
 class Profiler {
-  constructor (inspector) {
+  constructor(inspector) {
     this.session = undefined
     this.inspector = inspector
   }
 
-  hasSession () {
+  hasSession() {
     return this.session !== undefined
   }
 
-  startProfiling () {
+  startProfiling() {
     if (this.inspector === undefined) {
       return Promise.resolve()
     }
@@ -35,14 +34,14 @@ class Profiler {
 
     return Promise.all([
       this.sendCommand('Profiler.setSamplingInterval', {
-        interval: 100
+        interval: 100,
       }),
       this.sendCommand('Profiler.enable'),
-      this.sendCommand('Profiler.start')
+      this.sendCommand('Profiler.start'),
     ])
   }
 
-  sendCommand (method, params) {
+  sendCommand(method, params) {
     if (this.hasSession()) {
       return new Promise((resolve, reject) => {
         return this.session.post(method, params, (err, params) => {
@@ -58,7 +57,7 @@ class Profiler {
     }
   }
 
-  destroy () {
+  destroy() {
     if (this.hasSession()) {
       this.session.disconnect()
     }
@@ -66,7 +65,7 @@ class Profiler {
     return Promise.resolve()
   }
 
-  stopProfiling () {
+  stopProfiling() {
     return this.sendCommand('Profiler.stop')
   }
 }
@@ -88,7 +87,7 @@ const { Tracer } = require('chrome-trace-event')
  */
 export const createTrace = outputPath => {
   const trace = new Tracer({
-    noStream: true
+    noStream: true,
   })
   const profiler = new Profiler(inspector)
   if (/\/|\\/.test(outputPath)) {
@@ -114,11 +113,11 @@ export const createTrace = outputPath => {
           {
             frame: '0xfff',
             url: 'webpack',
-            name: ''
-          }
-        ]
-      }
-    }
+            name: '',
+          },
+        ],
+      },
+    },
   })
 
   trace.instantEvent({
@@ -127,9 +126,9 @@ export const createTrace = outputPath => {
     cat: ['disabled-by-default-devtools.timeline'],
     args: {
       data: {
-        sessionId: '-1'
-      }
-    }
+        sessionId: '-1',
+      },
+    },
   })
 
   return {
@@ -143,6 +142,6 @@ export const createTrace = outputPath => {
       })
       // Tear down the readable trace stream.
       trace.push(null)
-    }
+    },
   }
 }

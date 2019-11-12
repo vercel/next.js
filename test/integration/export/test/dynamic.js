@@ -2,7 +2,7 @@
 import { join } from 'path'
 import { File, runNextCommand } from 'next-test-utils'
 
-export default function (context) {
+export default function(context) {
   describe('Dynamic routes export', () => {
     const nextConfig = new File(join(context.appDir, 'next.config.js'))
     beforeEach(() => {

@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   check,
-  File
+  File,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -72,7 +72,7 @@ describe('Custom Server', () => {
       for (let lc = 0; lc < 1000; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
           await renderViaHTTP(appPort, '/asset'),
-          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
+          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'),
         ])
 
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
