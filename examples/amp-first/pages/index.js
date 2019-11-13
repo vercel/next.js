@@ -181,7 +181,8 @@ const Home = props => (
               const btn = document.querySelector('button');
               btn.addEventListener('click', () => {
                 document.body.textContent = 'Hello World!'
-              })">
+              })"
+          >
             <button>Hello amp-script!</button>
           </AmpScript>
         </section>
