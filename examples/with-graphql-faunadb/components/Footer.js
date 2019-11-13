@@ -5,14 +5,15 @@ import {
   footerColumnFirst,
   footerColumnFirstURL,
   footerColumnList,
-  footerColumnListURL
+  footerColumnListURL,
 } from '../styles/footer.js'
 
 export default props => (
   <footer className={footer.className}>
     <div className={footerContent.className}>
       <div
-        className={`${footerColumn.className} ${footerColumnFirst.className}`}>
+        className={`${footerColumn.className} ${footerColumnFirst.className}`}
+      >
         <a href="https://fauna.com" target="_blank">
           <img src="/static/fauna-logo-white.png" height="35px" width="auto" />
         </a>
@@ -25,7 +26,8 @@ export default props => (
           <br />
           <a
             href="mailto:info@fauna.com"
-            className={footerColumnFirstURL.className}>
+            className={footerColumnFirstURL.className}
+          >
             info@fauna.com
           </a>
         </p>
@@ -37,7 +39,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/faunadb">
+              href="https://fauna.com/faunadb"
+            >
               FaunaDB
             </a>
           </li>
@@ -45,7 +48,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/pricing">
+              href="https://fauna.com/pricing"
+            >
               Pricing
             </a>
           </li>
@@ -53,7 +57,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/resources">
+              href="https://fauna.com/resources"
+            >
               Resources
             </a>
           </li>
@@ -61,7 +66,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/blog">
+              href="https://fauna.com/blog"
+            >
               Blog
             </a>
           </li>
@@ -74,7 +80,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/team">
+              href="https://fauna.com/team"
+            >
               Company
             </a>
           </li>
@@ -82,7 +89,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/press">
+              href="https://fauna.com/press"
+            >
               Press
             </a>
           </li>
@@ -90,7 +98,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://fauna.com/careers">
+              href="https://fauna.com/careers"
+            >
               Careers
             </a>
           </li>
@@ -98,7 +107,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="http://www2.fauna.com/contact-us">
+              href="http://www2.fauna.com/contact-us"
+            >
               Contact
             </a>
           </li>
@@ -111,7 +121,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://community-invite.fauna.com/">
+              href="https://community-invite.fauna.com/"
+            >
               Community Slack
             </a>
           </li>
@@ -119,7 +130,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://support.fauna.com/">
+              href="https://support.fauna.com/"
+            >
               Support
             </a>
           </li>
@@ -127,7 +139,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://dashboard.fauna.com/">
+              href="https://dashboard.fauna.com/"
+            >
               Login
             </a>
           </li>
@@ -135,7 +148,8 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
-              href="https://dashboard.fauna.com/accounts/register">
+              href="https://dashboard.fauna.com/accounts/register"
+            >
               Signup
             </a>
           </li>

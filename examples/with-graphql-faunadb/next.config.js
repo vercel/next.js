@@ -9,6 +9,6 @@ module.exports = {
     |--------------------------------------------------
     */
     faunaDbSecret: 'fnADcnWRUcACE_6uDSw05MspruDdWKk88ZSmsm2a',
-    faunaDbGraphQlEndpoint: 'https://graphql.fauna.com/graphql'
-  }
+    faunaDbGraphQlEndpoint: 'https://graphql.fauna.com/graphql',
+  },
 }

@@ -42,7 +42,7 @@ const Guestbook = props => {
 Guestbook.getInitialProps = async function() {
   const initialEntries = await getGuestbookEntries()
   return {
-    initialEntries: initialEntries.data.entries.data.reverse()
+    initialEntries: initialEntries.data.entries.data.reverse(),
   }
 }
 

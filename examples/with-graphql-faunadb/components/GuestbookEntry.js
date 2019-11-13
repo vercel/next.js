@@ -9,7 +9,7 @@ import {
   guestbookEntryShare,
   guestbookEntryShareTwitterButton,
   guestbookEntryShareTwitterButtonLogo1,
-  guestbookEntryShareTwitterButtonLogo2
+  guestbookEntryShareTwitterButtonLogo2,
 } from '../styles/guestbookentry'
 
 export default props => (
@@ -19,7 +19,8 @@ export default props => (
         <div className={guestbookEntryUserDetailAvatar.className}>
           <a
             target="_blank"
-            href={`https://twitter.com/${props.twitter_handle}/`}>
+            href={`https://twitter.com/${props.twitter_handle}/`}
+          >
             <img
               className={guestbookEntryUserDetailAvatarImg.className}
               src={`https://avatars.io/twitter/${props.twitter_handle}/`}
@@ -29,7 +30,8 @@ export default props => (
         <a
           className={guestbookEntryUserDetailBiolink.className}
           target="_blank"
-          href={`https://twitter.com/${props.twitter_handle}/`}>
+          href={`https://twitter.com/${props.twitter_handle}/`}
+        >
           {props.twitter_handle}
         </a>
         <span className={guestbookEntryUserDetailTimestamp.className}>
@@ -47,7 +49,8 @@ export default props => (
         )}&hashtags=graphql,nextjs
                     `}
         target="_blank"
-        className={guestbookEntryShareTwitterButton.className}>
+        className={guestbookEntryShareTwitterButton.className}
+      >
         <img
           src="/static/twitter_icon_black.png"
           className={guestbookEntryShareTwitterButtonLogo1.className}

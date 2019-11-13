@@ -10,7 +10,7 @@ import {
   heroFormTextArea,
   heroFormTwitterInput,
   heroFormSubmitButton,
-  heroEntries
+  heroEntries,
 } from '../styles/hero'
 
 export default props => {
@@ -66,7 +66,8 @@ export default props => {
         <form className={heroForm.className} onSubmit={handleSubmit}>
           <fieldset
             className={heroFormFieldset.className}
-            disabled={submitting && 'disabled'}>
+            disabled={submitting && 'disabled'}
+          >
             <textarea
               className={heroFormTextArea.className}
               rows="5"
