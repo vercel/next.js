@@ -38,7 +38,7 @@ import Router, { Params, route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
-import { isBlockedPage, isInternalUrl } from './utils'
+import { isBlockedPage } from './utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -83,6 +83,7 @@ export default class Server {
   distDir: string
   pagesDir?: string
   publicDir: string
+  hasStaticDir: boolean
   pagesManifest: string
   buildId: string
   renderOpts: {
@@ -120,6 +121,7 @@ export default class Server {
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
     this.pagesManifest = join(
       this.distDir,
       this.nextConfig.target === 'server'
@@ -268,7 +270,7 @@ export default class Server {
       ? this.generatePublicRoutes()
       : []
 
-    const staticFilesRoute = fs.existsSync(join(this.dir, 'static'))
+    const staticFilesRoute = this.hasStaticDir
       ? [
           {
             // It's very important to keep this route's param optional.
@@ -595,7 +597,11 @@ export default class Server {
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     const url: any = req.url
-    if (isInternalUrl(url)) {
+
+    if (
+      url.match(/^\/_next\//) ||
+      (this.hasStaticDir && url.match(/^\/static\//))
+    ) {
       return this.handleRequest(req, res, parsedUrl)
     }
 
