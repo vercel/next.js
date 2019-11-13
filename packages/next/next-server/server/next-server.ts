@@ -595,11 +595,7 @@ export default class Server {
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
     const url: any = req.url
-    if (isInternalUrl(url)) {
-      return this.handleRequest(req, res, parsedUrl)
-    }
-
-    if (isBlockedPage(pathname)) {
+    if (isInternalUrl(url) || isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
 
