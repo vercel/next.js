@@ -63,7 +63,7 @@ describe('Serverless', () => {
     expect(legacy).toMatch(`new static folder`)
   })
 
-  fit('should not infinity loop on a 404 static file', async () => {
+  it('should not infinity loop on a 404 static file', async () => {
     expect.assertions(2)
 
     // ensure top-level static does not exist (important for test)
