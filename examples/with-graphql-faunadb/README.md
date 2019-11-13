@@ -4,7 +4,7 @@ This simple Guestbook SPA example shows you how to use [FaunaDB's GraphQL endpoi
 
 ## Why FaunaDB
 
-By importing a `.gql` or `.graphql` schema into FaunaDB ([see our sample schema file](#TODO)), FaunaDB will generate required Indexes and GraphQL resolvers for you -- hands free 👐 ([some limitations exist](https://docs.fauna.com/fauna/current/api/graphql/#limitations)).
+By importing a `.gql` or `.graphql` schema into FaunaDB ([see our sample schema file](./schema.gql)), FaunaDB will generate required Indexes and GraphQL resolvers for you -- hands free 👐 ([some limitations exist](https://docs.fauna.com/fauna/current/api/graphql/#limitations)).
 
 ## How to use
 
