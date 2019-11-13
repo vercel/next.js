@@ -8,22 +8,23 @@ By importing a `.gql` or `.graphql` schema into FaunaDB ([see our sample schema 
 
 ## How to use
 
-You can start with this template [using `create-next-app`](#use-create-next-app) or by [downloading the repository manually](#download-manually).
+You can start with this template [using `create-next-app`](#using-create-next-app) or by [downloading the repository manually](#download-manually).
 
 To use a live FaunaDB database, create one and import this example's `schema.gql` file using the FaunaDB console. Create a client secret, then paste it into `next.config.js`.
 
-### Use `create-next-app`
+### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) to bootstrap the example:
 
 ```
-npm install -g create-next-app
-create-next-app --example with-graphql-faunadb
+npx create-next-app --example with-graphql-faunadb with-graphql-faunadb
+# or
+yarn create next-app --example with-graphql-faunadb with-graphql-faunadb
 ```
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-faunadb
@@ -32,11 +33,14 @@ cd with-graphql-faunadb
 
 ### Run locally
 
-Install, then run the development server:
+Install packages, then run the development server:
 
 ```bash
 npm install
-now dev
+npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Make sure to leave us a guestbook message in our [live demo](https://with-graphql-faunadb.now.sh/)! 😉
