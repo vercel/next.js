@@ -68,7 +68,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch': path.join(
+    'whatwg-fetch$': path.join(
       __dirname,
       'polyfills',
       'fetch',
@@ -528,7 +528,7 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isServer
         ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
-      minimize: false, //!(dev || isServer),
+      minimize: !(dev || isServer),
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({

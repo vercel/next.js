@@ -1,10 +1,10 @@
 /* globals self */
-const fetch = {
-  Headers: self.Headers.bind(self),
-  Request: self.Request.bind(self),
-  Response: self.Response.bind(self),
+const stub = {
+  Headers: self.Headers,
+  Request: self.Request,
+  Response: self.Response,
   fetch: self.fetch.bind(self),
 }
 
-module.exports = fetch
-module.exports.default = fetch
+module.exports = stub
+module.exports.default = stub
