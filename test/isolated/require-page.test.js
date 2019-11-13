@@ -23,7 +23,7 @@ describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
     let err
     try {
-      pageNotFoundError('test')
+      throw pageNotFoundError('test')
     } catch (error) {
       err = error
     }
