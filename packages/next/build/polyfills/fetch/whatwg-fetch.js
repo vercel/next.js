@@ -1,10 +1,5 @@
 /* globals self */
-const stub = {
-  Headers: self.Headers,
-  Request: self.Request,
-  Response: self.Response,
-  fetch: self.fetch.bind(self),
-}
-
-module.exports = stub
-module.exports.default = stub
+exports.Headers = self.Headers
+exports.Request = self.Request
+exports.Response = self.Response
+exports.fetch = self.fetch
