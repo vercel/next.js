@@ -8,9 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
+    "node-fetch": "2.6.0",
     "react": "^16.10.2",
-    "react-dom": "^16.10.2"
+    "react-dom": "^16.10.2",
+    "unfetch": "4.1.0"
   }
 }

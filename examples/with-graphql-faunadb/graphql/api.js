@@ -1,5 +1,5 @@
-import fetch from 'isomorphic-unfetch'
 import getConfig from 'next/config'
+import fetch from '../fetch'
 
 /**
 |--------------------------------------------------
@@ -29,12 +29,12 @@ export const getGuestbookEntries = () => {
       headers: {
         Authorization: `Bearer ${process.env.faunaDbSecret}`,
         'Content-type': 'application/json',
-        Accept: 'application/json'
+        Accept: 'application/json',
       },
       body: JSON.stringify({
         query,
-        variables: { size }
-      })
+        variables: { size },
+      }),
     })
       .then(r => r.json())
       .then(data => {
@@ -81,12 +81,12 @@ export const createGuestbookEntry = async (twitterHandle, story) => {
       headers: {
         Authorization: `Bearer ${process.env.faunaDbSecret}`,
         'Content-type': 'application/json',
-        Accept: 'application/json'
+        Accept: 'application/json',
       },
       body: JSON.stringify({
         query,
-        variables: { twitterHandle, story }
-      })
+        variables: { twitterHandle, story },
+      }),
     })
       .then(r => r.json())
       .then(data => {
