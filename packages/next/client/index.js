@@ -301,7 +301,9 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry) {
-    performance.getEntriesByType('paint').forEach(onPerfEntry)
+    window.addEventListener('load', () => {
+      performance.getEntriesByType('paint').forEach(onPerfEntry)
+    })
   }
 }
 
