@@ -6,9 +6,9 @@ This simple Guestbook SPA example shows you how to use [FaunaDB's GraphQL endpoi
 
 By importing a `.gql` or `.graphql` schema into FaunaDB ([see our sample schema file](#TODO)), FaunaDB will generate required Indexes and GraphQL resolvers for you -- hands free 👐 ([some limitations exist](https://docs.fauna.com/fauna/current/api/graphql/#limitations)).
 
-## How To Use This Template
+## How to use
 
-You can start with this template [using `create-next-app`](#use-create-next-app) or by [downloading the repository manually](#download-this-template-manually).
+You can start with this template [using `create-next-app`](#use-create-next-app) or by [downloading the repository manually](#download-manually).
 
 To use a live FaunaDB database, create one and import this example's `schema.gql` file using the FaunaDB console. Create a client secret, then paste it into `next.config.js`.
 
@@ -21,7 +21,7 @@ npm install -g create-next-app
 create-next-app --example with-graphql-faunadb
 ```
 
-### Download This Template Manually
+### Download manually
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
@@ -30,7 +30,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-graphql-faunadb
 ```
 
-### Run Locally
+### Run locally
 
 Install, then run the development server:
 
