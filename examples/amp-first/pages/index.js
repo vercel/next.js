@@ -177,12 +177,11 @@ const Home = props => (
             id="hello-world"
             layout="fixed-height"
             height="64"
-            script={() => {
-              const btn = document.querySelector('button')
+            script="
+              const btn = document.querySelector('button');
               btn.addEventListener('click', () => {
                 document.body.textContent = 'Hello World!'
-              })
-            }}
+              })"
           >
             <button>Hello amp-script!</button>
           </AmpScript>
