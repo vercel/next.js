@@ -14,7 +14,6 @@ export const auth = ctx => {
   // If there's no token, it means the user is not logged in.
   if (!token) {
     if (typeof window === 'undefined') {
-      // If `ctx.req` is available it means we are on the server.
       ctx.res.writeHead(302, { Location: '/login' })
       ctx.res.end()
     } else {
