@@ -3,10 +3,6 @@ class UrlNode {
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
 
-  hasSlug() {
-    return this.slugName != null
-  }
-
   insert(urlPath: string): void {
     this._insert(urlPath.split('/').filter(Boolean))
   }
@@ -17,7 +13,7 @@ class UrlNode {
 
   private _smoosh(prefix: string = '/'): string[] {
     const childrenPaths = [...this.children.keys()].sort()
-    if (this.hasSlug()) {
+    if (this.slugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
     }
 
@@ -25,7 +21,7 @@ class UrlNode {
       .map(c => this.children.get(c)!._smoosh(`${prefix}${c}/`))
       .reduce((prev, curr) => [...prev, ...curr], [])
 
-    if (this.hasSlug()) {
+    if (this.slugName !== null) {
       routes.push(
         ...this.children.get('[]')!._smoosh(`${prefix}[${this.slugName}]/`)
       )
@@ -52,25 +48,31 @@ class UrlNode {
       // Strip `[` and `]`, leaving only `something`
       const slugName = nextSegment.slice(1, -1)
 
-      // If the specific segment already has a slug but the slug is not `something`
-      // This prevents collisions like:
-      // pages/[post]/index.js
-      // pages/[id]/index.js
-      // Because currently multiple dynamic params on the same segment level are not supported
-      if (this.hasSlug() && slugName !== this.slugName) {
-        // TODO: This error seems to be confusing for users, needs an err.sh link, the description can be based on above comment.
-        throw new Error(
-          'You cannot use different slug names for the same dynamic path.'
-        )
+      function handleSlug(previousSlug: string | null, nextSlug: string) {
+        if (previousSlug !== null) {
+          // If the specific segment already has a slug but the slug is not `something`
+          // This prevents collisions like:
+          // pages/[post]/index.js
+          // pages/[id]/index.js
+          // Because currently multiple dynamic params on the same segment level are not supported
+          if (previousSlug !== nextSlug) {
+            // TODO: This error seems to be confusing for users, needs an err.sh link, the description can be based on above comment.
+            throw new Error(
+              'You cannot use different slug names for the same dynamic path.'
+            )
+          }
+        }
+
+        if (slugNames.indexOf(nextSlug) !== -1) {
+          throw new Error(
+            `You cannot have the same slug name "${nextSlug}" repeat within a single dynamic path`
+          )
+        }
+
+        slugNames.push(nextSlug)
       }
 
-      if (slugNames.indexOf(slugName) !== -1) {
-        throw new Error(
-          `You cannot have the same slug name "${slugName}" repeat within a single dynamic path`
-        )
-      }
-
-      slugNames.push(slugName)
+      handleSlug(this.slugName, slugName)
       // slugName is kept as it can only be one particular slugName
       this.slugName = slugName
       // nextSegment is overwritten to [] so that it can later be sorted specifically
