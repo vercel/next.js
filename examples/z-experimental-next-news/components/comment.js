@@ -2,19 +2,19 @@ import timeAgo from '../lib/time-ago'
 import React from 'react'
 
 export default class Comment extends React.Component {
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {}
     this.toggle = this.toggle.bind(this)
   }
 
-  render () {
+  render() {
     const { user, text, date, comments } = this.props
     return (
-      <div className='comment'>
-        <div className='meta'>
+      <div className="comment">
+        <div className="meta">
           {user} {timeAgo(new Date(date))} ago{' '}
-          <span onClick={this.toggle} className='toggle'>
+          <span onClick={this.toggle} className="toggle">
             {this.state.toggled
               ? `[+${(this.props.commentsCount || 0) + 1}]`
               : '[-]'}
@@ -24,17 +24,17 @@ export default class Comment extends React.Component {
         {this.state.toggled
           ? null
           : [
-            <div
-              key='text'
-              className='text'
-              dangerouslySetInnerHTML={{ __html: text }}
-            />,
-            <div key='children' className='children'>
-              {comments.map(comment => (
-                <Comment key={comment.id} {...comment} />
-              ))}
-            </div>
-          ]}
+              <div
+                key="text"
+                className="text"
+                dangerouslySetInnerHTML={{ __html: text }}
+              />,
+              <div key="children" className="children">
+                {comments.map(comment => (
+                  <Comment key={comment.id} {...comment} />
+                ))}
+              </div>,
+            ]}
 
         <style jsx>{`
           .comment {
@@ -78,7 +78,7 @@ export default class Comment extends React.Component {
     )
   }
 
-  toggle () {
+  toggle() {
     this.setState({ toggled: !this.state.toggled })
   }
 }

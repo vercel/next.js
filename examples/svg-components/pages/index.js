@@ -2,7 +2,7 @@ import React from 'react'
 import Cat from '../svgs/cat.svg'
 
 export default () => (
-  <div className='container'>
+  <div className="container">
     <marquee>SVG Cat!</marquee>
     <Cat />
     <style jsx>{`

@@ -4,7 +4,7 @@ import { Provider } from 'unstated'
 import { counterStore } from '../containers/CounterContainer'
 
 class MyApp extends App {
-  static async getInitialProps () {
+  static async getInitialProps() {
     // do your server state here
     if (typeof window === 'undefined') {
       // reset state for each request
@@ -16,7 +16,7 @@ class MyApp extends App {
       return {}
     }
   }
-  constructor (props) {
+  constructor(props) {
     super(props)
     // pass the state to client store
     // serverState will be reset when client navigate with Link
@@ -24,7 +24,7 @@ class MyApp extends App {
       counterStore.initState(props.serverState.count)
     }
   }
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
       <Provider inject={[counterStore]}>

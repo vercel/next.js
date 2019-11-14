@@ -16,13 +16,13 @@ export default class extends Component {
     gtag.event({
       action: 'submit_form',
       category: 'Contact',
-      label: this.state.message
+      label: this.state.message,
     })
 
     this.setState({ message: '' })
   }
 
-  render () {
+  render() {
     return (
       <Page>
         <h1>This is the Contact page</h1>
@@ -31,7 +31,7 @@ export default class extends Component {
             <span>Message:</span>
             <textarea onChange={this.handleInput} value={this.state.message} />
           </label>
-          <button type='submit'>submit</button>
+          <button type="submit">submit</button>
         </form>
       </Page>
     )

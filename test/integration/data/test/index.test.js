@@ -7,7 +7,7 @@ import {
   findPort,
   launchApp,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -25,8 +25,8 @@ describe.skip('AMP Bind Initial Data', () => {
   it('responds with json with accept header on page', async () => {
     const data = await fetchViaHTTP(appPort, '/', null, {
       headers: {
-        accept: 'application/amp.bind+json'
-      }
+        accept: 'application/amp.bind+json',
+      },
     }).then(res => res.ok && res.text())
 
     let isJSON = false

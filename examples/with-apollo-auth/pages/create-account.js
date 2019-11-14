@@ -11,7 +11,7 @@ const CreateAccountPage = () => (
     <RegisterBox />
     <hr />
     Already have an account?{' '}
-    <Link href='/signin'>
+    <Link href="/signin">
       <a>Sign in</a>
     </Link>
   </>

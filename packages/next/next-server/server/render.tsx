@@ -136,7 +136,6 @@ type RenderOpts = {
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
-  skeleton?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
@@ -175,7 +174,6 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     autoExport,
-    skeleton,
     dynamicImportsIds,
     dangerousAsPath,
     hasCssMode,
@@ -229,7 +227,6 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
-            skeleton, // If this is a skeleton page for experimentalPrerender
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -440,9 +437,7 @@ export async function renderToHTML(
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${
-              data.revalidate
-            }', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
                 data.revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
@@ -612,7 +607,7 @@ export async function renderToHTML(
     const manifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.map(item => {
+      manifestItem.forEach(item => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })

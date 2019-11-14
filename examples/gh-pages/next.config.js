@@ -5,11 +5,11 @@
 const debug = process.env.NODE_ENV !== 'production'
 
 module.exports = {
-  exportPathMap: function () {
+  exportPathMap: function() {
     return {
       '/': { page: '/' },
-      '/about': { page: '/about' }
+      '/about': { page: '/about' },
     }
   },
-  assetPrefix: !debug ? '/Next-gh-page-example/' : ''
+  assetPrefix: !debug ? '/Next-gh-page-example/' : '',
 }

@@ -10,7 +10,7 @@ import NextSeo from 'next-seo'
 import SEO from '../next-seo.config'
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
     if (Component.getInitialProps) {
       pageProps = await Component.getInitialProps(ctx)
@@ -19,7 +19,7 @@ export default class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
       /* Here we call NextSeo and pass our default configuration to it  */

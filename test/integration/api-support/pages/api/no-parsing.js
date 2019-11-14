@@ -1,7 +1,7 @@
 export const config = {
   api: {
-    bodyParser: false
-  }
+    bodyParser: false,
+  },
 }
 
 export default (req, res) => {

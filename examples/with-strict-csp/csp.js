@@ -1,7 +1,7 @@
 const helmet = require('helmet')
 const uuidv4 = require('uuid/v4')
 
-module.exports = function csp (app) {
+module.exports = function csp(app) {
   // Create a nonce on every request and make it available to other middleware
   app.use((req, res, next) => {
     res.locals.nonce = Buffer.from(uuidv4()).toString('base64')
@@ -23,9 +23,9 @@ module.exports = function csp (app) {
         directives: {
           baseUri: ["'none'"],
           objectSrc: ["'none'"],
-          scriptSrc
-        }
-      }
+          scriptSrc,
+        },
+      },
     })
   )
 }

@@ -5,7 +5,7 @@ const map = {
   ms: 'milliseconds',
   m: 'minutes',
   h: 'hours',
-  d: 'days'
+  d: 'days',
 }
 
 export default date =>

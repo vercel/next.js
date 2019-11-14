@@ -10,9 +10,10 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 import qs from 'querystring'
+import path from 'path'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
@@ -60,6 +61,17 @@ describe('Serverless', () => {
 
     const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
     expect(legacy).toMatch(`new static folder`)
+  })
+
+  it('should not infinity loop on a 404 static file', async () => {
+    expect.assertions(2)
+
+    // ensure top-level static does not exist (important for test)
+    // we expect /public/static, though.
+    expect(existsSync(path.join(appDir, 'static'))).toBe(false)
+
+    const res = await fetchViaHTTP(appPort, '/static/404')
+    expect(res.status).toBe(404)
   })
 
   it('should render the page with dynamic import', async () => {
@@ -111,9 +123,33 @@ describe('Serverless', () => {
     const browser = await webdriver(appPort, '/')
     try {
       const text = await browser
-        .elementByCss('a')
+        .elementByCss('#fetchlink')
         .click()
         .waitForElementByCss('.fetch-page')
+        .elementByCss('#text')
+        .text()
+
+      expect(text).toMatch(/fetch page/)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should render correctly when importing isomorphic-unfetch CJS', async () => {
+    const url = `http://localhost:${appPort}/fetch-cjs`
+    const res = await fetch(url)
+    expect(res.status).toBe(200)
+    const text = await res.text()
+    expect(text.includes('failed')).toBe(false)
+  })
+
+  it('should render correctly when importing isomorphic-unfetch CJS on the client side', async () => {
+    const browser = await webdriver(appPort, '/')
+    try {
+      const text = await browser
+        .elementByCss('#fetchcjslink')
+        .click()
+        .waitForElementByCss('.fetch-cjs-page')
         .elementByCss('#text')
         .text()
 
@@ -207,7 +243,7 @@ describe('Serverless', () => {
   it('should have the correct query string for a spr route', async () => {
     const paramRaw = 'test % 123'
     const html = await fetchViaHTTP(appPort, `/dr/[slug]`, '', {
-      headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) }
+      headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) },
     }).then(res => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())

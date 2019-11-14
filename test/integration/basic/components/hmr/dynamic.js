@@ -1,6 +1,6 @@
 export default () => {
   return (
-    <div id='dynamic-component'>
+    <div id="dynamic-component">
       Dynamic Component
       <style jsx>{`
         div {

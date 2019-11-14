@@ -9,10 +9,10 @@ describe('getSortedRoutes', () => {
     expect(getSortedRoutes(['/posts/[id]/foo'])).toEqual(['/posts/[id]/foo'])
 
     expect(getSortedRoutes(['/posts/[id]/[foo]/bar'])).toEqual([
-      '/posts/[id]/[foo]/bar'
+      '/posts/[id]/[foo]/bar',
     ])
     expect(getSortedRoutes(['/posts/[id]/baz/[foo]/bar'])).toEqual([
-      '/posts/[id]/baz/[foo]/bar'
+      '/posts/[id]/baz/[foo]/bar',
     ])
   })
 
@@ -24,9 +24,12 @@ describe('getSortedRoutes', () => {
         '/',
         '/posts/[id]',
         '/blog/[id]/comments/[cid]',
+        '/blog/abc/[id]',
+        '/blog/abc/post',
+        '/blog/abc',
         '/blog/[id]',
         '/foo/[d]/bar/baz/[f]',
-        '/apples/[ab]/[cd]/ef'
+        '/apples/[ab]/[cd]/ef',
       ])
     ).toMatchSnapshot()
   })
@@ -38,7 +41,7 @@ describe('getSortedRoutes', () => {
         '/blog',
         '/blog/[id]',
         '/blog/[id]/comments/[cid]',
-        '/blog/[cid]'
+        '/blog/[cid]',
       ])
     ).toThrowError(/different slug names/)
   })

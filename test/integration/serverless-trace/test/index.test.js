@@ -9,7 +9,7 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 

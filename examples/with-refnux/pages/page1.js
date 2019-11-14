@@ -13,13 +13,13 @@ const Page1 = connect((state, dispatch) => (
     <h3>{state.title}</h3>
     <p>Current state: {JSON.stringify(state, null, 2)}</p>
     <button onClick={() => dispatch(counterIncrement)}>Increment</button>
-    <Link href='/page2'>
+    <Link href="/page2">
       <button>go to page 2</button>
     </Link>
   </div>
 ))
 
-Page1.getInitialProps = async function (context) {
+Page1.getInitialProps = async function(context) {
   const { store } = context
   // dispatch actions to store to set it up for this page / route
   store.dispatch(setTitle('Page 1'))

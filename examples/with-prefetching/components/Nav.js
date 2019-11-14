@@ -1,24 +1,24 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export default function Nav () {
+export default function Nav() {
   const router = useRouter()
   return (
-    <div className='root'>
+    <div className="root">
       <h2>Default</h2>
       <p>
         Automatically prefetch pages in the background as soon the Link appears
         in the view:
       </p>
-      <Link href='/'>
+      <Link href="/">
         <a>Home</a>
       </Link>{' '}
-      <Link href='/features'>
+      <Link href="/features">
         <a>Features</a>
       </Link>
       <h2>Imperative</h2>
       <p>Prefetch on onMouseEnter or on other events:</p>
-      <Link prefetch={false} href='/about'>
+      <Link prefetch={false} href="/about">
         <a
           onMouseEnter={() => {
             router.prefetch('/about')
@@ -30,7 +30,7 @@ export default function Nav () {
       </Link>
       <h2>Disable</h2>
       <p>Disable prefetching</p>
-      <Link prefetch={false} href='/contact'>
+      <Link prefetch={false} href="/contact">
         <a>Contact</a>
       </Link>
       <style jsx>{`

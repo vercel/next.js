@@ -15,7 +15,7 @@ import {
   stopApp,
   nextExport,
   startStaticServer,
-  initNextServerScript
+  initNextServerScript,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -49,58 +49,58 @@ const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
     initialRevalidateSeconds: 1,
-    srcRoute: null
+    srcRoute: null,
   },
   '/blog/[post3]': {
     dataRoute: `/_next/data/${buildId}/blog/[post3].json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/blog/post-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/blog/post-2': {
     dataRoute: `/_next/data/${buildId}/blog/post-2.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/blog/post-1/comment-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1/comment-1.json`,
     initialRevalidateSeconds: 2,
-    srcRoute: '/blog/[post]/[comment]'
+    srcRoute: '/blog/[post]/[comment]',
   },
   '/blog/post-2/comment-2': {
     dataRoute: `/_next/data/${buildId}/blog/post-2/comment-2.json`,
     initialRevalidateSeconds: 2,
-    srcRoute: '/blog/[post]/[comment]'
+    srcRoute: '/blog/[post]/[comment]',
   },
   '/blog/post.1': {
     dataRoute: `/_next/data/${buildId}/blog/post.1.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
-    srcRoute: null
+    srcRoute: null,
   },
   '/blog': {
     dataRoute: `/_next/data/${buildId}/blog.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: null
+    srcRoute: null,
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
     initialRevalidateSeconds: 1,
-    srcRoute: null
+    srcRoute: null,
   },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
     initialRevalidateSeconds: false,
-    srcRoute: null
-  }
+    srcRoute: null,
+  },
 })
 
 const navigateTest = () => {
@@ -293,18 +293,18 @@ const runTests = (dev = false) => {
         '/blog/[post]': {
           dataRoute: `/_next/data/${buildId}/blog/[post].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/blog\\/([^\\/]+?)(?:\\/)?$'
+          routeRegex: '^\\/blog\\/([^\\/]+?)(?:\\/)?$',
         },
         '/blog/[post]/[comment]': {
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+          routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
         },
         '/user/[user]/profile': {
           dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
           dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
-          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
-        }
+          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`,
+        },
       })
     })
 
@@ -313,7 +313,7 @@ const runTests = (dev = false) => {
         '/another',
         '/something',
         '/blog/post-1',
-        '/blog/post-2/comment-2'
+        '/blog/post-2/comment-2',
       ]
 
       for (const route of routes) {
@@ -407,7 +407,7 @@ describe('SPR Prerender', () => {
       app = await launchApp(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
-        }
+        },
       })
       buildId = 'development'
     })
@@ -429,7 +429,7 @@ describe('SPR Prerender', () => {
       app = nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
-        }
+        },
       })
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
@@ -440,7 +440,7 @@ describe('SPR Prerender', () => {
       const port = await findPort()
       const server = await startServer({
         BUILD_ID: buildId,
-        PORT: port
+        PORT: port,
       })
       const data = await renderViaHTTP(
         port,
@@ -462,7 +462,7 @@ describe('SPR Prerender', () => {
       app = await nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
-        }
+        },
       })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
@@ -495,7 +495,7 @@ describe('SPR Prerender', () => {
         '/another',
         '/something',
         '/blog/post-1',
-        '/blog/post-2/comment-2'
+        '/blog/post-2/comment-2',
       ]
 
       for (const route of routes) {

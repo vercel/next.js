@@ -11,7 +11,7 @@ const GreenPage = () => {
       <br />
       <br />
       Go back to the{' '}
-      <Link href='/'>
+      <Link href="/">
         <a style={{ color: 'blue' }}>Blue Page</a>
       </Link>
     </p>

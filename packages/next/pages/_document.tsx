@@ -1,29 +1,29 @@
-/* eslint-disable */
-import PropTypes from 'prop-types'
-import React, { Component } from 'react'
-import { cleanAmpPath } from '../next-server/server/utils'
-import {
-  DocumentContext,
-  DocumentInitialProps,
-  DocumentProps,
-} from '../next-server/lib/utils'
-import { htmlEscapeJsonString } from '../server/htmlescape'
-import flush from 'styled-jsx/server'
-import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-} from '../next-server/lib/constants'
-import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
-// @ts-ignore
-import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags-server!'
 // @ts-ignore
 import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags-server!'
+// @ts-ignore
+import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags-server!'
 // @ts-ignore
 import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props-server!'
 // @ts-ignore
 import enhanceAppMiddleware from 'next-plugin-loader?middleware=unstable-enhance-app-server!'
 // @ts-ignore
 import getStylesMiddleware from 'next-plugin-loader?middleware=unstable-get-styles-server!'
+import PropTypes from 'prop-types'
+import React, { Component } from 'react'
+import flush from 'styled-jsx/server'
+
+import {
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+} from '../next-server/lib/constants'
+import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
+import {
+  DocumentContext,
+  DocumentInitialProps,
+  DocumentProps,
+} from '../next-server/lib/utils'
+import { cleanAmpPath } from '../next-server/server/utils'
+import { htmlEscapeJsonString } from '../server/htmlescape'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -51,6 +51,10 @@ function getOptionalModernScriptVariant(path: string) {
     return path.replace(/\.js$/, '.module.js')
   }
   return path
+}
+
+function isLowPriority(file: string) {
+  return file.includes('_buildManifest')
 }
 
 /**
@@ -169,7 +173,7 @@ export class Head extends Component<
     cssFiles.forEach(file => {
       cssLinkElements.push(
         <link
-          key="${file}-preload"
+          key={`${file}-preload`}
           nonce={this.props.nonce}
           rel="preload"
           href={`${assetPrefix}/_next/${encodeURI(file)}`}
@@ -232,11 +236,11 @@ export class Head extends Component<
             // the feature is enabled. This clause will filter down to the
             // modern variants only.
             //
-            // Also filter out _buildManifest because it should not be
+            // Also filter out low priority files because they should not be
             // preloaded for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !file.includes('_buildManifest')
+              !isLowPriority(file)
             )
           })
         : []
@@ -329,11 +333,7 @@ export class Head extends Component<
 
         if (badProp) {
           console.warn(
-            `Found conflicting amp tag "${
-              child.type
-            }" with conflicting prop ${badProp} in ${
-              __NEXT_DATA__.page
-            }. https://err.sh/next.js/conflicting-amp-tag`
+            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`
           )
           return null
         }
@@ -364,7 +364,7 @@ export class Head extends Component<
         el.props.dangerouslySetInnerHTML &&
         el.props.dangerouslySetInnerHTML.__html
       // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props.children.map((child: React.ReactElement) => {
+      styles.props.children.forEach((child: React.ReactElement) => {
         if (Array.isArray(child)) {
           child.map(el => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
@@ -567,19 +567,20 @@ export class NextScript extends Component<OriginProps> {
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file: string) => {
-      // Only render .js files here
-      if (!/\.js$/.test(file)) {
-        return null
-      }
+    const normalScripts = files.filter(
+      file => file.endsWith('.js') && !isLowPriority(file)
+    )
+    const lowPriorityScripts = files.filter(
+      file => file.endsWith('.js') && isLowPriority(file)
+    )
 
+    return [...normalScripts, ...lowPriorityScripts].map(file => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = /\.module\.js$/.test(file)
+        modernProps = file.endsWith('.module.js')
           ? { type: 'module' }
           : { noModule: true }
       }
-
       return (
         <script
           key={file}
@@ -623,9 +624,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${
-            __NEXT_DATA__.page
-          }". https://err.sh/zeit/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/zeit/next.js/circular-structure`
         )
       }
       throw err
