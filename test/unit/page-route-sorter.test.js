@@ -24,6 +24,8 @@ describe('getSortedRoutes', () => {
         '/',
         '/posts/[id]',
         '/blog/[id]/comments/[cid]',
+        '/blog/abc/[id]',
+        '/blog/abc',
         '/blog/[id]',
         '/foo/[d]/bar/baz/[f]',
         '/apples/[ab]/[cd]/ef',
