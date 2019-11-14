@@ -5,6 +5,7 @@ Array [
   "/",
   "/apples/[ab]/[cd]/ef",
   "/blog/abc",
+  "/blog/abc/post",
   "/blog/abc/[id]",
   "/blog/[id]",
   "/blog/[id]/comments/[cid]",
