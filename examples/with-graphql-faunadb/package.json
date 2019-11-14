@@ -1,0 +1,17 @@
+{
+  "name": "with-graphql-faunadb",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "node-fetch": "2.6.0",
+    "react": "^16.10.2",
+    "react-dom": "^16.10.2",
+    "unfetch": "4.1.0"
+  }
+}
