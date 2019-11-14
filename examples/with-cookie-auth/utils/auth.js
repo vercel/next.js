@@ -17,7 +17,6 @@ export const auth = ctx => {
       ctx.res.writeHead(302, { Location: '/login' })
       ctx.res.end()
     } else {
-      // This should only happen on client.
       Router.push('/login')
     }
   }
