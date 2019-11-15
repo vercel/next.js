@@ -14,7 +14,7 @@ export async function recursiveCopy(
   source: string,
   dest: string,
   {
-    concurrency = 255,
+    concurrency = 5,
     filter = () => true,
   }: { concurrency?: number; filter?(path: string): boolean } = {}
 ) {
