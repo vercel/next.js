@@ -15,7 +15,7 @@ import {
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let app
 let appPort
@@ -148,7 +148,7 @@ function runTests(dev) {
     expect(res.status).toBe(404)
   })
 
-  it('[catch all] should pass param in getIni tialProps during SSR', async () => {
+  it('[catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1')
     const $ = cheerio.load(html)
     expect($('#all-ssr-content').text()).toBe('{"rest":"test1"}')
