@@ -46,7 +46,7 @@ class UrlNode {
     // Check if the segment matches `[something]`
     if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
       // Strip `[` and `]`, leaving only `something`
-      const slugName = nextSegment.slice(1, -1)
+      const segmentName = nextSegment.slice(1, -1)
 
       function handleSlug(previousSlug: string | null, nextSlug: string) {
         if (previousSlug !== null) {
@@ -58,7 +58,7 @@ class UrlNode {
           if (previousSlug !== nextSlug) {
             // TODO: This error seems to be confusing for users, needs an err.sh link, the description can be based on above comment.
             throw new Error(
-              'You cannot use different slug names for the same dynamic path.'
+              `You cannot use different slug names for the same dynamic path ('${previousSlug}' !== '${nextSlug}').`
             )
           }
         }
@@ -72,9 +72,9 @@ class UrlNode {
         slugNames.push(nextSlug)
       }
 
-      handleSlug(this.slugName, slugName)
+      handleSlug(this.slugName, segmentName)
       // slugName is kept as it can only be one particular slugName
-      this.slugName = slugName
+      this.slugName = segmentName
       // nextSegment is overwritten to [] so that it can later be sorted specifically
       nextSegment = '[]'
     }
