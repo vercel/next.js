@@ -375,7 +375,7 @@ describe('Dynamic Routing', () => {
           module.exports = {
             experimental: {
               modern: true,
-              publicDirectory: true
+              catchAllRouting: true
             }
           }
         `
@@ -401,7 +401,7 @@ describe('Dynamic Routing', () => {
           target: 'serverless',
           experimental: {
             modern: true,
-            publicDirectory: true
+            catchAllRouting: true
           }
         }
       `
