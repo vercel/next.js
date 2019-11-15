@@ -160,6 +160,12 @@ function runTests(dev) {
     expect($('#all-ssr-content').text()).toBe('{"rest":["test1","test2"]}')
   })
 
+  it('[catch all] should strip trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/test2/')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
   it('[catch all] should not decode slashes (start)', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/%2Ftest2')
     const $ = cheerio.load(html)
@@ -322,6 +328,10 @@ function runTests(dev) {
           {
             page: '/on-mount/[post]',
             regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
+          },
+          {
+            page: '/p1/p2/all-ssr/[...rest]',
+            regex: '^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$',
           },
           {
             page: '/[name]',
