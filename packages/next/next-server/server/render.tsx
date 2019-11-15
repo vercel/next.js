@@ -285,7 +285,10 @@ export async function renderToHTML(
     let results: any = props ? {} : []
 
     if ((Document as any)[`${method}Middleware`]) {
-      const curResults = await (Document as any)[`${method}Middleware`](...args)
+      let middlewareFunc = await (Document as any)[`${method}Middleware`]
+      middlewareFunc = middlewareFunc.default || middlewareFunc
+
+      const curResults = await middlewareFunc(...args)
       if (props) {
         for (const result of curResults) {
           results = {
