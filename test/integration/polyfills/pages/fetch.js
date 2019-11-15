@@ -16,14 +16,13 @@ const testFetchImports = async () => {
   const unfetchReq = require('unfetch')
   const isomorphicUnfetchReq = require('isomorphic-unfetch')
 
-  let areImportsMatching = [
-    whatwgFetchImp.fetch,
-    whatwgFetchReq.fetch,
-    unfetchImp,
-    unfetchReq,
-    isomorphicUnfetchImp,
-    isomorphicUnfetchReq,
-  ].every(lib => lib.name === 'bound fetch')
+  let areImportsMatching =
+    [whatwgFetchImp.fetch, whatwgFetchReq.fetch].every(
+      lib => lib.name === 'fetch'
+    ) &&
+    [unfetchImp, unfetchReq, isomorphicUnfetchImp, isomorphicUnfetchReq].every(
+      lib => lib.name === 'bound fetch'
+    )
 
   return areImportsMatching &&
     testWhatwgFetchMethods(whatwgFetchReq) &&
@@ -33,7 +32,7 @@ const testFetchImports = async () => {
 }
 
 const Page = () => {
-  const [testStatus, setTestStatus] = useState('fail')
+  const [testStatus, setTestStatus] = useState('computing')
 
   useEffect(() => {
     testFetchImports().then(status => {
@@ -42,7 +41,7 @@ const Page = () => {
     })
   }, [])
 
-  return <div id="test-status">{`${testStatus}`}</div>
+  return <div id="test-status">{testStatus}</div>
 }
 
 export default Page

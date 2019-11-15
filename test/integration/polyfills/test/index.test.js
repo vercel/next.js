@@ -8,7 +8,6 @@ import {
   nextStart,
   killApp,
 } from 'next-test-utils'
-import { readdir, readFile, unlink, access } from 'fs-extra'
 import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
