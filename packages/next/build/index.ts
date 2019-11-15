@@ -1,12 +1,14 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
+import pathToRegexp from 'path-to-regexp'
 import { promisify } from 'util'
-import findUp from 'find-up'
+
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -15,18 +17,18 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
+  ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  ROUTES_MANIFEST,
-  DEFAULT_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
-  isDynamicRoute,
   getSortedRoutes,
+  isDynamicRoute,
 } from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
@@ -52,7 +54,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import pathToRegexp from 'path-to-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -482,6 +483,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await writeBuildId(distDir, buildId)
 
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
+  if (config.experimental.catchAllRouting !== true) {
+    if (dynamicRoutes.some(page => /\/\[\.{3}[^/]+?\](?=\/|$)/.test(page))) {
+      throw new Error(
+        'Catch-all routing is still experimental. You cannot use it yet.'
+      )
+    }
+  }
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
