@@ -56,4 +56,34 @@ describe('getSortedRoutes', () => {
       getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
     ).toThrowError(/the same slug name/)
   })
+
+  it('catches reused param names', () => {
+    expect(() =>
+      getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])
+    ).toThrowError(/the same slug name/)
+  })
+
+  it('catches middle catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[...id]/[...id2]'])).toThrowError(
+      /must be the last part/
+    )
+  })
+
+  it('catches middle catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[...id]/abc'])).toThrowError(
+      /must be the last part/
+    )
+  })
+
+  it('catches extra dots in catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[....id]/abc'])).toThrowError(
+      /erroneous period/
+    )
+  })
+
+  it('catches missing dots in catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[..id]/abc'])).toThrowError(
+      /erroneous period/
+    )
+  })
 })
