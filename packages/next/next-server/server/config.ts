@@ -49,7 +49,6 @@ const defaultConfig: { [key: string]: any } = {
     modern: false,
     plugins: false,
     profiling: false,
-    publicDirectory: false,
     sprFlushToDisk: true,
     deferScripts: false,
     reactMode: 'legacy',
