@@ -19,6 +19,7 @@ export default props => (
         <div className={guestbookEntryUserDetailAvatar.className}>
           <a
             target="_blank"
+            rel="noopener noreferrer"
             href={`https://twitter.com/${props.twitter_handle}/`}
           >
             <img
@@ -30,6 +31,7 @@ export default props => (
         <a
           className={guestbookEntryUserDetailBiolink.className}
           target="_blank"
+          rel="noopener noreferrer"
           href={`https://twitter.com/${props.twitter_handle}/`}
         >
           {props.twitter_handle}
@@ -49,6 +51,7 @@ export default props => (
         )}&hashtags=graphql,nextjs
                     `}
         target="_blank"
+        rel="noopener noreferrer"
         className={guestbookEntryShareTwitterButton.className}
       >
         <img
