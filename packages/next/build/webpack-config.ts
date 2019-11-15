@@ -59,7 +59,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     return {}
   }
 
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
@@ -68,7 +68,12 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': stubWindowFetch,
+    'whatwg-fetch$': path.join(
+      __dirname,
+      'polyfills',
+      'fetch',
+      'whatwg-fetch.js'
+    ),
 
     // Polyfill: Object.assign
     __next_polyfill__object_assign: require.resolve('object-assign'),
