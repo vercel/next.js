@@ -5,6 +5,7 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
@@ -12,8 +13,9 @@ import {
   nextBuild,
   nextStart,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let app
 let appPort
@@ -141,6 +143,89 @@ function runTests(dev) {
     }
   })
 
+  it('[catch all] should not match root on SSR', async () => {
+    const res = await fetchViaHTTP(appPort, '/p1/p2/all-ssr')
+    expect(res.status).toBe(404)
+  })
+
+  it('[catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":"test1"}')
+  })
+
+  it('[catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[catch all] should strip trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/test2/')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[catch all] should not decode slashes (start)', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/%2Ftest2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","/test2"]}')
+  })
+
+  it('[catch all] should not decode slashes (end)', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1%2F/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1/","test2"]}')
+  })
+
+  it('[catch all] should not decode slashes (middle)', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/te%2Fst2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","te/st2"]}')
+  })
+
+  it('[catch-all] should pass params in getInitialProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-single').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":"hello"}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[catch-all] should pass params in getInitialProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-multi').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[catch-all] should pass params in getInitialProps during client navigation (encoded)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-enc').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":["hello1/","he/llo2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should update dynamic values on mount', async () => {
     const html = await renderViaHTTP(appPort, '/on-mount/post-1')
     expect(html).toMatch(/onmpost:.*pending/)
@@ -245,6 +330,10 @@ function runTests(dev) {
             regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
           },
           {
+            page: '/p1/p2/all-ssr/[...rest]',
+            regex: '^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$',
+          },
+          {
             page: '/[name]',
             regex: '^\\/([^\\/]+?)(?:\\/)?$',
           },
@@ -286,7 +375,7 @@ describe('Dynamic Routing', () => {
           module.exports = {
             experimental: {
               modern: true,
-              publicDirectory: true
+              catchAllRouting: true
             }
           }
         `
@@ -312,7 +401,7 @@ describe('Dynamic Routing', () => {
           target: 'serverless',
           experimental: {
             modern: true,
-            publicDirectory: true
+            catchAllRouting: true
           }
         }
       `
