@@ -2,9 +2,10 @@ class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
   slugName: string | null = null
+  restSlugName: string | null = null
 
   insert(urlPath: string): void {
-    this._insert(urlPath.split('/').filter(Boolean))
+    this._insert(urlPath.split('/').filter(Boolean), [], false)
   }
 
   smoosh(): string[] {
@@ -15,6 +16,9 @@ class UrlNode {
     const childrenPaths = [...this.children.keys()].sort()
     if (this.slugName !== null) {
       childrenPaths.splice(childrenPaths.indexOf('[]'), 1)
+    }
+    if (this.restSlugName !== null) {
+      childrenPaths.splice(childrenPaths.indexOf('[...]'), 1)
     }
 
     const routes = childrenPaths
@@ -31,13 +35,29 @@ class UrlNode {
       routes.unshift(prefix === '/' ? '/' : prefix.slice(0, -1))
     }
 
+    if (this.restSlugName !== null) {
+      routes.push(
+        ...this.children
+          .get('[...]')!
+          ._smoosh(`${prefix}[...${this.restSlugName}]/`)
+      )
+    }
+
     return routes
   }
 
-  private _insert(urlPaths: string[], slugNames: string[] = []): void {
+  private _insert(
+    urlPaths: string[],
+    slugNames: string[],
+    isCatchAll: boolean
+  ): void {
     if (urlPaths.length === 0) {
       this.placeholder = false
       return
+    }
+
+    if (isCatchAll) {
+      throw new Error(`Catch-all must be the last part of the URL.`)
     }
 
     // The next segment in the urlPaths list
@@ -46,7 +66,17 @@ class UrlNode {
     // Check if the segment matches `[something]`
     if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
       // Strip `[` and `]`, leaving only `something`
-      const segmentName = nextSegment.slice(1, -1)
+      let segmentName = nextSegment.slice(1, -1)
+      if (segmentName.startsWith('...')) {
+        segmentName = segmentName.substring(3)
+        isCatchAll = true
+      }
+
+      if (segmentName.startsWith('.')) {
+        throw new Error(
+          `Segment names may not start with erroneous periods ('${segmentName}').`
+        )
+      }
 
       function handleSlug(previousSlug: string | null, nextSlug: string) {
         if (previousSlug !== null) {
@@ -72,11 +102,19 @@ class UrlNode {
         slugNames.push(nextSlug)
       }
 
-      handleSlug(this.slugName, segmentName)
-      // slugName is kept as it can only be one particular slugName
-      this.slugName = segmentName
-      // nextSegment is overwritten to [] so that it can later be sorted specifically
-      nextSegment = '[]'
+      if (isCatchAll) {
+        handleSlug(this.restSlugName, segmentName)
+        // slugName is kept as it can only be one particular slugName
+        this.restSlugName = segmentName
+        // nextSegment is overwritten to [] so that it can later be sorted specifically
+        nextSegment = '[...]'
+      } else {
+        handleSlug(this.slugName, segmentName)
+        // slugName is kept as it can only be one particular slugName
+        this.slugName = segmentName
+        // nextSegment is overwritten to [] so that it can later be sorted specifically
+        nextSegment = '[]'
+      }
     }
 
     // If this UrlNode doesn't have the nextSegment yet we create a new child UrlNode
@@ -84,7 +122,9 @@ class UrlNode {
       this.children.set(nextSegment, new UrlNode())
     }
 
-    this.children.get(nextSegment)!._insert(urlPaths.slice(1), slugNames)
+    this.children
+      .get(nextSegment)!
+      ._insert(urlPaths.slice(1), slugNames, isCatchAll)
   }
 }
 
