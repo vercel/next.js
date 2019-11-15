@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import { getGuestbookEntries } from '../graphql/api'
 import Footer from '../components/Footer'
 import Hero from '../components/Hero'
 
@@ -22,7 +21,7 @@ const Guestbook = props => {
         }
       `}</style>
       <div>
-        <Hero initialEntries={props.initialEntries} />
+        <Hero />
         <Footer />
       </div>
       <style jsx>{`
@@ -37,13 +36,6 @@ const Guestbook = props => {
       `}</style>
     </>
   )
-}
-
-Guestbook.getInitialProps = async function() {
-  const initialEntries = await getGuestbookEntries()
-  return {
-    initialEntries: initialEntries.data.entries.data.reverse(),
-  }
 }
 
 export default Guestbook
