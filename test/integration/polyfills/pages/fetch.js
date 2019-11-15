@@ -4,9 +4,9 @@ import isomorphicUnfetchImp from 'isomorphic-unfetch'
 
 const testWhatwgFetchMethods = whatWgFetch => {
   return (
-    whatWgFetch.Headers.name === 'bound Headers' &&
-    whatWgFetch.Request.name === 'bound Request' &&
-    whatWgFetch.Response.name === 'bound Response'
+    whatWgFetch.Headers.name === 'Headers' &&
+    whatWgFetch.Request.name === 'Request' &&
+    whatWgFetch.Response.name === 'Response'
   )
 }
 
