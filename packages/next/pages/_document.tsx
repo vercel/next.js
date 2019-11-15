@@ -53,16 +53,22 @@ function isLowPriority(file: string) {
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
   static headTagsMiddleware = process.env.__NEXT_PLUGINS
-    ? // @ts-ignore loader syntax
-      import('next-plugin-loader?middleware=document-head-tags-server!')
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-head-tags-server!'
+      )
     : () => []
   static bodyTagsMiddleware = process.env.__NEXT_PLUGINS
-    ? // @ts-ignore loader syntax
-      import('next-plugin-loader?middleware=document-body-tags-server!')
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-body-tags-server!'
+      )
     : () => []
   static htmlPropsMiddleware = process.env.__NEXT_PLUGINS
-    ? // @ts-ignore loader syntax
-      import('next-plugin-loader?middleware=document-html-props-server!')
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-html-props-server!'
+      )
     : () => []
 
   /**
@@ -73,8 +79,8 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
     const enhancers = process.env.__NEXT_PLUGINS
-      ? // @ts-ignore loader syntax
-        await import(
+      ? await import(
+          // @ts-ignore loader syntax
           'next-plugin-loader?middleware=unstable-enhance-app-server!'
         ).then(mod => mod.default(ctx))
       : []
@@ -90,8 +96,8 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     const styles = [
       ...flush(),
       ...(process.env.__NEXT_PLUGINS
-        ? // @ts-ignore loader syntax
-          await import(
+        ? await import(
+            // @ts-ignore loader syntax
             'next-plugin-loader?middleware=unstable-get-styles-server!'
           ).then(mod => mod.default(ctx))
         : []),
