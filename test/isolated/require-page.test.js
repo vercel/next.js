@@ -21,8 +21,9 @@ const pathToBundles = join(
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
+    expect.assertions(1)
     try {
-      pageNotFoundError('test')
+      throw pageNotFoundError('test')
     } catch (err) {
       expect(err.code).toBe('ENOENT')
     }
@@ -84,6 +85,7 @@ describe('requirePage', () => {
   })
 
   it('Should throw when using /../../test.js', async () => {
+    expect.assertions(1)
     try {
       await requirePage('/../../test', distDir)
     } catch (err) {
@@ -92,6 +94,7 @@ describe('requirePage', () => {
   })
 
   it('Should throw when using non existent pages like /non-existent.js', async () => {
+    expect.assertions(1)
     try {
       await requirePage('/non-existent', distDir)
     } catch (err) {
@@ -100,6 +103,7 @@ describe('requirePage', () => {
   })
 
   it('Should bubble up errors in the child component', async () => {
+    expect.assertions(1)
     try {
       await requirePage('/non-existent-child', distDir)
     } catch (err) {

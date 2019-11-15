@@ -123,7 +123,7 @@ export default class Router implements BaseRouter {
     // until after mount to prevent hydration mismatch
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.nextExport ? pathname : as
+      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp

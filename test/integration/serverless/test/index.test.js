@@ -13,6 +13,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import qs from 'querystring'
+import path from 'path'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
@@ -60,6 +61,17 @@ describe('Serverless', () => {
 
     const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
     expect(legacy).toMatch(`new static folder`)
+  })
+
+  it('should not infinity loop on a 404 static file', async () => {
+    expect.assertions(2)
+
+    // ensure top-level static does not exist (important for test)
+    // we expect /public/static, though.
+    expect(existsSync(path.join(appDir, 'static'))).toBe(false)
+
+    const res = await fetchViaHTTP(appPort, '/static/404')
+    expect(res.status).toBe(404)
   })
 
   it('should render the page with dynamic import', async () => {

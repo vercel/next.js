@@ -4,6 +4,9 @@ exports[`getSortedRoutes correctly sorts required slugs 1`] = `
 Array [
   "/",
   "/apples/[ab]/[cd]/ef",
+  "/blog/abc",
+  "/blog/abc/post",
+  "/blog/abc/[id]",
   "/blog/[id]",
   "/blog/[id]/comments/[cid]",
   "/foo/[d]/bar/baz/[f]",
