@@ -16,8 +16,5 @@ export default async (type = 'topstories', { page = 1, max = 30 } = {}) => {
           .once('value')
       )
   )
-  return stories
-    .map(obj => obj.val())
-    .filter(obj => !!obj)
-    .map(transform)
+  return stories.map(obj => transform(obj.val()))
 }
