@@ -2,13 +2,7 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import {
-  launchApp,
-  killApp,
-  findPort,
-  nextBuild,
-  waitFor,
-} from 'next-test-utils'
+import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
