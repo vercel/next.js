@@ -40,6 +40,16 @@ module.exports = {
     async redirects() {
       return [
         {
+          source: '/docs/github',
+          destination: '/docs/v2/advanced/now-for-github',
+          statusCode: 301,
+        },
+        {
+          source: '/docs/v2/advanced/:all(.*)',
+          destination: '/docs/v2/more/:all',
+          statusCode: 301,
+        },
+        {
           source: '/hello/:id/another',
           destination: '/blog/:id',
         },

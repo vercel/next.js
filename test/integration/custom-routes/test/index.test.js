@@ -81,6 +81,11 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/Hello/)
   })
 
+  it('should double redirect successfully', async () => {
+    const html = await renderViaHTTP(appPort, '/docs/github')
+    expect(html).toMatch(/hi there/)
+  })
+
   it('should overwrite param values correctly', async () => {
     const html = await renderViaHTTP(appPort, '/test-overwrite/first/second')
     expect(html).toMatch(/this-should-be-the-value/)
