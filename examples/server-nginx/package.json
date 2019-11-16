@@ -1,0 +1,15 @@
+{
+  "name": "next-demo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "9.1.3",
+    "react": "16.12.0",
+    "react-dom": "16.12.0"
+  }
+}

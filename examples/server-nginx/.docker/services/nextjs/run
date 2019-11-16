@@ -1,0 +1,7 @@
+#!/usr/bin/execlineb -P
+
+with-contenv
+s6-envdir env
+s6-setuidgid app
+cd /usr/local/app
+yarn start

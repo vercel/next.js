@@ -1,0 +1,5 @@
+#!/usr/bin/execlineb -P
+
+with-contenv
+s6-envdir env
+/usr/sbin/nginx -g "daemon off;"
