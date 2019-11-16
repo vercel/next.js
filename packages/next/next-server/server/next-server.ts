@@ -39,19 +39,11 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage } from './utils'
+import { Redirect, Rewrite } from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
-
-type Rewrite = {
-  source: string
-  destination: string
-}
-
-type Redirect = Rewrite & {
-  statusCode?: number
-}
 
 type Middleware = (
   req: IncomingMessage,

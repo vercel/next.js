@@ -54,6 +54,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import checkCustomRoutes from '../lib/check-custom-routes'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -101,9 +102,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (typeof config.experimental.redirects === 'function') {
     redirects.push(...(await config.experimental.redirects()))
+    checkCustomRoutes(redirects, 'redirect')
   }
   if (typeof config.experimental.rewrites === 'function') {
     rewrites.push(...(await config.experimental.rewrites()))
+    checkCustomRoutes(rewrites, 'rewrite')
   }
 
   if (ciEnvironment.isCI) {
