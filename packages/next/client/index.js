@@ -301,9 +301,16 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry) {
-    window.addEventListener('load', () => {
-      performance.getEntriesByType('paint').forEach(onPerfEntry)
-    })
+    if (!(PerformanceObserver in window)) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
+    } else {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(onPerfEntry)
+      })
+      observer.observe({ entryTypes: ['paint'] })
+    }
   }
 }
 
