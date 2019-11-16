@@ -3,12 +3,12 @@ import Link from 'next/link'
 
 const href = {
   pathname: '/about',
-  query: { name: 'next' }
+  query: { name: 'next' },
 }
 
 const as = {
   pathname: '/about/next',
-  hash: 'title-1'
+  hash: 'title-1',
 }
 
 export default () => (

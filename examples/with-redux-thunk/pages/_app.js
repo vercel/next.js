@@ -4,7 +4,7 @@ import withReduxStore from '../lib/with-redux-store'
 import { Provider } from 'react-redux'
 
 class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps, reduxStore } = this.props
     return (
       <Provider store={reduxStore}>

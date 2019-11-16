@@ -17,7 +17,7 @@ if (!window.EventSource) {
 }
 
 const {
-  __NEXT_DATA__: { assetPrefix }
+  __NEXT_DATA__: { assetPrefix },
 } = window
 
 const prefix = assetPrefix || ''
@@ -39,7 +39,7 @@ initNext({ webpackHMR })
     // This is the fallback helper that removes Next.js' no-FOUC styles when
     // CSS mode is enabled. This only really activates if you haven't created
     // _any_ styles in your application yet.
-    ;(window.requestAnimationFrame || setTimeout)(function () {
+    ;(window.requestAnimationFrame || setTimeout)(function() {
       for (
         var x = document.querySelectorAll('[data-next-hide-fouc]'),
           i = x.length;
@@ -58,7 +58,7 @@ initNext({ webpackHMR })
         const { pageXOffset, pageYOffset } = window
         lastScroll = {
           x: pageXOffset,
-          y: pageYOffset
+          y: pageYOffset,
         }
       }
     })

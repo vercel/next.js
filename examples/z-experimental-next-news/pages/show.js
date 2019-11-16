@@ -4,13 +4,13 @@ import Stories from '../components/stories'
 import getStories from '../lib/get-stories'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticProps () {
+export async function unstable_getStaticProps() {
   const page = 1
   const stories = await getStories('showstories', { page })
   return { props: { page, stories } }
 }
 
-function Show ({ page, stories }) {
+function Show({ page, stories }) {
   const offset = (page - 1) * 30
   return (
     <Page>

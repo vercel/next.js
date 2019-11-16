@@ -3,7 +3,7 @@ import App from 'next/app'
 import '../styles/global.css'
 
 class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return <Component {...pageProps} />
   }

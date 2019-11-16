@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   check,
-  File
+  File,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -45,6 +45,11 @@ describe('Custom Server', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
+    })
+
     it('should handle render with undefined query', async () => {
       expect(await renderViaHTTP(appPort, '/no-query')).toMatch(/"query":/)
     })
@@ -72,7 +77,7 @@ describe('Custom Server', () => {
       for (let lc = 0; lc < 1000; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
           await renderViaHTTP(appPort, '/asset'),
-          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
+          await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'),
         ])
 
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)

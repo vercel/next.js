@@ -19,7 +19,7 @@ class Counter extends Component {
     resetCount()
   }
 
-  render () {
+  render() {
     const { count } = this.props
     return (
       <div>
@@ -34,14 +34,11 @@ class Counter extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   const { count } = state
   return { count }
 }
 const mapDispatchToProps = dispatch =>
   bindActionCreators({ incrementCount, decrementCount, resetCount }, dispatch)
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Counter)
+export default connect(mapStateToProps, mapDispatchToProps)(Counter)

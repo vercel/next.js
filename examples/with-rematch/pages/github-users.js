@@ -7,7 +7,7 @@ import CounterDisplay from '../shared/components/counter-display'
 import Header from '../shared/components/header'
 
 class Github extends Component {
-  static async getInitialProps (ctx) {
+  static async getInitialProps(ctx) {
     const store = ctx.reduxStore
 
     // Pre-populate users only on the server-side
@@ -17,7 +17,7 @@ class Github extends Component {
     return {}
   }
 
-  render () {
+  render() {
     const { isLoading, fetchUsers, userList } = this.props
 
     return (
@@ -36,7 +36,7 @@ class Github extends Component {
           <div key={user.login}>
             <Link href={user.html_url} passHref>
               <a>
-                <img height='45' width='45' src={user.avatar_url} />
+                <img height="45" width="45" src={user.avatar_url} />
                 <span> Username - {user.login}</span>
               </a>
             </Link>
@@ -53,14 +53,11 @@ class Github extends Component {
 
 const mapState = state => ({
   userList: state.github.users,
-  isLoading: state.github.isLoading
+  isLoading: state.github.isLoading,
 })
 
 const mapDispatch = ({ github: { fetchUsers } }) => ({
-  fetchUsers: () => fetchUsers()
+  fetchUsers: () => fetchUsers(),
 })
 
-export default connect(
-  mapState,
-  mapDispatch
-)(Github)
+export default connect(mapState, mapDispatch)(Github)

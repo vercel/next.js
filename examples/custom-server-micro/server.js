@@ -10,7 +10,7 @@ const handle = app.getRequestHandler()
 const isA = req => match(req, '/a')
 const isB = req => match(req, '/b')
 
-async function main (req, res) {
+async function main(req, res) {
   const parsedUrl = parse(req.url, true)
   const { query } = parsedUrl
 
@@ -23,7 +23,7 @@ async function main (req, res) {
   return handle(req, res, parsedUrl)
 }
 
-async function setup (handler) {
+async function setup(handler) {
   await app.prepare()
   return handler
 }

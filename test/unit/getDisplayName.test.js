@@ -5,19 +5,19 @@ import { getDisplayName } from 'next/dist/next-server/lib/utils'
 describe('getDisplayName', () => {
   it('gets the proper display name of a component', () => {
     class ComponentOne extends Component {
-      render () {
+      render() {
         return null
       }
     }
 
     class ComponentTwo extends Component {
       static displayName = 'CustomDisplayName'
-      render () {
+      render() {
         return null
       }
     }
 
-    function FunctionalComponent () {
+    function FunctionalComponent() {
       return null
     }
 

@@ -16,7 +16,7 @@ import {
   getBrowserBodyText,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -33,7 +33,7 @@ describe('AMP Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -237,9 +237,9 @@ describe('AMP Usage', () => {
       let inspectPayload = ''
       dynamicAppPort = await findPort()
       ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
-        onStdout (msg) {
+        onStdout(msg) {
           inspectPayload += msg
-        }
+        },
       })
 
       await renderViaHTTP(dynamicAppPort, '/only-amp')

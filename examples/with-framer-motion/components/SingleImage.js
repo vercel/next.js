@@ -6,7 +6,7 @@ import { images } from '../constants'
 
 const transition = {
   duration: 1,
-  ease: [0.43, 0.13, 0.23, 0.96]
+  ease: [0.43, 0.13, 0.23, 0.96],
 }
 
 const imageVariants = {
@@ -14,27 +14,25 @@ const imageVariants = {
   enter: {
     y: '0%',
     opacity: 1,
-    transition
-  }
+    transition,
+  },
 }
 
 const backVariants = {
   exit: { x: 100, opacity: 0, transition },
-  enter: { x: 0, opacity: 1, transition: { delay: 1, ...transition } }
+  enter: { x: 0, opacity: 1, transition: { delay: 1, ...transition } },
 }
 
 const SingleImage = ({ id }) => (
   <>
-    <motion.div className='single' initial='exit' animate='enter' exit='exit'>
+    <motion.div className="single" initial="exit" animate="enter" exit="exit">
       <motion.img
         variants={imageVariants}
-        src={`https://static1.squarespace.com/static/5b475b2c50a54f54f9b4e1dc/t/${
-          images[id]
-        }.jpg?format=1500w`}
-        alt='The Barbican'
+        src={`https://static1.squarespace.com/static/5b475b2c50a54f54f9b4e1dc/t/${images[id]}.jpg?format=1500w`}
+        alt="The Barbican"
       />
-      <motion.div className='back' variants={backVariants}>
-        <Link href='/'>
+      <motion.div className="back" variants={backVariants}>
+        <Link href="/">
           <a>← Back</a>
         </Link>
       </motion.div>

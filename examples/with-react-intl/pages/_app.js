@@ -7,7 +7,7 @@ import { createIntl, createIntlCache, RawIntlProvider } from 'react-intl'
 const cache = createIntlCache()
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -22,13 +22,13 @@ export default class MyApp extends App {
     return { pageProps, locale, messages }
   }
 
-  render () {
+  render() {
     const { Component, pageProps, locale, messages } = this.props
 
     const intl = createIntl(
       {
         locale,
-        messages
+        messages,
       },
       cache
     )

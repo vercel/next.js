@@ -10,7 +10,7 @@ import {
   runNextCommand,
   nextServer,
   startApp,
-  stopApp
+  stopApp,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -20,7 +20,7 @@ let appPort
 let server
 const appDir = join(__dirname, '../')
 
-function runTests () {
+function runTests() {
   it('should cancel slow page loads on re-navigation', async () => {
     const browser = await webdriver(appPort, '/')
     await waitFor(5000)
@@ -54,7 +54,7 @@ describe('next/dynamic', () => {
       app = nextServer({
         dir: appDir,
         dev: false,
-        quiet: true
+        quiet: true,
       })
 
       server = await startApp(app)
