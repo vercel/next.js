@@ -66,7 +66,7 @@ const invalidRedirectAssertions = (stderr = '') => {
   )
 
   expect(stderr).toContain(
-    'redirect `source` and `destination` must be strings `statusCode` must be 301, 302, 303, 307, 308 and no other fields are allowed'
+    'redirect `source` and `destination` must be strings `statusCode` must be undefined or 301, 302, 303, 307, 308 and no other fields are allowed'
   )
 }
 
