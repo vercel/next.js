@@ -6,6 +6,7 @@ import cheerio from 'cheerio'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import {
   killApp,
+  waitFor,
   findPort,
   nextBuild,
   nextStart,
@@ -20,6 +21,7 @@ const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
 const buildIdFile = join(appDir, '.next/BUILD_ID')
+let stderr = ''
 let appPort
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -28,7 +30,11 @@ describe('Serverless', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, {
+      onStderr: msg => {
+        stderr += msg || ''
+      },
+    })
   })
   afterAll(() => killApp(app))
 
@@ -249,6 +255,12 @@ describe('Serverless', () => {
     const data = JSON.parse($('#__NEXT_DATA__').html())
 
     expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should log error in API route correctly', async () => {
+    await renderViaHTTP(appPort, '/api/top-level-error')
+    await waitFor(1000)
+    expect(stderr).toContain('top-level-oops')
   })
 
   describe('With basic usage', () => {
