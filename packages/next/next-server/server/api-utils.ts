@@ -15,7 +15,7 @@ export async function apiResolver(
   res: NextApiResponse,
   params: any,
   resolverModule: any,
-  onError: ({ err }: { err: any }) => Promise<void>
+  onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   try {
     let config: PageConfig = {}
@@ -57,7 +57,7 @@ export async function apiResolver(
       sendError(res, err.statusCode, err.message)
     } else {
       console.error(err)
-      await onError({ err })
+      if (onError) await onError({ err })
       sendError(res, 500, 'Internal Server Error')
     }
   }

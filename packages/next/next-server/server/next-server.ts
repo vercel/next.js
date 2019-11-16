@@ -100,7 +100,7 @@ export default class Server {
     dev?: boolean
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => void
+  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   router: Router
   protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
   protected customRoutes?: {
@@ -498,7 +498,8 @@ export default class Server {
       req,
       res,
       params,
-      resolverFunction ? require(resolverFunction) : undefined
+      resolverFunction ? require(resolverFunction) : undefined,
+      this.onErrorMiddleware
     )
   }
 
