@@ -409,7 +409,7 @@ export default class Server {
                   destinationCompiler = pathToRegexp.compile(
                     followingRoute.destination
                   )
-                  newUrl = destinationCompiler(newParams)
+                  newUrl = destinationCompiler(curParams)
                   statusCode = followingRoute.statusCode
                   newParams = { ...newParams, ...curParams }
                 }

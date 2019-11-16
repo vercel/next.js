@@ -129,6 +129,20 @@ const runTests = (isDev = false) => {
         version: 1,
         redirects: [
           {
+            source: '/docs/github',
+            destination: '/docs/v2/advanced/now-for-github',
+            statusCode: 301,
+            regex: '^\\/docs\\/github$',
+            regexKeys: [],
+          },
+          {
+            source: '/docs/v2/advanced/:all(.*)',
+            destination: '/docs/v2/more/:all',
+            statusCode: 301,
+            regex: '^\\/docs\\/v2\\/advanced\\/(.*)$',
+            regexKeys: ['all'],
+          },
+          {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
