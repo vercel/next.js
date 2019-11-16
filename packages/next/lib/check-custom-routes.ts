@@ -14,6 +14,7 @@ export default function checkCustomRoutes(
   type: 'redirect' | 'rewrite'
 ): void {
   let numInvalidRoutes = 0
+  let hadInvalidStatus = false
   const isRedirect = type === 'redirect'
   const allowedKeys = new Set([
     'source',
@@ -24,13 +25,19 @@ export default function checkCustomRoutes(
   for (const route of routes) {
     const keys = Object.keys(route)
     const invalidKeys = keys.filter(key => !allowedKeys.has(key))
+    const invalidParts = []
 
     // TODO: investigate allowing RegExp directly
-    if (typeof route.source !== 'string') {
-      invalidKeys.push('source')
+    if (!route.source) {
+      invalidParts.push('`source` is missing')
+    } else if (typeof route.source !== 'string') {
+      invalidParts.push('`source` is not a string')
     }
-    if (typeof route.destination !== 'string') {
-      invalidKeys.push('destination')
+
+    if (!route.destination) {
+      invalidParts.push('`destination` is missing')
+    } else if (typeof route.destination !== 'string') {
+      invalidParts.push('`destination` is not a string')
     }
 
     if (isRedirect) {
@@ -40,31 +47,38 @@ export default function checkCustomRoutes(
         redirRoute.statusCode &&
         !allowedStatusCodes.has(redirRoute.statusCode)
       ) {
-        invalidKeys.push('statusCode')
+        hadInvalidStatus = true
+        invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
       }
     }
 
-    if (invalidKeys.length > 0) {
+    const hasInvalidKeys = invalidKeys.length > 0
+    const hasInvalidParts = invalidParts.length > 0
+
+    if (hasInvalidKeys || hasInvalidParts) {
       console.error(
-        `Invalid keys found for route ${JSON.stringify(
-          route
-        )} found: ${invalidKeys.join(', ')}`
+        `${invalidParts.join(', ')}${
+          invalidKeys.length
+            ? (hasInvalidParts ? ',' : '') +
+              ` invalid field${invalidKeys.length === 1 ? '' : 's'}: ` +
+              invalidKeys.join(',')
+            : ''
+        } for route ${JSON.stringify(route)}`
       )
       numInvalidRoutes++
     }
   }
 
   if (numInvalidRoutes > 0) {
-    console.error(
-      `\n${type} \`source\` and \`destination\` must be strings ` +
-        (isRedirect
-          ? `\`statusCode\` must be undefined or ${[...allowedStatusCodes].join(
-              ', '
-            )} `
-          : ``) +
-        `and no other fields are allowed` +
-        `\n`
-    )
+    if (hadInvalidStatus) {
+      console.error(
+        `\nValid redirect statusCode values are ${[...allowedStatusCodes].join(
+          ', '
+        )}`
+      )
+    }
+    console.error()
+
     throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
   }
 }

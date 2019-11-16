@@ -50,24 +50,25 @@ const invalidRedirects = [
 
 const invalidRedirectAssertions = (stderr = '') => {
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":"/hello"} found: destination`
+    `\`destination\` is missing for route {"source":"/hello"}`
   )
 
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":123,"destination":"/another"} found: source`
+    `\`source\` is not a string for route {"source":123,"destination":"/another"}`
   )
 
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":"/hello","destination":"/another","statusCode":"301"} found: statusCode`
+    `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":"301"}`
   )
 
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":"/hello","destination":"/another","statusCode":404} found: statusCode`
+    `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
   )
 
   expect(stderr).toContain(
-    'redirect `source` and `destination` must be strings `statusCode` must be undefined or 301, 302, 303, 307, 308 and no other fields are allowed'
+    'Valid redirect statusCode values are 301, 302, 303, 307, 308'
   )
+  expect(stderr).toContain('Invalid redirects found')
 }
 
 const invalidRewrites = [
@@ -90,20 +91,21 @@ const invalidRewrites = [
 
 const invalidRewriteAssertions = (stderr = '') => {
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":"/hello"} found: destination`
+    `\`destination\` is missing for route {"source":"/hello"}`
   )
 
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":123,"destination":"/another"} found: source`
+    `\`source\` is not a string for route {"source":123,"destination":"/another"}`
   )
 
   expect(stderr).toContain(
-    `Invalid keys found for route {"source":"/hello","destination":"/another","headers":"not-allowed"} found: headers`
+    `invalid field: headers for route {"source":"/hello","destination":"/another","headers":"not-allowed"}`
   )
 
-  expect(stderr).toContain(
-    'rewrite `source` and `destination` must be strings and no other fields are allowed'
+  expect(stderr).not.toContain(
+    'Valid redirect statusCode values are 301, 302, 303, 307, 308'
   )
+  expect(stderr).toContain('Invalid rewrites found')
 }
 
 describe('Errors on invalid custom routes', () => {
