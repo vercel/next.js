@@ -4,6 +4,10 @@ module.exports = {
     async rewrites() {
       return [
         {
+          source: '/hello-world',
+          destination: '/static/hello.txt',
+        },
+        {
           source: '/',
           destination: '/another',
         },

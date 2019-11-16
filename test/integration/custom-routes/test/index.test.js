@@ -71,6 +71,11 @@ const runTests = (isDev = false) => {
     expect(pathname).toBe('/')
   })
 
+  it('should server static files through a rewrite', async () => {
+    const text = await renderViaHTTP(appPort, '/hello-world')
+    expect(text).toBe('hello world!')
+  })
+
   it('should rewrite with params successfully', async () => {
     const html = await renderViaHTTP(appPort, '/test/hello')
     expect(html).toMatch(/Hello/)
@@ -176,6 +181,12 @@ const runTests = (isDev = false) => {
           },
         ],
         rewrites: [
+          {
+            source: '/hello-world',
+            destination: '/static/hello.txt',
+            regex: '^\\/hello-world$',
+            regexKeys: [],
+          },
           {
             source: '/',
             destination: '/another',
