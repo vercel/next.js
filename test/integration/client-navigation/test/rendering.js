@@ -83,7 +83,7 @@ export default function(render, fetch) {
     })
 
     test('header helper dedupes tags with the same key as the default', async () => {
-      const html = await render('/head')
+      const html = await render('/head-duplicate-default-keys')
       expect(html).toContain('<meta charSet="iso-8859-5"/>')
       expect(html).not.toContain('<meta charSet="utf-8"/>')
       expect(html).toContain(

@@ -1,13 +1,3 @@
-// @ts-ignore
-import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags-server!'
-// @ts-ignore
-import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags-server!'
-// @ts-ignore
-import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props-server!'
-// @ts-ignore
-import enhanceAppMiddleware from 'next-plugin-loader?middleware=unstable-enhance-app-server!'
-// @ts-ignore
-import getStylesMiddleware from 'next-plugin-loader?middleware=unstable-get-styles-server!'
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import flush from 'styled-jsx/server'
@@ -62,9 +52,24 @@ function isLowPriority(file: string) {
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
-  static headTagsMiddleware = headTagsMiddleware
-  static bodyTagsMiddleware = bodyTagsMiddleware
-  static htmlPropsMiddleware = htmlPropsMiddleware
+  static headTagsMiddleware = process.env.__NEXT_PLUGINS
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-head-tags-server!'
+      )
+    : () => []
+  static bodyTagsMiddleware = process.env.__NEXT_PLUGINS
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-body-tags-server!'
+      )
+    : () => []
+  static htmlPropsMiddleware = process.env.__NEXT_PLUGINS
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-html-props-server!'
+      )
+    : () => []
 
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
@@ -73,7 +78,13 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = await enhanceAppMiddleware(ctx)
+    const enhancers = process.env.__NEXT_PLUGINS
+      ? await import(
+          // @ts-ignore loader syntax
+          'next-plugin-loader?middleware=unstable-enhance-app-server!'
+        ).then(mod => mod.default(ctx))
+      : []
+
     const enhanceApp = (App: any) => {
       for (const enhancer of enhancers) {
         App = enhancer(App)
@@ -82,7 +93,15 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     }
 
     const { html, head, dataOnly } = await ctx.renderPage({ enhanceApp })
-    const styles = [...flush(), ...(await getStylesMiddleware(ctx))]
+    const styles = [
+      ...flush(),
+      ...(process.env.__NEXT_PLUGINS
+        ? await import(
+            // @ts-ignore loader syntax
+            'next-plugin-loader?middleware=unstable-get-styles-server!'
+          ).then(mod => mod.default(ctx))
+        : []),
+    ]
     return { html, head, styles, dataOnly }
   }
 
