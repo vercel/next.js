@@ -68,7 +68,7 @@ const nextServerlessLoader: loader.Loader = function() {
               : `{}`
           }
           const resolver = require('${absolutePagePath}')
-          apiResolver(req, res, params, resolver)
+          apiResolver(req, res, params, resolver, onError)
         } catch (err) {
           console.error(err)
           await onError(err)
