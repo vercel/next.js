@@ -58,7 +58,9 @@ export default function checkCustomRoutes(
     console.error(
       `\n${type} \`source\` and \`destination\` must be strings ` +
         (isRedirect
-          ? `\`statusCode\` must be ${[...allowedStatusCodes].join(', ')} `
+          ? `\`statusCode\` must be undefined or ${[...allowedStatusCodes].join(
+              ', '
+            )} `
           : ``) +
         `and no other fields are allowed` +
         `\n`
