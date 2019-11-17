@@ -12,7 +12,6 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-  DEFAULT_REDIRECT_STATUS,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
   ROUTES_MANIFEST,
@@ -278,9 +277,13 @@ export default class Server {
             // Otherwise this will lead to a pretty simple DOS attack.
             // See more: https://github.com/zeit/next.js/issues/2617
             match: route('/static/:path*'),
+            name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...(params.path || []))
               await this.serveStatic(req, res, p, parsedUrl)
+              return {
+                finished: true,
+              }
             },
           } as Route,
         ]
@@ -289,13 +292,20 @@ export default class Server {
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
+        type: 'route',
+        name: '_next/static catchall',
         fn: async (req, res, params, parsedUrl) => {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
           // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
 
           // make sure to 404 for /_next/static itself
-          if (!params.path) return this.render404(req, res, parsedUrl)
+          if (!params.path) {
+            await this.render404(req, res, parsedUrl)
+            return {
+              finished: true,
+            }
+          }
 
           if (
             params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
@@ -310,22 +320,33 @@ export default class Server {
             ...(params.path || [])
           )
           await this.serveStatic(req, res, p, parsedUrl)
+          return {
+            finished: true,
+          }
         },
       },
       {
         match: route('/_next/data/:path*'),
+        type: 'route',
+        name: '_next/data catchall',
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
-            return this.render404(req, res, _parsedUrl)
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
           }
           // remove buildId from URL
           params.path.shift()
 
           // show 404 if it doesn't end with .json
           if (!params.path[params.path.length - 1].endsWith('.json')) {
-            return this.render404(req, res, _parsedUrl)
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
           }
 
           // re-create page's pathname
@@ -342,26 +363,21 @@ export default class Server {
             { _nextSprData: '1' },
             parsedUrl
           )
+          return {
+            finished: true,
+          }
         },
       },
       {
         match: route('/_next/:path*'),
+        type: 'route',
+        name: '_next catchall',
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
-        },
-      },
-      ...publicRoutes,
-      ...staticFilesRoute,
-      {
-        match: route('/api/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
-          const { pathname } = parsedUrl
-          await this.handleApiRequest(
-            req as NextApiRequest,
-            res as NextApiResponse,
-            pathname!
-          )
+          return {
+            finished: true,
+          }
         },
       },
     ]
@@ -387,46 +403,44 @@ export default class Server {
         ...customRoutes.map((r, idx) => {
           return {
             match: r.matcher,
-            fn: async (req, res, params, parsedUrl) => {
+            type: r.type,
+            statusCode: r.statusCode,
+            name: `${r.type} ${r.source} route`,
+            fn: async (_req, _res, params, _parsedUrl) => {
               let destinationCompiler = pathToRegexp.compile(r.destination)
-              let newUrl = destinationCompiler(params) // /blog/123
-              let newParams = params // { id: 123 }
-              let statusCode = r.statusCode
-              const followingRoutes = customRoutes.slice(idx + 1)
-
-              for (const followingRoute of followingRoutes) {
-                if (
-                  r.type === 'redirect' &&
-                  followingRoute.type !== 'redirect'
-                ) {
-                  continue
-                }
-
-                // TODO: add an error if they try to rewrite to a dynamic page
-                const curParams = followingRoute.matcher(newUrl)
-
-                if (curParams) {
-                  destinationCompiler = pathToRegexp.compile(
-                    followingRoute.destination
-                  )
-                  newUrl = destinationCompiler(curParams)
-                  statusCode = followingRoute.statusCode
-                  newParams = { ...newParams, ...curParams }
-                }
+              let newUrl = destinationCompiler(params)
+              return {
+                finished: false,
+                pathname: newUrl,
               }
-
-              if (r.type === 'redirect') {
-                res.setHeader('Location', newUrl)
-                res.statusCode = statusCode || DEFAULT_REDIRECT_STATUS
-                res.end()
-                return
-              }
-              return this.render(req, res, newUrl, newParams, parsedUrl)
             },
           } as Route
         })
       )
     }
+
+    routes.push(
+      ...([
+        ...publicRoutes,
+        ...staticFilesRoute,
+        {
+          match: route('/api/:path*'),
+          type: 'route',
+          name: 'API Route',
+          fn: async (req, res, params, parsedUrl) => {
+            const { pathname } = parsedUrl
+            await this.handleApiRequest(
+              req as NextApiRequest,
+              res as NextApiResponse,
+              pathname!
+            )
+            return {
+              finished: true,
+            }
+          },
+        },
+      ] as Route[])
+    )
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -437,18 +451,39 @@ export default class Server {
       // See more: https://github.com/zeit/next.js/issues/2617
       routes.push({
         match: route('/:path*'),
-        fn: async (req, res, _params, parsedUrl) => {
+        type: 'route',
+        name: 'Catchall render',
+        fn: async (req, res, params, parsedUrl) => {
           const { pathname, query } = parsedUrl
           if (!pathname) {
             throw new Error('pathname is undefined')
           }
 
+          // Used in development to check public directory paths
+          if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
+            return {
+              finished: true,
+            }
+          }
+
           await this.render(req, res, pathname, query, parsedUrl)
+          return {
+            finished: true,
+          }
         },
       })
     }
 
     return routes
+  }
+
+  protected async _beforeCatchAllRender(
+    _req: IncomingMessage,
+    _res: ServerResponse,
+    _params: Params,
+    _parsedUrl: UrlWithParsedQuery
+  ) {
+    return false
   }
 
   /**
@@ -531,9 +566,14 @@ export default class Server {
       if (!pagesManifest[unixPath]) {
         routes.push({
           match: route(unixPath),
+          type: 'route',
+          name: 'public catchall',
           fn: async (req, res, _params, parsedUrl) => {
             const p = join(this.publicDir, unixPath)
             await this.serveStatic(req, res, p, parsedUrl)
+            return {
+              finished: true,
+            }
           },
         })
       }
@@ -565,11 +605,15 @@ export default class Server {
     this.handleCompression(req, res)
 
     try {
-      const fn = this.router.match(req, res, parsedUrl)
-      if (fn) {
-        await fn()
+      const matches = await this.router.execute(req, res, parsedUrl)
+      if (matches) {
         return
       }
+      // const fn = this.router.match(req, res, parsedUrl)
+      // if (fn) {
+      //   await fn()
+      //   return
+      // }
     } catch (err) {
       if (err.code === 'DECODE_FAILED') {
         res.statusCode = 400
