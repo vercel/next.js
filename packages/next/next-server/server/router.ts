@@ -101,6 +101,7 @@ export default class Router {
       lastMatch.route.type === 'redirect' &&
       lastMatch.result.pathname
     ) {
+      // TODO: Discuss if querystring is/should be supported.
       res.setHeader('Location', lastMatch.result.pathname)
       res.statusCode = lastMatch.route.statusCode || DEFAULT_REDIRECT_STATUS
       res.end()
