@@ -42,7 +42,6 @@ export default class Router {
     parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     let parsedUrlUpdated = parsedUrl
-    let params = {}
     for (const route of this.routes) {
       const newParams = route.match(parsedUrlUpdated.pathname)
 
@@ -50,11 +49,10 @@ export default class Router {
       if (newParams) {
         // Combine parameters and querystring
         if (route.type === 'rewrite' || route.type === 'redirect') {
-          params = { ...params, ...newParams }
-          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...params }
+          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
         }
 
-        const result = await route.fn(req, res, params, parsedUrlUpdated)
+        const result = await route.fn(req, res, newParams, parsedUrlUpdated)
 
         // The response was handled
         if (result.finished) {
