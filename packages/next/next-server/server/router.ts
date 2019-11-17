@@ -48,8 +48,12 @@ export default class Router {
 
       // Check if the match function matched
       if (newParams) {
-        // Combine parameters
-        params = { ...params, ...newParams }
+        // Combine parameters and querystring
+        if (route.type === 'rewrite' || route.type === 'redirect') {
+          params = { ...params, ...newParams }
+          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...params }
+        }
+
         const result = await route.fn(req, res, params, parsedUrlUpdated)
 
         // The response was handled
