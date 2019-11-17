@@ -36,12 +36,26 @@ const runTests = (isDev = false) => {
   })
 
   it('should handle chained redirects successfully', async () => {
-    const res = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
+    const res1 = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location'))
-    expect(res.status).toBe(303)
-    expect(pathname).toBe('/')
+    const res1location = url.parse(res1.headers.get('location')).pathname
+    expect(res1.status).toBe(301)
+    expect(res1location).toBe('/redir-chain2')
+
+    const res2 = await fetchViaHTTP(appPort, res1location, undefined, {
+      redirect: 'manual',
+    })
+    const res2location = url.parse(res2.headers.get('location')).pathname
+    expect(res2.status).toBe(302)
+    expect(res2location).toBe('/redir-chain3')
+
+    const res3 = await fetchViaHTTP(appPort, res2location, undefined, {
+      redirect: 'manual',
+    })
+    const res3location = url.parse(res3.headers.get('location')).pathname
+    expect(res3.status).toBe(303)
+    expect(res3location).toBe('/')
   })
 
   it('should redirect successfully with default statusCode', async () => {
@@ -86,12 +100,12 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/hi there/)
   })
 
-  // it('should overwrite param values correctly', async () => {
-  //   const html = await renderViaHTTP(appPort, '/test-overwrite/first/second')
-  //   expect(html).toMatch(/this-should-be-the-value/)
-  //   expect(html).not.toMatch(/first/)
-  //   expect(html).toMatch(/second/)
-  // })
+  it('should overwrite param values correctly', async () => {
+    const html = await renderViaHTTP(appPort, '/test-overwrite/first/second')
+    expect(html).toMatch(/this-should-be-the-value/)
+    expect(html).not.toMatch(/first/)
+    expect(html).toMatch(/second/)
+  })
 
   it('should work successfully on the client', async () => {
     const browser = await webdriver(appPort, '/nav')

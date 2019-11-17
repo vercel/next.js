@@ -17,6 +17,7 @@ import {
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -406,9 +407,19 @@ export default class Server {
             type: r.type,
             statusCode: r.statusCode,
             name: `${r.type} ${r.source} route`,
-            fn: async (_req, _res, params, _parsedUrl) => {
+            fn: async (_req, res, params, _parsedUrl) => {
               let destinationCompiler = pathToRegexp.compile(r.destination)
               let newUrl = destinationCompiler(params)
+
+              if (r.type === 'redirect') {
+                res.setHeader('Location', newUrl)
+                res.statusCode = r.statusCode || DEFAULT_REDIRECT_STATUS
+                res.end()
+                return {
+                  finished: true,
+                }
+              }
+
               return {
                 finished: false,
                 pathname: newUrl,
