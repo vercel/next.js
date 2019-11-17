@@ -605,15 +605,10 @@ export default class Server {
     this.handleCompression(req, res)
 
     try {
-      const matches = await this.router.execute(req, res, parsedUrl)
-      if (matches) {
+      const matched = await this.router.execute(req, res, parsedUrl)
+      if (matched) {
         return
       }
-      // const fn = this.router.match(req, res, parsedUrl)
-      // if (fn) {
-      //   await fn()
-      //   return
-      // }
     } catch (err) {
       if (err.code === 'DECODE_FAILED') {
         res.statusCode = 400
