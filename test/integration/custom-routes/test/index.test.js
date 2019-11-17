@@ -86,12 +86,12 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/hi there/)
   })
 
-  it('should overwrite param values correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/test-overwrite/first/second')
-    expect(html).toMatch(/this-should-be-the-value/)
-    expect(html).not.toMatch(/first/)
-    expect(html).toMatch(/second/)
-  })
+  // it('should overwrite param values correctly', async () => {
+  //   const html = await renderViaHTTP(appPort, '/test-overwrite/first/second')
+  //   expect(html).toMatch(/this-should-be-the-value/)
+  //   expect(html).not.toMatch(/first/)
+  //   expect(html).toMatch(/second/)
+  // })
 
   it('should work successfully on the client', async () => {
     const browser = await webdriver(appPort, '/nav')
