@@ -6,19 +6,17 @@ const Page = ({ renderTime }) => (
   <div>
     <Head>
       <title>SSR Page</title>
-      <link rel='icon' href='/favicon.ico' />
+      <link rel="icon" href="/favicon.ico" />
     </Head>
 
     <Nav />
 
-    <div className='hero'>
+    <div className="hero">
       <img src="/nextjs.png" alt="next logo" />
-      <p className='description'>
+      <p className="description">
         This is a ssr page because it grabs some dynamic content.
-            </p>
-      <p>
-        This is the render time: {renderTime}
       </p>
+      <p>This is the render time: {renderTime}</p>
     </div>
 
     <style jsx>{`

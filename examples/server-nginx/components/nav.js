@@ -5,21 +5,20 @@ const Nav = () => (
   <nav>
     <ul>
       <li>
-        <Link href='/'>
+        <Link href="/">
           <a>Home</a>
         </Link>
       </li>
       <li>
-        <Link href='/page-static'>
+        <Link href="/page-static">
           <a>Static</a>
         </Link>
       </li>
       <li>
-        <Link href='/page-ssr'>
+        <Link href="/page-ssr">
           <a>SSR</a>
         </Link>
       </li>
-
     </ul>
 
     <style jsx>{`

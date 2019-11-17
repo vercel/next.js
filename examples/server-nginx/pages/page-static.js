@@ -6,16 +6,14 @@ const Page = () => (
   <div>
     <Head>
       <title>Static Page</title>
-      <link rel='icon' href='/favicon.ico' />
+      <link rel="icon" href="/favicon.ico" />
     </Head>
 
     <Nav />
 
-    <div className='hero'>
+    <div className="hero">
       <img src="/nextjs.png" alt="next logo" />
-      <p className='description'>
-        This is a static page
-            </p>
+      <p className="description">This is a static page</p>
     </div>
 
     <style jsx>{`

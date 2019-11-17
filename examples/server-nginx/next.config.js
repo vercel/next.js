@@ -1,3 +1,3 @@
 module.exports = {
-    compress: false, // handled by nginx
+  compress: false, // handled by nginx
 }
