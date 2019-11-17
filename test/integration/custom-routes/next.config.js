@@ -40,6 +40,11 @@ module.exports = {
     async redirects() {
       return [
         {
+          source: '/docs/router-status/:code',
+          destination: '/docs/v2/network/status-codes#:code',
+          statusCode: 301,
+        },
+        {
           source: '/docs/github',
           destination: '/docs/v2/advanced/now-for-github',
           statusCode: 301,

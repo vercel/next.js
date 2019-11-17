@@ -76,6 +76,21 @@ const runTests = (isDev = false) => {
     expect(pathname).toBe('/blog/123')
   })
 
+  it('should redirect with hash successfully', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/docs/router-status/500',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname, hash } = url.parse(res.headers.get('location'))
+    expect(res.status).toBe(301)
+    expect(pathname).toBe('/docs/v2/network/status-codes')
+    expect(hash).toBe('#500')
+  })
+
   it('should redirect successfully with provided statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect2', undefined, {
       redirect: 'manual',
@@ -142,6 +157,13 @@ const runTests = (isDev = false) => {
       expect(manifest).toEqual({
         version: 1,
         redirects: [
+          {
+            source: '/docs/router-status/:code',
+            destination: '/docs/v2/network/status-codes#:code',
+            statusCode: 301,
+            regex: '^\\/docs\\/router-status\\/([^\\/]+?)$',
+            regexKeys: ['code'],
+          },
           {
             source: '/docs/github',
             destination: '/docs/v2/advanced/now-for-github',
