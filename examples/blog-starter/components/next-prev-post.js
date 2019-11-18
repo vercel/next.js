@@ -26,7 +26,7 @@ const NextPrevPost = ({ title, path, position }) => {
 NextPrevPost.propTypes = {
   title: PropTypes.string.isRequired,
   path: PropTypes.string.isRequired,
-  position: PropTypes.oneOf(['next', 'previous'])
+  position: PropTypes.oneOf(['next', 'previous']),
 }
 
 export default NextPrevPost

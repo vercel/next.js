@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
 
 export default (context, render) => {
-  async function get$ (path, query) {
+  async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }

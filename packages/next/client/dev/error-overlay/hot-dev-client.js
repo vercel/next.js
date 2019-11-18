@@ -25,7 +25,6 @@ SOFTWARE.
 // This file is based on https://github.com/facebook/create-react-app/blob/v1.1.4/packages/react-dev-utils/webpackHotDevClient.js
 // It's been edited to rely on webpack-hot-middleware and to be more compatible with SSR / Next.js
 
-'use strict'
 import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
 import * as ErrorOverlay from 'react-error-overlay'
@@ -48,12 +47,12 @@ import fetch from 'unfetch'
 
 let hadRuntimeError = false
 let customHmrEventHandler
-export default function connect (options) {
+export default function connect(options) {
   // Open stack traces in an editor.
-  ErrorOverlay.setEditorHandler(function editorHandler ({
+  ErrorOverlay.setEditorHandler(function editorHandler({
     fileName,
     lineNumber,
-    colNumber
+    colNumber,
   }) {
     // Resolve invalid paths coming from react-error-overlay
     const resolvedFilename = fileName.replace(/^webpack:\/\//, '')
@@ -72,13 +71,13 @@ export default function connect (options) {
   // change).
   // See https://github.com/facebook/create-react-app/issues/3096
   ErrorOverlay.startReportingRuntimeErrors({
-    onError: function () {
+    onError: function() {
       hadRuntimeError = true
-    }
+    },
   })
 
   if (module.hot && typeof module.hot.dispose === 'function') {
-    module.hot.dispose(function () {
+    module.hot.dispose(function() {
       // TODO: why do we need this?
       ErrorOverlay.stopReportingRuntimeErrors()
     })
@@ -97,13 +96,13 @@ export default function connect (options) {
   })
 
   return {
-    subscribeToHmrEvent (handler) {
+    subscribeToHmrEvent(handler) {
       customHmrEventHandler = handler
     },
-    reportRuntimeError (err) {
+    reportRuntimeError(err) {
       ErrorOverlay.reportRuntimeError(err)
     },
-    prepareError (err) {
+    prepareError(err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
       // Should be removed once the fix lands
       hadRuntimeError = true
@@ -114,7 +113,7 @@ export default function connect (options) {
       // __NEXT_DIST_DIR is provided by webpack
       rewriteStacktrace(error, process.env.__NEXT_DIST_DIR)
       return error
-    }
+    },
   }
 }
 
@@ -124,7 +123,7 @@ var mostRecentCompilationHash = null
 var hasCompileErrors = false
 let deferredBuildError = null
 
-function clearOutdatedErrors () {
+function clearOutdatedErrors() {
   // Clean up outdated compile errors, if any.
   if (typeof console !== 'undefined' && typeof console.clear === 'function') {
     if (hasCompileErrors) {
@@ -136,14 +135,14 @@ function clearOutdatedErrors () {
 }
 
 // Successful compilation.
-function handleSuccess () {
+function handleSuccess() {
   const isHotUpdate = !isFirstCompilation
   isFirstCompilation = false
   hasCompileErrors = false
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onHotUpdateSuccess () {
+    tryApplyUpdates(function onHotUpdateSuccess() {
       if (deferredBuildError) {
         deferredBuildError()
       } else {
@@ -156,13 +155,13 @@ function handleSuccess () {
 }
 
 // Compilation with warnings (e.g. ESLint).
-function handleWarnings (warnings) {
+function handleWarnings(warnings) {
   clearOutdatedErrors()
 
   // Print warnings to the console.
   const formatted = formatWebpackMessages({
     warnings: warnings,
-    errors: []
+    errors: [],
   })
 
   if (typeof console !== 'undefined' && typeof console.warn === 'function') {
@@ -180,7 +179,7 @@ function handleWarnings (warnings) {
 }
 
 // Compilation with errors (e.g. syntax error or missing modules).
-function handleErrors (errors) {
+function handleErrors(errors) {
   clearOutdatedErrors()
 
   isFirstCompilation = false
@@ -189,7 +188,7 @@ function handleErrors (errors) {
   // "Massage" webpack messages.
   var formatted = formatWebpackMessages({
     errors: errors,
-    warnings: []
+    warnings: [],
   })
 
   // Only show the first error.
@@ -204,13 +203,13 @@ function handleErrors (errors) {
 }
 
 // There is a newer version of the code available.
-function handleAvailableHash (hash) {
+function handleAvailableHash(hash) {
   // Update last known compilation hash.
   mostRecentCompilationHash = hash
 }
 
 // Handle messages from the server.
-function processMessage (e) {
+function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
@@ -276,7 +275,7 @@ function processMessage (e) {
 }
 
 // Is there a newer version of this code available?
-function isUpdateAvailable () {
+function isUpdateAvailable() {
   /* globals __webpack_hash__ */
   // __webpack_hash__ is the hash of the current compilation.
   // It's a global variable injected by Webpack.
@@ -284,12 +283,12 @@ function isUpdateAvailable () {
 }
 
 // Webpack disallows updates in other states.
-function canApplyUpdates () {
+function canApplyUpdates() {
   return module.hot.status() === 'idle'
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-async function tryApplyUpdates (onHotUpdateSuccess) {
+async function tryApplyUpdates(onHotUpdateSuccess) {
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -302,7 +301,7 @@ async function tryApplyUpdates (onHotUpdateSuccess) {
     return
   }
 
-  function handleApplyUpdates (err, updatedModules) {
+  function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError) {
       if (err) {
         console.warn('Error while applying updates, reloading page', err)
@@ -329,7 +328,7 @@ async function tryApplyUpdates (onHotUpdateSuccess) {
   try {
     const updatedModules = await module.hot.check(
       /* autoApply */ {
-        ignoreUnaccepted: true
+        ignoreUnaccepted: true,
       }
     )
     if (updatedModules) {

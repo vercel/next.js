@@ -1,18 +1,18 @@
 // taskr babel plugin with Babel 7 support
 // https://github.com/lukeed/taskr/pull/305
-'use strict'
 
 const extname = require('path').extname
 const transform = require('@babel/core').transform
 
-module.exports = function (task) {
-  task.plugin('babel', {}, function * (file, babelOpts, { stripExtension } = {}) {
+module.exports = function(task) {
+  // eslint-disable-next-line require-yield
+  task.plugin('babel', {}, function*(file, babelOpts, { stripExtension } = {}) {
     const options = {
       ...babelOpts,
       compact: true,
       babelrc: false,
       configFile: false,
-      filename: file.base
+      filename: file.base,
     }
     const output = transform(file.data, options)
     const ext = extname(file.base)
@@ -39,7 +39,7 @@ module.exports = function (task) {
   })
 }
 
-function setNextVersion (code) {
+function setNextVersion(code) {
   return code.replace(
     /process\.env\.__NEXT_VERSION/g,
     `"${require('./package.json').version}"`

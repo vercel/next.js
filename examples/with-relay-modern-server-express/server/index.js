@@ -21,7 +21,7 @@ app.prepare().then(() => {
     graphqlHTTP({
       schema: graphqlSchema,
       graphiql: false,
-      rootValue: rootValue
+      rootValue: rootValue,
     })
   )
 

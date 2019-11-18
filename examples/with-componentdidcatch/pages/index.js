@@ -2,16 +2,16 @@ import React, { Component } from 'react'
 
 class BuggyCounter extends Component {
   state = {
-    counter: 0
+    counter: 0,
   }
 
   handleClick = () => {
     this.setState(({ counter }) => ({
-      counter: counter + 1
+      counter: counter + 1,
     }))
   }
 
-  render () {
+  render() {
     if (this.state.counter === 5) {
       // Simulate a JS error
       throw new Error('I crashed!')

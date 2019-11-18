@@ -12,7 +12,7 @@ import {
   killApp,
   waitFor,
   check,
-  getBrowserBodyText
+  getBrowserBodyText,
 } from 'next-test-utils'
 
 const context = {}
