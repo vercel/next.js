@@ -87,6 +87,16 @@ const invalidRewrites = [
     destination: '/another',
     headers: 'not-allowed',
   },
+  {
+    // missing forward slash in source
+    source: 'hello',
+    destination: '/another',
+  },
+  {
+    // missing forward slash in destination
+    source: '/hello',
+    destination: 'another',
+  },
 ]
 
 const invalidRewriteAssertions = (stderr = '') => {
@@ -100,6 +110,14 @@ const invalidRewriteAssertions = (stderr = '') => {
 
   expect(stderr).toContain(
     `invalid field: headers for route {"source":"/hello","destination":"/another","headers":"not-allowed"}`
+  )
+
+  expect(stderr).toContain(
+    `\`source\` does not start with / for route {"source":"hello","destination":"/another"}`
+  )
+
+  expect(stderr).toContain(
+    `\`destination\` does not start with / for route {"source":"/hello","destination":"another"}`
   )
 
   expect(stderr).not.toContain(
