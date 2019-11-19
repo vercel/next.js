@@ -5,6 +5,13 @@ import App from 'next/app'
 
 export const withRedux = (PageComponent, { ssr = true } = {}) => {
   const WithRedux = ({ initialReduxState, ...props }) => {
+    /**
+    So when getInitialProps gets called on the server,
+    it can ONLY send back serialized JSON.
+    Then we immediately render on the client. And so we need to initialize state here,
+    with the initial state we got from the server. Cool.
+    **/
+
     const store = getOrInitializeStore(initialReduxState)
     return (
       <Provider store={store}>
@@ -59,11 +66,21 @@ export const withRedux = (PageComponent, { ssr = true } = {}) => {
 let reduxStore
 const getOrInitializeStore = initialState => {
   // Always make a new store if server, otherwise state is shared between requests
+  
+  /**
+  On the server, we actually NEVER call getOrInitializeStore with initialState...
+  Except in the rendering of WithRedux...
+  In which case we create ANOTHER store...
+  **/
   if (typeof window === 'undefined') {
     return initializeStore(initialState)
   }
 
   // Create store if unavailable on the client and set it on the window object
+  /**
+  So the reduxStore will ONLY not exist
+  if we are on the client and it's the first page loaded
+  **/
   if (!reduxStore) {
     reduxStore = initializeStore(initialState)
   }
