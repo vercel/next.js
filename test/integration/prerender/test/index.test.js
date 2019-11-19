@@ -12,6 +12,7 @@ import {
   waitFor,
   nextBuild,
   nextStart,
+  stopApp,
   nextExport,
   startStaticServer,
   initNextServerScript
@@ -75,9 +76,19 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 2,
     srcRoute: '/blog/[post]/[comment]'
   },
+  '/blog/post.1': {
+    dataRoute: `/_next/data/${buildId}/blog/post.1.json`,
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]'
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
-    initialRevalidateSeconds: 0,
+    initialRevalidateSeconds: 1,
+    srcRoute: null
+  },
+  '/blog': {
+    dataRoute: `/_next/data/${buildId}/blog.json`,
+    initialRevalidateSeconds: 10,
     srcRoute: null
   },
   '/default-revalidate': {
@@ -444,9 +455,7 @@ describe('SPR Prerender', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      try {
-        await fs.unlink(nextConfig)
-      } catch (_) {}
+      await fs.remove(nextConfig)
       await nextBuild(appDir)
       stderr = ''
       appPort = await findPort()
@@ -466,15 +475,22 @@ describe('SPR Prerender', () => {
   describe('export mode', () => {
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { exportTrailingSlash: true }`
+      )
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
       appPort = app.address().port
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await stopApp(app)
+      await fs.remove(nextConfig)
+    })
 
-    it('should copy prerender files correctly', async () => {
+    it('should copy prerender files and honor exportTrailingSlash', async () => {
       const routes = [
         '/another',
         '/something',
@@ -483,7 +499,7 @@ describe('SPR Prerender', () => {
       ]
 
       for (const route of routes) {
-        await fs.access(join(exportDir, `${route}.html`))
+        await fs.access(join(exportDir, `${route}/index.html`))
         await fs.access(join(exportDir, '_next/data', buildId, `${route}.json`))
       }
     })
