@@ -172,7 +172,6 @@
     "@zeit/ncc": "0.18.5",
     "arg": "4.1.0",
     "babel-plugin-dynamic-import-node": "2.2.0",
-    "object-assign": "",
     "nanoid": "2.0.3",
     "resolve": "1.11.0",
     "taskr": "1.1.0",
