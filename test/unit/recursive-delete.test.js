@@ -10,6 +10,7 @@ const testpreservefileDir = join(__dirname, '..', 'isolated', 'preservefiles')
 
 describe('recursiveDelete', () => {
   it('should work', async () => {
+    expect.assertions(1)
     try {
       await recursiveCopy(resolveDataDir, testResolveDataDir)
       await recursiveDelete(testResolveDataDir)
@@ -21,11 +22,14 @@ describe('recursiveDelete', () => {
   })
 
   it('should exclude', async () => {
+    expect.assertions(2)
     try {
-      await recursiveCopy(resolveDataDir, testpreservefileDir)
-
+      await recursiveCopy(resolveDataDir, testpreservefileDir, {
+        overwrite: true,
+      })
       // preserve cache dir
-      await recursiveDelete(testpreservefileDir, /cache/)
+      await recursiveDelete(testpreservefileDir, /^cache/)
+
       const result = await recursiveReadDir(testpreservefileDir, /.*/)
       expect(result.length).toBe(1)
     } finally {

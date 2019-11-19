@@ -67,11 +67,7 @@ export async function recursiveDelete(
       const pp = join(previousPath, part)
       if (pathStat.isDirectory() && (!exclude || !exclude.test(pp))) {
         await recursiveDelete(absolutePath, exclude, pp)
-
-        if (!exclude || !exclude.test(pp)) {
-          return rmdir(absolutePath)
-        }
-        return
+        return rmdir(absolutePath)
       }
 
       if (!exclude || !exclude.test(pp)) {
