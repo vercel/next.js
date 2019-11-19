@@ -8,14 +8,22 @@ export type Params = { [param: string]: any }
 
 export type RouteMatch = (pathname: string | undefined) => false | Params
 
+type RouteResult = {
+  finished: boolean
+  pathname?: string
+}
+
 export type Route = {
   match: RouteMatch
+  type: string
+  statusCode?: number
+  name: string
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
     params: Params,
     parsedUrl: UrlWithParsedQuery
-  ) => void
+  ) => Promise<RouteResult> | RouteResult
 }
 
 export default class Router {
@@ -28,17 +36,35 @@ export default class Router {
     this.routes.unshift(route)
   }
 
-  match(
+  async execute(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
-  ) {
-    const { pathname } = parsedUrl
+  ): Promise<boolean> {
+    let parsedUrlUpdated = parsedUrl
     for (const route of this.routes) {
-      const params = route.match(pathname)
-      if (params) {
-        return () => route.fn(req, res, params, parsedUrl)
+      const newParams = route.match(parsedUrlUpdated.pathname)
+
+      // Check if the match function matched
+      if (newParams) {
+        // Combine parameters and querystring
+        if (route.type === 'rewrite' || route.type === 'redirect') {
+          parsedUrlUpdated.query = { ...parsedUrlUpdated.query, ...newParams }
+        }
+
+        const result = await route.fn(req, res, newParams, parsedUrlUpdated)
+
+        // The response was handled
+        if (result.finished) {
+          return true
+        }
+
+        if (result.pathname) {
+          parsedUrlUpdated.pathname = result.pathname
+        }
       }
     }
+
+    return false
   }
 }
