@@ -207,7 +207,6 @@ const makeNewProfiledTapFn = (
         })
         const callback = args.pop()
         /* eslint-disable */
-
         fn(...args, (...r: any) => {
           tracer.trace.end({
             name,

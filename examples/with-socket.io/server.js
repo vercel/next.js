@@ -11,7 +11,7 @@ const nextHandler = nextApp.getRequestHandler()
 // fake DB
 const messages = {
   chat1: [],
-  chat2: []
+  chat2: [],
 }
 
 // socket.io server

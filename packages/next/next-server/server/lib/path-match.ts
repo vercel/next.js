@@ -4,10 +4,19 @@
 // (When webpack resolving packages)
 const pathToRegexp = require('path-to-regexp')
 
-export default () => {
+export default (customRoute = false) => {
   return (path: string) => {
     const keys: any[] = []
-    const re = pathToRegexp(path, keys, {})
+    const re = pathToRegexp(
+      path,
+      keys,
+      customRoute
+        ? {
+            strict: true,
+            sensitive: false,
+          }
+        : {}
+    )
 
     return (pathname: string | undefined, params?: any) => {
       const m = re.exec(pathname)

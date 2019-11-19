@@ -59,12 +59,33 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     return {}
   }
 
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
+  const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
+
+  const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
+    // Polyfill: Window#fetch
     __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': stubWindowFetch,
+    'whatwg-fetch$': path.join(
+      __dirname,
+      'polyfills',
+      'fetch',
+      'whatwg-fetch.js'
+    ),
+
+    // Polyfill: Object.assign
+    __next_polyfill__object_assign: require.resolve('object-assign'),
+    'object-assign$': stubObjectAssign,
+    '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
+
+    // Stub Package: object.assign
+    'object.assign/auto': path.join(shimAssign, 'auto.js'),
+    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
+    'object.assign$': path.join(shimAssign, 'index.js'),
+    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
+    'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
     url: 'native-url',
   }
@@ -587,15 +608,12 @@ export default async function getBaseWebpackConfig(
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
-      ].reduce(
-        (alias, loader) => {
-          // using multiple aliases to replace `resolveLoader.modules`
-          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+      ].reduce((alias, loader) => {
+        // using multiple aliases to replace `resolveLoader.modules`
+        alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
 
-          return alias
-        },
-        {} as Record<string, string>
-      ),
+        return alias
+      }, {} as Record<string, string>),
       modules: [
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
@@ -1000,7 +1018,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
+  // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
     ;[].forEach.call(webpackConfig.module.rules, function(
       rule: webpack.RuleSetRule
@@ -1013,9 +1031,10 @@ export default async function getBaseWebpackConfig(
         rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
       const isLess = rule.test.source === '\\.less$'
       const isCss = rule.test.source === '\\.css$'
+      const isStylus = rule.test.source === '\\.styl$'
 
       // Check if the rule we're iterating over applies to Sass, Less, or CSS
-      if (!(isSass || isLess || isCss)) {
+      if (!(isSass || isLess || isCss || isStylus)) {
         return
       }
 
@@ -1031,8 +1050,8 @@ export default async function getBaseWebpackConfig(
             typeof use.options === 'object' &&
             // The `minimize` property is a good heuristic that we need to
             // perform this hack. The `minimize` property was only valid on
-            // old `css-loader` versions. Custom setups (that aren't next-sass
-            // or next-less) likely have the newer version.
+            // old `css-loader` versions. Custom setups (that aren't next-sass,
+            // next-less or next-stylus) likely have the newer version.
             // We still handle this gracefully below.
             (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
               Object.prototype.hasOwnProperty.call(
@@ -1046,12 +1065,12 @@ export default async function getBaseWebpackConfig(
 
         // Try to monkey patch within a try-catch. We shouldn't fail the build
         // if we cannot pull this off.
-        // The user may not even be using the `next-sass` or `next-less`
-        // plugins.
+        // The user may not even be using the `next-sass` or `next-less` or
+        // `next-stylus` plugins.
         // If it does work, great!
         try {
-          // Resolve the version of `@zeit/next-css` as depended on by the Sass
-          // or Less plugin.
+          // Resolve the version of `@zeit/next-css` as depended on by the Sass,
+          // Less or Stylus plugin.
           const correctNextCss = resolveRequest(
             '@zeit/next-css',
             isCss
@@ -1063,6 +1082,8 @@ export default async function getBaseWebpackConfig(
                     ? '@zeit/next-sass'
                     : isLess
                     ? '@zeit/next-less'
+                    : isStylus
+                    ? '@zeit/next-stylus'
                     : 'next'
                 )
           )

@@ -4,17 +4,17 @@ import Link from 'next/link'
 export default class About extends React.Component {
   state = { name: '' }
 
-  async componentDidMount () {
+  async componentDidMount() {
     const name = await window.getName()
     this.setState({ name })
   }
 
-  render () {
+  render() {
     return (
       <div>
         <p>About {this.state.name}</p>
 
-        <Link href='/'>
+        <Link href="/">
           <a>back</a>
         </Link>
       </div>

@@ -11,7 +11,7 @@ import {
   waitFor,
   nextBuild,
   nextStart,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -22,7 +22,7 @@ let stdout
 const appDir = join(__dirname, '../app')
 const nextConfigPath = join(appDir, 'next.config.js')
 
-function runTests () {
+function runTests() {
   it('should render tha page without error', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/home/)
@@ -77,9 +77,9 @@ describe('Next.js plugins', () => {
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        onStdout (msg) {
+        onStdout(msg) {
           stdout += msg
-        }
+        },
       })
     })
     afterAll(() => killApp(app))
@@ -110,9 +110,9 @@ describe('Next.js plugins', () => {
         appPort = await findPort()
         stdout = ''
         app = await launchApp(appDir, appPort, {
-          onStdout (msg) {
+          onStdout(msg) {
             stdout += msg
-          }
+          },
         })
       })
       afterAll(() => killApp(app))
@@ -138,7 +138,7 @@ describe('Next.js plugins', () => {
         `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
       const results = await nextBuild(appDir, undefined, {
-        stdout: true
+        stdout: true,
       })
       stdout = results.stdout
       appPort = await findPort()
@@ -159,7 +159,7 @@ describe('Next.js plugins', () => {
         `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
       )
       const results = await nextBuild(appDir, undefined, {
-        stdout: true
+        stdout: true,
       })
       stdout = results.stdout
       appPort = await findPort()

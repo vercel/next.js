@@ -2,7 +2,7 @@
 
 import '../style.css'
 
-export default () => <div className='example'>O Hai world!</div>
+export default () => <div className="example">O Hai world!</div>
 
 /* With CSS Modules */
 /*

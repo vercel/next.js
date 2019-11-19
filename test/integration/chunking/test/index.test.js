@@ -6,7 +6,7 @@ import {
   findPort,
   waitFor,
   nextStart,
-  killApp
+  killApp,
 } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
 import cheerio from 'cheerio'
@@ -39,7 +39,7 @@ describe('Chunking', () => {
     }
     const { stdout, stderr } = await nextBuild(appDir, [], {
       stdout: true,
-      stderr: true
+      stderr: true,
     })
     console.log(stdout)
     console.error(stderr)

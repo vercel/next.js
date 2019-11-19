@@ -1,6 +1,6 @@
 import React from 'react'
 export default class ErrorInRenderPage extends React.Component {
-  render () {
+  render() {
     if (typeof window !== 'undefined') {
       const error = new Error('An Expected error occurred')
       // This will be extracted by getInitialProps in the _error page,

@@ -76,5 +76,9 @@ describe('create next app', () => {
     expect(
       fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
     ).toBeTruthy()
+    // check we copied default `.gitignore`
+    expect(
+      fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+    ).toBeTruthy()
   })
 })

@@ -6,7 +6,7 @@ import BlogPosts from '../components/BlogPosts'
 class Index extends Component {
   static displayName = `Index`
 
-  render (props) {
+  render(props) {
     return (
       <div>
         <BlogPosts viewer={this.props.viewer} />
@@ -22,5 +22,5 @@ export default withData(Index, {
         ...BlogPosts_viewer
       }
     }
-  `
+  `,
 })

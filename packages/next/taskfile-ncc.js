@@ -1,22 +1,21 @@
-'use strict'
-
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, relative } = require('path')
 
-module.exports = function (task) {
-  task.plugin('ncc', {}, function * (file, options) {
+module.exports = function(task) {
+  // eslint-disable-next-line require-yield
+  task.plugin('ncc', {}, function*(file, options) {
     return ncc(join(__dirname, file.dir, file.base), {
       // cannot bundle
       externals: ['chokidar'],
       minify: true,
-      ...options
+      ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach(key =>
         this._.files.push({
           dir: join(file.dir, dirname(key)),
           base: basename(key),
-          data: assets[key].source
+          data: assets[key].source,
         })
       )
 
@@ -32,7 +31,7 @@ module.exports = function (task) {
 // This function writes a minimal `package.json` file for a compiled package.
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
-function writePackageManifest (packageName) {
+function writePackageManifest(packageName) {
   const packagePath = require.resolve(packageName + '/package.json')
   let { name, main, author, license, types, typings } = require(packagePath)
   if (!main) {
@@ -67,7 +66,7 @@ function writePackageManifest (packageName) {
     this._.files.push({
       dir: compiledPackagePath,
       base: 'LICENSE',
-      data: readFileSync(potentialLicensePath, 'utf8')
+      data: readFileSync(potentialLicensePath, 'utf8'),
     })
   }
 
@@ -83,10 +82,10 @@ function writePackageManifest (packageName) {
           license ? { license } : undefined,
           typesFile
             ? {
-              types: relative(compiledPackagePath, typesFile)
-            }
+                types: relative(compiledPackagePath, typesFile),
+              }
             : undefined
         )
-      ) + '\n'
+      ) + '\n',
   })
 }

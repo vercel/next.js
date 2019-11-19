@@ -2,7 +2,7 @@ import { useGraphQL } from 'graphql-react'
 
 export default () => {
   const { loading, cacheValue = {} } = useGraphQL({
-    fetchOptionsOverride (options) {
+    fetchOptionsOverride(options) {
       options.url = 'https://graphql-pokemon.now.sh'
     },
     operation: {
@@ -13,8 +13,8 @@ export default () => {
             image
           }
         }
-      `
-    }
+      `,
+    },
   })
 
   const { data } = cacheValue
