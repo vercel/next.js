@@ -126,6 +126,14 @@ export default class PageLoader {
     this.loadScript(url, route, true)
   }
 
+  loadStylesheet(url) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = encodeURI(url)
+    link.as = 'style'
+    document.head.appendChild(link)
+  }
+
   loadScript(url, route, isPage) {
     const script = document.createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
@@ -182,6 +190,15 @@ export default class PageLoader {
 
   async prefetch(route, isDependency) {
     route = this.normalizeRoute(route)
+
+    if (
+      /\.css$/.test(route) &&
+      !document.querySelector(`link[href^="${route}"]`)
+    ) {
+      this.loadStylesheet(route)
+      return
+    }
+
     let scriptRoute = `${route === '/' ? '/index' : route}.js`
 
     if (
