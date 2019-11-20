@@ -651,7 +651,9 @@ export async function renderToHTML(
     // use replace to allow rendering directly to body in AMP mode
     html = html.replace(
       '__NEXT_AMP_RENDER_TARGET__',
-      `<!-- __NEXT_DATA__ -->${docProps.html}`
+      // we need to escape `$` or else it may be treated
+      // as a match group e.g. $&
+      `<!-- __NEXT_DATA__ -->${docProps.html.replace(/\$/g, '$$$$')}`
     )
     html = await optimizeAmp(html)
 
