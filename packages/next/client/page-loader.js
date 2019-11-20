@@ -103,6 +103,11 @@ export default class PageLoader {
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
                 this.loadScript(d, route, false)
+              } else if (
+                /\.css$/.test(d) &&
+                !document.querySelector(`link[href^="${d}"]`)
+              ) {
+                this.loadStylesheet(d)
               }
             })
             this.loadRoute(route)
