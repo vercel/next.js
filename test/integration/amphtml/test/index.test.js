@@ -58,6 +58,12 @@ describe('AMP Usage', () => {
       expect($('.abc').length === 1)
     })
 
+    it('should render the page without leaving render target', async () => {
+      const html = await renderViaHTTP(appPort, '/special-chars')
+      await validateAMP(html)
+      expect(html).not.toContain('__NEXT_AMP_RENDER_TARGET__')
+    })
+
     it('should not output client pages for AMP only', async () => {
       const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
       const ampOnly = ['only-amp', 'root-hmr']
