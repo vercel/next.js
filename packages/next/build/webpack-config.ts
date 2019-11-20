@@ -731,7 +731,7 @@ export default async function getBaseWebpackConfig(
                               stage: 3,
                             }),
                           ],
-                          sourceMap: true,
+                          sourceMap: dev,
                         },
                       },
                     ].filter(Boolean),
