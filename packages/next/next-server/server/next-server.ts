@@ -290,7 +290,7 @@ export default class Server {
         ]
       : []
 
-    const routes: Route[] = [
+    const topRoutes: Route[] = [
       {
         match: route('/_next/static/:path*'),
         type: 'route',
@@ -381,7 +381,10 @@ export default class Server {
           }
         },
       },
+      ...publicRoutes,
+      ...staticFilesRoute,
     ]
+    const routes: Route[] = [...topRoutes]
 
     if (this.customRoutes) {
       const { redirects, rewrites } = this.customRoutes
@@ -428,30 +431,27 @@ export default class Server {
           } as Route
         })
       )
+      // make sure previous routes can still be rewritten to by
+      // custom routes e.g. /docs/_next/static -> /_next/static
+      routes.push(...topRoutes)
     }
 
-    routes.push(
-      ...([
-        ...publicRoutes,
-        ...staticFilesRoute,
-        {
-          match: route('/api/:path*'),
-          type: 'route',
-          name: 'API Route',
-          fn: async (req, res, params, parsedUrl) => {
-            const { pathname } = parsedUrl
-            await this.handleApiRequest(
-              req as NextApiRequest,
-              res as NextApiResponse,
-              pathname!
-            )
-            return {
-              finished: true,
-            }
-          },
-        },
-      ] as Route[])
-    )
+    routes.push({
+      match: route('/api/:path*'),
+      type: 'route',
+      name: 'API Route',
+      fn: async (req, res, params, parsedUrl) => {
+        const { pathname } = parsedUrl
+        await this.handleApiRequest(
+          req as NextApiRequest,
+          res as NextApiResponse,
+          pathname!
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
