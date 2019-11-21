@@ -1,12 +1,23 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-loading)
 # Example app with page loading indicator
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-loading
+npx create-next-app --example with-loading with-loading-app
+# or
+yarn create next-app --example with-loading with-loading-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-loading
 cd with-loading
 ```
 
@@ -15,6 +26,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -31,6 +45,6 @@ We can simply fix this issue by showing a loading indicator. That's what this ex
 
 It features:
 
-* An app with two pages which uses a common [Header](./components/Header.js) component for navigation links.
-* Using `next/router` to identify different router events
-* Uses [nprogress](https://github.com/rstacruz/nprogress) as the loading indicator.
+- An app with two pages which uses a common [Header](./components/Header.js) component for navigation links.
+- Using `next/router` to identify different router events
+- Uses [nprogress](https://github.com/rstacruz/nprogress) as the loading indicator.

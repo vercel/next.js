@@ -1,6 +1,15 @@
 import wd from 'wd'
+import getPort from 'get-port'
+import waitPort from 'wait-port'
 
-export default async function (appPort, pathname) {
+const doHeadless = process.env.HEADLESS !== 'false'
+let driverPort = 9515
+
+let webdriver = async function(appPort, pathname) {
+  if (typeof appPort === 'undefined') {
+    throw new Error('appPort is undefined')
+  }
+
   const url = `http://localhost:${appPort}${pathname}`
   console.log(`> Start loading browser with url: ${url}`)
 
@@ -13,6 +22,22 @@ export default async function (appPort, pathname) {
       return browser
     } catch (ex) {
       console.warn(`> Error when loading browser with url: ${url}`)
+
+      // Try restarting chromedriver max twice
+      if (lc < 2) {
+        const chromedriver = require('chromedriver')
+        console.log('Trying to restart chromedriver with random port')
+        driverPort = await getPort()
+        chromedriver.stop()
+        chromedriver.start([`--port=${driverPort}`])
+        // https://github.com/giggio/node-chromedriver/issues/117
+        await waitPort({
+          port: driverPort,
+          timeout: 1000 * 30, // 30 seconds
+        })
+        continue
+      }
+
       if (ex.message === 'TIMEOUT') continue
       throw ex
     }
@@ -22,8 +47,8 @@ export default async function (appPort, pathname) {
   throw new Error(`Couldn't start the browser for url: ${url}`)
 }
 
-function getBrowser (url, timeout) {
-  const browser = wd.promiseChainRemote('http://localhost:9515/')
+function getBrowser(url, timeout) {
+  const browser = wd.promiseChainRemote(`http://localhost:${driverPort}/`)
 
   return new Promise((resolve, reject) => {
     let timeouted = false
@@ -33,20 +58,40 @@ function getBrowser (url, timeout) {
       reject(error)
     }, timeout)
 
-    browser.init({browserName: 'chrome'}).get(url, (err) => {
-      if (timeouted) {
-        browser.close()
-        return
-      }
+    browser
+      .init({
+        browserName: 'chrome',
+        ...(doHeadless
+          ? {
+              chromeOptions: { args: ['--headless'] },
+            }
+          : {}),
+      })
+      .get(url, err => {
+        if (timeouted) {
+          try {
+            browser.close(() => {
+              // Ignore errors
+            })
+          } catch (err) {
+            // Ignore
+          }
+          return
+        }
 
-      clearTimeout(timeoutHandler)
+        clearTimeout(timeoutHandler)
 
-      if (err) {
-        reject(err)
-        return
-      }
+        if (err) {
+          reject(err)
+          return
+        }
 
-      resolve(browser)
-    })
+        resolve(browser)
+      })
   })
 }
+
+if (global.isBrowserStack) {
+  webdriver = (...args) => global.bsWd(...args)
+}
+export default webdriver

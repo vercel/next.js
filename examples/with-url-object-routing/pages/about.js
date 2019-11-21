@@ -1,28 +1,28 @@
 import React from 'react'
 import Link from 'next/link'
-import Router from 'next/router'
+import Router, { withRouter } from 'next/router'
 
 const href = {
   pathname: '/about',
-  query: { name: 'zeit' }
+  query: { name: 'zeit' },
 }
 
 const as = {
   pathname: '/about/zeit',
-  hash: 'title-1'
+  hash: 'title-1',
 }
 
 const handleClick = () => Router.push(href, as)
 
-export default (props) => (
+export default withRouter(({ router: { query } }) => (
   <div>
-    <h1>About {props.url.query.name}</h1>
-    {props.url.query.name === 'zeit' ? (
-      <Link href='/'>
+    <h1>About {query.name}</h1>
+    {query.name === 'zeit' ? (
+      <Link href="/">
         <a>Go to home page</a>
       </Link>
     ) : (
       <button onClick={handleClick}>Go to /about/zeit</button>
     )}
   </div>
-)
+))

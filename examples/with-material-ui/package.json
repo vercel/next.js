@@ -1,12 +1,16 @@
 {
-  "name": "with-material-ui",
-  "version": "1.0.0",
+  "name": "nextjs",
+  "version": "4.0.0",
+  "private": true,
   "dependencies": {
-    "material-ui": "^0.18.0",
+    "@material-ui/core": "latest",
+    "@material-ui/styles": "latest",
+    "@next/plugin-material-ui": "latest",
+    "clsx": "latest",
     "next": "latest",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4",
-    "react-tap-event-plugin": "^2.0.1"
+    "prop-types": "latest",
+    "react": "latest",
+    "react-dom": "latest"
   },
   "scripts": {
     "dev": "next",

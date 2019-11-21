@@ -1,25 +1,28 @@
-import {createStore, applyMiddleware} from 'redux'
-import {composeWithDevTools} from 'redux-devtools-extension'
-import withRedux from 'next-redux-wrapper'
-import nextReduxSaga from 'next-redux-saga'
+import { applyMiddleware, createStore } from 'redux'
 import createSagaMiddleware from 'redux-saga'
 
-import rootReducer, {exampleInitialState} from './reducer'
+import rootReducer, { exampleInitialState } from './reducer'
 import rootSaga from './saga'
 
-const sagaMiddleware = createSagaMiddleware()
+const bindMiddleware = middleware => {
+  if (process.env.NODE_ENV !== 'production') {
+    const { composeWithDevTools } = require('redux-devtools-extension')
+    return composeWithDevTools(applyMiddleware(...middleware))
+  }
+  return applyMiddleware(...middleware)
+}
 
-export function configureStore (initialState = exampleInitialState) {
+function configureStore(initialState = exampleInitialState) {
+  const sagaMiddleware = createSagaMiddleware()
   const store = createStore(
     rootReducer,
     initialState,
-    composeWithDevTools(applyMiddleware(sagaMiddleware))
+    bindMiddleware([sagaMiddleware])
   )
 
   store.sagaTask = sagaMiddleware.run(rootSaga)
+
   return store
 }
 
-export function withReduxSaga (BaseComponent) {
-  return withRedux(configureStore)(nextReduxSaga(BaseComponent))
-}
+export default configureStore

@@ -1,13 +1,9 @@
 {
-    "presets": [
-        "next/babel"
-    ],
-    "plugins": [
-        [
-            "import",
-            {
-                "libraryName": "antd-mobile"
-            }
-        ]
-    ]
+  "presets":  ["next/babel"],
+  "plugins": [
+    ["import", {
+      "libraryName": "antd-mobile",
+      "style": "css"
+    }]
+  ]
 }

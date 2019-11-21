@@ -10,12 +10,12 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "babel-preset-stage-0": "^6.16.0"
+    "@babel/plugin-proposal-do-expressions": "7.0.0-rc.1"
   }
 }

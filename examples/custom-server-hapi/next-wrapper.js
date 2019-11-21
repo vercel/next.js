@@ -1,13 +1,28 @@
-const pathWrapper = (app, pathName, opts) => ({ raw, query }, hapiReply) =>
-app.renderToHTML(raw.req, raw.res, pathName, query, opts)
-.then(hapiReply)
-
-const defaultHandlerWrapper = app => {
+const nextHandlerWrapper = app => {
   const handler = app.getRequestHandler()
-  return ({ raw, url }, hapiReply) =>
-    handler(raw.req, raw.res, url)
-      .then(() => {
-        hapiReply.close(false)
-      })
+  return async ({ raw, url }, h) => {
+    await handler(raw.req, raw.res, url)
+    return h.close
+  }
 }
-module.exports = { pathWrapper, defaultHandlerWrapper }
+const defaultHandlerWrapper = app => async ({ raw: { req, res }, url }, h) => {
+  const { pathname, query } = url
+  const html = await app.renderToHTML(req, res, pathname, query)
+  return h.response(html).code(res.statusCode)
+}
+
+const pathWrapper = (app, pathName, opts) => async (
+  { raw, query, params },
+  h
+) => {
+  const html = await app.renderToHTML(
+    raw.req,
+    raw.res,
+    pathName,
+    { ...query, ...params },
+    opts
+  )
+  return h.response(html).code(raw.res.statusCode)
+}
+
+module.exports = { pathWrapper, defaultHandlerWrapper, nextHandlerWrapper }

@@ -7,11 +7,9 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "hapi": "^16.1.0",
+    "@hapi/hapi": "^18.3.1",
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2",
-    "good": "^7.1.0",
-    "good-console": "^6.2.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }

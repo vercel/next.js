@@ -10,8 +10,7 @@ const handle = app.getRequestHandler()
 const route = pathMatch()
 const match = route('/about/:name')
 
-app.prepare()
-.then(() => {
+app.prepare().then(() => {
   createServer((req, res) => {
     const { pathname } = parse(req.url)
     const params = match(pathname)
@@ -21,8 +20,7 @@ app.prepare()
     }
 
     app.render(req, res, '/about', params)
-  })
-  .listen(port, (err) => {
+  }).listen(port, err => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

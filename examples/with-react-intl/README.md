@@ -1,12 +1,23 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-intl)
 # Example app with [React Intl][]
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js.git):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-intl
+npx create-next-app --example with-react-intl with-react-intl-app
+# or
+yarn create next-app --example with-react-intl with-react-intl-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-intl
 cd with-react-intl
 ```
 
@@ -15,6 +26,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -31,8 +45,8 @@ This example app shows how to integrate [React Intl][] with Next.
 
 - Server-side language negotiation
 - React Intl locale data loading via `pages/_document.js` customization
-- React Intl integration at Next page level via `pageWithIntl()` HOC
-- `<IntlProvider>` creation with `locale`, `messages`, and `initialNow` props
+- React Intl integration with [custom App](https://github.com/zeit/next.js#custom-app) component
+- `<IntlProvider>` creation with `locale`, `messages` props
 - Default message extraction via `babel-plugin-react-intl` integration
 - Translation management via build script and customized Next server
 
@@ -42,11 +56,11 @@ This app stores translations and default strings in the `lang/` dir. This dir ha
 
 The translated messages files that exist at `lang/*.json` are only used during production, and are automatically provided to the `<IntlProvider>`. During development the `defaultMessage`s defined in the source code are used. To prepare the example app for localization and production run the build script and start the server in production mode:
 
-```
+```bash
 $ npm run build
 $ npm start
 ```
 
 You can then switch your browser's language preferences to French and refresh the page to see the UI update accordingly.
 
-[React Intl]: https://github.com/yahoo/react-intl
+[react intl]: https://github.com/yahoo/react-intl

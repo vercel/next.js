@@ -1,0 +1,13 @@
+{
+  "name": "with-zones-home",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev -p 4001"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "16.8.6",
+    "react-dom": "16.8.6"
+  },
+  "license": "ISC"
+}

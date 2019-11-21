@@ -1,0 +1,47 @@
+pool:
+  vmImage: 'vs2017-win2016'
+
+variables:
+  NEXT_TELEMETRY_DISABLED: '1'
+  YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
+  CHROMEDRIVER_VERSION: '76.0.3809.68'
+
+strategy:
+  maxParallel: 10
+  matrix:
+    node-10-1:
+      group: 1/4
+      node_version: ^10.10.0
+    node-10-2:
+      group: 2/4
+      node_version: ^10.10.0
+    node-10-3:
+      group: 3/4
+      node_version: ^10.10.0
+    node-10-4:
+      group: 4/4
+      node_version: ^10.10.0
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(node_version)
+    displayName: 'Install Node.js'
+
+  - task: CacheBeta@0
+    inputs:
+      key: yarn | $(Agent.OS) | yarn.lock
+      path: $(YARN_CACHE_FOLDER)
+    displayName: Cache Yarn packages
+
+  - script: |
+      yarn install --frozen-lockfile --check-files
+    displayName: 'Install dependencies'
+
+  - script: |
+      yarn add chromedriver@76 -W
+    displayName: 'Install correct Chrome Driver version'
+
+  - script: |
+      node run-tests.js -c 2 -g $(group)
+    displayName: 'Run tests'

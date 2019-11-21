@@ -1,7 +1,7 @@
 import React from 'react'
 
 export default class extends React.PureComponent {
-  componentDidMount () {
+  componentDidMount() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/service-worker.js')
@@ -13,9 +13,7 @@ export default class extends React.PureComponent {
         })
     }
   }
-  render () {
-    return (
-      <p>Check the console for the Service Worker registration status.</p>
-    )
+  render() {
+    return <p>Check the console for the Service Worker registration status.</p>
   }
 }

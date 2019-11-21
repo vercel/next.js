@@ -1,0 +1,8 @@
+$color: #2ecc71;
+
+div {
+  background-color: $color;
+  :hover {
+    background-color: darken($color, 20%);
+  }
+}

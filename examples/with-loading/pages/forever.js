@@ -1,21 +1,12 @@
-import React, { Component } from 'react'
-import Header from '../components/Header'
+import React from 'react'
 
-export default class Forever extends Component {
-  // Add some delay
-  static async getInitialProps () {
-    await new Promise((resolve) => {
-      setTimeout(resolve, 3000)
-    })
-    return {}
-  }
+const ForeverPage = () => <p>This page was rendered for a while!</p>
 
-  render () {
-    return (
-      <div>
-        <Header />
-        <p>This page was rendered for a while!</p>
-      </div>
-    )
-  }
+ForeverPage.getInitialProps = async () => {
+  await new Promise(resolve => {
+    setTimeout(resolve, 3000)
+  })
+  return {}
 }
+
+export default ForeverPage

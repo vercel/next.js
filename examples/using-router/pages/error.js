@@ -1,14 +1,14 @@
-import {Component} from 'react'
+import { Component } from 'react'
 import Header from '../components/Header'
 import Router from 'next/router'
 
 export default class extends Component {
-  static getInitialProps () {
+  static getInitialProps() {
     console.log(Router.pathname)
     return {}
   }
 
-  render () {
+  render() {
     return (
       <div>
         <Header />

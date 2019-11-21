@@ -1,20 +1,21 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { BUILD_ID_FILE } from 'next/constants'
 import {
   nextServer,
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('Production Usage', () => {
   beforeAll(async () => {
@@ -22,7 +23,7 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -39,11 +40,14 @@ describe('Production Usage', () => {
 
   describe('File locations', () => {
     it('should build the app within the given `dist` directory', () => {
-      expect(existsSync(join(__dirname, '/../dist/app.js'))).toBeTruthy()
+      expect(
+        existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
+      ).toBeTruthy()
     })
-
     it('should not build the app within the default `.next` directory', () => {
-      expect(existsSync(join(__dirname, '/../.next/app.js'))).toBeFalsy()
+      expect(
+        existsSync(join(__dirname, `/../.next/${BUILD_ID_FILE}`))
+      ).toBeFalsy()
     })
   })
 })

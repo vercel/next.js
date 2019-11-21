@@ -1,0 +1,33 @@
+{
+  "name": "with-lingui",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "lingui compile && next build",
+    "start": "next start",
+    "add-locale": "lingui add-locale",
+    "extract": "lingui extract"
+  },
+  "dependencies": {
+    "@lingui/react": "latest",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "@lingui/cli": "latest",
+    "@lingui/loader": "latest",
+    "@lingui/macro": "latest",
+    "babel-plugin-macros": "^2.4.0"
+  },
+  "lingui": {
+    "sourceLocale": "en",
+    "localeDir": "./locale",
+    "srcPathDirs": [
+      "./pages/",
+      "./components/"
+    ],
+    "format": "po"
+  },
+  "license": "ISC"
+}

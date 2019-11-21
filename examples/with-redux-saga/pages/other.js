@@ -1,21 +1,23 @@
 import React from 'react'
+import { connect } from 'react-redux'
 
-import {increment, startClock} from '../actions'
-import {withReduxSaga} from '../store'
+import { startClock, tickClock } from '../actions'
 import Page from '../components/page'
 
-class Counter extends React.Component {
-  static async getInitialProps ({store}) {
-    store.dispatch(increment())
+class Other extends React.Component {
+  static async getInitialProps(props) {
+    const { store, isServer } = props.ctx
+    store.dispatch(tickClock(isServer))
+    return { isServer }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.props.dispatch(startClock())
   }
 
-  render () {
-    return <Page title='Other Page' linkTo='/' />
+  render() {
+    return <Page title="Other Page" linkTo="/" NavigateTo="Index Page" />
   }
 }
 
-export default withReduxSaga(Counter)
+export default connect()(Other)

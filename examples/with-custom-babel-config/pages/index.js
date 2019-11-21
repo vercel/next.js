@@ -1,26 +1,26 @@
 import React from 'react'
 
 export default class MyLuckNo extends React.Component {
-  constructor (...args) {
+  constructor(...args) {
     super(...args)
     this.state = { randomNo: null }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.recalculate()
   }
 
-  recalculate () {
+  recalculate() {
     this.setState({
-      randomNo: Math.ceil(Math.random() * 100)
+      randomNo: Math.ceil(Math.random() * 100),
     })
   }
 
-  render () {
+  render() {
     const { randomNo } = this.state
 
     if (randomNo === null) {
-      return (<p>Please wait..</p>)
+      return <p>Please wait..</p>
     }
 
     // This is an experimental JavaScript feature where we can get with
@@ -28,13 +28,13 @@ export default class MyLuckNo extends React.Component {
     const message = do {
       if (randomNo < 30) {
         // eslint-disable-next-line no-unused-expressions
-        'Do not give up. Try again.'
+        ;('Do not give up. Try again.')
       } else if (randomNo < 60) {
         // eslint-disable-next-line no-unused-expressions
-        'You are a lucky guy'
+        ;('You are a lucky guy')
       } else {
         // eslint-disable-next-line no-unused-expressions
-        'You are soooo lucky!'
+        ;('You are soooo lucky!')
       }
     }
 

@@ -1,8 +1,19 @@
 import * as React from 'react'
-import MyComponent from '../components/MyComponent'
+import Link from 'next/link'
+import Layout from '../components/Layout'
+import { NextPage } from 'next'
 
-export default () => 
-  <div>
-    <h1>Hello world</h1>
-    <MyComponent />
-  </div>
+const IndexPage: NextPage = () => {
+  return (
+    <Layout title="Home | Next.js + TypeScript Example">
+      <h1>Hello Next.js 👋</h1>
+      <p>
+        <Link href="/about">
+          <a>About</a>
+        </Link>
+      </p>
+    </Layout>
+  )
+}
+
+export default IndexPage

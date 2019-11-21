@@ -1,37 +1,39 @@
 import React from 'react'
-import { bindActionCreators } from 'redux'
-import { initStore, startClock, addCount, serverRenderClock } from '../store'
-import withRedux from 'next-redux-wrapper'
-import Page from '../components/Page'
+import { useDispatch } from 'react-redux'
+import { withRedux } from '../lib/redux'
+import useInterval from '../lib/useInterval'
+import Clock from '../components/clock'
+import Counter from '../components/counter'
 
-class Counter extends React.Component {
-  static getInitialProps ({ store, isServer }) {
-    store.dispatch(serverRenderClock(isServer))
-    store.dispatch(addCount())
-
-    return { isServer }
-  }
-
-  componentDidMount () {
-    this.timer = this.props.startClock()
-  }
-
-  componentWillUnmount () {
-    clearInterval(this.timer)
-  }
-
-  render () {
-    return (
-      <Page title='Index Page' linkTo='/other' />
-    )
-  }
+const IndexPage = () => {
+  // Tick the time every second
+  const dispatch = useDispatch()
+  useInterval(() => {
+    dispatch({
+      type: 'TICK',
+      light: true,
+      lastUpdate: Date.now(),
+    })
+  }, 1000)
+  return (
+    <>
+      <Clock />
+      <Counter />
+    </>
+  )
 }
 
-const mapDispatchToProps = (dispatch) => {
-  return {
-    addCount: bindActionCreators(addCount, dispatch),
-    startClock: bindActionCreators(startClock, dispatch)
-  }
+IndexPage.getInitialProps = ({ reduxStore }) => {
+  // Tick the time once, so we'll have a
+  // valid time before first render
+  const { dispatch } = reduxStore
+  dispatch({
+    type: 'TICK',
+    light: typeof window === 'object',
+    lastUpdate: Date.now(),
+  })
+
+  return {}
 }
 
-export default withRedux(initStore, null, mapDispatchToProps)(Counter)
+export default withRedux(IndexPage)

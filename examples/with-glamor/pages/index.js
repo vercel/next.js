@@ -1,5 +1,5 @@
 import React from 'react'
-import { style, rehydrate } from 'glamor'
+import { rehydrate } from 'glamor'
 
 // Adds server generated styles to glamor cache.
 // Has to run before any `style()` calls
@@ -8,11 +8,4 @@ if (typeof window !== 'undefined') {
   rehydrate(window.__NEXT_DATA__.ids)
 }
 
-export default () => <h1 {...styles.title}>My page</h1>
-
-const styles = {
-  title: style({
-    color: 'red',
-    fontSize: 50
-  })
-}
+export default () => <h1 css={{ color: 'red', fontSize: 50 }}>My page</h1>

@@ -6,7 +6,7 @@ import BlogPosts from '../components/BlogPosts'
 class Index extends Component {
   static displayName = `Index`
 
-  render (props) {
+  render(props) {
     return (
       <div>
         <BlogPosts viewer={this.props.viewer} />
@@ -17,10 +17,10 @@ class Index extends Component {
 
 export default withData(Index, {
   query: graphql`
-        query pages_indexQuery {
-            viewer {
-                ...BlogPosts_viewer
-            }
-        }
-    `
+    query pages_indexQuery {
+      viewer {
+        ...BlogPosts_viewer
+      }
+    }
+  `,
 })

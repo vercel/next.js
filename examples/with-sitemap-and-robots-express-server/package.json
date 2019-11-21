@@ -1,0 +1,17 @@
+{
+  "name": "with-sitemap-and-robots-express-server",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "next build",
+    "start": "node server/app.js",
+    "now": "now && now alias"
+  },
+  "dependencies": {
+    "express": "^4.16.2",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "sitemap": "^1.13.0"
+  }
+}

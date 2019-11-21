@@ -3,13 +3,11 @@ import PropTypes from 'prop-types'
 
 export default class extends React.Component {
   static contextTypes = {
-    data: PropTypes.object
+    data: PropTypes.object,
   }
 
-  render () {
+  render() {
     const { data } = this.context
-    return (
-      <div>{data.title}</div>
-    )
+    return <div>{data.title}</div>
   }
 }

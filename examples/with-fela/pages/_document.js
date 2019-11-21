@@ -1,35 +1,43 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 import { renderToSheetList } from 'fela-dom'
-import felaRenderer from '../fela-renderer'
+import getFelaRenderer from '../getFelaRenderer'
 
 export default class MyDocument extends Document {
-  static getInitialProps ({ renderPage }) {
-    const page = renderPage()
-    const sheetList = renderToSheetList(felaRenderer)
-    felaRenderer.clear()
+  static async getInitialProps(ctx) {
+    const renderer = getFelaRenderer()
+    const originalRenderPage = ctx.renderPage
 
+    ctx.renderPage = () =>
+      originalRenderPage({
+        enhanceApp: App => props => <App {...props} renderer={renderer} />,
+      })
+
+    const initialProps = await Document.getInitialProps(ctx)
+    const sheetList = renderToSheetList(renderer)
     return {
-      ...page,
-      sheetList
+      ...initialProps,
+      sheetList,
     }
   }
 
-  render () {
-    const styleNodes = this.props.sheetList.map(({ type, media, css }) =>
-      <style
-        dangerouslySetInnerHTML={{ __html: css }}
-        data-fela-type={type}
-        key={`${type}-${media}`}
-        media={media}
-      />,
+  render() {
+    const styleNodes = this.props.sheetList.map(
+      ({ type, rehydration, support, media, css }) => (
+        <style
+          dangerouslySetInnerHTML={{ __html: css }}
+          data-fela-id=""
+          data-fela-rehydration={rehydration}
+          data-fela-support={support}
+          data-fela-type={type}
+          key={`${type}-${media}`}
+          media={media}
+        />
+      )
     )
 
     return (
       <html>
-        <Head>
-          <title>My page</title>
-          {styleNodes}
-        </Head>
+        <Head>{styleNodes}</Head>
         <body>
           <Main />
           <NextScript />

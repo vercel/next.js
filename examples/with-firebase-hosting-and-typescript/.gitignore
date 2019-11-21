@@ -1,0 +1,4 @@
+dist/
+
+# Firebase cache
+.firebase/

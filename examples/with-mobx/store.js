@@ -1,32 +1,33 @@
 import { action, observable } from 'mobx'
+import { useStaticRendering } from 'mobx-react'
 
-let store = null
+const isServer = typeof window === 'undefined'
+// eslint-disable-next-line react-hooks/rules-of-hooks
+useStaticRendering(isServer)
 
-class Store {
+export class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor (isServer, lastUpdate) {
-    this.lastUpdate = lastUpdate
+  hydrate(serializedStore) {
+    this.lastUpdate =
+      serializedStore.lastUpdate != null
+        ? serializedStore.lastUpdate
+        : Date.now()
+    this.light = !!serializedStore.light
   }
 
   @action start = () => {
     this.timer = setInterval(() => {
       this.lastUpdate = Date.now()
       this.light = true
-    })
+    }, 1000)
   }
 
   stop = () => clearInterval(this.timer)
 }
 
-export function initStore (isServer, lastUpdate = Date.now()) {
-  if (isServer) {
-    return new Store(isServer, lastUpdate)
-  } else {
-    if (store === null) {
-      store = new Store(isServer, lastUpdate)
-    }
-    return store
-  }
+export async function fetchInitialStoreState() {
+  // You can do anything to fetch initial store state
+  return {}
 }

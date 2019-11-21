@@ -7,9 +7,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest"
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "babel-plugin-inline-react-svg": "^0.2.0"
+    "babel-plugin-inline-react-svg": "^1.0.1"
   }
 }

@@ -1,5 +1,0 @@
-{
-  "integrates_react-i18next": "Dieses Beispiel integriert react-i18next für einfache Übersetzung.",
-  "pureComponent": "Entweder t Funktion an Komponente via props weiterreichen.",
-  "extendedComponent": "Oder die Komponente erneut mit dem translate hoc erweiteren."
-}

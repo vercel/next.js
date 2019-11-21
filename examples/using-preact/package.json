@@ -7,14 +7,14 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "module-alias": "^2.0.0",
+    "module-alias": "2.2.2",
     "next": "latest",
-    "preact": "^7.2.0",
-    "preact-compat": "^3.14.0"
+    "preact": "10.0.0",
+    "preact-render-to-string": "5.0.7"
   },
   "license": "ISC",
   "devDependencies": {
-    "react": "~15.6.1",
-    "react-dom": "~15.6.1"
+    "react": "16.10.2",
+    "react-dom": "16.10.2"
   }
 }

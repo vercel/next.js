@@ -6,28 +6,23 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "test": "NODE_ENV=test ava"
+    "start": "next start"
   },
   "dependencies": {
+    "@apollo/react-hooks": "^3.0.1",
+    "@apollo/react-ssr": "^3.0.1",
+    "apollo-cache-inmemory": "1.6.3",
+    "apollo-client": "2.6.4",
+    "apollo-link-context": "^1.0.8",
+    "apollo-link-http": "1.5.15",
     "cookie": "^0.3.1",
-    "graphql": "^0.9.3",
-    "isomorphic-fetch": "^2.2.1",
+    "graphql": "14.0.2",
+    "graphql-tag": "2.10.1",
+    "https-proxy-agent": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
-    "prop-types": "^15.5.10",
-    "react": "^15.5.4",
-    "react-apollo": "^1.1.3",
-    "react-dom": "^15.5.4"
-  },
-  "devDependencies": {
-    "ava": "^0.19.1",
-    "clear-require": "^2.0.0",
-    "glob": "^7.1.2"
-  },
-  "ava": {
-    "require": [
-      "babel-register"
-    ],
-    "babel": "inherit"
+    "prop-types": "^15.6.1",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }

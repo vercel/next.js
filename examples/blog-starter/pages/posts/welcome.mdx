@@ -1,0 +1,28 @@
+import { withRouter } from 'next/router'
+import BlogPost from '../../components/layouts/blog-post'
+
+export const meta = {
+  published: true,
+  publishedAt: '2018-05-20',
+  title: 'Welcome',
+  summary: 'Welcome to your new blog built with Next.js',
+  image: '/static/site-feature.png',
+}
+
+export default withRouter(({ children, router }) => (
+  <BlogPost path={router.pathname} meta={meta}>
+    {children}
+  </BlogPost>
+))
+
+Welcome to your new blog built with Next.js.
+
+You&rsquo;ll find this post in your `page/posts` directory. To add new posts, add a MDX file in the `page/posts` directory, press `ctrl + c` to stop the development server and run `now dev` again.
+
+After you personalize your blog you can deploy it to Now.
+
+```bash
+$ now
+```
+
+Then, you will see your blog online in a URL like https://nextjs-blog-starter.now.sh

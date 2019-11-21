@@ -2,12 +2,10 @@ const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const moduleAlias = require('module-alias')
 
-// For the development version, we'll use React.
-// Because, it support react hot loading and so on.
-if (!dev) {
-  moduleAlias.addAlias('react', 'preact-compat')
-  moduleAlias.addAlias('react-dom', 'preact-compat')
-}
+moduleAlias.addAliases({
+  react: 'preact/compat',
+  'react-dom': 'preact/compat',
+})
 
 const { createServer } = require('http')
 const { parse } = require('url')
@@ -16,13 +14,11 @@ const next = require('next')
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-app.prepare()
-.then(() => {
+app.prepare().then(() => {
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true)
     handle(req, res, parsedUrl)
-  })
-  .listen(port, (err) => {
+  }).listen(port, err => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

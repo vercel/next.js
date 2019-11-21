@@ -10,9 +10,9 @@
   "dependencies": {
     "classnames": "^2.2.5",
     "next": "latest",
-    "react": "^15.5.4",
+    "react": "^16.7.0",
     "react-addons-css-transition-group": "^15.5.2",
-    "react-dom": "^15.5.4",
+    "react-dom": "^16.7.0",
     "react-toolbox": "^2.0.0-beta.8"
   },
   "devDependencies": {
@@ -30,6 +30,7 @@
       "color-primary-contrast": "var(--color-dark-contrast)",
       "color-accent-contrast": "var(--color-dark-contrast)"
     },
-    "output": "static"
+    "output": "public",
+    "javascript": "./theme.js"
   }
 }

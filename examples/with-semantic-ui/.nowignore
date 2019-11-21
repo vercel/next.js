@@ -1,0 +1,5 @@
+node_modules
+.next
+/*.*
+!package.json
+!next.config.js

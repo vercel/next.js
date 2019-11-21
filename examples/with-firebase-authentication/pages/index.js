@@ -1,29 +1,35 @@
 import React, { Component } from 'react'
-import firebase from 'firebase'
-import 'isomorphic-fetch'
+import firebase from 'firebase/app'
+import 'firebase/auth'
+import 'firebase/firestore'
+import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
 export default class Index extends Component {
-  static async getInitialProps ({req, query}) {
+  static async getInitialProps({ req, query }) {
     const user = req && req.session ? req.session.decodedToken : null
-    const snap = await req.firebaseServer.database().ref('messages').once('value')
-    return { user, messages: snap.val() }
+    // don't fetch anything from firebase if the user is not found
+    // const snap = user && await req.firebaseServer.database().ref('messages').once('value')
+    // const messages = snap && snap.val()
+    const messages = null
+    return { user, messages }
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       user: this.props.user,
       value: '',
-      messages: this.props.messages
+      messages: this.props.messages,
     }
 
     this.addDbListener = this.addDbListener.bind(this)
+    this.removeDbListener = this.removeDbListener.bind(this)
     this.handleChange = this.handleChange.bind(this)
     this.handleSubmit = this.handleSubmit.bind(this)
   }
 
-  componentDidMount () {
+  componentDidMount() {
     firebase.initializeApp(clientCredentials)
 
     if (this.state.user) this.addDbListener()
@@ -31,85 +37,108 @@ export default class Index extends Component {
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         this.setState({ user: user })
-        return user.getToken()
-          .then((token) => {
+        return user
+          .getIdToken()
+          .then(token => {
             // eslint-disable-next-line no-undef
             return fetch('/api/login', {
               method: 'POST',
               // eslint-disable-next-line no-undef
               headers: new Headers({ 'Content-Type': 'application/json' }),
               credentials: 'same-origin',
-              body: JSON.stringify({ token })
+              body: JSON.stringify({ token }),
             })
-          }).then((res) => this.addDbListener())
+          })
+          .then(res => this.addDbListener())
       } else {
         this.setState({ user: null })
         // eslint-disable-next-line no-undef
         fetch('/api/logout', {
           method: 'POST',
-          credentials: 'same-origin'
-        }).then(() => firebase.database().ref('messages').off())
+          credentials: 'same-origin',
+        }).then(() => this.removeDbListener())
       }
     })
   }
 
-  addDbListener () {
-    firebase.database().ref('messages').on('value', snap => {
-      const messages = snap.val()
-      if (messages) this.setState({ messages })
-    })
+  addDbListener() {
+    var db = firebase.firestore()
+    let unsubscribe = db.collection('messages').onSnapshot(
+      querySnapshot => {
+        var messages = {}
+        querySnapshot.forEach(function(doc) {
+          messages[doc.id] = doc.data()
+        })
+        if (messages) this.setState({ messages })
+      },
+      error => {
+        console.error(error)
+      }
+    )
+    this.setState({ unsubscribe })
   }
 
-  handleChange (event) {
+  removeDbListener() {
+    // firebase.database().ref('messages').off()
+    if (this.state.unsubscribe) {
+      this.state.unsubscribe()
+    }
+  }
+
+  handleChange(event) {
     this.setState({ value: event.target.value })
   }
 
-  handleSubmit (event) {
+  handleSubmit(event) {
     event.preventDefault()
+    var db = firebase.firestore()
     const date = new Date().getTime()
-    firebase.database().ref(`messages/${date}`).set({
-      id: date,
-      text: this.state.value
-    })
+    db.collection('messages')
+      .doc(`${date}`)
+      .set({
+        id: date,
+        text: this.state.value,
+      })
     this.setState({ value: '' })
   }
 
-  handleLogin () {
+  handleLogin() {
     firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
   }
 
-  handleLogout () {
+  handleLogout() {
     firebase.auth().signOut()
   }
 
-  render () {
+  render() {
     const { user, value, messages } = this.state
 
-    return <div>
-      {
-        user
-        ? <button onClick={this.handleLogout}>Logout</button>
-        : <button onClick={this.handleLogin}>Login</button>
-      }
-      {
-        user &&
-        <div>
-          <form onSubmit={this.handleSubmit}>
-            <input
-              type={'text'}
-              onChange={this.handleChange}
-              placeholder={'add message'}
-              value={value}
-            />
-          </form>
-          <ul>
-            {
-              messages &&
-              Object.keys(messages).map(key => <li key={key}>{messages[key].text}</li>)
-            }
-          </ul>
-        </div>
-      }
-    </div>
+    return (
+      <div>
+        {user ? (
+          <button onClick={this.handleLogout}>Logout</button>
+        ) : (
+          <button onClick={this.handleLogin}>Login</button>
+        )}
+        {user && (
+          <div>
+            <form onSubmit={this.handleSubmit}>
+              <input
+                type={'text'}
+                onChange={this.handleChange}
+                placeholder={'add message...'}
+                value={value}
+              />
+            </form>
+            <ul>
+              {messages &&
+                Object.keys(messages).map(key => (
+                  <li key={key}>{messages[key].text}</li>
+                ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )
   }
 }

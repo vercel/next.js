@@ -1,14 +1,39 @@
-let component = ReasonReact.statefulComponent "Counter";
-let make _children => {
-  ...component,
-  initialState: fun () => 0,
-  render: fun self => {
-    let countMsg = "Count: " ^ (string_of_int self.state);
-    let onClick _evt {ReasonReact.state} => ReasonReact.Update (state + 1);
+/*
+    This is the set of action messages which are produced by this component.
+    * Add updates the components internal state.
+ */
+type action =
+  | Add
 
-    <div>
-      <p> (ReasonReact.stringToElement countMsg) </p>
-      <button onClick=(self.update onClick)> (ReasonReact.stringToElement "Add") </button>
-    </div>
-  }
+/*
+   This is the components internal state representation. This state object
+   is unique to each instance of the component.
+ */
+type state = {
+  count: int,
 };
+
+let counterReducer = (state, action) =>
+  switch(action) {
+  | Add => { count: state.count + 1 }
+  };
+
+[@react.component]
+let make = () => {
+  let (state, dispatch) = React.useReducer(counterReducer, { count: 0 });
+  let (globalState, globalDispatch) = GlobalCount.useGlobalCount();
+
+  let countMsg = "Count: " ++ string_of_int(state.count);
+  let persistentCountMsg = "Persistent Count " ++ string_of_int(globalState);
+
+  <div>
+    <p> {ReasonReact.string(countMsg)} </p>
+    <button onClick={_ => dispatch(Add)}> {React.string("Add")} </button>
+    <p> {ReasonReact.string(persistentCountMsg)} </p>
+    <button onClick={_ => globalDispatch(GlobalCount.Increment)}>
+      {React.string("Add")}
+    </button>
+  </div>;
+};
+
+let default = make;
