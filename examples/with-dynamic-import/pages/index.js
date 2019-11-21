@@ -8,28 +8,28 @@ const DynamicComponent1 = dynamic(import('../components/hello1'))
 
 const DynamicComponent2WithCustomLoading = dynamic({
   loader: () => import('../components/hello2'),
-  loading: () => <p>Loading caused by client page transition ...</p>
+  loading: () => <p>Loading caused by client page transition ...</p>,
 })
 
 const DynamicComponent3WithNoSSR = dynamic({
   loader: () => import('../components/hello3'),
   loading: () => <p>Loading ...</p>,
-  ssr: false
+  ssr: false,
 })
 
 const DynamicComponent4 = dynamic({
-  loader: () => import('../components/hello4')
+  loader: () => import('../components/hello4'),
 })
 
 const DynamicComponent5 = dynamic({
-  loader: () => import('../components/hello5')
+  loader: () => import('../components/hello5'),
 })
 
 const DynamicBundle = dynamic({
   modules: () => {
     const components = {
       Hello6: import('../components/hello6'),
-      Hello7: import('../components/hello7')
+      Hello7: import('../components/hello7'),
     }
     return components
   },
@@ -38,11 +38,11 @@ const DynamicBundle = dynamic({
       <Hello6 />
       <Hello7 />
     </div>
-  )
+  ),
 })
 
 export default class Index extends React.Component {
-  static getInitialProps ({ query }) {
+  static getInitialProps({ query }) {
     return { showMore: Boolean(query.showMore) }
   }
 
@@ -56,7 +56,7 @@ export default class Index extends React.Component {
     Router.push('/?showMore=1')
   }
 
-  render () {
+  render() {
     const { showMore } = this.props
 
     return (

@@ -5,14 +5,14 @@ import thunkMiddleware from 'redux-thunk'
 const exampleInitialState = {
   lastUpdate: 0,
   light: false,
-  count: 0
+  count: 0,
 }
 
 export const actionTypes = {
   TICK: 'TICK',
   INCREMENT: 'INCREMENT',
   DECREMENT: 'DECREMENT',
-  RESET: 'RESET'
+  RESET: 'RESET',
 }
 
 // REDUCERS
@@ -21,19 +21,19 @@ export const reducer = (state = exampleInitialState, action) => {
     case actionTypes.TICK:
       return Object.assign({}, state, {
         lastUpdate: action.ts,
-        light: !!action.light
+        light: !!action.light,
       })
     case actionTypes.INCREMENT:
       return Object.assign({}, state, {
-        count: state.count + 1
+        count: state.count + 1,
       })
     case actionTypes.DECREMENT:
       return Object.assign({}, state, {
-        count: state.count - 1
+        count: state.count - 1,
       })
     case actionTypes.RESET:
       return Object.assign({}, state, {
-        count: exampleInitialState.count
+        count: exampleInitialState.count,
       })
     default:
       return state
@@ -63,7 +63,7 @@ export const resetCount = () => {
   return { type: actionTypes.RESET }
 }
 
-export function initializeStore (initialState = exampleInitialState) {
+export function initializeStore(initialState = exampleInitialState) {
   return createStore(
     reducer,
     initialState,

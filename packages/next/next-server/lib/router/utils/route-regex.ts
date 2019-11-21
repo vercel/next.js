@@ -11,14 +11,16 @@ export function getRouteRegex(
   let groupIndex = 1
 
   const parameterizedRoute = escapedRoute.replace(
-    /\/\\\[([^\/]+?)\\\](?=\/|$)/g,
+    /\/\\\[([^/]+?)\\\](?=\/|$)/g,
     (_, $1) => (
       (groups[
         $1
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
+          .replace(/^\.{3}/, '')
+        // eslint-disable-next-line no-sequences
       ] = groupIndex++),
-      '/([^/]+?)'
+      $1.indexOf('\\.\\.\\.') === 0 ? '/(.+?)' : '/([^/]+?)'
     )
   )
 

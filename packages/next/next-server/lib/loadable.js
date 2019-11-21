@@ -29,13 +29,13 @@ const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
 let initialized = false
 
-function load (loader) {
+function load(loader) {
   let promise = loader()
 
   let state = {
     loading: true,
     loaded: null,
-    error: null
+    error: null,
   }
 
   state.promise = promise
@@ -53,11 +53,11 @@ function load (loader) {
   return state
 }
 
-function loadMap (obj) {
+function loadMap(obj) {
   let state = {
     loading: false,
     loaded: {},
-    error: null
+    error: null,
   }
 
   let promises = []
@@ -100,15 +100,15 @@ function loadMap (obj) {
   return state
 }
 
-function resolve (obj) {
+function resolve(obj) {
   return obj && obj.__esModule ? obj.default : obj
 }
 
-function render (loaded, props) {
+function render(loaded, props) {
   return React.createElement(resolve(loaded), props)
 }
 
-function createLoadableComponent (loadFn, options) {
+function createLoadableComponent(loadFn, options) {
   let opts = Object.assign(
     {
       loader: null,
@@ -117,21 +117,21 @@ function createLoadableComponent (loadFn, options) {
       timeout: null,
       render: render,
       webpack: null,
-      modules: null
+      modules: null,
     },
     options
   )
 
   let subscription = null
 
-  function init () {
+  function init() {
     if (!subscription) {
       const sub = new LoadableSubscription(loadFn, opts)
       subscription = {
         getCurrentValue: sub.getCurrentValue.bind(sub),
         subscribe: sub.subscribe.bind(sub),
         retry: sub.retry.bind(sub),
-        promise: sub.promise.bind(sub)
+        promise: sub.promise.bind(sub),
       }
     }
     return subscription.promise()
@@ -165,7 +165,7 @@ function createLoadableComponent (loadFn, options) {
     const state = useSubscription(subscription)
 
     React.useImperativeHandle(ref, () => ({
-      retry: subscription.retry
+      retry: subscription.retry,
     }))
 
     if (context && Array.isArray(opts.modules)) {
@@ -180,7 +180,7 @@ function createLoadableComponent (loadFn, options) {
         pastDelay: state.pastDelay,
         timedOut: state.timedOut,
         error: state.error,
-        retry: subscription.retry
+        retry: subscription.retry,
       })
     } else if (state.loaded) {
       return opts.render(state.loaded, props)
@@ -196,7 +196,7 @@ function createLoadableComponent (loadFn, options) {
 }
 
 class LoadableSubscription {
-  constructor (loadFn, opts) {
+  constructor(loadFn, opts) {
     this._loadFn = loadFn
     this._opts = opts
     this._callbacks = new Set()
@@ -206,17 +206,17 @@ class LoadableSubscription {
     this.retry()
   }
 
-  promise () {
+  promise() {
     return this._res.promise
   }
 
-  retry () {
+  retry() {
     this._clearTimeouts()
     this._res = this._loadFn(this._opts.loader)
 
     this._state = {
       pastDelay: false,
-      timedOut: false
+      timedOut: false,
     }
 
     const { _res: res, _opts: opts } = this
@@ -228,7 +228,7 @@ class LoadableSubscription {
         } else {
           this._delay = setTimeout(() => {
             this._update({
-              pastDelay: true
+              pastDelay: true,
             })
           }, opts.delay)
         }
@@ -254,29 +254,29 @@ class LoadableSubscription {
     this._update({})
   }
 
-  _update (partial) {
+  _update(partial) {
     this._state = {
       ...this._state,
-      ...partial
+      ...partial,
     }
     this._callbacks.forEach(callback => callback())
   }
 
-  _clearTimeouts () {
+  _clearTimeouts() {
     clearTimeout(this._delay)
     clearTimeout(this._timeout)
   }
 
-  getCurrentValue () {
+  getCurrentValue() {
     return {
       ...this._state,
       error: this._res.error,
       loaded: this._res.loaded,
-      loading: this._res.loading
+      loading: this._res.loading,
     }
   }
 
-  subscribe (callback) {
+  subscribe(callback) {
     this._callbacks.add(callback)
     return () => {
       this._callbacks.delete(callback)
@@ -284,11 +284,11 @@ class LoadableSubscription {
   }
 }
 
-function Loadable (opts) {
+function Loadable(opts) {
   return createLoadableComponent(load, opts)
 }
 
-function LoadableMap (opts) {
+function LoadableMap(opts) {
   if (typeof opts.render !== 'function') {
     throw new Error('LoadableMap requires a `render(loaded, props)` function')
   }
@@ -298,7 +298,7 @@ function LoadableMap (opts) {
 
 Loadable.Map = LoadableMap
 
-function flushInitializers (initializers, ids) {
+function flushInitializers(initializers, ids) {
   let promises = []
 
   while (initializers.length) {

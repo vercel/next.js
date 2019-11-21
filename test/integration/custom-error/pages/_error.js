@@ -1,12 +1,12 @@
 import React from 'react'
 
 class Error extends React.Component {
-  static getInitialProps ({ res, err }) {
+  static getInitialProps({ res, err }) {
     const statusCode = res ? res.statusCode : err ? err.statusCode : null
     return { statusCode }
   }
 
-  render () {
+  render() {
     return (
       <>
         <h3>Custom error!!</h3>

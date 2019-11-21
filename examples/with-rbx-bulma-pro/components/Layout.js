@@ -7,37 +7,37 @@ import {
   Section,
   Hero,
   Title,
-  Footer
+  Footer,
 } from 'rbx'
 import 'bulma-pro/css/bulma.css'
 
 const Layout = ({ children }) => {
   return (
     <Generic>
-      <Navbar fixed='top' color='primary'>
+      <Navbar fixed="top" color="primary">
         <Navbar.Brand>
-          <Navbar.Item href='#'>Bulma</Navbar.Item>
+          <Navbar.Item href="#">Bulma</Navbar.Item>
           <Navbar.Burger />
         </Navbar.Brand>
         <Navbar.Menu>
-          <Navbar.Segment align='start'>
-            <Link href='/'>
+          <Navbar.Segment align="start">
+            <Link href="/">
               <Navbar.Item>Home</Navbar.Item>
             </Link>
-            <Link href='/about'>
+            <Link href="/about">
               <Navbar.Item>About</Navbar.Item>
             </Link>
-            <Link href='/contact'>
+            <Link href="/contact">
               <Navbar.Item>Contact</Navbar.Item>
             </Link>
           </Navbar.Segment>
         </Navbar.Menu>
       </Navbar>
-      <Section backgroundColor='primary'>
+      <Section backgroundColor="primary">
         <Hero>
           <Hero.Body>
             <Container>
-              <Title as='h1' align='center' color='white'>
+              <Title as="h1" align="center" color="white">
                 Welcome to Next!
               </Title>
             </Container>
@@ -48,7 +48,7 @@ const Layout = ({ children }) => {
         <Content>{children}</Content>
       </Container>
       <Footer>
-        <Content textAlign='centered'>
+        <Content textAlign="centered">
           <p>&copy; ZEIT, Inc. All rights reserved.</p>
         </Content>
       </Footer>

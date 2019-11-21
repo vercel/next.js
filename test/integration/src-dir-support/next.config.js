@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    modern: true
-  }
+    modern: true,
+  },
 }

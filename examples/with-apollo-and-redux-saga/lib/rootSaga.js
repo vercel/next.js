@@ -3,7 +3,7 @@ import 'isomorphic-unfetch'
 import clockSaga from './clock/sagas'
 import placeholderSaga from './placeholder/sagas'
 
-function * rootSaga () {
+function* rootSaga() {
   yield all([clockSaga, placeholderSaga])
 }
 

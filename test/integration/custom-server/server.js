@@ -32,6 +32,10 @@ app.prepare().then(() => {
       return app.render(req, res, '/dashboard/index')
     }
 
+    if (/static\/hello\.text/.test(req.url)) {
+      return app.render(req, res, '/static/hello.text')
+    }
+
     handleNextRequests(req, res)
   })
 

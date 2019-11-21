@@ -1,3 +1,3 @@
 module.exports = {
-  __test__ext: 'jsx'
+  __test__ext: 'jsx',
 }

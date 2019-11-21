@@ -7,8 +7,8 @@ import PostVoteUp from './PostVoteUp'
 import PostVoteDown from './PostVoteDown'
 import PostVoteCount from './PostVoteCount'
 
-function Post ({ id, data: { error, Post } }) {
-  if (error) return <ErrorMessage message='Error loading blog post.' />
+function Post({ id, data: { error, Post } }) {
+  if (error) return <ErrorMessage message="Error loading blog post." />
   if (Post) {
     return (
       <section>
@@ -55,12 +55,12 @@ const post = gql`
 const ComponentWithMutation = graphql(post, {
   options: ({ router: { query } }) => ({
     variables: {
-      id: query.id
-    }
+      id: query.id,
+    },
   }),
   props: ({ data }) => ({
-    data
-  })
+    data,
+  }),
 })(Post)
 
 export default withRouter(ComponentWithMutation)

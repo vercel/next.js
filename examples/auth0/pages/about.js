@@ -3,7 +3,7 @@ import React from 'react'
 import Layout from '../components/layout'
 import { useFetchUser } from '../lib/user'
 
-function About () {
+function About() {
   const { user, loading } = useFetchUser()
 
   return (
