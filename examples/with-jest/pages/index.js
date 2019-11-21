@@ -3,6 +3,7 @@ export default () => (
     <style jsx>{`
       p {
         color: red;
+        font-weight: bold;
       }
     `}</style>
     <p>Hello World!</p>
