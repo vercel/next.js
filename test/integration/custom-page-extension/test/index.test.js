@@ -8,7 +8,6 @@ import {
   launchApp,
   killApp,
   renderViaHTTP,
-  killAll,
   File,
 } from 'next-test-utils'
 
@@ -46,7 +45,7 @@ describe('Custom page extension', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killAll(app))
+    afterAll(() => killApp(app))
     runTests()
   })
 

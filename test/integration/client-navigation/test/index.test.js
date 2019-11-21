@@ -74,6 +74,33 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should navigate back after reload', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.elementByCss('#about-link').click()
+      await browser.waitForElementByCss('.nav-about')
+      await browser.refresh()
+      await waitFor(3000)
+      await browser.back()
+      await waitFor(3000)
+      const text = await browser.elementsByCss('#about-link').text()
+      if (browser) await browser.close()
+      expect(text).toMatch(/About/)
+    })
+
+    it('should navigate forwards after reload', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.elementByCss('#about-link').click()
+      await browser.waitForElementByCss('.nav-about')
+      await browser.back()
+      await browser.refresh()
+      await waitFor(3000)
+      await browser.forward()
+      await waitFor(3000)
+      const text = await browser.elementsByCss('p').text()
+      if (browser) await browser.close()
+      expect(text).toMatch(/this is the about page/i)
+    })
+
     it('should navigate via the client side', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 

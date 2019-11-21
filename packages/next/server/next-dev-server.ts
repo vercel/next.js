@@ -21,7 +21,7 @@ import {
 } from '../next-server/lib/router/utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { route } from '../next-server/server/router'
+import { route, Params } from '../next-server/server/router'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
@@ -103,6 +103,8 @@ export default class DevServer extends Server {
         // We use unshift so that we're sure the routes is defined before Next's default routes
         this.router.add({
           match: route(path),
+          type: 'route',
+          name: `${path} exportpathmap route`,
           fn: async (req, res, params, parsedUrl) => {
             const { query: urlQuery } = parsedUrl
 
@@ -117,6 +119,9 @@ export default class DevServer extends Server {
             const mergedQuery = { ...urlQuery, ...query }
 
             await this.render(req, res, page, mergedQuery, parsedUrl)
+            return {
+              finished: true,
+            }
           },
         })
       }
@@ -236,20 +241,13 @@ export default class DevServer extends Server {
     }
   }
 
-  async run(
+  protected async _beforeCatchAllRender(
     req: IncomingMessage,
     res: ServerResponse,
+    _params: Params,
     parsedUrl: UrlWithParsedQuery
   ) {
-    await this.devReady
     const { pathname } = parsedUrl
-
-    if (pathname!.startsWith('/_next')) {
-      try {
-        await fsStat(join(this.publicDir, '_next'))
-        throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-      } catch (err) {}
-    }
 
     // check for a public file, throwing error if there's a
     // conflicting page
@@ -265,9 +263,29 @@ export default class DevServer extends Server {
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
         )
         res.statusCode = 500
-        return this.renderError(err, req, res, pathname!, {})
+        await this.renderError(err, req, res, pathname!, {})
+        return true
       }
-      return this.servePublic(req, res, pathname!)
+      await this.servePublic(req, res, pathname!)
+      return true
+    }
+
+    return false
+  }
+
+  async run(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl: UrlWithParsedQuery
+  ) {
+    await this.devReady
+    const { pathname } = parsedUrl
+
+    if (pathname!.startsWith('/_next')) {
+      try {
+        await fsStat(join(this.publicDir, '_next'))
+        throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+      } catch (err) {}
     }
 
     const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
@@ -308,9 +326,14 @@ export default class DevServer extends Server {
     // We use unshift so that we're sure the routes is defined before Next's default routes
     routes.unshift({
       match: route('/_next/development/:path*'),
+      type: 'route',
+      name: '_next/development catchall',
       fn: async (req, res, params) => {
         const p = join(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
+        return {
+          finished: true,
+        }
       },
     })
 
