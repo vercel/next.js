@@ -1,13 +1,13 @@
-# Custom `<App>`
+# Custom `App`
 
-Next.js uses the `<App>` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
+Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
 
 - Persisting layout between page changes
 - Keeping state when navigating pages
 - Custom error handling using `componentDidCatch`
 - Inject additional data into pages
 
-To override the default `<App>`, create the file `./pages/_app.js` as shown below:
+To override the default `App`, create the file `./pages/_app.js` as shown below:
 
 ```jsx
 function MyApp({ Component, pageProps }) {
@@ -31,4 +31,4 @@ export default MyApp
 
 The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
 
-> Adding a custom `getInitialProps` in your `<App>` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+> Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).

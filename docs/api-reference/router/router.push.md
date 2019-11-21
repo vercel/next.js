@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-Handles client-side transitions, this method is useful for cases where [`<Link>`](/docs/routing/using-link.md) is not enough.
+Handles client-side transitions, this method is useful for cases where [`Link`](/docs/routing/using-link.md) is not enough.
 
 ```jsx
 import Router from 'next/router'
@@ -50,7 +50,7 @@ function Page() {
 
 ## With URL object
 
-You can use an URL object in the same way you can use it for [`<Link>`](/docs/routing/using-link.md). Works for both the `url` and `as` parameters:
+You can use an URL object in the same way you can use it for [`Link`](/docs/routing/using-link.md). Works for both the `url` and `as` parameters:
 
 ```jsx
 import Router from 'next/router'

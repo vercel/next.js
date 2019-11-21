@@ -13,7 +13,7 @@
           "path": "/docs/basic-features/static-file-serving.md"
         },
         {
-          "title": "Populating `<head>`",
+          "title": "Populating `head`",
           "path": "/docs/basic-features/populating-head.md"
         },
         {
@@ -34,11 +34,11 @@
           "path": "/docs/pages/ssr-with-getInitialProps.md"
         },
         {
-          "title": "Custom `<App>`",
+          "title": "Custom `App`",
           "path": "/docs/pages/custom-app.md"
         },
         {
-          "title": "Custom `<Document>`",
+          "title": "Custom `Document`",
           "path": "/docs/pages/custom-document.md"
         },
         {
@@ -59,7 +59,7 @@
           "path": "/docs/routing/introduction.md"
         },
         {
-          "title": "Using `<Link>`",
+          "title": "Using `Link`",
           "path": "/docs/routing/using-link.md"
         },
         {

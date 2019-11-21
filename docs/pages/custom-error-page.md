@@ -1,6 +1,6 @@
 # Custom Error Page
 
-**404** or **500** errors are handled both client-side and server-side by the `<Error>` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
+**404** or **500** errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
 
 ```jsx
 function Error({ statusCode }) {
@@ -25,7 +25,7 @@ export default Error
 
 ## Reusing the built-in error page
 
-If you want to render the built-in error page you can by importing the `<Error>` component:
+If you want to render the built-in error page you can by importing the `Error` component:
 
 ```jsx
 import Error from 'next/error'
@@ -50,4 +50,4 @@ Page.getInitialProps = async () => {
 export default Page
 ```
 
-The `<Error>` component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.
+The `Error` component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.

@@ -1,6 +1,6 @@
 # Router.replace
 
-Similar to the `replace` prop in [`<Link>`](/docs/routing/using-link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
+Similar to the `replace` prop in [`Link`](/docs/routing/using-link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
 
 ```jsx
 import Router from 'next/router'

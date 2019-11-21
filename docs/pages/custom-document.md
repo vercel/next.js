@@ -1,10 +1,10 @@
-# Custom `<Document>`
+# Custom `Document`
 
-A custom `<Document>` is commonly used to augment your application's `<html>` and `<body>` tags. This is necessary because Next.js pages skip the definition of the surrounding document's markup.
+A custom `Document` is commonly used to augment your application's `<html>` and `<body>` tags. This is necessary because Next.js pages skip the definition of the surrounding document's markup.
 
-A custom `<Document>` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
+A custom `Document` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
 
-To override the default `<Document>`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
+To override the default `Document`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
 
 ```jsx
 import Document, { Html, Head, Main, NextScript } from 'next/document'
@@ -39,9 +39,9 @@ The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/
 
 ## Caveats
 
-- `<Document>` is only rendered in the server, event handlers like `onClick` won't work
-- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`<App>`](/docs/pages/custom-app.md) component instead
-- `<Document>`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md)
+- `Document` is only rendered in the server, event handlers like `onClick` won't work
+- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`App`](/docs/pages/custom-app.md) component instead
+- `Document`'s `getInitialProps` function is not called during client-side transitions, nor when a page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md)
 - Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`. Those variables will be `undefined` when a page is being statically exported by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or by [`next export`](/docs/advanced-features/static-html-export.md)
 
 ## Customizing `renderPage`
