@@ -1,4 +1,4 @@
-/* global location */
+/* global location, hydrationMetrics */
 import React from 'react'
 import ReactDOM from 'react-dom'
 import initHeadManager from './head-manager'
@@ -397,7 +397,7 @@ function clearMeasures() {
   ].forEach(measure => performance.clearMeasures(measure))
 }
 
-function measureFid () {
+function measureFid() {
   hydrationMetrics.onInputDelay((delay, event) => {
     const hydrationMeasures = performance.getEntriesByName(
       'Next.js-hydration',
@@ -408,22 +408,26 @@ function measureFid () {
       const { startTime, duration } = hydrationMeasures[0]
       const hydrateEnd = startTime + duration
 
-      // TODO: Instead of console.logs, expose values to user code through perf relayer (next.js/pull/8480)
-      console.log(
-        'First input after hydration',
-        `start: ${event.timeStamp}`,
-        `delay: ${delay}`
-      )
-      console.log(
-        'Delta between hydration end and first input',
-        `diff: ${event.timeStamp - hydrateEnd}`
-      )
+      if (onPerfEntry) {
+        onPerfEntry({
+          name: 'first-input-delay-after-hydration',
+          startTime: event.timeStamp,
+          value: delay,
+        })
+        onPerfEntry({
+          name: 'time-to-first-input-after-hydration',
+          startTime: hydrateEnd,
+          value: event.timeStamp - hydrateEnd,
+        })
+      }
     } else {
-      console.log(
-        'First input before hydration',
-        `start: ${event.timeStamp}`,
-        `delay: ${delay}`
-      )
+      if (onPerfEntry) {
+        onPerfEntry({
+          name: 'first-input-delay-before-hydration',
+          startTime: event.timeStamp,
+          value: delay,
+        })
+      }
     }
   })
 

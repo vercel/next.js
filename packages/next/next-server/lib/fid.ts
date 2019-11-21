@@ -93,7 +93,7 @@ function fidPolyfill(
 
       var delay = now - evt.timeStamp
 
-      if (evt.type == 'pointerdown') {
+      if (evt.type === 'pointerdown') {
         onPointerDown(delay, evt)
       } else {
         recordInputDelay(delay, evt)
