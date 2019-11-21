@@ -1,6 +1,6 @@
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
+import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
+
 import { PageConfig } from '../../../types'
 
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
