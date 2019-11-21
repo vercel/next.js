@@ -386,6 +386,9 @@ function clearMarks() {
     'afterRender',
     'routeChange',
   ].forEach(mark => performance.clearMarks(mark))
+}
+
+function clearMeasures() {
   ;[
     'Next.js-before-hydration',
     'Next.js-hydration',
@@ -423,6 +426,8 @@ function measureFid () {
       )
     }
   })
+
+  clearMeasures()
 }
 
 function AppContainer({ children }) {
