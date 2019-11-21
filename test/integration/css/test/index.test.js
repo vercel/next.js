@@ -476,6 +476,13 @@ describe('CSS Support', () => {
       const cssSheet = $('link[rel="stylesheet"]')
       expect(cssSheet.length).toBe(1)
       expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      /* ensure CSS preloaded first */
+      const allPreloads = [].slice.call($('link[rel="preload"]'))
+      const styleIndexes = allPreloads.flatMap((p, i) =>
+        p.attribs.as === 'style' ? i : []
+      )
+      expect(styleIndexes).toEqual([0])
     })
   })
 

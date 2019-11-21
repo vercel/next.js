@@ -474,6 +474,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {this.getCssLinks()}
             {page !== '/_error' && (
               <link
                 rel="preload"
@@ -513,7 +514,6 @@ export class Head extends Component<
                 // (by default, style-loader injects at the bottom of <head />)
                 <noscript id="__next_css__DO_NOT_USE__" />
               )}
-            {this.getCssLinks()}
             {styles || null}
           </>
         )}
