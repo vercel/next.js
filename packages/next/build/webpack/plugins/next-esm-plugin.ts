@@ -48,6 +48,16 @@ type BabelConfigItem = string | [string] | [string, any]
 
 const PLUGIN_NAME = 'NextEsmPlugin'
 
+// Matches all variations of preset-env as a filepath.
+// Example: /project/foo/node_modules/babel-preset-react-app/dependencies.js
+const IS_PRESET_ENV = /(^|[\\/])(babel-preset-react-app\/dependencies(\.js)?|@babel\/(preset-)?env)([\\/]|$)/
+
+// Matches Babel preset paths that support the useBuiltIns option
+const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
+
+// Matches Babel plugin paths that support the useBuiltIns option
+const PLUGINS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/
+
 export default class NextEsmPlugin implements Plugin {
   options: {
     filename: any
@@ -153,25 +163,14 @@ export default class NextEsmPlugin implements Plugin {
             (Array.isArray(preset) && preset[1]) || {}
           )
 
-          // known presets with useBuiltIn support
-          if (/(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/.test(name)) {
+          if (PRESETS_WITH_USEBUILTINS.test(name)) {
             opts.useBuiltIns = true
           }
 
-          // Example: /project/foo/node_modules/babel-preset-react-app/dependencies.js
-          if (
-            !/(^|[\\/])(babel-preset-react-app\/dependencies(\.js)?|@babel\/(preset-)?env)([\\/]|$)/.test(
-              name
-            )
-          ) {
-            presets.push([name, opts])
-          } else {
+          if (IS_PRESET_ENV.test(name)) {
             presets.push(['@babel/preset-modules', { loose: true }])
-            console.log(
-              'replacing preset-env/variant with babel-preset-modern (' +
-                name +
-                ')'
-            )
+          } else {
+            presets.push([name, opts])
           }
           return presets
         },
@@ -187,10 +186,7 @@ export default class NextEsmPlugin implements Plugin {
           (Array.isArray(plugin) && plugin[1]) || {}
         )
 
-        // known plugins with useBuiltIn support
-        if (
-          /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/.test(name)
-        ) {
+        if (PLUGINS_WITH_USEBUILTINS.test(name)) {
           opts.useBuiltIns = true
         }
 
