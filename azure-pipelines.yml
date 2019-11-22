@@ -39,7 +39,7 @@ steps:
     displayName: 'Install dependencies'
 
   - script: |
-      yarn add chromedriver@76 -W
+      node node_modules/chromedriver/install.js
     displayName: 'Install correct Chrome Driver version'
 
   - script: |

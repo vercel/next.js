@@ -1,4 +1,4 @@
-let globalSetup
+let globalSetup = () => {}
 
 if (process.env.BROWSERSTACK) {
   const { Local } = require('browserstack-local')
@@ -33,4 +33,4 @@ if (process.env.BROWSERSTACK) {
   }
 }
 
-module.exports = () => globalSetup()
+module.exports = globalSetup

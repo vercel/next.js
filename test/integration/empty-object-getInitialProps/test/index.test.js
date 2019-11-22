@@ -60,7 +60,7 @@ describe('Empty Project', () => {
       }
       window.next.router.replace('/another')
     })()`)
-    await waitFor(300)
+    await waitFor(500)
     const gotWarn = await browser.eval(`window.gotWarn`)
     expect(gotWarn).toBe(true)
     await browser.close()
