@@ -4,6 +4,8 @@ const os = require('os')
 const http = require('http')
 const fetch = require('node-fetch')
 const getPort = require('get-port')
+const waitPort = require('wait-port')
+const chromedriver = require('chromedriver')
 const NodeEnvironment = require('jest-environment-node')
 const {
   BROWSER_NAME,
@@ -23,6 +25,7 @@ let browserOptions = {
     : {}),
 }
 let deviceIP = 'localhost'
+let driverPort = '9515'
 
 const isIE = BROWSER_NAME === 'ie'
 const isSafari = BROWSER_NAME === 'safari'
@@ -81,6 +84,17 @@ class CustomEnvironment extends NodeEnvironment {
   async createBrowser() {
     // always create new browser session if not BrowserStack
     if (!browser) {
+      if (!isBrowserStack) {
+        driverPort = await getPort()
+        chromedriver.start([`--port=${driverPort}`])
+
+        // https://github.com/giggio/node-chromedriver/issues/117
+        await waitPort({
+          port: driverPort,
+          timeout: 1000 * 60 * 2, // 2 Minutes
+        })
+      }
+
       browser = wd.promiseChainRemote(
         ...(isBrowserStack
           ? [
@@ -89,7 +103,7 @@ class CustomEnvironment extends NodeEnvironment {
               BROWSERSTACK_USERNAME,
               BROWSERSTACK_ACCESS_KEY,
             ]
-          : ['http://localhost:9515'])
+          : [`http://localhost:${driverPort}`])
       )
 
       // Setup the browser instance
@@ -209,6 +223,7 @@ class CustomEnvironment extends NodeEnvironment {
   async teardown() {
     await super.teardown()
     if (this.server) this.server.close()
+    chromedriver.stop()
   }
 }
 
