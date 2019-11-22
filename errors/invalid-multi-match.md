@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-In one of your custom-routes you specified a multi-match `/:path*` and used it in your `destination` without adding the `*` in your `destination` e.g. `destination: '/another/:path`
+In one of your custom-routes you specified a multi-match `/:path*` and used it in your `destination` without adding the `*` in your `destination` e.g. `destination: '/another/:path'`
 
 #### Possible Ways to Fix It
 
