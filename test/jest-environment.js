@@ -109,7 +109,6 @@ class CustomEnvironment extends NodeEnvironment {
       // Setup the browser instance
       await browser.init(browserOptions)
       initialWindow = await browser.windowHandle()
-      global.__directBrowser = browser
     }
 
     // disable browser.close and we handle it manually
@@ -223,6 +222,18 @@ class CustomEnvironment extends NodeEnvironment {
   async teardown() {
     await super.teardown()
     if (this.server) this.server.close()
+    if (browser) {
+      // Close all remaining browser windows
+      try {
+        const windows = await browser.windowHandles()
+        for (const window of windows) {
+          if (!window) continue
+          await browser.window(window)
+          await browser.origClose()
+          await browser.quit()
+        }
+      } catch (_) {}
+    }
     chromedriver.stop()
   }
 }
