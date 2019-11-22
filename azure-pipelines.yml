@@ -43,5 +43,5 @@ steps:
     displayName: 'Install correct Chrome Driver version'
 
   - script: |
-      node run-tests.js -g $(group)
+      node run-tests.js -c 1 -g $(group)
     displayName: 'Run tests'
