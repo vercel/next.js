@@ -6,7 +6,7 @@ import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
-
+import { getConfig as loadConfig } from '../lib/load-config'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -87,6 +87,84 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
     'object.assign/shim': path.join(shimAssign, 'shim.js'),
   }
+}
+
+async function getPostCssPlugins(
+  dir: string
+): Promise<{ [key: string]: object }> {
+  const config = await loadConfig<{ plugins: { [key: string]: object } }>(
+    dir,
+    'postcss'
+  )
+  if (!config) {
+    return {
+      [require.resolve('postcss-flexbugs-fixes')]: {},
+      [require.resolve('postcss-preset-env')]: {
+        autoprefixer: {
+          // Disable legacy flexbox support
+          flexbox: 'no-2009',
+        },
+        // Enable CSS features that have shipped to the
+        // web platform, i.e. in 2+ browsers unflagged.
+        stage: 3,
+      },
+    }
+  }
+
+  const plugins = config.plugins
+  if (plugins == null || typeof plugins !== 'object') {
+    throw new Error(
+      `Your custom PostCSS configuration must export a \`plugins\` key.`
+    )
+  }
+
+  const invalidKey = Object.keys(config).find(key => key !== 'plugins')
+  if (invalidKey) {
+    console.warn(
+      `${chalk.yellow.bold(
+        'Warning'
+      )}: Your PostCSS configuration defines a field which is not supported (\`${invalidKey}\`). ` +
+        `Please remove this configuration value.`
+    )
+  }
+
+  // These plugins cannot be enabled by the user because they'll conflict with
+  // `css-loader`'s behavior to make us compatible with webpack.
+  ;[
+    'postcss-modules-values',
+    'postcss-modules-scope',
+    'postcss-modules-extract-imports',
+    'postcss-modules-local-by-default',
+  ].forEach(plugin => {
+    if (!plugins.hasOwnProperty(plugin)) {
+      return
+    }
+
+    console.warn(
+      `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
+        plugin
+      )} plugin from your PostCSS configuration. ` +
+        `This plugin is automatically configured by Next.js.`
+    )
+    delete plugins[plugin]
+  })
+
+  // Next.js doesn't support CSS Modules yet. When we do, we should respect the
+  // options passed to this plugin (even though we need to remove the plugin
+  // itself).
+  if (plugins['postcss-modules']) {
+    delete plugins['postcss-modules']
+
+    console.warn(
+      `${chalk.yellow.bold(
+        'Warning'
+      )}: Next.js does not support CSS Modules (yet). The ${chalk.underline(
+        'postcss-modules'
+      )} plugin will have no effect.`
+    )
+  }
+
+  return plugins as { [key: string]: object }
 }
 
 export default async function getBaseWebpackConfig(
@@ -386,6 +464,10 @@ export default async function getBaseWebpackConfig(
   if (customAppFile) {
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
+
+  const postCssPlugins = config.experimental.css
+    ? await getPostCssPlugins(dir)
+    : {}
 
   let webpackConfig: webpack.Configuration = {
     devtool,
@@ -717,20 +799,7 @@ export default async function getBaseWebpackConfig(
                         loader: require.resolve('postcss-loader'),
                         options: {
                           ident: 'postcss',
-                          plugins: () => [
-                            // Make Flexbox behave like the spec cross-browser.
-                            require('postcss-flexbugs-fixes'),
-                            // Run Autoprefixer and compile new CSS features.
-                            require('postcss-preset-env')({
-                              autoprefixer: {
-                                // Disable legacy flexbox support
-                                flexbox: 'no-2009',
-                              },
-                              // Enable CSS features that have shipped to the
-                              // web platform, i.e. in 2+ browsers unflagged.
-                              stage: 3,
-                            }),
-                          ],
+                          plugins: postCssPlugins,
                           sourceMap: true,
                         },
                       },
