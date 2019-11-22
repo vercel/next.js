@@ -2,10 +2,10 @@
 
 exports[`With Snapshot Testing App shows "Hello world!" 1`] = `
 <div
-  className="jsx-3373502474"
+  className="jsx-2982525546"
 >
   <p
-    className="jsx-3373502474"
+    className="jsx-2982525546"
   >
     Hello World!
   </p>
