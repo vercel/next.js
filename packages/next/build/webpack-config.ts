@@ -6,7 +6,7 @@ import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
-import { getConfig as loadConfig } from '../lib/load-config'
+
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -14,6 +14,7 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { getConfig as loadConfig } from '../lib/load-config'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
