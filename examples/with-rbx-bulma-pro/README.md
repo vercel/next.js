@@ -7,7 +7,7 @@
 Execute create-next-app with yarn or npm to bootstrap the example:
 
 ```
-npm create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
+npx create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 # or
 yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 ```
