@@ -1,5 +1,5 @@
 let globalTeardown = () => {}
-const browser = global.bsBrowser
+const browser = global.__directBrowser
 
 if (process.env.BROWSERSTACK) {
   globalTeardown = () => global.browserStackLocal.killAllProcesses(() => {})
@@ -15,10 +15,8 @@ module.exports = async () => {
         await browser.window(window)
         await browser.origClose()
         await browser.quit()
-        await globalTeardown()
       }
     } catch (_) {}
-  } else {
-    await globalTeardown()
   }
+  await globalTeardown()
 }
