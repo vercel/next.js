@@ -12332,6 +12332,13 @@ postcss-selector-parser@^6.0.0, postcss-selector-parser@^6.0.2:
     indexes-of "^1.0.1"
     uniq "^1.0.1"
 
+postcss-short-size@4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/postcss-short-size/-/postcss-short-size-4.0.0.tgz#66da8f2d816b2a7334abcc951f67fb12d394b219"
+  integrity sha512-/RRw2JFj+7xmX+GO5HIp9+sVNZTm+bXWKwHlxxXcxEJDPng/dNeWGXIdExbuknqgDeDX/lv5YfgjD2g5TUtUtA==
+  dependencies:
+    postcss "^7.0.5"
+
 postcss-svgo@^4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/postcss-svgo/-/postcss-svgo-4.0.2.tgz#17b997bc711b333bab143aaed3b8d3d6e3d38258"

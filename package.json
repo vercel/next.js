@@ -71,6 +71,7 @@
     "node-fetch": "2.6.0",
     "node-notifier": "5.4.0",
     "node-sass": "4.12.0",
+    "postcss-short-size": "4.0.0",
     "pre-commit": "1.2.2",
     "prettier": "1.19.1",
     "react": "16.10.2",
