@@ -6,6 +6,7 @@ import cheerio from 'cheerio'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import {
   killApp,
+  waitFor,
   findPort,
   nextBuild,
   nextStart,
@@ -13,12 +14,14 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import qs from 'querystring'
+import path from 'path'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
 const buildIdFile = join(appDir, '.next/BUILD_ID')
+let stderr = ''
 let appPort
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -27,7 +30,11 @@ describe('Serverless', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, {
+      onStderr: msg => {
+        stderr += msg || ''
+      },
+    })
   })
   afterAll(() => killApp(app))
 
@@ -60,6 +67,17 @@ describe('Serverless', () => {
 
     const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
     expect(legacy).toMatch(`new static folder`)
+  })
+
+  it('should not infinity loop on a 404 static file', async () => {
+    expect.assertions(2)
+
+    // ensure top-level static does not exist (important for test)
+    // we expect /public/static, though.
+    expect(existsSync(path.join(appDir, 'static'))).toBe(false)
+
+    const res = await fetchViaHTTP(appPort, '/static/404')
+    expect(res.status).toBe(404)
   })
 
   it('should render the page with dynamic import', async () => {
@@ -237,6 +255,12 @@ describe('Serverless', () => {
     const data = JSON.parse($('#__NEXT_DATA__').html())
 
     expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should log error in API route correctly', async () => {
+    await renderViaHTTP(appPort, '/api/top-level-error')
+    await waitFor(1000)
+    expect(stderr).toContain('top-level-oops')
   })
 
   describe('With basic usage', () => {

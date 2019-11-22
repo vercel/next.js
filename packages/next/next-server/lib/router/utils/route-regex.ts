@@ -17,9 +17,10 @@ export function getRouteRegex(
         $1
           // Un-escape key
           .replace(/\\([|\\{}()[\]^$+*?.-])/g, '$1')
+          .replace(/^\.{3}/, '')
         // eslint-disable-next-line no-sequences
       ] = groupIndex++),
-      '/([^/]+?)'
+      $1.indexOf('\\.\\.\\.') === 0 ? '/(.+?)' : '/([^/]+?)'
     )
   )
 

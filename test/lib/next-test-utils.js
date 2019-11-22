@@ -286,6 +286,15 @@ export async function startStaticServer(dir) {
   return server
 }
 
+export async function startCleanStaticServer(dir) {
+  const app = express()
+  const server = http.createServer(app)
+  app.use(express.static(dir, { extensions: ['html'] }))
+
+  await promiseCall(server, 'listen')
+  return server
+}
+
 export async function check(contentFn, regex) {
   let found = false
   const timeout = setTimeout(async () => {

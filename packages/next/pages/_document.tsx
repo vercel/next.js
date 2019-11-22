@@ -1,13 +1,3 @@
-// @ts-ignore
-import bodyTagsMiddleware from 'next-plugin-loader?middleware=document-body-tags-server!'
-// @ts-ignore
-import headTagsMiddleware from 'next-plugin-loader?middleware=document-head-tags-server!'
-// @ts-ignore
-import htmlPropsMiddleware from 'next-plugin-loader?middleware=document-html-props-server!'
-// @ts-ignore
-import enhanceAppMiddleware from 'next-plugin-loader?middleware=unstable-enhance-app-server!'
-// @ts-ignore
-import getStylesMiddleware from 'next-plugin-loader?middleware=unstable-get-styles-server!'
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import flush from 'styled-jsx/server'
@@ -53,14 +43,33 @@ function getOptionalModernScriptVariant(path: string) {
   return path
 }
 
+function isLowPriority(file: string) {
+  return file.includes('_buildManifest')
+}
+
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
-  static headTagsMiddleware = headTagsMiddleware
-  static bodyTagsMiddleware = bodyTagsMiddleware
-  static htmlPropsMiddleware = htmlPropsMiddleware
+  static headTagsMiddleware = process.env.__NEXT_PLUGINS
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-head-tags-server!'
+      )
+    : () => []
+  static bodyTagsMiddleware = process.env.__NEXT_PLUGINS
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-body-tags-server!'
+      )
+    : () => []
+  static htmlPropsMiddleware = process.env.__NEXT_PLUGINS
+    ? import(
+        // @ts-ignore loader syntax
+        'next-plugin-loader?middleware=document-html-props-server!'
+      )
+    : () => []
 
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
@@ -69,7 +78,13 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
-    const enhancers = await enhanceAppMiddleware(ctx)
+    const enhancers = process.env.__NEXT_PLUGINS
+      ? await import(
+          // @ts-ignore loader syntax
+          'next-plugin-loader?middleware=unstable-enhance-app-server!'
+        ).then(mod => mod.default(ctx))
+      : []
+
     const enhanceApp = (App: any) => {
       for (const enhancer of enhancers) {
         App = enhancer(App)
@@ -78,7 +93,15 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     }
 
     const { html, head, dataOnly } = await ctx.renderPage({ enhanceApp })
-    const styles = [...flush(), ...(await getStylesMiddleware(ctx))]
+    const styles = [
+      ...flush(),
+      ...(process.env.__NEXT_PLUGINS
+        ? await import(
+            // @ts-ignore loader syntax
+            'next-plugin-loader?middleware=unstable-get-styles-server!'
+          ).then(mod => mod.default(ctx))
+        : []),
+    ]
     return { html, head, styles, dataOnly }
   }
 
@@ -232,11 +255,11 @@ export class Head extends Component<
             // the feature is enabled. This clause will filter down to the
             // modern variants only.
             //
-            // Also filter out _buildManifest because it should not be
+            // Also filter out low priority files because they should not be
             // preloaded for performance reasons.
             return (
               file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !file.includes('_buildManifest')
+              !isLowPriority(file)
             )
           })
         : []
@@ -451,6 +474,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {this.getCssLinks()}
             {page !== '/_error' && (
               <link
                 rel="preload"
@@ -490,7 +514,6 @@ export class Head extends Component<
                 // (by default, style-loader injects at the bottom of <head />)
                 <noscript id="__next_css__DO_NOT_USE__" />
               )}
-            {this.getCssLinks()}
             {styles || null}
           </>
         )}
@@ -563,19 +586,20 @@ export class NextScript extends Component<OriginProps> {
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file: string) => {
-      // Only render .js files here
-      if (!/\.js$/.test(file)) {
-        return null
-      }
+    const normalScripts = files.filter(
+      file => file.endsWith('.js') && !isLowPriority(file)
+    )
+    const lowPriorityScripts = files.filter(
+      file => file.endsWith('.js') && isLowPriority(file)
+    )
 
+    return [...normalScripts, ...lowPriorityScripts].map(file => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = /\.module\.js$/.test(file)
+        modernProps = file.endsWith('.module.js')
           ? { type: 'module' }
           : { noModule: true }
       }
-
       return (
         <script
           key={file}

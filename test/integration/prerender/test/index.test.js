@@ -477,7 +477,15 @@ describe('SPR Prerender', () => {
       exportDir = join(appDir, 'out')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { exportTrailingSlash: true }`
+        `module.exports = {
+          exportTrailingSlash: true,
+          exportPathMap: function(defaultPathMap) {
+            if (defaultPathMap['/blog/[post]']) {
+              throw new Error('Found SPR page in the default export path map')
+            }
+            return defaultPathMap
+          },
+        }`
       )
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
