@@ -52,6 +52,7 @@
     "clone": "2.1.2",
     "coveralls": "3.0.3",
     "cross-spawn": "6.0.5",
+    "escape-string-regexp": "2.0.0",
     "eslint": "6.6.0",
     "eslint-plugin-react": "7.16.0",
     "eslint-plugin-react-hooks": "2.2.0",
