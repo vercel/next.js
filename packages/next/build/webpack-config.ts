@@ -90,15 +90,28 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   }
 }
 
-async function getPostCssPlugins(
-  dir: string
-): Promise<{ [key: string]: object }> {
+async function getPostCssPlugins(dir: string): Promise<unknown[]> {
+  function load(plugins: { [key: string]: object }) {
+    return Object.keys(plugins).map(pkg => {
+      const pluginPath = resolveRequest(pkg, `${dir}/`)
+
+      const options = plugins[pkg]
+      if (options == null || Object.keys(options).length === 0) {
+        return require(pluginPath)
+      }
+      return require(pluginPath)(options)
+    })
+  }
+
   const config = await loadConfig<{ plugins: { [key: string]: object } }>(
     dir,
     'postcss'
   )
+
+  let target: unknown[]
+
   if (!config) {
-    return {
+    target = load({
       [require.resolve('postcss-flexbugs-fixes')]: {},
       [require.resolve('postcss-preset-env')]: {
         autoprefixer: {
@@ -109,63 +122,65 @@ async function getPostCssPlugins(
         // web platform, i.e. in 2+ browsers unflagged.
         stage: 3,
       },
-    }
-  }
-
-  const plugins = config.plugins
-  if (plugins == null || typeof plugins !== 'object') {
-    throw new Error(
-      `Your custom PostCSS configuration must export a \`plugins\` key.`
-    )
-  }
-
-  const invalidKey = Object.keys(config).find(key => key !== 'plugins')
-  if (invalidKey) {
-    console.warn(
-      `${chalk.yellow.bold(
-        'Warning'
-      )}: Your PostCSS configuration defines a field which is not supported (\`${invalidKey}\`). ` +
-        `Please remove this configuration value.`
-    )
-  }
-
-  // These plugins cannot be enabled by the user because they'll conflict with
-  // `css-loader`'s behavior to make us compatible with webpack.
-  ;[
-    'postcss-modules-values',
-    'postcss-modules-scope',
-    'postcss-modules-extract-imports',
-    'postcss-modules-local-by-default',
-  ].forEach(plugin => {
-    if (!plugins.hasOwnProperty(plugin)) {
-      return
+    })
+  } else {
+    const plugins = config.plugins
+    if (plugins == null || typeof plugins !== 'object') {
+      throw new Error(
+        `Your custom PostCSS configuration must export a \`plugins\` key.`
+      )
     }
 
-    console.warn(
-      `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
-        plugin
-      )} plugin from your PostCSS configuration. ` +
-        `This plugin is automatically configured by Next.js.`
-    )
-    delete plugins[plugin]
-  })
+    const invalidKey = Object.keys(config).find(key => key !== 'plugins')
+    if (invalidKey) {
+      console.warn(
+        `${chalk.yellow.bold(
+          'Warning'
+        )}: Your PostCSS configuration defines a field which is not supported (\`${invalidKey}\`). ` +
+          `Please remove this configuration value.`
+      )
+    }
 
-  // Next.js doesn't support CSS Modules yet. When we do, we should respect the
-  // options passed to this plugin (even though we need to remove the plugin
-  // itself).
-  if (plugins['postcss-modules']) {
-    delete plugins['postcss-modules']
+    // These plugins cannot be enabled by the user because they'll conflict with
+    // `css-loader`'s behavior to make us compatible with webpack.
+    ;[
+      'postcss-modules-values',
+      'postcss-modules-scope',
+      'postcss-modules-extract-imports',
+      'postcss-modules-local-by-default',
+    ].forEach(plugin => {
+      if (!plugins.hasOwnProperty(plugin)) {
+        return
+      }
 
-    console.warn(
-      `${chalk.yellow.bold(
-        'Warning'
-      )}: Next.js does not support CSS Modules (yet). The ${chalk.underline(
-        'postcss-modules'
-      )} plugin will have no effect.`
-    )
+      console.warn(
+        `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
+          plugin
+        )} plugin from your PostCSS configuration. ` +
+          `This plugin is automatically configured by Next.js.`
+      )
+      delete plugins[plugin]
+    })
+
+    // Next.js doesn't support CSS Modules yet. When we do, we should respect the
+    // options passed to this plugin (even though we need to remove the plugin
+    // itself).
+    if (plugins['postcss-modules']) {
+      delete plugins['postcss-modules']
+
+      console.warn(
+        `${chalk.yellow.bold(
+          'Warning'
+        )}: Next.js does not support CSS Modules (yet). The ${chalk.underline(
+          'postcss-modules'
+        )} plugin will have no effect.`
+      )
+    }
+
+    target = load(plugins as { [key: string]: object })
   }
 
-  return plugins as { [key: string]: object }
+  return target
 }
 
 export default async function getBaseWebpackConfig(
@@ -466,9 +481,9 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
-  const postCssPlugins = config.experimental.css
+  const postCssPlugins: unknown[] = config.experimental.css
     ? await getPostCssPlugins(dir)
-    : {}
+    : []
 
   let webpackConfig: webpack.Configuration = {
     devtool,
