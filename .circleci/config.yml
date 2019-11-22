@@ -39,7 +39,8 @@ commands:
       - run:
           name: Install correct Chrome Driver version
           command: node node_modules/chromedriver/install.js
-          environment: CHROMEDRIVER_VERSION=76.0.3809.68
+          environment:
+            CHROMEDRIVER_VERSION: '76.0.3809.68'
       - run: google-chrome --version
       - run: yarn chromedriver --version
   yarn_lint:
