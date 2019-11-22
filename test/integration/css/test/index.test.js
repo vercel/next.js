@@ -261,25 +261,25 @@ describe('CSS Support', () => {
 
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-                Object {
-                  "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
-                  "sourcesContent": Array [
-                    "/* this should pass through untransformed */
-                @media (480px <= width < 768px) {
-                  ::placeholder {
-                    color: green;
-                  }
-                }
+        Object {
+          "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
+          "sourcesContent": Array [
+            "/* this should pass through untransformed */
+        @media (480px <= width < 768px) {
+          ::placeholder {
+            color: green;
+          }
+        }
 
-                /* this should be transformed to width/height */
-                .video {
-                  -xyz-max-size: 400px 300px;
-                }
-                ",
-                  ],
-                  "version": 3,
-                }
-            `)
+        /* this should be transformed to width/height */
+        .video {
+          -xyz-max-size: 400px 300px;
+        }
+        ",
+          ],
+          "version": 3,
+        }
+      `)
     })
   })
 
