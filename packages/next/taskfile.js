@@ -4,33 +4,13 @@ const relative = require('path').relative
 const babelClientOpts = {
   presets: [
     '@babel/preset-typescript',
-    [
-      '@babel/preset-env',
-      {
-        modules: 'commonjs',
-        targets: {
-          esmodules: true,
-        },
-        loose: true,
-        exclude: ['transform-typeof-symbol'],
-      },
-    ],
-    '@babel/preset-react',
+    ['@babel/preset-react', { loose: true, useBuiltIns: true }],
   ],
   plugins: [
     // workaround for @taskr/esnext bug replacing `-import` with `-require(`
     // eslint-disable-next-line no-useless-concat
     '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
-    [
-      '@babel/plugin-transform-runtime',
-      {
-        corejs: 2,
-        helpers: true,
-        regenerator: false,
-        useESModules: false,
-      },
-    ],
   ],
 }
 
