@@ -2,12 +2,17 @@
   "routes": [
     { "title": "Getting Started", "path": "/docs/getting-started.md" },
     {
-      "title": "Pages",
+      "title": "Concepts",
       "routes": [
         {
-          "title": "Introduction",
-          "path": "/docs/pages/introduction.md"
-        },
+          "title": "Pages",
+          "path": "/docs/concepts/pages.md"
+        }
+      ]
+    },
+    {
+      "title": "Pages",
+      "routes": [
         {
           "title": "SSR with getInitialProps",
           "path": "/docs/pages/ssr-with-getInitialProps.md"
