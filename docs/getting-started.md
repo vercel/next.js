@@ -59,7 +59,7 @@ export default HomePage
 
 To start developing your application run `npm run dev`. This starts the development server on `http://localhost:3000`.
 
-Go to `http://localhost:3000` to view your application.
+Visit `http://localhost:3000` to view your application.
 
 <br/>
 
