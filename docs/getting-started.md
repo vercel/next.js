@@ -1,6 +1,10 @@
 # Getting Started
 
-Welcome to the Next.js documentation! This is the general feature documentation. If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/getting-started) that will guide you through an interactive tutorial with quizzes to validate your knowledge.
+Welcome to the Next.js documentation! This is the general feature documentation.
+
+If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/getting-started).
+
+The interactive course with quizzes guides you through everything you need to know to use Next.js.
 
 ## Quick Start
 
