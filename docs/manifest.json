@@ -2,27 +2,6 @@
   "routes": [
     { "title": "Getting Started", "path": "/docs/getting-started.md" },
     {
-      "title": "Basic Features",
-      "routes": [
-        {
-          "title": "Built-in CSS Support",
-          "path": "/docs/basic-features/built-in-css-support.md"
-        },
-        {
-          "title": "Static File Serving",
-          "path": "/docs/basic-features/static-file-serving.md"
-        },
-        {
-          "title": "Populating `head`",
-          "path": "/docs/basic-features/populating-head.md"
-        },
-        {
-          "title": "TypeScript",
-          "path": "/docs/basic-features/typescript.md"
-        }
-      ]
-    },
-    {
       "title": "Pages",
       "routes": [
         {
@@ -48,6 +27,27 @@
         {
           "title": "TypeScript",
           "path": "/docs/pages/typescript.md"
+        }
+      ]
+    },
+    {
+      "title": "Basic Features",
+      "routes": [
+        {
+          "title": "Built-in CSS Support",
+          "path": "/docs/basic-features/built-in-css-support.md"
+        },
+        {
+          "title": "Static File Serving",
+          "path": "/docs/basic-features/static-file-serving.md"
+        },
+        {
+          "title": "Populating `head`",
+          "path": "/docs/basic-features/populating-head.md"
+        },
+        {
+          "title": "TypeScript",
+          "path": "/docs/basic-features/typescript.md"
         }
       ]
     },
