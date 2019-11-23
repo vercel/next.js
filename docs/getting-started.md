@@ -19,6 +19,8 @@ Install `next`, `react` and `react-dom` in your project:
 npm install --save next react react-dom
 ```
 
+<br/>
+
 Now open `package.json` and add the following `scripts`:
 
 ```json
