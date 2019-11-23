@@ -207,7 +207,7 @@ export default async function(
     hotReloader: null,
     canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
     isModern: nextConfig.experimental.modern,
-    ampValidator: (nextConfig.amp && nextConfig.amp.validator) || '',
+    ampValidator: (nextConfig.experimental.amp && nextConfig.experimental.amp.validator) || '',
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
