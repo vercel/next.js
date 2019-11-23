@@ -2,18 +2,15 @@
   "name": "with-jest",
   "version": "1.0.0",
   "dependencies": {
-    "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "next": "9.1.4",
+    "react": "16.12.0",
+    "react-dom": "16.12.0"
   },
   "devDependencies": {
-    "@babel/core": "7.3.4",
-    "babel-jest": "24.1.0",
-    "enzyme": "3.4.3",
-    "enzyme-adapter-react-16": "1.2.0",
-    "jest": "24.1.0",
-    "react-addons-test-utils": "15.6.2",
-    "react-test-renderer": "16.4.2"
+    "enzyme": "3.10.0",
+    "enzyme-adapter-react-16": "1.15.1",
+    "jest": "24.9.0",
+    "react-test-renderer": "16.12.0"
   },
   "scripts": {
     "test": "jest",
