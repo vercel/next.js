@@ -60,4 +60,4 @@ So far, we get:
 - Automatic compilation and bundling (with webpack and babel)
 - Hot code reloading
 - Static rendering and on-demand server rendering of `./pages/`
-- Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](/docs/basic-features/static-file-serving.md) inside your project)
+- [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
