@@ -217,7 +217,7 @@ export default async function(
     isModern: nextConfig.experimental.modern,
     ampValidator:
       (nextConfig.experimental.amp && nextConfig.experimental.amp.validator) ||
-      '',
+      undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
