@@ -1,5 +1,7 @@
 # Getting Started
 
+Welcome to the Next.js documentation! This is the general feature documentation. If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/getting-started) that will guide you through an interactive tutorial with quizzes to validate your knowledge.
+
 ## Quick Start
 
 ```bash
