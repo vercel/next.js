@@ -25,8 +25,8 @@
 </details>
 
 <details>
-  <summary>What syntactic features are transpiled? How do I change them?</summary>
-  <p>We track V8. Since V8 has wide support for ES6 and async and await, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.</p>
+  <summary>What syntactic features are compiled? How do I change them?</summary>
+  <p>We track V8. Since V8 has wide support for ES6 and async and await, we compile those. Since V8 doesn’t support class decorators, we don’t compile those.</p>
 
   <p>See the documentation about <a href="/docs/advanced-features/customizing-babel-config.md">customizing babel config</a> for more information.</p>
 </details>

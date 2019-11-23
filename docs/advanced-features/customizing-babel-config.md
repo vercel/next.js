@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-Next.js includes the `next/babel` preset to your app, it includes everything needed to transpile React applications and server-side code. But if you want to extend the default Babel configs, it's also possible.
+Next.js includes the `next/babel` preset to your app, it includes everything needed to compile React applications and server-side code. But if you want to extend the default Babel configs, it's also possible.
 
 To start, you only need to define a `.babelrc` file at the top of your app, if such file is found, we're going to consider it the _source of truth_, therefore it needs to define what Next.js needs as well, which is the `next/babel` preset.
 

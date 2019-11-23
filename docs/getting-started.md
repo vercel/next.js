@@ -52,7 +52,7 @@ Now go to `http://localhost:3000` and see your application running.
 
 So far, we get:
 
-- Automatic transpilation and bundling (with webpack and babel)
+- Automatic compilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages/`
 - Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](/docs/basic-features/static-file-serving.md) inside your project)
