@@ -35,9 +35,9 @@ These scripts refer to the different stages of developing an application:
 - `build` - Runs `next build` which builds the Next.js application for production usage
 - `start` - Runs `next start` which starts a Next.js production server
 
-After that, create a `pages` directory in your project.
+Create a `pages` directory in your project.
 
-When using Next.js the filesystem drives most of the routing. Every `.js` file becomes a route that gets automatically processed and rendered.
+When using Next.js the filesystem drives most of the routing. Every `.js` file in the `pages` directory becomes a route that gets automatically processed and rendered.
 
 Populate `./pages/index.js` inside your project:
 
