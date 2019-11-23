@@ -61,6 +61,8 @@ To start developing your application run `npm run dev`. This starts the developm
 
 Go to `http://localhost:3000` to view your application.
 
+<br/>
+
 So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
