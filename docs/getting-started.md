@@ -35,13 +35,13 @@ These scripts refer to the different stages of developing an application:
 - `build` - Runs `next build` which builds the Next.js application for production usage
 - `start` - Runs `next start` which starts a Next.js production server
 
-&nbsp;
+<br/>
 
 Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory.
 
 Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even add dynamic route parameters with the filename.
 
-&nbsp;
+<br/>
 
 Create a `pages` directory inside your project.
 
