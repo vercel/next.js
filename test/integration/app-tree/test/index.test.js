@@ -11,7 +11,6 @@ import {
   killApp,
   renderViaHTTP,
   waitFor,
-  killAll,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -68,7 +67,7 @@ describe('AppTree', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killAll(app))
+    afterAll(() => killApp(app))
     runTests()
   })
 

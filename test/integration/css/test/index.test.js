@@ -21,6 +21,44 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
+if (!Array.prototype.flat) {
+  // eslint-disable-next-line no-extend-native
+  Object.defineProperty(Array.prototype, 'flat', {
+    configurable: true,
+    value: function flat() {
+      var depth = isNaN(arguments[0]) ? 1 : Number(arguments[0])
+
+      return depth
+        ? Array.prototype.reduce.call(
+            this,
+            function(acc, cur) {
+              if (Array.isArray(cur)) {
+                acc.push.apply(acc, flat.call(cur, depth - 1))
+              } else {
+                acc.push(cur)
+              }
+
+              return acc
+            },
+            []
+          )
+        : Array.prototype.slice.call(this)
+    },
+    writable: true,
+  })
+}
+
+if (!Array.prototype.flatMap) {
+  // eslint-disable-next-line no-extend-native
+  Object.defineProperty(Array.prototype, 'flatMap', {
+    configurable: true,
+    value: function flatMap() {
+      return Array.prototype.map.apply(this, arguments).flat()
+    },
+    writable: true,
+  })
+}
+
 describe('CSS Support', () => {
   describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
@@ -476,6 +514,13 @@ describe('CSS Support', () => {
       const cssSheet = $('link[rel="stylesheet"]')
       expect(cssSheet.length).toBe(1)
       expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      /* ensure CSS preloaded first */
+      const allPreloads = [].slice.call($('link[rel="preload"]'))
+      const styleIndexes = allPreloads.flatMap((p, i) =>
+        p.attribs.as === 'style' ? i : []
+      )
+      expect(styleIndexes).toEqual([0])
     })
   })
 

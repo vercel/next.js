@@ -45,6 +45,11 @@ describe('Custom Server', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
+    })
+
     it('should handle render with undefined query', async () => {
       expect(await renderViaHTTP(appPort, '/no-query')).toMatch(/"query":/)
     })

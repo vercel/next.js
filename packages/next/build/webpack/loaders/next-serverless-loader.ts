@@ -68,10 +68,10 @@ const nextServerlessLoader: loader.Loader = function() {
               : `{}`
           }
           const resolver = require('${absolutePagePath}')
-          apiResolver(req, res, params, resolver)
-        } catch (error) {
-          await onError(err)
+          apiResolver(req, res, params, resolver, onError)
+        } catch (err) {
           console.error(err)
+          await onError(err)
           res.statusCode = 500
           res.end('Internal Server Error')
         }
