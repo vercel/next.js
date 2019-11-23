@@ -6,17 +6,14 @@ If you're new to Next.js we recommend that you start with the [learn course](htt
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
-## Quick Start
+#### System Requirements
 
-```bash
-npx create-next-app
-```
+- We recommend using Node.js 10 or later
+- Linux, MacOS and Windows (including WSL) are supported
 
-_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher, see [instructions for older npm versions](https://gist.github.com/timer/833d9946fa8a05ba855729d05a38ac23))_
+## Setup
 
-## Manual Setup
-
-Install Next.js and peer dependencies in your project:
+Install `next`, `react` and `react-dom` in your project:
 
 ```bash
 npm install --save next react react-dom
@@ -32,31 +29,35 @@ Now open `package.json` and add the following `scripts`:
 }
 ```
 
-After that, the file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
+These scripts refer to the different stages of developing an application:
+
+- `dev` - Runs `next` which starts Next.js in development mode
+- `build` - Runs `next build` which builds the Next.js application for production usage
+- `start` - Runs `next start` which starts a Next.js production server
+
+After that, create a `pages` directory in your project.
+
+When using Next.js the filesystem drives most of the routing. Every `.js` file becomes a route that gets automatically processed and rendered.
 
 Populate `./pages/index.js` inside your project:
 
 ```jsx
-function Home() {
+function HomePage() {
   return <div>Welcome to Next.js!</div>
 }
 
-export default Home
+export default HomePage
 ```
 
-Then run `npm run dev`:
+To start developing your application run `npm run dev`. This starts the development server on `http://localhost:3000`.
 
-```bash
-npm run dev
-# To use another port
-npm run dev -- -p <your port here>
-```
+> In case port 3000 is already in use Next.js will show you how to use a different port.
 
-Now go to `http://localhost:3000` and see your application running.
+Go to `http://localhost:3000` to view your application.
 
 So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
 - Hot code reloading
-- Server rendering and indexing of `./pages/`
+- Static rendering and on-demand server rendering of `./pages/`
 - Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](/docs/basic-features/static-file-serving.md) inside your project)
