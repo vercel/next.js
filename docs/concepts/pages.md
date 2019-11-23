@@ -48,7 +48,8 @@ Considering that by default pages in Next.js have consistent output between rend
 One upside of build-time pre-rendering is that static HTML can be served from a CDN automatically if your hosting provider supports it.
 
 ```jsx
-// This page has no blocking data requirements so it'll be rendered as static HTML at build time
+// This page has no blocking data requirements
+// it'll be rendered as static HTML at build time
 function HomePage() {
   return <div>Welcome to Next.js!</div>
 }
@@ -75,7 +76,10 @@ When a request comes in to the server the page is rendered on-demand, meaning th
 Data is always up-to-date but it comes at the cost of a slightly higher [Time to First Byte](https://web.dev/time-to-first-byte/) as HTML has to be rendered for the specific user. Additionally a Node.js runtime has to be running and has to scale with the amount of traffic.
 
 ```jsx
-// This page has defined `getInitialProps` to do data fetching. Next.js will execute `getInitialProps` and wait for the result to come back before rendering.
+// This page has defined `getInitialProps` to do data fetching.
+// Next.js will execute `getInitialProps`
+// It will wait for the result of `getInitialProps`
+// When the results comes back Next.js will render the page.
 // Next.js wil do this for every request that comes in.
 import fetch from 'isomorphic-unfetch'
 
