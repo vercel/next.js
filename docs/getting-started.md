@@ -51,8 +51,6 @@ export default HomePage
 
 To start developing your application run `npm run dev`. This starts the development server on `http://localhost:3000`.
 
-> In case port 3000 is already in use Next.js will show you how to use a different port.
-
 Go to `http://localhost:3000` to view your application.
 
 So far, we get:
