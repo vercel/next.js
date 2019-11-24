@@ -1,7 +1,7 @@
-import React, {useEffect, useState} from 'react'
+import React, { useEffect, useState } from 'react'
 import Loading from '../components/Loading'
 
-function useMounted() {
+function useMounted () {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   return mounted
