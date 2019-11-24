@@ -1,5 +1,5 @@
 import React from 'react'
-import NoSSR from 'react-no-ssr'
+import NoSSR from '@mpth/react-no-ssr'
 import Loading from '../components/Loading'
 
 export default () => (
