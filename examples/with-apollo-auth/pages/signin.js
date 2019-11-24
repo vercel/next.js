@@ -11,7 +11,7 @@ const SigninPage = () => (
     <SigninBox />
     <hr />
     New?{' '}
-    <Link href='/create-account'>
+    <Link href="/create-account">
       <a>Create account</a>
     </Link>
   </>

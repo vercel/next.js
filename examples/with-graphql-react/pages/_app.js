@@ -4,7 +4,7 @@ import { withGraphQLApp } from 'next-graphql-react'
 import App from 'next/app'
 
 class CustomApp extends App {
-  render () {
+  render() {
     const { Component, pageProps, graphql } = this.props
     return (
       <GraphQLProvider graphql={graphql}>

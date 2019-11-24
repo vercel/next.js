@@ -24,7 +24,7 @@ const DEFAULT_CONCURRENCY = 2
   if (tests.length === 0) {
     tests = await glob('**/*.test.js', {
       nodir: true,
-      cwd: path.join(__dirname, 'test')
+      cwd: path.join(__dirname, 'test'),
     })
   }
 
@@ -38,7 +38,7 @@ const DEFAULT_CONCURRENCY = 2
         if (!name.startsWith('test/')) name = `test/${name}`
         return name
       })
-    )
+    ),
   ]
 
   if (groupArg) {
@@ -65,7 +65,7 @@ const DEFAULT_CONCURRENCY = 2
         'node',
         [jestPath, '--runInBand', '--forceExit', '--verbose', test],
         {
-          stdio: 'inherit'
+          stdio: 'inherit',
         }
       )
       children.add(child)

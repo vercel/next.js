@@ -1,6 +1,6 @@
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
+import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
+
 import { PageConfig } from '../../../types'
 
 export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
@@ -90,9 +90,7 @@ export default function nextPageConfig({
                       'unknown'
 
                     throw new Error(
-                      `Invalid page config export found. Expected object but got ${
-                        declaration.init.type
-                      } in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                      `Invalid page config export found. Expected object but got ${declaration.init.type} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
                     )
                   }
 

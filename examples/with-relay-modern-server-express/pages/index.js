@@ -6,7 +6,7 @@ import BlogPosts from '../components/BlogPosts'
 class Index extends Component {
   static displayName = `Index`
 
-  static async getInitialProps (context) {
+  static async getInitialProps(context) {
     let { after, before, first, last } = context.query
 
     if (last === undefined) {
@@ -18,12 +18,12 @@ class Index extends Component {
         after,
         before,
         first: parseInt(first, 10),
-        last: parseInt(last, 10)
-      }
+        last: parseInt(last, 10),
+      },
     }
   }
 
-  render (props) {
+  render(props) {
     return (
       <div>
         <BlogPosts
@@ -47,5 +47,5 @@ export default withData(Index, {
         ...BlogPosts_viewer
       }
     }
-  `
+  `,
 })

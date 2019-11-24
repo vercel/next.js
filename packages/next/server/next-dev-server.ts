@@ -6,7 +6,7 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-
+import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
@@ -21,7 +21,7 @@ import {
 } from '../next-server/lib/router/utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { route } from '../next-server/server/router'
+import { route, Params } from '../next-server/server/router'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
@@ -41,8 +41,9 @@ export default class DevServer extends Server {
   private setDevReady?: Function
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
+  private isCustomServer: boolean
 
-  constructor(options: ServerConstructor) {
+  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ErrorDebug
@@ -69,6 +70,7 @@ export default class DevServer extends Server {
         `The static directory has been deprecated in favor of the public directory. https://err.sh/zeit/next.js/static-dir-deprecated`
       )
     }
+    this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
   }
 
@@ -101,6 +103,8 @@ export default class DevServer extends Server {
         // We use unshift so that we're sure the routes is defined before Next's default routes
         this.router.add({
           match: route(path),
+          type: 'route',
+          name: `${path} exportpathmap route`,
           fn: async (req, res, params, parsedUrl) => {
             const { query: urlQuery } = parsedUrl
 
@@ -115,6 +119,9 @@ export default class DevServer extends Server {
             const mergedQuery = { ...urlQuery, ...query }
 
             await this.render(req, res, page, mergedQuery, parsedUrl)
+            return {
+              finished: true,
+            }
           },
         })
       }
@@ -194,6 +201,16 @@ export default class DevServer extends Server {
 
   async prepare() {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    await this.loadCustomRoutes()
+
+    if (this.customRoutes) {
+      const { redirects, rewrites } = this.customRoutes
+
+      if (redirects.length || rewrites.length) {
+        // TODO: don't reach into router instance
+        this.router.routes = this.generateRoutes()
+      }
+    }
 
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
@@ -211,6 +228,8 @@ export default class DevServer extends Server {
       eventVersion({
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
+        isCustomServer: this.isCustomServer,
       })
     )
   }
@@ -220,6 +239,38 @@ export default class DevServer extends Server {
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
+  }
+
+  protected async _beforeCatchAllRender(
+    req: IncomingMessage,
+    res: ServerResponse,
+    _params: Params,
+    parsedUrl: UrlWithParsedQuery
+  ) {
+    const { pathname } = parsedUrl
+
+    // check for a public file, throwing error if there's a
+    // conflicting page
+    if (await this.hasPublicFile(pathname!)) {
+      const pageFile = await findPageFile(
+        this.pagesDir!,
+        normalizePagePath(pathname!),
+        this.nextConfig.pageExtensions
+      )
+
+      if (pageFile) {
+        const err = new Error(
+          `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
+        )
+        res.statusCode = 500
+        await this.renderError(err, req, res, pathname!, {})
+        return true
+      }
+      await this.servePublic(req, res, pathname!)
+      return true
+    }
+
+    return false
   }
 
   async run(
@@ -237,25 +288,6 @@ export default class DevServer extends Server {
       } catch (err) {}
     }
 
-    // check for a public file, throwing error if there's a
-    // conflicting page
-    if (await this.hasPublicFile(pathname!)) {
-      const pageFile = await findPageFile(
-        this.pagesDir!,
-        normalizePagePath(pathname!),
-        this.nextConfig.pageExtensions
-      )
-
-      if (pageFile) {
-        const err = new Error(
-          `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
-        )
-        res.statusCode = 500
-        return this.renderError(err, req, res, pathname!, {})
-      }
-      return this.servePublic(req, res, pathname!)
-    }
-
     const { finished } = (await this.hotReloader!.run(req, res, parsedUrl)) || {
       finished: false,
     }
@@ -266,6 +298,27 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
+  // override production loading of routes-manifest
+  protected getCustomRoutes() {
+    return this.customRoutes
+  }
+
+  private async loadCustomRoutes() {
+    const result = {
+      redirects: [],
+      rewrites: [],
+    }
+    const { redirects, rewrites } = this.nextConfig.experimental
+
+    if (typeof redirects === 'function') {
+      result.redirects = await redirects()
+    }
+    if (typeof rewrites === 'function') {
+      result.rewrites = await rewrites()
+    }
+    this.customRoutes = result
+  }
+
   generateRoutes() {
     const routes = super.generateRoutes()
 
@@ -273,9 +326,14 @@ export default class DevServer extends Server {
     // We use unshift so that we're sure the routes is defined before Next's default routes
     routes.unshift({
       match: route('/_next/development/:path*'),
+      type: 'route',
+      name: '_next/development catchall',
       fn: async (req, res, params) => {
         const p = join(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
+        return {
+          finished: true,
+        }
       },
     })
 
@@ -359,6 +417,7 @@ export default class DevServer extends Server {
             continue
           }
 
+          // eslint-disable-next-line no-loop-func
           return this.hotReloader!.ensurePage(dynamicRoute.page).then(() => {
             pathname = dynamicRoute.page
             query = Object.assign({}, query, params)

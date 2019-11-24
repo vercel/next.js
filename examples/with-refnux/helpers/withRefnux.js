@@ -25,7 +25,7 @@ const withRefnux = (getInitialState, Component) => {
     )
   }
 
-  Wrapper.getInitialProps = async function (context) {
+  Wrapper.getInitialProps = async function(context) {
     const store = getStore(getInitialState())
     var componentProps = {}
     // honor wrapped component getInitialProps

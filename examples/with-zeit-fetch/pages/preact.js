@@ -2,11 +2,11 @@ import React from 'react'
 import Link from 'next/link'
 import fetch from '../fetch'
 
-function Preact (props) {
+function Preact(props) {
   return (
     <div>
       <p>Preact has {props.stars} ⭐</p>
-      <Link href='/'>
+      <Link href="/">
         <a>I bet Next.js has more stars (?)</a>
       </Link>
     </div>
