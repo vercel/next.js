@@ -69,6 +69,7 @@ Generally used for:
 Referred to as:
 
 - Server-Side rendering (SSR)
+- Dynamic rendering
 - On-demand rendering
 
 When a request comes in to the server the page is rendered on-demand, meaning the user that requests the page always gets the latest data. This mode is opted into by adding a blocking data requirement to the page.
