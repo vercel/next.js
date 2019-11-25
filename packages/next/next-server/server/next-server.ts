@@ -412,7 +412,20 @@ export default class Server {
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
               let destinationCompiler = pathToRegexp.compile(route.destination)
-              let newUrl = destinationCompiler(params)
+              let newUrl
+
+              try {
+                newUrl = destinationCompiler(params)
+              } catch (err) {
+                if (
+                  err.message.match(/Expected .*? to not repeat, but got array/)
+                ) {
+                  throw new Error(
+                    `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`
+                  )
+                }
+                throw err
+              }
 
               if (route.type === 'redirect') {
                 res.setHeader('Location', newUrl)
