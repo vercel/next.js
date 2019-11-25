@@ -236,7 +236,7 @@ export default class HotReloader {
   }
 
   async clean() {
-    return recursiveDelete(join(this.dir, this.config.distDir))
+    return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
   async getWebpackConfig() {

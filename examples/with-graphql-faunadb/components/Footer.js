@@ -14,7 +14,7 @@ export default props => (
       <div
         className={`${footerColumn.className} ${footerColumnFirst.className}`}
       >
-        <a href="https://fauna.com" target="_blank">
+        <a href="https://fauna.com" target="_blank" rel="noopener noreferrer">
           <img src="/static/fauna-logo-white.png" height="35px" width="auto" />
         </a>
         <p>
@@ -39,6 +39,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/faunadb"
             >
               FaunaDB
@@ -48,6 +49,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/pricing"
             >
               Pricing
@@ -57,6 +59,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/resources"
             >
               Resources
@@ -66,6 +69,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/blog"
             >
               Blog
@@ -80,6 +84,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/team"
             >
               Company
@@ -89,6 +94,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/press"
             >
               Press
@@ -98,6 +104,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://fauna.com/careers"
             >
               Careers
@@ -107,6 +114,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="http://www2.fauna.com/contact-us"
             >
               Contact
@@ -121,6 +129,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://community-invite.fauna.com/"
             >
               Community Slack
@@ -130,6 +139,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://support.fauna.com/"
             >
               Support
@@ -139,6 +149,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://dashboard.fauna.com/"
             >
               Login
@@ -148,6 +159,7 @@ export default props => (
             <a
               className={footerColumnListURL.className}
               target="_blank"
+              rel="noopener noreferrer"
               href="https://dashboard.fauna.com/accounts/register"
             >
               Signup
