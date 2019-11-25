@@ -14,7 +14,7 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { getConfig as loadConfig } from '../lib/load-config'
+import { findConfig } from '../lib/find-config'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -103,7 +103,7 @@ async function getPostCssPlugins(dir: string): Promise<unknown[]> {
     })
   }
 
-  const config = await loadConfig<{ plugins: { [key: string]: object } }>(
+  const config = await findConfig<{ plugins: { [key: string]: object } }>(
     dir,
     'postcss'
   )

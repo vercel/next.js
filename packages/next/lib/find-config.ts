@@ -10,7 +10,7 @@ type RecursivePartial<T> = {
 // We'll allow configuration to be typed, but we force everything provided to
 // become optional. We do not perform any schema validation. We should maybe
 // force all the types to be `unknown` as well.
-export async function getConfig<T>(
+export async function findConfig<T>(
   directory: string,
   key: string
 ): Promise<RecursivePartial<T> | null> {
@@ -27,7 +27,9 @@ export async function getConfig<T>(
   // known filenames. The /rc$/ version of this file does not support YAML
   // like some configuration loaders.
   const filePath = await findUp(
-    [`.${key}rc`, `.${key}rc.json`, `.${key}rc.js`, `${key}.config.js`],
+    [`.${key}rc`, `.${key}rc.json`, `${key}.config.json`].filter(
+      Boolean
+    ) as string[],
     { cwd: directory }
   )
   if (filePath) {

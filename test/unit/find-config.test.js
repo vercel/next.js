@@ -5,11 +5,6 @@ import { join } from 'path'
 const fixtureDir = join(__dirname, 'fixtures')
 
 describe('load config', () => {
-  it('should resolve rc.js', async () => {
-    const config = await getConfig(join(fixtureDir, 'config-js'), 'test')
-    expect(config).toEqual({ foo: 'bar' })
-  })
-
   it('should resolve rc.json', async () => {
     const config = await getConfig(join(fixtureDir, 'config-json'), 'test')
     expect(config).toEqual({ foo: 'bar' })
@@ -28,8 +23,8 @@ describe('load config', () => {
     expect(config).toEqual({ foo: 'bar' })
   })
 
-  it('should resolve config.js', async () => {
-    const config = await getConfig(join(fixtureDir, 'dot-config-js'), 'test')
+  it('should resolve config.json', async () => {
+    const config = await getConfig(join(fixtureDir, 'dot-config-json'), 'test')
     expect(config).toEqual({ foo: 'bar' })
   })
 
