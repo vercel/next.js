@@ -3,15 +3,13 @@ import * as BabelTypes from '@babel/types'
 
 import { PageConfig } from '../../../types'
 
-export const dropBundleIdentifier = '__NEXT_DROP_CLIENT_FILE__'
-export const sprStatus = { used: false }
-
 const configKeys = new Set(['amp'])
 const pageComponentVar = '__NEXT_COMP'
 // this value can't be optimized by terser so the shorter the better
 const prerenderId = '__NEXT_SPR'
 const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 const EXPORT_NAME_GET_STATIC_PARAMS = 'unstable_getStaticParams'
+const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes) {
@@ -23,8 +21,8 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
             t.identifier('config'),
             t.assignmentExpression(
               '=',
-              t.identifier(dropBundleIdentifier),
-              t.stringLiteral(`${dropBundleIdentifier} ${Date.now()}`)
+              t.identifier(STRING_LITERAL_DROP_BUNDLE),
+              t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
             )
           ),
         ]),
@@ -79,7 +77,6 @@ export default function nextPageConfig({
                         specifier.exported.name === EXPORT_NAME_GET_STATIC_PROPS
                       ) {
                         state.isPrerender = true
-                        sprStatus.used = true
                       }
                       path.node.specifiers = path.node.specifiers.filter(
                         s => s !== specifier
@@ -104,7 +101,6 @@ export default function nextPageConfig({
                 ) {
                   if (id.name === EXPORT_NAME_GET_STATIC_PROPS) {
                     state.isPrerender = true
-                    sprStatus.used = true
                   }
                   path.remove()
                   return
