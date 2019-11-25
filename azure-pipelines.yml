@@ -39,9 +39,9 @@ steps:
     displayName: 'Install dependencies'
 
   - script: |
-      yarn add chromedriver@76 -W
+      node node_modules/chromedriver/install.js
     displayName: 'Install correct Chrome Driver version'
 
   - script: |
-      node run-tests.js -c 2 -g $(group)
+      node run-tests.js -g $(group)
     displayName: 'Run tests'
