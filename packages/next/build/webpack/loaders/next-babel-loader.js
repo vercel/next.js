@@ -4,7 +4,7 @@ import babelLoader from 'babel-loader'
 
 // increment 'd' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'd' + '-'
+const cacheKey = 'babel-cache-' + 'e' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
