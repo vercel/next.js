@@ -89,5 +89,23 @@ describe('babel plugin (next-page-config)', () => {
         `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
       )
     })
+
+    it('should not remove extra named export declarations', () => {
+      const output = babel(trim`
+        export function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        export function Noop() {}
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export function Noop(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
   })
 })
