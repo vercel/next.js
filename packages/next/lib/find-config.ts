@@ -26,12 +26,9 @@ export async function findConfig<T>(
   // If we didn't find the configuration in `package.json`, we should look for
   // known filenames. The /rc$/ version of this file does not support YAML
   // like some configuration loaders.
-  const filePath = await findUp(
-    [`.${key}rc`, `.${key}rc.json`, `${key}.config.json`].filter(
-      Boolean
-    ) as string[],
-    { cwd: directory }
-  )
+  const filePath = await findUp([`.${key}rc.json`, `${key}.config.json`], {
+    cwd: directory,
+  })
   if (filePath) {
     if (filePath.endsWith('.js')) {
       // The JavaScript variant of this file must export an object. We don't
