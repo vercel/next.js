@@ -1,0 +1,1 @@
+exports.HELLO = 'Hello TypeScript'

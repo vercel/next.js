@@ -252,6 +252,7 @@ export default async function getBaseWebpackConfig(
             new TsConfigPathsPlugin({
               configFile: useTypeScript ? tsConfigPath : jsConfigPath,
               extensions: resolveExtensions,
+              silent: true,
             }),
           ]
         : []),

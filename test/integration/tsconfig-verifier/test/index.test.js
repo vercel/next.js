@@ -14,78 +14,133 @@ import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-describe('Fork ts checker plugin', () => {
-  const appDir = path.join(__dirname, '../')
-  const tsConfig = path.join(appDir, 'tsconfig.json')
-  let appPort
-  let app
+describe('Config File Verifier', () => {
+  describe('Fork ts checker plugin', () => {
+    const appDir = path.join(__dirname, '../fixtures/blank')
+    const tsConfig = path.join(appDir, 'tsconfig.json')
 
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    let appPort
+    let app
+
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+
+    afterAll(async () => {
+      await killApp(app)
+      await remove(tsConfig)
+    })
+
+    it('Creates a default tsconfig.json when one is missing', async () => {
+      expect(await exists(tsConfig)).toBe(true)
+
+      const tsConfigContent = await readFile(tsConfig)
+      let parsedTsConfig
+      expect(() => {
+        parsedTsConfig = JSON.parse(tsConfigContent)
+      }).not.toThrow()
+
+      expect(parsedTsConfig.exclude[0]).toBe('node_modules')
+    })
+
+    it('Works with an empty tsconfig.json (docs)', async () => {
+      await killApp(app)
+
+      await remove(tsConfig)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      expect(await exists(tsConfig)).toBe(false)
+
+      await createFile(tsConfig)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      expect(await readFile(tsConfig, 'utf8')).toBe('')
+
+      await killApp(app)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+
+      const tsConfigContent = await readFile(tsConfig)
+      let parsedTsConfig
+      expect(() => {
+        parsedTsConfig = JSON.parse(tsConfigContent)
+      }).not.toThrow()
+
+      expect(parsedTsConfig.exclude[0]).toBe('node_modules')
+    })
+
+    it('Updates an existing tsconfig.json with required value', async () => {
+      await killApp(app)
+
+      let parsedTsConfig = await readJSON(tsConfig)
+      parsedTsConfig.compilerOptions.esModuleInterop = false
+
+      await writeJSON(tsConfig, parsedTsConfig)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+
+      parsedTsConfig = await readJSON(tsConfig)
+      expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(true)
+    })
+
+    it('Renders a TypeScript page correctly', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Hello TypeScript/)
+    })
   })
 
-  afterAll(async () => {
-    await killApp(app)
-    await remove(tsConfig)
+  describe('Parse TypeScript Config', () => {
+    const appDir = path.join(__dirname, '../fixtures/typescript-base-url')
+
+    let appPort
+    let app
+
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('Works with a custom baseURL', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Hello TypeScript/)
+    })
+
+    it('Works with a custom path', async () => {
+      const html = await renderViaHTTP(appPort, '/hello')
+      expect(html).toMatch(/Hello TypeScript/)
+    })
   })
 
-  it('Creates a default tsconfig.json when one is missing', async () => {
-    expect(await exists(tsConfig)).toBe(true)
+  describe('Parse JS Config', () => {
+    const appDir = path.join(__dirname, '../fixtures/jsconfig-base-url')
 
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
+    let appPort
+    let app
 
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
-  })
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
 
-  it('Works with an empty tsconfig.json (docs)', async () => {
-    await killApp(app)
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-    await remove(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    it('Works with a custom baseURL', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Hello TypeScript/)
+    })
 
-    expect(await exists(tsConfig)).toBe(false)
-
-    await createFile(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    expect(await readFile(tsConfig, 'utf8')).toBe('')
-
-    await killApp(app)
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
-
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
-
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
-  })
-
-  it('Updates an existing tsconfig.json with required value', async () => {
-    await killApp(app)
-
-    let parsedTsConfig = await readJSON(tsConfig)
-    parsedTsConfig.compilerOptions.esModuleInterop = false
-
-    await writeJSON(tsConfig, parsedTsConfig)
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
-
-    parsedTsConfig = await readJSON(tsConfig)
-    expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(true)
-  })
-
-  it('Renders a TypeScript page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/Hello TypeScript/)
+    it('Works with a custom path', async () => {
+      const html = await renderViaHTTP(appPort, '/hello')
+      expect(html).toMatch(/Hello TypeScript/)
+    })
   })
 })
