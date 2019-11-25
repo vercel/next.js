@@ -56,9 +56,43 @@ export default function nextPageConfig({
                 path: NodePath<BabelTypes.ExportNamedDeclaration>,
                 state: any
               ) {
-                if (state.bundleDropped || !path.node.declaration) {
+                if (
+                  state.bundleDropped ||
+                  !(path.node.declaration || path.node.specifiers.length)
+                ) {
                   return
                 }
+
+                if (path.node.specifiers.length) {
+                  const { specifiers } = path.node
+                  specifiers.forEach(specifier => {
+                    if (specifier.type !== 'ExportSpecifier') {
+                      return
+                    }
+
+                    if (
+                      specifier.exported.name ===
+                        EXPORT_NAME_GET_STATIC_PROPS ||
+                      specifier.exported.name === EXPORT_NAME_GET_STATIC_PARAMS
+                    ) {
+                      if (
+                        specifier.exported.name === EXPORT_NAME_GET_STATIC_PROPS
+                      ) {
+                        state.isPrerender = true
+                        sprStatus.used = true
+                      }
+                      path.node.specifiers = path.node.specifiers.filter(
+                        s => s !== specifier
+                      )
+                      return
+                    }
+                  })
+                  if (path.node.specifiers.length === 0) {
+                    path.remove()
+                  }
+                  return
+                }
+
                 const { declarations, id } = path.node.declaration as any
                 const config: PageConfig = {}
 
