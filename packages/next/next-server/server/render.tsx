@@ -31,6 +31,7 @@ import { isInAmpMode } from '../lib/amp'
 import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
+import { AMP_RENDER_TARGET } from '../lib/constants'
 
 export type ManifestItem = {
   id: number | string
@@ -648,11 +649,13 @@ export async function renderToHTML(
   })
 
   if (inAmpMode && html) {
-    // use replace to allow rendering directly to body in AMP mode
-    html = html.replace(
-      '__NEXT_AMP_RENDER_TARGET__',
-      `<!-- __NEXT_DATA__ -->${docProps.html}`
-    )
+    // inject HTML to AMP_RENDER_TARGET to allow rendering
+    // directly to body in AMP mode
+    const ampRenderIndex = html.indexOf(AMP_RENDER_TARGET)
+    html =
+      html.substring(0, ampRenderIndex) +
+      `<!-- __NEXT_DATA__ -->${docProps.html}` +
+      html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
     html = await optimizeAmp(html)
 
     if (renderOpts.ampValidator) {
