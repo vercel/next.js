@@ -52,6 +52,8 @@ const timings = []
     testNames = testNames.splice(offset, numPerGroup)
   }
 
+  console.log('Running tests:', '\n', ...testNames.map(name => `${name}\n`))
+
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
     path.dirname(require.resolve('jest-cli/package')),
