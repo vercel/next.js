@@ -65,7 +65,7 @@ commands:
           command: |
             node run-tests.js --timings $(
               circleci tests glob "test/**/*.test.*" | \
-              circleci tests split
+              circleci tests split --split-by=timings
             )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
