@@ -121,6 +121,7 @@
     "style-loader": "1.0.0",
     "styled-jsx": "3.2.4",
     "terser": "4.0.0",
+    "tsconfig-paths-webpack-plugin": "3.2.0",
     "unfetch": "4.1.0",
     "url": "0.11.0",
     "use-subscription": "1.1.1",

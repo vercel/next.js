@@ -5,6 +5,7 @@ import MiniCssExtractPlugin from 'mini-css-extract-plugin'
 import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
+import TsConfigPathsPlugin from 'tsconfig-paths-webpack-plugin'
 import webpack from 'webpack'
 
 import {
@@ -238,7 +239,10 @@ export default async function getBaseWebpackConfig(
       ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    plugins: [PnpWebpackPlugin],
+    plugins: [
+      PnpWebpackPlugin,
+      useTypeScript && new TsConfigPathsPlugin({ configFile: tsConfigPath }),
+    ],
   }
 
   const webpackMode = dev ? 'development' : 'production'
