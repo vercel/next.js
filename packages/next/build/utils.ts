@@ -11,6 +11,8 @@ import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import { Redirect, Rewrite } from '../next-server/server/next-server'
+import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
 
 const fsStatPromise = promisify(fs.stat)
 const fileStats: { [k: string]: Promise<fs.Stats> } = {}
@@ -128,6 +130,60 @@ export function printTreeView(
   )
 
   console.log()
+}
+
+export function printCustomRoutes({
+  redirects,
+  rewrites,
+}: {
+  redirects: Redirect[]
+  rewrites: Rewrite[]
+}) {
+  if (redirects.length) {
+    console.log(chalk.underline('Redirects'))
+    console.log()
+
+    console.log(
+      textTable(
+        [
+          ['Source', 'Destination', 'statusCode'].map(str => chalk.bold(str)),
+          ...Object.entries(redirects).map(([key, redirect]) => {
+            return [
+              redirect.source,
+              redirect.destination,
+              (redirect.statusCode || DEFAULT_REDIRECT_STATUS) + '',
+            ]
+          }),
+        ],
+        {
+          align: ['l', 'l', 'l'],
+          stringLength: str => stripAnsi(str).length,
+        }
+      )
+    )
+    console.log()
+  }
+
+  if (rewrites.length) {
+    console.log(chalk.underline('Rewrites'))
+    console.log()
+
+    console.log(
+      textTable(
+        [
+          ['Source', 'Destination'].map(str => chalk.bold(str)),
+          ...Object.entries(rewrites).map(([key, rewrite]) => {
+            return [rewrite.source, rewrite.destination]
+          }),
+        ],
+        {
+          align: ['l', 'l'],
+          stringLength: str => stripAnsi(str).length,
+        }
+      )
+    )
+    console.log()
+  }
 }
 
 export async function getPageSizeInKb(
