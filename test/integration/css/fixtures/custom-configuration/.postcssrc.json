@@ -1,0 +1,11 @@
+{
+  // Use comments to test JSON5 support
+  "plugins": {
+    // Test a non-standard feature that wouldn't be normally enabled
+    "postcss-short-size": {
+      // Add a prefix to test that configuration is passed
+      "prefix": "xyz"
+    },
+    "postcss-trolling": false
+  }
+}
