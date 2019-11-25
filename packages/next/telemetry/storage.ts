@@ -41,14 +41,21 @@ type EventBatchShape = {
 }
 
 export class Telemetry {
-  private conf: Conf<any>
+  private conf: Conf<any> | null
   private sessionId: string
   private rawProjectId: string
 
   constructor({ distDir }: { distDir: string }) {
     const storageDirectory = getStorageDirectory(distDir)
 
-    this.conf = new Conf({ projectName: 'nextjs', cwd: storageDirectory })
+    try {
+      // `conf` incorrectly throws a permission error during initialization
+      // instead of waiting for first use. We need to handle it, otherwise the
+      // process may crash.
+      this.conf = new Conf({ projectName: 'nextjs', cwd: storageDirectory })
+    } catch (_) {
+      this.conf = null
+    }
     this.sessionId = randomBytes(32).toString('hex')
     this.rawProjectId = getRawProjectId()
 
@@ -56,7 +63,7 @@ export class Telemetry {
   }
 
   private notify = () => {
-    if (this.isDisabled) {
+    if (this.isDisabled || !this.conf) {
       return
     }
 
@@ -85,29 +92,29 @@ export class Telemetry {
   }
 
   get anonymousId(): string {
-    const val = this.conf.get(TELEMETRY_KEY_ID)
+    const val = this.conf && this.conf.get(TELEMETRY_KEY_ID)
     if (val) {
       return val
     }
 
     const generated = randomBytes(32).toString('hex')
-    this.conf.set(TELEMETRY_KEY_ID, generated)
+    this.conf && this.conf.set(TELEMETRY_KEY_ID, generated)
     return generated
   }
 
   get salt(): string {
-    const val = this.conf.get(TELEMETRY_KEY_SALT)
+    const val = this.conf && this.conf.get(TELEMETRY_KEY_SALT)
     if (val) {
       return val
     }
 
     const generated = randomBytes(16).toString('hex')
-    this.conf.set(TELEMETRY_KEY_SALT, generated)
+    this.conf && this.conf.set(TELEMETRY_KEY_SALT, generated)
     return generated
   }
 
   private get isDisabled(): boolean {
-    if (!!NEXT_TELEMETRY_DISABLED) {
+    if (!!NEXT_TELEMETRY_DISABLED || !this.conf) {
       return true
     }
     return this.conf.get(TELEMETRY_KEY_ENABLED, true) === false
@@ -115,11 +122,11 @@ export class Telemetry {
 
   setEnabled = (_enabled: boolean) => {
     const enabled = !!_enabled
-    this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
+    this.conf && this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
   }
 
   get isEnabled(): boolean {
-    return this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
+    return !!this.conf && this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
   }
 
   oneWayHash = (payload: BinaryLike): string => {
