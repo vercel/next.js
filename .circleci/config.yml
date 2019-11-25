@@ -7,7 +7,7 @@ version: 2.1
 aliases:
   - &store_test_results
     store_test_results:
-      path: ~/repo/junit.xml
+      path: ~/repo/test
   - &persist_to_workspace
     persist_to_workspace:
       root: ~/repo

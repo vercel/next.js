@@ -135,7 +135,7 @@ const timings = []
     }
 
     junitData += `</testsuites>`
-    await fs.writeFile('junit.xml', junitData, 'utf8')
+    await fs.writeFile('test/junit.xml', junitData, 'utf8')
     console.log('output timing data to junit.xml')
   }
 })()
