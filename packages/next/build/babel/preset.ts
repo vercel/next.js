@@ -157,6 +157,8 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
+          // the lower of the entries in package.json for `@babel/rutime` and `@babel/runtime-corejs2`
+          version: '7.7.2',
           absoluteRuntime: (process.versions as any).pnp
             ? __dirname
             : undefined,
