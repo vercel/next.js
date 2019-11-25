@@ -86,7 +86,7 @@ describe('Invalid hrefs', () => {
     it('shows error when dynamic route mismatch is used on Link', async () => {
       await showsError(
         '/dynamic-route-mismatch',
-        /The provided `as` value is incompatible with the `href` value/,
+        /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
         true
       )
     })
