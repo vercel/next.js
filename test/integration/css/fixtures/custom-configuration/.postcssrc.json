@@ -5,6 +5,7 @@
     "postcss-short-size": {
       // Add a prefix to test that configuration is passed
       "prefix": "xyz"
-    }
+    },
+    "postcss-trolling": false
   }
 }
