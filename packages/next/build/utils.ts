@@ -139,19 +139,32 @@ export function printCustomRoutes({
   redirects: Redirect[]
   rewrites: Rewrite[]
 }) {
-  if (redirects.length) {
-    console.log(chalk.underline('Redirects'))
+  const printRoutes = (
+    routes: Redirect[] | Rewrite[],
+    type: 'Redirects' | 'Rewrites'
+  ) => {
+    const isRedirects = type === 'Redirects'
+    console.log(chalk.underline(type))
     console.log()
 
     console.log(
       textTable(
         [
-          ['Source', 'Destination', 'statusCode'].map(str => chalk.bold(str)),
-          ...Object.entries(redirects).map(([key, redirect]) => {
+          [
+            'Source',
+            'Destination',
+            ...(isRedirects ? ['statusCode'] : []),
+          ].map(str => chalk.bold(str)),
+          ...Object.entries(routes).map(([key, route]) => {
             return [
-              redirect.source,
-              redirect.destination,
-              (redirect.statusCode || DEFAULT_REDIRECT_STATUS) + '',
+              route.source,
+              route.destination,
+              ...(isRedirects
+                ? [
+                    ((route as Redirect).statusCode ||
+                      DEFAULT_REDIRECT_STATUS) + '',
+                  ]
+                : []),
             ]
           }),
         ],
@@ -164,25 +177,11 @@ export function printCustomRoutes({
     console.log()
   }
 
+  if (redirects.length) {
+    printRoutes(redirects, 'Redirects')
+  }
   if (rewrites.length) {
-    console.log(chalk.underline('Rewrites'))
-    console.log()
-
-    console.log(
-      textTable(
-        [
-          ['Source', 'Destination'].map(str => chalk.bold(str)),
-          ...Object.entries(rewrites).map(([key, rewrite]) => {
-            return [rewrite.source, rewrite.destination]
-          }),
-        ],
-        {
-          align: ['l', 'l'],
-          stringLength: str => stripAnsi(str).length,
-        }
-      )
-    )
-    console.log()
+    printRoutes(rewrites, 'Rewrites')
   }
 }
 
