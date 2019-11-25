@@ -300,7 +300,7 @@ function renderReactElement(reactEl, domEl) {
     }
   }
 
-  if (onPerfEntry) {
+  if (onPerfEntry && SUPPORTS_PERFORMANCE_USER_TIMING) {
     if (!(PerformanceObserver in window)) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
