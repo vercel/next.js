@@ -91,16 +91,22 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 }
 
 async function getPostCssPlugins(dir: string): Promise<unknown[]> {
-  function load(plugins: { [key: string]: object }) {
-    return Object.keys(plugins).map(pkg => {
-      const pluginPath = resolveRequest(pkg, `${dir}/`)
+  function load(plugins: { [key: string]: object | false }): unknown[] {
+    return Object.keys(plugins)
+      .map(pkg => {
+        const options = plugins[pkg]
+        if (options === false) {
+          return false
+        }
 
-      const options = plugins[pkg]
-      if (options == null || Object.keys(options).length === 0) {
-        return require(pluginPath)
-      }
-      return require(pluginPath)(options)
-    })
+        const pluginPath = resolveRequest(pkg, `${dir}/`)
+
+        if (options == null || Object.keys(options).length === 0) {
+          return require(pluginPath)
+        }
+        return require(pluginPath)(options)
+      })
+      .filter(Boolean)
   }
 
   const config = await findConfig<{ plugins: { [key: string]: object } }>(
