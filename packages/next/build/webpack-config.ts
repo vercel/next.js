@@ -196,32 +196,38 @@ export default async function getBaseWebpackConfig(
     typeScriptPath = resolveRequest('typescript', `${dir}/`)
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
-  const useTypeScript = Boolean(
-    typeScriptPath && (await fileExists(tsConfigPath))
-  )
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
+  const hasConfigFile = async (path: string) =>
+    Boolean(path && (await fileExists(path)))
+
+  const useTypeScript = await hasConfigFile(tsConfigPath)
+  const useJsConfig = await hasConfigFile(jsConfigPath)
+
   const ignoreTypeScriptErrors = dev
     ? config.typescript && config.typescript.ignoreDevErrors
     : config.typescript && config.typescript.ignoreBuildErrors
 
+  // Disable .mjs for node_modules bundling
+  const resolveExtensions = isServer
+    ? [
+        ...(useTypeScript ? ['.tsx', '.ts'] : []),
+        '.js',
+        '.mjs',
+        '.jsx',
+        '.json',
+        '.wasm',
+      ]
+    : [
+        ...(useTypeScript ? ['.tsx', '.ts'] : []),
+        '.mjs',
+        '.js',
+        '.jsx',
+        '.json',
+        '.wasm',
+      ]
+
   const resolveConfig = {
-    // Disable .mjs for node_modules bundling
-    extensions: isServer
-      ? [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.js',
-          '.mjs',
-          '.jsx',
-          '.json',
-          '.wasm',
-        ]
-      : [
-          ...(useTypeScript ? ['.tsx', '.ts'] : []),
-          '.mjs',
-          '.js',
-          '.jsx',
-          '.json',
-          '.wasm',
-        ],
+    extensions: resolveExtensions,
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
@@ -241,7 +247,14 @@ export default async function getBaseWebpackConfig(
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [
       PnpWebpackPlugin,
-      useTypeScript && new TsConfigPathsPlugin({ configFile: tsConfigPath }),
+      ...(useTypeScript || useJsConfig
+        ? [
+            new TsConfigPathsPlugin({
+              configFile: useTypeScript ? tsConfigPath : jsConfigPath,
+              extensions: resolveExtensions,
+            }),
+          ]
+        : []),
     ],
   }
 
