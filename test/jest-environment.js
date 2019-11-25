@@ -4,6 +4,8 @@ const os = require('os')
 const http = require('http')
 const fetch = require('node-fetch')
 const getPort = require('get-port')
+const waitPort = require('wait-port')
+const chromedriver = require('chromedriver')
 const NodeEnvironment = require('jest-environment-node')
 const {
   BROWSER_NAME,
@@ -16,8 +18,14 @@ let browser
 let initialWindow
 let browserOptions = {
   browserName: BROWSER_NAME || 'chrome',
+  ...(process.env.HEADLESS === 'true'
+    ? {
+        chromeOptions: { args: ['--headless'] },
+      }
+    : {}),
 }
 let deviceIP = 'localhost'
+let driverPort = '9515'
 
 const isIE = BROWSER_NAME === 'ie'
 const isSafari = BROWSER_NAME === 'safari'
@@ -75,38 +83,52 @@ const newTabPg = `
 class CustomEnvironment extends NodeEnvironment {
   async createBrowser() {
     // always create new browser session if not BrowserStack
-    if (!browser && isBrowserStack) {
+    if (!browser) {
+      if (!isBrowserStack) {
+        driverPort = await getPort()
+        chromedriver.start([`--port=${driverPort}`])
+
+        // https://github.com/giggio/node-chromedriver/issues/117
+        await waitPort({
+          port: driverPort,
+          timeout: 1000 * 60 * 2, // 2 Minutes
+        })
+      }
+
       browser = wd.promiseChainRemote(
-        'hub-cloud.browserstack.com', // seleniumHost
-        80, // seleniumPort
-        BROWSERSTACK_USERNAME,
-        BROWSERSTACK_ACCESS_KEY
+        ...(isBrowserStack
+          ? [
+              'hub-cloud.browserstack.com', // seleniumHost
+              80, // seleniumPort
+              BROWSERSTACK_USERNAME,
+              BROWSERSTACK_ACCESS_KEY,
+            ]
+          : [`http://localhost:${driverPort}`])
       )
 
       // Setup the browser instance
       await browser.init(browserOptions)
       initialWindow = await browser.windowHandle()
-      global.bsBrowser = browser
     }
 
-    if (isBrowserStack) {
-      // disable browser.close and we handle it manually
-      browser.origClose = browser.close
-      browser.close = () => {}
-      // Since ie11 doesn't like dataURIs we have to spin up a
-      // server to handle the new tab page
-      this.server = http.createServer((req, res) => {
-        res.statusCode = 200
-        res.end(newTabPg)
+    // disable browser.close and we handle it manually
+    browser.origClose = browser.close
+    browser.close = () => {}
+    // Since ie11 doesn't like dataURIs we have to spin up a
+    // server to handle the new tab page
+    this.server = http.createServer((req, res) => {
+      res.statusCode = 200
+      res.end(newTabPg)
+    })
+    this.newTabPort = await getPort()
+    await new Promise((resolve, reject) => {
+      this.server.listen(this.newTabPort, err => {
+        if (err) return reject(err)
+        resolve()
       })
-      this.newTabPort = await getPort()
-      await new Promise((resolve, reject) => {
-        this.server.listen(this.newTabPort, err => {
-          if (err) return reject(err)
-          resolve()
-        })
-      })
+    })
 
+    if (isBrowserStack) {
       const networkIntfs = os.networkInterfaces()
       // find deviceIP to use with BrowserStack
       for (const intf of Object.keys(networkIntfs)) {
@@ -124,13 +146,14 @@ class CustomEnvironment extends NodeEnvironment {
         }
       }
     }
+
     this.global.browserName = browserOptions.browserName
-    this.global.isBrowserStack = isBrowserStack
+
     // Mock current browser set up
-    this.global.bsWd = async (appPort, pathname) => {
+    this.global.sharedWD = async (appPort, pathname) => {
       const url = `http://${deviceIP}:${appPort}${pathname}`
       console.log(`\n> Loading browser with ${url}\n`)
-      if (isBrowserStack) await this.freshWindow()
+      await this.freshWindow()
 
       return new Promise((resolve, reject) => {
         let timedOut = false
@@ -199,6 +222,19 @@ class CustomEnvironment extends NodeEnvironment {
   async teardown() {
     await super.teardown()
     if (this.server) this.server.close()
+    if (browser) {
+      // Close all remaining browser windows
+      try {
+        const windows = await browser.windowHandles()
+        for (const window of windows) {
+          if (!window) continue
+          await browser.window(window)
+          await browser.origClose()
+          await browser.quit()
+        }
+      } catch (_) {}
+    }
+    chromedriver.stop()
   }
 }
 
