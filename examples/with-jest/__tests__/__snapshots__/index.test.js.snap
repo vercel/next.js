@@ -10,4 +10,4 @@ exports[`With Snapshot Testing App shows "Hello world!" 1`] = `
     Hello World!
   </p>
 </div>
-`
+`;
