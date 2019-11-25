@@ -38,9 +38,11 @@ commands:
           command: yarn install --frozen-lockfile --check-files
       - run:
           name: Install correct Chrome Driver version
-          command: yarn add chromedriver@76 -W && git checkout yarn.lock package.json
+          command: node node_modules/chromedriver/install.js
+          environment:
+            CHROMEDRIVER_VERSION: '76.0.3809.68'
       - run: google-chrome --version
-      - run: chromedriver --version
+      - run: yarn chromedriver --version
   yarn_lint:
     steps:
       - run:

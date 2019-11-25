@@ -49,6 +49,7 @@ describe('Empty Project', () => {
 
   it('should show empty object warning during client transition', async () => {
     const browser = await webdriver(appPort, '/static')
+    await waitFor(1000)
     await browser.eval(`(function() {
       window.gotWarn = false
       const origWarn = console.warn
@@ -60,7 +61,7 @@ describe('Empty Project', () => {
       }
       window.next.router.replace('/another')
     })()`)
-    await waitFor(300)
+    await waitFor(1000)
     const gotWarn = await browser.eval(`window.gotWarn`)
     expect(gotWarn).toBe(true)
     await browser.close()
