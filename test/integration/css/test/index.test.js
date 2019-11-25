@@ -15,6 +15,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import escapeStringRegexp from 'escape-string-regexp'
 import cheerio from 'cheerio'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -215,6 +216,119 @@ describe('CSS Support', () => {
           "version": 3,
         }
       `)
+    })
+  })
+
+  describe('CSS Customization', () => {
+    const appDir = join(fixturesDir, 'custom-configuration')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've compiled and prefixed`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
+      )
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
+      const cssMapContent = (
+        await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+      ).trim()
+
+      const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+      expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
+        Object {
+          "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
+          "sourcesContent": Array [
+            "/* this should pass through untransformed */
+        @media (480px <= width < 768px) {
+          ::placeholder {
+            color: green;
+          }
+        }
+
+        /* this should be transformed to width/height */
+        .video {
+          -xyz-max-size: 400px 300px;
+        }
+        ",
+          ],
+          "version": 3,
+        }
+      `)
+    })
+  })
+
+  describe('Bad CSS Customization', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(/field which is not supported.*?sourceMap/)
+      ;[
+        'postcss-modules-values',
+        'postcss-modules-scope',
+        'postcss-modules-extract-imports',
+        'postcss-modules-local-by-default',
+      ].forEach(plugin => {
+        expect(stderr).toMatch(
+          new RegExp(`Please remove the.*?${escapeStringRegexp(plugin)}`)
+        )
+      })
+    })
+
+    it(`should've compiled and prefixed`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".video{max-width:400px;max-height:300px}"`)
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
     })
   })
 
@@ -647,6 +761,43 @@ describe('CSS Support', () => {
           await browser.close()
         }
       }
+    })
+  })
+
+  describe('Basic Tailwind CSS', () => {
+    const appDir = join(fixturesDir, 'with-tailwindcss')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've compiled and prefixed`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+      expect(cssContent).toMatch(/object-right-bottom/) // look for tailwind's CSS
+      expect(cssContent).not.toMatch(/tailwind/) // ensure @tailwind was removed
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
     })
   })
 })
