@@ -7,7 +7,7 @@ version: 2.1
 aliases:
   - &store_test_results
     store_test_results:
-      path: ~/repo/test_results.xml
+      path: ~/repo/test
   - &persist_to_workspace
     persist_to_workspace:
       root: ~/repo
@@ -63,9 +63,9 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            node run-tests.js $(
+            node run-tests.js --timings $(
               circleci tests glob "test/**/*.test.*" | \
-              circleci tests split
+              circleci tests split --split-by=timings
             )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
