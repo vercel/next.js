@@ -82,6 +82,7 @@
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
     "shell-quote": "1.7.2",
+    "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
     "tree-kill": "1.2.1",
     "typescript": "3.7.2",

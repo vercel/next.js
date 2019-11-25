@@ -425,12 +425,25 @@ export default async function getBaseWebpackConfig(
               /node_modules[/\\]/.test(module.identifier())
             )
           },
-          name(module: { libIdent: Function }): string {
-            return crypto
-              .createHash('sha1')
-              .update(module.libIdent({ context: dir }))
-              .digest('hex')
-              .substring(0, 8)
+          name(module: {
+            type: string
+            libIdent?: Function
+            updateHash: (hash: crypto.Hash) => void
+          }): string {
+            const hash = crypto.createHash('sha1')
+            if (module.type === `css/mini-extract`) {
+              module.updateHash(hash)
+            } else {
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
+              }
+
+              hash.update(module.libIdent({ context: dir }))
+            }
+
+            return hash.digest('hex').substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
