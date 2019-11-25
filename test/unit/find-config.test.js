@@ -10,21 +10,11 @@ describe('find config', () => {
     expect(config).toEqual({ foo: 'bar' })
   })
 
-  it('should resolve rc (no ext)', async () => {
-    const config = await findConfig(join(fixtureDir, 'config-no-ext'), 'test')
-    expect(config).toEqual({ foo: 'bar' })
-  })
-
   it('should resolve package.json', async () => {
     const config = await findConfig(
       join(fixtureDir, 'config-package-json'),
       'test'
     )
-    expect(config).toEqual({ foo: 'bar' })
-  })
-
-  it('should resolve config.json', async () => {
-    const config = await findConfig(join(fixtureDir, 'dot-config-json'), 'test')
     expect(config).toEqual({ foo: 'bar' })
   })
 
