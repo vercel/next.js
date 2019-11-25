@@ -290,7 +290,7 @@ export default class Server {
         ]
       : []
 
-    const routes: Route[] = [
+    const topRoutes: Route[] = [
       {
         match: route('/_next/static/:path*'),
         type: 'route',
@@ -381,7 +381,10 @@ export default class Server {
           }
         },
       },
+      ...publicRoutes,
+      ...staticFilesRoute,
     ]
+    const routes: Route[] = [...topRoutes]
 
     if (this.customRoutes) {
       const { redirects, rewrites } = this.customRoutes
@@ -409,7 +412,20 @@ export default class Server {
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
               let destinationCompiler = pathToRegexp.compile(route.destination)
-              let newUrl = destinationCompiler(params)
+              let newUrl
+
+              try {
+                newUrl = destinationCompiler(params)
+              } catch (err) {
+                if (
+                  err.message.match(/Expected .*? to not repeat, but got array/)
+                ) {
+                  throw new Error(
+                    `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`
+                  )
+                }
+                throw err
+              }
 
               if (route.type === 'redirect') {
                 res.setHeader('Location', newUrl)
@@ -428,30 +444,27 @@ export default class Server {
           } as Route
         })
       )
+      // make sure previous routes can still be rewritten to by
+      // custom routes e.g. /docs/_next/static -> /_next/static
+      routes.push(...topRoutes)
     }
 
-    routes.push(
-      ...([
-        ...publicRoutes,
-        ...staticFilesRoute,
-        {
-          match: route('/api/:path*'),
-          type: 'route',
-          name: 'API Route',
-          fn: async (req, res, params, parsedUrl) => {
-            const { pathname } = parsedUrl
-            await this.handleApiRequest(
-              req as NextApiRequest,
-              res as NextApiResponse,
-              pathname!
-            )
-            return {
-              finished: true,
-            }
-          },
-        },
-      ] as Route[])
-    )
+    routes.push({
+      match: route('/api/:path*'),
+      type: 'route',
+      name: 'API Route',
+      fn: async (req, res, params, parsedUrl) => {
+        const { pathname } = parsedUrl
+        await this.handleApiRequest(
+          req as NextApiRequest,
+          res as NextApiResponse,
+          pathname!
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
