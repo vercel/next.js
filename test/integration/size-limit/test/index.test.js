@@ -81,9 +81,9 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    const delta = responseSizeKilobytes - 230
+    const delta = responseSizeKilobytes - 229
     expect(delta).toBeLessThanOrEqual(0) // don't increase size
-    expect(delta).toBeGreaterThanOrEqual(-2) // don't decrease size without updating target
+    expect(delta).toBeGreaterThanOrEqual(-1) // don't decrease size without updating target
   })
 
   it('should not increase the overall response size of modern build', async () => {
@@ -101,8 +101,8 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    const delta = responseSizeKilobytes - 204
+    const delta = responseSizeKilobytes - 197
     expect(delta).toBeLessThanOrEqual(0) // don't increase size
-    expect(delta).toBeGreaterThanOrEqual(-2) // don't decrease size without updating target
+    expect(delta).toBeGreaterThanOrEqual(-1) // don't decrease size without updating target
   })
 })

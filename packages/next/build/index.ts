@@ -51,6 +51,7 @@ import {
   hasCustomAppGetInitialProps,
   PageInfo,
   printTreeView,
+  printCustomRoutes,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
@@ -718,6 +719,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   })
 
   printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless)
+  printCustomRoutes({ redirects, rewrites })
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
