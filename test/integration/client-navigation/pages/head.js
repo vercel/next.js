@@ -97,8 +97,27 @@ export default () => (
       <link rel="stylesheet" href="/dup-style.css" />
 
       {/* only one tag will be rendered as they have the same key */}
+
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
+
+      {/* such style can be used for alternate links on _app vs individual pages */}
+      {['pl', 'en'].map(language => (
+        <link
+          rel="alternate"
+          key={language}
+          hrefLang={language}
+          href={'/first/' + language}
+        />
+      ))}
+      {['pl', 'en'].map(language => (
+        <link
+          rel="alternate"
+          key={language}
+          hrefLang={language}
+          href={'/last/' + language}
+        />
+      ))}
     </Head>
     <h1>I can have meta tags</h1>
   </div>
