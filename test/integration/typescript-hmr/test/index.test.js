@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import fs from 'fs-extra'
+import crypto from 'crypto'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -13,16 +14,29 @@ import {
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-const appDir = join(__dirname, '..')
+const origAppDir = join(__dirname, '../app')
 let appPort
+let appDir
 let app
 
 describe('TypeScript HMR', () => {
   beforeAll(async () => {
+    // create temporary appDir for HMR test
+    const randomHash = crypto
+      .createHash('md5')
+      .digest(Math.random() + '')
+      .toString('hex')
+
+    appDir = join(__dirname, '..', `app-${randomHash}`)
+    await fs.copy(origAppDir, appDir)
+
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
-  afterAll(() => killApp(app))
+  afterAll(async () => {
+    await killApp(app)
+    await fs.remove(appDir)
+  })
 
   describe('delete a page and add it back', () => {
     it('should detect the changes to typescript pages and display it', async () => {

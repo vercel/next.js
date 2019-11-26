@@ -33,7 +33,7 @@ const isFirefox = BROWSER_NAME === 'firefox'
 // 30 seconds for BrowserStack 5 seconds for local
 const isBrowserStack =
   BROWSERSTACK && BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
-const browserTimeout = (isBrowserStack ? 30 : 5) * 1000
+const browserTimeout = (isBrowserStack ? 30 : 10) * 1000
 
 if (isBrowserStack) {
   const safariOpts = {
@@ -80,19 +80,28 @@ const newTabPg = `
 </html>
 `
 
+const freshChromedriver = async () => {
+  chromedriver.stop()
+
+  driverPort = await getPort()
+
+  console.log(`Starting chromedriver with port ${driverPort}`)
+  chromedriver.start([`--port=${driverPort}`])
+
+  // https://github.com/giggio/node-chromedriver/issues/117
+  await waitPort({
+    port: driverPort,
+    timeout: 1000 * 60 * 2, // 2 Minutes
+  })
+  console.log(`chromedriver start on port ${driverPort}`)
+}
+
 class CustomEnvironment extends NodeEnvironment {
   async createBrowser() {
     // always create new browser session if not BrowserStack
     if (!browser) {
       if (!isBrowserStack) {
-        driverPort = await getPort()
-        chromedriver.start([`--port=${driverPort}`])
-
-        // https://github.com/giggio/node-chromedriver/issues/117
-        await waitPort({
-          port: driverPort,
-          timeout: 1000 * 60 * 2, // 2 Minutes
-        })
+        await freshChromedriver()
       }
 
       browser = wd.promiseChainRemote(

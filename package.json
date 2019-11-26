@@ -8,6 +8,7 @@
     "lerna": "lerna",
     "dev": "lerna run build --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
+    "testheadless": "HEADLESS=true yarn testonly",
     "testonly": "jest --runInBand",
     "testall": "yarn run testonly -- --ci --forceExit",
     "pretest": "yarn run lint",
