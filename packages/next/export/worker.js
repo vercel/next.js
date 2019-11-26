@@ -163,8 +163,8 @@ export default async function({
       }
     }
 
-    const validateAmp = async (html, page) => {
-      const validator = await AmpHtmlValidator.getInstance()
+    const validateAmp = async (html, page, validatorPath) => {
+      const validator = await AmpHtmlValidator.getInstance(validatorPath)
       const result = validator.validateString(html)
       const errors = result.errors.filter(e => e.severity === 'ERROR')
       const warnings = result.errors.filter(e => e.severity !== 'ERROR')
@@ -181,7 +181,7 @@ export default async function({
     }
 
     if (curRenderOpts.inAmpMode) {
-      await validateAmp(html, path)
+      await validateAmp(html, path, curRenderOpts.ampValidator)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
       let ampHtmlFilename = `${ampPath}${sep}index.html`
