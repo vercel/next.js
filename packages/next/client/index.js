@@ -300,8 +300,17 @@ function renderReactElement(reactEl, domEl) {
     }
   }
 
-  if (onPerfEntry) {
-    performance.getEntriesByType('paint').forEach(onPerfEntry)
+  if (onPerfEntry && SUPPORTS_PERFORMANCE_USER_TIMING) {
+    if (!(PerformanceObserver in window)) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
+    } else {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(onPerfEntry)
+      })
+      observer.observe({ entryTypes: ['paint'] })
+    }
   }
 }
 

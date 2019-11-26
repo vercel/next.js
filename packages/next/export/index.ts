@@ -155,6 +155,14 @@ export default async function(
       continue
     }
 
+    // iSSG pages that are dynamic should not export templated version by
+    // default. In most cases, this would never work. There is no server that
+    // could run `getStaticProps`. If users make their page work lazily, they
+    // can manually add it to the `exportPathMap`.
+    if (prerenderManifest && prerenderManifest.dynamicRoutes[page]) {
+      continue
+    }
+
     defaultPathMap[page] = { page }
   }
 
@@ -207,6 +215,9 @@ export default async function(
     hotReloader: null,
     canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
     isModern: nextConfig.experimental.modern,
+    ampValidator:
+      (nextConfig.experimental.amp && nextConfig.experimental.amp.validator) ||
+      undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

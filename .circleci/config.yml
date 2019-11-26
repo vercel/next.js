@@ -7,7 +7,7 @@ version: 2.1
 aliases:
   - &store_test_results
     store_test_results:
-      path: ~/repo/test_results.xml
+      path: ~/repo/test
   - &persist_to_workspace
     persist_to_workspace:
       root: ~/repo
@@ -38,9 +38,11 @@ commands:
           command: yarn install --frozen-lockfile --check-files
       - run:
           name: Install correct Chrome Driver version
-          command: yarn add chromedriver@76 -W && git checkout yarn.lock package.json
+          command: node node_modules/chromedriver/install.js
+          environment:
+            CHROMEDRIVER_VERSION: '76.0.3809.68'
       - run: google-chrome --version
-      - run: chromedriver --version
+      - run: yarn chromedriver --version
   yarn_lint:
     steps:
       - run:
@@ -61,9 +63,9 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            node run-tests.js $(
+            node run-tests.js --timings $(
               circleci tests glob "test/**/*.test.*" | \
-              circleci tests split
+              circleci tests split --split-by=timings
             )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
@@ -136,7 +138,7 @@ jobs:
       - yarn_react_integration
       - *persist_to_workspace
   test:
-    parallelism: 3
+    parallelism: 4
     executor: node
     steps:
       - *attach_workspace

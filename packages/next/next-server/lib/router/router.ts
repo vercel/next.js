@@ -320,7 +320,8 @@ export default class Router implements BaseRouter {
         const routeMatch = getRouteMatcher(rr)(asPathname)
         if (!routeMatch) {
           const error =
-            'The provided `as` value is incompatible with the `href` value. This is invalid. https://err.sh/zeit/next.js/incompatible-href-as'
+            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+            `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
 
           if (process.env.NODE_ENV !== 'production') {
             throw new Error(error)

@@ -5,6 +5,7 @@ import flush from 'styled-jsx/server'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  AMP_RENDER_TARGET,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
@@ -474,6 +475,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {this.getCssLinks()}
             {page !== '/_error' && (
               <link
                 rel="preload"
@@ -513,7 +515,6 @@ export class Head extends Component<
                 // (by default, style-loader injects at the bottom of <head />)
                 <noscript id="__next_css__DO_NOT_USE__" />
               )}
-            {this.getCssLinks()}
             {styles || null}
           </>
         )}
@@ -530,7 +531,7 @@ export class Main extends Component {
 
   render() {
     const { inAmpMode, html } = this.context._documentProps
-    if (inAmpMode) return '__NEXT_AMP_RENDER_TARGET__'
+    if (inAmpMode) return AMP_RENDER_TARGET
     return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
   }
 }

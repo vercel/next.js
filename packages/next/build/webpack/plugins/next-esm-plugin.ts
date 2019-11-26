@@ -45,7 +45,19 @@ const JsonpTemplatePlugin = require('webpack/lib/web/JsonpTemplatePlugin')
 const SplitChunksPlugin = require('webpack/lib/optimize/SplitChunksPlugin')
 const RuntimeChunkPlugin = require('webpack/lib/optimize/RuntimeChunkPlugin')
 
+type BabelConfigItem = string | [string] | [string, any]
+
 const PLUGIN_NAME = 'NextEsmPlugin'
+
+// Matches all variations of preset-env as a filepath.
+// Example: /project/foo/node_modules/babel-preset-react-app/dependencies.js
+const IS_PRESET_ENV = /(^|[\\/])(babel-preset-react-app\/dependencies(\.js)?|@babel\/(preset-)?env)([\\/]|$)/
+
+// Matches Babel preset paths that support the useBuiltIns option
+const PRESETS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(preset-)?react)([\\/]|$)/
+
+// Matches Babel plugin paths that support the useBuiltIns option
+const PLUGINS_WITH_USEBUILTINS = /(^|[\\/])(@babel\/(plugin-)?transform-react-jsx)([\\/]|$)/
 
 export default class NextEsmPlugin implements Plugin {
   options: {
@@ -79,25 +91,31 @@ export default class NextEsmPlugin implements Plugin {
     )
   }
 
-  getBabelLoader(rules: RuleSetRule[]) {
+  getLoaders(rules: RuleSetRule[], predicate: (loader: string) => boolean) {
+    const results = []
     for (let rule of rules) {
-      if (!rule.use) continue
-
       if (Array.isArray(rule.use)) {
-        return (rule.use as RuleSetLoader[]).find(
-          r => r.loader && r.loader.includes('next-babel-loader')
+        const matches = (rule.use as RuleSetLoader[]).filter(
+          r => r.loader && predicate(r.loader)
         )
+        if (matches.length > 0) {
+          results.push(...matches)
+        }
       }
 
       const ruleUse = rule.use as RuleSetLoader
-      const ruleLoader = rule.loader as string
+      let ruleLoader = rule.loader
+      if (typeof ruleLoader === 'object' && 'loader' in ruleLoader) {
+        ruleLoader = ruleLoader.loader
+      }
       if (
-        (ruleUse.loader && ruleUse.loader.includes('next-babel-loader')) ||
-        (ruleLoader && ruleLoader.includes('next-babel-loader'))
+        (ruleUse && ruleUse.loader && predicate(ruleUse.loader)) ||
+        (ruleLoader && predicate(ruleLoader as string))
       ) {
-        return ruleUse || rule
+        results.push(ruleUse || rule)
       }
     }
+    return results
   }
 
   updateOptions(childCompiler: Compiler) {
@@ -105,7 +123,10 @@ export default class NextEsmPlugin implements Plugin {
       throw new Error('Webpack.options.module not found!')
     }
 
-    let babelLoader = this.getBabelLoader(childCompiler.options.module.rules)
+    let babelLoader = this.getLoaders(
+      childCompiler.options.module.rules,
+      loader => loader.includes('next-babel-loader')
+    )[0]
 
     if (!babelLoader) {
       throw new Error('Babel-loader config not found!')
@@ -114,6 +135,65 @@ export default class NextEsmPlugin implements Plugin {
     babelLoader.options = Object.assign({}, babelLoader.options, {
       isModern: true,
     })
+    if (typeof babelLoader.options !== 'string') {
+      this.ensureModernBabelOptions(babelLoader.options)
+    }
+
+    const additionalBabelLoaders = this.getLoaders(
+      childCompiler.options.module.rules,
+      loader => /(^|[\\/])babel-loader([\\/]|$)/.test(loader)
+    )
+    for (const loader of additionalBabelLoaders) {
+      // @TODO support string options?
+      if (!loader.options || typeof loader.options === 'string') continue
+      this.ensureModernBabelOptions(loader.options)
+    }
+  }
+
+  ensureModernBabelOptions(options: {
+    presets?: BabelConfigItem[]
+    plugins?: BabelConfigItem[]
+  }) {
+    // find and remove known ES2017-to-ES5 transforms
+    if (options.presets) {
+      options.presets = options.presets.reduce(
+        (presets: BabelConfigItem[], preset) => {
+          const name = Array.isArray(preset) ? preset[0] : preset
+          const opts = Object.assign(
+            {},
+            (Array.isArray(preset) && preset[1]) || {}
+          )
+
+          if (PRESETS_WITH_USEBUILTINS.test(name)) {
+            opts.useBuiltIns = true
+          }
+
+          if (IS_PRESET_ENV.test(name)) {
+            presets.push(['@babel/preset-modules', { loose: true }])
+          } else {
+            presets.push([name, opts])
+          }
+          return presets
+        },
+        []
+      )
+    }
+
+    if (options.plugins) {
+      options.plugins = options.plugins.map(plugin => {
+        const name = Array.isArray(plugin) ? plugin[0] : plugin
+        const opts = Object.assign(
+          {},
+          (Array.isArray(plugin) && plugin[1]) || {}
+        )
+
+        if (PLUGINS_WITH_USEBUILTINS.test(name)) {
+          opts.useBuiltIns = true
+        }
+
+        return [name, opts]
+      })
+    }
   }
 
   updateAssets(
