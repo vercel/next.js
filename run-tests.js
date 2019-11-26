@@ -124,9 +124,9 @@ const timings = []
     for (const timing of timings) {
       const timeInSeconds = timing.time / 1000
       junitData += `
-        <testsuite name="${
-          timing.file
-        }" tests="1" errors="0" failures="0" skipped="0" timestamp="${new Date().toJSON()}" time="${timeInSeconds}">
+        <testsuite name="${timing.file}" file="${
+        timing.file
+      }" tests="1" errors="0" failures="0" skipped="0" timestamp="${new Date().toJSON()}" time="${timeInSeconds}">
           <testcase classname="tests suite should pass" name="${
             timing.file
           }" time="${timeInSeconds}"></testcase>
