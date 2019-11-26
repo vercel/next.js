@@ -69,3 +69,16 @@ So far, we get:
 - Hot code reloading
 - Static rendering and on-demand server rendering of `./pages/`
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
+
+## Related
+
+For more information on what to do next, we recommend the following articles:
+
+<div class="card">
+  <a href="https://www.google.com">
+    <h4>Card title</h4>
+    <p>
+     This is the card text
+    </p>
+  </a>
+</div>
