@@ -65,6 +65,7 @@
     "@babel/plugin-transform-modules-commonjs": "7.7.0",
     "@babel/plugin-transform-runtime": "7.6.2",
     "@babel/preset-env": "7.7.1",
+    "@babel/preset-modules": "0.1.1",
     "@babel/preset-react": "7.7.0",
     "@babel/preset-typescript": "7.7.2",
     "@babel/runtime": "7.7.2",
