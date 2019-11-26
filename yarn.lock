@@ -10572,10 +10572,10 @@ native-or-bluebird@^1.2.0:
   resolved "https://registry.yarnpkg.com/native-or-bluebird/-/native-or-bluebird-1.2.0.tgz#39c47bfd7825d1fb9ffad32210ae25daadf101c9"
   integrity sha1-OcR7/Xgl0fuf+tMiEK4l2q3xAck=
 
-native-url@0.2.1:
-  version "0.2.1"
-  resolved "https://registry.yarnpkg.com/native-url/-/native-url-0.2.1.tgz#af34e7ade00049a880dbd476f6fc80ffbb4095ef"
-  integrity sha512-1wtxUvRw9yfnqbP/gI7rWnRx3boHosUXz2d+EahWafx86gG0EdxbglqhA6hSKybteH6uLLN867yNmh4cnqndvw==
+native-url@0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/native-url/-/native-url-0.2.2.tgz#a0e1ece7753a17d155068214872e81d7d322b410"
+  integrity sha512-X4a7YwNjY0ZxWIibqUuILfg7EaV2alawCgRZeczemcyTwOMYz5/zjR6l3nnDLARHl2sLlNbqk2A7ysb0atoYjA==
   dependencies:
     querystring "^0.2.0"
 
