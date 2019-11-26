@@ -44,12 +44,12 @@ const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
 
-type Rewrite = {
+export type Rewrite = {
   source: string
   destination: string
 }
 
-type Redirect = Rewrite & {
+export type Redirect = Rewrite & {
   statusCode?: number
 }
 
