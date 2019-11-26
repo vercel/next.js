@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import url from 'url'
+import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -21,6 +22,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 let nextConfigContent
+let stdout = ''
 let appPort
 let app
 
@@ -288,6 +290,22 @@ const runTests = (isDev = false) => {
         dynamicRoutes: [],
       })
     })
+
+    it('should have redirects/rewrites in build output', async () => {
+      const manifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+      const cleanStdout = stripAnsi(stdout)
+      expect(cleanStdout).toContain('Redirects')
+      expect(cleanStdout).toContain('Rewrites')
+      expect(cleanStdout).toMatch(/Source.*?Destination.*?statusCode/i)
+
+      for (const route of [...manifest.redirects, ...manifest.rewrites]) {
+        expect(cleanStdout).toMatch(
+          new RegExp(`${route.source}.*?${route.destination}`)
+        )
+      }
+    })
   }
 }
 
@@ -303,7 +321,10 @@ describe('Custom routes', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
+      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      stdout = buildStdout
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -319,9 +340,16 @@ describe('Custom routes', () => {
         nextConfigContent.replace(/\/\/ target/, 'target'),
         'utf8'
       )
-      await nextBuild(appDir)
+      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      stdout = buildStdout
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStdout: msg => {
+          stdout += msg
+        },
+      })
     })
     afterAll(async () => {
       await killApp(app)
