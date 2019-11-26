@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "next",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
     "export": "next build && next export"
   },
   "dependencies": {
     "next": "latest",
     "next-offline": "4.0.6",
-    "react": "^16.10.2",
-    "react-dom": "^16.10.2",
+    "react": "16.12.0",
+    "react-dom": "16.12.0",
     "serve": "11.2.0"
   }
 }
