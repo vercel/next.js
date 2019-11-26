@@ -101,7 +101,7 @@ class Container extends React.Component {
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
     if (
-      data.nextExport &&
+      (data.nextExport || data.isSSG) &&
       (isDynamicRoute(router.pathname) || location.search)
     ) {
       // update query on mount for exported pages

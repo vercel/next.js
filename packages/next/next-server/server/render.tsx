@@ -137,6 +137,7 @@ type RenderOpts = {
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
+  isSSG?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
@@ -175,6 +176,7 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     autoExport,
+    isSSG,
     dynamicImportsIds,
     dangerousAsPath,
     hasCssMode,
@@ -228,6 +230,7 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
+            isSSG, // If this is an SSG page
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -357,7 +360,10 @@ export async function renderToHTML(
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
-  if (isSpr) renderOpts.nextExport = false
+  if (isSpr) {
+    renderOpts.nextExport = false
+    renderOpts.isSSG = true
+  }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
