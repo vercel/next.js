@@ -169,7 +169,7 @@ export default class NextEsmPlugin implements Plugin {
           }
 
           if (IS_PRESET_ENV.test(name)) {
-            presets.push([require('@babel/preset-modules'), { loose: true }])
+            presets.push([require.resolve('@babel/preset-modules'), { loose: true }])
           } else {
             presets.push([name, opts])
           }
