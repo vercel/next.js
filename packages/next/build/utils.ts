@@ -11,7 +11,7 @@ import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { Redirect, Rewrite } from '../next-server/server/next-server'
+import { Redirect, Rewrite } from '../lib/check-custom-routes'
 import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
 
 const fsStatPromise = promisify(fs.stat)
