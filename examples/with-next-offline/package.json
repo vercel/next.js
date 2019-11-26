@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "start": "next start",
     "export": "next build && next export"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "canary",
     "next-offline": "4.0.6",
     "react": "16.12.0",
     "react-dom": "16.12.0",
