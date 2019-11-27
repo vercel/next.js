@@ -184,7 +184,7 @@ const runTests = (isDev = false) => {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
-            regex: '^\\/hello\\/([^\\/]+?)\\/another$',
+            regex: '^\\/hello(?:\\/([^\\/]+?))\\/another$',
             regexKeys: ['id'],
           },
           {
