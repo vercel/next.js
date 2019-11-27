@@ -1,5 +1,11 @@
 # Higher Order Component example
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-higher-order-component)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -37,7 +43,7 @@ npm run dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now)
-([download](https://zeit.co/download))
+([download](https://zeit.co/download)):
 
 ```bash
 now
