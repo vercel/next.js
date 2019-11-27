@@ -418,7 +418,9 @@ export default class Server {
                 newUrl = destinationCompiler(params)
               } catch (err) {
                 if (
-                  err.message.match(/Expected .*? to not repeat, but got array/)
+                  err.message.match(
+                    /Expected .*? to not repeat, but got an array/
+                  )
                 ) {
                   throw new Error(
                     `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`
