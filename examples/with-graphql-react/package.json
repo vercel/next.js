@@ -3,12 +3,12 @@
   "private": true,
   "license": "ISC",
   "dependencies": {
-    "cross-fetch": "^3.0.2",
-    "graphql-react": "^8.2.0",
+    "cross-fetch": "^3.0.4",
+    "graphql-react": "^9.0.0",
     "next": "latest",
-    "next-graphql-react": "^3.0.2",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "next-graphql-react": "^5.0.0",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0"
   },
   "scripts": {
     "dev": "next",
