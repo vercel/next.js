@@ -40,8 +40,8 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-The commented lines are the place where you can put the configs allowed by `next.config.js`, which are defined [here](https://github.com/zeit/next.js/blob/canary/packages/next/next-server/server/config.ts#L12-L62).
+The commented lines are the place where you can put the configs allowed by `next.config.js`, which are defined [here](https://github.com/zeit/next.js/blob/canary/packages/next/next-server/server/config.ts#L12-L63).
 
-However, none of the configs are required, and it's not necessary to understand what each config does, instead, loop up for the features you need to enable or modify in this section and they will show you what to do.
+However, none of the configs are required, and it's not necessary to understand what each config does, instead, search for the features you need to enable or modify in this section and they will show you what to do.
 
 > Avoid using new JavaScript features not available in your target Node.js version. `next.config.js` will not be parsed by Webpack, Babel or TypeScript.

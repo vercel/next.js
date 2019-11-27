@@ -1,6 +1,6 @@
 # exportPathMap
 
-> This feature is exclusive of `next export`.Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
+> This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
 
 <details>
   <summary><b>Examples</b></summary>
