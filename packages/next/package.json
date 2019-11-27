@@ -107,7 +107,7 @@
     "node-fetch": "2.6.0",
     "object-assign": "4.1.1",
     "ora": "3.4.0",
-    "path-to-regexp": "3.1.0",
+    "path-to-regexp": "6.1.0",
     "pnp-webpack-plugin": "1.5.0",
     "postcss-flexbugs-fixes": "4.1.0",
     "postcss-loader": "3.0.0",
