@@ -129,7 +129,6 @@ jobs:
     steps:
       - checkout
       - yarn_install
-      - yarn_lint
       - *persist_to_workspace
   build-react-canary:
     executor: node
@@ -137,6 +136,11 @@ jobs:
       - *attach_workspace
       - yarn_react_integration
       - *persist_to_workspace
+  lint:
+    executor: node
+    steps:
+      - *attach_workspace
+      - yarn_lint
   test:
     parallelism: 6
     executor: node
@@ -181,6 +185,9 @@ workflows:
     jobs:
       - build
       - test:
+          requires:
+            - build
+      - lint:
           requires:
             - build
       - test-ie11:
