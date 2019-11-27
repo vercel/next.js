@@ -2,7 +2,7 @@ import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
-import pathToRegexp from 'path-to-regexp'
+import { pathToRegexp } from 'path-to-regexp'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 
@@ -309,17 +309,13 @@ export default class Server {
           }
 
           if (
-            params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
-            params.path[0] === 'chunks' ||
-            params.path[0] === this.buildId
+            params.path.startsWith(CLIENT_STATIC_FILES_RUNTIME) ||
+            params.path.startsWith('chunks') ||
+            params.path.startsWith(this.buildId)
           ) {
             this.setImmutableAssetCacheControl(res)
           }
-          const p = join(
-            this.distDir,
-            CLIENT_STATIC_FILES_PATH,
-            ...(params.path || [])
-          )
+          const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, params.path)
           await this.serveStatic(req, res, p, parsedUrl)
           return {
             finished: true,
@@ -333,17 +329,17 @@ export default class Server {
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
-          if (!params.path || params.path[0] !== this.buildId) {
+          if (!params.path || !params.path.startsWith(this.buildId)) {
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
             }
           }
           // remove buildId from URL
-          params.path.shift()
+          params.path = params.path.replace(new RegExp(`^${this.buildId}/`), '')
 
           // show 404 if it doesn't end with .json
-          if (!params.path[params.path.length - 1].endsWith('.json')) {
+          if (!params.path.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
