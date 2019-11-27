@@ -14,7 +14,7 @@ export default (customRoute = false) => {
       if (!res) {
         return false
       }
-      return res.params || {}
+      return { ...params, ...res.params }
     }
   }
 }
