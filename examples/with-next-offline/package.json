@@ -9,10 +9,10 @@
     "export": "next build && next export"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "canary",
     "next-offline": "4.0.6",
-    "react": "^16.10.2",
-    "react-dom": "^16.10.2",
+    "react": "16.12.0",
+    "react-dom": "16.12.0",
     "serve": "11.2.0"
   }
 }

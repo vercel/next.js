@@ -91,7 +91,7 @@
     "etag": "1.8.1",
     "file-loader": "4.2.0",
     "find-up": "4.0.0",
-    "fork-ts-checker-webpack-plugin": "1.3.4",
+    "fork-ts-checker-webpack-plugin": "3.1.1",
     "fresh": "0.5.2",
     "ignore-loader": "0.1.2",
     "is-docker": "2.0.0",
