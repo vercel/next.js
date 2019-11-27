@@ -74,5 +74,5 @@ So far, we get:
 
 For more information on what to do next, we recommend the following sections:
 
-- [Pages: Learn more about what are pages in Next.js](/docs/concepts/pages.md)
-- [CSS Support: Use the built-in CSS support to add custom styles to your app](/docs/basic-features/built-in-css-support.md)
+- [**Pages**: Learn more about what are pages in Next.js](/docs/concepts/pages.md)
+- [**CSS Support**: Use the built-in CSS support to add custom styles to your app](/docs/basic-features/built-in-css-support.md)
