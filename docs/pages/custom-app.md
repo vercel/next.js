@@ -34,3 +34,10 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 `pageProps` is an object with the initial props that were preloaded for your page, it's an empty object if the page is not using [`getInitialProps`](/docs/pages/ssr-with-getInitialProps.md).
 
 > Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+- [**Automatic Static Optimization**: Learn more about how Next.js automatically optimizes your pages](/docs/advanced-features/automatic-static-optimization.md)
+- [**Custom Error Page**: Learn more about the built-in Error page](/docs/pages/custom-error-page.md)

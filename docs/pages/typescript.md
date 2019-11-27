@@ -43,3 +43,9 @@ export default class Page extends React.Component<Props> {
   }
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+- [**TypeScript**: Add TypeScript to your Next.js application](/docs/basic-features/typescript.md)
