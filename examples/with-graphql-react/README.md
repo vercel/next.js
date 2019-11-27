@@ -1,11 +1,10 @@
 # Next.js example with [`graphql-react`](https://github.com/jaydenseric/graphql-react)
 
-[`graphql-react`](https://github.com/jaydenseric/graphql-react) is a lightweight but powerful [GraphQL](https://graphql.org) client for React; the first [Relay](https://facebook.github.io/relay) and [Apollo](https://apollographql.com/docs/react) alternative with server side rendering.
+## Deploy your own
 
-See how it can be used in a Next.js app for GraphQL queries with server side rendering and client side data hydration:
+Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-- In `pages/_app.js` a [custom `App` component](https://github.com/zeit/next.js#custom-app) is decorated with the [`withGraphQL`](https://github.com/jaydenseric/next-graphql-react/#function-withgraphql) [higher-order component](https://reactjs.org/docs/higher-order-components) from [`next-graphql-react`](https://github.com/jaydenseric/next-graphql-react), generating a `graphql` prop that populates the [`Provider`](https://github.com/jaydenseric/graphql-react#function-provider) component from [`graphql-react`](https://github.com/jaydenseric/graphql-react).
-- In `pages/index.js` the [`Query`](https://github.com/jaydenseric/graphql-react#function-query) component from [`graphql-react`](https://github.com/jaydenseric/graphql-react) is used to query the [GraphQL Pokémon API](https://github.com/lucasbento/graphql-pokemon) and show a picture of Pikachu.
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-graphql-react)
 
 ## Setup
 
@@ -32,3 +31,12 @@ See how it can be used in a Next.js app for GraphQL queries with server side ren
    ```sh
    npm run dev
    ```
+
+## The idea behind the example
+
+[`graphql-react`](https://github.com/jaydenseric/graphql-react) is a lightweight but powerful [GraphQL](https://graphql.org) client for React; the first [Relay](https://facebook.github.io/relay) and [Apollo](https://apollographql.com/docs/react) alternative with server side rendering.
+
+See how it can be used in a Next.js app for GraphQL queries with server side rendering and client side data hydration:
+
+- In `pages/_app.js` a [custom `App` component](https://github.com/zeit/next.js#custom-app) is decorated with the [`withGraphQL`](https://github.com/jaydenseric/next-graphql-react/#function-withgraphql) [higher-order component](https://reactjs.org/docs/higher-order-components) from [`next-graphql-react`](https://github.com/jaydenseric/next-graphql-react), generating a `graphql` prop that populates the [`Provider`](https://github.com/jaydenseric/graphql-react#function-provider) component from [`graphql-react`](https://github.com/jaydenseric/graphql-react).
+- In `pages/index.js` the [`Query`](https://github.com/jaydenseric/graphql-react#function-query) component from [`graphql-react`](https://github.com/jaydenseric/graphql-react) is used to query the [GraphQL Pokémon API](https://github.com/lucasbento/graphql-pokemon) and show a picture of Pikachu.

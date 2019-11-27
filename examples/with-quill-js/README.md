@@ -1,5 +1,11 @@
 # Quilljs editor Example
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-quill-js)
+
 ## How to use
 
 ### Using `create-next-app`
