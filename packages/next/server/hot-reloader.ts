@@ -184,7 +184,7 @@ export default class HotReloader {
         return
       }
 
-      const page = `/${params.path}`
+      const page = `/${params.path.join('/')}`
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)

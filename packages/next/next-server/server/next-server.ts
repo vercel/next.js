@@ -309,13 +309,17 @@ export default class Server {
           }
 
           if (
-            params.path.startsWith(CLIENT_STATIC_FILES_RUNTIME) ||
-            params.path.startsWith('chunks') ||
-            params.path.startsWith(this.buildId)
+            params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
+            params.path[0] === 'chunks' ||
+            params.path[0] === this.buildId
           ) {
             this.setImmutableAssetCacheControl(res)
           }
-          const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, params.path)
+          const p = join(
+            this.distDir,
+            CLIENT_STATIC_FILES_PATH,
+            ...(params.path || [])
+          )
           await this.serveStatic(req, res, p, parsedUrl)
           return {
             finished: true,
@@ -329,17 +333,17 @@ export default class Server {
         fn: async (req, res, params, _parsedUrl) => {
           // Make sure to 404 for /_next/data/ itself and
           // we also want to 404 if the buildId isn't correct
-          if (!params.path || !params.path.startsWith(this.buildId)) {
+          if (!params.path || params.path[0] !== this.buildId) {
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
             }
           }
           // remove buildId from URL
-          params.path = params.path.replace(new RegExp(`^${this.buildId}/`), '')
+          params.path.shift()
 
           // show 404 if it doesn't end with .json
-          if (!params.path.endsWith('.json')) {
+          if (!params.path[params.path.length - 1].endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
