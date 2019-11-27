@@ -1,6 +1,8 @@
 const cacheableResponse = require('cacheable-response')
+const MobileDetect = require('mobile-detect');
 const express = require('express')
 const next = require('next')
+
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
@@ -14,6 +16,10 @@ const ssrCache = cacheableResponse({
     data: await app.renderToHTML(req, res, pagePath, queryParams),
   }),
   send: ({ data, res }) => res.send(data),
+  getKey: (req, res) => {
+    let md = new MobileDetect(req.headers['user-agent']);
+    return `${cacheableResponse.getKey(req)}_${md.mobile() != null}}`;
+  }
 })
 
 app.prepare().then(() => {
