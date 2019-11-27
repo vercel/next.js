@@ -11,6 +11,10 @@
         {
           "title": "Data Fetching",
           "path": "/docs/concepts/data-fetching.md"
+        },
+        {
+          "title": "Server-Side and Client-Side",
+          "path": "/docs/concepts/server-side-and-client-side.md"
         }
       ]
     },
@@ -261,10 +265,6 @@
         {
           "title": "Static HTML Export",
           "path": "/docs/advanced-features/static-html-export.md"
-        },
-        {
-          "title": "Server-Side and Client-Side",
-          "path": "/docs/advanced-features/server-side-and-client-side.md"
         },
         {
           "title": "Customizing Babel Config",

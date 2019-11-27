@@ -55,7 +55,7 @@ Data returned from `getInitialProps` is serialized when server rendering, simila
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`Link`](/docs/routing/using-link.md) component or by using the [Router API](/docs/api-reference/router/router.push.md).
 
-> If you want to know about what we mean by **server** and **client**, read [this section](/docs/advanced-features/server-side-and-client-side.md).
+> If you want to know about what we mean by **server** and **client**, read [this section](/docs/concepts/server-side-and-client-side.md).
 
 ## Context Object
 
@@ -72,3 +72,10 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 - `getInitialProps` can **not** be used in children components, only in the default export of every `page`
 - If you are using server-side only modules inside `getinitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+- [**Pages**: Learn more about what are pages in Next.js](/docs/concepts/pages.md)
+- [**Server-Side and Client-Side**: Learn more about how Next.js handles both sides](/docs/concepts/server-side-and-client-side.md)

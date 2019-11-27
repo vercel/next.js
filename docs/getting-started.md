@@ -70,7 +70,7 @@ So far, we get:
 - Static rendering and on-demand server rendering of `./pages/`
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
 
-# Related
+## Related
 
 For more information on what to do next, we recommend the following sections:
 
