@@ -267,7 +267,7 @@ export async function isPageStatic(
       const _validParamKeys = Object.keys(_routeMatcher(page))
 
       const toPrerender: Array<
-        { params: { [key: string]: string } } | string
+        { params?: { [key: string]: string } } | string
       > = await mod.unstable_getStaticPaths()
       toPrerender.forEach(entry => {
         // For a string-provided path, we must make sure it matches the dynamic
@@ -285,9 +285,11 @@ export async function isPageStatic(
         // For the object-provided path, we must make sure it specifies all
         // required keys.
         else {
+          // TODO: friendlier error message when they do not nest under `props`
+          const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
-            if (typeof entry[validParamKey] !== 'string') {
+            if (typeof params[validParamKey] !== 'string') {
               throw new Error(
                 `A required parameter (${validParamKey}) was not provided as a string.`
               )
@@ -295,7 +297,7 @@ export async function isPageStatic(
 
             builtPage = builtPage.replace(
               `[${validParamKey}]`,
-              encodeURIComponent(entry[validParamKey])
+              encodeURIComponent(params[validParamKey])
             )
           })
 
