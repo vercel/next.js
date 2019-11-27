@@ -63,7 +63,7 @@ commands:
       - run:
           name: Run All Tests
           command: |
-            node run-tests.js --timings $(
+            node run-tests.js --timings -c 3 $(
               circleci tests glob "test/**/*.test.*" | \
               circleci tests split --split-by=timings
             )
@@ -142,7 +142,7 @@ jobs:
       - *attach_workspace
       - yarn_lint
   test:
-    parallelism: 8
+    parallelism: 6
     executor: node
     steps:
       - *attach_workspace
