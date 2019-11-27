@@ -21,7 +21,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-webpack-bundle-size-analyzer
 ```
 
-Install it
+Install it and run:
 
 ```bash
 npm install
