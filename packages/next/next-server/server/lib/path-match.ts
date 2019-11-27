@@ -2,7 +2,7 @@
 // That's because, ^^^ package comes with very old version of path-to-regexp
 // So, it'll give us issues when the app has used a newer version of path-to-regexp
 // (When webpack resolving packages)
-const pathToRegexp = require('path-to-regexp')
+import { pathToRegexp } from 'path-to-regexp'
 
 export default (customRoute = false) => {
   return (path: string) => {
@@ -14,11 +14,13 @@ export default (customRoute = false) => {
         ? {
             strict: true,
             sensitive: false,
+            delimiter: '/',
           }
         : {}
     )
 
     return (pathname: string | undefined, params?: any) => {
+      if (pathname == null) return false
       const m = re.exec(pathname)
       if (!m) return false
 
