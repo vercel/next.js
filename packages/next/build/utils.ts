@@ -242,6 +242,13 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasLegacyStaticParams = !!mod.unstable_getStaticParams
+
+    if (hasLegacyStaticParams) {
+      throw new Error(
+        `unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.`
+      )
+    }
 
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
