@@ -4,7 +4,8 @@ export default (customRoute = false) => {
   return (path: string) => {
     const matcher = match(path, {
       sensitive: false,
-      ...(customRoute ? { strict: true, delimiter: '/' } : undefined),
+      delimiter: '/',
+      ...(customRoute ? { strict: true } : undefined),
       decode: decodeParam,
     })
 
