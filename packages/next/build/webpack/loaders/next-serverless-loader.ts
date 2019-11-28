@@ -99,10 +99,11 @@ const nextServerlessLoader: loader.Loader = function() {
     const Component = ComponentInfo.default
     export default Component
     export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
+
     ${
       isDynamicRoute(page)
         ? "export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']"
-        : ''
+        : 'export const unstable_getStaticPaths = undefined'
     }
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
@@ -112,6 +113,7 @@ const nextServerlessLoader: loader.Loader = function() {
         Document,
         buildManifest,
         unstable_getStaticProps,
+        unstable_getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",

@@ -256,29 +256,6 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
-
-    it('should show error when getStaticPaths is used without getStaticProps', async () => {
-      const pagePath = join(appDir, 'pages/no-getStaticProps.js')
-      await fs.writeFile(
-        pagePath,
-        `
-        export async function unstable_getStaticPaths() {
-          return []
-        }
-
-        export default () => 'hi'
-      `,
-        'utf8'
-      )
-
-      const html = await renderViaHTTP(appPort, '/no-getStaticProps')
-      await fs.remove(pagePath)
-      await waitFor(500)
-
-      expect(html).toMatch(
-        /unstable_getStaticPaths was added without a unstable_getStaticProps in/
-      )
-    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
