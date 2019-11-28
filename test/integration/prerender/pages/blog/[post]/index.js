@@ -1,5 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticPaths() {
@@ -37,6 +38,7 @@ export default ({ post, time }) => {
     <>
       <p>Post: {post}</p>
       <span>time: {time}</span>
+      <div id="query">{JSON.stringify(useRouter().query)}</div>
       <Link href="/">
         <a id="home">to home</a>
       </Link>

@@ -213,6 +213,14 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
+  it('should parse query values on mount correctly', async () => {
+    const browser = await webdriver(appPort, '/blog/post-1?another=value')
+    await waitFor(2000)
+    const text = await browser.elementByCss('#query').text()
+    expect(text).toMatch(/another.*?value/)
+    expect(text).toMatch(/post.*?post-1/)
+  })
+
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
