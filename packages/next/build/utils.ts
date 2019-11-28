@@ -241,7 +241,14 @@ export async function isPageStatic(
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
-    const hasStaticParams = !!mod.unstable_getStaticParams
+    const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasLegacyStaticParams = !!mod.unstable_getStaticParams
+
+    if (hasLegacyStaticParams) {
+      throw new Error(
+        `unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.`
+      )
+    }
 
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
@@ -250,14 +257,14 @@ export async function isPageStatic(
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
-    if (hasStaticProps && hasStaticParams && !isDynamicRoute(page)) {
+    if (hasStaticProps && hasStaticPaths && !isDynamicRoute(page)) {
       throw new Error(
-        `unstable_getStaticParams can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+        `unstable_getStaticPaths can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
       )
     }
 
     let prerenderPaths: string[] | undefined
-    if (hasStaticProps && hasStaticParams) {
+    if (hasStaticProps && hasStaticPaths) {
       prerenderPaths = [] as string[]
 
       const _routeRegex = getRouteRegex(page)
@@ -267,8 +274,8 @@ export async function isPageStatic(
       const _validParamKeys = Object.keys(_routeMatcher(page))
 
       const toPrerender: Array<
-        { [key: string]: string } | string
-      > = await mod.unstable_getStaticParams()
+        { params?: { [key: string]: string } } | string
+      > = await mod.unstable_getStaticPaths()
       toPrerender.forEach(entry => {
         // For a string-provided path, we must make sure it matches the dynamic
         // route.
@@ -285,9 +292,22 @@ export async function isPageStatic(
         // For the object-provided path, we must make sure it specifies all
         // required keys.
         else {
+          const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+          if (invalidKeys.length) {
+            throw new Error(
+              `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
+                `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
+                `\n\n\treturn { params: { ${_validParamKeys
+                  .map(k => `${k}: ...`)
+                  .join(', ')} } }` +
+                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.\n`
+            )
+          }
+
+          const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
-            if (typeof entry[validParamKey] !== 'string') {
+            if (typeof params[validParamKey] !== 'string') {
               throw new Error(
                 `A required parameter (${validParamKey}) was not provided as a string.`
               )
@@ -295,7 +315,7 @@ export async function isPageStatic(
 
             builtPage = builtPage.replace(
               `[${validParamKey}]`,
-              encodeURIComponent(entry[validParamKey])
+              encodeURIComponent(params[validParamKey])
             )
           })
 
