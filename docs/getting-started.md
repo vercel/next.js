@@ -77,13 +77,13 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/concepts/pages.md">
     <b>Pages:</b>
-    <span>Learn more about what are pages in Next.js</span>
+    <small>Learn more about what are pages in Next.js</small>
   </a>
 </div>
 
 <div class="card">
   <a href="/docs/basic-features/built-in-css-support.md">
     <b>CSS Support:</b>
-    <span>Use the built-in CSS support to add custom styles to your app</span>
+    <small>Use the built-in CSS support to add custom styles to your app</small>
   </a>
 </div>
