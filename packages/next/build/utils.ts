@@ -299,9 +299,8 @@ export async function isPageStatic(
                 `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
                 `\n\n\treturn { params: { ${_validParamKeys
                   .map((k, i) => `${k}: "${i}"`)
-                  .join(', ')} }` +
-                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.
-            `
+                  .join(', ')} } }` +
+                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.`
             )
           }
 
