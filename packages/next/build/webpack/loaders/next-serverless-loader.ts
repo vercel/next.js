@@ -113,7 +113,7 @@ const nextServerlessLoader: loader.Loader = function() {
         Document,
         buildManifest,
         unstable_getStaticProps,
-        unstable_getStaticParams,
+        unstable_getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
