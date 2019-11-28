@@ -298,9 +298,9 @@ export async function isPageStatic(
               `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
                 `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
                 `\n\n\treturn { params: { ${_validParamKeys
-                  .map((k, i) => `${k}: "${i}"`)
+                  .map(k => `${k}: ...`)
                   .join(', ')} } }` +
-                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.`
+                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.\n`
             )
           }
 
