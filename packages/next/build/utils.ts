@@ -292,7 +292,19 @@ export async function isPageStatic(
         // For the object-provided path, we must make sure it specifies all
         // required keys.
         else {
-          // TODO: friendlier error message when they do not nest under `props`
+          const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+          if (invalidKeys.length) {
+            throw new Error(
+              `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
+                `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
+                `\n\n\treturn { params: { ${_validParamKeys
+                  .map((k, i) => `${k}: "${i}"`)
+                  .join(', ')} }` +
+                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.
+            `
+            )
+          }
+
           const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
