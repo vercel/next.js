@@ -6,7 +6,7 @@ import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import pathToRegexp from 'path-to-regexp'
+import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
@@ -50,8 +50,8 @@ import {
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
   PageInfo,
-  printTreeView,
   printCustomRoutes,
+  printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
@@ -640,6 +640,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
       sensitive: false,
+      delimiter: '/', // default is `/#?`, but Next does not pass query info
     })
 
     return {
