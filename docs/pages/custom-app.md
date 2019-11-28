@@ -39,5 +39,16 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 
 For more information on what to do next, we recommend the following sections:
 
-- [**Automatic Static Optimization**: Learn more about how Next.js automatically optimizes your pages](/docs/advanced-features/automatic-static-optimization.md)
-- [**Custom Error Page**: Learn more about the built-in Error page](/docs/pages/custom-error-page.md)
+<div class="card">
+  <a href="/docs/advanced-features/automatic-static-optimization.md">
+    <b>Automatic Static Optimization:</b>
+    <small>Learn more about how Next.js automatically optimizes your pages.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/pages/custom-error-page.md">
+    <b>Custom Error Page:</b>
+    <small>Learn more about the built-in Error page.</small>
+  </a>
+</div>

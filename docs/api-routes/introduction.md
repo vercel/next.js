@@ -50,5 +50,16 @@ export default (req, res) => {
 
 For more information on what to do next, we recommend the following sections:
 
-- [**API Middlewares**: learn about the built-in middlewares for the request](/docs/api-routes/api-middlewares.md)
-- [**Response Helpers**: learn about the built-in methods for the response](/docs/api-routes/response-helpers.md)
+<div class="card">
+  <a href="/docs/api-routes/api-middlewares.md">
+    <b>API Middlewares:</b>
+    <small>learn about the built-in middlewares for the request.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/api-routes/response-helpers.md">
+    <b>Response Helpers:</b>
+    <small>learn about the built-in methods for the response.</small>
+  </a>
+</div>

@@ -17,6 +17,23 @@ You can read more about AMP in the official [amp.dev](https://amp.dev/) site.
 
 For more information on what to do next, we recommend the following sections:
 
-- [**Enabling AMP**: Add AMP to any page](/docs/amp-support/enabling-amp.md)
-- [**AMP Components**: Make your pages more interactive with AMP components](/docs/amp-support/adding-amp-components.md)
-- [**AMP Validation**: Learn about how Next.js validates AMP pages](/docs/amp-support/amp-validation.md)
+<div class="card">
+  <a href="/docs/amp-support/enabling-amp.md">
+    <b>Enabling AMP:</b>
+    <small>Add AMP to any page.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/amp-support/adding-amp-components.md">
+    <b>AMP Components:</b>
+    <small>Make your pages more interactive with AMP components.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/amp-support/amp-validation.md">
+    <b>AMP Validation:</b>
+    <small>Learn about how Next.js validates AMP pages.</small>
+  </a>
+</div>

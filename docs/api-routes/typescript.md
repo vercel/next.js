@@ -28,4 +28,9 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 
 For more information on what to do next, we recommend the following sections:
 
-- [**TypeScript**: Add TypeScript to your Next.js application](/docs/basic-features/typescript.md)
+<div class="card">
+  <a href="/docs/basic-features/typescript.md">
+    <b>TypeScript:</b>
+    <small>Add TypeScript to your Next.js application.</small>
+  </a>
+</div>

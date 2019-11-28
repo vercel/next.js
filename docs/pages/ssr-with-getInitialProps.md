@@ -77,5 +77,16 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 For more information on what to do next, we recommend the following sections:
 
-- [**Pages**: Learn more about what are pages in Next.js](/docs/concepts/pages.md)
-- [**Server-Side and Client-Side**: Learn more about how Next.js handles both sides](/docs/concepts/server-side-and-client-side.md)
+<div class="card">
+  <a href="/docs/concepts/pages.md">
+    <b>Pages:</b>
+    <small>Learn more about what are pages in Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/concepts/server-side-and-client-side.md">
+    <b>Server-Side and Client-Side:</b>
+    <small>Learn more about how Next.js handles both server and client.</small>
+  </a>
+</div>
