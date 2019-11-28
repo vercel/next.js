@@ -2,7 +2,7 @@ import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
-import pathToRegexp from 'path-to-regexp'
+import { compile as compilePathToRegex } from 'path-to-regexp'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 
@@ -411,14 +411,16 @@ export default class Server {
             statusCode: route.statusCode,
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
-              let destinationCompiler = pathToRegexp.compile(route.destination)
+              let destinationCompiler = compilePathToRegex(route.destination)
               let newUrl
 
               try {
                 newUrl = destinationCompiler(params)
               } catch (err) {
                 if (
-                  err.message.match(/Expected .*? to not repeat, but got array/)
+                  err.message.match(
+                    /Expected .*? to not repeat, but got an array/
+                  )
                 ) {
                   throw new Error(
                     `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`

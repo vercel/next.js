@@ -163,7 +163,7 @@ const runTests = (isDev = false) => {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',
             statusCode: 301,
-            regex: '^\\/docs\\/router-status\\/([^\\/]+?)$',
+            regex: '^\\/docs\\/router-status(?:\\/([^\\/]+?))$',
             regexKeys: ['code'],
           },
           {
@@ -177,14 +177,14 @@ const runTests = (isDev = false) => {
             source: '/docs/v2/advanced/:all(.*)',
             destination: '/docs/v2/more/:all',
             statusCode: 301,
-            regex: '^\\/docs\\/v2\\/advanced\\/(.*)$',
+            regex: '^\\/docs\\/v2\\/advanced(?:\\/(.*))$',
             regexKeys: ['all'],
           },
           {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
-            regex: '^\\/hello\\/([^\\/]+?)\\/another$',
+            regex: '^\\/hello(?:\\/([^\\/]+?))\\/another$',
             regexKeys: ['id'],
           },
           {
@@ -271,19 +271,19 @@ const runTests = (isDev = false) => {
           {
             source: '/test/:path',
             destination: '/:path',
-            regex: '^\\/test\\/([^\\/]+?)$',
+            regex: '^\\/test(?:\\/([^\\/]+?))$',
             regexKeys: ['path'],
           },
           {
             source: '/test-overwrite/:something/:another',
             destination: '/params/this-should-be-the-value',
-            regex: '^\\/test-overwrite\\/([^\\/]+?)\\/([^\\/]+?)$',
+            regex: '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$',
             regexKeys: ['something', 'another'],
           },
           {
             source: '/params/:something',
             destination: '/with-params',
-            regex: '^\\/params\\/([^\\/]+?)$',
+            regex: '^\\/params(?:\\/([^\\/]+?))$',
             regexKeys: ['something'],
           },
         ],

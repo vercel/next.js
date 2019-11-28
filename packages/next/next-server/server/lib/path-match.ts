@@ -1,40 +1,20 @@
-// We borrow this code from https://github.com/pillarjs/path-match
-// That's because, ^^^ package comes with very old version of path-to-regexp
-// So, it'll give us issues when the app has used a newer version of path-to-regexp
-// (When webpack resolving packages)
-const pathToRegexp = require('path-to-regexp')
+import { match } from 'path-to-regexp'
 
 export default (customRoute = false) => {
   return (path: string) => {
-    const keys: any[] = []
-    const re = pathToRegexp(
-      path,
-      keys,
-      customRoute
-        ? {
-            strict: true,
-            sensitive: false,
-          }
-        : {}
-    )
+    const matcher = match(path, {
+      sensitive: false,
+      delimiter: '/',
+      ...(customRoute ? { strict: true } : undefined),
+      decode: decodeParam,
+    })
 
     return (pathname: string | undefined, params?: any) => {
-      const m = re.exec(pathname)
-      if (!m) return false
-
-      params = params || {}
-
-      let key
-      let param
-      for (let i = 0; i < keys.length; i++) {
-        key = keys[i]
-        param = m[i + 1]
-        if (!param) continue
-        params[key.name] = decodeParam(param)
-        if (key.repeat) params[key.name] = params[key.name].split(key.delimiter)
+      const res = pathname == null ? false : matcher(pathname)
+      if (!res) {
+        return false
       }
-
-      return params
+      return { ...params, ...res.params }
     }
   }
 }
