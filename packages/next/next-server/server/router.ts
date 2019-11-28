@@ -16,6 +16,7 @@ type RouteResult = {
 export type Route = {
   match: RouteMatch
   type: string
+  check?: boolean
   statusCode?: number
   name: string
   fn: (
@@ -28,8 +29,17 @@ export type Route = {
 
 export default class Router {
   routes: Route[]
-  constructor(routes: Route[] = []) {
+  fsRoutes: Route[]
+
+  constructor({
+    routes = [],
+    fsRoutes = [],
+  }: {
+    routes: Route[]
+    fsRoutes: Route[]
+  }) {
     this.routes = routes
+    this.fsRoutes = fsRoutes
   }
 
   add(route: Route) {
@@ -61,6 +71,27 @@ export default class Router {
 
         if (result.pathname) {
           parsedUrlUpdated.pathname = result.pathname
+        }
+
+        // check filesystem
+        if (route.check === true) {
+          // TODO: investigate if we need to check for a page here also
+          for (const fsRoute of this.fsRoutes) {
+            const fsParams = fsRoute.match(parsedUrlUpdated.pathname)
+
+            if (fsParams) {
+              const result = await fsRoute.fn(
+                req,
+                res,
+                fsParams,
+                parsedUrlUpdated
+              )
+
+              if (result.finished) {
+                return true
+              }
+            }
+          }
         }
       }
     }

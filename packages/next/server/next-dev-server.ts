@@ -21,7 +21,7 @@ import {
 } from '../next-server/lib/router/utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { route, Params } from '../next-server/server/router'
+import Router, { route, Params } from '../next-server/server/router'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
@@ -211,8 +211,7 @@ export default class DevServer extends Server {
       const { redirects, rewrites } = this.customRoutes
 
       if (redirects.length || rewrites.length) {
-        // TODO: don't reach into router instance
-        this.router.routes = this.generateRoutes()
+        this.router = new Router(this.generateRoutes())
       }
     }
 
@@ -324,11 +323,11 @@ export default class DevServer extends Server {
   }
 
   generateRoutes() {
-    const routes = super.generateRoutes()
+    const { routes, fsRoutes } = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    routes.unshift({
+    fsRoutes.unshift({
       match: route('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
@@ -341,7 +340,7 @@ export default class DevServer extends Server {
       },
     })
 
-    return routes
+    return { routes, fsRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead

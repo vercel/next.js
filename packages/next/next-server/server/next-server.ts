@@ -263,7 +263,10 @@ export default class Server {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  protected generateRoutes(): Route[] {
+  protected generateRoutes(): {
+    routes: Route[]
+    fsRoutes: Route[]
+  } {
     this.customRoutes = this.getCustomRoutes()
 
     const publicRoutes = fs.existsSync(this.publicDir)
@@ -290,7 +293,7 @@ export default class Server {
         ]
       : []
 
-    const topRoutes: Route[] = [
+    const fsRoutes: Route[] = [
       {
         match: route('/_next/static/:path*'),
         type: 'route',
@@ -384,7 +387,7 @@ export default class Server {
       ...publicRoutes,
       ...staticFilesRoute,
     ]
-    const routes: Route[] = [...topRoutes]
+    const routes: Route[] = [...fsRoutes]
 
     if (this.customRoutes) {
       const { redirects, rewrites } = this.customRoutes
@@ -406,6 +409,7 @@ export default class Server {
       routes.push(
         ...customRoutes.map(route => {
           return {
+            check: true,
             match: route.matcher,
             type: route.type,
             statusCode: route.statusCode,
@@ -446,9 +450,6 @@ export default class Server {
           } as Route
         })
       )
-      // make sure previous routes can still be rewritten to by
-      // custom routes e.g. /docs/_next/static -> /_next/static
-      routes.push(...topRoutes)
     }
 
     routes.push({
@@ -500,7 +501,7 @@ export default class Server {
       })
     }
 
-    return routes
+    return { routes, fsRoutes }
   }
 
   protected async _beforeCatchAllRender(
