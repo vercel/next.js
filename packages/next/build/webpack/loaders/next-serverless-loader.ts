@@ -102,8 +102,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
     ${
       isDynamicRoute(page)
-        ? "export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']"
-        : 'export const unstable_getStaticParams = undefined'
+        ? "export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']"
+        : 'export const unstable_getStaticPaths = undefined'
     }
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App

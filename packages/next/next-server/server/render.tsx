@@ -158,7 +158,7 @@ type RenderOpts = {
     props: any
     revalidate: number | false
   }
-  unstable_getStaticParams?: () => void
+  unstable_getStaticPaths?: () => void
 }
 
 function renderDocument(
@@ -279,7 +279,7 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
     unstable_getStaticProps,
-    unstable_getStaticParams,
+    unstable_getStaticPaths,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -321,9 +321,9 @@ export async function renderToHTML(
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!unstable_getStaticParams && !isSpr) {
+  if (!!unstable_getStaticPaths && !isSpr) {
     throw new Error(
-      `unstable_getStaticParams was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticParams does nothing`
+      `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
     )
   }
 
@@ -432,9 +432,8 @@ export async function renderToHTML(
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
-            `\n\n\treturn { props: { title: 'My Title', content: '...' }` +
-            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.
-        `
+            `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.`
         )
       }
 

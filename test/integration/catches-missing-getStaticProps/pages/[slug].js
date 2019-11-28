@@ -1,4 +1,4 @@
-export async function unstable_getStaticParams() {
+export async function unstable_getStaticPaths() {
   return ['/hello', '/world']
 }
 
