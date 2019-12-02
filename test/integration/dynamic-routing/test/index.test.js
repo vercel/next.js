@@ -151,7 +151,7 @@ function runTests(dev) {
   it('[catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1')
     const $ = cheerio.load(html)
-    expect($('#all-ssr-content').text()).toBe('{"rest":"test1"}')
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1"]}')
   })
 
   it('[catch all] should pass params in getInitialProps during SSR', async () => {
@@ -192,7 +192,7 @@ function runTests(dev) {
       await browser.waitForElementByCss('#all-ssr-content')
 
       const text = await browser.elementByCss('#all-ssr-content').text()
-      expect(text).toBe('{"rest":"hello"}')
+      expect(text).toBe('{"rest":["hello"]}')
     } finally {
       if (browser) await browser.close()
     }
@@ -229,7 +229,7 @@ function runTests(dev) {
   it('[ssg: catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1')
     const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":"test1"}')
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
   })
 
   it('[ssg: catch all] should pass params in getInitialProps during SSR', async () => {
@@ -241,7 +241,7 @@ function runTests(dev) {
   it('[predefined ssg: catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/test1')
     const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":"test1"}')
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
   })
 
   it('[predefined ssg: catch all] should pass params in getInitialProps during SSR', async () => {
@@ -256,7 +256,7 @@ function runTests(dev) {
   it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/one-level')
     const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":"one-level"}')
+    expect($('#all-ssg-content').text()).toBe('{"rest":["one-level"]}')
   })
 
   it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
@@ -278,7 +278,7 @@ function runTests(dev) {
       await browser.waitForElementByCss('#all-ssg-content')
 
       const text = await browser.elementByCss('#all-ssg-content').text()
-      expect(text).toBe('{"rest":"hello"}')
+      expect(text).toBe('{"rest":["hello"]}')
     } finally {
       if (browser) await browser.close()
     }
