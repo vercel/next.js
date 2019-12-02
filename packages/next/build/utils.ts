@@ -250,15 +250,6 @@ export async function isPageStatic(
       )
     }
 
-    if (page.match(/^\/(_error)/)) {
-      if (hasStaticProps || hasStaticPaths) {
-        throw new Error(
-          'unstable_getStaticProps cannot currently be used for `_error`. Please remove it for now.'
-        )
-      }
-      return {}
-    }
-
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
