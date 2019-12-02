@@ -395,11 +395,11 @@ function runTests(dev) {
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',
-            regex: '^\\/blog\\/([^/]+?)\\/comment\\/([^/]+?)(?:\\/)?$',
+            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$',
           },
           {
             page: '/on-mount/[post]',
-            regex: '^\\/on\\-mount\\/([^/]+?)(?:\\/)?$',
+            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
           },
           {
             page: '/p1/p2/all-ssg/[...rest]',
@@ -415,15 +415,15 @@ function runTests(dev) {
           },
           {
             page: '/[name]',
-            regex: '^\\/([^/]+?)(?:\\/)?$',
+            regex: '^\\/([^\\/]+?)(?:\\/)?$',
           },
           {
             page: '/[name]/comments',
-            regex: '^\\/([^/]+?)\\/comments(?:\\/)?$',
+            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$',
           },
           {
             page: '/[name]/[comment]',
-            regex: '^\\/([^/]+?)\\/([^/]+?)(?:\\/)?$',
+            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
           },
         ],
       })
