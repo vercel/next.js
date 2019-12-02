@@ -3,6 +3,8 @@
 */
 import { minify as terser, MinifyOptions } from 'terser'
 
+const IS_MODERN_OUTPUT = /\.module\.js$/
+
 const buildTerserOptions = ({
   ecma,
   warnings,
@@ -55,6 +57,11 @@ const minify = (options: {
 
   // Copy terser options
   const terserOptions = buildTerserOptions(options.terserOptions) as any
+
+  if (IS_MODERN_OUTPUT.test(file)) {
+    terserOptions.module = true
+    terserOptions.ecma = terserOptions.compress.ecma = terserOptions.output.ecma = 8
+  }
 
   // Add source map data
   if (inputSourceMap) {

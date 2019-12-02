@@ -101,8 +101,9 @@ class Container extends React.Component {
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
     if (
-      data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search)
+      (data.nextExport &&
+        (isDynamicRoute(router.pathname) || location.search)) ||
+      (Component.__NEXT_SPR && location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -300,8 +301,17 @@ function renderReactElement(reactEl, domEl) {
     }
   }
 
-  if (onPerfEntry) {
-    performance.getEntriesByType('paint').forEach(onPerfEntry)
+  if (onPerfEntry && SUPPORTS_PERFORMANCE_USER_TIMING) {
+    if (!(PerformanceObserver in window)) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
+    } else {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(onPerfEntry)
+      })
+      observer.observe({ entryTypes: ['paint'] })
+    }
   }
 }
 

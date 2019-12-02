@@ -80,6 +80,12 @@ export default function(render, fetch) {
       expect(html).not.toContain(
         '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css"/>'
       )
+      expect(html).toContain(
+        '<link rel="alternate" hrefLang="en" href="/last/en"/>'
+      )
+      expect(html).not.toContain(
+        '<link rel="alternate" hrefLang="en" href="/first/en"/>'
+      )
     })
 
     test('header helper dedupes tags with the same key as the default', async () => {

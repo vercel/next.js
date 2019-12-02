@@ -4,9 +4,10 @@
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js"
+    "start": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "cross-env": "^5.2.0",
     "koa": "^2.0.1",
     "koa-router": "^7.1.0",
     "next": "latest",

@@ -32,7 +32,7 @@ describe('babel plugin (next-page-config)', () => {
   describe('getStaticProps support', () => {
     it('should remove separate named export specifiers', () => {
       const output = babel(trim`
-        export { unstable_getStaticParams } from '.'
+        export { unstable_getStaticPaths } from '.'
         export { a as unstable_getStaticProps } from '.'
 
         export default function Test() {
@@ -46,7 +46,7 @@ describe('babel plugin (next-page-config)', () => {
 
     it('should remove combined named export specifiers', () => {
       const output = babel(trim`
-        export { unstable_getStaticParams, a as unstable_getStaticProps } from '.'
+        export { unstable_getStaticPaths, a as unstable_getStaticProps } from '.'
 
         export default function Test() {
           return <div />
@@ -59,7 +59,7 @@ describe('babel plugin (next-page-config)', () => {
 
     it('should retain extra named export specifiers', () => {
       const output = babel(trim`
-        export { unstable_getStaticParams, a as unstable_getStaticProps, foo, bar as baz } from '.'
+        export { unstable_getStaticPaths, a as unstable_getStaticProps, foo, bar as baz } from '.'
 
         export default function Test() {
           return <div />
@@ -72,7 +72,7 @@ describe('babel plugin (next-page-config)', () => {
 
     it('should remove named export declarations', () => {
       const output = babel(trim`
-        export function unstable_getStaticParams() {
+        export function unstable_getStaticPaths() {
           return []
         }
 
