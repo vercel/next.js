@@ -38,6 +38,10 @@
           "path": "/docs/pages/custom-error-page.md"
         },
         {
+          "title": "`src` Directory",
+          "path": "/docs/pages/src-directory.md"
+        },
+        {
           "title": "TypeScript",
           "path": "/docs/pages/typescript.md"
         }
