@@ -5,19 +5,18 @@ const Dotenv = require('dotenv-webpack')
 
 module.exports = {
   webpack: config => {
-    
-    const originalEntry = config.entry;
+    const originalEntry = config.entry
     config.entry = async () => {
-      const entries = await originalEntry();
-      const keys = Object.keys(entries);
+      const entries = await originalEntry()
+      const keys = Object.keys(entries)
       keys.forEach(key => {
         if (key.includes('__generated__')) {
-          delete entries[key];
+          delete entries[key]
         }
-      });
+      })
 
-      return entries;
-    };
+      return entries
+    }
 
     config.plugins = config.plugins || []
 
