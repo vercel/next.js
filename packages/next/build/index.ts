@@ -430,7 +430,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           )
 
           if (isErrorPage) {
-            // TODO: Allow SPR and/or AMP for the error page
             if (result.static && customAppGetInitialProps === false) {
               hasStatic404Page = true
             }
