@@ -9,11 +9,17 @@ import { NextRouter } from './router/router'
 /**
  * Types used by both next and next-server
  */
+
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
   IP = {},
   P = {}
 > = ComponentType<P> & {
+  /**
+   * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
+   * Make sure to return plain `Object` without using `Date`, `Map`, `Set`.
+   * @param ctx Context of `page`
+   */
   getInitialProps?(context: C): IP | Promise<IP>
 }
 

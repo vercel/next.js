@@ -93,8 +93,10 @@ export default async function(
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
-  if (!options.buildExport) {
-    const telemetry = new Telemetry({ distDir })
+
+  const telemetry = options.buildExport ? null : new Telemetry({ distDir })
+
+  if (telemetry) {
     telemetry.record(
       eventVersion({
         cliCommand: 'export',
@@ -369,4 +371,8 @@ export default async function(
   }
   // Add an empty line to the console for the better readability.
   log('')
+
+  if (telemetry) {
+    await telemetry.flush()
+  }
 }

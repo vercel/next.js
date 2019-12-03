@@ -316,8 +316,7 @@ export default class Router implements BaseRouter {
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
-        const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(asPathname)
+        const routeMatch = getRouteMatcher(getRouteRegex(route))(asPathname)
         if (!routeMatch) {
           const error =
             `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +

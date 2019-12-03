@@ -151,7 +151,7 @@ function runTests(dev) {
   it('[catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1')
     const $ = cheerio.load(html)
-    expect($('#all-ssr-content').text()).toBe('{"rest":"test1"}')
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1"]}')
   })
 
   it('[catch all] should pass params in getInitialProps during SSR', async () => {
@@ -192,7 +192,7 @@ function runTests(dev) {
       await browser.waitForElementByCss('#all-ssr-content')
 
       const text = await browser.elementByCss('#all-ssr-content').text()
-      expect(text).toBe('{"rest":"hello"}')
+      expect(text).toBe('{"rest":["hello"]}')
     } finally {
       if (browser) await browser.close()
     }
@@ -221,6 +221,78 @@ function runTests(dev) {
 
       const text = await browser.elementByCss('#all-ssr-content').text()
       expect(text).toBe('{"rest":["hello1/","he/llo2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[ssg: catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[predefined ssg: catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[predefined ssg: catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/p1/p2/predefined-ssg/test1/test2'
+    )
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/one-level')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["one-level"]}')
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/p1/p2/predefined-ssg/1st-level/2nd-level'
+    )
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe(
+      '{"rest":["1st-level","2nd-level"]}'
+    )
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#ssg-catch-all-single').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#ssg-catch-all-multi').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
     } finally {
       if (browser) await browser.close()
     }
@@ -330,8 +402,16 @@ function runTests(dev) {
             regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
           },
           {
+            page: '/p1/p2/all-ssg/[...rest]',
+            regex: '^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$',
+          },
+          {
             page: '/p1/p2/all-ssr/[...rest]',
             regex: '^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$',
+          },
+          {
+            page: '/p1/p2/predefined-ssg/[...rest]',
+            regex: '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$',
           },
           {
             page: '/[name]',
