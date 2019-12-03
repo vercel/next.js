@@ -2679,7 +2679,7 @@ You can use `now dev` as your local development server. It allows you to easily 
 ```json
 {
   "routes": [
-    { "src": "/docs(.*)", "dest": "docs$1" },
+    { "src": "/docs(.*)", "dest": "https://docs.example.com$1" },
     { "src": "(?!/?docs)(.*)", "dest": "home$1" }
   ]
 }
