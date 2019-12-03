@@ -94,7 +94,7 @@ export default async function(
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
 
-  let telemetry = options.buildExport ? null : new Telemetry({ distDir })
+  const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
     telemetry.record(
