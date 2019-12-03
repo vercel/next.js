@@ -66,9 +66,14 @@ describe('next-babel-loader', () => {
       )
     })
 
-    it('should replace typeof window expression top level', async () => {
+    it('should replace typeof window expression top level (client)', async () => {
       const code = await babel('typeof window;')
       expect(code).toMatchInlineSnapshot(`"\\"object\\";"`)
+    })
+
+    it('should replace typeof window expression top level (server)', async () => {
+      const code = await babel('typeof window;', { isServer: true })
+      expect(code).toMatchInlineSnapshot(`"\\"undefined\\";"`)
     })
 
     it('should replace typeof window expression nested', async () => {
