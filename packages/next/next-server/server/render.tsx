@@ -420,6 +420,11 @@ export async function renderToHTML(
       ctx,
     })
 
+    // Handle the props for 404.html
+    if (pathname === '/_error' && isAutoExport) {
+      props.pageProps.statusCode = 404
+    }
+
     if (isSpr) {
       const data = await unstable_getStaticProps!({
         params: isDynamicRoute(pathname) ? query : undefined,

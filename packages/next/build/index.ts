@@ -351,6 +351,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
+  let hasStatic404Page = false
 
   let customAppGetInitialProps: boolean | undefined
 
@@ -392,7 +393,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
         publicRuntimeConfig: config.publicRuntimeConfig,
         serverRuntimeConfig: config.serverRuntimeConfig,
       }
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+      const nonReservedPage = !page.match(/^\/(_app|_document|api)/)
+      const isErrorPage = page === '/_error'
 
       if (nonReservedPage && customAppGetInitialProps === undefined) {
         customAppGetInitialProps = hasCustomAppGetInitialProps(
@@ -427,23 +429,30 @@ export default async function build(dir: string, conf = null): Promise<void> {
             runtimeEnvConfig
           )
 
-          if (result.isHybridAmp) {
-            hybridAmpPages.add(page)
-          }
-
-          if (result.prerender) {
-            sprPages.add(page)
-
-            if (result.prerenderRoutes) {
-              additionalSprPaths.set(page, result.prerenderRoutes)
+          if (isErrorPage) {
+            // TODO: Allow SPR and/or AMP for the error page
+            if (result.static && customAppGetInitialProps === false) {
+              hasStatic404Page = true
             }
-          }
+          } else {
+            if (result.isHybridAmp) {
+              hybridAmpPages.add(page)
+            }
 
-          if (result.static && customAppGetInitialProps === false) {
-            staticPages.add(page)
-            isStatic = true
-          } else if (result.prerender) {
-            sprPages.add(page)
+            if (result.prerender) {
+              sprPages.add(page)
+
+              if (result.prerenderRoutes) {
+                additionalSprPaths.set(page, result.prerenderRoutes)
+              }
+            }
+
+            if (result.static && customAppGetInitialProps === false) {
+              staticPages.add(page)
+              isStatic = true
+            } else if (result.prerender) {
+              sprPages.add(page)
+            }
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -569,6 +578,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
+    }
+
+    // 404.html is created by next export, if _error doesn't have a custom getInitialProps, then
+    // we include it too
+    if (hasStatic404Page) {
+      combinedPages.push('/404')
     }
 
     for (const page of combinedPages) {

@@ -239,7 +239,11 @@ export async function isPageStatic(
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
 
-    const hasGetInitialProps = !!(Comp as any).getInitialProps
+    const isErrorPage = page === '/_error'
+    const getInitialProps = (Comp as any).getInitialProps
+    const hasGetInitialProps = isErrorPage
+      ? getInitialProps !== (Comp as any).origGetInitialProps
+      : !!getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
