@@ -2672,25 +2672,20 @@ There are no special zones related APIs. You only need to do following:
 
 ### How to merge them
 
-You can merge zones using any HTTP proxy.
+You can merge zones using any HTTP proxy, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
 
-You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local development server. It allows you to easily define routing routes for multiple apps like below:
+You can use `now dev` as your local development server. It allows you to easily define routing routes for multiple apps like below:
 
 ```json
 {
-  "version": 2,
-  "builds": [
-    { "src": "docs/next.config.js", "use": "@now/next" },
-    { "src": "home/next.config.js", "use": "@now/next" }
-  ],
   "routes": [
-    { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
-    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
+    { "src": "/docs(.*)", "dest": "docs$1" },
+    { "src": "(?!/?docs)(.*)", "dest": "home$1" }
   ]
 }
 ```
 
-For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
+For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now).
 
 ## FAQ
 
