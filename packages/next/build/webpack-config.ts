@@ -242,6 +242,7 @@ export default async function getBaseWebpackConfig(
         cache: true,
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
+        development: dev,
       },
     },
     // Backwards compat

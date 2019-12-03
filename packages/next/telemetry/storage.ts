@@ -40,10 +40,19 @@ type EventBatchShape = {
   fields: object
 }
 
+type RecordObject = {
+  isFulfilled: boolean
+  isRejected: boolean
+  value?: any
+  reason?: any
+}
+
 export class Telemetry {
   private conf: Conf<any> | null
   private sessionId: string
   private rawProjectId: string
+
+  private queue: Set<Promise<RecordObject>>
 
   constructor({ distDir }: { distDir: string }) {
     const storageDirectory = getStorageDirectory(distDir)
@@ -58,6 +67,8 @@ export class Telemetry {
     }
     this.sessionId = randomBytes(32).toString('hex')
     this.rawProjectId = getRawProjectId()
+
+    this.queue = new Set()
 
     this.notify()
   }
@@ -148,19 +159,14 @@ export class Telemetry {
 
   record = (
     _events: TelemetryEvent | TelemetryEvent[]
-  ): Promise<{
-    isFulfilled: boolean
-    isRejected: boolean
-    value?: any
-    reason?: any
-  }> => {
+  ): Promise<RecordObject> => {
     const _this = this
     // pseudo try-catch
     async function wrapper() {
       return await _this.submitRecord(_events)
     }
 
-    return wrapper()
+    const prom = wrapper()
       .then(value => ({
         isFulfilled: true,
         isRejected: false,
@@ -171,7 +177,20 @@ export class Telemetry {
         isRejected: true,
         reason,
       }))
+      // Acts as `Promise#finally` because `catch` transforms the error
+      .then(res => {
+        // Clean up the event to prevent unbounded `Set` growth
+        this.queue.delete(prom)
+        return res
+      })
+
+    // Track this `Promise` so we can flush pending events
+    this.queue.add(prom)
+
+    return prom
   }
+
+  flush = async () => Promise.all(this.queue).catch(() => null)
 
   private submitRecord = (
     _events: TelemetryEvent | TelemetryEvent[]

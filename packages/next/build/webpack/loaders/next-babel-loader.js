@@ -58,6 +58,7 @@ module.exports = babelLoader.custom(babel => {
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
         babelPresetPlugins: opts.babelPresetPlugins,
+        development: opts.development,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -70,6 +71,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
+                (opts.development ? '-development' : '-production') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -91,6 +93,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.hasModern
       delete loader.pagesDir
       delete loader.babelPresetPlugins
+      delete loader.development
       return { loader, custom }
     },
     config(
@@ -103,6 +106,7 @@ module.exports = babelLoader.custom(babel => {
           hasModern,
           pagesDir,
           babelPresetPlugins,
+          development,
         },
       }
     ) {
@@ -175,7 +179,11 @@ module.exports = babelLoader.custom(babel => {
 
       options.plugins.push([
         require.resolve('babel-plugin-transform-define'),
-        { 'typeof window': isServer ? 'undefined' : 'object' },
+        {
+          'process.env.NODE_ENV': development ? 'development' : 'production',
+          'typeof window': isServer ? 'undefined' : 'object',
+          'process.browser': isServer ? false : true,
+        },
         'next-js-transform-define-instance',
       ])
 
