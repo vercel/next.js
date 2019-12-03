@@ -7,12 +7,10 @@
     "start": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "cross-env": "^5.2.0",
     "express": "^4.14.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  },
-  "devDependencies": {
-    "cross-env": "^5.2.0"
   }
 }
