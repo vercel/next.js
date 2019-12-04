@@ -213,6 +213,14 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
+  it('should parse query values on mount correctly', async () => {
+    const browser = await webdriver(appPort, '/blog/post-1?another=value')
+    await waitFor(2000)
+    const text = await browser.elementByCss('#query').text()
+    expect(text).toMatch(/another.*?value/)
+    expect(text).toMatch(/post.*?post-1/)
+  })
+
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -247,29 +255,6 @@ const runTests = (dev = false) => {
       } finally {
         await fs.writeFile(indexPage, origContent)
       }
-    })
-
-    it('should show error when getStaticParams is used without getStaticProps', async () => {
-      const pagePath = join(appDir, 'pages/no-getStaticProps.js')
-      await fs.writeFile(
-        pagePath,
-        `
-        export async function unstable_getStaticParams() {
-          return []
-        }
-
-        export default () => 'hi'
-      `,
-        'utf8'
-      )
-
-      const html = await renderViaHTTP(appPort, '/no-getStaticProps')
-      await fs.remove(pagePath)
-      await waitFor(500)
-
-      expect(html).toMatch(
-        /unstable_getStaticParams was added without a unstable_getStaticProps in/
-      )
     })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
@@ -451,6 +436,29 @@ describe('SPR Prerender', () => {
     })
 
     runTests()
+
+    it('should not show invalid error', async () => {
+      const brokenPage = join(appDir, 'pages/broken.js')
+      await fs.writeFile(
+        brokenPage,
+        `
+        export async function unstable_getStaticProps() {
+          return {
+            hello: 'world'
+          }
+        }
+        export default () => 'hello world'
+      `
+      )
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      await fs.remove(brokenPage)
+      expect(stderr).toContain(
+        'Additional keys were returned from `getStaticProps`'
+      )
+      expect(stderr).not.toContain(
+        'You can not use getInitialProps with unstable_getStaticProps'
+      )
+    })
   })
 
   describe('production mode', () => {

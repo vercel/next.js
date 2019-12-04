@@ -8,7 +8,7 @@
     "next-build": "next build",
     "dev": "bsb -make-world && node server/server.bs.js",
     "next:build": "bsb -make-world && next build",
-    "start": "NODE_ENV=production node server/server.bs.js"
+    "start": "cross-env NODE_ENV=production node server/server.bs.js"
   },
   "keywords": [
     "BuckleScript"
@@ -19,6 +19,7 @@
     "bs-platform": "^4.0.18"
   },
   "dependencies": {
+    "cross-env": "^5.2.0",
     "next": "latest",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
