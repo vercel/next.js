@@ -2672,15 +2672,14 @@ There are no special zones related APIs. You only need to do following:
 
 ### How to merge them
 
-You can merge zones using any HTTP proxy, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
+You can merge zones using any HTTP proxy, e.g deploy the blog to `https://blog.example.com` and the home app to `https://example.com` and then add a proxy for `https://example.com/blog` to `https://blog.example.com`.
 
 You can use `now dev` as your local development server. It allows you to easily define routing routes for multiple apps like below:
 
 ```json
 {
   "routes": [
-    { "src": "/docs(.*)", "dest": "https://docs.example.com$1" },
-    { "src": "(?!/?docs)(.*)", "dest": "home$1" }
+    { "src": "/blog(.*)", "dest": "https://blog.example.com$1" }
   ]
 }
 ```
