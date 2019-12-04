@@ -11,122 +11,84 @@ import {
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
-const appDir = join(__dirname, '..')
-const nextConfig = join(appDir, 'next.config.js')
-const _error = join(appDir, 'pages/_error.js')
-let app
-let appPort
-let buildId
-let distPagesDir
-
+const fixturesDir = join(__dirname, '..', 'fixtures')
 const table = [
-  ['default _error page'],
-  [
-    'custom _error page',
-    `
-      const Error = ({ statusCode }) => {
-        if (statusCode === 404) {
-          return <p>custom 404</p>;
-        }
-        return null;
-      };
-      export default Error;
-    `,
-  ],
-  [
-    'custom _error with getInitialProps',
-    `
-      const Error = ({ message }) => {
-        return <p>{message}</p>;
-      };
-      Error.getInitialProps = () => {
-        return { message: 'custom props' }
-      }
-      export default Error;
-    `,
-    true,
-  ],
+  ['default _error page', 'default-error'],
+  ['custom _error page', 'custom-error', true],
+  ['custom _error with getInitialProps', 'with-getInitialProps', true, true],
 ]
-const runTests = (errorPage, hasGetInitialProps) => {
-  if (hasGetInitialProps) {
-    it('should not output 404.html', async () => {
-      let exists = true
-      await fs
-        .access(join(distPagesDir, '/404.html'), fs.constants.F_OK)
-        .catch(e => {
-          if (e.code === 'ENOENT') exists = false
-        })
-      expect(exists).toBe(false)
-    })
-
-    if (errorPage) {
-      it('renders custom 404.html correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/unknown')
-        expect(html).toMatch(/custom props/)
-      })
-    }
-  } else {
-    it('outputs 404.html correctly', async () => {
-      await fs.access(join(distPagesDir, '/404.html'), fs.constants.F_OK)
-    })
-
-    if (errorPage) {
-      it('renders custom 404.html correctly', async () => {
-        const html = await renderViaHTTP(appPort, '/unknown')
-        expect(html).toMatch(/custom 404/)
-      })
-    }
-  }
-}
 
 describe('SPR 404.html Prerender', () => {
-  describe('serverless mode', () => {
-    describe.each(table)('%s', (s, errorPage, hasGetInitialProps) => {
+  describe.each(table)('%s', (s, dir, hasErrorPage, hasGetInitialProps) => {
+    const appDir = join(fixturesDir, dir)
+    const nextConfig = join(appDir, 'next.config.js')
+    let distPagesDir
+    let appPort
+    let app
+    let buildId
+
+    const runTests = () => {
+      if (hasGetInitialProps) {
+        it('should not output 404.html', async () => {
+          let exists = true
+          await fs
+            .access(join(distPagesDir, '/404.html'), fs.constants.F_OK)
+            .catch(e => {
+              if (e.code === 'ENOENT') exists = false
+            })
+          expect(exists).toBe(false)
+        })
+
+        if (hasErrorPage) {
+          it('renders custom 404.html correctly', async () => {
+            const html = await renderViaHTTP(appPort, '/unknown')
+            expect(html).toMatch(/custom props/)
+          })
+        }
+      } else {
+        it('outputs 404.html correctly', async () => {
+          await fs.access(join(distPagesDir, '/404.html'), fs.constants.F_OK)
+        })
+
+        if (hasErrorPage) {
+          it('renders custom 404.html correctly', async () => {
+            const html = await renderViaHTTP(appPort, '/unknown')
+            expect(html).toMatch(/custom 404/)
+          })
+        }
+      }
+    }
+
+    describe('serverless mode', () => {
+      distPagesDir = join(appDir, '.next/serverless/pages')
+
       beforeAll(async () => {
-        await fs.remove(_error)
         await fs.writeFile(
           nextConfig,
           `module.exports = { target: 'serverless' }`,
           'utf8'
         )
-        if (errorPage) {
-          await fs.writeFile(_error, errorPage, 'utf8')
-        }
-        distPagesDir = join(appDir, '.next/serverless/pages')
-        if (hasGetInitialProps) {
-          await fs.remove(join(distPagesDir, '/404.html'))
-        }
         await nextBuild(appDir)
         appPort = await findPort()
         app = nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
       afterAll(() => killApp(app))
 
-      runTests(errorPage, hasGetInitialProps)
+      runTests()
     })
-  })
 
-  describe('production mode', () => {
-    describe.each(table)('%s', (s, errorPage, hasGetInitialProps) => {
+    describe('production mode', () => {
       beforeAll(async () => {
-        await fs.remove(_error)
         await fs.remove(nextConfig)
-        if (errorPage) {
-          await fs.writeFile(_error, errorPage, 'utf8')
-        }
-        await nextBuild(appDir, [], { stdout: true })
+        await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
         buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
       })
-      afterAll(async () => {
-        await killApp(app)
-        await fs.remove(_error)
-      })
+      afterAll(async () => killApp(app))
 
-      runTests(errorPage, hasGetInitialProps)
+      runTests()
     })
   })
 })
