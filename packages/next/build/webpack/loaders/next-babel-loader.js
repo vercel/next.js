@@ -5,7 +5,7 @@ import { EXPORT_NAME_GET_STATIC_PROPS } from '../../babel/plugins/next-page-conf
 
 // increment 'e' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'e' + '-'
+const cacheKey = 'babel-cache-' + 'f' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
