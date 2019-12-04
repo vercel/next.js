@@ -7,7 +7,7 @@ const configKeys = new Set(['amp'])
 const pageComponentVar = '__NEXT_COMP'
 // this value can't be optimized by terser so the shorter the better
 const prerenderId = '__NEXT_SPR'
-const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
+export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
 const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 
@@ -41,8 +41,10 @@ interface ConfigState {
 // config to parsing pageConfig for client bundles
 export default function nextPageConfig({
   types: t,
+  traverse,
 }: {
   types: typeof BabelTypes
+  traverse: any
 }): PluginObj {
   return {
     visitor: {
@@ -142,6 +144,13 @@ export default function nextPageConfig({
             },
             state
           )
+
+          if (!state.bundleDropped && state.isPrerender) {
+            // After we delete a bunch of code, we need to re-compute the scope.
+            // This is necessary for later code elimination.
+            traverse.cache.clear()
+            ;(path.scope as any).crawl()
+          }
         },
       },
       ExportDefaultDeclaration(path, state: ConfigState) {
