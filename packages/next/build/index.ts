@@ -6,7 +6,7 @@ import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import pathToRegexp from 'path-to-regexp'
+import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
 
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
@@ -50,8 +50,8 @@ import {
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
   PageInfo,
-  printTreeView,
   printCustomRoutes,
+  printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
@@ -137,18 +137,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let publicFiles: string[] = []
   let hasPublicDir = false
 
-  let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(
-    telemetry.record(
-      eventVersion({
-        cliCommand: 'build',
-        isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
-        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
-        isCustomServer: null,
-      })
-    ),
-    eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
+  telemetry.record(
+    eventVersion({
+      cliCommand: 'build',
+      isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+      hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+      isCustomServer: null,
+    })
   )
+
+  eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
@@ -322,13 +320,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn()
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
-    backgroundWork.push(
-      telemetry.record(
-        eventBuildDuration({
-          totalPageCount: pagePaths.length,
-          durationInSeconds: webpackBuildEnd[0],
-        })
-      )
+    telemetry.record(
+      eventBuildDuration({
+        totalPageCount: pagePaths.length,
+        durationInSeconds: webpackBuildEnd[0],
+      })
     )
   }
   const postBuildSpinner = createSpinner({
@@ -603,7 +599,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } else {
           // For a dynamic SPR page, we did not copy its html nor data exports.
           // Instead, we must copy specific versions of this page as defined by
-          // `unstable_getStaticParams` (additionalSprPaths).
+          // `unstable_getStaticPaths` (additionalSprPaths).
           const extraRoutes = additionalSprPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')
@@ -640,6 +636,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
       sensitive: false,
+      delimiter: '/', // default is `/#?`, but Next does not pass query info
     })
 
     return {
@@ -672,15 +669,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   console.log()
 
   const analysisEnd = process.hrtime(analysisBegin)
-  backgroundWork.push(
-    telemetry.record(
-      eventBuildOptimize({
-        durationInSeconds: analysisEnd[0],
-        totalPageCount: pagePaths.length,
-        staticPageCount: staticPages.size,
-        ssrPageCount: pagePaths.length - staticPages.size,
-      })
-    )
+  telemetry.record(
+    eventBuildOptimize({
+      durationInSeconds: analysisEnd[0],
+      totalPageCount: pagePaths.length,
+      staticPageCount: staticPages.size,
+      ssrPageCount: pagePaths.length - staticPages.size,
+    })
   )
 
   if (sprPages.size > 0) {
@@ -779,5 +774,5 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   }
 
-  await Promise.all(backgroundWork).catch(() => {})
+  await telemetry.flush()
 }

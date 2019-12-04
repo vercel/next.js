@@ -37,17 +37,7 @@ declare module 'react' {
 /**
  * `Page` type, use it as a guide to create `pages`.
  */
-export type NextPage<P = {}, IP = P> = {
-  (props: P): JSX.Element | null
-  defaultProps?: Partial<P>
-  displayName?: string
-  /**
-   * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
-   * Make sure to return plain `Object` without using `Date`, `Map`, `Set`.
-   * @param ctx Context of `page`
-   */
-  getInitialProps?(ctx: NextPageContext): Promise<IP>
-}
+export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
 
 /**
  * `Config` type, use it for export const config
