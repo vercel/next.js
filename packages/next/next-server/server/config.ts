@@ -36,6 +36,7 @@ const defaultConfig: { [key: string]: any } = {
   },
   exportTrailingSlash: false,
   experimental: {
+    aggressiveElimination: false,
     ampBindInitData: false,
     cpus: Math.max(
       1,

@@ -724,6 +724,7 @@ export default async function getBaseWebpackConfig(
         'next-babel-loader',
         'next-client-pages-loader',
         'next-data-loader',
+        'next-minify-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
@@ -743,6 +744,64 @@ export default async function getBaseWebpackConfig(
     module: {
       strictExportPresence: true,
       rules: [
+        config.experimental.aggressiveElimination && {
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
+
+          // Only eliminate from files in the pages directory since this is
+          // considered very unsafe. Users will have to opt-into this behavior
+          // by using our new lifecycle methods.
+          include: [path.join(dir, 'pages')],
+          use: {
+            loader: 'next-minify-loader',
+            options: {
+              terserOptions: {
+                // Configure some global settings
+                safari10: true,
+                keep_classnames: true,
+                keep_fnames: true,
+                parse: { ecma: 8 },
+
+                // Allow eliminating top-level code
+                toplevel: true,
+
+                // Compress options
+                compress: {
+                  // Run compression 3 times to ensure all code is eliminated
+                  passes: 3,
+
+                  // Act as if all functions call and getters are pure
+                  pure_funcs: function() {
+                    return false
+                  },
+                  pure_getters: true,
+
+                  // Keep debugging statements for development
+                  drop_debugger: false,
+                  ecma: 5,
+                  warnings: false,
+
+                  // The following two options are known to break valid JavaScript code
+                  comparisons: false,
+                  inline: 2, // https://github.com/zeit/next.js/issues/7178#issuecomment-493048965
+                },
+
+                // Do not mangle -- we need real names in development. Production will handle
+                // re-mangling this if need-be.
+                mangle: false,
+
+                // Terser output should be verbose and not use new-age tricks
+                output: {
+                  ecma: 5,
+                  safari10: true,
+                  // Keep comments for development, will be stripped later.
+                  comments: true,
+                  // Fixes usage of Emoji and certain Regex
+                  ascii_only: true,
+                },
+              },
+            },
+          },
+        },
         config.experimental.ampBindInitData &&
           !isServer && {
             test: /\.(tsx|ts|js|mjs|jsx)$/,

@@ -6,6 +6,7 @@ import { minify as terser, MinifyOptions } from 'terser'
 const IS_MODERN_OUTPUT = /\.module\.js$/
 
 const buildTerserOptions = ({
+  sourceMap = false,
   ecma,
   warnings,
   parse = {},
@@ -21,6 +22,7 @@ const buildTerserOptions = ({
   /* eslint-enable camelcase */
   safari10,
 }: MinifyOptions = {}) => ({
+  sourceMap,
   ecma,
   warnings,
   parse: { ...parse },
