@@ -46,10 +46,7 @@ export default function nextPageConfig({
                 path: NodePath<BabelTypes.ExportNamedDeclaration>,
                 state: any
               ) {
-                if (
-                  state.bundleDropped ||
-                  !(path.node.declaration || path.node.specifiers.length)
-                ) {
+                if (state.bundleDropped || !path.node.declaration) {
                   return
                 }
 
