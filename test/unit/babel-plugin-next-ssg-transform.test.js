@@ -127,5 +127,65 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"export function Noop(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
       )
     })
+
+    it('should remove named export variable declarations', () => {
+      const output = babel(trim`
+        export const unstable_getStaticPaths = () => {
+          return []
+        }
+
+        export const unstable_getStaticProps = function() {
+          return { props: {} }
+        }
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should remove named export variable declarations (async)', () => {
+      const output = babel(trim`
+        export const unstable_getStaticPaths = async () => {
+          return []
+        }
+
+        export const unstable_getStaticProps = async function() {
+          return { props: {} }
+        }
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should not remove extra named export variable declarations', () => {
+      const output = babel(trim`
+        export const unstable_getStaticPaths = () => {
+          return []
+        }, foo = 2
+
+        export const unstable_getStaticProps = function() {
+          return { props: {} }
+        }
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export const foo=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
   })
 })
