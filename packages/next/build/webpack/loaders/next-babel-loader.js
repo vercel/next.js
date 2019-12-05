@@ -1,7 +1,7 @@
 import hash from 'string-hash'
 import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
-import { EXPORT_NAME_GET_STATIC_PROPS } from '../../babel/plugins/next-page-config'
+import { EXPORT_NAME_GET_STATIC_PROPS } from '../../babel/plugins/next-ssg-transform'
 
 // increment 'e' to invalidate cache
 // eslint-disable-next-line no-useless-concat
@@ -189,6 +189,13 @@ module.exports = babelLoader.custom(babel => {
       ])
 
       if (isPageFile) {
+        if (!isServer) {
+          options.plugins.push([
+            require.resolve('../../babel/plugins/next-ssg-transform'),
+            {},
+          ])
+        }
+
         if (source.includes(EXPORT_NAME_GET_STATIC_PROPS)) {
           options.plugins.push([
             require.resolve(
