@@ -69,6 +69,30 @@ export default function nextTransformSsg({
                 }
               }
             },
+            // export const unstable_getStaticPaths = () => {}
+            VariableDeclaration(path) {
+              if (path.parent.type !== 'ExportNamedDeclaration') {
+                return
+              }
+
+              path.node.declarations = path.node.declarations.filter(d => {
+                const name = d.id.type === 'Identifier' && d.id.name
+
+                const isPrerender =
+                  name === EXPORT_NAME_GET_STATIC_PROPS ||
+                  name === EXPORT_NAME_GET_STATIC_PATHS
+
+                if (isPrerender) {
+                  state.isPrerender = true
+                }
+
+                return !isPrerender
+              })
+
+              if (path.node.declarations.length === 0) {
+                path.parentPath.remove()
+              }
+            },
           })
         },
         exit(path, state) {
