@@ -206,6 +206,24 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
+    it('should remove re-exported variable declarations (safe)', () => {
+      const output = babel(trim`
+        const unstable_getStaticPaths = () => {
+          return []
+        }, a = 2
+
+        export { unstable_getStaticPaths }
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"const a=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
     it('should remove re-exported function declarations', () => {
       const output = babel(trim`
         function unstable_getStaticPaths() {
