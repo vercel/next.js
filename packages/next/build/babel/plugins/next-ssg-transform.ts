@@ -72,6 +72,10 @@ export default function nextTransformSsg({
           })
         },
         exit(path, state) {
+          if (state.isPrerender) {
+            ;(path.scope as any).crawl()
+          }
+
           path.traverse({
             ExportDefaultDeclaration(path) {
               if (!state.isPrerender || state.done) {
