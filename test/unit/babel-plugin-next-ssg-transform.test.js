@@ -70,7 +70,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove named export declarations', () => {
+    it('should remove named export function declarations', () => {
       const output = babel(trim`
         export function unstable_getStaticPaths() {
           return []
@@ -90,7 +90,27 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should not remove extra named export declarations', () => {
+    it('should remove named export function declarations (async)', () => {
+      const output = babel(trim`
+        export async function unstable_getStaticPaths() {
+          return []
+        }
+
+        export async function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should not remove extra named export function declarations', () => {
       const output = babel(trim`
         export function unstable_getStaticProps() {
           return { props: {} }
