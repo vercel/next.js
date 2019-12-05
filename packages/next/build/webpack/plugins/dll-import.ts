@@ -11,11 +11,15 @@ export function importAutoDllPlugin({ distDir }: { distDir: string }) {
     path.join(distDir, 'cache', 'autodll-webpack-plugin')
   )
   require.cache[autodllPaths] = Object.assign({}, require.cache[autodllPaths], {
-    exports: Object.assign({}, require.cache[autodllPaths].exports, {
-      cacheDir: autodllCachePath,
-      getManifestPath: (hash: string) => (bundleName: string) =>
-        path.resolve(autodllCachePath, hash, `${bundleName}.manifest.json`),
-    }),
+    exports: Object.assign(
+      {},
+      require.cache[autodllPaths] ? require.cache[autodllPaths].exports : {},
+      {
+        cacheDir: autodllCachePath,
+        getManifestPath: (hash: string) => (bundleName: string) =>
+          path.resolve(autodllCachePath, hash, `${bundleName}.manifest.json`),
+      }
+    ),
   })
 
   const AutoDllPlugin = require('autodll-webpack-plugin')
