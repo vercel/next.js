@@ -10,7 +10,7 @@ const trim = s =>
 // avoid generating __source annotations in JSX during testing:
 const NODE_ENV = process.env.NODE_ENV
 process.env.NODE_ENV = 'production'
-const plugin = require('next/dist/build/babel/plugins/next-page-config')
+const plugin = require('next/dist/build/babel/plugins/next-ssg-transform')
 process.env.NODE_ENV = NODE_ENV
 
 const babel = (code, esm = true, pluginOptions = {}) =>
@@ -28,7 +28,7 @@ const babel = (code, esm = true, pluginOptions = {}) =>
     },
   }).code
 
-describe('babel plugin (next-page-config)', () => {
+describe('babel plugin (next-ssg-transform)', () => {
   describe('getStaticProps support', () => {
     it('should remove separate named export specifiers', () => {
       const output = babel(trim`
