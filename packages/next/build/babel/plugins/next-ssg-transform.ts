@@ -20,11 +20,17 @@ export default function nextTransformSsg({
       Program: {
         enter(path, state) {
           path.traverse({
+            // export function unstable_getStaticPaths() {}
             ExportNamedDeclaration(path) {
               const declaration = path.node.declaration
               if (!declaration) {
                 return
               }
+
+              if (declaration.type === 'VariableDeclaration') {
+                return
+              }
+
               const name =
                 declaration.type === 'FunctionDeclaration'
                   ? declaration.id && declaration.id.name
