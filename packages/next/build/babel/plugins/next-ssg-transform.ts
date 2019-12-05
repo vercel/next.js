@@ -20,6 +20,28 @@ export default function nextTransformSsg({
       Program: {
         enter(path, state) {
           path.traverse({
+            ExportNamedDeclaration(path) {
+              const declaration = path.node.declaration
+              if (!declaration) {
+                return
+              }
+              const name =
+                declaration.type === 'FunctionDeclaration'
+                  ? declaration.id && declaration.id.name
+                  : null
+
+              if (name == null) {
+                throw new Error(`invariant: null function declaration`)
+              }
+
+              if (
+                name === EXPORT_NAME_GET_STATIC_PROPS ||
+                name === EXPORT_NAME_GET_STATIC_PATHS
+              ) {
+                path.remove()
+                state.isPrerender = true
+              }
+            },
             // export { unstable_getStaticPaths } from '.'
             ExportSpecifier(path) {
               const name = path.node.exported.name
