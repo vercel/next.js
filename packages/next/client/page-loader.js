@@ -26,6 +26,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -202,10 +203,12 @@ export default class PageLoader {
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.
     if (
+      this.prefetched[route] ||
       document.querySelector(
         `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
       )
     ) {
+      this.prefetched[route] = true
       return
     }
 
@@ -229,11 +232,12 @@ export default class PageLoader {
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
       preloadScript(url)
+      this.prefetched[route] = true
       return
     }
 
     if (isDependency) {
-      // loadPage will automatically handle depencies, so no need to
+      // loadPage will automatically handle dependencies, so no need to
       // preload them manually
       return
     }
