@@ -11,7 +11,7 @@ interface ConfigState {
   defaultExportUpdated?: boolean
 }
 
-export default function nextPageConfig({
+export default function nextSsgTransform({
   types: t,
   traverse,
 }: {
