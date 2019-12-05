@@ -1,10 +1,11 @@
 import hash from 'string-hash'
 import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
+import { EXPORT_NAME_GET_STATIC_PROPS } from '../../babel/plugins/next-page-config'
 
 // increment 'e' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'e' + '-'
+const cacheKey = 'babel-cache-' + 'f' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -58,6 +59,7 @@ module.exports = babelLoader.custom(babel => {
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
         babelPresetPlugins: opts.babelPresetPlugins,
+        development: opts.development,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -70,6 +72,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
+                (opts.development ? '-development' : '-production') +
                 JSON.stringify(
                   babel.loadPartialConfig({
                     filename,
@@ -91,6 +94,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.hasModern
       delete loader.pagesDir
       delete loader.babelPresetPlugins
+      delete loader.development
       return { loader, custom }
     },
     config(
@@ -103,6 +107,7 @@ module.exports = babelLoader.custom(babel => {
           hasModern,
           pagesDir,
           babelPresetPlugins,
+          development,
         },
       }
     ) {
@@ -175,9 +180,24 @@ module.exports = babelLoader.custom(babel => {
 
       options.plugins.push([
         require.resolve('babel-plugin-transform-define'),
-        { 'typeof window': isServer ? 'undefined' : 'object' },
+        {
+          'process.env.NODE_ENV': development ? 'development' : 'production',
+          'typeof window': isServer ? 'undefined' : 'object',
+          'process.browser': isServer ? false : true,
+        },
         'next-js-transform-define-instance',
       ])
+
+      if (isPageFile) {
+        if (source.includes(EXPORT_NAME_GET_STATIC_PROPS)) {
+          options.plugins.push([
+            require.resolve(
+              '../../babel/plugins/dangerously-remove-unused-imports'
+            ),
+            {},
+          ])
+        }
+      }
 
       // As next-server/lib has stateful modules we have to transpile commonjs
       options.overrides = [

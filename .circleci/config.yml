@@ -53,6 +53,8 @@ commands:
       - run:
           name: Upgrade to most recent release in React's Next channel
           command: yarn upgrade react@next react-dom@next -W --dev # upgrade (vs add) will skip re-building Next.js, which doesn't bundle React internals (so this is OK!)
+          environment:
+            CHROMEDRIVER_VERSION: '76.0.3809.68'
   yarn_info:
     steps:
       - run:

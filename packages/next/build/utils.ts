@@ -267,8 +267,7 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths) {
       prerenderPaths = [] as string[]
 
-      const _routeRegex = getRouteRegex(page)
-      const _routeMatcher = getRouteMatcher(_routeRegex)
+      const _routeMatcher = getRouteMatcher(getRouteRegex(page))
 
       // Get the default list of allowed params.
       const _validParamKeys = Object.keys(_routeMatcher(page))

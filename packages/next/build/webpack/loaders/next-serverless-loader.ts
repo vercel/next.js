@@ -179,7 +179,7 @@ const nextServerlessLoader: loader.Loader = function() {
           `
             : `const nowParams = null;`
         }
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, sprData ? { _nextSprData: '1' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params), renderOpts)
 
         if (sprData && !fromExport) {
           const payload = JSON.stringify(renderOpts.sprData)
@@ -199,6 +199,8 @@ const nextServerlessLoader: loader.Loader = function() {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+            unstable_getStaticProps: undefined,
+            unstable_getStaticPaths: undefined,
             Component: Error
           }))
           return result
@@ -206,6 +208,8 @@ const nextServerlessLoader: loader.Loader = function() {
           console.error(err)
           res.statusCode = 500
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+            unstable_getStaticProps: undefined,
+            unstable_getStaticPaths: undefined,
             Component: Error,
             err
           }))
