@@ -152,6 +152,10 @@ describe('Prefetching Links in viewport', () => {
     }
     hrefs.sort()
 
+    // Ensure no duplicates
     expect(hrefs).toEqual([...new Set(hrefs)])
+
+    // Verify encoding
+    expect(hrefs.some(e => e.includes(`%5Bhello%5D.js`))).toBe(true)
   })
 })
