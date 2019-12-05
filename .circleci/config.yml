@@ -186,12 +186,9 @@ workflows:
   build-test-and-deploy:
     jobs:
       - build
-      - build-react-canary:
-          requires:
-            - build
       - test:
           requires:
-            - build-react-canary
+            - build
       - lint:
           requires:
             - build
