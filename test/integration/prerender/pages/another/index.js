@@ -1,10 +1,22 @@
 import Link from 'next/link'
+import fs from 'fs'
+import findUp from 'find-up'
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticProps() {
+  const text = fs
+    .readFileSync(
+      findUp.sync('world.txt', {
+        // prevent webpack from intercepting
+        // eslint-disable-next-line no-eval
+        cwd: eval(`__dirname`),
+      }),
+      'utf8'
+    )
+    .trim()
   return {
     props: {
-      world: 'world',
+      world: text,
       time: new Date().getTime(),
     },
     revalidate: 1,
