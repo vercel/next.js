@@ -147,6 +147,7 @@ jobs:
     steps:
       - *attach_workspace
       - yarn_info
+      - yarn_react_integration
       - test_all
       - *store_test_results
   test-ie11:
