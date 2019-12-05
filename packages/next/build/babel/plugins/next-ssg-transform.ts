@@ -55,16 +55,27 @@ export default function nextTransformSsg({
                 name === EXPORT_NAME_GET_STATIC_PROPS ||
                 name === EXPORT_NAME_GET_STATIC_PATHS
               ) {
-                path.remove()
                 state.isPrerender = true
 
-                if (path.parent.type !== 'ExportNamedDeclaration') {
+                const parent = path.parent
+
+                if (parent.type !== 'ExportNamedDeclaration') {
                   throw new Error(
-                    `invariant: ${path.type} has unknown parent: ${path.parent.type}`
+                    `invariant: ${path.type} has unknown parent: ${parent.type}`
                   )
                 }
 
-                if (path.parent.specifiers.length === 0) {
+                if (!parent.source) {
+                  const localName = path.node.local.name
+
+                  const binding = path.scope.getBinding(localName)
+                  if (binding) {
+                    binding.path.remove()
+                  }
+                }
+
+                path.remove()
+                if (parent.specifiers.length === 0) {
                   path.parentPath.remove()
                 }
               }
