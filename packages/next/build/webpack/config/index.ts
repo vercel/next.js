@@ -38,25 +38,3 @@ export function build(
   )
   return fn(config)
 }
-
-// eslint-disable-next-line no-extend-native
-Object.defineProperty(RegExp.prototype, 'toJSON', {
-  value: RegExp.prototype.toString,
-})
-console.log(
-  JSON.stringify(
-    build(
-      {},
-      {
-        rootDirectory: '/noop',
-        customAppFile: '/noop/pages/_app.js',
-        isDevelopment: true,
-        isServer: false,
-        hasSupportCss: true,
-        hasSupportData: false,
-      }
-    ),
-    null,
-    2
-  )
-)
