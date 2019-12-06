@@ -16,10 +16,10 @@ export const base = curry(function base(
     ? false
     : false
 
-  config.module = {
-    strictExportPresence: true,
-    rules: [],
+  if (!config.module) {
+    config.module = { rules: [] }
   }
+  config.module.strictExportPresence = true
 
   return config
 })
