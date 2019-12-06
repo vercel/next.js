@@ -2684,7 +2684,7 @@ You can use `now dev` as your local development server. It allows you to easily 
 }
 ```
 
-For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now).
+For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/home).
 
 ## FAQ
 
