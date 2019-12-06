@@ -241,5 +241,25 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
       )
     })
+
+    it('should not crash for class declarations', () => {
+      const output = babel(trim`
+        function unstable_getStaticPaths() {
+          return []
+        }
+
+        export { unstable_getStaticPaths }
+
+        export class MyClass {}
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export class MyClass{}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
   })
 })
