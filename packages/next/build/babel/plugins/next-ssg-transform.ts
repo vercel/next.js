@@ -27,15 +27,11 @@ export default function nextTransformSsg({
                 return
               }
 
-              if (declaration.type === 'VariableDeclaration') {
+              if (declaration.type !== 'FunctionDeclaration') {
                 return
               }
 
-              const name =
-                declaration.type === 'FunctionDeclaration'
-                  ? declaration.id && declaration.id.name
-                  : null
-
+              const name = declaration.id && declaration.id.name
               if (name == null) {
                 throw new Error(`invariant: null function declaration`)
               }
