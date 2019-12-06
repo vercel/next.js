@@ -2,6 +2,7 @@ import webpack from 'webpack'
 import { base } from './blocks/base'
 import { css } from './blocks/css'
 import { ConfigurationContext, pipe } from './utils'
+import { experimentData } from './blocks/experiment-data'
 
 export function build(
   config: webpack.Configuration,
@@ -11,12 +12,14 @@ export function build(
     isDevelopment,
     isServer,
     hasSupportCss,
+    hasSupportData,
   }: {
     rootDirectory: string
     customAppFile: string | null
     isDevelopment: boolean
     isServer: boolean
     hasSupportCss: boolean
+    hasSupportData: boolean
   }
 ) {
   const ctx: ConfigurationContext = {
@@ -28,7 +31,11 @@ export function build(
     isClient: !isServer,
   }
 
-  const fn = pipe(base(ctx), css(hasSupportCss, ctx))
+  const fn = pipe(
+    base(ctx),
+    experimentData(hasSupportData, ctx),
+    css(hasSupportCss, ctx)
+  )
   return fn(config)
 }
 
@@ -46,6 +53,7 @@ console.log(
         isDevelopment: true,
         isServer: false,
         hasSupportCss: true,
+        hasSupportData: false,
       }
     ),
     null,

@@ -633,12 +633,6 @@ export default async function getBaseWebpackConfig(
     // @ts-ignore this is filtered
     module: {
       rules: [
-        config.experimental.ampBindInitData &&
-          !isServer && {
-            test: /\.(tsx|ts|js|mjs|jsx)$/,
-            include: [path.join(dir, 'data')],
-            use: 'next-data-loader',
-          },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
@@ -847,6 +841,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
+    hasSupportData: !!config.experimental.ampBindInitData,
   })
 
   if (typeof config.webpack === 'function') {
