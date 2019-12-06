@@ -2674,7 +2674,7 @@ There are no special zones related APIs. You only need to do following:
 
 You can merge zones using any HTTP proxy, e.g deploy the blog to `https://blog.example.com` and the home app to `https://example.com` and then add a proxy for `https://example.com/blog` to `https://blog.example.com`.
 
-You can use `now dev` as your local development server. It allows you to easily define routing routes for multiple apps like below:
+You can use [`now dev`](https://zeit.co/download) as your local development server. It allows you to easily define routing routes for multiple apps like below:
 
 ```json
 {
