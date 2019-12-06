@@ -1,5 +1,11 @@
 /* eslint-env jest */
 
+// avoid generating __source annotations in JSX during testing:
+const NODE_ENV = process.env.NODE_ENV
+process.env.NODE_ENV = 'production'
+require('next/dist/build/babel/preset')
+process.env.NODE_ENV = NODE_ENV
+
 const loader = require('next/dist/build/webpack/loaders/next-babel-loader')
 const os = require('os')
 const path = require('path')
@@ -203,13 +209,14 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";` +
           // complex
+          `import * as React from "react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";`
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
       )
     })
 
@@ -222,6 +229,7 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
@@ -229,7 +237,7 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
       )
     })
 
@@ -240,6 +248,7 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
@@ -258,6 +267,7 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";import ooo from"ooo";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
@@ -279,6 +289,7 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";import ooo from"ooo";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
@@ -290,6 +301,28 @@ describe('next-babel-loader', () => {
       )
       expect(code).toMatchInlineSnapshot(
         `"import\\"core-js\\";import{bar}from\\"a\\";import{cats}from\\"d\\";const __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should keep used exports and react in a modern-apis page with JSX (client)', async () => {
+      const code = await babel(
+        // effectful
+        `import"core-js";` +
+          // basic
+          `import{foo,bar}from"a";import baz from"b";import ooo from"ooo";` +
+          // complex
+          `import*as React from"react";` +
+          `import baz2,{yeet}from"c";` +
+          `import baz3,{cats}from"d";` +
+          `import{c,d}from"e";` +
+          `import{e as ee,f as ff}from"f";` +
+          `` +
+          `export function unstable_getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
+          `export default function () { return <div>{cats + bar()}</div> }`,
+        { resourcePath: pageFile, isServer: false }
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"import React from\\"react\\";var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import{cats}from\\"d\\";const __NEXT_COMP=function(){return __jsx(\\"div\\",null,cats+bar());};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
       )
     })
   })
