@@ -13,7 +13,8 @@ export default function(): PluginObj<any> {
             if (
               !(
                 v.path.type === 'ImportDefaultSpecifier' ||
-                v.path.type === 'ImportSpecifier'
+                v.path.type === 'ImportSpecifier' ||
+                v.path.type === 'ImportNamespaceSpecifier'
               ) ||
               !(v.path.parent.type === 'ImportDeclaration')
             ) {
