@@ -45,4 +45,8 @@ now
 
 ## The idea behind the example
 
-Extract and inline critical css with [emotion](https://github.com/emotion-js/emotion) using [emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/emotion-server) and [react-emotion](https://github.com/emotion-js/emotion/tree/master/packages/react-emotion).
+Extract and inline critical css with:
+
+- [@emotion/core](https://github.com/emotion-js/emotion/tree/master/packages/core)
+- [@emotion/styled](https://github.com/emotion-js/emotion/tree/master/packages/styled)
+- [create-emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/create-emotion-server)

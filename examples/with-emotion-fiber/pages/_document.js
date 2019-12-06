@@ -1,5 +1,8 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import { extractCritical } from 'emotion-server'
+import createEmotionServer from 'create-emotion-server'
+import { emotionCache } from '../shared/emotionCache'
+
+const { extractCritical } = createEmotionServer(emotionCache)
 
 export default class MyDocument extends Document {
   static getInitialProps({ renderPage }) {
@@ -8,19 +11,14 @@ export default class MyDocument extends Document {
     return { ...page, ...styles }
   }
 
-  constructor(props) {
-    super(props)
-    const { __NEXT_DATA__, ids } = props
-    if (ids) {
-      __NEXT_DATA__.ids = ids
-    }
-  }
-
   render() {
     return (
       <html>
         <Head>
-          <style dangerouslySetInnerHTML={{ __html: this.props.css }} />
+          <style
+            data-emotion-css={this.props.ids.join(' ')}
+            dangerouslySetInnerHTML={{ __html: this.props.css }}
+          />
         </Head>
         <body>
           <Main />
