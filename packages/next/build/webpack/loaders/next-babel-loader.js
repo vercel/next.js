@@ -1,7 +1,6 @@
-import hash from 'string-hash'
-import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
-import { EXPORT_NAME_GET_STATIC_PROPS } from '../../babel/plugins/next-ssg-transform'
+import { basename, join } from 'path'
+import hash from 'string-hash'
 
 // increment 'e' to invalidate cache
 // eslint-disable-next-line no-useless-concat
