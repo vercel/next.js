@@ -133,6 +133,10 @@ export default function nextTransformSsg({
           state.done = false
         },
         exit(path, state) {
+          if (!state.isPrerender) {
+            return
+          }
+
           const refs = state.refs
           let count: number
 
@@ -212,9 +216,7 @@ export default function nextTransformSsg({
             })
           } while (count)
 
-          if (state.isPrerender) {
-            decorateSsgExport(t, path, state)
-          }
+          decorateSsgExport(t, path, state)
         },
       },
       VariableDeclarator(path, state) {
