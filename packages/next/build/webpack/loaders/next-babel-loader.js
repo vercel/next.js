@@ -195,15 +195,6 @@ module.exports = babelLoader.custom(babel => {
             {},
           ])
         }
-
-        if (source.includes(EXPORT_NAME_GET_STATIC_PROPS)) {
-          options.plugins.push([
-            require.resolve(
-              '../../babel/plugins/dangerously-remove-unused-imports'
-            ),
-            {},
-          ])
-        }
       }
 
       // As next-server/lib has stateful modules we have to transpile commonjs
