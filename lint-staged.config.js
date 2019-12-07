@@ -8,7 +8,7 @@ module.exports = {
       .join(' ')
     return [
       `prettier --write ${escapedFileNames}`,
-      `eslint --fix ${filenames.map(f => `"${f}"`).join(' ')}`,
+      `eslint --max-warnings=0 --fix ${filenames.map(f => `"${f}"`).join(' ')}`,
       `git add ${escapedFileNames}`,
     ]
   },

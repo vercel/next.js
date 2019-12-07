@@ -110,6 +110,20 @@ export default function nextTransformSsg({
     }
   }
 
+  function markImport(
+    path: NodePath<
+      | BabelTypes.ImportSpecifier
+      | BabelTypes.ImportDefaultSpecifier
+      | BabelTypes.ImportNamespaceSpecifier
+    >,
+    state: PluginState
+  ) {
+    const local = path.get('local')
+    if (isIdentifierReferenced(local)) {
+      state.refs.add(local.node.name)
+    }
+  }
+
   return {
     visitor: {
       Program: {
@@ -149,6 +163,26 @@ export default function nextTransformSsg({
             }
           }
 
+          function sweepImport(
+            path: NodePath<
+              | BabelTypes.ImportSpecifier
+              | BabelTypes.ImportDefaultSpecifier
+              | BabelTypes.ImportNamespaceSpecifier
+            >
+          ) {
+            const local = path.get('local')
+            if (refs.has(local.node.name) && !isIdentifierReferenced(local)) {
+              ++count
+              path.remove()
+              if (
+                (path.parent as BabelTypes.ImportDeclaration).specifiers
+                  .length === 0
+              ) {
+                path.parentPath.remove()
+              }
+            }
+          }
+
           do {
             ;(path.scope as any).crawl()
             count = 0
@@ -172,6 +206,9 @@ export default function nextTransformSsg({
               FunctionDeclaration: sweepFunction,
               FunctionExpression: sweepFunction,
               ArrowFunctionExpression: sweepFunction,
+              ImportSpecifier: sweepImport,
+              ImportDefaultSpecifier: sweepImport,
+              ImportNamespaceSpecifier: sweepImport,
             })
           } while (count)
 
@@ -193,6 +230,9 @@ export default function nextTransformSsg({
       FunctionDeclaration: markFunction,
       FunctionExpression: markFunction,
       ArrowFunctionExpression: markFunction,
+      ImportSpecifier: markImport,
+      ImportDefaultSpecifier: markImport,
+      ImportNamespaceSpecifier: markImport,
       ExportNamedDeclaration(path, state) {
         const specifiers = path.get('specifiers')
         if (specifiers.length) {
