@@ -261,5 +261,39 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"export class MyClass{}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
       )
     })
+
+    it(`should remove re-exported function declarations' dependents (variables, functions)`, () => {
+      const output = babel(trim`
+        const inceptionVar = 'hahaa';
+        var var1 = 1;
+        let var2 = 2;
+        const var3 = inceptionVar;
+
+        function inception1() {var2;}
+
+        function abc() {}
+        const b = function() {var3;};
+        const b2 = function apples() {};
+        const bla = () => {inception1};
+
+        function unstable_getStaticProps() {
+          abc();
+          b;
+          b2;
+          bla();
+          return { props: {var1} }
+        }
+
+        export { unstable_getStaticProps }
+
+        export default function Test() {
+          return <div />
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
   })
 })
