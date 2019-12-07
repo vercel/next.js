@@ -308,5 +308,26 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
       )
     })
+
+    it('should not mix up bindings', () => {
+      const output = babel(trim`
+        function Function1() {
+          return {
+            a: function bug(a) {
+              return 2;
+            }
+          };
+        }
+
+        function Function2() {
+          var bug = 1;
+          return { bug };
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"function Function1(){return{a:function bug(a){return 2;}};}function Function2(){var bug=1;return{bug};}"`
+      )
+    })
   })
 })
