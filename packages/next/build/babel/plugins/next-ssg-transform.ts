@@ -12,7 +12,11 @@ const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PATHS,
 ])
 
-type PluginState = { refs: Set<any>; isPrerender: boolean; done: boolean }
+type PluginState = {
+  refs: Set<NodePath<BabelTypes.Identifier>>
+  isPrerender: boolean
+  done: boolean
+}
 
 function decorateSsgExport(
   t: typeof BabelTypes,
@@ -106,7 +110,7 @@ export default function nextTransformSsg({
   ) {
     const ident = getIdentifier(path)
     if (ident && ident.node && isIdentifierReferenced(ident)) {
-      state.refs.add(ident.node.name)
+      state.refs.add(ident)
     }
   }
 
@@ -120,7 +124,7 @@ export default function nextTransformSsg({
   ) {
     const local = path.get('local')
     if (isIdentifierReferenced(local)) {
-      state.refs.add(local.node.name)
+      state.refs.add(local)
     }
   }
 
@@ -128,7 +132,7 @@ export default function nextTransformSsg({
     visitor: {
       Program: {
         enter(_, state) {
-          state.refs = new Set<string>()
+          state.refs = new Set<NodePath<BabelTypes.Identifier>>()
           state.isPrerender = false
           state.done = false
         },
@@ -151,7 +155,7 @@ export default function nextTransformSsg({
             if (
               ident &&
               ident.node &&
-              refs.has(ident.node.name) &&
+              refs.has(ident) &&
               !isIdentifierReferenced(ident)
             ) {
               ++count
@@ -175,7 +179,7 @@ export default function nextTransformSsg({
             >
           ) {
             const local = path.get('local')
-            if (refs.has(local.node.name) && !isIdentifierReferenced(local)) {
+            if (refs.has(local) && !isIdentifierReferenced(local)) {
               ++count
               path.remove()
               if (
@@ -199,10 +203,7 @@ export default function nextTransformSsg({
                 }
 
                 const local = path.get('id') as NodePath<BabelTypes.Identifier>
-                if (
-                  refs.has(local.node.name) &&
-                  !isIdentifierReferenced(local)
-                ) {
+                if (refs.has(local) && !isIdentifierReferenced(local)) {
                   ++count
                   path.remove()
                 }
@@ -226,7 +227,7 @@ export default function nextTransformSsg({
 
         const local = path.get('id') as NodePath<BabelTypes.Identifier>
         if (isIdentifierReferenced(local)) {
-          state.refs.add(path.node.id.name)
+          state.refs.add(local)
         }
       },
       FunctionDeclaration: markFunction,
