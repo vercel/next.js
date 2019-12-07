@@ -323,6 +323,8 @@ describe('babel plugin (next-ssg-transform)', () => {
           var bug = 1;
           return { bug };
         }
+
+        export { unstable_getStaticProps } from 'a'
       `)
 
       expect(output).toMatchInlineSnapshot(
