@@ -164,9 +164,6 @@ export const css = curry(async function css(
     })
   )
 
-  if (fns.length) {
-    const fn = pipe(...(fns as [ConfigurationFn]))
-    return fn(config)
-  }
-  return config
+  const fn = pipe(...fns)
+  return fn(config)
 })
