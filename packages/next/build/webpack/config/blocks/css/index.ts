@@ -62,7 +62,7 @@ function getStyleLoader({
       }
 }
 
-export const css = curry(function css(
+export const css = curry(async function css(
   enabled: boolean,
   ctx: ConfigurationContext,
   config: Configuration
@@ -80,7 +80,7 @@ export const css = curry(function css(
       })
     )
   } else if (ctx.customAppFile) {
-    const postCssPlugins = getPostCssPlugins(ctx.rootDirectory)
+    const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
     fns.push(
       loader({
         oneOf: [

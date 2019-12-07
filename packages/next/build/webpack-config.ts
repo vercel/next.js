@@ -835,7 +835,7 @@ export default async function getBaseWebpackConfig(
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
-  webpackConfig = buildConfiguration(webpackConfig, {
+  webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
     customAppFile,
     isDevelopment: dev,

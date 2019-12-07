@@ -4,7 +4,7 @@ import { css } from './blocks/css'
 import { ConfigurationContext, pipe } from './utils'
 import { experimentData } from './blocks/experiment-data'
 
-export function build(
+export async function build(
   config: webpack.Configuration,
   {
     rootDirectory,
@@ -21,7 +21,7 @@ export function build(
     hasSupportCss: boolean
     hasSupportData: boolean
   }
-) {
+): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
     rootDirectory,
     customAppFile,
