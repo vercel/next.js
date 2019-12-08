@@ -176,6 +176,8 @@ module.exports = (
           removeImport: true,
         },
       ],
+      require('@babel/plugin-proposal-optional-chaining'),
+      require('@babel/plugin-proposal-nullish-coalescing-operator'),
     ].filter(Boolean),
   }
 }
