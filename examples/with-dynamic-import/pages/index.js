@@ -25,19 +25,6 @@ const DynamicComponent5 = dynamic({
   loader: () => import('../components/hello5'),
 })
 
-const DynamicBundle = dynamic({
-  modules: () => ({
-    Hello6: import('../components/hello6'),
-    Hello7: import('../components/hello7'),
-  }),
-  render: (props, { Hello6, Hello7 }) => (
-    <div style={{ padding: 10, border: '1px solid #888' }}>
-      <Hello6 />
-      <Hello7 />
-    </div>
-  ),
-})
-
 const IndexPage = ({ showMore }) => {
   const router = useRouter()
   const handleToggle = () => {
@@ -59,6 +46,9 @@ const IndexPage = ({ showMore }) => {
       {/* Show a progress indicator while loading */}
       <DynamicComponent2WithCustomLoading />
 
+      {/* Load only on the client side */}
+      <DynamicComponent3WithNoSSR />
+
       {/* This component will never be loaded */}
       {React.noSuchField && <DynamicComponent4 />}
 
@@ -66,14 +56,8 @@ const IndexPage = ({ showMore }) => {
       {showMore && <DynamicComponent5 />}
       <button onClick={handleToggle}>Toggle Show More</button>
 
-      {/* Load multiple components in one bundle */}
-      <DynamicBundle foo={1} />
-
       <p>HOME PAGE is here!</p>
       <Counter />
-
-      {/* Load only on the client side */}
-      <DynamicComponent3WithNoSSR />
     </div>
   )
 }
