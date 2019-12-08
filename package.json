@@ -9,6 +9,7 @@
     "dev": "lerna run build --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest --runInBand",
+    "testheadless": "HEADLESS=true yarn testonly",
     "testall": "yarn run testonly -- --ci --forceExit",
     "pretest": "yarn run lint",
     "git-reset": "git reset --hard HEAD",
