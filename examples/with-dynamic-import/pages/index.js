@@ -1,7 +1,6 @@
 import React from 'react'
 import { useRouter } from 'next/router'
 import Header from '../components/Header'
-import Counter from '../components/Counter'
 import dynamic from 'next/dynamic'
 
 const DynamicComponent1 = dynamic(import('../components/hello1'))
@@ -55,9 +54,6 @@ const IndexPage = ({ showMore }) => {
       {/* Load on demand */}
       {showMore && <DynamicComponent5 />}
       <button onClick={handleToggle}>Toggle Show More</button>
-
-      <p>HOME PAGE is here!</p>
-      <Counter />
     </div>
   )
 }
