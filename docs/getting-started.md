@@ -8,7 +8,7 @@ The interactive course with quizzes will guide you through everything you need t
 
 #### System Requirements
 
-- We recommend using Node.js 10 or later
+- [Node.js 10](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
@@ -19,7 +19,7 @@ Install `next`, `react` and `react-dom` in your project:
 npm install --save next react react-dom
 ```
 
-<br/><br />Now open `package.json` and add the following `scripts`:
+<br/><br />Open `package.json` and add the following `scripts`:
 
 ```json
 "scripts": {
@@ -32,7 +32,7 @@ npm install --save next react react-dom
 These scripts refer to the different stages of developing an application:
 
 - `dev` - Runs `next` which starts Next.js in development mode
-- `build` - Runs `next build` which builds the Next.js application for production usage
+- `build` - Runs `next build` which builds the application for production usage
 - `start` - Runs `next start` which starts a Next.js production server
 
 <br/>
@@ -45,7 +45,7 @@ Pages are associated with a route based on their file name. For example `pages/a
 
 Create a `pages` directory inside your project.
 
-Populate `./pages/index.js` inside your project:
+Populate `./pages/index.js` with the following contents:
 
 ```jsx
 function HomePage() {
@@ -67,7 +67,7 @@ So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
 - Hot code reloading
-- Static rendering and on-demand server rendering of `./pages/`
+- Static generation and server-side rendering of [`./pages/`](/docs/concepts/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
 
 ## Related
