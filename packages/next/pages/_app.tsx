@@ -6,7 +6,8 @@ import {
   AppInitialProps,
   AppPropsType,
 } from '../next-server/lib/utils'
-import { Router } from '../client/router'
+import * as RouterObj from '../client/router'
+const { Router } = RouterObj
 
 export { AppInitialProps }
 
