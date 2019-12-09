@@ -77,7 +77,7 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/concepts/pages.md">
     <b>Pages:</b>
-    <small>Learn more about what are pages in Next.js</small>
+    <small>Learn more about what pages are in Next.js</small>
   </a>
 </div>
 

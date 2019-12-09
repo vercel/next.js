@@ -2,7 +2,7 @@
 
 A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory.
 
-Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even add dynamic route parameters with the filename.
+Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even utilize dynamic route parameters through the filename.
 
 For example `pages/index.js` could look like this, a React component returning some [JSX](https://reactjs.org/docs/introducing-jsx.html) content:
 
@@ -16,12 +16,12 @@ export default HomePage
 
 ## Pre-rendering
 
-Next.js comes with the concept of pre-rendering built-in and is enabled by default. Pre-rendering comes in 2 forms:
+Next.js comes with the concept of pre-rendering built-in. This is enabled by default. Pre-rendering comes in 2 forms:
 
 - Static Rendering
 - Server-side rendering
 
-Next.js applications can be a hybrid combination of these rendering targets. You decide per-page if it will be pre-rendered at build time or if will be pre-rendered on-demand.
+Next.js applications can be a hybrid combination of these rendering targets. You decide per-page if it will be statically rendered at build time or if will be server-rendered on-demand.
 
 The way that Pre-rendering works in Next.js is that the page is rendered to HTML either at build-time or on-demand, this generated HTML will be optimized automatically.
 
