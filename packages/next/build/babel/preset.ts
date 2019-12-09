@@ -95,7 +95,7 @@ module.exports = (
     }
   }
 
-  // spefify a preset to use instead of @babel/preset-env:
+  // specify a preset to use instead of @babel/preset-env:
   const customModernPreset =
     isLaxModern && options['experimental-modern-preset']
 
@@ -176,6 +176,8 @@ module.exports = (
           removeImport: true,
         },
       ],
+      require('@babel/plugin-proposal-optional-chaining'),
+      require('@babel/plugin-proposal-nullish-coalescing-operator'),
     ].filter(Boolean),
   }
 }
