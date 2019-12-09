@@ -39,16 +39,12 @@ yarn dev
 
 ## The idea behind the example
 
-This example shows how to analyze the output bundles using [@zeit/next-bundle-analyzer](https://github.com/zeit/next-plugins/tree/master/packages/next-bundle-analyzer)
+This example shows how to analyze the output bundles using [@next/bundle-analyzer](https://github.com/zeit/next.js/tree/master/packages/next-bundle-analyzer)
 
 To analyze your webpack output, invoke the following command:
 
 ```bash
 npm run analyze
-npm run analyze:server
-npm run analyze:browser
 # or
 yarn analyze
-yarn analyze:server
-yarn analyze:browser
 ```

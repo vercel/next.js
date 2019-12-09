@@ -1,11 +1,10 @@
-import hash from 'string-hash'
-import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
-import { EXPORT_NAME_GET_STATIC_PROPS } from '../../babel/plugins/next-page-config'
+import { basename, join } from 'path'
+import hash from 'string-hash'
 
 // increment 'e' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'f' + '-'
+const cacheKey = 'babel-cache-' + 'g' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -189,11 +188,9 @@ module.exports = babelLoader.custom(babel => {
       ])
 
       if (isPageFile) {
-        if (source.includes(EXPORT_NAME_GET_STATIC_PROPS)) {
+        if (!isServer) {
           options.plugins.push([
-            require.resolve(
-              '../../babel/plugins/dangerously-remove-unused-imports'
-            ),
+            require.resolve('../../babel/plugins/next-ssg-transform'),
             {},
           ])
         }
