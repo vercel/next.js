@@ -8,6 +8,8 @@ To get a list of the available CLI commands, run the following command inside yo
 npx next -h
 ```
 
+_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher)_
+
 The output should look like this:
 
 ```bash
@@ -25,8 +27,6 @@ Options
 For more information run a command with the --help flag
   $ next build --help
 ```
-
-_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher)_
 
 You can pass any node arguments to `next` commands:
 

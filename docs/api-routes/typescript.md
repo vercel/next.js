@@ -23,3 +23,14 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
   res.status(200).json({ name: 'Jhon Doe' })
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/typescript.md">
+    <b>TypeScript:</b>
+    <small>Add TypeScript to your Next.js application.</small>
+  </a>
+</div>

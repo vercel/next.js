@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-In React we can use [Hooks](https://reactjs.org/docs/hooks-intro.html) in function components, or [State and Lifecycle](https://reactjs.org/docs/state-and-lifecycle.html) in class components, to do client-side data fetching, and even though it works very well, there's also the need for **initial data population**, it means sending the page with the data already populated from the server, this is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
+In React we can use [Hooks](https://reactjs.org/docs/hooks-intro.html) in function components, or [State and Lifecycle](https://reactjs.org/docs/state-and-lifecycle.html) in class components, to do client-side data fetching, and even though it works very well, there's also the need for **initial data population**, it means sending the [page](/docs/concepts/pages.md) with the data already populated from the server, this is especially useful for [SEO](https://en.wikipedia.org/wiki/Search_engine_optimization).
 
 > Even though `getInitialProps` is very useful, please keep in mind that it'll disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
@@ -55,7 +55,7 @@ Data returned from `getInitialProps` is serialized when server rendering, simila
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`Link`](/docs/routing/using-link.md) component or by using the [Router API](/docs/api-reference/router/router.push.md).
 
-> If you want to know about what we mean by **server** and **client**, read [this section](/docs/advanced-features/server-side-and-client-side.md).
+> If you want to know about what we mean by **server** and **client**, read [this section](/docs/concepts/server-side-and-client-side.md).
 
 ## Context Object
 
@@ -70,5 +70,23 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ## Caveats
 
-- `getInitialProps` can **not** be used in children components, only in the default export of every `page`
+- `getInitialProps` can **not** be used in children components, only in the default export of every page
 - If you are using server-side only modules inside `getinitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/concepts/pages.md">
+    <b>Pages:</b>
+    <small>Learn more about what are pages in Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/concepts/server-side-and-client-side.md">
+    <b>Server-Side and Client-Side:</b>
+    <small>Learn more about how Next.js handles both server and client.</small>
+  </a>
+</div>

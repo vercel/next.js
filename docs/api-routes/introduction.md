@@ -45,3 +45,21 @@ export default (req, res) => {
 > API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with [micro-cors](/docs/api-routes/api-middlewares.md#micro-support).
 
 > API Routes do not increase your client-side bundle size. They are server-side only bundles.
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/api-routes/api-middlewares.md">
+    <b>API Middlewares:</b>
+    <small>learn about the built-in middlewares for the request.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/api-routes/response-helpers.md">
+    <b>Response Helpers:</b>
+    <small>learn about the built-in methods for the response.</small>
+  </a>
+</div>

@@ -69,3 +69,21 @@ So far, we get:
 - Hot code reloading
 - Static rendering and on-demand server rendering of `./pages/`
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/concepts/pages.md">
+    <b>Pages:</b>
+    <small>Learn more about what are pages in Next.js</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/built-in-css-support.md">
+    <b>CSS Support:</b>
+    <small>Use the built-in CSS support to add custom styles to your app</small>
+  </a>
+</div>
