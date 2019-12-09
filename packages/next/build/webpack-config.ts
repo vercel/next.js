@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
@@ -6,7 +5,6 @@ import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
-
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -14,15 +12,14 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { findConfig } from '../lib/find-config'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
@@ -31,6 +28,7 @@ import {
   PluginMetaData,
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
+import { build as buildConfiguration } from './webpack/config'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -91,105 +89,6 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     // Replace: full URL polyfill with platform-based polyfill
     url: require.resolve('native-url'),
   }
-}
-
-async function getPostCssPlugins(dir: string): Promise<unknown[]> {
-  function load(plugins: { [key: string]: object | false }): unknown[] {
-    return Object.keys(plugins)
-      .map(pkg => {
-        const options = plugins[pkg]
-        if (options === false) {
-          return false
-        }
-
-        const pluginPath = resolveRequest(pkg, `${dir}/`)
-
-        if (options == null || Object.keys(options).length === 0) {
-          return require(pluginPath)
-        }
-        return require(pluginPath)(options)
-      })
-      .filter(Boolean)
-  }
-
-  const config = await findConfig<{ plugins: { [key: string]: object } }>(
-    dir,
-    'postcss'
-  )
-
-  let target: unknown[]
-
-  if (!config) {
-    target = load({
-      [require.resolve('postcss-flexbugs-fixes')]: {},
-      [require.resolve('postcss-preset-env')]: {
-        autoprefixer: {
-          // Disable legacy flexbox support
-          flexbox: 'no-2009',
-        },
-        // Enable CSS features that have shipped to the
-        // web platform, i.e. in 2+ browsers unflagged.
-        stage: 3,
-      },
-    })
-  } else {
-    const plugins = config.plugins
-    if (plugins == null || typeof plugins !== 'object') {
-      throw new Error(
-        `Your custom PostCSS configuration must export a \`plugins\` key.`
-      )
-    }
-
-    const invalidKey = Object.keys(config).find(key => key !== 'plugins')
-    if (invalidKey) {
-      console.warn(
-        `${chalk.yellow.bold(
-          'Warning'
-        )}: Your PostCSS configuration defines a field which is not supported (\`${invalidKey}\`). ` +
-          `Please remove this configuration value.`
-      )
-    }
-
-    // These plugins cannot be enabled by the user because they'll conflict with
-    // `css-loader`'s behavior to make us compatible with webpack.
-    ;[
-      'postcss-modules-values',
-      'postcss-modules-scope',
-      'postcss-modules-extract-imports',
-      'postcss-modules-local-by-default',
-    ].forEach(plugin => {
-      if (!plugins.hasOwnProperty(plugin)) {
-        return
-      }
-
-      console.warn(
-        `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
-          plugin
-        )} plugin from your PostCSS configuration. ` +
-          `This plugin is automatically configured by Next.js.`
-      )
-      delete plugins[plugin]
-    })
-
-    // Next.js doesn't support CSS Modules yet. When we do, we should respect the
-    // options passed to this plugin (even though we need to remove the plugin
-    // itself).
-    if (plugins['postcss-modules']) {
-      delete plugins['postcss-modules']
-
-      console.warn(
-        `${chalk.yellow.bold(
-          'Warning'
-        )}: Next.js does not support CSS Modules (yet). The ${chalk.underline(
-          'postcss-modules'
-        )} plugin will have no effect.`
-      )
-    }
-
-    target = load(plugins as { [key: string]: object })
-  }
-
-  return target
 }
 
 export default async function getBaseWebpackConfig(
@@ -504,15 +403,7 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
-  const postCssPlugins: unknown[] = config.experimental.css
-    ? await getPostCssPlugins(dir)
-    : []
-
   let webpackConfig: webpack.Configuration = {
-    devtool,
-    mode: webpackMode,
-    name: isServer ? 'server' : 'client',
-    target: isServer ? 'node' : 'web',
     externals: !isServer
       ? undefined
       : !isServerless
@@ -741,14 +632,7 @@ export default async function getBaseWebpackConfig(
     },
     // @ts-ignore this is filtered
     module: {
-      strictExportPresence: true,
       rules: [
-        config.experimental.ampBindInitData &&
-          !isServer && {
-            test: /\.(tsx|ts|js|mjs|jsx)$/,
-            include: [path.join(dir, 'data')],
-            use: 'next-data-loader',
-          },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
@@ -760,132 +644,6 @@ export default async function getBaseWebpackConfig(
           },
           use: defaultLoaders.babel,
         },
-        config.experimental.css &&
-          // Support CSS imports
-          ({
-            oneOf: [
-              {
-                test: /\.css$/,
-                issuer: { include: [customAppFile].filter(Boolean) },
-                use: isServer
-                  ? // Global CSS is ignored on the server because it's only needed
-                    // on the client-side.
-                    require.resolve('ignore-loader')
-                  : [
-                      // During development we load CSS via JavaScript so we can
-                      // hot reload it without refreshing the page.
-                      dev && {
-                        loader: require.resolve('style-loader'),
-                        options: {
-                          // By default, style-loader injects CSS into the bottom
-                          // of <head>. This causes ordering problems between dev
-                          // and prod. To fix this, we render a <noscript> tag as
-                          // an anchor for the styles to be placed before. These
-                          // styles will be applied _before_ <style jsx global>.
-                          insert: function(element: Node) {
-                            // These elements should always exist. If they do not,
-                            // this code should fail.
-                            var anchorElement = document.querySelector(
-                              '#__next_css__DO_NOT_USE__'
-                            )!
-                            var parentNode = anchorElement.parentNode! // Normally <head>
-
-                            // Each style tag should be placed right before our
-                            // anchor. By inserting before and not after, we do not
-                            // need to track the last inserted element.
-                            parentNode.insertBefore(element, anchorElement)
-
-                            // Remember: this is development only code.
-                            //
-                            // After styles are injected, we need to remove the
-                            // <style> tags that set `body { display: none; }`.
-                            //
-                            // We use `requestAnimationFrame` as a way to defer
-                            // this operation since there may be multiple style
-                            // tags.
-                            ;(self.requestAnimationFrame || setTimeout)(
-                              function() {
-                                for (
-                                  var x = document.querySelectorAll(
-                                      '[data-next-hide-fouc]'
-                                    ),
-                                    i = x.length;
-                                  i--;
-
-                                ) {
-                                  x[i].parentNode!.removeChild(x[i])
-                                }
-                              }
-                            )
-                          },
-                        },
-                      },
-                      // When building for production we extract CSS into
-                      // separate files.
-                      !dev && {
-                        loader: MiniCssExtractPlugin.loader,
-                        options: {},
-                      },
-
-                      // Resolve CSS `@import`s and `url()`s
-                      {
-                        loader: require.resolve('css-loader'),
-                        options: { importLoaders: 1, sourceMap: true },
-                      },
-
-                      // Compile CSS
-                      {
-                        loader: require.resolve('postcss-loader'),
-                        options: {
-                          ident: 'postcss',
-                          plugins: postCssPlugins,
-                          sourceMap: true,
-                        },
-                      },
-                    ].filter(Boolean),
-                // A global CSS import always has side effects. Webpack will tree
-                // shake the CSS without this option if the issuer claims to have
-                // no side-effects.
-                // See https://github.com/webpack/webpack/issues/6571
-                sideEffects: true,
-              },
-              {
-                test: /\.css$/,
-                use: isServer
-                  ? require.resolve('ignore-loader')
-                  : {
-                      loader: 'error-loader',
-                      options: {
-                        reason:
-                          `Global CSS ${chalk.bold(
-                            'cannot'
-                          )} be imported from files other than your ${chalk.bold(
-                            'Custom <App>'
-                          )}. Please move all global CSS imports to ${chalk.cyan(
-                            customAppFile
-                              ? path.relative(dir, customAppFile)
-                              : 'pages/_app.js'
-                          )}.\n` +
-                          `Read more: https://err.sh/next.js/global-css`,
-                      },
-                    },
-              },
-            ],
-          } as webpack.RuleSetRule),
-        config.experimental.css &&
-          ({
-            loader: require.resolve('file-loader'),
-            issuer: {
-              // file-loader is only used for CSS files, e.g. url() for a SVG
-              // or font files
-              test: /\.css$/,
-            },
-            // Exclude extensions that webpack handles by default
-            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
-            options: {
-              name: 'static/media/[name].[hash].[ext]',
-            },
-          } as webpack.RuleSetRule),
       ].filter(Boolean),
     },
     plugins: [
@@ -1076,6 +834,15 @@ export default async function getBaseWebpackConfig(
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
+
+  webpackConfig = await buildConfiguration(webpackConfig, {
+    rootDirectory: dir,
+    customAppFile,
+    isDevelopment: dev,
+    isServer,
+    hasSupportCss: !!config.experimental.css,
+    hasExperimentalData: !!config.experimental.ampBindInitData,
+  })
 
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
