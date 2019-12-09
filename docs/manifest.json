@@ -22,22 +22,6 @@
           "path": "/docs/pages/ssr-with-getInitialProps.md"
         },
         {
-          "title": "Custom `App`",
-          "path": "/docs/pages/custom-app.md"
-        },
-        {
-          "title": "Custom `Document`",
-          "path": "/docs/pages/custom-document.md"
-        },
-        {
-          "title": "Custom Error Page",
-          "path": "/docs/pages/custom-error-page.md"
-        },
-        {
-          "title": "`src` Directory",
-          "path": "/docs/pages/src-directory.md"
-        },
-        {
           "title": "TypeScript",
           "path": "/docs/pages/typescript.md"
         }
@@ -273,6 +257,22 @@
         {
           "title": "Custom Server",
           "path": "/docs/advanced-features/custom-server.md"
+        },
+        {
+          "title": "Custom `App`",
+          "path": "/docs/pages/custom-app.md"
+        },
+        {
+          "title": "Custom `Document`",
+          "path": "/docs/pages/custom-document.md"
+        },
+        {
+          "title": "Custom Error Page",
+          "path": "/docs/pages/custom-error-page.md"
+        },
+        {
+          "title": "`src` Directory",
+          "path": "/docs/pages/src-directory.md"
         }
       ]
     },
