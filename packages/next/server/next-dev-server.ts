@@ -381,20 +381,8 @@ export default class DevServer extends Server {
     return !snippet.includes('data-amp-development-mode-only')
   }
 
-  /**
-   * Check if resolver function is build or request new build for this function
-   * @param {string} pathname
-   */
-  protected async resolveApiRequest(pathname: string): Promise<string | null> {
-    try {
-      await this.hotReloader!.ensurePage(pathname)
-    } catch (err) {
-      // API route dosn't exist => return 404
-      if (err.code === 'ENOENT') {
-        return null
-      }
-    }
-    return super.resolveApiRequest(pathname)
+  protected async ensureApiPage(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname)
   }
 
   async renderToHTML(

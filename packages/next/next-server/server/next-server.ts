@@ -84,6 +84,7 @@ export default class Server {
   pagesDir?: string
   publicDir: string
   hasStaticDir: boolean
+  serverBuildDir: string
   pagesManifest?: { [name: string]: string }
   buildId: string
   renderOpts: {
@@ -165,11 +166,11 @@ export default class Server {
       })
     }
 
-    const serverBuildPath = join(
+    this.serverBuildDir = join(
       this.distDir,
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
-    const pagesManifestPath = join(serverBuildPath, PAGES_MANIFEST)
+    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
 
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath)
@@ -181,10 +182,10 @@ export default class Server {
     // call init-server middleware, this is also handled
     // individually in serverless bundles when deployed
     if (!dev && this.nextConfig.experimental.plugins) {
-      const initServer = require(join(serverBuildPath, 'init-server.js'))
+      const initServer = require(join(this.serverBuildDir, 'init-server.js'))
         .default
       this.onErrorMiddleware = require(join(
-        serverBuildPath,
+        this.serverBuildDir,
         'on-error-server.js'
       )).default
       initServer()
@@ -503,13 +504,22 @@ export default class Server {
     return routes
   }
 
-  protected async hasPage(pathname: string): Promise<boolean> {
-    return !!getPagePath(
+  protected async getPagePath(pathname: string) {
+    return getPagePath(
       pathname,
       this.distDir,
       this._isLikeServerless,
       this.renderOpts.dev
     )
+  }
+
+  protected async hasPage(pathname: string): Promise<boolean> {
+    let found = false
+    try {
+      found = !!(await this.getPagePath(pathname))
+    } catch (_) {}
+
+    return found
   }
 
   protected async _beforeCatchAllRender(
@@ -521,6 +531,9 @@ export default class Server {
     return false
   }
 
+  // Used to build API page in development
+  protected async ensureApiPage(pathname: string) {}
+
   /**
    * Resolves `API` request, in development builds on demand
    * @param req http request
@@ -528,61 +541,42 @@ export default class Server {
    * @param pathname path of request
    */
   private async handleApiRequest(
-    req: NextApiRequest,
-    res: NextApiResponse,
+    req: IncomingMessage,
+    res: ServerResponse,
     pathname: string
   ) {
+    let page = pathname
     let params: Params | boolean = false
-    let apiPagePath: string | null = null
+    let pageFound = await this.hasPage(page)
 
-    try {
-      apiPagePath = await this.resolveApiRequest(pathname)
-    } catch (err) {
-      // if an error other than 404 occurred then rethrow
-      if (err.code !== 'ENOENT') throw err
-    }
-
-    if (this.dynamicRoutes && this.dynamicRoutes.length > 0 && !apiPagePath) {
+    if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname)
         if (params) {
-          apiPagePath = await this.resolveApiRequest(dynamicRoute.page)
+          page = dynamicRoute.page
+          pageFound = true
           break
         }
       }
     }
 
-    if (!apiPagePath) {
+    if (!pageFound) {
       return this.render404(req, res)
     }
+    // Make sure the page is built before getting the path
+    // or else it won't be in the manifest yet
+    await this.ensureApiPage(page)
+
+    const builtPagePath = await this.getPagePath(page)
+    const pageModule = require(builtPagePath)
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
-      const mod = require(apiPagePath)
-      if (typeof mod.default === 'function') {
-        return mod.default(req, res)
+      if (typeof pageModule.default === 'function') {
+        return pageModule.default(req, res)
       }
     }
 
-    await apiResolver(
-      req,
-      res,
-      params,
-      require(apiPagePath),
-      this.onErrorMiddleware
-    )
-  }
-
-  /**
-   * Resolves path to resolver function
-   * @param pathname path of request
-   */
-  protected async resolveApiRequest(pathname: string): Promise<string | null> {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev
-    )
+    await apiResolver(req, res, params, pageModule, this.onErrorMiddleware)
   }
 
   protected generatePublicRoutes(): Route[] {
