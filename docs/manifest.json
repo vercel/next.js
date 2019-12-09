@@ -7,10 +7,6 @@
         {
           "title": "Pages",
           "path": "/docs/concepts/pages.md"
-        },
-        {
-          "title": "Data Fetching",
-          "path": "/docs/concepts/data-fetching.md"
         }
       ]
     },

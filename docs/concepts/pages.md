@@ -18,16 +18,16 @@ export default HomePage
 
 Next.js comes with the concept of pre-rendering built-in and is enabled by default. Pre-rendering comes in 2 forms:
 
-- Build-time Pre-rendering
-- On-demand Pre-rendering
+- Static Rendering
+- Server-side rendering
 
-Next.js applications can be a hybrid of these rendering targets. You decide per-page if it's going to be pre-rendered at build time or if it's going to be pre-rendered on-demand.
+Next.js applications can be a hybrid combination of these rendering targets. You decide per-page if it will be pre-rendered at build time or if will be pre-rendered on-demand.
 
 The way that Pre-rendering works in Next.js is that the page is rendered to HTML either at build-time or on-demand, this generated HTML will be optimized automatically.
 
 The generated HTML will include the JavaScript needed to load React with the current page's React component. When that is loaded we use a process called "hydration" to make sure the React event handlers and effects are attached and called.
 
-## Build-time Pre-rendering
+## Static Generation
 
 Generally used for:
 
@@ -59,7 +59,7 @@ export default HomePage
 
 <br>
 
-## On-demand Pre-rendering
+## Server-Side Rendering
 
 Generally used for:
 
