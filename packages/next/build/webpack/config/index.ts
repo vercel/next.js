@@ -12,14 +12,14 @@ export async function build(
     isDevelopment,
     isServer,
     hasSupportCss,
-    hasSupportData,
+    hasExperimentalData,
   }: {
     rootDirectory: string
     customAppFile: string | null
     isDevelopment: boolean
     isServer: boolean
     hasSupportCss: boolean
-    hasSupportData: boolean
+    hasExperimentalData: boolean
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -33,7 +33,7 @@ export async function build(
 
   const fn = pipe(
     base(ctx),
-    experimentData(hasSupportData, ctx),
+    experimentData(hasExperimentalData, ctx),
     css(hasSupportCss, ctx)
   )
   return fn(config)

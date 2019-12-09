@@ -841,7 +841,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
-    hasSupportData: !!config.experimental.ampBindInitData,
+    hasExperimentalData: !!config.experimental.ampBindInitData,
   })
 
   if (typeof config.webpack === 'function') {
