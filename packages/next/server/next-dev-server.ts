@@ -394,8 +394,7 @@ export default class DevServer extends Server {
         return null
       }
     }
-    const resolvedPath = await super.resolveApiRequest(pathname)
-    return resolvedPath
+    return super.resolveApiRequest(pathname)
   }
 
   async renderToHTML(

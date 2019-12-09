@@ -533,32 +533,31 @@ export default class Server {
     pathname: string
   ) {
     let params: Params | boolean = false
-    let resolverFunction: any
+    let apiPagePath: string | null = null
 
     try {
-      resolverFunction = await this.resolveApiRequest(pathname)
-    } catch (err) {}
+      apiPagePath = await this.resolveApiRequest(pathname)
+    } catch (err) {
+      // if an error other than 404 occurred then rethrow
+      if (err.code !== 'ENOENT') throw err
+    }
 
-    if (
-      this.dynamicRoutes &&
-      this.dynamicRoutes.length > 0 &&
-      !resolverFunction
-    ) {
+    if (this.dynamicRoutes && this.dynamicRoutes.length > 0 && !apiPagePath) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname)
         if (params) {
-          resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          apiPagePath = await this.resolveApiRequest(dynamicRoute.page)
           break
         }
       }
     }
 
-    if (!resolverFunction) {
+    if (!apiPagePath) {
       return this.render404(req, res)
     }
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
-      const mod = require(resolverFunction)
+      const mod = require(apiPagePath)
       if (typeof mod.default === 'function') {
         return mod.default(req, res)
       }
@@ -568,7 +567,7 @@ export default class Server {
       req,
       res,
       params,
-      resolverFunction ? require(resolverFunction) : undefined,
+      require(apiPagePath),
       this.onErrorMiddleware
     )
   }
