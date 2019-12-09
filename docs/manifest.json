@@ -7,10 +7,6 @@
         {
           "title": "Pages",
           "path": "/docs/concepts/pages.md"
-        },
-        {
-          "title": "Server-Side and Client-Side",
-          "path": "/docs/concepts/server-side-and-client-side.md"
         }
       ]
     },
