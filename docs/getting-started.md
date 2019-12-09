@@ -9,7 +9,7 @@ The interactive course with quizzes will guide you through everything you need t
 #### System Requirements
 
 - We recommend using Node.js 10 or later
-- Linux, MacOS and Windows (including WSL) are supported
+- MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
 
