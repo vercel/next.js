@@ -138,4 +138,24 @@ describe('Prefetching Links in viewport', () => {
     }
     expect(found).toBe(false)
   })
+
+  it('should not duplicate prefetches', async () => {
+    const browser = await webdriver(appPort, '/multi-prefetch')
+    await waitFor(2 * 1000)
+
+    const links = await browser.elementsByCss('link[rel=preload]')
+
+    const hrefs = []
+    for (const link of links) {
+      const href = await link.getAttribute('href')
+      hrefs.push(href)
+    }
+    hrefs.sort()
+
+    // Ensure no duplicates
+    expect(hrefs).toEqual([...new Set(hrefs)])
+
+    // Verify encoding
+    expect(hrefs.some(e => e.includes(`%5Bhello%5D.js`))).toBe(true)
+  })
 })

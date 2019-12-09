@@ -624,7 +624,9 @@ export class NextScript extends Component<OriginProps> {
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return polyfillFiles
-      .filter(polyfill => !/\.module\.js$/.test(polyfill))
+      .filter(
+        polyfill => polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
+      )
       .map(polyfill => (
         <script
           key={polyfill}

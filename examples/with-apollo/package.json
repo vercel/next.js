@@ -20,5 +20,8 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "babel-plugin-graphql-tag": "^2.5.0"
+  }
 }

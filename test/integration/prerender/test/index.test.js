@@ -436,6 +436,29 @@ describe('SPR Prerender', () => {
     })
 
     runTests()
+
+    it('should not show invalid error', async () => {
+      const brokenPage = join(appDir, 'pages/broken.js')
+      await fs.writeFile(
+        brokenPage,
+        `
+        export async function unstable_getStaticProps() {
+          return {
+            hello: 'world'
+          }
+        }
+        export default () => 'hello world'
+      `
+      )
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      await fs.remove(brokenPage)
+      expect(stderr).toContain(
+        'Additional keys were returned from `getStaticProps`'
+      )
+      expect(stderr).not.toContain(
+        'You can not use getInitialProps with unstable_getStaticProps'
+      )
+    })
   })
 
   describe('production mode', () => {
