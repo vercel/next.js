@@ -84,7 +84,7 @@ export default class Server {
   pagesDir?: string
   publicDir: string
   hasStaticDir: boolean
-  pagesManifest: string
+  pagesManifest?: { [name: string]: string }
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -122,13 +122,6 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
-    this.pagesManifest = join(
-      this.distDir,
-      this.nextConfig.target === 'server'
-        ? SERVER_DIRECTORY
-        : SERVERLESS_DIRECTORY,
-      PAGES_MANIFEST
-    )
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -172,19 +165,26 @@ export default class Server {
       })
     }
 
+    const serverBuildPath = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(serverBuildPath, PAGES_MANIFEST)
+
+    if (!dev) {
+      this.pagesManifest = require(pagesManifestPath)
+    }
+
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
     // call init-server middleware, this is also handled
     // individually in serverless bundles when deployed
     if (!dev && this.nextConfig.experimental.plugins) {
-      const serverPath = join(
-        this.distDir,
-        this._isLikeServerless ? 'serverless' : 'server'
-      )
-      const initServer = require(join(serverPath, 'init-server.js')).default
+      const initServer = require(join(serverBuildPath, 'init-server.js'))
+        .default
       this.onErrorMiddleware = require(join(
-        serverPath,
+        serverBuildPath,
         'on-error-server.js'
       )).default
       initServer()
@@ -503,6 +503,15 @@ export default class Server {
     return routes
   }
 
+  protected async hasPage(pathname: string): Promise<boolean> {
+    return !!getPagePath(
+      pathname,
+      this.distDir,
+      this._isLikeServerless,
+      this.renderOpts.dev
+    )
+  }
+
   protected async _beforeCatchAllRender(
     _req: IncomingMessage,
     _res: ServerResponse,
@@ -580,16 +589,12 @@ export default class Server {
   protected generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
-    const serverBuildPath = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-    const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
     publicFiles.forEach(path => {
       const unixPath = path.replace(/\\/g, '/')
       // Only include public files that will not replace a page path
-      if (!pagesManifest[unixPath]) {
+      // this should not occur now that we check this during build
+      if (!this.pagesManifest![unixPath]) {
         routes.push({
           match: route(unixPath),
           type: 'route',
@@ -609,8 +614,9 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const manifest = require(this.pagesManifest)
-    const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
+    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
+      isDynamicRoute
+    )
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
       match: getRouteMatcher(getRouteRegex(page)),

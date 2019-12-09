@@ -245,6 +245,15 @@ export default class DevServer extends Server {
     }
   }
 
+  protected async hasPage(pathname: string): Promise<boolean> {
+    const pageFile = await findPageFile(
+      this.pagesDir!,
+      normalizePagePath(pathname),
+      this.nextConfig.pageExtensions
+    )
+    return !!pageFile
+  }
+
   protected async _beforeCatchAllRender(
     req: IncomingMessage,
     res: ServerResponse,
@@ -256,13 +265,7 @@ export default class DevServer extends Server {
     // check for a public file, throwing error if there's a
     // conflicting page
     if (await this.hasPublicFile(pathname!)) {
-      const pageFile = await findPageFile(
-        this.pagesDir!,
-        normalizePagePath(pathname!),
-        this.nextConfig.pageExtensions
-      )
-
-      if (pageFile) {
+      if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
         )
