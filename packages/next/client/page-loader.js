@@ -15,7 +15,7 @@ function preloadScript(url) {
   const link = document.createElement('link')
   link.rel = 'preload'
   link.crossOrigin = process.crossOrigin
-  link.href = encodeURI(url)
+  link.href = url
   link.as = 'script'
   document.head.appendChild(link)
 }
@@ -44,7 +44,8 @@ export default class PageLoader {
   // Returns a promise for the dependencies for a particular route
   getDependencies(route) {
     return this.promisedBuildManifest.then(
-      man => (man[route] && man[route].map(url => `/_next/${url}`)) || []
+      man =>
+        (man[route] && man[route].map(url => `/_next/${encodeURI(url)}`)) || []
     )
   }
 
@@ -122,7 +123,7 @@ export default class PageLoader {
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
-    )}/pages${scriptRoute}`
+    )}/pages${encodeURI(scriptRoute)}`
     this.loadScript(url, route, true)
   }
 
@@ -135,7 +136,7 @@ export default class PageLoader {
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
-    script.src = encodeURI(url)
+    script.src = url
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
@@ -194,9 +195,9 @@ export default class PageLoader {
       this.assetPrefix +
       (isDependency
         ? route
-        : `/_next/static/${encodeURIComponent(
-            this.buildId
-          )}/pages${scriptRoute}`)
+        : `/_next/static/${encodeURIComponent(this.buildId)}/pages${encodeURI(
+            scriptRoute
+          )}`)
 
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.

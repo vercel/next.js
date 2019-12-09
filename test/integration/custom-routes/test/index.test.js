@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import url from 'url'
+import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -21,6 +22,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 let nextConfigContent
+let stdout = ''
 let appPort
 let app
 
@@ -161,7 +163,7 @@ const runTests = (isDev = false) => {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',
             statusCode: 301,
-            regex: '^\\/docs\\/router-status\\/([^\\/]+?)$',
+            regex: '^\\/docs\\/router-status(?:\\/([^\\/]+?))$',
             regexKeys: ['code'],
           },
           {
@@ -175,14 +177,14 @@ const runTests = (isDev = false) => {
             source: '/docs/v2/advanced/:all(.*)',
             destination: '/docs/v2/more/:all',
             statusCode: 301,
-            regex: '^\\/docs\\/v2\\/advanced\\/(.*)$',
+            regex: '^\\/docs\\/v2\\/advanced(?:\\/(.*))$',
             regexKeys: ['all'],
           },
           {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
-            regex: '^\\/hello\\/([^\\/]+?)\\/another$',
+            regex: '^\\/hello(?:\\/([^\\/]+?))\\/another$',
             regexKeys: ['id'],
           },
           {
@@ -269,24 +271,40 @@ const runTests = (isDev = false) => {
           {
             source: '/test/:path',
             destination: '/:path',
-            regex: '^\\/test\\/([^\\/]+?)$',
+            regex: '^\\/test(?:\\/([^\\/]+?))$',
             regexKeys: ['path'],
           },
           {
             source: '/test-overwrite/:something/:another',
             destination: '/params/this-should-be-the-value',
-            regex: '^\\/test-overwrite\\/([^\\/]+?)\\/([^\\/]+?)$',
+            regex: '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$',
             regexKeys: ['something', 'another'],
           },
           {
             source: '/params/:something',
             destination: '/with-params',
-            regex: '^\\/params\\/([^\\/]+?)$',
+            regex: '^\\/params(?:\\/([^\\/]+?))$',
             regexKeys: ['something'],
           },
         ],
         dynamicRoutes: [],
       })
+    })
+
+    it('should have redirects/rewrites in build output', async () => {
+      const manifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+      const cleanStdout = stripAnsi(stdout)
+      expect(cleanStdout).toContain('Redirects')
+      expect(cleanStdout).toContain('Rewrites')
+      expect(cleanStdout).toMatch(/Source.*?Destination.*?statusCode/i)
+
+      for (const route of [...manifest.redirects, ...manifest.rewrites]) {
+        expect(cleanStdout).toMatch(
+          new RegExp(`${route.source}.*?${route.destination}`)
+        )
+      }
     })
   }
 }
@@ -303,7 +321,10 @@ describe('Custom routes', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
+      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      stdout = buildStdout
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -319,9 +340,16 @@ describe('Custom routes', () => {
         nextConfigContent.replace(/\/\/ target/, 'target'),
         'utf8'
       )
-      await nextBuild(appDir)
+      const { stdout: buildStdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      stdout = buildStdout
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStdout: msg => {
+          stdout += msg
+        },
+      })
     })
     afterAll(async () => {
       await killApp(app)
