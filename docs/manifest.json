@@ -48,10 +48,6 @@
       "title": "Routing",
       "routes": [
         {
-          "title": "Introduction",
-          "path": "/docs/routing/introduction.md"
-        },
-        {
           "title": "Using `Link`",
           "path": "/docs/routing/using-link.md"
         },
