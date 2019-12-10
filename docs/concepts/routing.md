@@ -83,6 +83,16 @@ export default Home
 
 The router is divided in multiple parts:
 
-- [`Link`](/docs/routing/using-link.md): The component that handles client-side navigation.
-- [`useRouter`](/docs/routing/useRouter.md) and [`withRouter`](/docs/routing/withRouter.md): Allow your pages to access the [`router`](/docs/routing/router-object.md) in React components.
-- [Router API](/docs/api-reference/router/router.push.md): Aimed at advanced usage.
+<div class="card">
+  <a href="/docs/routing/using-link.md)">
+    <b>`Link`:</b>
+    <small>The component that handles client-side navigation.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/routing/injecting-router.md">
+    <b>`useRouter` and `withRouter`:</b>
+    <small>Allow your pages to access the router in React components.</small>
+  </a>
+</div>
