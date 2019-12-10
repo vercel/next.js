@@ -96,3 +96,10 @@ HomePage.getInitialProps = async ({ req }) => {
 
 export default HomePage
 ```
+
+<div class="card">
+  <a href="/docs/concepts/routing.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js</small>
+  </a>
+</div>
