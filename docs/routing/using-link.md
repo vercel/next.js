@@ -9,8 +9,6 @@
 
 Client-side transitions between routes can be enabled via the `Link` component.
 
-> This component is not required for navigations to static pages that require a hard refresh, like when using [AMP](/docs/amp-support/introduction.md).
-
 Consider the following page:
 
 ```jsx
