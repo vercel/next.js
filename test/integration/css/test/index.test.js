@@ -857,6 +857,81 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Has CSS Module in computed styles in Development', () => {
+    const appDir = join(fixturesDir, 'single-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have CSS for page', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Has CSS Module in computed styles in Production', () => {
+    const appDir = join(fixturesDir, 'single-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it('should have CSS for page', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('Can hot reload CSS Module without losing state', () => {
     const appDir = join(fixturesDir, 'hmr-module')
 
