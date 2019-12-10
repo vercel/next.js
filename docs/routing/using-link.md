@@ -9,7 +9,7 @@
 
 Client-side transitions between routes can be enabled via the `Link` component.
 
-Consider the following page:
+An example of linking to `/` and `/about`:
 
 ```jsx
 import Link from 'next/link'
