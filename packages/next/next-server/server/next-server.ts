@@ -504,7 +504,7 @@ export default class Server {
       fsRoutes,
       catchAllRoute,
       dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage,
+      pageChecker: this.hasPage.bind(this),
     }
   }
 
