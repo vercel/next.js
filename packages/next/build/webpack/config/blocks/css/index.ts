@@ -89,8 +89,10 @@ export const css = curry(async function css(
           test: /\.module\.css$/,
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
-          include: [ctx.rootDirectory],
-          exclude: /node_modules/,
+          issuer: {
+            include: [ctx.rootDirectory],
+            exclude: /node_modules/,
+          },
 
           use: ([
             // Add appropriate development more or production mode style
