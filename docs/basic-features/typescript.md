@@ -43,7 +43,7 @@ By default, Next.js reports TypeScript errors during development for pages you a
 
 If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).
 
-# Pages
+## Pages
 
 For function components `NextPage` type is exported, here's how to use it:
 
