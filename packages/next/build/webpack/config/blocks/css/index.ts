@@ -104,6 +104,7 @@ export const css = curry(async function css(
               options: {
                 importLoaders: 1,
                 sourceMap: true,
+                onlyLocals: ctx.isServer,
                 modules: {
                   // Disallow global style exports so we can code-split CSS and
                   // not worry about loading order.

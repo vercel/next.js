@@ -203,19 +203,19 @@ describe('CSS Support', () => {
 
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-        Object {
-          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
-          "sourcesContent": Array [
-            "@media (480px <= width < 768px) {
-          ::placeholder {
-            color: green;
-          }
-        }
-        ",
-          ],
-          "version": 3,
-        }
-      `)
+                        Object {
+                          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
+                          "sourcesContent": Array [
+                            "@media (480px <= width < 768px) {
+                          ::placeholder {
+                            color: green;
+                          }
+                        }
+                        ",
+                          ],
+                          "version": 3,
+                        }
+                  `)
     })
   })
 
@@ -261,25 +261,25 @@ describe('CSS Support', () => {
 
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-        Object {
-          "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
-          "sourcesContent": Array [
-            "/* this should pass through untransformed */
-        @media (480px <= width < 768px) {
-          ::placeholder {
-            color: green;
-          }
-        }
+                        Object {
+                          "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
+                          "sourcesContent": Array [
+                            "/* this should pass through untransformed */
+                        @media (480px <= width < 768px) {
+                          ::placeholder {
+                            color: green;
+                          }
+                        }
 
-        /* this should be transformed to width/height */
-        .video {
-          -xyz-max-size: 400px 300px;
-        }
-        ",
-          ],
-          "version": 3,
-        }
-      `)
+                        /* this should be transformed to width/height */
+                        .video {
+                          -xyz-max-size: 400px 300px;
+                        }
+                        ",
+                          ],
+                          "version": 3,
+                        }
+                  `)
     })
   })
 
@@ -674,12 +674,12 @@ describe('CSS Support', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
-          "dark.svg",
-          "dark2.svg",
-          "light.svg",
-        ]
-      `)
+                        Array [
+                          "dark.svg",
+                          "dark2.svg",
+                          "light.svg",
+                        ]
+                  `)
     })
   })
 
@@ -798,6 +798,62 @@ describe('CSS Support', () => {
       const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
+    })
+  })
+
+  describe('Basic CSS Module Support', () => {
+    const appDir = join(fixturesDir, 'single-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".index_redText__3CwEB{color:red}"`)
+    })
+
+    it(`should've injected the CSS on server render`, async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      const cssPreload = $('link[rel="preload"][as="style"]')
+      expect(cssPreload.length).toBe(1)
+      expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      const cssSheet = $('link[rel="stylesheet"]')
+      expect(cssSheet.length).toBe(1)
+      expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
+        `"index_redText__3CwEB"`
+      )
     })
   })
 })
