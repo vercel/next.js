@@ -24,8 +24,13 @@ The router supports nested files. If you create a nested folder structure files 
 
 To match a dynamic segment you can use the bracket syntax. This allows you to match named parameters.
 
-- `pages/blog/[slug].js` → matches `/blog/:slug`.<br/>For example `/blog/hello-world`.
-- `pages/[username]/settings.js` → matches `/:username/settings`.<br/>For example `/foo/settings`.
+`pages/blog/[slug].js` → matches `/blog/:slug`.
+
+For example `/blog/hello-world`.
+
+`pages/[username]/settings.js` → matches `/:username/settings`
+
+For example `/foo/settings`.
 
 ## Linking between pages
 
