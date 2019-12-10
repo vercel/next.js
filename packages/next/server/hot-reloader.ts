@@ -181,7 +181,7 @@ export default class HotReloader {
       }
 
       if (params.buildId !== this.buildId) {
-        return
+        return {}
       }
 
       const page = `/${params.path.join('/')}`
