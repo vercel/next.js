@@ -56,12 +56,8 @@
           "path": "/docs/routing/dynamic-routes.md"
         },
         {
-          "title": "useRouter",
-          "path": "/docs/routing/useRouter.md"
-        },
-        {
-          "title": "withRouter",
-          "path": "/docs/routing/withRouter.md"
+          "title": "Injecting the router",
+          "path": "/docs/routing/injecting-router.md"
         },
         {
           "title": "Imperatively",
