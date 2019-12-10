@@ -16,10 +16,6 @@
         {
           "title": "SSR with getInitialProps",
           "path": "/docs/pages/ssr-with-getInitialProps.md"
-        },
-        {
-          "title": "TypeScript",
-          "path": "/docs/pages/typescript.md"
         }
       ]
     },

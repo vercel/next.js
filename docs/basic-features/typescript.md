@@ -42,3 +42,49 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 By default, Next.js reports TypeScript errors during development for pages you are actively working on. TypeScript errors for inactive pages **do not** block the development process.
 
 If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).
+
+# Pages
+
+For function components `NextPage` type is exported, here's how to use it:
+
+```jsx
+import { NextPage } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
+)
+
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
+}
+
+export default Page
+```
+
+And for `React.Component` you can use `NextPageContext`:
+
+```jsx
+import React from 'react'
+import { NextPageContext } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+export default class Page extends React.Component<Props> {
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
+  }
+
+  render() {
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
+  }
+}
+```
