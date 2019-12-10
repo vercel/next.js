@@ -4,7 +4,7 @@ A page is a [React Component](https://reactjs.org/docs/components-and-props.html
 
 Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even utilize dynamic route parameters through the filename.
 
-For example `pages/index.js` could look like this, a React component returning some [JSX](https://reactjs.org/docs/introducing-jsx.html) content:
+For example `pages/index.js` could be a React component returning some [JSX](https://reactjs.org/docs/introducing-jsx.html) content:
 
 ```jsx
 function HomePage() {

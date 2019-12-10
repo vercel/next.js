@@ -7,6 +7,10 @@
         {
           "title": "Pages",
           "path": "/docs/concepts/pages.md"
+        },
+        {
+          "title": "Routing",
+          "path": "/docs/concepts/routing.md"
         }
       ]
     },
