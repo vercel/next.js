@@ -18,7 +18,7 @@ describe('Legacy Prerender', () => {
       )
     })
 
-    it('should fail the build in server mode', async () => {
+    it('should fail the build in serverless mode', async () => {
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'serverless' }`
