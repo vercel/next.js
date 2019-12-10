@@ -27,6 +27,7 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
+import checkCustomRoutes from '../lib/check-custom-routes'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -316,9 +317,11 @@ export default class DevServer extends Server {
 
     if (typeof redirects === 'function') {
       result.redirects = await redirects()
+      checkCustomRoutes(result.redirects, 'redirect')
     }
     if (typeof rewrites === 'function') {
       result.rewrites = await rewrites()
+      checkCustomRoutes(result.rewrites, 'rewrite')
     }
     this.customRoutes = result
   }
