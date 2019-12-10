@@ -246,6 +246,15 @@ export default class DevServer extends Server {
     }
   }
 
+  protected async hasPage(pathname: string): Promise<boolean> {
+    const pageFile = await findPageFile(
+      this.pagesDir!,
+      normalizePagePath(pathname),
+      this.nextConfig.pageExtensions
+    )
+    return !!pageFile
+  }
+
   protected async _beforeCatchAllRender(
     req: IncomingMessage,
     res: ServerResponse,
@@ -257,13 +266,7 @@ export default class DevServer extends Server {
     // check for a public file, throwing error if there's a
     // conflicting page
     if (await this.hasPublicFile(pathname!)) {
-      const pageFile = await findPageFile(
-        this.pagesDir!,
-        normalizePagePath(pathname!),
-        this.nextConfig.pageExtensions
-      )
-
-      if (pageFile) {
+      if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
         )
@@ -381,21 +384,8 @@ export default class DevServer extends Server {
     return !snippet.includes('data-amp-development-mode-only')
   }
 
-  /**
-   * Check if resolver function is build or request new build for this function
-   * @param {string} pathname
-   */
-  protected async resolveApiRequest(pathname: string): Promise<string | null> {
-    try {
-      await this.hotReloader!.ensurePage(pathname)
-    } catch (err) {
-      // API route dosn't exist => return 404
-      if (err.code === 'ENOENT') {
-        return null
-      }
-    }
-    const resolvedPath = await super.resolveApiRequest(pathname)
-    return resolvedPath
+  protected async ensureApiPage(pathname: string) {
+    return this.hotReloader!.ensurePage(pathname)
   }
 
   async renderToHTML(

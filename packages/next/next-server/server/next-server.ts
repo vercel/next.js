@@ -76,7 +76,8 @@ export default class Server {
   pagesDir?: string
   publicDir: string
   hasStaticDir: boolean
-  pagesManifest: string
+  serverBuildDir: string
+  pagesManifest?: { [name: string]: string }
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -114,13 +115,6 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
-    this.pagesManifest = join(
-      this.distDir,
-      this.nextConfig.target === 'server'
-        ? SERVER_DIRECTORY
-        : SERVERLESS_DIRECTORY,
-      PAGES_MANIFEST
-    )
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -164,19 +158,26 @@ export default class Server {
       })
     }
 
+    this.serverBuildDir = join(
+      this.distDir,
+      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+
+    if (!dev) {
+      this.pagesManifest = require(pagesManifestPath)
+    }
+
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
     // call init-server middleware, this is also handled
     // individually in serverless bundles when deployed
     if (!dev && this.nextConfig.experimental.plugins) {
-      const serverPath = join(
-        this.distDir,
-        this._isLikeServerless ? 'serverless' : 'server'
-      )
-      const initServer = require(join(serverPath, 'init-server.js')).default
+      const initServer = require(join(this.serverBuildDir, 'init-server.js'))
+        .default
       this.onErrorMiddleware = require(join(
-        serverPath,
+        this.serverBuildDir,
         'on-error-server.js'
       )).default
       initServer()
@@ -495,6 +496,24 @@ export default class Server {
     return routes
   }
 
+  private async getPagePath(pathname: string) {
+    return getPagePath(
+      pathname,
+      this.distDir,
+      this._isLikeServerless,
+      this.renderOpts.dev
+    )
+  }
+
+  protected async hasPage(pathname: string): Promise<boolean> {
+    let found = false
+    try {
+      found = !!(await this.getPagePath(pathname))
+    } catch (_) {}
+
+    return found
+  }
+
   protected async _beforeCatchAllRender(
     _req: IncomingMessage,
     _res: ServerResponse,
@@ -504,6 +523,9 @@ export default class Server {
     return false
   }
 
+  // Used to build API page in development
+  protected async ensureApiPage(pathname: string) {}
+
   /**
    * Resolves `API` request, in development builds on demand
    * @param req http request
@@ -511,77 +533,53 @@ export default class Server {
    * @param pathname path of request
    */
   private async handleApiRequest(
-    req: NextApiRequest,
-    res: NextApiResponse,
+    req: IncomingMessage,
+    res: ServerResponse,
     pathname: string
   ) {
+    let page = pathname
     let params: Params | boolean = false
-    let resolverFunction: any
+    let pageFound = await this.hasPage(page)
 
-    try {
-      resolverFunction = await this.resolveApiRequest(pathname)
-    } catch (err) {}
-
-    if (
-      this.dynamicRoutes &&
-      this.dynamicRoutes.length > 0 &&
-      !resolverFunction
-    ) {
+    if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname)
         if (params) {
-          resolverFunction = await this.resolveApiRequest(dynamicRoute.page)
+          page = dynamicRoute.page
+          pageFound = true
           break
         }
       }
     }
 
-    if (!resolverFunction) {
+    if (!pageFound) {
       return this.render404(req, res)
     }
+    // Make sure the page is built before getting the path
+    // or else it won't be in the manifest yet
+    await this.ensureApiPage(page)
+
+    const builtPagePath = await this.getPagePath(page)
+    const pageModule = require(builtPagePath)
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
-      const mod = require(resolverFunction)
-      if (typeof mod.default === 'function') {
-        return mod.default(req, res)
+      if (typeof pageModule.default === 'function') {
+        return pageModule.default(req, res)
       }
     }
 
-    await apiResolver(
-      req,
-      res,
-      params,
-      resolverFunction ? require(resolverFunction) : undefined,
-      this.onErrorMiddleware
-    )
-  }
-
-  /**
-   * Resolves path to resolver function
-   * @param pathname path of request
-   */
-  protected async resolveApiRequest(pathname: string): Promise<string | null> {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev
-    )
+    await apiResolver(req, res, params, pageModule, this.onErrorMiddleware)
   }
 
   protected generatePublicRoutes(): Route[] {
     const routes: Route[] = []
     const publicFiles = recursiveReadDirSync(this.publicDir)
-    const serverBuildPath = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-    const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
     publicFiles.forEach(path => {
       const unixPath = path.replace(/\\/g, '/')
       // Only include public files that will not replace a page path
-      if (!pagesManifest[unixPath]) {
+      // this should not occur now that we check this during build
+      if (!this.pagesManifest![unixPath]) {
         routes.push({
           match: route(unixPath),
           type: 'route',
@@ -601,8 +599,9 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
-    const manifest = require(this.pagesManifest)
-    const dynamicRoutedPages = Object.keys(manifest).filter(isDynamicRoute)
+    const dynamicRoutedPages = Object.keys(this.pagesManifest!).filter(
+      isDynamicRoute
+    )
     return getSortedRoutes(dynamicRoutedPages).map(page => ({
       page,
       match: getRouteMatcher(getRouteRegex(page)),
