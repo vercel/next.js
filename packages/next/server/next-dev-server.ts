@@ -186,6 +186,7 @@ export default class DevServer extends Server {
           page,
           match: getRouteMatcher(getRouteRegex(page)),
         }))
+        this.router.setDynamicRoutes(this.dynamicRoutes)
 
         if (!resolved) {
           resolve()
@@ -329,7 +330,13 @@ export default class DevServer extends Server {
   }
 
   generateRoutes() {
-    const { routes, fsRoutes } = super.generateRoutes()
+    const {
+      routes,
+      fsRoutes,
+      catchAllRoute,
+      dynamicRoutes,
+      pageChecker,
+    } = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
@@ -351,7 +358,7 @@ export default class DevServer extends Server {
     routes.unshift(...devRoutes)
     fsRoutes.unshift(...devRoutes)
 
-    return { routes, fsRoutes }
+    return { routes, fsRoutes, catchAllRoute, dynamicRoutes, pageChecker }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
