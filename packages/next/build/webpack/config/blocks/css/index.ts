@@ -5,7 +5,7 @@ import webpack, { Configuration } from 'webpack'
 import { loader } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
-import { getGlobalImportError } from './messages'
+import { getGlobalImportError, getModuleImportError } from './messages'
 import { getPostCssPlugins } from './plugins'
 
 function getClientStyleLoader({
@@ -131,6 +131,23 @@ export const css = curry(async function css(
               },
             },
           ] as webpack.RuleSetUseItem[]).filter(Boolean),
+        },
+      ],
+    })
+  )
+
+  // Throw an error for CSS Modules used outside their supported scope
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: /\.module\.css$/,
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getModuleImportError(),
+            },
+          },
         },
       ],
     })

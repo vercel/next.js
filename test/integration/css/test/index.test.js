@@ -992,8 +992,52 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Invalid CSS Module Usage in node_modules', () => {
+    const appDir = join(fixturesDir, 'invalid-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail to build', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('node_modules/example/index.module.css')
+      expect(stderr).toMatch(
+        /CSS Modules.*cannot.*be imported from within.*node_modules/
+      )
+    })
+  })
+
+  describe('Valid CSS Module Usage from within node_modules', () => {
+    const appDir = join(fixturesDir, 'nm-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".example_redText__1rb5g{color:\\"red\\"}"`)
+    })
+  })
+
   // TODO: test navigating between pages with CSS requirements
   // TODO: test navigating from page with no CSS req to one with CSS
   // TODO: test CSS file preload feature when `<Link>` in viewport
-  // TODO: test CSS module support in unsupported files (`node_modules`)
 })
