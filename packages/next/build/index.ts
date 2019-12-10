@@ -55,6 +55,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import checkCustomRoutes from '../lib/check-custom-routes'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -102,9 +103,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (typeof config.experimental.redirects === 'function') {
     redirects.push(...(await config.experimental.redirects()))
+    checkCustomRoutes(redirects, 'redirect')
   }
   if (typeof config.experimental.rewrites === 'function') {
     rewrites.push(...(await config.experimental.rewrites()))
+    checkCustomRoutes(rewrites, 'rewrite')
   }
 
   if (ciEnvironment.isCI) {
@@ -137,18 +140,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let publicFiles: string[] = []
   let hasPublicDir = false
 
-  let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(
-    telemetry.record(
-      eventVersion({
-        cliCommand: 'build',
-        isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
-        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
-        isCustomServer: null,
-      })
-    ),
-    eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
+  telemetry.record(
+    eventVersion({
+      cliCommand: 'build',
+      isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+      hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+      isCustomServer: null,
+    })
   )
+
+  eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
@@ -322,13 +323,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn()
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
-    backgroundWork.push(
-      telemetry.record(
-        eventBuildDuration({
-          totalPageCount: pagePaths.length,
-          durationInSeconds: webpackBuildEnd[0],
-        })
-      )
+    telemetry.record(
+      eventBuildDuration({
+        totalPageCount: pagePaths.length,
+        durationInSeconds: webpackBuildEnd[0],
+      })
     )
   }
   const postBuildSpinner = createSpinner({
@@ -673,15 +672,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   console.log()
 
   const analysisEnd = process.hrtime(analysisBegin)
-  backgroundWork.push(
-    telemetry.record(
-      eventBuildOptimize({
-        durationInSeconds: analysisEnd[0],
-        totalPageCount: pagePaths.length,
-        staticPageCount: staticPages.size,
-        ssrPageCount: pagePaths.length - staticPages.size,
-      })
-    )
+  telemetry.record(
+    eventBuildOptimize({
+      durationInSeconds: analysisEnd[0],
+      totalPageCount: pagePaths.length,
+      staticPageCount: staticPages.size,
+      ssrPageCount: pagePaths.length - staticPages.size,
+    })
   )
 
   if (sprPages.size > 0) {
@@ -780,5 +777,5 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   }
 
-  await Promise.all(backgroundWork).catch(() => {})
+  await telemetry.flush()
 }
