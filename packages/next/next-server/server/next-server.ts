@@ -504,7 +504,7 @@ export default class Server {
     return routes
   }
 
-  protected async getPagePath(pathname: string) {
+  private async getPagePath(pathname: string) {
     return getPagePath(
       pathname,
       this.distDir,
