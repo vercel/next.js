@@ -991,4 +991,9 @@ describe('CSS Support', () => {
       }
     })
   })
+
+  // TODO: test navigating between pages with CSS requirements
+  // TODO: test navigating from page with no CSS req to one with CSS
+  // TODO: test CSS file preload feature when `<Link>` in viewport
+  // TODO: test CSS module support in unsupported files (`node_modules`)
 })
