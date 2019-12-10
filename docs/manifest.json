@@ -87,10 +87,6 @@
         {
           "title": "Response Helpers",
           "path": "/docs/api-routes/response-helpers.md"
-        },
-        {
-          "title": "TypeScript",
-          "path": "/docs/api-routes/typescript.md"
         }
       ]
     },
