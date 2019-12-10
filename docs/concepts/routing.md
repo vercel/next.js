@@ -4,12 +4,25 @@ Next.js has a file-system based router built on the [concept of pages](/docs/con
 
 When a file is added to the `pages` directory it's automatically available as a route. For example:
 
+#### Index routes
+
+The router will automatically route files named `index` to the root of the directory.
+
 - `pages/index.js` → `/`
-- `pages/about.js` → `/about`
-- `pages/dashboard/settings/username.js` → `/dashboard/settings/username` - Deeply nested directory
-- `pages/blog/index.js` → `/blog` - Nested index files are mapped to the directory name
+- `pages/blog/index.js` → `/blog`
+
+#### Nested routes
+
+The router supports nested files. If you create a nested folder structure files will be automatically routed in the same way still.
+
 - `pages/blog/first-post.js` → `/blog/first-post`
-- `pages/blog/[slug].js` → `/blog/:slug` - matching dynamic path segments
+- `pages/dashboard/settings/username.js` → `/dashboard/settings/username`
+
+#### Dynamic route segments
+
+To match a dynamic segment you can use the bracket syntax. This allows you to match named parameters.
+
+- `pages/blog/[slug].js` → matches `/blog/:slug`. For example `/blog/hello-world`.
 
 ## Linking between pages
 
