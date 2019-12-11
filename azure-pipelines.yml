@@ -39,6 +39,10 @@ steps:
     displayName: 'Install dependencies'
 
   - script: |
+      chrome --version
+    displayName: 'List Chrome version'
+
+  - script: |
       node node_modules/chromedriver/install.js
     displayName: 'Install correct Chrome Driver version'
 
