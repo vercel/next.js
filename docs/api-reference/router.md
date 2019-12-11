@@ -1,6 +1,6 @@
 # Router API
 
-Below are defined the available methods of the `Router` exported by `next/router`
+Below is defined API of the `Router` exported by `next/router`.
 
 ## Router.push
 
