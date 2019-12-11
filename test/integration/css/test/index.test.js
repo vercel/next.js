@@ -921,8 +921,9 @@ describe('CSS Support', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/')
-        await waitFor(2000) // ensure application hydrates
+        await waitFor(2000)
 
+        await browser.waitForElementByCss('#verify-red')
         const currentColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#verify-red')).color`
         )
