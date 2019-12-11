@@ -802,7 +802,7 @@ describe('CSS Support', () => {
   })
 
   describe('Basic CSS Module Support', () => {
-    const appDir = join(fixturesDir, 'single-module')
+    const appDir = join(fixturesDir, 'basic-module')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
@@ -858,7 +858,7 @@ describe('CSS Support', () => {
   })
 
   describe('Has CSS Module in computed styles in Development', () => {
-    const appDir = join(fixturesDir, 'single-module')
+    const appDir = join(fixturesDir, 'dev-module')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
@@ -892,7 +892,7 @@ describe('CSS Support', () => {
   })
 
   describe('Has CSS Module in computed styles in Production', () => {
-    const appDir = join(fixturesDir, 'single-module-copy')
+    const appDir = join(fixturesDir, 'prod-module')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
