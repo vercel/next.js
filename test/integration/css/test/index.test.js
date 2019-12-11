@@ -283,6 +283,73 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('CSS Customization Array', () => {
+    const appDir = join(fixturesDir, 'custom-configuration-arr')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've compiled and prefixed`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        `"@media (480px <= width < 768px){a:before{content:\\"\\"}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
+      )
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
+      const cssMapContent = (
+        await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+      ).trim()
+
+      const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+      expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
+        Object {
+          "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
+          "sourcesContent": Array [
+            "/* this should pass through untransformed */
+        @media (480px <= width < 768px) {
+          a::before {
+            content: '';
+          }
+          ::placeholder {
+            color: green;
+          }
+        }
+
+        /* this should be transformed to width/height */
+        .video {
+          -xyz-max-size: 400rem 300rem;
+        }
+        ",
+          ],
+          "version": 3,
+        }
+      `)
+    })
+  })
+
   describe('Bad CSS Customization', () => {
     const appDir = join(fixturesDir, 'bad-custom-configuration')
 

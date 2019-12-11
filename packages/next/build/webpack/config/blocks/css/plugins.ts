@@ -46,7 +46,7 @@ async function loadPlugin(
   pluginName: string,
   options: boolean | object
 ): Promise<import('postcss').AcceptedPlugin | false> {
-  if (options === false || isIgnoredPlugin(pluginName)) {
+  if (options === false || (await isIgnoredPlugin(pluginName))) {
     return false
   }
 
@@ -56,7 +56,7 @@ async function loadPlugin(
   }
 
   const pluginPath = resolveRequest(pluginName, `${dir}/`)
-  if (isIgnoredPlugin(pluginPath)) {
+  if (await isIgnoredPlugin(pluginPath)) {
     return false
   } else if (options === true) {
     return require(pluginPath)
@@ -184,5 +184,6 @@ export async function getPostCssPlugins(
   const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
     Boolean
   ) as import('postcss').AcceptedPlugin[]
+
   return filtered
 }
