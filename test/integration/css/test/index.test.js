@@ -910,6 +910,8 @@ describe('CSS Support', () => {
 
       app = await startApp(server)
       appPort = app.address().port
+
+      await waitFor(2000) // ensure server starts
     })
     afterAll(async () => {
       await stopApp(app)
@@ -919,6 +921,7 @@ describe('CSS Support', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/')
+        await waitFor(2000) // ensure application hydrates
 
         const currentColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#verify-red')).color`
