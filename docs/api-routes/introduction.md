@@ -63,3 +63,10 @@ For more information on what to do next, we recommend the following sections:
     <small>learn about the built-in methods for the response.</small>
   </a>
 </div>
+
+<div class="card">
+  <a href="/docs/basic-features/typescript.md#api-routes">
+    <b>TypeScript:</b>
+    <small>Add TypeScript to your API Routes</small>
+  </a>
+</div>

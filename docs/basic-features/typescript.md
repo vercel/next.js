@@ -45,7 +45,7 @@ If you want to silence the error reports, refer to the documentation for [Ignori
 
 ## Pages
 
-For function components `NextPage` type is exported, here's how to use it:
+For function components the `NextPage` type is exported, here's how to use it:
 
 ```jsx
 import { NextPage } from 'next'

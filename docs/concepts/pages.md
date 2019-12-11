@@ -97,9 +97,20 @@ HomePage.getInitialProps = async ({ req }) => {
 export default HomePage
 ```
 
+## Learn more
+
+For more information on what to do next, we recommend the following sections:
+
 <div class="card">
   <a href="/docs/concepts/routing.md">
     <b>Routing:</b>
     <small>Learn more about routing in Next.js</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/typescript.md#pages">
+    <b>TypeScript:</b>
+    <small>Add TypeScript to your pages</small>
   </a>
 </div>
