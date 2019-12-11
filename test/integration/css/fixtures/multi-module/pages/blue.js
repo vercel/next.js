@@ -8,7 +8,7 @@ export default function Blue() {
         This text should be blue.
       </div>
       <br />
-      <Link href="/red" prefetch={false}>
+      <Link href="/red" prefetch>
         <a id="link-red">Red</a>
       </Link>
       <br />
