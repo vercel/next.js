@@ -93,7 +93,7 @@ const expectedManifestRoutes = () => ({
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: false,
     srcRoute: null,
   },
   '/something': {
@@ -114,11 +114,16 @@ const navigateTest = () => {
       '/blog/post-1/comment-1',
     ]
 
+    await waitFor(2500)
+
     await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
 
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
+
+    // hydration
+    await waitFor(2500)
 
     // go to /another
     await browser.elementByCss('#another').click()

@@ -19,7 +19,7 @@ export type LoadComponentsReturnType = {
     params: any
   }) => {
     props: any
-    revalidate: number | false
+    revalidate?: number | boolean
   }
   unstable_getStaticPaths?: () => void
   buildManifest?: any
