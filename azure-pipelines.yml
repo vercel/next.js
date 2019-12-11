@@ -4,7 +4,7 @@ pool:
 variables:
   NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
-  CHROMEDRIVER_VERSION: '76.0.3809.68'
+  CHROMEDRIVER_VERSION: '78.0.3904.70'
 
 strategy:
   maxParallel: 10
