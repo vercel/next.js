@@ -92,6 +92,7 @@
     },
     {
       "title": "API Reference",
+      "singleLevel": true,
       "routes": [
         {
           "title": "Router",
