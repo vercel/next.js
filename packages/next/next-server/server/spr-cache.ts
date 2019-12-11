@@ -37,7 +37,7 @@ export const calculateRevalidate = (pathname: string): number | false => {
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
-  if (sprOptions.dev) return curTime
+  if (sprOptions.dev) return curTime - 1000
 
   const { initialRevalidateSeconds } = prerenderManifest.routes[pathname] || {
     initialRevalidateSeconds: 1,

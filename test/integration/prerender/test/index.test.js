@@ -105,6 +105,17 @@ const expectedManifestRoutes = () => ({
 
 const navigateTest = () => {
   it('should navigate between pages successfully', async () => {
+    const toBuild = [
+      '/',
+      '/another',
+      '/something',
+      '/normal',
+      '/blog/post-1',
+      '/blog/post-1/comment-1',
+    ]
+
+    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
