@@ -93,7 +93,7 @@ const expectedManifestRoutes = () => ({
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: false,
     srcRoute: null,
   },
   '/something': {
