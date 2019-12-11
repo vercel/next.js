@@ -94,6 +94,11 @@
       "title": "API Reference",
       "singleLevel": true,
       "routes": [
+        { "title": "Next.js CLI", "path": "/docs/api-reference/next-cli.md" },
+        {
+          "title": "Router",
+          "path": "/docs/api-reference/router.md"
+        },
         {
           "title": "Router",
           "routes": [
@@ -183,8 +188,7 @@
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
             }
           ]
-        },
-        { "title": "Next.js CLI", "path": "/docs/api-reference/next-cli.md" }
+        }
       ]
     },
     {

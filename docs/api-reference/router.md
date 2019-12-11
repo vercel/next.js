@@ -1,0 +1,236 @@
+# Router API
+
+Below are defined the available methods of the `Router` exported by `next/router`
+
+## Router.push
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/using-router">Using Router</a></li>
+  </ul>
+</details>
+
+Handles client-side transitions, this method is useful for cases where [`Link`](/docs/routing/using-link.md) is not enough.
+
+```jsx
+import Router from 'next/router'
+
+Router.push(url, (as = url), options)
+```
+
+- `url`: The URL to navigate to. This is usually the name of a `page`
+- `as`: Decorator for the URL that will be shown in the browser. Defaults to `url`
+- `options`: Optional object with the following configuration options:
+  - [`shallow`](#shallow-routing): Update the path of the current page without rerunning `getInitialProps`. Defaults to `false`
+
+> You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
+
+### Usage
+
+Navigating to `pages/about.js`, which is a predefined route:
+
+```jsx
+import Router from 'next/router'
+
+function Page() {
+  return <span onClick={() => Router.push('/about')}>Click me</span>
+}
+```
+
+Navigating `pages/post/[pid].js`, which is a dynamic route:
+
+```jsx
+import Router from 'next/router'
+
+function Page() {
+  return (
+    <span onClick={() => Router.push('/post/[pid]', '/post/abc')}>
+      Click me
+    </span>
+  )
+}
+```
+
+### With URL object
+
+You can use an URL object in the same way you can use it for [`Link`](/docs/routing/using-link.md). Works for both the `url` and `as` parameters:
+
+```jsx
+import Router from 'next/router'
+
+const handler = () => {
+  Router.push({
+    pathname: '/about',
+    query: { name: 'Zeit' },
+  })
+}
+
+function ReadMore() {
+  return (
+    <div>
+      Click <span onClick={handler}>here</span> to read more
+    </div>
+  )
+}
+
+export default ReadMore
+```
+
+### Shallow Routing
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing">Shallow Routing</a></li>
+  </ul>
+</details>
+
+Shallow routing allows you to change the URL without running `getInitialProps`.
+
+You'll receive the updated `pathname` and the `query` via the [`router`](/docs/routing/router-object.md) object (added by [`useRouter`](/docs/routing/injecting-router.md#useRouter) or [`withRouter`](/docs/routing/injecting-router.md#withRouter)), without losing state.
+
+To enable shallow routing, set the `shallow` option to `true`. Consider the following example:
+
+```jsx
+// Current URL is '/'
+Router.push('/?counter=10', null, { shallow: true })
+```
+
+The URL will get updated to `/?counter=10`. and the page won't get replaced, only the state of the route is changed.
+
+You can watch for URL changes via [`componentDidUpdate`](https://reactjs.org/docs/react-component.html#componentdidupdate) as shown below:
+
+```jsx
+componentDidUpdate(prevProps) {
+  const { pathname, query } = this.props.router
+  // verify props have changed to avoid an infinite loop
+  if (query.id !== prevProps.router.query.id) {
+    // fetch data based on the new query
+  }
+}
+```
+
+The same can be achieved with the [useEffect](https://reactjs.org/docs/hooks-effect.html) hook.
+
+#### Caveats
+
+Shallow routing **only** works for same page URL changes. For example, let's assume we have another page called `pages/about.js`, and you run this:
+
+```jsx
+Router.push('/?counter=10', '/about?counter=10', { shallow: true })
+```
+
+Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
+
+## Router.replace
+
+Similar to the `replace` prop in [`Link`](/docs/routing/using-link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
+
+```jsx
+import Router from 'next/router'
+
+Router.replace('/home')
+```
+
+The API for `Router.replace` is exactly the same as that used for `Router.push`, so please refer to its [documentation](/docs/api-reference/router/router.push.md).
+
+## Router.beforePopState
+
+In some cases (for example, if using a [Custom Server](/docs/advanced-features/custom-server.md)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
+
+You could use this to manipulate the request, or force a SSR refresh, as in the following example:
+
+```jsx
+import Router from 'next/router'
+
+Router.beforePopState(({ url, as, options }) => {
+  // I only want to allow these two routes!
+  if (as !== '/' && as !== '/other') {
+    // Have SSR render bad routes as a 404.
+    window.location.href = as
+    return false
+  }
+
+  return true
+})
+```
+
+`Router.beforePopState(cb: () => boolean)`
+
+- `cb`: The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
+  - `url`: `String` - the route for the new state. This is usually the name of a `page`
+  - `as`: `String` - the url that will be shown in the browser
+  - `options`: `Object` - Additional options sent by [Router.push](/docs/api-reference/router/router.push.md)
+
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
+
+## Router Events
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-loading">With a page loading indicator</a></li>
+  </ul>
+</details>
+
+You can listen to different events happening inside the Router. Here's a list of supported events:
+
+- `routeChangeStart(url)` - Fires when a route starts to change
+- `routeChangeComplete(url)` - Fires when a route changed completely
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
+  - `err.cancelled` - Indicates if the navigation was cancelled
+- `beforeHistoryChange(url)` - Fires just before changing the browser's history
+- `hashChangeStart(url)` - Fires when the hash will change but not the page
+- `hashChangeComplete(url)` - Fires when the hash has changed but not the page
+
+> Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
+
+For example, to listen to the router event `routeChangeStart`, do the following:
+
+```jsx
+import Router from 'router/events'
+
+const handleRouteChange = url => {
+  console.log('App is changing to: ', url)
+}
+
+Router.events.on('routeChangeStart', handleRouteChange)
+```
+
+If you no longer want to listen to the event, unsubscribe with the `off` method:
+
+```jsx
+import Router from 'router/events'
+
+Router.events.off('routeChangeStart', handleRouteChange)
+```
+
+If a route load is cancelled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
+
+```jsx
+import Router from 'router/events'
+
+Router.events.on('routeChangeError', (err, url) => {
+  if (err.cancelled) {
+    console.log(`Route to ${url} was cancelled!`)
+  }
+})
+```
+
+Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens, as in the following example:
+
+```jsx
+import Router from 'router/events'
+
+useEffect(() => {
+  const handleRouteChange = url => {
+    console.log('App is changing to: ', url)
+  }
+
+  Router.events.on('routeChangeStart', handleRouteChange)
+  return () => {
+    Router.events.off('routeChangeStart', handleRouteChange)
+  }
+}, [])
+```
