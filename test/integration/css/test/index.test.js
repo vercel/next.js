@@ -18,7 +18,7 @@ import webdriver from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
 import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 3
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
@@ -798,6 +798,423 @@ describe('CSS Support', () => {
       const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
 
       expect(cssMapFiles.length).toBe(1)
+    })
+  })
+
+  describe('Basic CSS Module Support', () => {
+    const appDir = join(fixturesDir, 'basic-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".index_redText__3CwEB{color:red}"`)
+    })
+
+    it(`should've injected the CSS on server render`, async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      const cssPreload = $('link[rel="preload"][as="style"]')
+      expect(cssPreload.length).toBe(1)
+      expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      const cssSheet = $('link[rel="stylesheet"]')
+      expect(cssSheet.length).toBe(1)
+      expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+      expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
+        `"index_redText__3CwEB"`
+      )
+    })
+  })
+
+  describe('Has CSS Module in computed styles in Development', () => {
+    const appDir = join(fixturesDir, 'dev-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have CSS for page', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Has CSS Module in computed styles in Production', () => {
+    const appDir = join(fixturesDir, 'prod-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it('should have CSS for page', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Can hot reload CSS Module without losing state', () => {
+    const appDir = join(fixturesDir, 'hmr-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    // FIXME: this is broken
+    it.skip('should update CSS color without remounting <input>', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+        await waitFor(2000) // ensure application hydrates
+
+        const desiredText = 'hello world'
+        await browser.elementById('text-input').type(desiredText)
+        expect(await browser.elementById('text-input').getValue()).toBe(
+          desiredText
+        )
+
+        const currentColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+        const cssFile = new File(join(appDir, 'pages/index.module.css'))
+        try {
+          cssFile.replace('color: red', 'color: purple')
+          await waitFor(2000) // wait for HMR
+
+          const refreshedColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('#verify-red')).color`
+          )
+          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
+
+          // ensure text remained
+          expect(await browser.elementById('text-input').getValue()).toBe(
+            desiredText
+          )
+        } finally {
+          cssFile.restore()
+        }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('Invalid CSS Module Usage in node_modules', () => {
+    const appDir = join(fixturesDir, 'invalid-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail to build', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('node_modules/example/index.module.css')
+      expect(stderr).toMatch(
+        /CSS Modules.*cannot.*be imported from within.*node_modules/
+      )
+    })
+  })
+
+  describe('Valid CSS Module Usage from within node_modules', () => {
+    const appDir = join(fixturesDir, 'nm-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it(`should've prerendered with relevant data`, async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      const cssPreload = $('#nm-div')
+      expect(cssPreload.text()).toMatchInlineSnapshot(
+        `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__1rb5g\\"}"`
+      )
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".example_redText__1rb5g{color:\\"red\\"}"`)
+    })
+  })
+
+  describe('CSS Module client-side navigation in Production', () => {
+    const appDir = join(fixturesDir, 'multi-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it('should be able to client-side navigate from red to blue', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/red')
+
+        await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
+
+        const redColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+        await browser.elementByCss('#link-blue').click()
+
+        await browser.waitForElementByCss('#verify-blue')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        expect(
+          await browser.eval(`window.__did_not_ssr`)
+        ).toMatchInlineSnapshot(`"make sure this is set"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should be able to client-side navigate from blue to red', async () => {
+      const content = await renderViaHTTP(appPort, '/blue')
+      const $ = cheerio.load(content)
+
+      // Ensure only `/blue` page's CSS is preloaded
+      const serverCssPreloads = $('link[rel="preload"][as="style"]')
+      expect(serverCssPreloads.length).toBe(1)
+
+      let browser
+      try {
+        browser = await webdriver(appPort, '/blue')
+
+        await waitFor(2000) // Ensure hydration
+
+        await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
+
+        const redColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+        )
+        expect(redColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        // Check that Red was preloaded
+        const result = await browser.eval(
+          `[].slice.call(document.querySelectorAll('link[rel="preload"][as="style"]')).map(e=>({href:e.href})).sort()`
+        )
+        expect(result.length).toBe(2)
+
+        // Check that CSS was not loaded as script
+        const cssPreloads = await browser.eval(
+          `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
+        )
+        expect(cssPreloads.every(e => e === 'style')).toBe(true)
+
+        await browser.elementByCss('#link-red').click()
+
+        await browser.waitForElementByCss('#verify-red')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+        expect(
+          await browser.eval(`window.__did_not_ssr`)
+        ).toMatchInlineSnapshot(`"make sure this is set"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should be able to client-side navigate from none to red', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/none')
+
+        await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
+
+        await browser.elementByCss('#link-red').click()
+        await browser.waitForElementByCss('#verify-red')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+        expect(
+          await browser.eval(`window.__did_not_ssr`)
+        ).toMatchInlineSnapshot(`"make sure this is set"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should be able to client-side navigate from none to blue', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/none')
+
+        await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
+
+        await browser.elementByCss('#link-blue').click()
+        await browser.waitForElementByCss('#verify-blue')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        expect(
+          await browser.eval(`window.__did_not_ssr`)
+        ).toMatchInlineSnapshot(`"make sure this is set"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
   })
 })

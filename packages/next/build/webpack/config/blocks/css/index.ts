@@ -1,14 +1,14 @@
 import curry from 'lodash.curry'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
 import path from 'path'
-import { Configuration } from 'webpack'
+import webpack, { Configuration } from 'webpack'
 import { loader } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
-import { getGlobalImportError } from './messages'
+import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
+import { getGlobalImportError, getModuleImportError } from './messages'
 import { getPostCssPlugins } from './plugins'
-import webpack from 'webpack'
 
-function getStyleLoader({
+function getClientStyleLoader({
   isDevelopment,
 }: {
   isDevelopment: boolean
@@ -73,6 +73,86 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
+  const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
+  // CSS Modules support must be enabled on the server and client so the class
+  // names are availble for SSR or Prerendering.
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          // CSS Modules should never have side effects. This setting will
+          // allow unused CSS to be removed from the production build.
+          // We ensure this by disallowing `:global()` CSS at the top-level
+          // via the `pure` mode in `css-loader`.
+          sideEffects: false,
+          // CSS Modules are activated via this specific extension.
+          test: /\.module\.css$/,
+          // CSS Modules are only supported in the user's application. We're
+          // not yet allowing CSS imports _within_ `node_modules`.
+          issuer: {
+            include: [ctx.rootDirectory],
+            exclude: /node_modules/,
+          },
+
+          use: ([
+            // Add appropriate development more or production mode style
+            // loader
+            ctx.isClient &&
+              getClientStyleLoader({ isDevelopment: ctx.isDevelopment }),
+
+            // Resolve CSS `@import`s and `url()`s
+            {
+              loader: require.resolve('css-loader'),
+              options: {
+                importLoaders: 1,
+                sourceMap: true,
+                onlyLocals: ctx.isServer,
+                modules: {
+                  // Disallow global style exports so we can code-split CSS and
+                  // not worry about loading order.
+                  mode: 'pure',
+                  // Generate a friendly production-ready name so it's
+                  // reasonably understandable. The same name is used for
+                  // development.
+                  // TODO: Consider making production reduce this to a single
+                  // character?
+                  getLocalIdent: getCssModuleLocalIdent,
+                },
+              },
+            },
+
+            // Compile CSS
+            {
+              loader: require.resolve('postcss-loader'),
+              options: {
+                ident: 'postcss',
+                plugins: postCssPlugins,
+                sourceMap: true,
+              },
+            },
+          ] as webpack.RuleSetUseItem[]).filter(Boolean),
+        },
+      ],
+    })
+  )
+
+  // Throw an error for CSS Modules used outside their supported scope
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: /\.module\.css$/,
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getModuleImportError(),
+            },
+          },
+        },
+      ],
+    })
+  )
+
   if (ctx.isServer) {
     fns.push(
       loader({
@@ -80,7 +160,6 @@ export const css = curry(async function css(
       })
     )
   } else if (ctx.customAppFile) {
-    const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
     fns.push(
       loader({
         oneOf: [
@@ -96,7 +175,7 @@ export const css = curry(async function css(
             use: [
               // Add appropriate development more or production mode style
               // loader
-              getStyleLoader({ isDevelopment: ctx.isDevelopment }),
+              getClientStyleLoader({ isDevelopment: ctx.isDevelopment }),
 
               // Resolve CSS `@import`s and `url()`s
               {

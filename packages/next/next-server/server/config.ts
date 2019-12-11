@@ -99,7 +99,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   })
 
-  return { ...defaultConfig, ...userConfig }
+  const result = { ...defaultConfig, ...userConfig }
+  if (result.experimental && result.experimental.css) {
+    // The new CSS support requires granular chunks be enabled.
+    result.experimental.granularChunks = true
+  }
+  return result
 }
 
 function normalizeConfig(phase: string, config: any) {
