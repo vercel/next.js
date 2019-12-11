@@ -24,7 +24,7 @@ function getError_NullConfig(pluginName: string) {
   )}, otherwise, pass ${chalk.bold('true')} or a configuration object.`
 }
 
-async function isIgnoredPlugin(pluginPath: string): Promise<boolean> {
+function isIgnoredPlugin(pluginPath: string): boolean {
   const ignoredRegex = /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
   const match = ignoredRegex.exec(pluginPath)
   if (match == null) {
@@ -46,7 +46,7 @@ async function loadPlugin(
   pluginName: string,
   options: boolean | object
 ): Promise<import('postcss').AcceptedPlugin | false> {
-  if (options === false || (await isIgnoredPlugin(pluginName))) {
+  if (options === false || isIgnoredPlugin(pluginName)) {
     return false
   }
 
@@ -56,7 +56,7 @@ async function loadPlugin(
   }
 
   const pluginPath = resolveRequest(pluginName, `${dir}/`)
-  if (await isIgnoredPlugin(pluginPath)) {
+  if (isIgnoredPlugin(pluginPath)) {
     return false
   } else if (options === true) {
     return require(pluginPath)
