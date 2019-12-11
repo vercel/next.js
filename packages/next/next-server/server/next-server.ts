@@ -581,7 +581,9 @@ export default class Server {
       // this should not occur now that we check this during build
       if (!this.pagesManifest![unixPath]) {
         routes.push({
-          match: route(unixPath),
+          // Possible tokens we need to strip from filename
+          // https://github.com/pillarjs/path-to-regexp/blob/7b4078db2cfc929eb287432be0ecd3798b0de820/src/index.ts#L21-L124
+          match: route(unixPath.replace(/[*+?{}:()\\]/g, '\\$&')),
           type: 'route',
           name: 'public catchall',
           fn: async (req, res, _params, parsedUrl) => {
