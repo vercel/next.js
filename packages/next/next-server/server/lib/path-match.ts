@@ -9,7 +9,7 @@ export default (customRoute = false) => {
       decode: decodeParam,
     })
 
-    return (pathname: string | undefined, params?: any) => {
+    return (pathname: string | null | undefined, params?: any) => {
       const res = pathname == null ? false : matcher(pathname)
       if (!res) {
         return false
