@@ -1018,8 +1018,31 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
+    let appPort
+    let app
+    beforeAll(async () => {
       await nextBuild(appDir)
+      const server = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      app = await startApp(server)
+      appPort = app.address().port
+    })
+    afterAll(async () => {
+      await stopApp(app)
+    })
+
+    it(`should've prerendered with relevant data`, async () => {
+      const content = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(content)
+
+      const cssPreload = $('#nm-div')
+      expect(cssPreload.text()).toMatchInlineSnapshot(
+        `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__1rb5g\\"}"`
+      )
     })
 
     it(`should've emitted a single CSS file`, async () => {
