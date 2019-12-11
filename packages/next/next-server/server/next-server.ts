@@ -588,7 +588,7 @@ export default class Server {
             return false
           },
           type: 'route',
-          name: 'public catchall',
+          name: 'public individual',
           fn: async (req, res, _params, parsedUrl) => {
             const p = join(this.publicDir, unixPath)
             await this.serveStatic(req, res, p, parsedUrl)
