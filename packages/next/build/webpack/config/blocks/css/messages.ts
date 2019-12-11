@@ -9,3 +9,10 @@ export function getGlobalImportError(file: string | null) {
     file ? file : 'pages/_app.js'
   )}.\nRead more: https://err.sh/next.js/global-css`
 }
+
+export function getModuleImportError() {
+  // TODO: Read more link
+  return `CSS Modules ${chalk.bold(
+    'cannot'
+  )} be imported from within ${chalk.bold('node_modules')}.`
+}
