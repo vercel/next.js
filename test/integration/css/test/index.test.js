@@ -18,7 +18,7 @@ import webdriver from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
 import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 3
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
