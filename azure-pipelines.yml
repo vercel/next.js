@@ -4,7 +4,7 @@ pool:
 variables:
   NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
-  CHROMEDRIVER_VERSION: '76.0.3809.68'
+  CHROMEDRIVER_VERSION: '78.0.3904.70'
 
 strategy:
   maxParallel: 10
@@ -23,6 +23,10 @@ strategy:
       node_version: ^10.10.0
 
 steps:
+  - script: |
+      wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+    displayName: 'List Chrome version'
+
   - task: NodeTool@0
     inputs:
       versionSpec: $(node_version)
