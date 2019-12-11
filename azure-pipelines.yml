@@ -35,12 +35,12 @@ steps:
     displayName: Cache Yarn packages
 
   - script: |
-      yarn install --frozen-lockfile --check-files
-    displayName: 'Install dependencies'
-
-  - script: |
       chrome --version
     displayName: 'List Chrome version'
+
+  - script: |
+      yarn install --frozen-lockfile --check-files
+    displayName: 'Install dependencies'
 
   - script: |
       node node_modules/chromedriver/install.js
