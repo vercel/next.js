@@ -66,7 +66,7 @@
     "fs-extra": "7.0.1",
     "get-port": "5.0.0",
     "isomorphic-unfetch": "3.0.0",
-    "jest-cli": "24.8.0",
+    "jest-cli": "24.9.0",
     "lerna": "3.14.1",
     "lint-staged": "9.4.2",
     "mkdirp": "0.5.1",
