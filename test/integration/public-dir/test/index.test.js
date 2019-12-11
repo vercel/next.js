@@ -36,9 +36,19 @@ describe('Public Files', () => {
         expect(html).toMatch(/Hello World/)
       })
 
-      it('should stream the file', async () => {
+      it('should stream the file +', async () => {
         const html = await renderViaHTTP(appPort, '/test+this.txt')
         expect(html).toMatch(/i have a plus/)
+      })
+
+      it('should stream the file :', async () => {
+        const html = await renderViaHTTP(appPort, '/test:this.txt')
+        expect(html).toMatch(/i have a :/)
+      })
+
+      it('should stream the file space', async () => {
+        const html = await renderViaHTTP(appPort, '/test this.txt')
+        expect(html).toMatch(/i have a space/)
       })
     })
   })
