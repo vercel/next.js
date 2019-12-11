@@ -598,4 +598,42 @@ describe('CSS Support', () => {
       expect(cssMapFiles.length).toBe(1)
     })
   })
+
+  describe('Tailwind and Purge CSS', () => {
+    const appDir = join(fixturesDir, 'with-tailwindcss-and-purgecss')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've compiled and prefixed`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+      expect(cssContent).not.toMatch(/object-right-bottom/) // this was unused and should be gone
+      expect(cssContent).toMatch(/text-blue-500/) // this was used
+      expect(cssContent).not.toMatch(/tailwind/) // ensure @tailwind was removed
+
+      // Contains a source map
+      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
+    })
+
+    it(`should've emitted a source map`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssMapFiles = files.filter(f => /\.css\.map$/.test(f))
+
+      expect(cssMapFiles.length).toBe(1)
+    })
+  })
 })
