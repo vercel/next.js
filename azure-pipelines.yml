@@ -23,6 +23,10 @@ strategy:
       node_version: ^10.10.0
 
 steps:
+  - script: |
+      wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+    displayName: 'List Chrome version'
+
   - task: NodeTool@0
     inputs:
       versionSpec: $(node_version)
@@ -33,10 +37,6 @@ steps:
       key: yarn | $(Agent.OS) | yarn.lock
       path: $(YARN_CACHE_FOLDER)
     displayName: Cache Yarn packages
-
-  - script: |
-      chrome --version
-    displayName: 'List Chrome version'
 
   - script: |
       yarn install --frozen-lockfile --check-files
