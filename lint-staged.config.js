@@ -7,8 +7,10 @@ module.exports = {
       .map(filename => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')
     return [
-      `prettier --write ${escapedFileNames}`,
-      `eslint --max-warnings=0 --fix ${filenames.map(f => `"${f}"`).join(' ')}`,
+      `prettier --with-node-modules --ignore-path='./.prettierignore_staged' --write ${escapedFileNames}`,
+      `eslint --no-ignore --max-warnings=0 --fix ${filenames
+        .map(f => `"${f}"`)
+        .join(' ')}`,
       `git add ${escapedFileNames}`,
     ]
   },
@@ -17,7 +19,7 @@ module.exports = {
       .map(filename => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')
     return [
-      `prettier --write ${escapedFileNames}`,
+      `prettier --with-node-modules --ignore-path='./.prettierignore_staged' --write ${escapedFileNames}`,
       `git add ${escapedFileNames}`,
     ]
   },
