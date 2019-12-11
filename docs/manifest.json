@@ -1,98 +1,179 @@
 {
   "routes": [
-    { "title": "Getting Started", "path": "/docs/getting-started.md" },
     {
-      "title": "Concepts",
+      "title": "Documentation",
+      "heading": true,
       "routes": [
+        { "title": "Getting Started", "path": "/docs/getting-started.md" },
+        {
+          "title": "Concepts",
+          "routes": [
+            {
+              "title": "Pages",
+              "path": "/docs/concepts/pages.md"
+            },
+            {
+              "title": "Routing",
+              "path": "/docs/concepts/routing.md"
+            }
+          ]
+        },
         {
           "title": "Pages",
-          "path": "/docs/concepts/pages.md"
+          "routes": [
+            {
+              "title": "SSR with getInitialProps",
+              "path": "/docs/pages/ssr-with-getInitialProps.md"
+            }
+          ]
+        },
+        {
+          "title": "Basic Features",
+          "routes": [
+            {
+              "title": "Built-in CSS Support",
+              "path": "/docs/basic-features/built-in-css-support.md"
+            },
+            {
+              "title": "Static File Serving",
+              "path": "/docs/basic-features/static-file-serving.md"
+            },
+            {
+              "title": "Populating `head`",
+              "path": "/docs/basic-features/populating-head.md"
+            },
+            {
+              "title": "TypeScript",
+              "path": "/docs/basic-features/typescript.md"
+            }
+          ]
         },
         {
           "title": "Routing",
-          "path": "/docs/concepts/routing.md"
-        }
-      ]
-    },
-    {
-      "title": "Pages",
-      "routes": [
-        {
-          "title": "SSR with getInitialProps",
-          "path": "/docs/pages/ssr-with-getInitialProps.md"
-        }
-      ]
-    },
-    {
-      "title": "Basic Features",
-      "routes": [
-        {
-          "title": "Built-in CSS Support",
-          "path": "/docs/basic-features/built-in-css-support.md"
+          "routes": [
+            {
+              "title": "Using `Link`",
+              "path": "/docs/routing/using-link.md"
+            },
+            {
+              "title": "Dynamic Routes",
+              "path": "/docs/routing/dynamic-routes.md"
+            },
+            {
+              "title": "Injecting the router",
+              "path": "/docs/routing/injecting-router.md"
+            },
+            {
+              "title": "Imperatively",
+              "path": "/docs/routing/imperatively.md"
+            },
+            {
+              "title": "Router Object",
+              "path": "/docs/routing/router-object.md"
+            }
+          ]
         },
         {
-          "title": "Static File Serving",
-          "path": "/docs/basic-features/static-file-serving.md"
+          "title": "API Routes",
+          "routes": [
+            {
+              "title": "Introduction",
+              "path": "/docs/api-routes/introduction.md"
+            },
+            {
+              "title": "Dynamic API Routes",
+              "path": "/docs/api-routes/dynamic-api-routes.md"
+            },
+            {
+              "title": "API Middlewares",
+              "path": "/docs/api-routes/api-middlewares.md"
+            },
+            {
+              "title": "Response Helpers",
+              "path": "/docs/api-routes/response-helpers.md"
+            }
+          ]
         },
         {
-          "title": "Populating `head`",
-          "path": "/docs/basic-features/populating-head.md"
+          "title": "Advanced Features",
+          "routes": [
+            {
+              "title": "Custom Configuration",
+              "path": "/docs/advanced-features/custom-configuration.md"
+            },
+            {
+              "title": "Dynamic Import",
+              "path": "/docs/advanced-features/dynamic-import.md"
+            },
+            {
+              "title": "Automatic Static Optimization",
+              "path": "/docs/advanced-features/automatic-static-optimization.md"
+            },
+            {
+              "title": "Static HTML Export",
+              "path": "/docs/advanced-features/static-html-export.md"
+            },
+            {
+              "title": "AMP Support",
+              "routes": [
+                {
+                  "title": "Introduction",
+                  "path": "/docs/amp-support/introduction.md"
+                },
+                {
+                  "title": "Enabling AMP",
+                  "path": "/docs/amp-support/enabling-amp.md"
+                },
+                {
+                  "title": "AMP in Static HTML export",
+                  "path": "/docs/amp-support/amp-in-static-html-export.md"
+                },
+                {
+                  "title": "Adding AMP Components",
+                  "path": "/docs/amp-support/adding-amp-components.md"
+                },
+                {
+                  "title": "AMP Validation",
+                  "path": "/docs/amp-support/amp-validation.md"
+                },
+                {
+                  "title": "TypeScript",
+                  "path": "/docs/amp-support/typescript.md"
+                }
+              ]
+            },
+            {
+              "title": "Customizing Babel Config",
+              "path": "/docs/advanced-features/customizing-babel-config.md"
+            },
+            {
+              "title": "Custom Server",
+              "path": "/docs/advanced-features/custom-server.md"
+            },
+            {
+              "title": "Custom `App`",
+              "path": "/docs/pages/custom-app.md"
+            },
+            {
+              "title": "Custom `Document`",
+              "path": "/docs/pages/custom-document.md"
+            },
+            {
+              "title": "Custom Error Page",
+              "path": "/docs/pages/custom-error-page.md"
+            },
+            {
+              "title": "`src` Directory",
+              "path": "/docs/pages/src-directory.md"
+            }
+          ]
         },
-        {
-          "title": "TypeScript",
-          "path": "/docs/basic-features/typescript.md"
-        }
-      ]
-    },
-    {
-      "title": "Routing",
-      "routes": [
-        {
-          "title": "Using `Link`",
-          "path": "/docs/routing/using-link.md"
-        },
-        {
-          "title": "Dynamic Routes",
-          "path": "/docs/routing/dynamic-routes.md"
-        },
-        {
-          "title": "Injecting the router",
-          "path": "/docs/routing/injecting-router.md"
-        },
-        {
-          "title": "Imperatively",
-          "path": "/docs/routing/imperatively.md"
-        },
-        {
-          "title": "Router Object",
-          "path": "/docs/routing/router-object.md"
-        }
-      ]
-    },
-    {
-      "title": "API Routes",
-      "routes": [
-        {
-          "title": "Introduction",
-          "path": "/docs/api-routes/introduction.md"
-        },
-        {
-          "title": "Dynamic API Routes",
-          "path": "/docs/api-routes/dynamic-api-routes.md"
-        },
-        {
-          "title": "API Middlewares",
-          "path": "/docs/api-routes/api-middlewares.md"
-        },
-        {
-          "title": "Response Helpers",
-          "path": "/docs/api-routes/response-helpers.md"
-        }
+        { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },
     {
       "title": "API Reference",
-      "singleLevel": true,
+      "heading": true,
       "routes": [
         { "title": "Next.js CLI", "path": "/docs/api-reference/next-cli.md" },
         {
@@ -190,81 +271,6 @@
           ]
         }
       ]
-    },
-    {
-      "title": "Advanced Features",
-      "routes": [
-        {
-          "title": "Custom Configuration",
-          "path": "/docs/advanced-features/custom-configuration.md"
-        },
-        {
-          "title": "Dynamic Import",
-          "path": "/docs/advanced-features/dynamic-import.md"
-        },
-        {
-          "title": "Automatic Static Optimization",
-          "path": "/docs/advanced-features/automatic-static-optimization.md"
-        },
-        {
-          "title": "Static HTML Export",
-          "path": "/docs/advanced-features/static-html-export.md"
-        },
-        {
-          "title": "AMP Support",
-          "routes": [
-            {
-              "title": "Introduction",
-              "path": "/docs/amp-support/introduction.md"
-            },
-            {
-              "title": "Enabling AMP",
-              "path": "/docs/amp-support/enabling-amp.md"
-            },
-            {
-              "title": "AMP in Static HTML export",
-              "path": "/docs/amp-support/amp-in-static-html-export.md"
-            },
-            {
-              "title": "Adding AMP Components",
-              "path": "/docs/amp-support/adding-amp-components.md"
-            },
-            {
-              "title": "AMP Validation",
-              "path": "/docs/amp-support/amp-validation.md"
-            },
-            {
-              "title": "TypeScript",
-              "path": "/docs/amp-support/typescript.md"
-            }
-          ]
-        },
-        {
-          "title": "Customizing Babel Config",
-          "path": "/docs/advanced-features/customizing-babel-config.md"
-        },
-        {
-          "title": "Custom Server",
-          "path": "/docs/advanced-features/custom-server.md"
-        },
-        {
-          "title": "Custom `App`",
-          "path": "/docs/pages/custom-app.md"
-        },
-        {
-          "title": "Custom `Document`",
-          "path": "/docs/pages/custom-document.md"
-        },
-        {
-          "title": "Custom Error Page",
-          "path": "/docs/pages/custom-error-page.md"
-        },
-        {
-          "title": "`src` Directory",
-          "path": "/docs/pages/src-directory.md"
-        }
-      ]
-    },
-    { "title": "FAQ", "path": "/docs/faq.md" }
+    }
   ]
 }
