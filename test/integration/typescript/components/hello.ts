@@ -1,6 +1,6 @@
-import { hello as helloClass } from './hello.module.css'
+import helloStyles from './hello.module.css'
 
 export function hello(): string {
-  console.log(helloClass)
+  console.log(helloStyles.hello)
   return 'Hello'
 }

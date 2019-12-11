@@ -12,6 +12,6 @@ declare namespace NodeJS {
 }
 
 declare module '*.module.css' {
-  const exports: { [exportName: string]: string }
-  export = exports
+  const classes: { readonly [key: string]: string }
+  export default classes
 }
