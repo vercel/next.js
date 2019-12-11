@@ -75,6 +75,8 @@
     "node-notifier": "5.4.0",
     "node-sass": "4.12.0",
     "npm-run-all": "4.1.5",
+    "pixrem": "5.0.0",
+    "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
     "pre-commit": "1.2.2",
