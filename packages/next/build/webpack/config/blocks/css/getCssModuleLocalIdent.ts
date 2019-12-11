@@ -8,10 +8,9 @@ export function getCssModuleLocalIdent(
   exportName: string,
   options: object
 ) {
-  const relativePath = path.posix.relative(
-    context.rootContext,
-    context.resourcePath
-  )
+  const relativePath = path
+    .relative(context.rootContext, context.resourcePath)
+    .replace(/\\+/g, '/')
 
   // Generate a more meaningful name (parent folder) when the user names the
   // file `index.module.css`.
