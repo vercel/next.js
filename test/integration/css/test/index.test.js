@@ -299,6 +299,7 @@ describe('CSS Support', () => {
         'postcss-modules-scope',
         'postcss-modules-extract-imports',
         'postcss-modules-local-by-default',
+        'postcss-modules',
       ].forEach(plugin => {
         expect(stderr).toMatch(
           new RegExp(`Please remove the.*?${escapeStringRegexp(plugin)}`)
