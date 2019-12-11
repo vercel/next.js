@@ -84,7 +84,7 @@ export default ReadMore
 
 Shallow routing allows you to change the URL without running `getInitialProps`.
 
-You'll receive the updated `pathname` and the `query` via the [`router`](/docs/routing/router-object.md) object (added by[`useRouter`](/docs/routing/useRouter.md) or [`withRouter`](/docs/routing/withRouter.md)), without losing state.
+You'll receive the updated `pathname` and the `query` via the [`router`](/docs/routing/router-object.md) object (added by [`useRouter`](/docs/routing/injecting-router.md#useRouter) or [`withRouter`](/docs/routing/injecting-router.md#withRouter)), without losing state.
 
 To enable shallow routing, set the `shallow` option to `true`. Consider the following example:
 

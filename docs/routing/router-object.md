@@ -1,6 +1,6 @@
 # Router Object
 
-The following is the definition of the `router` object returned by both [`useRouter`](/docs/routing/useRouter.md) and [`withRouter`](/docs/routing/withRouter.md):
+The following is the definition of the `router` object returned by both [`useRouter`](/docs/routing/injecting-router.md#useRouter) and [`withRouter`](/docs/routing/injecting-router.md#withRouter):
 
 - `route`: `String` - Current route
 - `pathname`: `String` - Current path excluding the query string
