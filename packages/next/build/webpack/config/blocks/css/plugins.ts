@@ -66,6 +66,7 @@ export async function getPostCssPlugins(dir: string): Promise<unknown[]> {
       'postcss-modules-scope',
       'postcss-modules-extract-imports',
       'postcss-modules-local-by-default',
+      'postcss-modules',
     ].forEach(plugin => {
       if (!plugins.hasOwnProperty(plugin)) {
         return
@@ -79,21 +80,6 @@ export async function getPostCssPlugins(dir: string): Promise<unknown[]> {
       )
       delete plugins[plugin]
     })
-
-    // Next.js doesn't support CSS Modules yet. When we do, we should respect the
-    // options passed to this plugin (even though we need to remove the plugin
-    // itself).
-    if (plugins['postcss-modules']) {
-      delete plugins['postcss-modules']
-
-      console.warn(
-        `${chalk.yellow.bold(
-          'Warning'
-        )}: Next.js does not support CSS Modules (yet). The ${chalk.underline(
-          'postcss-modules'
-        )} plugin will have no effect.`
-      )
-    }
 
     target = load(plugins as { [key: string]: object })
   }
