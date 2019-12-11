@@ -400,6 +400,126 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Bad CSS Customization Array (1)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-1')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(
+        /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
+      )
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
+  describe('Bad CSS Customization Array (2)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-2')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(
+        /Error: Your PostCSS configuration for 'postcss-trolling' cannot have null configuration./
+      )
+      expect(stderr).toMatch(
+        /To disable 'postcss-trolling', pass false, otherwise, pass true or a configuration object./
+      )
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
+  describe('Bad CSS Customization Array (3)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-3')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(
+        /A PostCSS Plugin must be provided as a string. Instead, we got: '5'/
+      )
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
+  describe('Bad CSS Customization Array (4)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-4')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(/An unknown PostCSS plugin was provided \(5\)/)
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
+  describe('Bad CSS Customization Array (5)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-5')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(
+        /Your custom PostCSS configuration must export a `plugins` key./
+      )
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
+  describe('Bad CSS Customization Array (6)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-6')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(
+        /Your custom PostCSS configuration must export a `plugins` key./
+      )
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
+  describe('Bad CSS Customization Array (7)', () => {
+    const appDir = join(fixturesDir, 'bad-custom-configuration-arr-7')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(
+        /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
+      )
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
   // Tests css ordering
   describe('Multi Global Support (reversed)', () => {
     const appDir = join(fixturesDir, 'multi-global-reversed')

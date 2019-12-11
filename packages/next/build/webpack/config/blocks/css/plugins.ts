@@ -19,7 +19,7 @@ function getError_NullConfig(pluginName: string) {
     'Error'
   )}: Your PostCSS configuration for '${pluginName}' cannot have ${chalk.bold(
     'null'
-  )} configuration.\nTo disable '${pluginName}' name, pass ${chalk.bold(
+  )} configuration.\nTo disable '${pluginName}', pass ${chalk.bold(
     'false'
   )}, otherwise, pass ${chalk.bold('true')} or a configuration object.`
 }
@@ -165,14 +165,16 @@ export async function getPostCssPlugins(
           console.error(
             `${chalk.red.bold(
               'Error'
-            )}: A PostCSS Plugin passed as an array must also provide its configuration.`
+            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').`
           )
         }
         throw new Error(genericErrorText)
       }
     } else {
       console.error(
-        `${chalk.red.bold('Error')}: An unknown PostCSS plugin was provided.`
+        `${chalk.red.bold(
+          'Error'
+        )}: An unknown PostCSS plugin was provided (${plugin}).`
       )
       throw new Error(genericErrorText)
     }
