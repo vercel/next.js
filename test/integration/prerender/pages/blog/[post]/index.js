@@ -8,6 +8,7 @@ export async function unstable_getStaticPaths() {
     '/blog/post-1',
     { params: { post: 'post-2' } },
     '/blog/[post3]',
+    '/blog/post-4',
     '/blog/post.1',
   ]
 }

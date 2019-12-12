@@ -137,11 +137,15 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
+    let didResolve = false
 
     function handleStdout(data) {
       const message = data.toString()
       if (/ready on/i.test(message)) {
-        resolve(stdOut ? message : instance)
+        if (!didResolve) {
+          didResolve = true
+          resolve(stdOut ? message : instance)
+        }
       }
       if (typeof opts.onStdout === 'function') {
         opts.onStdout(message)
@@ -163,6 +167,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     instance.on('close', () => {
       instance.stdout.removeListener('data', handleStdout)
       instance.stderr.removeListener('data', handleStderr)
+      if (!didResolve) {
+        didResolve = true
+        resolve()
+      }
     })
 
     instance.on('error', err => {

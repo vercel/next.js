@@ -5,14 +5,14 @@ import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
-
+import { Redirect, Rewrite } from '../lib/check-custom-routes'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { Redirect, Rewrite } from '../next-server/server/next-server'
-import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
+import { findPageFile } from '../server/lib/find-page-file'
 
 const fsStatPromise = promisify(fs.stat)
 const fileStats: { [k: string]: Promise<fs.Stats> } = {}
@@ -37,14 +37,29 @@ export function collectPages(
 export interface PageInfo {
   isAmp?: boolean
   size: number
-  static?: boolean
+  static: boolean
+  isSsg: boolean
+  ssgPageRoutes: string[] | null
   serverBundle: string
 }
 
-export function printTreeView(
-  list: string[],
+export async function printTreeView(
+  list: readonly string[],
   pageInfos: Map<string, PageInfo>,
-  serverless: boolean
+  serverless: boolean,
+  {
+    distPath,
+    pagesDir,
+    pageExtensions,
+    buildManifest,
+    isModern,
+  }: {
+    distPath: string
+    pagesDir: string
+    pageExtensions: string[]
+    buildManifest: BuildManifestShape
+    isModern: boolean
+  }
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
@@ -56,47 +71,92 @@ export function printTreeView(
     return chalk.red.bold(size)
   }
 
-  const messages: string[][] = [
-    ['Page', 'Size'].map(entry => chalk.underline(entry)),
+  const messages: [string, string][] = [
+    ['Page', 'Size'].map(entry => chalk.underline(entry)) as [string, string],
   ]
 
-  list
+  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
+
+  const pageList = list
+    .slice()
+    .filter(
+      e =>
+        !(
+          e === '/_document' ||
+          (!hasCustomApp && e === '/_app') ||
+          (!hasCustomError && e === '/_error')
+        )
+    )
     .sort((a, b) => a.localeCompare(b))
-    .forEach((item, i) => {
-      const symbol =
-        i === 0
-          ? list.length === 1
-            ? '─'
-            : '┌'
-          : i === list.length - 1
-          ? '└'
-          : '├'
 
-      const pageInfo = pageInfos.get(item)
+  pageList.forEach((item, i, arr) => {
+    const symbol =
+      i === 0
+        ? arr.length === 1
+          ? '─'
+          : '┌'
+        : i === arr.length - 1
+        ? '└'
+        : '├'
 
+    const pageInfo = pageInfos.get(item)
+
+    messages.push([
+      `${symbol} ${
+        item.startsWith('/_')
+          ? ' '
+          : pageInfo && pageInfo.static
+          ? '○'
+          : pageInfo && pageInfo.isSsg
+          ? '●'
+          : 'λ'
+      } ${item}`,
+      pageInfo
+        ? pageInfo.isAmp
+          ? chalk.cyan('AMP')
+          : pageInfo.size >= 0
+          ? getPrettySize(pageInfo.size)
+          : ''
+        : '',
+    ])
+
+    if (pageInfo && pageInfo.ssgPageRoutes && pageInfo.ssgPageRoutes.length) {
+      const totalRoutes = pageInfo.ssgPageRoutes.length
+      const previewPages = totalRoutes === 4 ? 4 : 3
+      const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
+      if (totalRoutes > previewPages) {
+        const remaining = totalRoutes - previewPages
+        routes.push(`[+${remaining} more paths]`)
+      }
+
+      routes.forEach((slug, index, { length }) => {
+        const innerSymbol = index === length - 1 ? '└' : '├'
+        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, ''])
+      })
+    }
+  })
+
+  const sharedData = await getSharedSizes(distPath, buildManifest, isModern)
+
+  messages.push(['+ shared by all', getPrettySize(sharedData.total)])
+  Object.keys(sharedData.files)
+    .sort()
+    .forEach((fileName, index, { length }) => {
+      const innerSymbol = index === length - 1 ? '└' : '├'
       messages.push([
-        `${symbol} ${
-          item.startsWith('/_')
-            ? ' '
-            : pageInfo && pageInfo.static
-            ? '*'
-            : serverless
-            ? 'λ'
-            : 'σ'
-        } ${item}`,
-        pageInfo
-          ? pageInfo.isAmp
-            ? chalk.cyan('AMP')
-            : pageInfo.size >= 0
-            ? getPrettySize(pageInfo.size)
-            : ''
-          : '',
+        `  ${innerSymbol} ${fileName
+          .replace(/^static\//, '')
+          .replace(/[.-][0-9a-z]{20}(?=\.)/, '')}`,
+        getPrettySize(sharedData.files[fileName]),
       ])
     })
 
   console.log(
     textTable(messages, {
-      align: ['l', 'l', 'r', 'r'],
+      align: ['l', 'l'],
       stringLength: str => stripAnsi(str).length,
     })
   )
@@ -105,23 +165,26 @@ export function printTreeView(
   console.log(
     textTable(
       [
-        serverless
-          ? [
-              'λ',
-              '(Lambda)',
-              `page was emitted as a lambda (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ]
-          : [
-              'σ',
-              '(Server)',
-              `page will be server rendered (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ],
-        ['*', '(Static File)', 'page was prerendered as static HTML'],
-      ],
+        [
+          'λ',
+          serverless ? '(Lambda)' : '(Server)',
+          `server-side renders at runtime (uses ${chalk.cyan(
+            'getInitialProps'
+          )} or ${chalk.cyan('getServerProps')})`,
+        ],
+        [
+          '○',
+          '(Static)',
+          'automatically rendered as static HTML (uses no initial props)',
+        ],
+        [
+          '●',
+          '(SSG)',
+          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+      ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: str => stripAnsi(str).length,
@@ -185,36 +248,125 @@ export function printCustomRoutes({
   }
 }
 
+type BuildManifestShape = { pages: { [k: string]: string[] } }
+type ComputeManifestShape = {
+  commonFiles: string[]
+  sizeCommonFile: { [file: string]: number }
+  sizeCommonFiles: number
+}
+
+let cachedBuildManifest: BuildManifestShape | undefined
+
+let lastCompute: ComputeManifestShape | undefined
+let lastComputeModern: boolean | undefined
+
+async function computeFromManifest(
+  manifest: BuildManifestShape,
+  distPath: string,
+  isModern: boolean
+): Promise<ComputeManifestShape> {
+  if (
+    Object.is(cachedBuildManifest, manifest) &&
+    lastComputeModern === isModern
+  ) {
+    return lastCompute!
+  }
+
+  let expected = 0
+  const files = new Map<string, number>()
+  Object.keys(manifest.pages).forEach(key => {
+    if (key === '/_polyfills') {
+      return
+    }
+
+    ++expected
+    manifest.pages[key].forEach(file => {
+      if (
+        // Filter out CSS
+        !file.endsWith('.js') ||
+        // Select Modern or Legacy scripts
+        file.endsWith('.module.js') !== isModern
+      ) {
+        return
+      }
+
+      if (files.has(file)) {
+        files.set(file, files.get(file)! + 1)
+      } else {
+        files.set(file, 1)
+      }
+    })
+  })
+
+  const commonFiles = [...files.entries()]
+    .filter(([, len]) => len === expected)
+    .map(([f]) => f)
+
+  let stats: [string, fs.Stats][]
+  try {
+    stats = await Promise.all(
+      commonFiles.map(
+        async f =>
+          [f, await fsStat(path.join(distPath, f))] as [string, fs.Stats]
+      )
+    )
+  } catch (_) {
+    stats = []
+  }
+
+  lastCompute = {
+    commonFiles,
+    sizeCommonFile: stats.reduce(
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1].size }),
+      {}
+    ),
+    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat.size, 0),
+  }
+
+  cachedBuildManifest = manifest
+  lastComputeModern = isModern
+  return lastCompute!
+}
+
+function difference<T>(main: T[], sub: T[]): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...a].filter(x => !b.has(x))
+}
+
+export async function getSharedSizes(
+  distPath: string,
+  buildManifest: BuildManifestShape,
+  isModern: boolean
+): Promise<{ total: number; files: { [page: string]: number } }> {
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
+}
+
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
-  buildManifest: { pages: { [k: string]: string[] } },
+  buildManifest: BuildManifestShape,
   isModern: boolean
 ): Promise<number> {
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  const deps = difference(buildManifest.pages[page] || [], data.commonFiles)
+    .filter(
+      entry =>
+        entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
+    )
+    .map(dep => `${distPath}/${dep}`)
+
   const clientBundle = path.join(
     distPath,
     `static/${buildId}/pages/`,
     `${page}${isModern ? '.module' : ''}.js`
   )
-
-  // With granularChunks flag enabled, each page may have additional chunks that it depends on
-  const baseDeps = page === '/_app' ? [] : buildManifest.pages['/_app']
-
-  // Get the list of chunks specific to this page
-  // With granularChunks: false, this will be []
-  const deps = (buildManifest.pages[page] || [])
-    .filter(
-      dep => !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
-    )
-    .map(dep => `${distPath}/${dep}`)
-
-  // Add the main bundle for the page
   deps.push(clientBundle)
 
   try {
     let depStats = await Promise.all(deps.map(fsStat))
-
     return depStats.reduce((size, stat) => size + stat.size, 0)
   } catch (_) {}
   return -1

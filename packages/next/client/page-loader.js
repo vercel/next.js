@@ -11,12 +11,20 @@ function supportsPreload(el) {
 
 const hasPreload = supportsPreload(document.createElement('link'))
 
-function preloadScript(url) {
+function preloadLink(url, resourceType) {
   const link = document.createElement('link')
   link.rel = 'preload'
   link.crossOrigin = process.crossOrigin
   link.href = url
-  link.as = 'script'
+  link.as = resourceType
+  document.head.appendChild(link)
+}
+
+function loadStyle(url) {
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.crossOrigin = process.crossOrigin
+  link.href = url
   document.head.appendChild(link)
 }
 
@@ -104,6 +112,12 @@ export default class PageLoader {
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
                 this.loadScript(d, route, false)
+              }
+              if (
+                /\.css$/.test(d) &&
+                !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
+              ) {
+                loadStyle(d) // FIXME: handle failure
               }
             })
             this.loadRoute(route)
@@ -228,7 +242,7 @@ export default class PageLoader {
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
-      preloadScript(url)
+      preloadLink(url, url.match(/\.css$/) ? 'style' : 'script')
       return
     }
 
