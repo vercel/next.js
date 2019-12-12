@@ -127,15 +127,19 @@ export function printTreeView(
         [
           'λ',
           serverless ? '(Lambda)' : '(Server)',
-          `server-side renders at runtime (i.e. ${chalk.cyan(
+          `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
-          )})`,
+          )} or ${chalk.cyan('getServerProps')})`,
         ],
-        ['○', '(Static)', 'automatically rendered as static HTML'],
+        [
+          '○',
+          '(Static)',
+          'automatically rendered as static HTML (uses no initial props)',
+        ],
         [
           '●',
           '(SSG)',
-          `automatically generated as static HTML + JSON (i.e. ${chalk.cyan(
+          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
