@@ -57,8 +57,6 @@ function HomePage() {
 export default HomePage
 ```
 
-<br>
-
 ## Server-Side Rendering
 
 Generally used for:
