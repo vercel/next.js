@@ -47,7 +47,19 @@ export async function printTreeView(
   list: readonly string[],
   pageInfos: Map<string, PageInfo>,
   serverless: boolean,
-  { pagesDir, pageExtensions }: { pagesDir: string; pageExtensions: string[] }
+  {
+    distPath,
+    pagesDir,
+    pageExtensions,
+    buildManifest,
+    isModern,
+  }: {
+    distPath: string
+    pagesDir: string
+    pageExtensions: string[]
+    buildManifest: BuildManifestShape
+    isModern: boolean
+  }
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
@@ -126,6 +138,21 @@ export async function printTreeView(
       })
     }
   })
+
+  const sharedData = await getSharedSizes(distPath, buildManifest, isModern)
+
+  messages.push(['+ shared by all', getPrettySize(sharedData.total)])
+  Object.keys(sharedData.files)
+    .sort()
+    .forEach((fileName, index, { length }) => {
+      const innerSymbol = index === length - 1 ? '└' : '├'
+      messages.push([
+        `  ${innerSymbol} ${fileName
+          .replace(/^static\//, '')
+          .replace(/[.-][0-9a-z]{20}(?=\.)/, '')}`,
+        getPrettySize(sharedData.files[fileName]),
+      ])
+    })
 
   console.log(
     textTable(messages, {
@@ -221,36 +248,125 @@ export function printCustomRoutes({
   }
 }
 
+type BuildManifestShape = { pages: { [k: string]: string[] } }
+type ComputeManifestShape = {
+  commonFiles: string[]
+  sizeCommonFile: { [file: string]: number }
+  sizeCommonFiles: number
+}
+
+let cachedBuildManifest: BuildManifestShape | undefined
+
+let lastCompute: ComputeManifestShape | undefined
+let lastComputeModern: boolean | undefined
+
+async function computeFromManifest(
+  manifest: BuildManifestShape,
+  distPath: string,
+  isModern: boolean
+): Promise<ComputeManifestShape> {
+  if (
+    Object.is(cachedBuildManifest, manifest) &&
+    lastComputeModern === isModern
+  ) {
+    return lastCompute!
+  }
+
+  let expected = 0
+  const files = new Map<string, number>()
+  Object.keys(manifest.pages).forEach(key => {
+    if (key === '/_polyfills') {
+      return
+    }
+
+    ++expected
+    manifest.pages[key].forEach(file => {
+      if (
+        // Filter out CSS
+        !file.endsWith('.js') ||
+        // Select Modern or Legacy scripts
+        file.endsWith('.module.js') !== isModern
+      ) {
+        return
+      }
+
+      if (files.has(file)) {
+        files.set(file, files.get(file)! + 1)
+      } else {
+        files.set(file, 1)
+      }
+    })
+  })
+
+  const commonFiles = [...files.entries()]
+    .filter(([, len]) => len === expected)
+    .map(([f]) => f)
+
+  let stats: [string, fs.Stats][]
+  try {
+    stats = await Promise.all(
+      commonFiles.map(
+        async f =>
+          [f, await fsStat(path.join(distPath, f))] as [string, fs.Stats]
+      )
+    )
+  } catch (_) {
+    stats = []
+  }
+
+  lastCompute = {
+    commonFiles,
+    sizeCommonFile: stats.reduce(
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1].size }),
+      {}
+    ),
+    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat.size, 0),
+  }
+
+  cachedBuildManifest = manifest
+  lastComputeModern = isModern
+  return lastCompute!
+}
+
+function difference<T>(main: T[], sub: T[]): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...a].filter(x => !b.has(x))
+}
+
+export async function getSharedSizes(
+  distPath: string,
+  buildManifest: BuildManifestShape,
+  isModern: boolean
+): Promise<{ total: number; files: { [page: string]: number } }> {
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
+}
+
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
-  buildManifest: { pages: { [k: string]: string[] } },
+  buildManifest: BuildManifestShape,
   isModern: boolean
 ): Promise<number> {
+  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  const deps = difference(buildManifest.pages[page] || [], data.commonFiles)
+    .filter(
+      entry =>
+        entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
+    )
+    .map(dep => `${distPath}/${dep}`)
+
   const clientBundle = path.join(
     distPath,
     `static/${buildId}/pages/`,
     `${page}${isModern ? '.module' : ''}.js`
   )
-
-  // With granularChunks flag enabled, each page may have additional chunks that it depends on
-  const baseDeps = page === '/_app' ? [] : buildManifest.pages['/_app']
-
-  // Get the list of chunks specific to this page
-  // With granularChunks: false, this will be []
-  const deps = (buildManifest.pages[page] || [])
-    .filter(
-      dep => !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
-    )
-    .map(dep => `${distPath}/${dep}`)
-
-  // Add the main bundle for the page
   deps.push(clientBundle)
 
   try {
     let depStats = await Promise.all(deps.map(fsStat))
-
     return depStats.reduce((size, stat) => size + stat.size, 0)
   } catch (_) {}
   return -1
