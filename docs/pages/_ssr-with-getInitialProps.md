@@ -20,7 +20,7 @@ function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
 
-Page.getInitialProps = async ({ req }) => {
+Page.getInitialProps = async () => {
   const res = await fetch('https://api.github.com/repos/zeit/next.js')
   const json = await res.json()
   return { stars: json.stargazers_count }
@@ -35,7 +35,7 @@ Or using a class component:
 import React from 'react'
 
 class Page extends React.Component {
-  static async getInitialProps({ req }) {
+  static async getInitialProps() {
     const res = await fetch('https://api.github.com/repos/zeit/next.js')
     const json = await res.json()
     return { stars: json.stargazers_count }

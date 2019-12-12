@@ -19,17 +19,12 @@
           ]
         },
         {
-          "title": "Pages",
-          "routes": [
-            {
-              "title": "SSR with getInitialProps",
-              "path": "/docs/pages/ssr-with-getInitialProps.md"
-            }
-          ]
-        },
-        {
           "title": "Basic Features",
           "routes": [
+            {
+              "title": "Data fetching",
+              "path": "/docs/basic-features/data-fetching.md"
+            },
             {
               "title": "Built-in CSS Support",
               "path": "/docs/basic-features/built-in-css-support.md"

@@ -18,7 +18,7 @@ export default HomePage
 
 Next.js comes with the concept of pre-rendering built-in. This is enabled by default. Pre-rendering comes in 2 forms:
 
-- Static Rendering
+- Static Generation
 - Server-side rendering
 
 Next.js applications can be a hybrid combination of these rendering targets. You decide per-page if it will be statically rendered at build time or if will be server-rendered on-demand.
