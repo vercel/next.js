@@ -5,7 +5,7 @@ Next.js has 2 pre-rendering modes built-in:
 - Static Generation
 - Server-side rendering
 
-You can learn more about the differences in the [concepts section](/docs/concepts/pages#pre-rendering.md).
+You can learn more about the differences in the [concepts section](/docs/concepts/pages.md#pre-rendering).
 
 These rendering modes are tightly coupled to the way that you do data fetching.
 
