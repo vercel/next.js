@@ -32,9 +32,9 @@ For this particular use case [ZEIT](https://zeit.co) has created a data-fetching
 import fetch from 'unfetch'
 import useSWR from 'swr'
 
-const API = 'https://api.github.com'
+const API_URL = 'https://api.github.com'
 async function fetcher(path) {
-  const res = fetch(API + path)
+  const res = fetch(API_URL + path)
   const json = await res.json()
   return json
 }
