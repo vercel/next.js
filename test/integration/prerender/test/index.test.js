@@ -66,6 +66,11 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]',
   },
+  '/blog/post-4': {
+    dataRoute: `/_next/data/${buildId}/blog/post-4.json`,
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]',
+  },
   '/blog/post-1/comment-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1/comment-1.json`,
     initialRevalidateSeconds: 2,
@@ -478,9 +483,12 @@ describe('SPR Prerender', () => {
   })
 
   describe('production mode', () => {
+    let buildOutput = ''
     beforeAll(async () => {
       await fs.remove(nextConfig)
-      await nextBuild(appDir)
+      const { stdout } = await nextBuild(appDir, [], { stdout: true })
+      buildOutput = stdout
+
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
@@ -492,6 +500,12 @@ describe('SPR Prerender', () => {
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
     afterAll(() => killApp(app))
+
+    it('should of formatted build output correctly', () => {
+      expect(buildOutput).toMatch(/○ \/normal/)
+      expect(buildOutput).toMatch(/● \/blog\/\[post\]/)
+      expect(buildOutput).toMatch(/\+2 more paths/)
+    })
 
     runTests()
   })
