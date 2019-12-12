@@ -213,7 +213,7 @@ export default class NextEsmPlugin implements Plugin {
       compilation.namedChunkGroups
     )
 
-    const unnamedChunks = []
+    const unnamedChunks: compilation.Chunk[] = []
     const childChunkFileMap = childCompilation.chunks.reduce(
       (
         chunkMap: { [key: string]: compilation.Chunk },
@@ -221,7 +221,7 @@ export default class NextEsmPlugin implements Plugin {
       ) => {
         // Dynamic chunks may not have a name. It'll be null in such cases
         if (chunk.name === null) {
-          unnamedChunks.push(chunkMap)
+          unnamedChunks.push(chunk)
         } else {
           chunkMap[chunk.name] = chunk
         }
