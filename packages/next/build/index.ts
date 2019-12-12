@@ -384,6 +384,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       let isStatic = false
+      let isSsg = false
+      let ssgPageRoutes: string[] | null = null
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
@@ -432,17 +434,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
           if (result.prerender) {
             sprPages.add(page)
+            isSsg = true
 
             if (result.prerenderRoutes) {
               additionalSprPaths.set(page, result.prerenderRoutes)
+              ssgPageRoutes = result.prerenderRoutes
             }
-          }
-
-          if (result.static && customAppGetInitialProps === false) {
+          } else if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
-          } else if (result.prerender) {
-            sprPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -450,7 +450,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      pageInfos.set(page, { size, serverBundle, static: isStatic })
+      pageInfos.set(page, {
+        size,
+        serverBundle,
+        static: isStatic,
+        isSsg,
+        ssgPageRoutes,
+      })
     })
   )
   staticCheckWorkers.end()
