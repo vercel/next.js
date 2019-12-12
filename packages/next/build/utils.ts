@@ -37,7 +37,9 @@ export function collectPages(
 export interface PageInfo {
   isAmp?: boolean
   size: number
-  static?: boolean
+  static: boolean
+  isSsg: boolean
+  ssgPageRoutes: string[] | null
   serverBundle: string
 }
 
@@ -56,8 +58,8 @@ export function printTreeView(
     return chalk.red.bold(size)
   }
 
-  const messages: string[][] = [
-    ['Page', 'Size'].map(entry => chalk.underline(entry)),
+  const messages: [string, string][] = [
+    ['Page', 'Size'].map(entry => chalk.underline(entry)) as [string, string],
   ]
 
   list
@@ -79,10 +81,10 @@ export function printTreeView(
           item.startsWith('/_')
             ? ' '
             : pageInfo && pageInfo.static
-            ? '*'
-            : serverless
-            ? 'λ'
-            : 'σ'
+            ? '○'
+            : pageInfo && pageInfo.isSsg
+            ? '●'
+            : 'λ'
         } ${item}`,
         pageInfo
           ? pageInfo.isAmp
@@ -92,11 +94,28 @@ export function printTreeView(
             : ''
           : '',
       ])
+
+      if (pageInfo && pageInfo.ssgPageRoutes && pageInfo.ssgPageRoutes.length) {
+        const totalRoutes = pageInfo.ssgPageRoutes.length
+        const previewPages = totalRoutes === 4 ? 4 : 3
+        const contSymbol = i === list.length - 1 ? ' ' : '├'
+
+        const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
+        if (totalRoutes > previewPages) {
+          const remaining = totalRoutes - previewPages
+          routes.push(`[+${remaining} more paths]`)
+        }
+
+        routes.forEach((slug, index, { length }) => {
+          const innerSymbol = index === length - 1 ? '└' : '├'
+          messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, ''])
+        })
+      }
     })
 
   console.log(
     textTable(messages, {
-      align: ['l', 'l', 'r', 'r'],
+      align: ['l', 'l'],
       stringLength: str => stripAnsi(str).length,
     })
   )
@@ -105,23 +124,26 @@ export function printTreeView(
   console.log(
     textTable(
       [
-        serverless
-          ? [
-              'λ',
-              '(Lambda)',
-              `page was emitted as a lambda (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ]
-          : [
-              'σ',
-              '(Server)',
-              `page will be server rendered (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ],
-        ['*', '(Static File)', 'page was prerendered as static HTML'],
-      ],
+        [
+          'λ',
+          serverless ? '(Lambda)' : '(Server)',
+          `server-side renders at runtime (uses ${chalk.cyan(
+            'getInitialProps'
+          )} or ${chalk.cyan('getServerProps')})`,
+        ],
+        [
+          '○',
+          '(Static)',
+          'automatically rendered as static HTML (uses no initial props)',
+        ],
+        [
+          '●',
+          '(SSG)',
+          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+      ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: str => stripAnsi(str).length,
