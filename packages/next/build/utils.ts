@@ -80,11 +80,11 @@ export function printTreeView(
         `${symbol} ${
           item.startsWith('/_')
             ? ' '
-            : pageInfo && (pageInfo.static || pageInfo.isSsg)
-            ? '*'
-            : serverless
-            ? 'λ'
-            : 'σ'
+            : pageInfo && pageInfo.static
+            ? '○'
+            : pageInfo && pageInfo.isSsg
+            ? '●'
+            : 'λ'
         } ${item}`,
         pageInfo
           ? pageInfo.isAmp
@@ -124,23 +124,22 @@ export function printTreeView(
   console.log(
     textTable(
       [
-        serverless
-          ? [
-              'λ',
-              '(Lambda)',
-              `page was emitted as a lambda (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ]
-          : [
-              'σ',
-              '(Server)',
-              `page will be server rendered (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ],
-        ['*', '(Static File)', 'page was prerendered as static HTML'],
-      ],
+        [
+          'λ',
+          serverless ? '(Lambda)' : '(Server)',
+          `server-side renders at runtime (i.e. ${chalk.cyan(
+            'getInitialProps'
+          )})`,
+        ],
+        ['○', '(Static)', 'automatically rendered as static HTML'],
+        [
+          '●',
+          '(SSG)',
+          `automatically generated as static HTML + JSON (i.e. ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+      ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: str => stripAnsi(str).length,
