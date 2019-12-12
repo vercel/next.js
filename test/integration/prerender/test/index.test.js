@@ -502,6 +502,8 @@ describe('SPR Prerender', () => {
     afterAll(() => killApp(app))
 
     it('should of formatted build output correctly', () => {
+      expect(buildOutput).toMatch(/○ \/normal/)
+      expect(buildOutput).toMatch(/● \/blog\/\[post\]/)
       expect(buildOutput).toMatch(/\+ 2 more/)
     })
 
