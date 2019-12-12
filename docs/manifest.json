@@ -10,7 +10,7 @@
           "routes": [
             {
               "title": "Pages",
-              "path": "/docs/concepts/pages.md"
+              "path": "/docs/basic-features/pages.md"
             },
             {
               "title": "Data fetching",
@@ -39,7 +39,7 @@
           "routes": [
             {
               "title": "Introduction",
-              "path": "/docs/concepts/routing.md"
+              "path": "/docs/routing/introduction.md"
             },
             {
               "title": "Using `Link`",
