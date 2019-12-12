@@ -171,27 +171,6 @@
           "path": "/docs/api-reference/router.md"
         },
         {
-          "title": "Router",
-          "routes": [
-            {
-              "title": "Router.push",
-              "path": "/docs/api-reference/router/router.push.md"
-            },
-            {
-              "title": "Router.replace",
-              "path": "/docs/api-reference/router/router.replace.md"
-            },
-            {
-              "title": "Router.beforePopState",
-              "path": "/docs/api-reference/router/router.beforePopState.md"
-            },
-            {
-              "title": "Router Events",
-              "path": "/docs/api-reference/router/router-events.md"
-            }
-          ]
-        },
-        {
           "title": "next.config.js",
           "routes": [
             {

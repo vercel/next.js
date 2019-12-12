@@ -133,7 +133,7 @@ import Router from 'next/router'
 Router.replace('/home')
 ```
 
-The API for `Router.replace` is exactly the same as that used for `Router.push`, so please refer to its [documentation](/docs/api-reference/router/router.push.md).
+The API for `Router.replace` is exactly the same as that used for [`Router.push`](#router.push).
 
 ## Router.beforePopState
 
@@ -161,7 +161,7 @@ Router.beforePopState(({ url, as, options }) => {
 - `cb`: The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
   - `url`: `String` - the route for the new state. This is usually the name of a `page`
   - `as`: `String` - the url that will be shown in the browser
-  - `options`: `Object` - Additional options sent by [Router.push](/docs/api-reference/router/router.push.md)
+  - `options`: `Object` - Additional options sent by [Router.push](#router.push)
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 

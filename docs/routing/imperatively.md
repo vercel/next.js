@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-`Link` should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/router/router.push.md).
+`Link` should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/router.md).
 
 The following example shows the basic usage of the Router API:
 
