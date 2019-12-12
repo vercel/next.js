@@ -5,14 +5,14 @@ import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
-
+import { Redirect, Rewrite } from '../lib/check-custom-routes'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { Redirect, Rewrite } from '../lib/check-custom-routes'
-import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
+import { findPageFile } from '../server/lib/find-page-file'
 
 const fsStatPromise = promisify(fs.stat)
 const fileStats: { [k: string]: Promise<fs.Stats> } = {}
@@ -43,10 +43,11 @@ export interface PageInfo {
   serverBundle: string
 }
 
-export function printTreeView(
-  list: string[],
+export async function printTreeView(
+  list: readonly string[],
   pageInfos: Map<string, PageInfo>,
-  serverless: boolean
+  serverless: boolean,
+  { pagesDir, pageExtensions }: { pagesDir: string; pageExtensions: string[] }
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
@@ -62,56 +63,69 @@ export function printTreeView(
     ['Page', 'Size'].map(entry => chalk.underline(entry)) as [string, string],
   ]
 
-  list
+  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
+
+  const pageList = list
+    .slice()
+    .filter(
+      e =>
+        !(
+          e === '/_document' ||
+          (!hasCustomApp && e === '/_app') ||
+          (!hasCustomError && e === '/_error')
+        )
+    )
     .sort((a, b) => a.localeCompare(b))
-    .forEach((item, i) => {
-      const symbol =
-        i === 0
-          ? list.length === 1
-            ? '─'
-            : '┌'
-          : i === list.length - 1
-          ? '└'
-          : '├'
 
-      const pageInfo = pageInfos.get(item)
+  pageList.forEach((item, i, arr) => {
+    const symbol =
+      i === 0
+        ? arr.length === 1
+          ? '─'
+          : '┌'
+        : i === arr.length - 1
+        ? '└'
+        : '├'
 
-      messages.push([
-        `${symbol} ${
-          item.startsWith('/_')
-            ? ' '
-            : pageInfo && pageInfo.static
-            ? '○'
-            : pageInfo && pageInfo.isSsg
-            ? '●'
-            : 'λ'
-        } ${item}`,
-        pageInfo
-          ? pageInfo.isAmp
-            ? chalk.cyan('AMP')
-            : pageInfo.size >= 0
-            ? getPrettySize(pageInfo.size)
-            : ''
-          : '',
-      ])
+    const pageInfo = pageInfos.get(item)
 
-      if (pageInfo && pageInfo.ssgPageRoutes && pageInfo.ssgPageRoutes.length) {
-        const totalRoutes = pageInfo.ssgPageRoutes.length
-        const previewPages = totalRoutes === 4 ? 4 : 3
-        const contSymbol = i === list.length - 1 ? ' ' : '├'
+    messages.push([
+      `${symbol} ${
+        item.startsWith('/_')
+          ? ' '
+          : pageInfo && pageInfo.static
+          ? '○'
+          : pageInfo && pageInfo.isSsg
+          ? '●'
+          : 'λ'
+      } ${item}`,
+      pageInfo
+        ? pageInfo.isAmp
+          ? chalk.cyan('AMP')
+          : pageInfo.size >= 0
+          ? getPrettySize(pageInfo.size)
+          : ''
+        : '',
+    ])
 
-        const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
-        if (totalRoutes > previewPages) {
-          const remaining = totalRoutes - previewPages
-          routes.push(`[+${remaining} more paths]`)
-        }
+    if (pageInfo && pageInfo.ssgPageRoutes && pageInfo.ssgPageRoutes.length) {
+      const totalRoutes = pageInfo.ssgPageRoutes.length
+      const previewPages = totalRoutes === 4 ? 4 : 3
+      const contSymbol = i === arr.length - 1 ? ' ' : '├'
 
-        routes.forEach((slug, index, { length }) => {
-          const innerSymbol = index === length - 1 ? '└' : '├'
-          messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, ''])
-        })
+      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
+      if (totalRoutes > previewPages) {
+        const remaining = totalRoutes - previewPages
+        routes.push(`[+${remaining} more paths]`)
       }
-    })
+
+      routes.forEach((slug, index, { length }) => {
+        const innerSymbol = index === length - 1 ? '└' : '├'
+        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, ''])
+      })
+    }
+  })
 
   console.log(
     textTable(messages, {
