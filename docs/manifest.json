@@ -6,21 +6,12 @@
       "routes": [
         { "title": "Getting Started", "path": "/docs/getting-started.md" },
         {
-          "title": "Concepts",
+          "title": "Basic Features",
           "routes": [
             {
               "title": "Pages",
               "path": "/docs/concepts/pages.md"
             },
-            {
-              "title": "Routing",
-              "path": "/docs/concepts/routing.md"
-            }
-          ]
-        },
-        {
-          "title": "Basic Features",
-          "routes": [
             {
               "title": "Data fetching",
               "path": "/docs/basic-features/data-fetching.md"
@@ -46,6 +37,10 @@
         {
           "title": "Routing",
           "routes": [
+            {
+              "title": "Introduction",
+              "path": "/docs/concepts/routing.md"
+            },
             {
               "title": "Using `Link`",
               "path": "/docs/routing/using-link.md"
