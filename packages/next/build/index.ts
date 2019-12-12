@@ -726,8 +726,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     allPageInfos,
     isLikeServerless,
     {
+      distPath: distDir,
       pagesDir,
       pageExtensions: config.pageExtensions,
+      buildManifest,
+      isModern: config.experimental.modern,
     }
   )
   printCustomRoutes({ redirects, rewrites })
