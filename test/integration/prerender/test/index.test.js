@@ -504,7 +504,7 @@ describe('SPR Prerender', () => {
     it('should of formatted build output correctly', () => {
       expect(buildOutput).toMatch(/○ \/normal/)
       expect(buildOutput).toMatch(/● \/blog\/\[post\]/)
-      expect(buildOutput).toMatch(/\+ 2 more/)
+      expect(buildOutput).toMatch(/\+2 more paths/)
     })
 
     runTests()
