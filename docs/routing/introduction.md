@@ -1,6 +1,6 @@
 # Routing
 
-Next.js has a file-system based router built on the [concept of pages](/docs/concepts/pages.md).
+Next.js has a file-system based router built on the [concept of pages](/docs/basic-features/pages.md).
 
 When a file is added to the `pages` directory it's automatically available as a route.
 

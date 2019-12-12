@@ -102,7 +102,7 @@ export default HomePage
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/concepts/routing.md">
+  <a href="/docs/routing/introduction.md">
     <b>Routing:</b>
     <small>Learn more about routing in Next.js</small>
   </a>

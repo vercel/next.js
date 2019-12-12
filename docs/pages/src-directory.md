@@ -14,7 +14,7 @@ The `src` directory is very common in many apps and Next.js supports it by defau
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/concepts/pages.md">
+  <a href="/docs/basic-features/pages.md">
     <b>Pages:</b>
     <small>Learn more about what pages are in Next.js</small>
   </a>

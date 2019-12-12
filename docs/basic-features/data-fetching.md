@@ -5,7 +5,7 @@ Next.js has 2 pre-rendering modes built-in:
 - Static Generation
 - Server-side rendering
 
-You can learn more about the differences in the [concepts section](/docs/concepts/pages.md#pre-rendering).
+You can learn more about the differences in the [pages section](/docs/basic-features/pages.md#pre-rendering).
 
 These rendering modes are tightly coupled to the way that you do data fetching.
 
@@ -58,7 +58,7 @@ Next.js comes with `getInitialProps`, which is an [`async`](https://zeit.co/blog
 
 `getInitialProps` allows the page to wait for data before rendering starts.
 
-Using `getInitialProps` will make the page opt-in to on-demand [server-side rendering](/docs/concepts/pages#server-side-rendering).
+Using `getInitialProps` will make the page opt-in to on-demand [server-side rendering](/docs/basic-features/pages.md#server-side-rendering).
 
 ```jsx
 // This page has defined `getInitialProps` to do data fetching.

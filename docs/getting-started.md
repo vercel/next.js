@@ -67,7 +67,7 @@ So far, we get:
 
 - Automatic compilation and bundling (with webpack and babel)
 - Hot code reloading
-- Static generation and server-side rendering of [`./pages/`](/docs/concepts/pages.md)
+- Static generation and server-side rendering of [`./pages/`](/docs/basic-features/pages.md)
 - [Static file serving](/docs/basic-features/static-file-serving.md). `./public/` is mapped to `/`
 
 ## Related
@@ -75,7 +75,7 @@ So far, we get:
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/concepts/pages.md">
+  <a href="/docs/basic-features/pages.md">
     <b>Pages:</b>
     <small>Learn more about what pages are in Next.js</small>
   </a>
