@@ -511,6 +511,44 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Good CSS Import from node_modules', () => {
+    const appDir = join(fixturesDir, 'npm-import')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(/nprogress/)
+    })
+  })
+
+  describe('Bad CSS Import from node_modules', () => {
+    const appDir = join(fixturesDir, 'npm-import-bad')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail the build', async () => {
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+      expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).toMatch(/Build error occurred/)
+    })
+  })
+
   describe('Ordering with styled-jsx (dev)', () => {
     const appDir = join(fixturesDir, 'with-styled-jsx')
 
