@@ -1,0 +1,18 @@
+{
+  "name": "with-cookie-auth",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "dotenv": "8.2.0",
+    "faunadb": "2.10.0",
+    "isomorphic-unfetch": "^3.0.0",
+    "js-cookie": "^2.2.0",
+    "next": "^9.0.1",
+    "next-cookies": "^1.0.4",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  }
+}
