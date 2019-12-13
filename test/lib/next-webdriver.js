@@ -3,6 +3,7 @@ import path from 'path'
 import fetch from 'node-fetch'
 import { until, Builder, By } from 'selenium-webdriver'
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome'
+import { Options as SafariOptions } from 'selenium-webdriver/safari'
 import { Options as FireFoxOptions } from 'selenium-webdriver/firefox'
 
 const {
@@ -59,10 +60,10 @@ if (isBrowserStack) {
 
 let chromeOptions = new ChromeOptions()
 let firefoxOptions = new FireFoxOptions()
+let safariOptions = new SafariOptions()
 
 if (HEADLESS) {
   const screenSize = { width: 1280, height: 720 }
-
   chromeOptions = chromeOptions.headless().windowSize(screenSize)
   firefoxOptions = firefoxOptions.headless().windowSize(screenSize)
 }
@@ -83,6 +84,7 @@ let browser = new Builder()
   .forBrowser(browserName)
   .setChromeOptions(chromeOptions)
   .setFirefoxOptions(firefoxOptions)
+  .setSafariOptions(safariOptions)
   .build()
 
 global.wd = browser
