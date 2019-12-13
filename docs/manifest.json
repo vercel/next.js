@@ -167,7 +167,7 @@
       "routes": [
         { "title": "Next.js CLI", "path": "/docs/api-reference/next-cli.md" },
         {
-          "title": "Router",
+          "title": "Router API",
           "path": "/docs/api-reference/router.md"
         },
         {
