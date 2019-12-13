@@ -191,7 +191,7 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
-  it('should not have query values with useRouter SSR', async () => {
+  it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
     const html = await renderViaHTTP(appPort, '/something?hello=world')
     const $ = cheerio.load(html)
     const query = $('#query').text()
@@ -200,7 +200,7 @@ const runTests = (dev = false) => {
     expect(JSON.parse(params)).toEqual({})
   })
 
-  it('should not supply query values to params SSR', async () => {
+  it('should not supply query values to params or useRouter dynamic page SSR', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
     const params = $('#params').text()
