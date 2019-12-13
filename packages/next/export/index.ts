@@ -1,11 +1,16 @@
 import chalk from 'chalk'
-import { copyFile as copyFileOrig, existsSync, readFileSync } from 'fs'
+import findUp from 'find-up'
+import {
+  copyFile as copyFileOrig,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from 'fs'
 import Worker from 'jest-worker'
 import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
-import findUp from 'find-up'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
 import { API_ROUTE } from '../lib/constants'
@@ -16,11 +21,12 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
+  EXPORT_DETAIL,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
@@ -179,6 +185,16 @@ export default async function(
 
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
+
+  writeFileSync(
+    join(distDir, EXPORT_DETAIL),
+    JSON.stringify({
+      version: 1,
+      outDirectory: outDir,
+      success: false,
+    }),
+    'utf8'
+  )
 
   // Copy static directory
   if (!options.buildExport && existsSync(join(dir, 'static'))) {
@@ -371,6 +387,16 @@ export default async function(
   }
   // Add an empty line to the console for the better readability.
   log('')
+
+  writeFileSync(
+    join(distDir, EXPORT_DETAIL),
+    JSON.stringify({
+      version: 1,
+      outDirectory: outDir,
+      success: true,
+    }),
+    'utf8'
+  )
 
   if (telemetry) {
     await telemetry.flush()
