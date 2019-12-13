@@ -199,7 +199,7 @@ describe('Application Export Intent Output', () => {
     })
 
     it('should export and create file', async () => {
-      await nextExport(appDir)
+      await nextExportDefault(appDir)
 
       expect(() => {
         fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
