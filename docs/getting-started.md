@@ -1,3 +1,7 @@
+---
+description: Getting started with Next.js.
+---
+
 # Getting Started
 
 Welcome to the Next.js documentation!
