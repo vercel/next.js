@@ -71,18 +71,7 @@ export const css = curry(async function css(
     return config
   }
 
-  const fns: ConfigurationFn[] = [
-    loader({
-      oneOf: [
-        {
-          // Impossible regex expression
-          test: /a^/,
-          loader: data => data,
-          options: { __next_css_remove: true },
-        },
-      ],
-    }),
-  ]
+  const fns: ConfigurationFn[] = []
 
   const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
   // CSS Modules support must be enabled on the server and client so the class
