@@ -50,6 +50,7 @@ const babelServerOpts = {
     ],
   ],
   plugins: [
+    '@babel/plugin-proposal-optional-chaining',
     'babel-plugin-dynamic-import-node',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
   ],
