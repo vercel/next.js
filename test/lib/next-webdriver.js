@@ -177,11 +177,41 @@ export default async (appPort, path) => {
     }
 
     elementByCss(sel) {
-      return this.updateChain(() => browser.findElement(By.css(sel)))
+      return this.updateChain(() =>
+        browser.findElement(By.css(sel)).then(el => {
+          el.text = () => el.getText()
+          el.getComputedCss = prop => el.getCssValue(prop)
+          return el
+        })
+      )
     }
 
     text() {
       return this.updateChain(el => el.getText())
+    }
+
+    moveTo() {
+      return this.updateChain(el => {
+        return browser
+          .actions()
+          .move({ origin: el })
+          .perform()
+          .then(() => el)
+      })
+    }
+
+    getComputedCss(prop) {
+      return this.updateChain(el => {
+        return el.getCssValue(prop)
+      })
+    }
+
+    getAttribute(attr) {
+      return this.updateChain(el => el.getAttribute(attr))
+    }
+
+    hasElementByCssSelector(sel) {
+      return this.eval(`document.querySelector('${sel}')`)
     }
 
     click() {
