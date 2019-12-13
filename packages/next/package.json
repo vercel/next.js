@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.1.6-canary.6",
+  "version": "9.1.6-canary.7",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
