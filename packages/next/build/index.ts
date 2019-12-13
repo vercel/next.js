@@ -8,8 +8,8 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
-
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
+import checkCustomRoutes from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -22,8 +22,8 @@ import {
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -55,7 +55,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import checkCustomRoutes from '../lib/check-custom-routes'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -384,6 +383,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
 
       let isStatic = false
+      let isSsg = false
+      let ssgPageRoutes: string[] | null = null
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
@@ -432,17 +433,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
           if (result.prerender) {
             sprPages.add(page)
+            isSsg = true
 
             if (result.prerenderRoutes) {
               additionalSprPaths.set(page, result.prerenderRoutes)
+              ssgPageRoutes = result.prerenderRoutes
             }
-          }
-
-          if (result.static && customAppGetInitialProps === false) {
+          } else if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
-          } else if (result.prerender) {
-            sprPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -450,7 +449,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      pageInfos.set(page, { size, serverBundle, static: isStatic })
+      pageInfos.set(page, {
+        size,
+        serverBundle,
+        static: isStatic,
+        isSsg,
+        ssgPageRoutes,
+      })
     })
   )
   staticCheckWorkers.end()
@@ -716,7 +721,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
     allPageInfos.set(key, info)
   })
 
-  printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless)
+  await printTreeView(
+    Object.keys(mappedPages),
+    allPageInfos,
+    isLikeServerless,
+    {
+      distPath: distDir,
+      pagesDir,
+      pageExtensions: config.pageExtensions,
+      buildManifest,
+      isModern: config.experimental.modern,
+    }
+  )
   printCustomRoutes({ redirects, rewrites })
 
   if (tracer) {

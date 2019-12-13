@@ -7,7 +7,7 @@ export default App => {
   return class GraphQLHooks extends React.Component {
     static displayName = 'GraphQLHooks(App)'
     static async getInitialProps(ctx) {
-      const { Component, router } = ctx
+      const { AppTree } = ctx
 
       let appProps = {}
       if (App.getInitialProps) {
@@ -22,14 +22,7 @@ export default App => {
         try {
           // Run all GraphQL queries
           graphQLState = await getInitialState({
-            App: (
-              <App
-                {...appProps}
-                Component={Component}
-                router={router}
-                graphQLClient={graphQLClient}
-              />
-            ),
+            App: <AppTree {...appProps} graphQLClient={graphQLClient} />,
             client: graphQLClient,
           })
         } catch (error) {
