@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
+import fs from 'fs-extra'
 import { join } from 'path'
-import { existsSync, readFileSync } from 'fs'
 import {
   killApp,
   findPort,
@@ -10,17 +10,17 @@ import {
   renderViaHTTP,
   nextBuild,
   nextStart,
-  File,
 } from 'next-test-utils'
 import json from '../big.json'
-import { createServer } from 'http'
 
-const appDir = join(__dirname, '../')
-let appPort
-let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+const appDir = join(__dirname, '../')
+const nextConfig = join(appDir, 'next.config.js')
+let appPort
+let mode
+let app
 
-function runTests(serverless = false) {
+function runTests(dev = false) {
   it('should render page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/API - support/)
@@ -37,33 +37,15 @@ function runTests(serverless = false) {
   })
 
   it('should not conflict with /api routes', async () => {
-    const port = await findPort()
-    await nextBuild(appDir)
-    const app = await nextStart(appDir, port)
-    const res = await fetchViaHTTP(port, '/api-conflict')
+    const res = await fetchViaHTTP(appPort, '/api-conflict')
     expect(res.status).not.toEqual(404)
-    killApp(app)
   })
 
   it('should work with index api', async () => {
-    if (serverless) {
-      const port = await findPort()
-      const resolver = require(join(appDir, '.next/serverless/pages/api.js'))
-        .default
-
-      const server = createServer(resolver).listen(port)
-      const res = await fetchViaHTTP(port, '/api')
-      const text = await res.text()
-      server.close()
-
-      expect(text).toEqual('Index should work')
-    } else {
-      const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
-        res => res.ok && res.text()
-      )
-
-      expect(text).toEqual('Index should work')
-    }
+    const text = await fetchViaHTTP(appPort, '/api', null, {}).then(
+      res => res.ok && res.text()
+    )
+    expect(text).toEqual('Index should work')
   })
 
   it('should return custom error', async () => {
@@ -248,24 +230,12 @@ function runTests(serverless = false) {
     expect(data).toEqual({ val: '1', post: 'post-1' })
   })
 
-  if (serverless) {
-    it('should work with dynamic params and search string like lambda', async () => {
-      await nextBuild(appDir, [])
+  it('should work with dynamic params and search string like lambda', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/post-1?val=1')
+    const json = await res.json()
 
-      const port = await findPort()
-      const resolver = require(join(
-        appDir,
-        '.next/serverless/pages/api/[post].js'
-      )).default
-
-      const server = createServer(resolver).listen(port)
-      const res = await fetchViaHTTP(port, '/api/post-1?val=1')
-      const json = await res.json()
-      server.close()
-
-      expect(json).toEqual({ val: '1', post: 'post-1' })
-    })
-  }
+    expect(json).toEqual({ val: '1', post: 'post-1' })
+  })
 
   it('should prioritize a non-dynamic page', async () => {
     const data = await fetchViaHTTP(
@@ -295,43 +265,6 @@ function runTests(serverless = false) {
     expect(res.status).toBe(404)
   })
 
-  it('should build api routes', async () => {
-    await nextBuild(appDir, [], { stdout: true })
-    if (serverless) {
-      const pagesManifest = JSON.parse(
-        readFileSync(
-          join(appDir, '.next/serverless/pages-manifest.json'),
-          'utf8'
-        )
-      )
-      expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
-
-      const port = await findPort()
-      const resolver = require(join(
-        appDir,
-        '.next/serverless/pages/api/blog.js'
-      )).default
-
-      const server = createServer(resolver).listen(port)
-      const res = await fetchViaHTTP(port, '/api/nextjs')
-      const json = await res.json()
-      server.close()
-
-      expect(json).toEqual([{ title: 'Cool Post!' }])
-    } else {
-      expect(
-        existsSync(join(appDir, '.next/server/pages-manifest.json'), 'utf8')
-      ).toBeTruthy()
-
-      const buildManifest = JSON.parse(
-        readFileSync(join(appDir, '.next/build-manifest.json'), 'utf8')
-      )
-      expect(
-        Object.keys(buildManifest.pages).includes('/api-conflict')
-      ).toBeTruthy()
-    }
-  })
-
   it('should return data on dynamic optional nested route', async () => {
     const data = await fetchViaHTTP(
       appPort,
@@ -343,50 +276,98 @@ function runTests(serverless = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
-  it('should compile only server code in development', async () => {
-    await fetchViaHTTP(appPort, '/')
-    await fetchViaHTTP(appPort, '/api/users')
+  if (dev) {
+    it('should compile only server code in development', async () => {
+      await fetchViaHTTP(appPort, '/')
+      await fetchViaHTTP(appPort, '/api/users')
 
-    // Normal page
-    expect(
-      existsSync(join(appDir, `/.next/static/development/pages/index.js`))
-    ).toBeTruthy()
-    expect(
-      existsSync(
-        join(appDir, `/.next/server/static/development/pages/index.js`)
+      // Normal page
+      expect(
+        await fs.exists(
+          join(appDir, `/.next/static/development/pages/index.js`)
+        )
+      ).toBeTruthy()
+      expect(
+        await fs.exists(
+          join(appDir, `/.next/server/static/development/pages/index.js`)
+        )
+      ).toBeTruthy()
+      // API page
+      expect(
+        await fs.exists(
+          join(appDir, `/.next/static/development/pages/api/users.js`)
+        )
+      ).toBeFalsy()
+      expect(
+        await fs.exists(
+          join(appDir, `/.next/server/static/development/pages/api/users.js`)
+        )
+      ).toBeTruthy()
+    })
+  } else {
+    it('should build api routes', async () => {
+      const pagesManifest = JSON.parse(
+        await fs.readFile(
+          join(appDir, `.next/${mode}/pages-manifest.json`),
+          'utf8'
+        )
       )
-    ).toBeTruthy()
-    // API page
-    expect(
-      existsSync(join(appDir, `/.next/static/development/pages/api/users.js`))
-    ).toBeFalsy()
-    expect(
-      existsSync(
-        join(appDir, `/.next/server/static/development/pages/api/users.js`)
+      expect(Object.keys(pagesManifest).includes('/api/[post]')).toBeTruthy()
+
+      const res = await fetchViaHTTP(appPort, '/api/nextjs')
+      const json = await res.json()
+
+      expect(json).toEqual({ post: 'nextjs' })
+
+      const buildManifest = JSON.parse(
+        await fs.readFile(join(appDir, '.next/build-manifest.json'), 'utf8')
       )
-    ).toBeTruthy()
-  })
+      expect(
+        Object.keys(buildManifest.pages).includes('/api-conflict')
+      ).toBeTruthy()
+    })
+  }
 }
 
 describe('API routes', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    server = await launchApp(appDir, appPort)
+  describe('dev support', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests(true)
   })
-  afterAll(() => killApp(server))
 
   describe('Server support', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      mode = 'server'
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
     runTests()
   })
 
   describe('Serverless support', () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
-    beforeEach(() => {
-      nextConfig.replace('server', 'serverless')
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { target: 'serverless' }`
+      )
+      await nextBuild(appDir)
+      mode = 'serverless'
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
-    afterEach(() => {
-      nextConfig.restore()
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(nextConfig)
     })
-    runTests(true)
+
+    runTests()
   })
 })

@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -66,6 +67,11 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]',
   },
+  '/blog/post-4': {
+    dataRoute: `/_next/data/${buildId}/blog/post-4.json`,
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]',
+  },
   '/blog/post-1/comment-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1/comment-1.json`,
     initialRevalidateSeconds: 2,
@@ -93,7 +99,7 @@ const expectedManifestRoutes = () => ({
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: false,
     srcRoute: null,
   },
   '/something': {
@@ -105,9 +111,25 @@ const expectedManifestRoutes = () => ({
 
 const navigateTest = () => {
   it('should navigate between pages successfully', async () => {
+    const toBuild = [
+      '/',
+      '/another',
+      '/something',
+      '/normal',
+      '/blog/post-1',
+      '/blog/post-1/comment-1',
+    ]
+
+    await waitFor(2500)
+
+    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
+
+    // hydration
+    await waitFor(2500)
 
     // go to /another
     await browser.elementByCss('#another').click()
@@ -167,6 +189,24 @@ const runTests = (dev = false) => {
   it('should SSR SPR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
     expect(html).toMatch(/Post:.*?post-1/)
+  })
+
+  it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/something?hello=world')
+    const $ = cheerio.load(html)
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({})
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({})
+  })
+
+  it('should not supply query values to params or useRouter dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
+    const $ = cheerio.load(html)
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({ post: 'post-1' })
   })
 
   it('should return data correctly', async () => {
@@ -462,9 +502,12 @@ describe('SPR Prerender', () => {
   })
 
   describe('production mode', () => {
+    let buildOutput = ''
     beforeAll(async () => {
       await fs.remove(nextConfig)
-      await nextBuild(appDir)
+      const { stdout } = await nextBuild(appDir, [], { stdout: true })
+      buildOutput = stdout
+
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
@@ -476,6 +519,12 @@ describe('SPR Prerender', () => {
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
     afterAll(() => killApp(app))
+
+    it('should of formatted build output correctly', () => {
+      expect(buildOutput).toMatch(/○ \/normal/)
+      expect(buildOutput).toMatch(/● \/blog\/\[post\]/)
+      expect(buildOutput).toMatch(/\+2 more paths/)
+    })
 
     runTests()
   })

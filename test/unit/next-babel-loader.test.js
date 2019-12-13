@@ -1,5 +1,11 @@
 /* eslint-env jest */
 
+// avoid generating __source annotations in JSX during testing:
+const NODE_ENV = process.env.NODE_ENV
+process.env.NODE_ENV = 'production'
+require('next/dist/build/babel/preset')
+process.env.NODE_ENV = NODE_ENV
+
 const loader = require('next/dist/build/webpack/loaders/next-babel-loader')
 const os = require('os')
 const path = require('path')
@@ -203,17 +209,19 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";` +
           // complex
+          `import * as React from "react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";`
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
       )
     })
 
     const pageFile = path.resolve(dir, 'pages', 'index.js')
+    const tsPageFile = pageFile.replace(/\.js$/, '.ts')
 
     it('should not drop unused exports by default in a page', async () => {
       const code = await babel(
@@ -222,6 +230,7 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
@@ -229,7 +238,7 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";"`
       )
     })
 
@@ -240,15 +249,18 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() { return { props: {} } }`,
+          `export function unstable_getStaticProps() {foo;bar;baz;cats;baz2;ff; return { props: {} } }`,
         { resourcePath: pageFile }
       )
-      expect(code).toMatchInlineSnapshot(`"import\\"core-js\\";"`)
+      expect(code).toMatchInlineSnapshot(
+        `"import\\"core-js\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3 from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";"`
+      )
     })
 
     it('should keep used exports in a modern-apis page (server)', async () => {
@@ -258,6 +270,7 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";import ooo from"ooo";` +
           // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
@@ -268,7 +281,7 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: true }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import ooo from\\"ooo\\";import baz2 from\\"c\\";import{f as ff}from\\"f\\";export function unstable_getStaticProps(){foo();baz2();ff();ooo();return{props:{}};}export default function(){return bar();}"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import ooo from\\"ooo\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";export function unstable_getStaticProps(){foo();baz2();ff();ooo();return{props:{}};}export default function(){return bar();}"`
       )
     })
 
@@ -279,17 +292,110 @@ describe('next-babel-loader', () => {
           // basic
           `import{foo,bar}from"a";import baz from"b";import ooo from"ooo";` +
           // complex
+          `import*as React from"react";` +
+          `import baz2,{yeet}from"c";` +
+          `import baz3,{cats}from"d";` +
+          `import{c,d}from"e";` +
+          `import{e as ee,f as ff}from"f";` +
+          `` +
+          `export function unstable_getStaticProps() {foo();baz2();ff();ooo();cats; return { props: {} }}` +
+          `export default function () { return cats + bar(); }`,
+        { resourcePath: pageFile, isServer: false }
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should keep used exports and react in a modern-apis page with JSX (client)', async () => {
+      const code = await babel(
+        // effectful
+        `import"core-js";` +
+          // basic
+          `import{foo,bar}from"a";import baz from"b";import ooo from"ooo";` +
+          // complex
+          `import*as React from"react";` +
           `import baz2,{yeet}from"c";` +
           `import baz3,{cats}from"d";` +
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
           `export function unstable_getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
-          `export default function () { return cats + bar(); }`,
+          `export default function () { return <div>{cats + bar()}</div> }`,
         { resourcePath: pageFile, isServer: false }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{bar}from\\"a\\";import{cats}from\\"d\\";const __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return __jsx(\\"div\\",null,cats+bar());};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should support optional chaining for JS file', async () => {
+      const code = await babel(
+        `let hello;` +
+          `export default () => hello?.world ? 'something' : 'nothing' `,
+        {
+          resourcePath: pageFile,
+        }
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+      )
+    })
+
+    it('should support optional chaining for TS file', async () => {
+      const code = await babel(
+        `let hello;` +
+          `export default () => hello?.world ? 'something' : 'nothing' `,
+        {
+          resourcePath: tsPageFile,
+        }
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+      )
+    })
+
+    it('should support nullish coalescing for JS file', async () => {
+      const code = await babel(
+        `const res = {
+          status: 0,
+          nullVal: null,
+          statusText: '',
+
+        }
+        const status = res.status ?? 999
+        const nullVal = res.nullVal ?? 'another'
+        const statusText = res.nullVal ?? 'not found'
+        export default () => 'hello'
+        `,
+        {
+          resourcePath: pageFile,
+        }
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"var _res$status,_res$nullVal,_res$nullVal2;var res={status:0,nullVal:null,statusText:''};var status=(_res$status=res.status)!==null&&_res$status!==void 0?_res$status:999;var nullVal=(_res$nullVal=res.nullVal)!==null&&_res$nullVal!==void 0?_res$nullVal:'another';var statusText=(_res$nullVal2=res.nullVal)!==null&&_res$nullVal2!==void 0?_res$nullVal2:'not found';export default(function(){return'hello';});"`
+      )
+    })
+
+    it('should support nullish coalescing for TS file', async () => {
+      const code = await babel(
+        `const res = {
+          status: 0,
+          nullVal: null,
+          statusText: '',
+
+        }
+        const status = res.status ?? 999
+        const nullVal = res.nullVal ?? 'another'
+        const statusText = res.nullVal ?? 'not found'
+        export default () => 'hello'
+        `,
+        {
+          resourcePath: tsPageFile,
+        }
+      )
+      expect(code).toMatchInlineSnapshot(
+        `"var _res$status,_res$nullVal,_res$nullVal2;var res={status:0,nullVal:null,statusText:''};var status=(_res$status=res.status)!==null&&_res$status!==void 0?_res$status:999;var nullVal=(_res$nullVal=res.nullVal)!==null&&_res$nullVal!==void 0?_res$nullVal:'another';var statusText=(_res$nullVal2=res.nullVal)!==null&&_res$nullVal2!==void 0?_res$nullVal2:'not found';export default(function(){return'hello';});"`
       )
     })
   })
