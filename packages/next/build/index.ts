@@ -18,6 +18,7 @@ import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
   DEFAULT_REDIRECT_STATUS,
+  EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -726,6 +727,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }),
     'utf8'
   )
+  await fsUnlink(path.join(distDir, EXPORT_DETAIL)).catch(err => {
+    if (err.code === 'ENOENT') {
+      return
+    }
+    return Promise.reject(err)
+  })
 
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {
