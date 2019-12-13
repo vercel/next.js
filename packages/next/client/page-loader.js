@@ -222,9 +222,9 @@ export default class PageLoader {
         `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
       )
     ) {
-      this.prefetched[route] = true
       return
     }
+    this.prefetched[route] = true
 
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
     let cn
