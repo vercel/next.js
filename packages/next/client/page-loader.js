@@ -232,17 +232,23 @@ export default class PageLoader {
       }
     }
 
+    // Feature detection is used to see if preload is supported
+    // If not fall back to loading script tags before the page is loaded
+    // https://caniuse.com/#feat=link-rel-preload
+    if (hasPreload) {
+      preloadLink(url, url.match(/\.css$/) ? 'style' : 'script')
+    }
+
+    // This has to come after `preloadLink` so the operation is sync with the
+    // DOM access dedupe. Otherwise, multiple calls will result in multiple
+    // prefetches.
     if (process.env.__NEXT_GRANULAR_CHUNKS && !isDependency) {
       ;(await this.getDependencies(route)).forEach(url => {
         this.prefetch(url, true)
       })
     }
 
-    // Feature detection is used to see if preload is supported
-    // If not fall back to loading script tags before the page is loaded
-    // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
-      preloadLink(url, url.match(/\.css$/) ? 'style' : 'script')
       return
     }
 
