@@ -77,7 +77,7 @@ export const css = curry(async function css(
         {
           // Impossible regex expression
           test: /a^/,
-          loader: data => data,
+          loader: 'noop-loader',
           options: { __next_css_remove: true },
         },
       ],
