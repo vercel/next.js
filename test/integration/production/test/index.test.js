@@ -447,7 +447,7 @@ describe('Production Usage', () => {
         await waitFor(2000)
         const elements = await browser.elementsByCss('link[rel=preload]')
 
-        expect(elements.length).toBe(9)
+        expect(elements.length).toBe(13)
         await Promise.all(
           elements.map(async element => {
             const rel = await element.getAttribute('rel')
