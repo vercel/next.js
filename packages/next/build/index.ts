@@ -729,7 +729,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   await fsUnlink(path.join(distDir, EXPORT_DETAIL)).catch(err => {
     if (err.code === 'ENOENT') {
-      return
+      return Promise.resolve()
     }
     return Promise.reject(err)
   })
