@@ -84,7 +84,7 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
-    for (const route of this.routes) {
+    for (const route of [...this.fsRoutes, ...this.routes]) {
       const newParams = route.match(parsedUrlUpdated.pathname)
 
       // Check if the match function matched

@@ -128,8 +128,8 @@ const nextServerlessLoader: loader.Loader = function() {
       }
       const parsedUrl = parse(req.url, true)
 
-      const { _nextOrigPathname } = parsedUrl.query
-      delete parsedUrl.query._nextOrigPathname
+      const { _nextRewrotePathname } = parsedUrl.query
+      delete parsedUrl.query._nextRewrotePathname
 
       const renderOpts = Object.assign(
         {
@@ -144,7 +144,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           isDynamicRoute(page)
-            ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(_nextOrigPathname || parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(_nextRewrotePathname || parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${

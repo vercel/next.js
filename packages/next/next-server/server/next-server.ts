@@ -389,7 +389,7 @@ export default class Server {
       ...publicRoutes,
       ...staticFilesRoute,
     ]
-    const routes: Route[] = [...fsRoutes]
+    const routes: Route[] = []
 
     if (this.customRoutes) {
       const { redirects, rewrites } = this.customRoutes
@@ -759,8 +759,8 @@ export default class Server {
       return result.Component
     }
     // used for serverless mode to pass rewritten pathname
-    const { _nextOrigPathname } = query
-    delete query._nextOrigPathname
+    const { _nextRewrotePathname } = query
+    delete query._nextRewrotePathname
 
     // check request state
     const isLikeServerless =
@@ -778,7 +778,7 @@ export default class Server {
           query: {
             ...curUrl.query,
             ...query,
-            _nextOrigPathname,
+            _nextRewrotePathname,
           },
         })
         return result.Component.renderReqToHTML(req, res)
@@ -936,7 +936,7 @@ export default class Server {
                       ? { _nextSprData: query._nextSprData }
                       : query),
                     ...params,
-                    _nextOrigPathname: pathname,
+                    _nextRewrotePathname: pathname,
                   },
                   result,
                   {

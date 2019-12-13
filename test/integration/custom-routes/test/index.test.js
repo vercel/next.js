@@ -162,6 +162,11 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/post:.*?post-2/)
   })
 
+  it('should match public file after rewrite', async () => {
+    const data = await renderViaHTTP(appPort, '/blog/data.json')
+    expect(JSON.parse(data)).toEqual({ hello: 'world' })
+  })
+
   it('should match /_next file after rewrite', async () => {
     await renderViaHTTP(appPort, '/hello')
     const data = await renderViaHTTP(
