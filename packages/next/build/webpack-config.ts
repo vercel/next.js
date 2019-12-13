@@ -1,6 +1,5 @@
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import MiniCssExtractPlugin from 'mini-css-extract-plugin'
 import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
@@ -35,6 +34,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
+import MiniCssExtractPlugin from './webpack/plugins/mini-css-extract-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -861,6 +861,65 @@ export default async function getBaseWebpackConfig(
       console.warn(
         '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
+    }
+  }
+
+  function canMatchCss(rule: webpack.RuleSetCondition | undefined): boolean {
+    if (!rule) {
+      return false
+    }
+
+    const fileName = '/tmp/test.css'
+
+    if (rule instanceof RegExp && rule.test(fileName)) {
+      return true
+    }
+
+    if (typeof rule === 'function') {
+      try {
+        if (rule(fileName)) {
+          return true
+        }
+      } catch (_) {}
+    }
+
+    if (Array.isArray(rule) && rule.some(canMatchCss)) {
+      return true
+    }
+
+    return false
+  }
+
+  if (config.experimental.css) {
+    const hasUserCssConfig =
+      webpackConfig.module &&
+      webpackConfig.module.rules.some(
+        rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+      )
+
+    if (hasUserCssConfig) {
+      if (webpackConfig.module?.rules.length) {
+        // Remove default CSS Loader
+        webpackConfig.module.rules = webpackConfig.module.rules.filter(
+          r =>
+            !(
+              typeof r.oneOf?.[0]?.options === 'object' &&
+              r.oneOf[0].options.__next_css_remove === true
+            )
+        )
+      }
+      if (webpackConfig.plugins?.length) {
+        // Disable CSS Extraction Plugin
+        webpackConfig.plugins = webpackConfig.plugins.filter(
+          p => (p as any).__next_css_remove !== true
+        )
+      }
+      if (webpackConfig.optimization?.minimizer?.length) {
+        // Disable CSS Minifier
+        webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
+          e => (e as any).__next_css_remove !== true
+        )
+      }
     }
   }
 
