@@ -45,7 +45,7 @@ const defaultConfig: { [key: string]: any } = {
     catchAllRouting: false,
     css: false,
     documentMiddleware: false,
-    granularChunks: false,
+    granularChunks: true,
     modern: false,
     plugins: false,
     profiling: false,
