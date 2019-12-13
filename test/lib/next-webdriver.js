@@ -19,7 +19,7 @@ let capabilities = {}
 const isIE = browserName === 'ie'
 const isSafari = browserName === 'safari'
 const isFirefox = browserName === 'firefox'
-// 30 seconds for BrowserStack 5 seconds for local
+
 const isBrowserStack =
   BROWSERSTACK && BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
 
@@ -64,7 +64,6 @@ if (HEADLESS) {
   const screenSize = { width: 1280, height: 720 }
 
   chromeOptions = chromeOptions.headless().windowSize(screenSize)
-
   firefoxOptions = firefoxOptions.headless().windowSize(screenSize)
 }
 
@@ -72,10 +71,14 @@ if (CHROME_BIN) {
   chromeOptions = chromeOptions.setChromeBinaryPath(path.resolve(CHROME_BIN))
 }
 
+let seleniumServer
+
+if (isBrowserStack) {
+  seleniumServer = 'http://hub-cloud.browserstack.com/wd/hub'
+}
+
 let browser = new Builder()
-  .usingServer(
-    isBrowserStack ? 'http://hub-cloud.browserstack.com/wd/hub' : undefined
-  )
+  .usingServer(seleniumServer)
   .withCapabilities(capabilities)
   .forBrowser(browserName)
   .setChromeOptions(chromeOptions)
@@ -116,6 +119,7 @@ const getDeviceIP = async () => {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 const freshWindow = async () => {
   // First we close all extra windows left over
   let allWindows = await browser.getAllWindowHandles()
@@ -147,7 +151,10 @@ export default async (appPort, path) => {
   if (isBrowserStack && deviceIP === 'localhost') {
     await getDeviceIP()
   }
-  await freshWindow()
+  // browser.switchTo().window() fails with `missing field `handle``
+  // in safari and firefox so disabling freshWindow since our
+  // tests shouldn't rely on it
+  // await freshWindow()
 
   const url = `http://${deviceIP}:${appPort}${path}`
   console.log(`\n> Loading browser with ${url}\n`)
@@ -155,43 +162,84 @@ export default async (appPort, path) => {
   await browser.get(url)
   console.log(`\n> Loaded browser with ${url}\n`)
 
-  const stub = {
-    elementByCss: sel => {
-      let prom = browser.findElement(By.css(sel))
+  class Chain {
+    updateChain(nextCall) {
+      if (!this.promise) {
+        this.promise = Promise.resolve()
+      }
+      this.promise = this.promise.then(nextCall)
+      this.then = cb => this.promise.then(cb)
+      this.catch = cb => this.promise.catch(cb)
+      this.finally = cb => this.promise.finally(cb)
+      return this
+    }
 
-      prom.text = () => prom.then(el => el.getText())
-      prom.click = () => prom.then(el => el.click())
+    elementByCss(sel) {
+      return this.updateChain(() => browser.findElement(By.css(sel)))
+    }
 
-      return prom
-    },
+    text() {
+      return this.updateChain(el => el.getText())
+    }
 
-    elementsByCss: sel => browser.findElements(By.css(sel)),
+    click() {
+      return this.updateChain(el => {
+        return el.click().then(() => el)
+      })
+    }
 
-    waitForElementByCss: (sel, timeout) => {
-      return browser.wait(until.elementLocated(By.css(sel), timeout))
-    },
+    elementsByCss(sel) {
+      return this.updateChain(() => browser.findElements(By.css(sel)))
+    }
 
-    eval: async snippet => {
+    waitForElementByCss(sel, timeout) {
+      return this.updateChain(() =>
+        browser.wait(until.elementLocated(By.css(sel), timeout))
+      )
+    }
+
+    eval(snippet) {
       if (typeof snippet === 'string' && !snippet.startsWith('return')) {
         snippet = `return ${snippet}`
       }
-      const result = await browser.executeScript(snippet)
-      return result
-    },
+      return this.updateChain(() => browser.executeScript(snippet))
+    }
 
-    close: () => {},
-    quit: () => {},
+    log(type) {
+      return this.updateChain(() =>
+        browser
+          .manage()
+          .logs()
+          .get(type)
+      )
+    }
+
+    back() {
+      return this.updateChain(() => browser.navigate().back())
+    }
+
+    forward() {
+      return this.updateChain(() => browser.navigate().forward())
+    }
+
+    refresh() {
+      return this.updateChain(() => browser.navigate().refresh())
+    }
+
+    close() {
+      return this.updateChain(() => Promise.resolve())
+    }
+    quit() {
+      return this.close()
+    }
   }
 
   const promiseProp = new Set(['then', 'catch', 'finally'])
 
-  return new Proxy(stub, {
+  return new Proxy(new Chain(), {
     get(obj, prop) {
-      if (obj[prop]) {
+      if (obj[prop] || promiseProp.has(prop)) {
         return obj[prop]
-      }
-      if (promiseProp.has(prop)) {
-        return obj
       }
       return browser[prop]
     },
