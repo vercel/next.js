@@ -1,9 +1,9 @@
-import { redText } from './index.module.css'
+import { subClass } from './index.module.css'
 
 export default function Home() {
   return (
-    <div id="verify-red" className={redText}>
-      This text should be red.
+    <div id="verify-yellow" className={subClass}>
+      This text should be yellow on blue.
     </div>
   )
 }

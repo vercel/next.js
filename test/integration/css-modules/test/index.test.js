@@ -225,6 +225,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 })
 
 describe('CSS Module Composes Usage (Basic)', () => {
+  // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-basic')
 
   beforeAll(async () => {
@@ -248,6 +249,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
 })
 
 describe('CSS Module Composes Usage (External)', () => {
+  // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-external')
 
   beforeAll(async () => {
