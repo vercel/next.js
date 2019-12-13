@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -188,6 +189,24 @@ const runTests = (dev = false) => {
   it('should SSR SPR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
     expect(html).toMatch(/Post:.*?post-1/)
+  })
+
+  it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/something?hello=world')
+    const $ = cheerio.load(html)
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({})
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({})
+  })
+
+  it('should not supply query values to params or useRouter dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
+    const $ = cheerio.load(html)
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({ post: 'post-1' })
   })
 
   it('should return data correctly', async () => {
