@@ -192,6 +192,10 @@ export function nextExport(dir, { outdir }, opts = {}) {
   return runNextCommand(['export', dir, '--outdir', outdir], opts)
 }
 
+export function nextExportDefault(dir, opts = {}) {
+  return runNextCommand(['export', dir], opts)
+}
+
 export function nextStart(dir, port, opts = {}) {
   return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
 }
