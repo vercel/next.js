@@ -18,6 +18,7 @@ import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
   DEFAULT_REDIRECT_STATUS,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
@@ -715,6 +716,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
       'utf8'
     )
   }
+
+  await fsWriteFile(
+    path.join(distDir, EXPORT_MARKER),
+    JSON.stringify({
+      version: 1,
+      hasExportPathMap: typeof config.exportPathMap === 'function',
+      exportTrailingSlash: config.exportTrailingSlash === true,
+    }),
+    'utf8'
+  )
 
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {
