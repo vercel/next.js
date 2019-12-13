@@ -104,7 +104,7 @@ export async function printTreeView(
 
     messages.push([
       `${symbol} ${
-        item.startsWith('/_')
+        item === '/_app'
           ? ' '
           : pageInfo && pageInfo.static
           ? '○'
