@@ -46,9 +46,12 @@ export default async function({
     if (isDynamicRoute(page) && page !== path) {
       const params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
-        query = {
-          ...(serverless ? {} : query),
-          ...params,
+        // we handle this in the serverless bundle
+        if (!serverless) {
+          query = {
+            ...query,
+            ...params,
+          }
         }
       } else {
         throw new Error(
