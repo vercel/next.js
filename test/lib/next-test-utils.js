@@ -399,3 +399,7 @@ export async function getReactErrorOverlayContent(browser) {
 export function getBrowserBodyText(browser) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
+
+export function normalizeRegEx(src) {
+  return new RegExp(src).source
+}

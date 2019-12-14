@@ -15,6 +15,7 @@ import {
   nextStart,
   stopApp,
   nextExport,
+  normalizeRegEx,
   startStaticServer,
   initNextServerScript,
 } from 'next-test-utils'
@@ -326,18 +327,28 @@ const runTests = (dev = false) => {
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
           dataRoute: `/_next/data/${buildId}/blog/[post].json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/blog\\/([^\\/]+?)(?:\\/)?$',
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`
+          ),
+          routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
         },
         '/blog/[post]/[comment]': {
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
+          ),
+          routeRegex: normalizeRegEx(
+            '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+          ),
         },
         '/user/[user]/profile': {
           dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
-          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`
+          ),
+          routeRegex: normalizeRegEx(
+            `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
+          ),
         },
       })
     })
