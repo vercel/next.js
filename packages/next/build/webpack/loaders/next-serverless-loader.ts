@@ -104,7 +104,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport) {
+    export async function renderReqToHTML(req, res, fromExport, _renderOpts) {
       const options = {
         App,
         Document,
@@ -117,6 +117,7 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${ampBindInitData === true ||
           ampBindInitData === 'true'},
+        ..._renderOpts
       }
       let sprData = false
 

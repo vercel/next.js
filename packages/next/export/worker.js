@@ -107,26 +107,32 @@ export default async function({
     }
 
     if (serverless) {
-      const mod = require(join(
+      const { Component: mod } = await loadComponents(
         distDir,
-        'serverless/pages',
-        (page === '/' ? 'index' : page) + '.js'
-      ))
+        buildId,
+        page,
+        serverless
+      )
 
-      // for non-dynamic SPR pages we should have already
-      // prerendered the file
-      if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
+      // if it was auto-exported the HTML is loaded here
+      if (typeof mod === 'string') {
+        html = mod
+      } else {
+        // for non-dynamic SPR pages we should have already
+        // prerendered the file
+        if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
-      if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
-        // make sure it ends with .html if the name contains a dot
-        htmlFilename += '.html'
-        htmlFilepath += '.html'
+        if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+          // make sure it ends with .html if the name contains a dot
+          htmlFilename += '.html'
+          htmlFilepath += '.html'
+        }
+
+        renderMethod = mod.renderReqToHTML
+        const result = await renderMethod(req, res, true, { ampPath })
+        curRenderOpts = result.renderOpts || {}
+        html = result.html
       }
-
-      renderMethod = mod.renderReqToHTML
-      const result = await renderMethod(req, res, true)
-      curRenderOpts = result.renderOpts || {}
-      html = result.html
 
       if (!html) {
         throw new Error(`Failed to render serverless page`)
