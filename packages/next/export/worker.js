@@ -1,5 +1,6 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
+import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../next-server/server/render'
 import { writeFile, access } from 'fs'
@@ -107,6 +108,14 @@ export default async function({
     }
 
     if (serverless) {
+      const curUrl = url.parse(req.url, true)
+      req.url = url.format({
+        ...curUrl,
+        query: {
+          ...curUrl.query,
+          ...query,
+        },
+      })
       const { Component: mod } = await loadComponents(
         distDir,
         buildId,
@@ -129,7 +138,9 @@ export default async function({
         }
 
         renderMethod = mod.renderReqToHTML
-        const result = await renderMethod(req, res, true, { ampPath })
+        const result = await renderMethod(req, res, true, {
+          ampPath: buildExport ? undefined : ampPath,
+        })
         curRenderOpts = result.renderOpts || {}
         html = result.html
       }
