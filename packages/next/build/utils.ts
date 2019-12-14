@@ -1,10 +1,9 @@
 import chalk from 'chalk'
-import fs from 'fs'
+import gzipSize from 'gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
-import { promisify } from 'util'
 import { Redirect, Rewrite } from '../lib/check-custom-routes'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -14,14 +13,11 @@ import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
 
-const fsStatPromise = promisify(fs.stat)
-const fileStats: { [k: string]: Promise<fs.Stats> } = {}
-const fsStat = (file: string) => {
-  if (fileStats[file]) return fileStats[file]
-
-  fileStats[file] = fsStatPromise(file)
-
-  return fileStats[file]
+const fileGzipStats: { [k: string]: Promise<number> } = {}
+const fsStatGzip = (file: string) => {
+  if (fileGzipStats[file]) return fileGzipStats[file]
+  fileGzipStats[file] = gzipSize.file(file)
+  return fileGzipStats[file]
 }
 
 export function collectPages(
@@ -63,11 +59,11 @@ export async function printTreeView(
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    // green for 0-100kb
-    if (_size < 100 * 1000) return chalk.green(size)
-    // yellow for 100-250kb
-    if (_size < 250 * 1000) return chalk.yellow(size)
-    // red for >= 250kb
+    // green for 0-130kb
+    if (_size < 130 * 1000) return chalk.green(size)
+    // yellow for 130-170kb
+    if (_size < 170 * 1000) return chalk.yellow(size)
+    // red for >= 170kb
     return chalk.red.bold(size)
   }
 
@@ -302,12 +298,12 @@ async function computeFromManifest(
     .filter(([, len]) => len === expected)
     .map(([f]) => f)
 
-  let stats: [string, fs.Stats][]
+  let stats: [string, number][]
   try {
     stats = await Promise.all(
       commonFiles.map(
         async f =>
-          [f, await fsStat(path.join(distPath, f))] as [string, fs.Stats]
+          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -317,10 +313,10 @@ async function computeFromManifest(
   lastCompute = {
     commonFiles,
     sizeCommonFile: stats.reduce(
-      (obj, n) => Object.assign(obj, { [n[0]]: n[1].size }),
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat.size, 0),
+    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
   }
 
   cachedBuildManifest = manifest
@@ -366,8 +362,8 @@ export async function getPageSizeInKb(
   deps.push(clientBundle)
 
   try {
-    let depStats = await Promise.all(deps.map(fsStat))
-    return depStats.reduce((size, stat) => size + stat.size, 0)
+    let depStats = await Promise.all(deps.map(fsStatGzip))
+    return depStats.reduce((size, stat) => size + stat, 0)
   } catch (_) {}
   return -1
 }
