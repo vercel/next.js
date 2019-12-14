@@ -384,8 +384,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         bundleRelative
       )
 
-      let isStatic = false
       let isSsg = false
+      let isStatic = false
+      let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
@@ -430,6 +431,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           )
 
           if (result.isHybridAmp) {
+            isHybridAmp = true
             hybridAmpPages.add(page)
           }
 
@@ -456,6 +458,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         serverBundle,
         static: isStatic,
         isSsg,
+        isHybridAmp,
         ssgPageRoutes,
       })
     })
