@@ -116,12 +116,6 @@ export default async function(
   const subFolders = nextConfig.exportTrailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
-  if (!options.buildExport && isLikeServerless) {
-    throw new Error(
-      'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
-    )
-  }
-
   log(`> using build directory: ${distDir}`)
 
   if (!existsSync(distDir)) {
@@ -132,7 +126,12 @@ export default async function(
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
-    !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+    !options.pages &&
+    require(join(
+      distDir,
+      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+      PAGES_MANIFEST
+    ))
 
   let prerenderManifest
   try {
