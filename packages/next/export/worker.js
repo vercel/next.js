@@ -138,9 +138,12 @@ export default async function({
         }
 
         renderMethod = mod.renderReqToHTML
-        const result = await renderMethod(req, res, true, {
-          ampPath: buildExport ? undefined : ampPath,
-        })
+        const result = await renderMethod(
+          req,
+          res,
+          true,
+          buildExport ? {} : { ampPath }
+        )
         curRenderOpts = result.renderOpts || {}
         html = result.html
       }
