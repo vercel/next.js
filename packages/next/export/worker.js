@@ -43,11 +43,11 @@ export default async function({
     const ampPath = `${filePath}.amp`
 
     // Check if the page is a specified dynamic route
-    if (!serverless && isDynamicRoute(page) && page !== path) {
+    if (isDynamicRoute(page) && page !== path) {
       const params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
         query = {
-          ...query,
+          ...(serverless ? {} : query),
           ...params,
         }
       } else {
