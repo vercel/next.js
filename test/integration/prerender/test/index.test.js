@@ -261,6 +261,15 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/post.*?post-1/)
   })
 
+  it('should reload page on failed data request', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(500)
+    await browser.eval('window.beforeClick = true')
+    await browser.click('#broken-post')
+    await waitFor(1000)
+    expect(await browser.eval('window.beforeClick')).not.toBe('true')
+  })
+
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
