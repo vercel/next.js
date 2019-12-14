@@ -43,7 +43,7 @@ export default async function({
     const ampPath = `${filePath}.amp`
 
     // Check if the page is a specified dynamic route
-    if (isDynamicRoute(page) && page !== path) {
+    if (!serverless && isDynamicRoute(page) && page !== path) {
       const params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
         query = {
@@ -138,12 +138,7 @@ export default async function({
         }
 
         renderMethod = mod.renderReqToHTML
-        const result = await renderMethod(
-          req,
-          res,
-          true,
-          buildExport ? {} : { ampPath }
-        )
+        const result = await renderMethod(req, res, true, { ampPath })
         curRenderOpts = result.renderOpts || {}
         html = result.html
       }
