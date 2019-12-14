@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -190,6 +191,24 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/something?hello=world')
+    const $ = cheerio.load(html)
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({})
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({})
+  })
+
+  it('should not supply query values to params or useRouter dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
+    const $ = cheerio.load(html)
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({ post: 'post-1' })
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
       await renderViaHTTP(
@@ -240,6 +259,15 @@ const runTests = (dev = false) => {
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
     expect(text).toMatch(/post.*?post-1/)
+  })
+
+  it('should reload page on failed data request', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(500)
+    await browser.eval('window.beforeClick = true')
+    await browser.click('#broken-post')
+    await waitFor(1000)
+    expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
 
   if (dev) {
