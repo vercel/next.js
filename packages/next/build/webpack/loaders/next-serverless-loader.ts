@@ -104,7 +104,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport, _renderOpts) {
+    export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
       const options = {
         App,
         Document,
@@ -141,7 +141,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           isDynamicRoute(page)
-            ? `const params = getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -177,7 +177,7 @@ const nextServerlessLoader: loader.Loader = function() {
           `
             : `const nowParams = null;`
         }
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
         if (sprData && !fromExport) {
           const payload = JSON.stringify(renderOpts.sprData)

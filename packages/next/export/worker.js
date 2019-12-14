@@ -41,12 +41,13 @@ export default async function({
     const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
+    let params
 
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
-      const params = getRouteMatcher(getRouteRegex(page))(path)
+      params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
-        // we handle this in the serverless bundle
+        // we have to pass these separately for serverless
         if (!serverless) {
           query = {
             ...query,
@@ -141,7 +142,7 @@ export default async function({
         }
 
         renderMethod = mod.renderReqToHTML
-        const result = await renderMethod(req, res, true, { ampPath })
+        const result = await renderMethod(req, res, true, { ampPath }, params)
         curRenderOpts = result.renderOpts || {}
         html = result.html
       }
