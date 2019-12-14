@@ -15,6 +15,7 @@ import {
   renderViaHTTP,
   getBrowserBodyText,
   waitFor,
+  normalizeRegEx,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -189,78 +190,77 @@ const runTests = (isDev = false) => {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',
             statusCode: 301,
-            regex: new RegExp('^\\/docs\\/router-status(?:\\/([^\\/]+?))$')
-              .source,
+            regex: normalizeRegEx('^\\/docs\\/router-status(?:\\/([^\\/]+?))$'),
             regexKeys: ['code'],
           },
           {
             source: '/docs/github',
             destination: '/docs/v2/advanced/now-for-github',
             statusCode: 301,
-            regex: new RegExp('^\\/docs\\/github$').source,
+            regex: normalizeRegEx('^\\/docs\\/github$'),
             regexKeys: [],
           },
           {
             source: '/docs/v2/advanced/:all(.*)',
             destination: '/docs/v2/more/:all',
             statusCode: 301,
-            regex: new RegExp('^\\/docs\\/v2\\/advanced(?:\\/(.*))$').source,
+            regex: normalizeRegEx('^\\/docs\\/v2\\/advanced(?:\\/(.*))$'),
             regexKeys: ['all'],
           },
           {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
-            regex: new RegExp('^\\/hello(?:\\/([^\\/]+?))\\/another$').source,
+            regex: normalizeRegEx('^\\/hello(?:\\/([^\\/]+?))\\/another$'),
             regexKeys: ['id'],
           },
           {
             source: '/redirect1',
             destination: '/',
             statusCode: 307,
-            regex: new RegExp('^\\/redirect1$').source,
+            regex: normalizeRegEx('^\\/redirect1$'),
             regexKeys: [],
           },
           {
             source: '/redirect2',
             destination: '/',
             statusCode: 301,
-            regex: new RegExp('^\\/redirect2$').source,
+            regex: normalizeRegEx('^\\/redirect2$'),
             regexKeys: [],
           },
           {
             source: '/redirect3',
             destination: '/another',
             statusCode: 302,
-            regex: new RegExp('^\\/redirect3$').source,
+            regex: normalizeRegEx('^\\/redirect3$'),
             regexKeys: [],
           },
           {
             source: '/redirect4',
             destination: '/',
             statusCode: 308,
-            regex: new RegExp('^\\/redirect4$').source,
+            regex: normalizeRegEx('^\\/redirect4$'),
             regexKeys: [],
           },
           {
             source: '/redir-chain1',
             destination: '/redir-chain2',
             statusCode: 301,
-            regex: new RegExp('^\\/redir-chain1$').source,
+            regex: normalizeRegEx('^\\/redir-chain1$'),
             regexKeys: [],
           },
           {
             source: '/redir-chain2',
             destination: '/redir-chain3',
             statusCode: 302,
-            regex: new RegExp('^\\/redir-chain2$').source,
+            regex: normalizeRegEx('^\\/redir-chain2$'),
             regexKeys: [],
           },
           {
             source: '/redir-chain3',
             destination: '/',
             statusCode: 303,
-            regex: new RegExp('^\\/redir-chain3$').source,
+            regex: normalizeRegEx('^\\/redir-chain3$'),
             regexKeys: [],
           },
         ],
@@ -268,70 +268,70 @@ const runTests = (isDev = false) => {
           {
             source: '/hello-world',
             destination: '/static/hello.txt',
-            regex: new RegExp('^\\/hello-world$').source,
+            regex: normalizeRegEx('^\\/hello-world$'),
             regexKeys: [],
           },
           {
             source: '/',
             destination: '/another',
-            regex: new RegExp('^\\/$').source,
+            regex: normalizeRegEx('^\\/$'),
             regexKeys: [],
           },
           {
             source: '/another',
             destination: '/multi-rewrites',
-            regex: new RegExp('^\\/another$').source,
+            regex: normalizeRegEx('^\\/another$'),
             regexKeys: [],
           },
           {
             source: '/first',
             destination: '/hello',
-            regex: new RegExp('^\\/first$').source,
+            regex: normalizeRegEx('^\\/first$'),
             regexKeys: [],
           },
           {
             source: '/second',
             destination: '/hello-again',
-            regex: new RegExp('^\\/second$').source,
+            regex: normalizeRegEx('^\\/second$'),
             regexKeys: [],
           },
           {
             destination: '/hello',
-            regex: new RegExp('^\\/to-hello$').source,
+            regex: normalizeRegEx('^\\/to-hello$'),
             regexKeys: [],
             source: '/to-hello',
           },
           {
             destination: '/blog/post-2',
-            regex: new RegExp('^\\/blog\\/post-1$').source,
+            regex: normalizeRegEx('^\\/blog\\/post-1$'),
             regexKeys: [],
             source: '/blog/post-1',
           },
           {
             source: '/test/:path',
             destination: '/:path',
-            regex: new RegExp('^\\/test(?:\\/([^\\/]+?))$').source,
+            regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))$'),
             regexKeys: ['path'],
           },
           {
             source: '/test-overwrite/:something/:another',
             destination: '/params/this-should-be-the-value',
-            regex: new RegExp(
+            regex: normalizeRegEx(
               '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
-            ).source,
+            ),
             regexKeys: ['something', 'another'],
           },
           {
             source: '/params/:something',
             destination: '/with-params',
-            regex: new RegExp('^\\/params(?:\\/([^\\/]+?))$').source,
+            regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))$'),
             regexKeys: ['something'],
           },
           {
             destination: '/_next/:path*',
-            regex: new RegExp(
+            regex: normalizeRegEx(
               '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
-            ).source,
+            ),
             regexKeys: ['path'],
             source: '/hidden/_next/:path*',
           },
@@ -339,7 +339,7 @@ const runTests = (isDev = false) => {
         dynamicRoutes: [
           {
             page: '/blog/[post]',
-            regex: new RegExp('^\\/blog\\/([^/]+?)(?:\\/)?$').source,
+            regex: normalizeRegEx('^\\/blog\\/([^/]+?)(?:\\/)?$'),
           },
         ],
       })
@@ -356,7 +356,7 @@ const runTests = (isDev = false) => {
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
         expect(cleanStdout).toMatch(
-          new RegExp(`${route.source}.*?${route.destination}`)
+          new RegExp(`${route}.*?${route.destination}`)
         )
       }
     })

@@ -72,7 +72,7 @@ describe('Build Output', () => {
       })
 
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
-      expect(stdout).toMatch(/\/_error [ ]* \d{1,} B/)
+      expect(stdout).toMatch(/λ \/_error [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ shared by all [ 0-9.]* kB/)
       expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
 
@@ -81,6 +81,31 @@ describe('Build Output', () => {
 
       expect(stdout).toContain('/_error')
       expect(stdout).toContain('○ /')
+    })
+  })
+
+  describe('Custom Static Error Output', () => {
+    const appDir = join(fixturesDir, 'with-error-static')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    // FIXME: this should be static
+    xit('should specify /_error as static', async () => {
+      const { stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(stdout).toContain('○ /_error')
+    })
+
+    // This test is not really correct.
+    // Remove this when fixed and enable the above one.
+    it('should specify /_error as lambda even when static', async () => {
+      const { stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(stdout).toContain('λ /_error')
     })
   })
 })

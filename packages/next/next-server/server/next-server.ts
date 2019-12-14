@@ -792,9 +792,8 @@ export default class Server {
 
     // Toggle whether or not this is an SPR Data request
     const isSprData = isSpr && query._nextSprData
-    if (isSprData) {
-      delete query._nextSprData
-    }
+    delete query._nextSprData
+
     // Compute the SPR cache key
     const sprCacheKey = parseUrl(req.url || '').pathname!
 
@@ -908,7 +907,9 @@ export default class Server {
             req,
             res,
             pathname,
-            query,
+            result.unstable_getStaticProps
+              ? { _nextSprData: query._nextSprData }
+              : query,
             result,
             { ...this.renderOpts, amphtml, hasAmp, dataOnly }
           )
