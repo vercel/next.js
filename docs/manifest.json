@@ -172,8 +172,8 @@
           "path": "/docs/api-reference/router.md"
         },
         {
-          "title": "Link Component",
-          "path": "/docs/api-reference/link-component.md"
+          "title": "next/link",
+          "path": "/docs/api-reference/next/link.md"
         },
         {
           "title": "next/head",

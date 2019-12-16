@@ -1,4 +1,4 @@
-# Link Component
+# next/link
 
 <details>
   <summary><b>Examples</b></summary>
@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-Client-side transitions between routes can be enabled via the `Link` component.
+Client-side transitions between routes can be enabled via the `Link` component exported by `next/link`.
 
 An example of linking to `/` and `/about`:
 
