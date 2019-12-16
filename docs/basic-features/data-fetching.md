@@ -81,4 +81,4 @@ HomePage.getInitialProps = async () => {
 export default HomePage
 ```
 
-You can learn more about the getInitialProps parameters and usage in the [API reference for `getInitialProps`]()
+You can learn more about the usage of `getInitialProps` in the [API reference for `getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md)

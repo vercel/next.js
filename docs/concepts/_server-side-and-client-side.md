@@ -73,7 +73,7 @@ export default Page
 
 ## Server-side only code
 
-Following the `userAgent` example from above, we can make it always available to the page by adding [`getInitialProps`](/docs/pages/ssr-with-getInitialProps.md), like so:
+Following the `userAgent` example from above, we can make it always available to the page by adding [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md), like so:
 
 ```jsx
 import { useState, useEffect } from 'react'
