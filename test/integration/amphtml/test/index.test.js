@@ -356,6 +356,23 @@ describe('AMP Usage', () => {
       }
     })
 
+    it('should detect changes to component and refresh an AMP page', async () => {
+      const browser = await webdriver(dynamicAppPort, '/hmr/comp')
+      const text = await browser.elementByCss('#hello-comp').text()
+      expect(text).toBe('hello')
+
+      const testComp = join(__dirname, '../components/hello.js')
+
+      const origContent = readFileSync(testComp, 'utf8')
+      const newContent = origContent.replace('>hello<', '>hi<')
+
+      writeFileSync(testComp, newContent, 'utf8')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hi/)
+
+      writeFileSync(testComp, origContent, 'utf8')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
+    })
+
     it('should not reload unless the page is edited for an AMP page', async () => {
       let browser
       try {
