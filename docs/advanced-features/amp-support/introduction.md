@@ -22,14 +22,14 @@ To enable AMP support for a page, and to learn more about the different AMP conf
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/amp-support/adding-amp-components.md">
+  <a href="/docs/advanced-features/amp-support/adding-amp-components.md">
     <b>AMP Components:</b>
     <small>Make your pages more interactive with AMP components.</small>
   </a>
 </div>
 
 <div class="card">
-  <a href="/docs/amp-support/amp-validation.md">
+  <a href="/docs/advanced-features/amp-support/amp-validation.md">
     <b>AMP Validation:</b>
     <small>Learn about how Next.js validates AMP pages.</small>
   </a>

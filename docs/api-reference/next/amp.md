@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-> AMP support is one of our advanced features, you can read more about it [here](/docs/amp-support/introduction.md).
+> AMP support is one of our advanced features, you can read more about it [here](/docs/advanced-features/amp-support/introduction.md).
 
 To enable AMP, add the following config to your page:
 

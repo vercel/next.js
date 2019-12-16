@@ -101,23 +101,23 @@
               "routes": [
                 {
                   "title": "Introduction",
-                  "path": "/docs/amp-support/introduction.md"
+                  "path": "/docs/advanced-features/amp-support/introduction.md"
                 },
                 {
                   "title": "Adding AMP Components",
-                  "path": "/docs/amp-support/adding-amp-components.md"
+                  "path": "/docs/advanced-features/amp-support/adding-amp-components.md"
                 },
                 {
                   "title": "AMP Validation",
-                  "path": "/docs/amp-support/amp-validation.md"
+                  "path": "/docs/advanced-features/amp-support/amp-validation.md"
                 },
                 {
                   "title": "AMP in Static HTML export",
-                  "path": "/docs/amp-support/amp-in-static-html-export.md"
+                  "path": "/docs/advanced-features/amp-support/amp-in-static-html-export.md"
                 },
                 {
                   "title": "TypeScript",
-                  "path": "/docs/amp-support/typescript.md"
+                  "path": "/docs/advanced-features/amp-support/typescript.md"
                 }
               ]
             },
