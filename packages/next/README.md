@@ -1057,7 +1057,7 @@ export default function MyLink() {
 }
 ```
 
-`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively `prefetch` method in the `useEffect()` hook:
+`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperative `prefetch` method in the `useEffect()` hook:
 
 ```jsx
 import { useRouter } from 'next/router'

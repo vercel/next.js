@@ -32,6 +32,7 @@ export function collectPages(
 
 export interface PageInfo {
   isAmp?: boolean
+  isHybridAmp?: boolean
   size: number
   static: boolean
   isSsg: boolean
@@ -135,7 +136,12 @@ export async function printTreeView(
     }
   })
 
-  const sharedData = await getSharedSizes(distPath, buildManifest, isModern)
+  const sharedData = await getSharedSizes(
+    distPath,
+    buildManifest,
+    isModern,
+    pageInfos
+  )
 
   messages.push(['+ shared by all', getPrettySize(sharedData.total)])
   Object.keys(sharedData.files)
@@ -255,15 +261,18 @@ let cachedBuildManifest: BuildManifestShape | undefined
 
 let lastCompute: ComputeManifestShape | undefined
 let lastComputeModern: boolean | undefined
+let lastComputePageInfo: boolean | undefined
 
 async function computeFromManifest(
   manifest: BuildManifestShape,
   distPath: string,
-  isModern: boolean
+  isModern: boolean,
+  pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
     Object.is(cachedBuildManifest, manifest) &&
-    lastComputeModern === isModern
+    lastComputeModern === isModern &&
+    lastComputePageInfo === !!pageInfos
   ) {
     return lastCompute!
   }
@@ -273,6 +282,15 @@ async function computeFromManifest(
   Object.keys(manifest.pages).forEach(key => {
     if (key === '/_polyfills') {
       return
+    }
+
+    if (pageInfos) {
+      const cleanKey = key.replace(/\/index$/, '') || '/'
+      const pageInfo = pageInfos.get(cleanKey)
+      // don't include AMP pages since they don't rely on shared bundles
+      if (pageInfo?.isHybridAmp || pageInfo?.isAmp) {
+        return
+      }
     }
 
     ++expected
@@ -321,6 +339,7 @@ async function computeFromManifest(
 
   cachedBuildManifest = manifest
   lastComputeModern = isModern
+  lastComputePageInfo = !!pageInfos
   return lastCompute!
 }
 
@@ -333,9 +352,15 @@ function difference<T>(main: T[], sub: T[]): T[] {
 export async function getSharedSizes(
   distPath: string,
   buildManifest: BuildManifestShape,
-  isModern: boolean
+  isModern: boolean,
+  pageInfos: Map<string, PageInfo>
 ): Promise<{ total: number; files: { [page: string]: number } }> {
-  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  const data = await computeFromManifest(
+    buildManifest,
+    distPath,
+    isModern,
+    pageInfos
+  )
   return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
 }
 
