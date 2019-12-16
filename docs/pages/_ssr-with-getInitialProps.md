@@ -53,7 +53,7 @@ export default Page
 
 Data returned from `getInitialProps` is serialized when server rendering, similar to what [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) does. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using the [Router API](/docs/api-reference/router.md).
+For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the [`next/link`](/docs/api-reference/next/link.md) component or by using the [Router API](/docs/api-reference/next/router.md).
 
 > If you want to know about what we mean by **server** and **client**, read [this section](/docs/concepts/server-side-and-client-side.md).
 
