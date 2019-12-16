@@ -1,7 +1,10 @@
 // my-custom-environment
 const http = require('http')
 const getPort = require('get-port')
+const seleniumServer = require('selenium-standalone')
 const NodeEnvironment = require('jest-environment-node')
+
+const { BROWSER_NAME: browserName = 'chrome' } = process.env
 
 const newTabPg = `
 <!DOCTYPE html>
@@ -33,9 +36,33 @@ class CustomEnvironment extends NodeEnvironment {
       })
     })
 
+    let seleniumServerPort
+
+    if (browserName !== 'chrome') {
+      console.log('Installing selenium server')
+      await new Promise((resolve, reject) => {
+        seleniumServer.install(err => {
+          if (err) return reject(err)
+          resolve()
+        })
+      })
+
+      console.log('Starting selenium server')
+      await new Promise((resolve, reject) => {
+        seleniumServer.start((err, child) => {
+          if (err) return reject(err)
+          this.seleniumServer = child
+          resolve()
+        })
+      })
+      console.log('Started selenium server')
+      seleniumServerPort = 4444
+    }
+
     this.global.wd = null
     this.global._newTabPort = newTabPort
-    this.global.browserName = process.env.BROWSER_NAME || 'chrome'
+    this.global.browserName = browserName
+    this.global.seleniumServerPort = seleniumServerPort
     this.global.browserStackLocalId = global.browserStackLocalId
   }
 
@@ -46,6 +73,10 @@ class CustomEnvironment extends NodeEnvironment {
     }
     if (this.global.wd) {
       await this.global.wd.quit()
+    }
+    // must come after wd.quit()
+    if (this.seleniumServer) {
+      this.seleniumServer.kill()
     }
   }
 }

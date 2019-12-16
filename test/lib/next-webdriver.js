@@ -17,10 +17,10 @@ const {
 
 let capabilities = {}
 
-const isIE = browserName === 'ie'
 const isChrome = browserName === 'chrome'
 const isSafari = browserName === 'safari'
 const isFirefox = browserName === 'firefox'
+const isIE = browserName === 'internet explorer'
 
 const isBrowserStack =
   BROWSERSTACK && BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
@@ -77,6 +77,8 @@ let seleniumServer
 
 if (isBrowserStack) {
   seleniumServer = 'http://hub-cloud.browserstack.com/wd/hub'
+} else if (global.seleniumServerPort) {
+  seleniumServer = `http://localhost:${global.seleniumServerPort}/wd/hub`
 }
 
 let browser = new Builder()
