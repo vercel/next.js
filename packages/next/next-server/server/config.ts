@@ -100,6 +100,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   })
 
   const result = { ...defaultConfig, ...userConfig }
+
+  if (typeof result.assetPrefix !== 'string') {
+    throw new Error(
+      `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://err.sh/zeit/next.js/invalid-assetprefix`
+    )
+  }
   if (result.experimental && result.experimental.css) {
     // The new CSS support requires granular chunks be enabled.
     result.experimental.granularChunks = true

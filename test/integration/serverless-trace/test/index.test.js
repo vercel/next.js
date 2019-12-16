@@ -68,7 +68,7 @@ describe('Serverless Trace', () => {
   it('should have correct amphtml rel link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp')
     expect(html).toMatch(/Hi Im an AMP page/)
-    expect(html).toMatch(/rel="amphtml" href="\/some-amp\?amp=1"/)
+    expect(html).toMatch(/rel="amphtml" href="\/some-amp\.amp"/)
   })
 
   it('should have correct canonical link', async () => {
