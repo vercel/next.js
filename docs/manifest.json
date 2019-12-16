@@ -172,6 +172,23 @@
           "path": "/docs/api-reference/router.md"
         },
         {
+          "title": "Link Component",
+          "path": "/docs/api-reference/link-component.md"
+        },
+        {
+          "title": "Head Component",
+          "path": "/docs/api-reference/head-component.md"
+        },
+        {
+          "title": "Data Fetching",
+          "routes": [
+            {
+              "title": "getInitialProps",
+              "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+            }
+          ]
+        },
+        {
           "title": "next.config.js",
           "routes": [
             {
@@ -241,13 +258,8 @@
           ]
         },
         {
-          "title": "Data Fetching",
-          "routes": [
-            {
-              "title": "getInitialProps",
-              "path": "/docs/api-reference/data-fetching/getInitialProps.md"
-            }
-          ]
+          "title": "AMP API",
+          "path": "/docs/api-reference/amp.md"
         }
       ]
     }
