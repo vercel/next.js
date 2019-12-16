@@ -10,7 +10,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const cleanUp = () => fs.remove(nextConfigPath)
 
-describe('Serverless runtime configs', () => {
+describe('Handles valid/invalid assetPrefix', () => {
   beforeAll(() => cleanUp())
   afterAll(() => cleanUp())
 
