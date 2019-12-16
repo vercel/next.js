@@ -1,4 +1,4 @@
-# AMP
+# next/amp
 
 <details>
   <summary><b>Examples</b></summary>

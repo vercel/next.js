@@ -172,6 +172,10 @@
           "path": "/docs/api-reference/next/head.md"
         },
         {
+          "title": "next/amp",
+          "path": "/docs/api-reference/next/amp.md"
+        },
+        {
           "title": "Data Fetching",
           "routes": [
             {
@@ -248,10 +252,6 @@
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
             }
           ]
-        },
-        {
-          "title": "AMP API",
-          "path": "/docs/api-reference/amp.md"
         }
       ]
     }
