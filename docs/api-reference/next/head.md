@@ -1,4 +1,4 @@
-# Head Component
+# next/head
 
 <details>
   <summary><b>Examples</b></summary>

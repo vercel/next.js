@@ -176,8 +176,8 @@
           "path": "/docs/api-reference/link-component.md"
         },
         {
-          "title": "Head Component",
-          "path": "/docs/api-reference/head-component.md"
+          "title": "next/head",
+          "path": "/docs/api-reference/next/head.md"
         },
         {
           "title": "Data Fetching",
