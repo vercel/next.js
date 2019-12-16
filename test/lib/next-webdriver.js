@@ -18,6 +18,7 @@ const {
 let capabilities = {}
 
 const isIE = browserName === 'ie'
+const isChrome = browserName === 'chrome'
 const isSafari = browserName === 'safari'
 const isFirefox = browserName === 'firefox'
 
@@ -156,7 +157,9 @@ export default async (appPort, path) => {
   // browser.switchTo().window() fails with `missing field `handle``
   // in safari and firefox so disabling freshWindow since our
   // tests shouldn't rely on it
-  // await freshWindow()
+  if (isChrome) {
+    await freshWindow()
+  }
 
   const url = `http://${deviceIP}:${appPort}${path}`
   console.log(`\n> Loading browser with ${url}\n`)
