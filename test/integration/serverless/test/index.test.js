@@ -117,6 +117,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
   })
 
+  it('should have correct canonical link (auto-export link)', async () => {
+    const html = await renderViaHTTP(appPort, '/some-amp.amp')
+    expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
+  })
+
   it('should render correctly when importing isomorphic-unfetch', async () => {
     const url = `http://localhost:${appPort}/fetch`
     const res = await fetch(url)
