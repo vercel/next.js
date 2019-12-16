@@ -11,7 +11,7 @@ Below is defined API of the `Router` exported by `next/router`.
   </ul>
 </details>
 
-Handles client-side transitions, this method is useful for cases where [`Link`](/docs/routing/using-link.md) is not enough.
+Handles client-side transitions, this method is useful for cases where [`next/link`](/docs/api-reference/next/link.md) is not enough.
 
 ```jsx
 import Router from 'next/router'
@@ -54,7 +54,7 @@ function Page() {
 
 ### With URL object
 
-You can use an URL object in the same way you can use it for [`Link`](/docs/routing/using-link.md). Works for both the `url` and `as` parameters:
+You can use an URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md). Works for both the `url` and `as` parameters:
 
 ```jsx
 import Router from 'next/router'
@@ -125,7 +125,7 @@ Since that's a new page, it'll unload the current page, load the new one and cal
 
 ## Router.replace
 
-Similar to the `replace` prop in [`Link`](/docs/routing/using-link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
+Similar to the `replace` prop in [`next/link`](/docs/api-reference/next/link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
 
 ```jsx
 import Router from 'next/router'

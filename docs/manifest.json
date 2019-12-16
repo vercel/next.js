@@ -39,10 +39,6 @@
               "path": "/docs/routing/introduction.md"
             },
             {
-              "title": "Using `Link`",
-              "path": "/docs/routing/using-link.md"
-            },
-            {
               "title": "Dynamic Routes",
               "path": "/docs/routing/dynamic-routes.md"
             },

@@ -84,9 +84,9 @@ export default Home
 The router is divided in multiple parts:
 
 <div class="card">
-  <a href="/docs/routing/using-link.md)">
-    <b>`Link`:</b>
-    <small>The component that handles client-side navigation.</small>
+  <a href="/docs/api-reference/next/link.md">
+    <b>`next/link`:</b>
+    <small>Handle client-side navigations.</small>
   </a>
 </div>
 
