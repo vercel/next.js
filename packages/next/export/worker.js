@@ -1,5 +1,6 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
+import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../next-server/server/render'
 import { writeFile, access } from 'fs'
@@ -40,14 +41,18 @@ export default async function({
     const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
+    let params
 
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
-      const params = getRouteMatcher(getRouteRegex(page))(path)
+      params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
-        query = {
-          ...query,
-          ...params,
+        // we have to pass these separately for serverless
+        if (!serverless) {
+          query = {
+            ...query,
+            ...params,
+          }
         }
       } else {
         throw new Error(
@@ -107,26 +112,40 @@ export default async function({
     }
 
     if (serverless) {
-      const mod = require(join(
+      const curUrl = url.parse(req.url, true)
+      req.url = url.format({
+        ...curUrl,
+        query: {
+          ...curUrl.query,
+          ...query,
+        },
+      })
+      const { Component: mod } = await loadComponents(
         distDir,
-        'serverless/pages',
-        (page === '/' ? 'index' : page) + '.js'
-      ))
+        buildId,
+        page,
+        serverless
+      )
 
-      // for non-dynamic SPR pages we should have already
-      // prerendered the file
-      if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
+      // if it was auto-exported the HTML is loaded here
+      if (typeof mod === 'string') {
+        html = mod
+      } else {
+        // for non-dynamic SPR pages we should have already
+        // prerendered the file
+        if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
-      if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
-        // make sure it ends with .html if the name contains a dot
-        htmlFilename += '.html'
-        htmlFilepath += '.html'
+        if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+          // make sure it ends with .html if the name contains a dot
+          htmlFilename += '.html'
+          htmlFilepath += '.html'
+        }
+
+        renderMethod = mod.renderReqToHTML
+        const result = await renderMethod(req, res, true, { ampPath }, params)
+        curRenderOpts = result.renderOpts || {}
+        html = result.html
       }
-
-      renderMethod = mod.renderReqToHTML
-      const result = await renderMethod(req, res, true)
-      curRenderOpts = result.renderOpts || {}
-      html = result.html
 
       if (!html) {
         throw new Error(`Failed to render serverless page`)

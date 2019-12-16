@@ -29,6 +29,9 @@ const Page = ({ world, time }) => {
       <Link href="/blog/[post]" as="/blog/post-1">
         <a id="post-1">to dynamic</a>
       </Link>
+      <Link href="/blog/[post]" as="/blog/post-100">
+        <a id="broken-post">to broken</a>
+      </Link>
       <br />
       <Link href="/blog/[post]/[comment]" as="/blog/post-1/comment-1">
         <a id="comment-1">to another dynamic</a>

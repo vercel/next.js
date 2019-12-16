@@ -151,6 +151,11 @@ describe('AMP Usage', () => {
       ).toBe('http://localhost:1234/use-amp-hook.amp')
     })
 
+    it('should render amphtml from provided rel link', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook.amp')
+      await validateAMP(html)
+    })
+
     it('should render link rel amphtml with existing query', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook?hello=1')
       expect(html).not.toMatch(/&amp;amp=1/)

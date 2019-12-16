@@ -1,7 +1,7 @@
 import curry from 'lodash.curry'
-import MiniCssExtractPlugin from 'mini-css-extract-plugin'
 import path from 'path'
 import webpack, { Configuration } from 'webpack'
+import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
@@ -71,7 +71,18 @@ export const css = curry(async function css(
     return config
   }
 
-  const fns: ConfigurationFn[] = []
+  const fns: ConfigurationFn[] = [
+    loader({
+      oneOf: [
+        {
+          // Impossible regex expression
+          test: /a^/,
+          loader: 'noop-loader',
+          options: { __next_css_remove: true },
+        },
+      ],
+    }),
+  ]
 
   const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
   // CSS Modules support must be enabled on the server and client so the class
