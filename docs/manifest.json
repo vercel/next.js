@@ -239,6 +239,15 @@
               "path": "/docs/api-reference/next.config.js/exportPathMap.md"
             }
           ]
+        },
+        {
+          "title": "Data Fetching",
+          "routes": [
+            {
+              "title": "getInitialProps",
+              "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+            }
+          ]
         }
       ]
     }
