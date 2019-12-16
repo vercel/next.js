@@ -12,7 +12,7 @@
     "testheadless": "cross-env HEADLESS=true yarn testonly",
     "testsafari": "cross-env BROWSER_NAME=safari yarn testonly",
     "testfirefox": "cross-env BROWSER_NAME=firefox yarn testonly",
-    "testie": "cross-env BROWSER_NAME='internet explorer' yarn testonly",
+    "testie": "cross-env BROWSER_NAME=\"internet explorer\" yarn testonly",
     "testall": "yarn run testonly -- --ci --forceExit",
     "pretest": "yarn run lint",
     "git-reset": "git reset --hard HEAD",
