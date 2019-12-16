@@ -223,3 +223,51 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     )
   })
 })
+
+describe('CSS Module Composes Usage (Basic)', () => {
+  // This is a very bad feature. Do not use it.
+  const appDir = join(fixturesDir, 'composes-basic')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    await nextBuild(appDir)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".index_className__3gr_q{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+    )
+  })
+})
+
+describe('CSS Module Composes Usage (External)', () => {
+  // This is a very bad feature. Do not use it.
+  const appDir = join(fixturesDir, 'composes-external')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    await nextBuild(appDir)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".other_className__21NIP{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+    )
+  })
+})
