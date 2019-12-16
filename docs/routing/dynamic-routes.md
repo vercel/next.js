@@ -50,6 +50,8 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 { "pid": "abc", "comment": "a-comment" }
 ```
 
+> Client-side navigations to a dynamic route can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes).
+
 ## Caveats
 
 - Predefined routes take precedence over dynamic routes. Take a look at the following examples:
