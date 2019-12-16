@@ -26,10 +26,6 @@
               "path": "/docs/basic-features/static-file-serving.md"
             },
             {
-              "title": "Populating `head`",
-              "path": "/docs/basic-features/populating-head.md"
-            },
-            {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
             }
