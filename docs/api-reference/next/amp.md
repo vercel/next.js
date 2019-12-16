@@ -7,7 +7,9 @@
   </ul>
 </details>
 
-To enable AMP support for a page, add the following config to your page:
+> AMP support is one of our advanced features, you can read more about it [here](/docs/amp-support/introduction.md).
+
+To enable AMP, add the following config to your page:
 
 ```jsx
 export const config = { amp: true }
@@ -77,4 +79,5 @@ The page above is a hybrid AMP page, which means:
 
 - The page is rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
 - The AMP version of the page only has valid optimizations applied with AMP Optimizer so that it is indexable by search-engines
-- The page can differentiate between modes with `useAmp`, which is used in the example above.
+
+The page uses `useAmp` to differentiate between modes, it's a [React Hook](https://reactjs.org/docs/hooks-intro.html) that returns `true` if the page is using AMP, and `false` otherwise.

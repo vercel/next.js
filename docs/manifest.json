@@ -104,20 +104,16 @@
                   "path": "/docs/amp-support/introduction.md"
                 },
                 {
-                  "title": "Enabling AMP",
-                  "path": "/docs/amp-support/enabling-amp.md"
-                },
-                {
-                  "title": "AMP in Static HTML export",
-                  "path": "/docs/amp-support/amp-in-static-html-export.md"
-                },
-                {
                   "title": "Adding AMP Components",
                   "path": "/docs/amp-support/adding-amp-components.md"
                 },
                 {
                   "title": "AMP Validation",
                   "path": "/docs/amp-support/amp-validation.md"
+                },
+                {
+                  "title": "AMP in Static HTML export",
+                  "path": "/docs/amp-support/amp-in-static-html-export.md"
                 },
                 {
                   "title": "TypeScript",

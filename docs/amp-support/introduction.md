@@ -13,16 +13,13 @@ With Next.js you can turn any React page into an AMP page, with minimal config, 
 
 You can read more about AMP in the official [amp.dev](https://amp.dev/) site.
 
+## Enabling AMP
+
+To enable AMP support for a page, and to learn more about the different AMP configs, read the [API documentation for `next/amp`](/docs/api-reference/next/amp.md).
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
-
-<div class="card">
-  <a href="/docs/amp-support/enabling-amp.md">
-    <b>Enabling AMP:</b>
-    <small>Add AMP to any page.</small>
-  </a>
-</div>
 
 <div class="card">
   <a href="/docs/amp-support/adding-amp-components.md">
