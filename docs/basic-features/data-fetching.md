@@ -2,8 +2,8 @@
 
 Next.js has 2 pre-rendering modes built-in:
 
-- Static Generation
-- Server-side rendering
+- [Static Generation](#static-generation)
+- [Server-side rendering](#server-side-rendering)
 
 You can learn more about the differences in the [pages section](/docs/basic-features/pages.md#pre-rendering).
 
@@ -16,7 +16,7 @@ In Next.js data fetching generally happens at the page level. There are multiple
 
 ## Static Generation
 
-By default Next.js pages that don't use `getInitialProps` get rendered to static HTML at `next build` time.
+By default Next.js pages that don't use [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) get rendered to static HTML at `next build` time.
 
 This is useful for, for example, dashboards that have a lot of dynamic data that depends on a specific user.
 
@@ -54,7 +54,7 @@ export default HomePage
 
 Pages might have to wait on some data before pre-rendering, for example, if you want the page to be indexed with the data by search engines.
 
-Next.js comes with `getInitialProps`, which is an [`async`](https://zeit.co/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods).
+Next.js comes with [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md), which is an [`async`](https://zeit.co/blog/async-and-await) function that can be added to any page as a [`static method`](https://javascript.info/static-properties-methods).
 
 `getInitialProps` allows the page to wait for data before rendering starts.
 
@@ -81,4 +81,13 @@ HomePage.getInitialProps = async () => {
 export default HomePage
 ```
 
-You can learn more about the usage of `getInitialProps` in the [API reference for `getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md)
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/api-reference/data-fetching/getInitialProps.md">
+    <b>getInitialProps:</b>
+    <small>Learn more about the API for `getInitialProps`</small>
+  </a>
+</div>
