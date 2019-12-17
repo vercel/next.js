@@ -456,7 +456,7 @@ export default class Server {
     }
 
     routes.push({
-      match: route('/api/:path*'),
+      match: route('/api/:path+'),
       type: 'route',
       name: 'API Route',
       fn: async (req, res, params, parsedUrl) => {
