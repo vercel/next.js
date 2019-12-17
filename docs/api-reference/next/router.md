@@ -4,7 +4,7 @@
 
 ## useRouter
 
-If you want to access the [`router object`](#router-object) inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
+If you want to access the [`router` object](#router-object) inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -31,7 +31,7 @@ export default function ActiveLink({ children, href }) {
 
 > `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](#withRouter) or wrap your class in a function component.
 
-### `router object`
+### router object
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
@@ -46,7 +46,7 @@ Additionally, [`Router API`](#router-api) is also included inside the object.
 
 ## withRouter
 
-If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router object`](#router-object) to any component, here's how to use it:
+If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router` object](#router-object) to any component, here's how to use it:
 
 ```jsx
 import { withRouter } from 'next/router'

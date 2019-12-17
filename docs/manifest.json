@@ -43,16 +43,8 @@
               "path": "/docs/routing/dynamic-routes.md"
             },
             {
-              "title": "Injecting the router",
-              "path": "/docs/routing/injecting-router.md"
-            },
-            {
               "title": "Imperatively",
               "path": "/docs/routing/imperatively.md"
-            },
-            {
-              "title": "Router Object",
-              "path": "/docs/routing/router-object.md"
             }
           ]
         },

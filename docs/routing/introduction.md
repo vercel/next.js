@@ -79,6 +79,19 @@ function Home() {
 export default Home
 ```
 
+## Injecting the router
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
+  </ul>
+</details>
+
+To use the router in a React component you can use [`useRouter`](/docs/api-reference/next/router.md#useRouter) or [`withRouter`](/docs/api-reference/next/router.md#withRouter).
+
+In general we recommend using [`useRouter`](/docs/api-reference/next/router.md#useRouter).
+
 ## Learn more
 
 The router is divided in multiple parts:
@@ -91,8 +104,8 @@ The router is divided in multiple parts:
 </div>
 
 <div class="card">
-  <a href="/docs/routing/injecting-router.md">
-    <b>`useRouter` and `withRouter`:</b>
-    <small>Allow your pages to access the router in React components.</small>
+  <a href="/docs/api-reference/next/router.md">
+    <b>next/router:</b>
+    <small>Leverage the router API in your pages.</small>
   </a>
 </div>
