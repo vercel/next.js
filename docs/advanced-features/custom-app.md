@@ -47,7 +47,7 @@ For more information on what to do next, we recommend the following sections:
 </div>
 
 <div class="card">
-  <a href="/docs/pages/custom-error-page.md">
+  <a href="/docs/advanced-features/custom-error-page.md">
     <b>Custom Error Page:</b>
     <small>Learn more about the built-in Error page.</small>
   </a>
