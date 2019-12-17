@@ -54,7 +54,7 @@ const invalidRedirectAssertions = (stderr = '') => {
   )
 
   expect(stderr).toContain(
-    `\`source\` is not a string for route {"source":123,"destination":"/another"}`
+    `\`source\` is not a string or RegExp instance for route {"source":123,"destination":"/another"}`
   )
 
   expect(stderr).toContain(
@@ -105,7 +105,7 @@ const invalidRewriteAssertions = (stderr = '') => {
   )
 
   expect(stderr).toContain(
-    `\`source\` is not a string for route {"source":123,"destination":"/another"}`
+    `\`source\` is not a string or RegExp instance for route {"source":123,"destination":"/another"}`
   )
 
   expect(stderr).toContain(
