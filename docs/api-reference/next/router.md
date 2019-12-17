@@ -9,7 +9,7 @@ If you want to access the [`router` object](#router-object) inside any function 
 ```jsx
 import { useRouter } from 'next/router'
 
-export default function ActiveLink({ children, href }) {
+function ActiveLink({ children, href }) {
   const router = useRouter()
   const style = {
     marginRight: 10,
@@ -27,6 +27,8 @@ export default function ActiveLink({ children, href }) {
     </a>
   )
 }
+
+export default ActiveLink
 ```
 
 > `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](#withRouter) or wrap your class in a function component.
@@ -136,52 +138,6 @@ function ReadMore() {
 
 export default ReadMore
 ```
-
-#### Shallow Routing
-
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing">Shallow Routing</a></li>
-  </ul>
-</details>
-
-Shallow routing allows you to change the URL without running `getInitialProps`.
-
-You'll receive the updated `pathname` and the `query` via the [`router`](/docs/routing/router-object.md) object (added by [`useRouter`](/docs/routing/injecting-router.md#useRouter) or [`withRouter`](/docs/routing/injecting-router.md#withRouter)), without losing state.
-
-To enable shallow routing, set the `shallow` option to `true`. Consider the following example:
-
-```jsx
-// Current URL is '/'
-Router.push('/?counter=10', null, { shallow: true })
-```
-
-The URL will get updated to `/?counter=10`. and the page won't get replaced, only the state of the route is changed.
-
-You can watch for URL changes via [`componentDidUpdate`](https://reactjs.org/docs/react-component.html#componentdidupdate) as shown below:
-
-```jsx
-componentDidUpdate(prevProps) {
-  const { pathname, query } = this.props.router
-  // verify props have changed to avoid an infinite loop
-  if (query.id !== prevProps.router.query.id) {
-    // fetch data based on the new query
-  }
-}
-```
-
-The same can be achieved with the [useEffect](https://reactjs.org/docs/hooks-effect.html) hook.
-
-##### Caveats
-
-Shallow routing **only** works for same page URL changes. For example, let's assume we have another page called `pages/about.js`, and you run this:
-
-```jsx
-Router.push('/?counter=10', '/about?counter=10', { shallow: true })
-```
-
-Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
 ### Router.replace
 

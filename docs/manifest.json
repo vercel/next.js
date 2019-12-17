@@ -45,6 +45,10 @@
             {
               "title": "Imperatively",
               "path": "/docs/routing/imperatively.md"
+            },
+            {
+              "title": "Shallow Routing",
+              "path": "/docs/routing/shallow-routing.md"
             }
           ]
         },
