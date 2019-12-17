@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-`Link` should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/next/router.md).
+[`next/link`](/docs/api-reference/next/link.md) should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/next/router.md#router-api).
 
 The following example shows the basic usage of the Router API:
 

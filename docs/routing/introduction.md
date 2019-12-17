@@ -88,7 +88,7 @@ export default Home
   </ul>
 </details>
 
-To use the router in a React component you can use [`useRouter`](/docs/api-reference/next/router.md#useRouter) or [`withRouter`](/docs/api-reference/next/router.md#withRouter).
+To access the [`router` object](/docs/api-reference/next/router.md#router-object) in a React component you can use [`useRouter`](/docs/api-reference/next/router.md#useRouter) or [`withRouter`](/docs/api-reference/next/router.md#withRouter).
 
 In general we recommend using [`useRouter`](/docs/api-reference/next/router.md#useRouter).
 
@@ -98,7 +98,7 @@ The router is divided in multiple parts:
 
 <div class="card">
   <a href="/docs/api-reference/next/link.md">
-    <b>`next/link`:</b>
+    <b>next/link:</b>
     <small>Handle client-side navigations.</small>
   </a>
 </div>
