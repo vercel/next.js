@@ -161,13 +161,41 @@ const runTests = (isDev = false) => {
     expect(location).toBe('https://google.com/')
   })
 
+  it('should allow using RegExp instance as source', async () => {
+    const res = await fetchViaHTTP(appPort, '/feedback', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location'))
+    expect(res.status).toBe(302)
+    expect(pathname).toBe('/feedback/general')
+
+    const res2 = await fetchViaHTTP(appPort, '/feedbackk', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname: p2 } = url.parse(res2.headers.get('location'))
+    expect(res2.status).toBe(302)
+    expect(p2).toBe('/feedback/general')
+
+    const res3 = await fetchViaHTTP(appPort, '/feedback/another', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname: p3 } = url.parse(res2.headers.get('location'))
+    expect(res3.status).toBe(302)
+    expect(p3).toBe('/feedback/general')
+
+    const res4 = await fetchViaHTTP(appPort, '/feedback/general', undefined, {
+      redirect: 'manual',
+    })
+    expect(res4.status).toBe(200)
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
       expect(manifest).toEqual({
-        version: 1,
+        version: 2,
         redirects: [
           {
             source: '/docs/router-status/:code',
@@ -253,6 +281,13 @@ const runTests = (isDev = false) => {
             source: '/to-external',
             statusCode: 307,
           },
+          {
+            destination: '/feedback/general',
+            regex: normalizeRegEx('\\/feedback(?!\\/general$).*'),
+            regexKeys: [],
+            regexSource: normalizeRegEx('\\/feedback(?!\\/general$).*'),
+            statusCode: 302,
+          },
         ],
         rewrites: [
           {
@@ -321,7 +356,12 @@ const runTests = (isDev = false) => {
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
         expect(cleanStdout).toMatch(
-          new RegExp(`${route.source}.*?${route.destination}`)
+          new RegExp(
+            `${route.source ||
+              route.regexSource.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')}.*?${
+              route.destination
+            }`
+          )
         )
       }
     })

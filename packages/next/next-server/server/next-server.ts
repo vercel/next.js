@@ -253,7 +253,17 @@ export default class Server {
   }
 
   protected getCustomRoutes() {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    const routes = require(join(this.distDir, ROUTES_MANIFEST))
+    // convert regexSource's to RegExp instances
+    routes.redirects = routes.redirects.map(
+      (r: Redirect & { regexSource: RegExp | undefined }) => {
+        if (r.regexSource) {
+          r.source = new RegExp(r.regexSource)
+        }
+        return r
+      }
+    )
+    return routes
   }
 
   protected generateRoutes(): Route[] {
@@ -383,7 +393,11 @@ export default class Server {
       const { redirects, rewrites } = this.customRoutes
 
       const getCustomRoute = (
-        r: { source: string; destination: string; statusCode?: number },
+        r: {
+          source: string | RegExp
+          destination: string
+          statusCode?: number
+        },
         type: 'redirect' | 'rewrite'
       ) => ({
         ...r,

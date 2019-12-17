@@ -1,7 +1,7 @@
 import { match } from 'path-to-regexp'
 
 export default (customRoute = false) => {
-  return (path: string) => {
+  return (path: string | RegExp) => {
     const matcher = match(path, {
       sensitive: false,
       delimiter: '/',

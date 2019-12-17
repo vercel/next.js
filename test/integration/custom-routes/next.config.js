@@ -96,6 +96,11 @@ module.exports = {
           source: '/to-external',
           destination: 'https://google.com',
         },
+        {
+          source: /\/feedback(?!\/general$).*/,
+          statusCode: 302,
+          destination: '/feedback/general',
+        },
       ]
     },
   },

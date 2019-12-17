@@ -640,7 +640,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const buildCustomRoute = (
     r: {
-      source: string
+      source: string | RegExp
       statusCode?: number
     },
     isRedirect = false
@@ -656,6 +656,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...r,
       ...(isRedirect
         ? {
+            ...((r.source as any) instanceof RegExp
+              ? {
+                  source: undefined,
+                  regexSource: (r.source as RegExp).source,
+                }
+              : {}),
             statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
           }
         : {}),
@@ -667,7 +673,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
-      version: 1,
+      version: 2,
       redirects: redirects.map(r => buildCustomRoute(r, true)),
       rewrites: rewrites.map(r => buildCustomRoute(r)),
       dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({

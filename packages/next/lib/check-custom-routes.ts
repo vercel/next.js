@@ -1,5 +1,5 @@
 export type Rewrite = {
-  source: string
+  source: string | RegExp
   destination: string
 }
 
@@ -30,9 +30,17 @@ export default function checkCustomRoutes(
     // TODO: investigate allowing RegExp directly
     if (!route.source) {
       invalidParts.push('`source` is missing')
-    } else if (typeof route.source !== 'string') {
-      invalidParts.push('`source` is not a string')
-    } else if (!route.source.startsWith('/')) {
+    } else if (
+      !(
+        typeof route.source === 'string' ||
+        (route.source as any) instanceof RegExp
+      )
+    ) {
+      invalidParts.push('`source` is not a string or RegExp instance')
+    } else if (
+      typeof route.source === 'string' &&
+      !route.source.startsWith('/')
+    ) {
       invalidParts.push('`source` does not start with /')
     }
 
