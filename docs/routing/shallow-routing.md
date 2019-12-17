@@ -34,7 +34,7 @@ function Page() {
 export default Page
 ```
 
-If you don't need to add the router object to the page, you can also use the [Router API]() directly, like so:
+If you don't need to add the router object to the page, you can also use the [Router API](/docs/api-reference/next/router.md#router-api) directly, like so:
 
 ```jsx
 import Router from 'next/router'
