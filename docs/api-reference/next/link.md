@@ -36,12 +36,12 @@ export default Home
 
 `Link` accepts the following props:
 
-- `href`: The path inside `pages` directory. This is the only required prop
-- `as`: The path that will be rendered in the browser URL bar. Used for dynamic routes
-- [`passHref`](#forcing-Link-to-expose-href-to-its-child): Forces `Link` to send the `href` property to its child. Defaults to `false`
-- `prefetch`: Prefetch the page in the background. Defaults to `true`
-- [`replace`](#replace-the-url-instead-of-push): Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
-- [`scroll`](#disable-scrolling-to-the-top-of-the-page): Scroll to the top of the page after a navigation. Defaults to `true`
+- `href` - The path inside `pages` directory. This is the only required prop
+- `as` - The path that will be rendered in the browser URL bar. Used for dynamic routes
+- [`passHref`](#forcing-Link-to-expose-href-to-its-child) - Forces `Link` to send the `href` property to its child. Defaults to `false`
+- `prefetch` - Prefetch the page in the background. Defaults to `true`
+- [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
+- [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
 
 ## Dynamic routes
 

@@ -154,7 +154,7 @@
       "title": "API Reference",
       "heading": true,
       "routes": [
-        { "title": "Next.js CLI", "path": "/docs/api-reference/next-cli.md" },
+        { "title": "CLI", "path": "/docs/api-reference/cli.md" },
         {
           "title": "next/router",
           "path": "/docs/api-reference/next/router.md"

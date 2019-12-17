@@ -16,12 +16,12 @@ Handles client-side transitions, this method is useful for cases where [`next/li
 ```jsx
 import Router from 'next/router'
 
-Router.push(url, (as = url), options)
+Router.push(url, as, options)
 ```
 
-- `url`: The URL to navigate to. This is usually the name of a `page`
-- `as`: Decorator for the URL that will be shown in the browser. Defaults to `url`
-- `options`: Optional object with the following configuration options:
+- `url` - The URL to navigate to. This is usually the name of a `page`
+- `as` - Optional decorator for the URL that will be shown in the browser. Defaults to `url`
+- `options` - Optional object with the following configuration options:
   - [`shallow`](#shallow-routing): Update the path of the current page without rerunning `getInitialProps`. Defaults to `false`
 
 > You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
@@ -54,7 +54,7 @@ function Page() {
 
 ### With URL object
 
-You can use an URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md). Works for both the `url` and `as` parameters:
+You can use an URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md#with-url-object). Works for both the `url` and `as` parameters:
 
 ```jsx
 import Router from 'next/router'
@@ -158,7 +158,7 @@ Router.beforePopState(({ url, as, options }) => {
 
 `Router.beforePopState(cb: () => boolean)`
 
-- `cb`: The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
+- `cb` - The function to execute on incoming `popstate` events. The function receives the state of the event as an object with the following props:
   - `url`: `String` - the route for the new state. This is usually the name of a `page`
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [Router.push](#router.push)
