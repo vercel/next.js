@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-sentry",
-  "version": "9.1.6",
+  "version": "9.1.7-canary.0",
   "nextjs": {
     "name": "Sentry",
     "required-env": [
