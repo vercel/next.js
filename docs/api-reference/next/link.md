@@ -7,6 +7,8 @@
   </ul>
 </details>
 
+> Before moving forward, we recommend you to read [Routing Introduction](/docs/routing/introduction.md) first.
+
 Client-side transitions between routes can be enabled via the `Link` component exported by `next/link`.
 
 An example of linking to `/` and `/about`:

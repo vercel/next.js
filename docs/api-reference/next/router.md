@@ -1,5 +1,7 @@
 # next/router
 
+> Before moving forward, we recommend you to read [Routing Introduction](/docs/routing/introduction.md) first.
+
 The API of `Router`, exported by `next/router`, is defined below.
 
 ## Router.push
