@@ -1,17 +1,17 @@
 # Injecting the router
 
-To use the router in a React component you can use `useRouter` or `withRouter`.
-
-In general we recommend using `useRouter`.
-
-## useRouter
-
 <details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
+
+To use the router in a React component you can use `useRouter` or `withRouter`.
+
+In general we recommend using `useRouter`.
+
+## useRouter
 
 If you want to access the [`router`](/docs/routing/router-object.md) object inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
 
@@ -55,3 +55,14 @@ function Page({ router }) {
 
 export default withRouter(Page)
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/api-reference/next/router.md">
+    <b>next/router</b>
+    <small>Learn more about the API for `next/router`.</small>
+  </a>
+</div>

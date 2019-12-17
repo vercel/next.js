@@ -88,6 +88,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/api-reference/data-fetching/getInitialProps.md">
     <b>getInitialProps:</b>
-    <small>Learn more about the API for `getInitialProps`</small>
+    <small>Learn more about the API for `getInitialProps`.</small>
   </a>
 </div>

@@ -2,9 +2,56 @@
 
 > Before moving forward, we recommend you to read [Routing Introduction](/docs/routing/introduction.md) first.
 
+## useRouter
+
+If you want to access the [`router object`](#router-object.md) inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
+
+```jsx
+import { useRouter } from 'next/router'
+
+export default function ActiveLink({ children, href }) {
+  const router = useRouter()
+  const style = {
+    marginRight: 10,
+    color: router.pathname === href ? 'red' : 'black',
+  }
+
+  const handleClick = e => {
+    e.preventDefault()
+    router.push(href)
+  }
+
+  return (
+    <a href={href} onClick={handleClick} style={style}>
+      {children}
+    </a>
+  )
+}
+```
+
+> `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](#withRouter) or wrap your class in a function component.
+
+### `router object`
+
+## withRouter
+
+If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router object`](#router-object.md) to any component, here's how to use it:
+
+```jsx
+import { withRouter } from 'next/router'
+
+function Page({ router }) {
+  return <p>{router.pathname}</p>
+}
+
+export default withRouter(Page)
+```
+
+## Router API
+
 The API of `Router`, exported by `next/router`, is defined below.
 
-## Router.push
+### Router.push
 
 <details>
   <summary><b>Examples</b></summary>
@@ -28,7 +75,7 @@ Router.push(url, as, options)
 
 > You don't need to use `Router` for external URLs, [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
-### Usage
+#### Usage
 
 Navigating to `pages/about.js`, which is a predefined route:
 
@@ -54,7 +101,7 @@ function Page() {
 }
 ```
 
-### With URL object
+#### With URL object
 
 You can use an URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md#with-url-object). Works for both the `url` and `as` parameters:
 
@@ -79,7 +126,7 @@ function ReadMore() {
 export default ReadMore
 ```
 
-### Shallow Routing
+#### Shallow Routing
 
 <details>
   <summary><b>Examples</b></summary>
@@ -115,7 +162,7 @@ componentDidUpdate(prevProps) {
 
 The same can be achieved with the [useEffect](https://reactjs.org/docs/hooks-effect.html) hook.
 
-#### Caveats
+##### Caveats
 
 Shallow routing **only** works for same page URL changes. For example, let's assume we have another page called `pages/about.js`, and you run this:
 
@@ -125,7 +172,7 @@ Router.push('/?counter=10', '/about?counter=10', { shallow: true })
 
 Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
-## Router.replace
+### Router.replace
 
 Similar to the `replace` prop in [`next/link`](/docs/api-reference/next/link.md), `Router.replace` will prevent adding a new URL entry into the `history` stack, take a look at the following example:
 
@@ -137,7 +184,7 @@ Router.replace('/home')
 
 The API for `Router.replace` is exactly the same as that used for [`Router.push`](#router.push).
 
-## Router.beforePopState
+### Router.beforePopState
 
 In some cases (for example, if using a [Custom Server](/docs/advanced-features/custom-server.md)), you may wish to listen to [popstate](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and do something before the router acts on it.
 
@@ -167,7 +214,7 @@ Router.beforePopState(({ url, as, options }) => {
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate` and you'll be responsible for handling it, in that case. See [Disabling file-system routing](/docs/advanced-features/custom-server.md#disabling-file-system-routing).
 
-## Router Events
+### Router.events
 
 <details>
   <summary><b>Examples</b></summary>
