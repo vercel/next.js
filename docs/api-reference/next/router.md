@@ -4,7 +4,7 @@
 
 ## useRouter
 
-If you want to access the [`router object`](#router-object.md) inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
+If you want to access the [`router object`](#router-object) inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -33,9 +33,20 @@ export default function ActiveLink({ children, href }) {
 
 ### `router object`
 
+The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
+
+- `route`: `String` - Current route
+- `pathname`: `String` - Current path excluding the query string
+- `query`: `Object` - The query string parsed to an object. Defaults to `{}`
+- `asPath`: `String` - Actual path (including the query) shown in the browser
+
+Additionally, [`Router API`](#router-api) is also included inside the object.
+
+> The `query` object will be empty during prerendering if the page is [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
+
 ## withRouter
 
-If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router object`](#router-object.md) to any component, here's how to use it:
+If [useRouter](#useRouter) is not the best fit for you, `withRouter` can also add the same [`router object`](#router-object) to any component, here's how to use it:
 
 ```jsx
 import { withRouter } from 'next/router'
