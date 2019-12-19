@@ -35,6 +35,10 @@ module.exports = {
           source: '/params/:something',
           destination: '/with-params',
         },
+        {
+          source: '/query-rewrite/:section/:name',
+          destination: '/with-params?first=:section&second=:name',
+        },
       ]
     },
     async redirects() {
@@ -95,6 +99,10 @@ module.exports = {
         {
           source: '/to-external',
           destination: 'https://google.com',
+        },
+        {
+          source: '/query-redirect/:section/:name',
+          destination: '/with-params?first=:section&second=:name',
         },
       ]
     },
