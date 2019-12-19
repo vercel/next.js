@@ -74,6 +74,15 @@
           ]
         },
         {
+          "title": "Deployment",
+          "routes": [
+            {
+              "title": "Introduction",
+              "path": "/docs/deployment/introduction.md"
+            }
+          ]
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {
