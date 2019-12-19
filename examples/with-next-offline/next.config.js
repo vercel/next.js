@@ -2,7 +2,9 @@ const withOffline = require('next-offline')
 
 module.exports = withOffline({
   workboxOpts: {
-    swDest: 'static/service-worker.js',
+    swDest: process.env.NEXT_EXPORT
+      ? 'service-worker.js'
+      : 'static/service-worker.js',
   },
   experimental: {
     async rewrites() {
