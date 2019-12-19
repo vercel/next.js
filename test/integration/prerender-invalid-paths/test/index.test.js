@@ -13,7 +13,7 @@ describe('Legacy Prerender', () => {
       expect(out.stderr).toMatch(`Build error occurred`)
       expect(out.stderr).toMatch('Additional keys were returned from')
       expect(out.stderr).toMatch('return { params: { foo: ..., post: ... } }')
-      expect(out.stderr).toMatch('Keys that need moved: foo, baz.')
+      expect(out.stderr).toMatch('Keys that need to be moved: foo, baz.')
     })
   })
 })

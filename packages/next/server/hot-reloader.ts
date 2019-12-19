@@ -1,7 +1,5 @@
-import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, normalize, relative as relativePath, sep } from 'path'
-import { promisify } from 'util'
 import webpack from 'webpack'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
@@ -24,9 +22,6 @@ import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import { NextHandleFunction } from 'connect'
 import { UrlObject } from 'url'
-
-const access = promisify(fs.access)
-const readFile = promisify(fs.readFile)
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -196,15 +191,14 @@ export default class HotReloader {
         const bundlePath = join(
           this.dir,
           this.config.distDir,
-          'static/development/pages',
+          'server/static/development/pages',
           page + '.js'
         )
 
-        // make sure to 404 for AMP bundles in case they weren't removed
+        // Make sure to 404 for AMP first pages
         try {
-          await access(bundlePath)
-          const data = await readFile(bundlePath, 'utf8')
-          if (data.includes('__NEXT_DROP_CLIENT_FILE__')) {
+          const mod = require(bundlePath)
+          if (mod && mod.config && mod.config.amp === true) {
             res.statusCode = 404
             res.end()
             return { finished: true }

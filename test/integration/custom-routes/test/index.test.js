@@ -178,6 +178,15 @@ const runTests = (isDev = false) => {
     expect(data).toContain('createElement')
   })
 
+  it('should allow redirecting to external resource', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-external', undefined, {
+      redirect: 'manual',
+    })
+    const location = res.headers.get('location')
+    expect(res.status).toBe(307)
+    expect(location).toBe('https://google.com/')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -262,6 +271,13 @@ const runTests = (isDev = false) => {
             statusCode: 303,
             regex: normalizeRegEx('^\\/redir-chain3$'),
             regexKeys: [],
+          },
+          {
+            destination: 'https://google.com',
+            regex: normalizeRegEx('^\\/to-external$'),
+            regexKeys: [],
+            source: '/to-external',
+            statusCode: 307,
           },
         ],
         rewrites: [
