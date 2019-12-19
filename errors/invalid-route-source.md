@@ -1,0 +1,34 @@
+# Invalid Custom Route `source`
+
+#### Why This Error Occurred
+
+When overriding `config.resolve.alias` incorrectly in `next.config.js` webpack will throw an error because private-next-pages is not defined.
+
+When defining custom routes a route was added that causes an error during parsing. This can be due to trying to use normal `RegExp` syntax like negative lookaheads (`?!exclude`) without following `path-to-regexp`'s syntax for it.
+
+#### Possible Ways to Fix It
+
+Wrap the `RegExp` part of your `source` as an un-named parameter.
+
+**Before**
+
+```js
+{
+  source: '/feedback/(?!general)',
+  destination: '/feedback/general'
+}
+```
+
+**After**
+
+```js
+{
+  source: '/feedback/((?!general).*)',
+  destination: '/feedback/general'
+}
+```
+
+### Useful Links
+
+- [path-to-regexp](https://github.com/pillarjs/path-to-regexp)
+- [un-named paramters](https://github.com/pillarjs/path-to-regexp#unnamed-parameters)
