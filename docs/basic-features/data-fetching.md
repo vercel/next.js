@@ -18,7 +18,7 @@ In Next.js data fetching generally happens at the page level. There are multiple
 
 By default Next.js pages that don't use [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) get rendered to static HTML at `next build` time.
 
-This is useful for, for example, dashboards that have a lot of dynamic data that depends on a specific user.
+This is useful for, as an example, dashboards that have a lot of dynamic data that depends on a specific user.
 
 You might not want to server-render that content but instead load the data client-side.
 
