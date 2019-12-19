@@ -472,7 +472,7 @@ export async function isPageStatic(
                 `\n\n\treturn { params: { ${_validParamKeys
                   .map(k => `${k}: ...`)
                   .join(', ')} } }` +
-                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.\n`
+                `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
             )
           }
 

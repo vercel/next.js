@@ -92,6 +92,10 @@ module.exports = {
           destination: '/',
           statusCode: 303,
         },
+        {
+          source: '/to-external',
+          destination: 'https://google.com',
+        },
       ]
     },
   },
