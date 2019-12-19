@@ -2,8 +2,6 @@
 
 #### Why This Error Occurred
 
-When overriding `config.resolve.alias` incorrectly in `next.config.js` webpack will throw an error because private-next-pages is not defined.
-
 When defining custom routes a route was added that causes an error during parsing. This can be due to trying to use normal `RegExp` syntax like negative lookaheads (`?!exclude`) without following `path-to-regexp`'s syntax for it.
 
 #### Possible Ways to Fix It
