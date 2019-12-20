@@ -387,7 +387,7 @@ describe('Custom routes', () => {
     runTests(true)
   })
 
-  describe('production mode', () => {
+  describe('server mode', () => {
     beforeAll(async () => {
       const { stdout: buildStdout } = await nextBuild(appDir, [], {
         stdout: true,
