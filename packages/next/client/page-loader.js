@@ -250,7 +250,6 @@ export default class PageLoader {
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
       preloadLink(url, url.match(/\.css$/) ? 'style' : 'script')
-      this.prefetched[route] = true
       return
     }
 
