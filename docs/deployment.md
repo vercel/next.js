@@ -76,7 +76,7 @@ You will receive a unique link similar to the following: https://your-project.us
 
 ## Self hosting
 
-Next.js can be deployed to any hosting provider. In order to self-host there are two commands: `next build` and `next start`.
+Next.js can be deployed to any hosting provider that supports Node.js. In order to self-host there are two commands: `next build` and `next start`.
 
 `next build` builds the production application in the `.next` folder.
 
@@ -89,7 +89,7 @@ Generally you'll have to follow these steps to deploy to production:
 - Potentially copy the `.next`, `node_modules`, and `package.json` to your server.
 - Run `npm run start` (runs `next start`) on the server
 
-In case you're doing a full static export using `next export` the steps are slightly different:
+In case you're doing a full static export using `next export` the steps are slightly different and doesn't involve using `next start`:
 
 - Run `npm install`
 - Run `npm run build` (runs `next build && next export`)
