@@ -50,5 +50,5 @@ You can read about deploying your Next.js application in the [deployment section
 ## Caveats
 
 - With `next export`, we build a HTML version of your app. At export time we will run the [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) in your pages. The `req` and `res` fields of the [`context`](/docs/api-reference/data-fetching/getInitialProps.md#context-object) object will be empty objects during export as there is no server running
-- You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. You application can be a hybrid of static generation and server-side rendering when you don't use `next export` though, you can learn more about it in the [pages section](/docs/basic-features/pages.md).
+- You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. You application can be a hybrid of [Static Generation](/docs/basic-features/pages.md#static-generation) and [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) when you don't use `next export`, you can learn more about it in the [pages section](/docs/basic-features/pages.md).
 - [API Routes](/docs/api-routes/introduction.md) are not supported by this method because they can't be prerendered to HTML
