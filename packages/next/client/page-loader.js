@@ -1,9 +1,13 @@
 /* global document, window */
 import mitt from '../next-server/lib/mitt'
 
+const prefetchOrPreload = process.env.__NEXT_PREFETCH_PRELOAD
+  ? 'prefetch'
+  : 'preload'
+
 function supportsPreload(el) {
   try {
-    return el.relList.supports('preload')
+    return el.relList.supports(prefetchOrPreload)
   } catch {
     return false
   }
@@ -13,7 +17,7 @@ const hasPreload = supportsPreload(document.createElement('link'))
 
 function preloadLink(url, resourceType) {
   const link = document.createElement('link')
-  link.rel = 'preload'
+  link.rel = prefetchOrPreload
   link.crossOrigin = process.crossOrigin
   link.href = url
   link.as = resourceType
@@ -219,7 +223,7 @@ export default class PageLoader {
     if (
       this.prefetched[route] ||
       document.querySelector(
-        `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
+        `link[rel="${prefetchOrPreload}"][href^="${url}"], script[data-next-page="${route}"]`
       )
     ) {
       return

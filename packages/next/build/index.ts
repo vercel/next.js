@@ -18,6 +18,8 @@ import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
   DEFAULT_REDIRECT_STATUS,
+  EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
@@ -382,8 +384,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         bundleRelative
       )
 
-      let isStatic = false
       let isSsg = false
+      let isStatic = false
+      let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
@@ -428,6 +431,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           )
 
           if (result.isHybridAmp) {
+            isHybridAmp = true
             hybridAmpPages.add(page)
           }
 
@@ -454,6 +458,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         serverBundle,
         static: isStatic,
         isSsg,
+        isHybridAmp,
         ssgPageRoutes,
       })
     })
@@ -715,6 +720,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
       'utf8'
     )
   }
+
+  await fsWriteFile(
+    path.join(distDir, EXPORT_MARKER),
+    JSON.stringify({
+      version: 1,
+      hasExportPathMap: typeof config.exportPathMap === 'function',
+      exportTrailingSlash: config.exportTrailingSlash === true,
+    }),
+    'utf8'
+  )
+  await fsUnlink(path.join(distDir, EXPORT_DETAIL)).catch(err => {
+    if (err.code === 'ENOENT') {
+      return Promise.resolve()
+    }
+    return Promise.reject(err)
+  })
 
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {

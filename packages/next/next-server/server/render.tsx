@@ -433,7 +433,7 @@ export async function renderToHTML(
         throw new Error(
           `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
             `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.`
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
         )
       }
 

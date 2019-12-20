@@ -21,5 +21,9 @@ export default async ({ assetPrefix }) => {
         closePing()
       }
     })
+
+    window.addEventListener('beforeunload', () => {
+      closePing()
+    })
   }
 }

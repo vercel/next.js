@@ -1,3 +1,5 @@
+import { match as regexpMatch } from 'path-to-regexp'
+
 export type Rewrite = {
   source: string
   destination: string
@@ -40,7 +42,7 @@ export default function checkCustomRoutes(
       invalidParts.push('`destination` is missing')
     } else if (typeof route.destination !== 'string') {
       invalidParts.push('`destination` is not a string')
-    } else if (!route.destination.startsWith('/')) {
+    } else if (type === 'rewrite' && !route.destination.startsWith('/')) {
       invalidParts.push('`destination` does not start with /')
     }
 
@@ -54,6 +56,17 @@ export default function checkCustomRoutes(
         hadInvalidStatus = true
         invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
       }
+    }
+
+    try {
+      // Make sure we can parse the source properly
+      regexpMatch(route.source)
+    } catch (err) {
+      // If there is an error show our err.sh but still show original error
+      console.error(
+        `\nError parsing ${route.source} https://err.sh/zeit/next.js/invalid-route-source`,
+        err
+      )
     }
 
     const hasInvalidKeys = invalidKeys.length > 0

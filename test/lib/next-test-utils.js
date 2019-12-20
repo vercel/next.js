@@ -192,6 +192,10 @@ export function nextExport(dir, { outdir }, opts = {}) {
   return runNextCommand(['export', dir, '--outdir', outdir], opts)
 }
 
+export function nextExportDefault(dir, opts = {}) {
+  return runNextCommand(['export', dir], opts)
+}
+
 export function nextStart(dir, port, opts = {}) {
   return runNextCommandDev(['start', '-p', port, dir], undefined, opts)
 }
@@ -394,4 +398,8 @@ export async function getReactErrorOverlayContent(browser) {
 
 export function getBrowserBodyText(browser) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
+}
+
+export function normalizeRegEx(src) {
+  return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }

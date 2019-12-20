@@ -404,7 +404,10 @@ export default class Server {
             statusCode: route.statusCode,
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
-              let destinationCompiler = compilePathToRegex(route.destination)
+              const parsedDestination = parseUrl(route.destination, true)
+              let destinationCompiler = compilePathToRegex(
+                `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+              )
               let newUrl
 
               try {
@@ -423,7 +426,15 @@ export default class Server {
               }
 
               if (route.type === 'redirect') {
-                res.setHeader('Location', newUrl)
+                const parsedNewUrl = parseUrl(newUrl)
+                res.setHeader(
+                  'Location',
+                  formatUrl({
+                    ...parsedDestination,
+                    pathname: parsedNewUrl.pathname,
+                    hash: parsedNewUrl.hash,
+                  })
+                )
                 res.statusCode = route.statusCode || DEFAULT_REDIRECT_STATUS
                 res.end()
                 return {

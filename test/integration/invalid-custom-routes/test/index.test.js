@@ -97,6 +97,10 @@ const invalidRewrites = [
     source: '/hello',
     destination: 'another',
   },
+  {
+    source: '/feedback/(?!general)',
+    destination: '/feedback/general',
+  },
 ]
 
 const invalidRewriteAssertions = (stderr = '') => {
@@ -118,6 +122,10 @@ const invalidRewriteAssertions = (stderr = '') => {
 
   expect(stderr).toContain(
     `\`destination\` does not start with / for route {"source":"/hello","destination":"another"}`
+  )
+
+  expect(stderr).toContain(
+    `Error parsing /feedback/(?!general) https://err.sh/zeit/next.js/invalid-route-source TypeError: Pattern cannot start with "?"`
   )
 
   expect(stderr).not.toContain(

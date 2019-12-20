@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.1.6-canary.6",
+  "version": "9.1.7-canary.1",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -95,6 +95,7 @@
     "find-up": "4.0.0",
     "fork-ts-checker-webpack-plugin": "3.1.1",
     "fresh": "0.5.2",
+    "gzip-size": "5.1.1",
     "ignore-loader": "0.1.2",
     "is-docker": "2.0.0",
     "is-wsl": "2.1.1",
@@ -185,7 +186,7 @@
     "resolve": "1.11.0",
     "taskr": "1.1.0",
     "text-table": "0.2.0",
-    "typescript": "3.5.1",
+    "typescript": "3.7.3",
     "unistore": "3.4.1"
   },
   "engines": {
