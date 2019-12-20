@@ -4,7 +4,7 @@ To go to production Next.js has a `next build` command. When ran it will compile
 
 ## Prepare your package.json
 
-Ensure your `package.json` has the following scripts:
+Ensure your `package.json` has the `"build"` and `"start"` scripts:
 
 ```
 {
@@ -16,7 +16,7 @@ Ensure your `package.json` has the following scripts:
 }
 ```
 
-In the case that you'd want to do a full static export of the Next.js application add `next export` to the `build` script:
+In the case that you'd want to do a [full static export](/docs/advanced-features/static-html-export.md) of the Next.js application add `next export` to the `"build"` script:
 
 ```
 {
@@ -30,7 +30,7 @@ In the case that you'd want to do a full static export of the Next.js applicatio
 
 ## ZEIT Now
 
-The easiest way to deploy Next.js to production is using the [ZEIT Now hosting platform](https://zeit.co) from the creators of Next.js.
+The easiest way to deploy Next.js to production is using the [ZEIT Now platform](https://zeit.co) from the creators of Next.js.
 
 ### Preview deployments
 
