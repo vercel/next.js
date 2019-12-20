@@ -10,14 +10,14 @@
   "dependencies": {
     "isomorphic-unfetch": "3.0.0",
     "next": "latest",
-    "react": "^16.10.1",
-    "react-dom": "^16.10.1"
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0"
   },
   "devDependencies": {
-    "@types/node": "^12.7.8",
-    "@types/react": "^16.9.3",
-    "@types/react-dom": "^16.9.1",
-    "typescript": "3.6.3"
+    "@types/node": "^12.12.21",
+    "@types/react": "^16.9.16",
+    "@types/react-dom": "^16.9.4",
+    "typescript": "3.7.3"
   },
   "license": "ISC"
 }

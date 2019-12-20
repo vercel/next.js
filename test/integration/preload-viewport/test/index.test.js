@@ -158,4 +158,19 @@ describe('Prefetching Links in viewport', () => {
     // Verify encoding
     expect(hrefs.some(e => e.includes(`%5Bhello%5D.js`))).toBe(true)
   })
+
+  it('should not add an another observer for a prefetched page', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(2 * 1000)
+    await browser.eval(`(function() {
+      window.calledPrefetch = false
+      window.next.router.prefetch = function() {
+        window.calledPrefetch = true
+      }
+      window.next.router.push('/de-duped')
+    })()`)
+    await waitFor(2 * 1000)
+    const calledPrefetch = await browser.eval(`window.calledPrefetch`)
+    expect(calledPrefetch).toBe(false)
+  })
 })
