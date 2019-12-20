@@ -6,7 +6,7 @@ To go to production Next.js has a `next build` command. When ran it will compile
 
 The easiest way to deploy Next.js to production is using the [ZEIT Now hosting platform](https://zeit.co) from the creators of Next.js.
 
-### Staging
+### Preview deployments
 
 ZEIT Now integrates directly with GitHub, GitLab, and Bitbucket to give you a unique shareable url for every commit and every pull request. This url can be shared with customers and can be used to run integration tests against.
 
@@ -25,3 +25,25 @@ API routes will also become separate serverless functions that execute and scale
 Assets (JavaScript, CSS, images, fonts etc) and Statically Generated pages are automatically served through the ZEIT Now Smart CDN, ensuring these are always served close to your users.
 
 HTTPS is enabled by default and doesn't require extra configuration.
+
+### Getting started
+
+#### From a git repository
+
+You can link your project in [GitHub](https://zeit.co/new), [GitLab](https://zeit.co/new), or [Bitbucket](https://zeit.co/new) through the [web interface](https://zeit.co/new). This will automatically set up deployment previews for pull-requests and commits.
+
+#### Through the ZEIT Now CLI
+
+You can install the command line tool using npm:
+
+```
+npm install -g now
+```
+
+You can deploy your application by running the following command in the root of the project directory:
+
+```
+now
+```
+
+You will receive a unique link similar to the following: https://your-project.username.now.sh.
