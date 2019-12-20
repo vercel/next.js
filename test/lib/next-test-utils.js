@@ -401,5 +401,5 @@ export function getBrowserBodyText(browser) {
 }
 
 export function normalizeRegEx(src) {
-  return new RegExp(src).source
+  return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }
