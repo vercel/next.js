@@ -38,6 +38,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -220,12 +221,14 @@ export default class PageLoader {
     // n.b. If preload is not supported, we fall back to `loadPage` which has
     // its own deduping mechanism.
     if (
+      this.prefetched[route] ||
       document.querySelector(
         `link[rel="${prefetchOrPreload}"][href^="${url}"], script[data-next-page="${route}"]`
       )
     ) {
       return
     }
+    this.prefetched[route] = true
 
     // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
     let cn
@@ -251,7 +254,7 @@ export default class PageLoader {
     }
 
     if (isDependency) {
-      // loadPage will automatically handle depencies, so no need to
+      // loadPage will automatically handle dependencies, so no need to
       // preload them manually
       return
     }
