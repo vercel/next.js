@@ -4,17 +4,17 @@
   "version": "1.0.0",
   "main": "main/index.js",
   "scripts": {
+    "clean": "rimraf dist renderer/.next renderer/out",
     "start": "electron .",
     "build": "next build renderer && next export renderer",
-    "dist": "npm run build && electron-builder --dir"
+    "pack-app": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
   },
   "build": {
-    "asar": false,
-    "extraResources": [
-      {
-        "from": "renderer/out",
-        "to": "app/renderer"
-      }
+    "asar": true,
+    "files": [
+      "main",
+      "renderer/out"
     ]
   },
   "devDependencies": {
