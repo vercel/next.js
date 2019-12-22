@@ -164,16 +164,20 @@ export type DocumentProps = DocumentInitialProps & {
   headTags: any[]
 }
 
- /**
-  * Default types of query and cookies
-  */
+/**
+ * Default types of query and cookies
+ */
 type defaultQuery = { [key: string]: string | string[] }
 type defaultCookies = { [key: string]: string }
-  
+
 /**
  * Next `API` route request
  */
-export type NextApiRequest<B = any, Q = defaultQuery, C = defaultCookies> = IncomingMessage & {
+export type NextApiRequest<
+  B = any,
+  Q = defaultQuery,
+  C = defaultCookies
+> = IncomingMessage & {
   /**
    * Object of `query` values from url
    */
