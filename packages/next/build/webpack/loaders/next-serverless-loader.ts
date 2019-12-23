@@ -130,8 +130,20 @@ const nextServerlessLoader: loader.Loader = function() {
           await initServer()
           const parsedUrl = parse(req.url, true)
 
+          const params = ${
+            pageIsDynamicRoute
+              ? `dynamicRouteMatcher(parsedUrl.pathname)`
+              : `{}`
+          }
+
           const resolver = require('${absolutePagePath}')
-          apiResolver(req, res, parsedUrl.query, resolver, onError)
+          apiResolver(
+            req,
+            res,
+            Object.assign({}, parsedUrl.query, params ),
+            resolver,
+            onError
+          )
         } catch (err) {
           console.error(err)
           await onError(err)
