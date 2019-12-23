@@ -322,6 +322,17 @@ const runTests = (dev = false) => {
       )
       const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
+      Object.keys(manifest.dynamicRoutes).forEach(key => {
+        const item = manifest.dynamicRoutes[key]
+
+        if (item.dataRouteRegex) {
+          item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+        }
+        if (item.routeRegex) {
+          item.routeRegex = normalizeRegEx(item.routeRegex)
+        }
+      })
+
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
