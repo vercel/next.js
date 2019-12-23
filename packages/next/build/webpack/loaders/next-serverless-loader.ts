@@ -63,7 +63,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const rewriteImports = `
     import { rewrites } from '${routesManifest}'
-    import pathMatch, { pathToRegexpCompile } from 'next/dist/next-server/server/lib/path-match'
+    import pathMatch, { pathToRegexp } from 'next/dist/next-server/server/lib/path-match'
   `
 
   const handleRewrites = `
@@ -80,7 +80,7 @@ const nextServerlessLoader: loader.Loader = function() {
             ...params
           }
           const parsedDest = parse(rewrite.destination)
-          const destCompiler = pathToRegexpCompile(
+          const destCompiler = pathToRegexp.compile(
             \`\${parsedDest.pathname}\${parsedDest.hash || ''}\`
           )
           const newUrl = destCompiler(params)
@@ -174,7 +174,6 @@ const nextServerlessLoader: loader.Loader = function() {
     export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
-
 
     ${dynamicRouteMatcher}
     ${handleRewrites}

@@ -1,10 +1,10 @@
-import { match, compile } from 'path-to-regexp'
+import * as pathToRegexp from 'path-to-regexp'
 
-export const pathToRegexpCompile = compile
+export { pathToRegexp }
 
 export default (customRoute = false) => {
   return (path: string) => {
-    const matcher = match(path, {
+    const matcher = pathToRegexp.match(path, {
       sensitive: false,
       delimiter: '/',
       ...(customRoute ? { strict: true } : undefined),
