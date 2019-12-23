@@ -97,6 +97,10 @@ const nextServerlessLoader: loader.Loader = function() {
               ? `
             const dynamicParams = dynamicRouteMatcher(parsedUrl.pathname);\
             if (dynamicParams) {
+              parsedUrl.query = {
+                ...parsedUrl.query,
+                ...dynamicParams
+              }
               break
             }
           `
@@ -112,7 +116,7 @@ const nextServerlessLoader: loader.Loader = function() {
   if (page.match(API_ROUTE)) {
     return `
       ${dynamicRouteImports}
-      import { parse, format } from 'url'
+      import { parse } from 'url'
       import { apiResolver } from 'next/dist/next-server/server/api-utils'
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
@@ -125,15 +129,9 @@ const nextServerlessLoader: loader.Loader = function() {
         try {
           await initServer()
           const parsedUrl = parse(req.url, true)
-          req.url = format(handleRewrites(parsedUrl))
 
-          const params = ${
-            pageIsDynamicRoute
-              ? `dynamicRouteMatcher(parsedUrl.pathname)`
-              : `{}`
-          }
           const resolver = require('${absolutePagePath}')
-          apiResolver(req, res, params, resolver, onError)
+          apiResolver(req, res, parsedUrl.query, resolver, onError)
         } catch (err) {
           console.error(err)
           await onError(err)
