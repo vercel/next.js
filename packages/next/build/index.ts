@@ -184,6 +184,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const pageKeys = Object.keys(mappedPages)
+  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
 
   if (hasPublicDir) {
@@ -215,6 +217,47 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )}`
     )
   }
+
+  const buildCustomRoute = (
+    r: {
+      source: string
+      statusCode?: number
+    },
+    isRedirect = false
+  ) => {
+    const keys: any[] = []
+    const routeRegex = pathToRegexp(r.source, keys, {
+      strict: true,
+      sensitive: false,
+      delimiter: '/', // default is `/#?`, but Next does not pass query info
+    })
+
+    return {
+      ...r,
+      ...(isRedirect
+        ? {
+            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
+          }
+        : {}),
+      regex: routeRegex.source,
+      regexKeys: keys.map(k => k.name),
+    }
+  }
+
+  await mkdirp(distDir)
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      redirects: redirects.map(r => buildCustomRoute(r, true)),
+      rewrites: rewrites.map(r => buildCustomRoute(r)),
+      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+        page,
+        regex: getRouteRegex(page).re.source,
+      })),
+    }),
+    'utf8'
+  )
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -335,7 +378,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     prefixText: 'Automatically optimizing pages',
   })
 
-  const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
     isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
@@ -492,7 +534,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId)
 
-  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   if (config.experimental.catchAllRouting !== true) {
     if (dynamicRoutes.some(page => /\/\[\.{3}[^/]+?\](?=\/|$)/.test(page))) {
       throw new Error(
@@ -637,46 +678,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
-
-  const buildCustomRoute = (
-    r: {
-      source: string
-      statusCode?: number
-    },
-    isRedirect = false
-  ) => {
-    const keys: any[] = []
-    const routeRegex = pathToRegexp(r.source, keys, {
-      strict: true,
-      sensitive: false,
-      delimiter: '/', // default is `/#?`, but Next does not pass query info
-    })
-
-    return {
-      ...r,
-      ...(isRedirect
-        ? {
-            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
-          }
-        : {}),
-      regex: routeRegex.source,
-      regexKeys: keys.map(k => k.name),
-    }
-  }
-
-  await fsWriteFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify({
-      version: 1,
-      redirects: redirects.map(r => buildCustomRoute(r, true)),
-      rewrites: rewrites.map(r => buildCustomRoute(r)),
-      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-        page,
-        regex: getRouteRegex(page).re.source,
-      })),
-    }),
-    'utf8'
-  )
 
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
