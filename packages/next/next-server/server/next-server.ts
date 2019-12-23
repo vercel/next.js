@@ -453,6 +453,8 @@ export default class Server {
                 return {
                   finished: true,
                 }
+              } else {
+                ;(_req as any)._nextDidRewrite = true
               }
 
               return {

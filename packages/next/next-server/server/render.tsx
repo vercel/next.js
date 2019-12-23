@@ -317,6 +317,18 @@ export async function renderToHTML(
   const isAutoExport =
     !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
 
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    isAutoExport &&
+    isDynamicRoute(pathname) &&
+    (req as any)._nextDidRewrite
+  ) {
+    throw new Error(
+      `Rewrites don't support auto-exported dynamic pages yet. ` +
+        `Using this will cause the page to fail to parse the params on the client`
+    )
+  }
+
   if (hasPageGetInitialProps && isSpr) {
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
