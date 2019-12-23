@@ -6,7 +6,7 @@ To go to production Next.js has a `next build` command. When ran it will compile
 
 Ensure your `package.json` has the `"build"` and `"start"` scripts:
 
-```
+```json
 {
   "scripts": {
     "dev": "next",
@@ -18,7 +18,7 @@ Ensure your `package.json` has the `"build"` and `"start"` scripts:
 
 In the case that you'd want to do a [full static export](/docs/advanced-features/static-html-export.md) of the Next.js application add `next export` to the `"build"` script:
 
-```
+```json
 {
   "scripts": {
     "dev": "next",
