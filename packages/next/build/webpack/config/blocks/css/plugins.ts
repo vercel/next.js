@@ -99,6 +99,12 @@ export async function getPostCssPlugins(
     config = { plugins: getDefaultPlugins() }
   }
 
+  if (typeof config === 'function') {
+    throw new Error(
+      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.`
+    )
+  }
+
   // Warn user about configuration keys which are not respected
   const invalidKey = Object.keys(config).find(key => key !== 'plugins')
   if (invalidKey) {
