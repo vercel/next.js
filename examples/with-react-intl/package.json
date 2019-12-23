@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "node --icu-data-dir=node_modules/full-icu server.js",
     "build": "next build && npm run extract",
-    "extract": "node ./scripts/default-lang '{pages,components}/*.{js,ts,tsx}'",
+    "extract": "node ./scripts/extract '{pages,components}/*.{js,ts,tsx}'",
     "start": "NODE_ENV=production node --icu-data-dir=node_modules/full-icu server.js"
   },
   "dependencies": {
