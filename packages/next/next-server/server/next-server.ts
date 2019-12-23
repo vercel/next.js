@@ -769,9 +769,6 @@ export default class Server {
     if (typeof result.Component === 'string') {
       return result.Component
     }
-    // used for serverless mode to pass rewritten pathname
-    const { _nextRewrotePathname } = query
-    delete query._nextRewrotePathname
 
     // check request state
     const isLikeServerless =
@@ -789,7 +786,6 @@ export default class Server {
           query: {
             ...curUrl.query,
             ...query,
-            _nextRewrotePathname,
           },
         })
         return result.Component.renderReqToHTML(req, res)
@@ -948,7 +944,6 @@ export default class Server {
                       ? { _nextSprData: query._nextSprData }
                       : query),
                     ...params,
-                    _nextRewrotePathname: pathname,
                   },
                   result,
                   {

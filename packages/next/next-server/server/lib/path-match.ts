@@ -1,4 +1,6 @@
-import { match } from 'path-to-regexp'
+import { match, compile } from 'path-to-regexp'
+
+export const pathToRegexpCompile = compile
 
 export default (customRoute = false) => {
   return (path: string) => {

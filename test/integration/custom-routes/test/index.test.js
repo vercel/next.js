@@ -192,6 +192,11 @@ const runTests = (isDev = false) => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
+
+      for (const route of manifest.dynamicRoutes) {
+        route.regex = normalizeRegEx(route.regex)
+      }
+
       expect(manifest).toEqual({
         version: 1,
         redirects: [
