@@ -77,7 +77,7 @@ commands:
       - run:
           name: Test Safari
           command: |
-            yarn testsafari test/integration/production/
+            yarn testsafari --forceExit test/integration/production/
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   test_firefox:
@@ -85,7 +85,7 @@ commands:
       - run:
           name: Test Firefox
           command: |
-            yarn testfirefox test/integration/production/
+            yarn testfirefox --forceExit test/integration/production/
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   test_ie11:
@@ -98,7 +98,7 @@ commands:
       - run:
           name: Test ie11
           command: |
-            yarn testie test/integration/production/
+            yarn testie --forceExit test/integration/production/
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   save_npm_token:
