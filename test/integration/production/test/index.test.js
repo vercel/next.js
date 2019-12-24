@@ -449,7 +449,9 @@ describe('Production Usage', () => {
         'link[rel=prefetch],link[rel=preload]'
       )
 
-      expect(elements.length).toBe(5)
+      expect(elements.length).toBe(
+        global.browserName === 'internet explorer' ? 5 : 9
+      )
 
       for (const element of elements) {
         const rel = await element.getAttribute('rel')
