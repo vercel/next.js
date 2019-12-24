@@ -20,6 +20,9 @@ aliases:
 # Executors
 #########################
 
+orbs:
+  win: circleci/windows@2.2.0
+
 executors:
   node:
     docker:
@@ -36,13 +39,6 @@ commands:
       - run:
           name: Installing Dependencies
           command: yarn install --frozen-lockfile --check-files
-      - run:
-          name: Install correct Chrome Driver version
-          command: node node_modules/chromedriver/install.js
-          environment:
-            CHROMEDRIVER_VERSION: '76.0.3809.68'
-      - run: google-chrome --version
-      - run: yarn chromedriver --version
   yarn_lint:
     steps:
       - run:
@@ -62,6 +58,8 @@ commands:
           command: yarn why react && yarn why react-dom
   test_all:
     steps:
+      - run: google-chrome --version
+      - run: chromedriver --version
       - run:
           name: Run All Tests
           command: |
@@ -71,22 +69,33 @@ commands:
             )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
-  test_browser:
-    parameters:
-      browser:
-        type: string
+  test_safari:
     steps:
       - run:
-          name: Test in a browser
+          name: Install Dependencies
           command: |
-            if [[ ! -z $BROWSERSTACK_USERNAME ]]; then
-              yarn testall test/integration/production/
-            else
-              echo "Not running for PR"
-            fi
+            yarn install --frozen-lockfile --check-files
+      - run:
+          name: Test Safari
+          command: |
+            yarn testsafari test/integration/production/
           environment:
-            BROWSERSTACK: 'true'
-            BROWSER_NAME: << parameters.browser >>
+            NEXT_TELEMETRY_DISABLED: '1'
+  test_firefox:
+    steps:
+      - run:
+          name: Test Firefox
+          command: |
+            yarn testfirefox test/integration/production/
+          environment:
+            NEXT_TELEMETRY_DISABLED: '1'
+  test_ie11:
+    steps:
+      - run:
+          name: Test ie11
+          command: |
+            yarn testie test/integration/production/
+          environment:
             NEXT_TELEMETRY_DISABLED: '1'
   save_npm_token:
     steps:
@@ -152,23 +161,19 @@ jobs:
       - test_all
       - *store_test_results
   test-ie11:
-    executor: node
+    executor: win/default
     steps:
-      - *attach_workspace
-      - test_browser:
-          browser: 'ie'
+      - test_ie11
   test-safari:
-    executor: node
+    macos:
+      xcode: '10.0.0'
     steps:
-      - *attach_workspace
-      - test_browser:
-          browser: 'safari'
+      - test_safari
   test-firefox:
     executor: node
     steps:
       - *attach_workspace
-      - test_browser:
-          browser: 'firefox'
+      - test_firefox
   deploy:
     executor: node
     steps:
@@ -186,41 +191,17 @@ workflows:
   build-test-and-deploy:
     jobs:
       - build
+      - test-ie11
+      - test-safari
+      - test-firefox:
+          requires:
+            - build
       - test:
           requires:
             - build
       - lint:
           requires:
             - build
-      - test-ie11:
-          requires:
-            - build
-          filters:
-            branches:
-              only:
-                - master
-                - canary
-      - test-safari:
-          requires:
-            - build
-            - test
-            - test-ie11
-          filters:
-            branches:
-              only:
-                - master
-                - canary
-      - test-firefox:
-          requires:
-            - build
-            - test
-            - test-ie11
-            - test-safari
-          filters:
-            branches:
-              only:
-                - master
-                - canary
       - deploy:
           requires:
             - test

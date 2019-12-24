@@ -4,7 +4,6 @@ pool:
 variables:
   NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
-  CHROMEDRIVER_VERSION: '78.0.3904.70'
 
 strategy:
   maxParallel: 10
@@ -27,6 +26,10 @@ steps:
       wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
     displayName: 'List Chrome version'
 
+  - script: }
+      chromedriver --version
+    displayName: 'List chromedriver version'
+
   - task: NodeTool@0
     inputs:
       versionSpec: $(node_version)
@@ -41,10 +44,6 @@ steps:
   - script: |
       yarn install --frozen-lockfile --check-files
     displayName: 'Install dependencies'
-
-  - script: |
-      node node_modules/chromedriver/install.js
-    displayName: 'Install correct Chrome Driver version'
 
   - script: |
       node run-tests.js -g $(group)
