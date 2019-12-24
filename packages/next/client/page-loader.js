@@ -1,19 +1,20 @@
 import mitt from '../next-server/lib/mitt'
 
-function hasPrefetch(link) {
+function hasRel(rel, link) {
   try {
     link = document.createElement('link')
-    return link.relList.supports('prefetch')
+    return link.relList.supports(rel)
   } catch {}
 }
 
-const relPrefetch = hasPrefetch()
-  ? // https://caniuse.com/#feat=link-rel-prefetch
-    // IE 11, Edge 12+, nearly all evergreen
-    'prefetch'
-  : // https://caniuse.com/#feat=link-rel-preload
-    // macOS and iOS (Safari does not support prefetch)
-    'preload'
+const relPrefetch =
+  hasRel('preload') && !hasRel('prefetch')
+    ? // https://caniuse.com/#feat=link-rel-preload
+      // macOS and iOS (Safari does not support prefetch)
+      'preload'
+    : // https://caniuse.com/#feat=link-rel-prefetch
+      // IE 11, Edge 12+, nearly all evergreen
+      'prefetch'
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
