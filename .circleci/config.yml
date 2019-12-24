@@ -104,9 +104,10 @@ commands:
       - run:
           name: Test ie11
           command: |
-            yarn testie --forceExit test/integration/production/ && exit 0
+            yarn testie --forceExit test/integration/production/
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
+      - run: exit 0
   save_npm_token:
     steps:
       - run:
