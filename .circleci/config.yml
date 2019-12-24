@@ -71,6 +71,12 @@ commands:
     steps:
       - checkout
       - run:
+          name: Enable safaridriver
+          command: |
+            safaridriver --enable
+      - run: defaults write com.apple.Safari AllowRemoteAutomation 1
+      - run: defaults write com.apple.Safari IncludeDevelopMenu 1
+      - run:
           name: Install Dependencies
           command: |
             yarn install --frozen-lockfile --check-files
@@ -98,7 +104,7 @@ commands:
       - run:
           name: Test ie11
           command: |
-            yarn testie --forceExit test/integration/production/
+            yarn testie --forceExit test/integration/production/ && exit 0
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
   save_npm_token:
