@@ -7,7 +7,7 @@ variables:
   node_version: ^10.10.0
 
 jobs:
-  - job: Test ie11 (production)
+  - job: test_ie11
     steps:
       - task: NodeTool@0
         inputs:
@@ -28,7 +28,7 @@ jobs:
           yarn testie --forceExit test/integration/production/
         displayName: 'Run tests'
 
-  - job: Test Chrome (all)
+  - job: test_chrome
     strategy:
       maxParallel: 10
       matrix:
