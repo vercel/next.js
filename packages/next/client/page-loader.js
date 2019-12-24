@@ -1,4 +1,3 @@
-/* global document, window */
 import mitt from '../next-server/lib/mitt'
 
 function hasPrefetch(link) {
@@ -21,12 +20,18 @@ const relPrefetch = hasPrefetch()
 const hasNoModule = 'noModule' in document.createElement('script')
 
 function appendLink(href, rel, as) {
-  const link = document.createElement('link')
-  link.crossOrigin = process.crossOrigin
-  link.href = href
-  link.rel = rel
-  if (as) link.as = as
-  document.head.appendChild(link)
+  return new Promise((res, rej, link) => {
+    link = document.createElement('link')
+    link.crossOrigin = process.crossOrigin
+    link.href = href
+    link.rel = rel
+    if (as) link.as = as
+
+    link.onload = res
+    link.onerror = rej
+
+    document.head.appendChild(link)
+  })
 }
 
 export default class PageLoader {
@@ -197,7 +202,7 @@ export default class PageLoader {
     register()
   }
 
-  prefetch(route, isDependency) {
+  async prefetch(route, isDependency) {
     // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
     // License: Apache 2.0
     let cn
@@ -231,13 +236,18 @@ export default class PageLoader {
       return
     }
 
-    appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script')
-    if (process.env.__NEXT_GRANULAR_CHUNKS && !isDependency) {
-      this.getDependencies(route).then(urls =>
-        urls.forEach(url => {
-          this.prefetch(url, true)
-        })
-      )
-    }
+    return Promise.all([
+      appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script'),
+      process.env.__NEXT_GRANULAR_CHUNKS &&
+        !isDependency &&
+        this.getDependencies(route).then(urls =>
+          Promise.all(urls.map(url => this.prefetch(url, true)))
+        ),
+    ]).then(
+      // do not return any data
+      () => {},
+      // swallow prefetch errors
+      () => {}
+    )
   }
 }

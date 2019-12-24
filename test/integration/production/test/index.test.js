@@ -446,7 +446,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const elements = await browser.elementsByCss('link[rel=prefetch]')
 
-      expect(elements.length).toBe(9)
+      expect(elements.length).toBe(4)
       await Promise.all(
         elements.map(async element => {
           const rel = await element.getAttribute('rel')
