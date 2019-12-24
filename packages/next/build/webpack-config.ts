@@ -585,15 +585,12 @@ export default async function getBaseWebpackConfig(
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
-      ].reduce(
-        (alias, loader) => {
-          // using multiple aliases to replace `resolveLoader.modules`
-          alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+      ].reduce((alias, loader) => {
+        // using multiple aliases to replace `resolveLoader.modules`
+        alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
 
-          return alias
-        },
-        {} as Record<string, string>
-      ),
+        return alias
+      }, {} as Record<string, string>),
       modules: [
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
@@ -619,28 +616,30 @@ export default async function getBaseWebpackConfig(
             }
             return /node_modules/.test(path)
           },
-          use: [
-            // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
-            // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
-            {
-              loader: 'cache-loader',
-              options: {
-                cacheContext: dir,
-                cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
-                cacheIdentifier: `webpack${isServer ? '-server' : ''}${
-                  config.experimental.modern ? '-hasmodern' : ''
-                }`,
-              },
-            },
-            {
-              loader: 'thread-loader',
-              options: {
-                workers: 2,
-                workerParallelJobs: Infinity,
-              },
-            },
-            defaultLoaders.babel,
-          ],
+          use: config.experimental.babelMultiThread
+            ? [
+                // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
+                // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
+                {
+                  loader: 'cache-loader',
+                  options: {
+                    cacheContext: dir,
+                    cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+                    cacheIdentifier: `webpack${isServer ? '-server' : ''}${
+                      config.experimental.modern ? '-hasmodern' : ''
+                    }`,
+                  },
+                },
+                {
+                  loader: 'thread-loader',
+                  options: {
+                    workers: 2,
+                    workerParallelJobs: Infinity,
+                  },
+                },
+                defaultLoaders.babel,
+              ]
+            : defaultLoaders.babel,
         },
         config.experimental.css &&
           // Support CSS imports
