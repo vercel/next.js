@@ -101,6 +101,10 @@ describe('CSS Module client-side navigation in Production', () => {
         `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
       )
       expect(cssPreloads.every(e => e === 'style')).toBe(true)
+      const cssPreloads2 = await browser.eval(
+        `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
+      )
+      expect(cssPreloads2.every(e => e === 'style')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 
