@@ -67,7 +67,14 @@ class CustomEnvironment extends NodeEnvironment {
   }
 
   async teardown() {
+    console.log('Starting jest teardown')
     await super.teardown()
+
+    const forcedExitTimeout = setTimeout(() => {
+      console.log('Teardown exceeded timeout, force exiting.')
+      process.exit(0)
+    }, 10 * 1000)
+
     if (this.server) {
       console.log('Stopping new tab server')
       this.server.close()
@@ -81,6 +88,7 @@ class CustomEnvironment extends NodeEnvironment {
       console.log('Stopping Selenium server')
       this.seleniumServer.kill()
     }
+    clearTimeout(forcedExitTimeout)
   }
 }
 
