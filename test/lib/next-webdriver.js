@@ -184,15 +184,37 @@ export default async (appPort, path) => {
     elementByCss(sel) {
       return this.updateChain(() =>
         browser.findElement(By.css(sel)).then(el => {
+          el.sel = sel
           el.text = () => el.getText()
           el.getComputedCss = prop => el.getCssValue(prop)
+          el.type = text => el.sendKeys(text)
+          el.getValue = () =>
+            browser.executeScript(
+              `return document.querySelector('${sel}').value`
+            )
           return el
         })
       )
     }
 
+    elementById(sel) {
+      return this.elementByCss(`#${sel}`)
+    }
+
+    getValue() {
+      return this.updateChain(el =>
+        browser.executeScript(
+          `return document.querySelector('${el.sel}').value`
+        )
+      )
+    }
+
     text() {
       return this.updateChain(el => el.getText())
+    }
+
+    type(text) {
+      return this.updateChain(el => el.sendKeys(text))
     }
 
     moveTo() {
