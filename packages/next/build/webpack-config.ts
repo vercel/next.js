@@ -677,9 +677,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_PREFETCH_PRELOAD': JSON.stringify(
-          config.experimental.prefetchPreload
-        ),
         'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
           config.experimental.deferScripts
         ),
