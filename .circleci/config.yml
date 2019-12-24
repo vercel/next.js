@@ -94,20 +94,19 @@ commands:
             yarn testfirefox --forceExit test/integration/production/
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
-  test_ie11:
-    steps:
-      - checkout
-      - run:
-          name: Install Dependencies
-          command: |
-            yarn install --frozen-lockfile --check-files
-      - run:
-          name: Test ie11
-          command: |
-            yarn testie --forceExit test/integration/production/
-          environment:
-            NEXT_TELEMETRY_DISABLED: '1'
-      - run: exit 0
+  # test_ie11:
+  #   steps:
+  #     - checkout
+  #     - run:
+  #         name: Install Dependencies
+  #         command: |
+  #           yarn install --frozen-lockfile --check-files
+  #     - run:
+  #         name: Test ie11
+  #         command: |
+  #           yarn testie --forceExit test/integration/production/
+  #         environment:
+  #           NEXT_TELEMETRY_DISABLED: '1'
   save_npm_token:
     steps:
       - run:
@@ -171,10 +170,10 @@ jobs:
       - yarn_info
       - test_all
       - *store_test_results
-  test-ie11:
-    executor: win/default
-    steps:
-      - test_ie11
+  # test-ie11:
+  #   executor: win/default
+  #   steps:
+  #     - test_ie11
   # test-safari:
   #   macos:
   #     xcode: '10.3.0'
@@ -202,7 +201,7 @@ workflows:
   build-test-and-deploy:
     jobs:
       - build
-      - test-ie11
+      # - test-ie11
       # - test-safari
       - test-firefox:
           requires:
