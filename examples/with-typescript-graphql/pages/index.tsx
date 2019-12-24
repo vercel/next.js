@@ -1,6 +1,6 @@
 import withGraphQL from '../schema/with-graphql'
 import Link from 'next/link'
-import { useViewerQuery } from '../queries-and-mutations/viewer.graphql'
+import { useViewerQuery } from './viewer.graphql'
 
 const Index = () => {
   const { data } = useViewerQuery()

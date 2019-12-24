@@ -25,7 +25,7 @@
     "@graphql-codegen/typescript-operations": "^1.9.1",
     "@graphql-codegen/typescript-react-apollo": "^1.9.1",
     "@types/react": "^16.9.17",
-    "graphql-let": "0.2.4",
+    "graphql-let": "0.3.0",
     "typescript": "^3.7.4"
   },
   "scripts": {

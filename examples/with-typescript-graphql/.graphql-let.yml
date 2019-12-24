@@ -1,5 +1,6 @@
+generateDir: __generated__
 schema: schema/**/*.graphqls
-documents: queries-and-mutations/**/*.graphql
+documents: pages/**/*.graphql
 plugins:
   - typescript
   - typescript-operations
