@@ -4,9 +4,7 @@ function hasPrefetch(link) {
   try {
     link = document.createElement('link')
     return link.relList.supports('prefetch')
-  } catch {
-    return false
-  }
+  } catch {}
 }
 
 const relPrefetch = hasPrefetch()
