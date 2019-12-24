@@ -6,7 +6,7 @@ import { promisify } from 'util'
 import { validateAMP } from 'amp-test-utils'
 import { File, nextBuild, nextExport, runNextCommand } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const access = promisify(fs.access)
 const readFile = promisify(fs.readFile)
 const appDir = join(__dirname, '../')
@@ -19,7 +19,7 @@ describe('AMP Validation on Export', () => {
   beforeAll(async () => {
     const { stdout = '', stderr = '' } = await nextBuild(appDir, [], {
       stdout: true,
-      stderr: true
+      stderr: true,
     })
     await nextExport(appDir, { outdir: outDir })
     buildOutput = stdout + stderr
@@ -27,13 +27,13 @@ describe('AMP Validation on Export', () => {
 
   it('should have shown errors during build', async () => {
     expect(buildOutput).toMatch(
-      /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
+      /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'\./
     )
     expect(buildOutput).toMatch(
-      /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
+      /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
     )
     expect(buildOutput).toMatch(
-      /warn.*The tag 'amp-video extension \.js script' is missing/
+      /warn.*The tag 'amp-video extension .js script' is missing or incorrect, but required by 'amp-video'/
     )
   })
 
@@ -60,7 +60,7 @@ describe('AMP Validation on Export', () => {
     try {
       const { stdout, stderr } = await runNextCommand(['export', appDir], {
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(stdout).toMatch(
         /warn.*The tag 'amp-video extension \.js script' is missing/
@@ -87,10 +87,10 @@ describe('AMP Validation on Export', () => {
     try {
       const { stdout, stderr } = await runNextCommand(['export', appDir], {
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(stdout).toMatch(
-        /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
+        /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
       )
       await expect(access(join(outDir, 'dog.html'))).resolves.toBe(undefined)
       await expect(stderr).not.toMatch(
@@ -114,13 +114,13 @@ describe('AMP Validation on Export', () => {
     try {
       const { stdout, stderr } = await runNextCommand(['export', appDir], {
         stdout: true,
-        stderr: true
+        stderr: true,
       })
       expect(stdout).toMatch(
-        /warn.*The tag 'amp-video extension \.js script' is missing/
+        /warn.*The tag 'amp-video extension .js script' is missing or incorrect, but required by 'amp-video'/
       )
       expect(stdout).toMatch(
-        /error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/
+        /error.*The parent tag of tag 'IMG-I-AMPHTML-INTRINSIC-SIZER' is 'div', but it can only be 'i-amphtml-sizer-intrinsic'/
       )
       await expect(access(join(outDir, 'dog-cat.html'))).resolves.toBe(
         undefined

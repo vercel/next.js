@@ -1,12 +1,9 @@
-import chalk from 'chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import MiniCssExtractPlugin from 'mini-css-extract-plugin'
 import path from 'path'
 // @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
-
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -20,8 +17,8 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
@@ -30,12 +27,14 @@ import {
   PluginMetaData,
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
+import { build as buildConfiguration } from './webpack/config'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
+import MiniCssExtractPlugin from './webpack/plugins/mini-css-extract-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -59,12 +58,36 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     return {}
   }
 
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch.js')
+  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
+  const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
+
+  const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
+    // Polyfill: Window#fetch
     __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': stubWindowFetch,
+    'whatwg-fetch$': path.join(
+      __dirname,
+      'polyfills',
+      'fetch',
+      'whatwg-fetch.js'
+    ),
+
+    // Polyfill: Object.assign
+    __next_polyfill__object_assign: require.resolve('object-assign'),
+    'object-assign$': stubObjectAssign,
+    '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
+
+    // Stub Package: object.assign
+    'object.assign/auto': path.join(shimAssign, 'auto.js'),
+    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
+    'object.assign$': path.join(shimAssign, 'index.js'),
+    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
+    'object.assign/shim': path.join(shimAssign, 'shim.js'),
+
+    // Replace: full URL polyfill with platform-based polyfill
+    url: require.resolve('native-url'),
   }
 }
 
@@ -118,6 +141,7 @@ export default async function getBaseWebpackConfig(
         cache: true,
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
+        development: dev,
       },
     },
     // Backwards compat
@@ -304,12 +328,25 @@ export default async function getBaseWebpackConfig(
               /node_modules[/\\]/.test(module.identifier())
             )
           },
-          name(module: { libIdent: Function }): string {
-            return crypto
-              .createHash('sha1')
-              .update(module.libIdent({ context: dir }))
-              .digest('hex')
-              .substring(0, 8)
+          name(module: {
+            type: string
+            libIdent?: Function
+            updateHash: (hash: crypto.Hash) => void
+          }): string {
+            const hash = crypto.createHash('sha1')
+            if (module.type === `css/mini-extract`) {
+              module.updateHash(hash)
+            } else {
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
+              }
+
+              hash.update(module.libIdent({ context: dir }))
+            }
+
+            return hash.digest('hex').substring(0, 8)
           },
           priority: 30,
           minChunks: 1,
@@ -367,10 +404,6 @@ export default async function getBaseWebpackConfig(
   }
 
   let webpackConfig: webpack.Configuration = {
-    devtool,
-    mode: webpackMode,
-    name: isServer ? 'server' : 'client',
-    target: isServer ? 'node' : 'web',
     externals: !isServer
       ? undefined
       : !isServerless
@@ -599,14 +632,7 @@ export default async function getBaseWebpackConfig(
     },
     // @ts-ignore this is filtered
     module: {
-      strictExportPresence: true,
       rules: [
-        config.experimental.ampBindInitData &&
-          !isServer && {
-            test: /\.(tsx|ts|js|mjs|jsx)$/,
-            include: [path.join(dir, 'data')],
-            use: 'next-data-loader',
-          },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
@@ -641,145 +667,6 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
-        config.experimental.css &&
-          // Support CSS imports
-          ({
-            oneOf: [
-              {
-                test: /\.css$/,
-                issuer: { include: [customAppFile].filter(Boolean) },
-                use: isServer
-                  ? // Global CSS is ignored on the server because it's only needed
-                    // on the client-side.
-                    require.resolve('ignore-loader')
-                  : [
-                      // During development we load CSS via JavaScript so we can
-                      // hot reload it without refreshing the page.
-                      dev && {
-                        loader: require.resolve('style-loader'),
-                        options: {
-                          // By default, style-loader injects CSS into the bottom
-                          // of <head>. This causes ordering problems between dev
-                          // and prod. To fix this, we render a <noscript> tag as
-                          // an anchor for the styles to be placed before. These
-                          // styles will be applied _before_ <style jsx global>.
-                          insert: function(element: Node) {
-                            // These elements should always exist. If they do not,
-                            // this code should fail.
-                            var anchorElement = document.querySelector(
-                              '#__next_css__DO_NOT_USE__'
-                            )!
-                            var parentNode = anchorElement.parentNode! // Normally <head>
-
-                            // Each style tag should be placed right before our
-                            // anchor. By inserting before and not after, we do not
-                            // need to track the last inserted element.
-                            parentNode.insertBefore(element, anchorElement)
-
-                            // Remember: this is development only code.
-                            //
-                            // After styles are injected, we need to remove the
-                            // <style> tags that set `body { display: none; }`.
-                            //
-                            // We use `requestAnimationFrame` as a way to defer
-                            // this operation since there may be multiple style
-                            // tags.
-                            ;(self.requestAnimationFrame || setTimeout)(
-                              function() {
-                                for (
-                                  var x = document.querySelectorAll(
-                                      '[data-next-hide-fouc]'
-                                    ),
-                                    i = x.length;
-                                  i--;
-
-                                ) {
-                                  x[i].parentNode!.removeChild(x[i])
-                                }
-                              }
-                            )
-                          },
-                        },
-                      },
-                      // When building for production we extract CSS into
-                      // separate files.
-                      !dev && {
-                        loader: MiniCssExtractPlugin.loader,
-                        options: {},
-                      },
-
-                      // Resolve CSS `@import`s and `url()`s
-                      {
-                        loader: require.resolve('css-loader'),
-                        options: { importLoaders: 1, sourceMap: true },
-                      },
-
-                      // Compile CSS
-                      {
-                        loader: require.resolve('postcss-loader'),
-                        options: {
-                          ident: 'postcss',
-                          plugins: () => [
-                            // Make Flexbox behave like the spec cross-browser.
-                            require('postcss-flexbugs-fixes'),
-                            // Run Autoprefixer and compile new CSS features.
-                            require('postcss-preset-env')({
-                              autoprefixer: {
-                                // Disable legacy flexbox support
-                                flexbox: 'no-2009',
-                              },
-                              // Enable CSS features that have shipped to the
-                              // web platform, i.e. in 2+ browsers unflagged.
-                              stage: 3,
-                            }),
-                          ],
-                          sourceMap: true,
-                        },
-                      },
-                    ].filter(Boolean),
-                // A global CSS import always has side effects. Webpack will tree
-                // shake the CSS without this option if the issuer claims to have
-                // no side-effects.
-                // See https://github.com/webpack/webpack/issues/6571
-                sideEffects: true,
-              },
-              {
-                test: /\.css$/,
-                use: isServer
-                  ? require.resolve('ignore-loader')
-                  : {
-                      loader: 'error-loader',
-                      options: {
-                        reason:
-                          `Global CSS ${chalk.bold(
-                            'cannot'
-                          )} be imported from files other than your ${chalk.bold(
-                            'Custom <App>'
-                          )}. Please move all global CSS imports to ${chalk.cyan(
-                            customAppFile
-                              ? path.relative(dir, customAppFile)
-                              : 'pages/_app.js'
-                          )}.\n` +
-                          `Read more: https://err.sh/next.js/global-css`,
-                      },
-                    },
-              },
-            ],
-          } as webpack.RuleSetRule),
-        config.experimental.css &&
-          ({
-            loader: require.resolve('file-loader'),
-            issuer: {
-              // file-loader is only used for CSS files, e.g. url() for a SVG
-              // or font files
-              test: /\.css$/,
-            },
-            // Exclude extensions that webpack handles by default
-            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
-            options: {
-              name: 'static/media/[name].[hash].[ext]',
-            },
-          } as webpack.RuleSetRule),
       ].filter(Boolean),
     },
     plugins: [
@@ -971,6 +858,15 @@ export default async function getBaseWebpackConfig(
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
+  webpackConfig = await buildConfiguration(webpackConfig, {
+    rootDirectory: dir,
+    customAppFile,
+    isDevelopment: dev,
+    isServer,
+    hasSupportCss: !!config.experimental.css,
+    hasExperimentalData: !!config.experimental.ampBindInitData,
+  })
+
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
       dir,
@@ -988,6 +884,65 @@ export default async function getBaseWebpackConfig(
       console.warn(
         '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
+    }
+  }
+
+  function canMatchCss(rule: webpack.RuleSetCondition | undefined): boolean {
+    if (!rule) {
+      return false
+    }
+
+    const fileName = '/tmp/test.css'
+
+    if (rule instanceof RegExp && rule.test(fileName)) {
+      return true
+    }
+
+    if (typeof rule === 'function') {
+      try {
+        if (rule(fileName)) {
+          return true
+        }
+      } catch (_) {}
+    }
+
+    if (Array.isArray(rule) && rule.some(canMatchCss)) {
+      return true
+    }
+
+    return false
+  }
+
+  if (config.experimental.css) {
+    const hasUserCssConfig =
+      webpackConfig.module &&
+      webpackConfig.module.rules.some(
+        rule => canMatchCss(rule.test) || canMatchCss(rule.include)
+      )
+
+    if (hasUserCssConfig) {
+      if (webpackConfig.module?.rules.length) {
+        // Remove default CSS Loader
+        webpackConfig.module.rules = webpackConfig.module.rules.filter(
+          r =>
+            !(
+              typeof r.oneOf?.[0]?.options === 'object' &&
+              r.oneOf[0].options.__next_css_remove === true
+            )
+        )
+      }
+      if (webpackConfig.plugins?.length) {
+        // Disable CSS Extraction Plugin
+        webpackConfig.plugins = webpackConfig.plugins.filter(
+          p => (p as any).__next_css_remove !== true
+        )
+      }
+      if (webpackConfig.optimization?.minimizer?.length) {
+        // Disable CSS Minifier
+        webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
+          e => (e as any).__next_css_remove !== true
+        )
+      }
     }
   }
 
@@ -1018,7 +973,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  // Patch `@zeit/next-sass` and `@zeit/next-less` compatibility
+  // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
     ;[].forEach.call(webpackConfig.module.rules, function(
       rule: webpack.RuleSetRule
@@ -1031,9 +986,10 @@ export default async function getBaseWebpackConfig(
         rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
       const isLess = rule.test.source === '\\.less$'
       const isCss = rule.test.source === '\\.css$'
+      const isStylus = rule.test.source === '\\.styl$'
 
       // Check if the rule we're iterating over applies to Sass, Less, or CSS
-      if (!(isSass || isLess || isCss)) {
+      if (!(isSass || isLess || isCss || isStylus)) {
         return
       }
 
@@ -1049,8 +1005,8 @@ export default async function getBaseWebpackConfig(
             typeof use.options === 'object' &&
             // The `minimize` property is a good heuristic that we need to
             // perform this hack. The `minimize` property was only valid on
-            // old `css-loader` versions. Custom setups (that aren't next-sass
-            // or next-less) likely have the newer version.
+            // old `css-loader` versions. Custom setups (that aren't next-sass,
+            // next-less or next-stylus) likely have the newer version.
             // We still handle this gracefully below.
             (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
               Object.prototype.hasOwnProperty.call(
@@ -1064,12 +1020,12 @@ export default async function getBaseWebpackConfig(
 
         // Try to monkey patch within a try-catch. We shouldn't fail the build
         // if we cannot pull this off.
-        // The user may not even be using the `next-sass` or `next-less`
-        // plugins.
+        // The user may not even be using the `next-sass` or `next-less` or
+        // `next-stylus` plugins.
         // If it does work, great!
         try {
-          // Resolve the version of `@zeit/next-css` as depended on by the Sass
-          // or Less plugin.
+          // Resolve the version of `@zeit/next-css` as depended on by the Sass,
+          // Less or Stylus plugin.
           const correctNextCss = resolveRequest(
             '@zeit/next-css',
             isCss
@@ -1081,6 +1037,8 @@ export default async function getBaseWebpackConfig(
                     ? '@zeit/next-sass'
                     : isLess
                     ? '@zeit/next-less'
+                    : isStylus
+                    ? '@zeit/next-stylus'
                     : 'next'
                 )
           )

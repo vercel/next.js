@@ -2,7 +2,7 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject, format } from 'url'
+import { parse, UrlObject } from 'url'
 
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -14,9 +14,9 @@ import {
   SUPPORTS_PERFORMANCE_USER_TIMING,
 } from '../utils'
 import { rewriteUrlForNextExport } from './rewrite-url-for-export'
+import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { isDynamicRoute } from './utils/is-dynamic'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -71,7 +71,7 @@ export default class Router implements BaseRouter {
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
   _wrapApp: (App: ComponentType) => any
-  historyId: number
+  isSsr: boolean
 
   static events: MittEmitter = mitt()
 
@@ -123,12 +123,13 @@ export default class Router implements BaseRouter {
     // until after mount to prevent hydration mismatch
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.nextExport ? pathname : as
+      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
-    // we use a historyId to enable ignoring invalid popstates
-    this.historyId = Math.random()
+    // make sure to ignore extra popState in safari on navigating
+    // back from external site
+    this.isSsr = true
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -170,7 +171,12 @@ export default class Router implements BaseRouter {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (e.state.options && e.state.options.historyId !== this.historyId) {
+    if (
+      e.state &&
+      this.isSsr &&
+      e.state.url === this.pathname &&
+      e.state.as === this.asPath
+    ) {
       return
     }
 
@@ -245,6 +251,9 @@ export default class Router implements BaseRouter {
 
   change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
     return new Promise((resolve, reject) => {
+      if (!options._h) {
+        this.isSsr = false
+      }
       // marking route changes as a navigation start entry
       if (SUPPORTS_PERFORMANCE_USER_TIMING) {
         performance.mark('routeChange')
@@ -307,11 +316,11 @@ export default class Router implements BaseRouter {
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
-        const rr = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(rr)(asPathname)
+        const routeMatch = getRouteMatcher(getRouteRegex(route))(asPathname)
         if (!routeMatch) {
           const error =
-            'The provided `as` value is incompatible with the `href` value. This is invalid. https://err.sh/zeit/next.js/incompatible-href-as'
+            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+            `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
 
           if (process.env.NODE_ENV !== 'production') {
             throw new Error(error)
@@ -380,10 +389,7 @@ export default class Router implements BaseRouter {
         {
           url,
           as,
-          options: {
-            ...options,
-            historyId: this.historyId,
-          },
+          options,
         },
         null,
         as
@@ -582,10 +588,15 @@ export default class Router implements BaseRouter {
         }
         return
       }
-      // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') return
       // @ts-ignore pathname is always defined
       const route = toRoute(pathname)
+
+      // Prefetch is not supported in development mode because it would trigger on-demand-entries
+      if (process.env.NODE_ENV !== 'production') {
+        // mark it as prefetched for debugging in dev
+        this.pageLoader.prefetched[route] = true
+        return
+      }
       this.pageLoader.prefetch(route).then(resolve, reject)
     })
   }

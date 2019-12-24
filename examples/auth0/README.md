@@ -2,6 +2,8 @@
 
 This example shows how you can use `@auth0/nextjs-auth` to easily add authentication support to your Next.js application.
 
+Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
+
 ### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:

@@ -42,13 +42,13 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    catchAllRouting: false,
     css: false,
     documentMiddleware: false,
     granularChunks: false,
     modern: false,
     plugins: false,
     profiling: false,
-    publicDirectory: false,
     sprFlushToDisk: true,
     deferScripts: false,
     reactMode: 'legacy',
@@ -99,7 +99,18 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   })
 
-  return { ...defaultConfig, ...userConfig }
+  const result = { ...defaultConfig, ...userConfig }
+
+  if (typeof result.assetPrefix !== 'string') {
+    throw new Error(
+      `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://err.sh/zeit/next.js/invalid-assetprefix`
+    )
+  }
+  if (result.experimental && result.experimental.css) {
+    // The new CSS support requires granular chunks be enabled.
+    result.experimental.granularChunks = true
+  }
+  return result
 }
 
 function normalizeConfig(phase: string, config: any) {

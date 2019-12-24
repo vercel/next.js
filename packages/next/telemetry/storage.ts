@@ -40,23 +40,41 @@ type EventBatchShape = {
   fields: object
 }
 
+type RecordObject = {
+  isFulfilled: boolean
+  isRejected: boolean
+  value?: any
+  reason?: any
+}
+
 export class Telemetry {
-  private conf: Conf<any>
+  private conf: Conf<any> | null
   private sessionId: string
   private rawProjectId: string
+
+  private queue: Set<Promise<RecordObject>>
 
   constructor({ distDir }: { distDir: string }) {
     const storageDirectory = getStorageDirectory(distDir)
 
-    this.conf = new Conf({ projectName: 'nextjs', cwd: storageDirectory })
+    try {
+      // `conf` incorrectly throws a permission error during initialization
+      // instead of waiting for first use. We need to handle it, otherwise the
+      // process may crash.
+      this.conf = new Conf({ projectName: 'nextjs', cwd: storageDirectory })
+    } catch (_) {
+      this.conf = null
+    }
     this.sessionId = randomBytes(32).toString('hex')
     this.rawProjectId = getRawProjectId()
+
+    this.queue = new Set()
 
     this.notify()
   }
 
   private notify = () => {
-    if (this.isDisabled) {
+    if (this.isDisabled || !this.conf) {
       return
     }
 
@@ -85,29 +103,29 @@ export class Telemetry {
   }
 
   get anonymousId(): string {
-    const val = this.conf.get(TELEMETRY_KEY_ID)
+    const val = this.conf && this.conf.get(TELEMETRY_KEY_ID)
     if (val) {
       return val
     }
 
     const generated = randomBytes(32).toString('hex')
-    this.conf.set(TELEMETRY_KEY_ID, generated)
+    this.conf && this.conf.set(TELEMETRY_KEY_ID, generated)
     return generated
   }
 
   get salt(): string {
-    const val = this.conf.get(TELEMETRY_KEY_SALT)
+    const val = this.conf && this.conf.get(TELEMETRY_KEY_SALT)
     if (val) {
       return val
     }
 
     const generated = randomBytes(16).toString('hex')
-    this.conf.set(TELEMETRY_KEY_SALT, generated)
+    this.conf && this.conf.set(TELEMETRY_KEY_SALT, generated)
     return generated
   }
 
   private get isDisabled(): boolean {
-    if (!!NEXT_TELEMETRY_DISABLED) {
+    if (!!NEXT_TELEMETRY_DISABLED || !this.conf) {
       return true
     }
     return this.conf.get(TELEMETRY_KEY_ENABLED, true) === false
@@ -115,11 +133,11 @@ export class Telemetry {
 
   setEnabled = (_enabled: boolean) => {
     const enabled = !!_enabled
-    this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
+    this.conf && this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
   }
 
   get isEnabled(): boolean {
-    return this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
+    return !!this.conf && this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
   }
 
   oneWayHash = (payload: BinaryLike): string => {
@@ -141,19 +159,14 @@ export class Telemetry {
 
   record = (
     _events: TelemetryEvent | TelemetryEvent[]
-  ): Promise<{
-    isFulfilled: boolean
-    isRejected: boolean
-    value?: any
-    reason?: any
-  }> => {
+  ): Promise<RecordObject> => {
     const _this = this
     // pseudo try-catch
     async function wrapper() {
       return await _this.submitRecord(_events)
     }
 
-    return wrapper()
+    const prom = wrapper()
       .then(value => ({
         isFulfilled: true,
         isRejected: false,
@@ -164,7 +177,20 @@ export class Telemetry {
         isRejected: true,
         reason,
       }))
+      // Acts as `Promise#finally` because `catch` transforms the error
+      .then(res => {
+        // Clean up the event to prevent unbounded `Set` growth
+        this.queue.delete(prom)
+        return res
+      })
+
+    // Track this `Promise` so we can flush pending events
+    this.queue.add(prom)
+
+    return prom
   }
+
+  flush = async () => Promise.all(this.queue).catch(() => null)
 
   private submitRecord = (
     _events: TelemetryEvent | TelemetryEvent[]

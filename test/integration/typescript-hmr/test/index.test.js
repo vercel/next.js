@@ -9,7 +9,7 @@ import {
   killApp,
   check,
   getBrowserBodyText,
-  getReactErrorOverlayContent
+  getReactErrorOverlayContent,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -20,7 +20,14 @@ let app
 describe('TypeScript HMR', () => {
   beforeAll(async () => {
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchApp(appDir, appPort, {
+      env: {
+        // Events can be finicky in CI. This switches to a more reliable
+        // polling method.
+        CHOKIDAR_USEPOLLING: 'true',
+        CHOKIDAR_INTERVAL: 500,
+      },
+    })
   })
   afterAll(() => killApp(app))
 

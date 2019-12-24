@@ -9,7 +9,7 @@ import {
   startApp,
   stopApp,
   renderViaHTTP,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
@@ -18,7 +18,7 @@ import security from './security'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  PAGES_MANIFEST
+  PAGES_MANIFEST,
 } from 'next/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
@@ -37,7 +37,7 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -87,14 +87,14 @@ describe('Production Usage', () => {
 
     it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
-        method: 'POST'
+        method: 'POST',
       })
       expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
       const res = await fetch(`http://localhost:${appPort}/fake-page`, {
-        method: 'POST'
+        method: 'POST',
       })
       expect(res.status).toBe(404)
     })
@@ -124,7 +124,7 @@ describe('Production Usage', () => {
       const res = await fetch(
         `http://localhost:${appPort}/static/data/item.txt`,
         {
-          method: 'POST'
+          method: 'POST',
         }
       )
       expect(res.headers.get('allow').includes('GET')).toBe(true)
@@ -138,7 +138,7 @@ describe('Production Usage', () => {
         `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
         {
           method: 'GET',
-          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' }
+          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
         }
       )
       expect(res.status).toBe(412)
@@ -151,7 +151,7 @@ describe('Production Usage', () => {
         `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
         {
           method: 'GET',
-          headers: { 'if-unmodified-since': 'nextjs' }
+          headers: { 'if-unmodified-since': 'nextjs' },
         }
       )
       expect(res.status).toBe(200)
@@ -352,9 +352,9 @@ describe('Production Usage', () => {
     it('should handle already finished responses', async () => {
       const res = {
         finished: false,
-        end () {
+        end() {
           this.finished = true
-        }
+        },
       }
       const html = await app.renderToHTML(
         { method: 'GET' },
@@ -441,86 +441,82 @@ describe('Production Usage', () => {
       }
     })
 
-    if (browserName === 'chrome') {
-      it('should add preload tags when Link prefetch prop is used', async () => {
-        const browser = await webdriver(appPort, '/prefetch')
-        await waitFor(2000)
-        const elements = await browser.elementsByCss('link[rel=preload]')
+    it('should add prefetch tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      await waitFor(2000)
+      const elements = await browser.elementsByCss('link[rel=prefetch]')
 
-        expect(elements.length).toBe(9)
-        await Promise.all(
-          elements.map(async element => {
-            const rel = await element.getAttribute('rel')
-            const as = await element.getAttribute('as')
-            expect(rel).toBe('preload')
-            expect(as).toBe('script')
-          })
-        )
-        await browser.close()
-      })
-
-      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      it('It does not add a timestamp to link tags with preload attribute', async () => {
-        const browser = await webdriver(appPort, '/prefetch')
-        const links = await browser.elementsByCss('link[rel=preload]')
-        await Promise.all(
-          links.map(async element => {
-            const href = await element.getAttribute('href')
-            expect(href).not.toMatch(/\?ts=/)
-          })
-        )
-        const scripts = await browser.elementsByCss('script[src]')
-        await Promise.all(
-          scripts.map(async element => {
-            const src = await element.getAttribute('src')
-            expect(src).not.toMatch(/\?ts=/)
-          })
-        )
-        await browser.close()
-      })
-
-      it('should reload the page on page script error with prefetch', async () => {
-        const browser = await webdriver(appPort, '/counter')
-        if (global.browserName !== 'chrome') return
-        const counter = await browser
-          .elementByCss('#increase')
-          .click()
-          .click()
-          .elementByCss('#counter')
-          .text()
-        expect(counter).toBe('Counter: 2')
-
-        // Let the browser to prefetch the page and error it on the console.
-        await waitFor(3000)
-        const browserLogs = await browser.log('browser')
-        let foundLog = false
-        browserLogs.forEach(log => {
-          if (
-            log.message.match(/\/no-such-page\.js - Failed to load resource/)
-          ) {
-            foundLog = true
-          }
+      expect(elements.length).toBe(4)
+      await Promise.all(
+        elements.map(async element => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('prefetch')
+          expect(as).toBe('script')
         })
-        expect(foundLog).toBe(true)
+      )
+      await browser.close()
+    })
 
-        // When we go to the 404 page, it'll do a hard reload.
-        // So, it's possible for the front proxy to load a page from another zone.
-        // Since the page is reloaded, when we go back to the counter page again,
-        // previous counter value should be gone.
-        const counterAfter404Page = await browser
-          .elementByCss('#no-such-page-prefetch')
-          .click()
-          .waitForElementByCss('h1')
-          .back()
-          .waitForElementByCss('#counter-page')
-          .elementByCss('#counter')
-          .text()
-        expect(counterAfter404Page).toBe('Counter: 0')
+    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('It does not add a timestamp to link tags with prefetch attribute', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      await Promise.all(
+        links.map(async element => {
+          const href = await element.getAttribute('href')
+          expect(href).not.toMatch(/\?ts=/)
+        })
+      )
+      const scripts = await browser.elementsByCss('script[src]')
+      await Promise.all(
+        scripts.map(async element => {
+          const src = await element.getAttribute('src')
+          expect(src).not.toMatch(/\?ts=/)
+        })
+      )
+      await browser.close()
+    })
 
-        await browser.close()
+    it('should reload the page on page script error with prefetch', async () => {
+      const browser = await webdriver(appPort, '/counter')
+      if (global.browserName !== 'chrome') return
+      const counter = await browser
+        .elementByCss('#increase')
+        .click()
+        .click()
+        .elementByCss('#counter')
+        .text()
+      expect(counter).toBe('Counter: 2')
+
+      // Let the browser to prefetch the page and error it on the console.
+      await waitFor(3000)
+      const browserLogs = await browser.log('browser')
+      let foundLog = false
+      browserLogs.forEach(log => {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+          foundLog = true
+        }
       })
-    }
+      expect(foundLog).toBe(true)
+
+      // When we go to the 404 page, it'll do a hard reload.
+      // So, it's possible for the front proxy to load a page from another zone.
+      // Since the page is reloaded, when we go back to the counter page again,
+      // previous counter value should be gone.
+      const counterAfter404Page = await browser
+        .elementByCss('#no-such-page-prefetch')
+        .click()
+        .waitForElementByCss('h1')
+        .back()
+        .waitForElementByCss('#counter-page')
+        .elementByCss('#counter')
+        .text()
+      expect(counterAfter404Page).toBe('Counter: 0')
+
+      await browser.close()
+    })
   })
 
   it('should not expose the compiled page file in development', async () => {
@@ -630,7 +626,7 @@ describe('Production Usage', () => {
         'beforeRender',
         'afterHydrate',
         'afterRender',
-        'routeChange'
+        'routeChange',
       ]
 
       allPerfMarks.forEach(name =>

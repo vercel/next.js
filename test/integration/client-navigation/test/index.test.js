@@ -10,7 +10,7 @@ import {
   launchApp,
   fetchViaHTTP,
   renderViaHTTP,
-  getReactErrorOverlayContent
+  getReactErrorOverlayContent,
 } from 'next-test-utils'
 
 const context = {}
@@ -52,7 +52,7 @@ describe('Client Navigation', () => {
       '/nav/as-path-using-router',
       '/nav/url-prop-change',
 
-      '/nested-cdm/index'
+      '/nested-cdm/index',
     ]
     await Promise.all(
       prerender.map(route => renderViaHTTP(context.appPort, route))
@@ -72,6 +72,33 @@ describe('Client Navigation', () => {
 
       expect(text).toBe('This is the about page.')
       await browser.close()
+    })
+
+    it('should navigate back after reload', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.elementByCss('#about-link').click()
+      await browser.waitForElementByCss('.nav-about')
+      await browser.refresh()
+      await waitFor(3000)
+      await browser.back()
+      await waitFor(3000)
+      const text = await browser.elementsByCss('#about-link').text()
+      if (browser) await browser.close()
+      expect(text).toMatch(/About/)
+    })
+
+    it('should navigate forwards after reload', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.elementByCss('#about-link').click()
+      await browser.waitForElementByCss('.nav-about')
+      await browser.back()
+      await browser.refresh()
+      await waitFor(3000)
+      await browser.forward()
+      await waitFor(3000)
+      const text = await browser.elementsByCss('p').text()
+      if (browser) await browser.close()
+      expect(text).toMatch(/this is the about page/i)
     })
 
     it('should navigate via the client side', async () => {
@@ -106,12 +133,12 @@ describe('Client Navigation', () => {
       expect(JSON.parse(urlResult)).toMatchObject({
         query: { added: 'yes' },
         pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes'
+        asPath: '/nav/url-prop-change?added=yes',
       })
       expect(JSON.parse(previousUrlResult)).toMatchObject({
         query: {},
         pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change'
+        asPath: '/nav/url-prop-change',
       })
 
       await browser.close()

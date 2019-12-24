@@ -6,7 +6,7 @@ import {
   findPort,
   waitFor,
   nextStart,
-  killApp
+  killApp,
 } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
 import cheerio from 'cheerio'
@@ -39,14 +39,13 @@ describe('Chunking', () => {
     }
     const { stdout, stderr } = await nextBuild(appDir, [], {
       stdout: true,
-      stderr: true
+      stderr: true,
     })
     console.log(stdout)
     console.error(stderr)
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
-      .replace(/"static\\(.*?":)/g, '"static\\\\$1')
-      .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
+      .replace(/"static\\(.*?":?)/g, match => match.replace(/\\/g, '\\\\'))
 
     stats = JSON.parse(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')

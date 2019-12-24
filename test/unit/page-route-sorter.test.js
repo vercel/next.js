@@ -9,10 +9,10 @@ describe('getSortedRoutes', () => {
     expect(getSortedRoutes(['/posts/[id]/foo'])).toEqual(['/posts/[id]/foo'])
 
     expect(getSortedRoutes(['/posts/[id]/[foo]/bar'])).toEqual([
-      '/posts/[id]/[foo]/bar'
+      '/posts/[id]/[foo]/bar',
     ])
     expect(getSortedRoutes(['/posts/[id]/baz/[foo]/bar'])).toEqual([
-      '/posts/[id]/baz/[foo]/bar'
+      '/posts/[id]/baz/[foo]/bar',
     ])
   })
 
@@ -24,9 +24,17 @@ describe('getSortedRoutes', () => {
         '/',
         '/posts/[id]',
         '/blog/[id]/comments/[cid]',
+        '/blog/abc/[id]',
+        '/[...rest]',
+        '/blog/abc/post',
+        '/blog/abc',
+        '/p/[...rest]',
+        '/p2/[...rest]',
+        '/p2/[id]',
+        '/p2/[id]/abc',
         '/blog/[id]',
         '/foo/[d]/bar/baz/[f]',
-        '/apples/[ab]/[cd]/ef'
+        '/apples/[ab]/[cd]/ef',
       ])
     ).toMatchSnapshot()
   })
@@ -38,7 +46,7 @@ describe('getSortedRoutes', () => {
         '/blog',
         '/blog/[id]',
         '/blog/[id]/comments/[cid]',
-        '/blog/[cid]'
+        '/blog/[cid]',
       ])
     ).toThrowError(/different slug names/)
   })
@@ -47,5 +55,35 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
     ).toThrowError(/the same slug name/)
+  })
+
+  it('catches reused param names', () => {
+    expect(() =>
+      getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])
+    ).toThrowError(/the same slug name/)
+  })
+
+  it('catches middle catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[...id]/[...id2]'])).toThrowError(
+      /must be the last part/
+    )
+  })
+
+  it('catches middle catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[...id]/abc'])).toThrowError(
+      /must be the last part/
+    )
+  })
+
+  it('catches extra dots in catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[....id]/abc'])).toThrowError(
+      /erroneous period/
+    )
+  })
+
+  it('catches missing dots in catch-all', () => {
+    expect(() => getSortedRoutes(['/blog/[..id]/abc'])).toThrowError(
+      /erroneous period/
+    )
   })
 })

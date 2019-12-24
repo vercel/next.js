@@ -1,13 +1,15 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
 import mkdirpOrig from 'mkdirp'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
+import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
-
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
+import checkCustomRoutes from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -15,13 +17,21 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
+  DEFAULT_REDIRECT_STATUS,
+  EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  SERVER_DIRECTORY,
+  ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
-import { getRouteRegex, isDynamicRoute } from '../next-server/lib/router/utils'
+import {
+  getRouteRegex,
+  getSortedRoutes,
+  isDynamicRoute,
+} from '../next-server/lib/router/utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
@@ -42,6 +52,7 @@ import {
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
   PageInfo,
+  printCustomRoutes,
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
@@ -88,6 +99,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const rewrites = []
+  const redirects = []
+
+  if (typeof config.experimental.redirects === 'function') {
+    redirects.push(...(await config.experimental.redirects()))
+    checkCustomRoutes(redirects, 'redirect')
+  }
+  if (typeof config.experimental.rewrites === 'function') {
+    rewrites.push(...(await config.experimental.rewrites()))
+    checkCustomRoutes(rewrites, 'rewrite')
+  }
 
   if (ciEnvironment.isCI) {
     const cacheDir = path.join(distDir, 'cache')
@@ -119,16 +141,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let publicFiles: string[] = []
   let hasPublicDir = false
 
-  let backgroundWork: (Promise<any> | undefined)[] = []
-  backgroundWork.push(
-    telemetry.record(
-      eventVersion({
-        cliCommand: 'build',
-        isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
-      })
-    ),
-    eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
+  telemetry.record(
+    eventVersion({
+      cliCommand: 'build',
+      isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
+      hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+      isCustomServer: null,
+    })
   )
+
+  eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
 
   await verifyTypeScriptSetup(dir, pagesDir)
 
@@ -162,6 +184,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const pageKeys = Object.keys(mappedPages)
+  const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
 
   if (hasPublicDir) {
@@ -193,6 +217,47 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )}`
     )
   }
+
+  const buildCustomRoute = (
+    r: {
+      source: string
+      statusCode?: number
+    },
+    isRedirect = false
+  ) => {
+    const keys: any[] = []
+    const routeRegex = pathToRegexp(r.source, keys, {
+      strict: true,
+      sensitive: false,
+      delimiter: '/', // default is `/#?`, but Next does not pass query info
+    })
+
+    return {
+      ...r,
+      ...(isRedirect
+        ? {
+            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
+          }
+        : {}),
+      regex: routeRegex.source,
+      regexKeys: keys.map(k => k.name),
+    }
+  }
+
+  await mkdirp(distDir)
+  await fsWriteFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      redirects: redirects.map(r => buildCustomRoute(r, true)),
+      rewrites: rewrites.map(r => buildCustomRoute(r)),
+      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+        page,
+        regex: getRouteRegex(page).re.source,
+      })),
+    }),
+    'utf8'
+  )
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -276,7 +341,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       error.indexOf('private-next-pages') > -1 &&
       error.indexOf('does not contain a default export') > -1
     ) {
-      const page_name_regex = /\'private-next-pages\/(?<page_name>[^\']*)\'/
+      const page_name_regex = /'private-next-pages\/(?<page_name>[^']*)'/
       const parsed = page_name_regex.exec(error)
       const page_name = parsed && parsed.groups && parsed.groups.page_name
       throw new Error(
@@ -302,20 +367,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.warn()
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
-    backgroundWork.push(
-      telemetry.record(
-        eventBuildDuration({
-          totalPageCount: pagePaths.length,
-          durationInSeconds: webpackBuildEnd[0],
-        })
-      )
+    telemetry.record(
+      eventBuildDuration({
+        totalPageCount: pagePaths.length,
+        durationInSeconds: webpackBuildEnd[0],
+      })
     )
   }
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
   })
 
-  const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(
     distDir,
     isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
@@ -364,7 +426,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
         bundleRelative
       )
 
+      let isSsg = false
       let isStatic = false
+      let isHybridAmp = false
+      let ssgPageRoutes: string[] | null = null
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
@@ -408,22 +473,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
           )
 
           if (result.isHybridAmp) {
+            isHybridAmp = true
             hybridAmpPages.add(page)
           }
 
           if (result.prerender) {
             sprPages.add(page)
+            isSsg = true
 
             if (result.prerenderRoutes) {
               additionalSprPaths.set(page, result.prerenderRoutes)
+              ssgPageRoutes = result.prerenderRoutes
             }
-          }
-
-          if (result.static && customAppGetInitialProps === false) {
+          } else if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
-          } else if (result.prerender) {
-            sprPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -431,7 +495,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
         }
       }
 
-      pageInfos.set(page, { size, serverBundle, static: isStatic })
+      pageInfos.set(page, {
+        size,
+        serverBundle,
+        static: isStatic,
+        isSsg,
+        isHybridAmp,
+        ssgPageRoutes,
+      })
     })
   )
   staticCheckWorkers.end()
@@ -462,6 +533,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId)
+
+  if (config.experimental.catchAllRouting !== true) {
+    if (dynamicRoutes.some(page => /\/\[\.{3}[^/]+?\](?=\/|$)/.test(page))) {
+      throw new Error(
+        'Catch-all routing is still experimental. You cannot use it yet.'
+      )
+    }
+  }
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
@@ -574,7 +653,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         } else {
           // For a dynamic SPR page, we did not copy its html nor data exports.
           // Instead, we must copy specific versions of this page as defined by
-          // `unstable_getStaticParams` (additionalSprPaths).
+          // `unstable_getStaticPaths` (additionalSprPaths).
           const extraRoutes = additionalSprPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')
@@ -599,19 +678,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await fsRmdir(exportOptions.outdir)
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
   console.log()
 
   const analysisEnd = process.hrtime(analysisBegin)
-  backgroundWork.push(
-    telemetry.record(
-      eventBuildOptimize({
-        durationInSeconds: analysisEnd[0],
-        totalPageCount: pagePaths.length,
-        staticPageCount: staticPages.size,
-        ssrPageCount: pagePaths.length - staticPages.size,
-      })
-    )
+  telemetry.record(
+    eventBuildOptimize({
+      durationInSeconds: analysisEnd[0],
+      totalPageCount: pagePaths.length,
+      staticPageCount: staticPages.size,
+      ssrPageCount: pagePaths.length - staticPages.size,
+    })
   )
 
   if (sprPages.size > 0) {
@@ -644,12 +722,40 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  await fsWriteFile(
+    path.join(distDir, EXPORT_MARKER),
+    JSON.stringify({
+      version: 1,
+      hasExportPathMap: typeof config.exportPathMap === 'function',
+      exportTrailingSlash: config.exportTrailingSlash === true,
+    }),
+    'utf8'
+  )
+  await fsUnlink(path.join(distDir, EXPORT_DETAIL)).catch(err => {
+    if (err.code === 'ENOENT') {
+      return Promise.resolve()
+    }
+    return Promise.reject(err)
+  })
+
   staticPages.forEach(pg => allStaticPages.add(pg))
   pageInfos.forEach((info: PageInfo, key: string) => {
     allPageInfos.set(key, info)
   })
 
-  printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless)
+  await printTreeView(
+    Object.keys(mappedPages),
+    allPageInfos,
+    isLikeServerless,
+    {
+      distPath: distDir,
+      pagesDir,
+      pageExtensions: config.pageExtensions,
+      buildManifest,
+      isModern: config.experimental.modern,
+    }
+  )
+  printCustomRoutes({ redirects, rewrites })
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
@@ -709,5 +815,5 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   }
 
-  await Promise.all(backgroundWork).catch(() => {})
+  await telemetry.flush()
 }

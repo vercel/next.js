@@ -8,7 +8,7 @@ module.exports = withCSS(
   withTM({
     transpileModules: ['@patternfly'],
     // Webpack config from https://github.com/patternfly/patternfly-react-seed/blob/master/webpack.common.js
-    webpack (config) {
+    webpack(config) {
       config.module.rules.push({
         test: /\.(svg|ttf|eot|woff|woff2)$/,
         // only process modules with this loader
@@ -30,7 +30,7 @@ module.exports = withCSS(
           path.resolve(
             __dirname,
             'node_modules/@patternfly/patternfly/assets/pficon'
-          )
+          ),
         ],
         use: {
           loader: 'file-loader',
@@ -39,9 +39,9 @@ module.exports = withCSS(
             limit: 5000,
             publicPath: '/_next/static/fonts/',
             outputPath: 'static/fonts/',
-            name: '[name].[ext]'
-          }
-        }
+            name: '[name].[ext]',
+          },
+        },
       })
 
       config.module.rules.push({
@@ -54,10 +54,10 @@ module.exports = withCSS(
               limit: 5000,
               publicPath: '/_next/static/svgs/',
               outputPath: 'static/svgs/',
-              name: '[name].[ext]'
-            }
-          }
-        ]
+              name: '[name].[ext]',
+            },
+          },
+        ],
       })
 
       config.module.rules.push({
@@ -67,8 +67,8 @@ module.exports = withCSS(
         include: input => input.indexOf(BG_IMAGES_DIRNAME) > -1,
         use: {
           loader: 'svg-url-loader',
-          options: {}
-        }
+          options: {},
+        },
       })
 
       config.module.rules.push({
@@ -82,8 +82,8 @@ module.exports = withCSS(
           input.indexOf('pficon') === -1,
         use: {
           loader: 'raw-loader',
-          options: {}
-        }
+          options: {},
+        },
       })
 
       config.module.rules.push({
@@ -95,13 +95,13 @@ module.exports = withCSS(
               limit: 5000,
               publicPath: '/_next/static/images/',
               outputPath: 'static/images/',
-              name: '[name].[ext]'
-            }
-          }
-        ]
+              name: '[name].[ext]',
+            },
+          },
+        ],
       })
 
       return config
-    }
+    },
   })
 )

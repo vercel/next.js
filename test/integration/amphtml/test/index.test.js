@@ -16,7 +16,7 @@ import {
   getBrowserBodyText,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -33,7 +33,7 @@ describe('AMP Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -56,6 +56,12 @@ describe('AMP Usage', () => {
 
       const $ = cheerio.load(html)
       expect($('.abc').length === 1)
+    })
+
+    it('should render the page without leaving render target', async () => {
+      const html = await renderViaHTTP(appPort, '/special-chars')
+      await validateAMP(html)
+      expect(html).not.toContain('__NEXT_AMP_RENDER_TARGET__')
     })
 
     it('should not output client pages for AMP only', async () => {
@@ -143,6 +149,11 @@ describe('AMP Usage', () => {
           .first()
           .attr('href')
       ).toBe('http://localhost:1234/use-amp-hook.amp')
+    })
+
+    it('should render amphtml from provided rel link', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook.amp')
+      await validateAMP(html)
     })
 
     it('should render link rel amphtml with existing query', async () => {
@@ -237,9 +248,9 @@ describe('AMP Usage', () => {
       let inspectPayload = ''
       dynamicAppPort = await findPort()
       ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
-        onStdout (msg) {
+        onStdout(msg) {
           inspectPayload += msg
-        }
+        },
       })
 
       await renderViaHTTP(dynamicAppPort, '/only-amp')
@@ -343,6 +354,23 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
+    })
+
+    it('should detect changes to component and refresh an AMP page', async () => {
+      const browser = await webdriver(dynamicAppPort, '/hmr/comp')
+      const text = await browser.elementByCss('#hello-comp').text()
+      expect(text).toBe('hello')
+
+      const testComp = join(__dirname, '../components/hello.js')
+
+      const origContent = readFileSync(testComp, 'utf8')
+      const newContent = origContent.replace('>hello<', '>hi<')
+
+      writeFileSync(testComp, newContent, 'utf8')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hi/)
+
+      writeFileSync(testComp, origContent, 'utf8')
+      await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
     })
 
     it('should not reload unless the page is edited for an AMP page', async () => {

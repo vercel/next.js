@@ -1,11 +1,16 @@
 import chalk from 'chalk'
-import { copyFile as copyFileOrig, existsSync, readFileSync } from 'fs'
+import findUp from 'find-up'
+import {
+  copyFile as copyFileOrig,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from 'fs'
 import Worker from 'jest-worker'
 import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
-
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
 import { API_ROUTE } from '../lib/constants'
@@ -16,11 +21,12 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
+  EXPORT_DETAIL,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
@@ -93,19 +99,22 @@ export default async function(
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
-  if (!options.buildExport) {
-    const telemetry = new Telemetry({ distDir })
-    telemetry.record(eventVersion({ cliCommand: 'export', isSrcDir: null }))
+
+  const telemetry = options.buildExport ? null : new Telemetry({ distDir })
+
+  if (telemetry) {
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'export',
+        isSrcDir: null,
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
+      })
+    )
   }
 
   const subFolders = nextConfig.exportTrailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
-
-  if (!options.buildExport && isLikeServerless) {
-    throw new Error(
-      'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
-    )
-  }
 
   log(`> using build directory: ${distDir}`)
 
@@ -117,7 +126,12 @@ export default async function(
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
-    !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+    !options.pages &&
+    require(join(
+      distDir,
+      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+      PAGES_MANIFEST
+    ))
 
   let prerenderManifest
   try {
@@ -148,6 +162,14 @@ export default async function(
       continue
     }
 
+    // iSSG pages that are dynamic should not export templated version by
+    // default. In most cases, this would never work. There is no server that
+    // could run `getStaticProps`. If users make their page work lazily, they
+    // can manually add it to the `exportPathMap`.
+    if (prerenderManifest && prerenderManifest.dynamicRoutes[page]) {
+      continue
+    }
+
     defaultPathMap[page] = { page }
   }
 
@@ -162,6 +184,16 @@ export default async function(
 
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
+
+  writeFileSync(
+    join(distDir, EXPORT_DETAIL),
+    JSON.stringify({
+      version: 1,
+      outDirectory: outDir,
+      success: false,
+    }),
+    'utf8'
+  )
 
   // Copy static directory
   if (!options.buildExport && existsSync(join(dir, 'static'))) {
@@ -200,6 +232,9 @@ export default async function(
     hotReloader: null,
     canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
     isModern: nextConfig.experimental.modern,
+    ampValidator:
+      (nextConfig.experimental.amp && nextConfig.experimental.amp.validator) ||
+      undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -351,4 +386,18 @@ export default async function(
   }
   // Add an empty line to the console for the better readability.
   log('')
+
+  writeFileSync(
+    join(distDir, EXPORT_DETAIL),
+    JSON.stringify({
+      version: 1,
+      outDirectory: outDir,
+      success: true,
+    }),
+    'utf8'
+  )
+
+  if (telemetry) {
+    await telemetry.flush()
+  }
 }

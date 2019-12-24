@@ -728,7 +728,7 @@ export default Home
 
 If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a _hyperlink_, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
 
-**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
+**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your site’s SEO.
 
 ```jsx
 import Link from 'next/link'
@@ -1057,7 +1057,7 @@ export default function MyLink() {
 }
 ```
 
-`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively `prefetch` method in the `useEffect()` hook:
+`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperative `prefetch` method in the `useEffect()` hook:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -1116,7 +1116,7 @@ export default withRouter(MyLink)
   </ul>
 </details>
 
-API routes provides a straightforward solution to build your **API** with Next.js.
+API routes provide a straightforward solution to build your **API** with Next.js.
 Start by creating the `api/` folder inside the `./pages/` folder.
 
 Every file inside `./pages/api` is mapped to `/api/*`.
@@ -1273,7 +1273,6 @@ export default (req, res) => {
     <li><a href="/examples/custom-server-express">Express integration</a></li>
     <li><a href="/examples/custom-server-hapi">Hapi integration</a></li>
     <li><a href="/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="/examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="/examples/ssr-caching">SSR caching</a></li>
   </ul>
 </details>

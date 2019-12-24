@@ -1,7 +1,7 @@
-export function startTimer ({ clock }) {
+export function startTimer({ clock }) {
   clock.start('clock.secondTicked')
 }
 
-export function stopTimer ({ clock }) {
+export function stopTimer({ clock }) {
   clock.stop()
 }

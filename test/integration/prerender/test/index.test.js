@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -14,8 +15,9 @@ import {
   nextStart,
   stopApp,
   nextExport,
+  normalizeRegEx,
   startStaticServer,
-  initNextServerScript
+  initNextServerScript,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -49,65 +51,86 @@ const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
     initialRevalidateSeconds: 1,
-    srcRoute: null
+    srcRoute: null,
   },
   '/blog/[post3]': {
     dataRoute: `/_next/data/${buildId}/blog/[post3].json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/blog/post-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/blog/post-2': {
     dataRoute: `/_next/data/${buildId}/blog/post-2.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
+  },
+  '/blog/post-4': {
+    dataRoute: `/_next/data/${buildId}/blog/post-4.json`,
+    initialRevalidateSeconds: 10,
+    srcRoute: '/blog/[post]',
   },
   '/blog/post-1/comment-1': {
     dataRoute: `/_next/data/${buildId}/blog/post-1/comment-1.json`,
     initialRevalidateSeconds: 2,
-    srcRoute: '/blog/[post]/[comment]'
+    srcRoute: '/blog/[post]/[comment]',
   },
   '/blog/post-2/comment-2': {
     dataRoute: `/_next/data/${buildId}/blog/post-2/comment-2.json`,
     initialRevalidateSeconds: 2,
-    srcRoute: '/blog/[post]/[comment]'
+    srcRoute: '/blog/[post]/[comment]',
   },
   '/blog/post.1': {
     dataRoute: `/_next/data/${buildId}/blog/post.1.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: '/blog/[post]'
+    srcRoute: '/blog/[post]',
   },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
-    srcRoute: null
+    srcRoute: null,
   },
   '/blog': {
     dataRoute: `/_next/data/${buildId}/blog.json`,
     initialRevalidateSeconds: 10,
-    srcRoute: null
+    srcRoute: null,
   },
   '/default-revalidate': {
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
-    initialRevalidateSeconds: 1,
-    srcRoute: null
+    initialRevalidateSeconds: false,
+    srcRoute: null,
   },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
     initialRevalidateSeconds: false,
-    srcRoute: null
-  }
+    srcRoute: null,
+  },
 })
 
 const navigateTest = () => {
   it('should navigate between pages successfully', async () => {
+    const toBuild = [
+      '/',
+      '/another',
+      '/something',
+      '/normal',
+      '/blog/post-1',
+      '/blog/post-1/comment-1',
+    ]
+
+    await waitFor(2500)
+
+    await Promise.all(toBuild.map(pg => renderViaHTTP(appPort, pg)))
+
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
+
+    // hydration
+    await waitFor(2500)
 
     // go to /another
     await browser.elementByCss('#another').click()
@@ -169,6 +192,24 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/something?hello=world')
+    const $ = cheerio.load(html)
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({})
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({})
+  })
+
+  it('should not supply query values to params or useRouter dynamic page SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
+    const $ = cheerio.load(html)
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({ post: 'post-1' })
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
       await renderViaHTTP(
@@ -213,6 +254,23 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
+  it('should parse query values on mount correctly', async () => {
+    const browser = await webdriver(appPort, '/blog/post-1?another=value')
+    await waitFor(2000)
+    const text = await browser.elementByCss('#query').text()
+    expect(text).toMatch(/another.*?value/)
+    expect(text).toMatch(/post.*?post-1/)
+  })
+
+  it('should reload page on failed data request', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(500)
+    await browser.eval('window.beforeClick = true')
+    await browser.click('#broken-post')
+    await waitFor(1000)
+    expect(await browser.eval('window.beforeClick')).not.toBe('true')
+  })
+
   if (dev) {
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -248,29 +306,6 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
-
-    it('should show error when getStaticParams is used without getStaticProps', async () => {
-      const pagePath = join(appDir, 'pages/no-getStaticProps.js')
-      await fs.writeFile(
-        pagePath,
-        `
-        export async function unstable_getStaticParams() {
-          return []
-        }
-
-        export default () => 'hi'
-      `,
-        'utf8'
-      )
-
-      const html = await renderViaHTTP(appPort, '/no-getStaticProps')
-      await fs.remove(pagePath)
-      await waitFor(500)
-
-      expect(html).toMatch(
-        /unstable_getStaticParams was added without a unstable_getStaticProps in/
-      )
-    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -287,24 +322,45 @@ const runTests = (dev = false) => {
       )
       const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
+      Object.keys(manifest.dynamicRoutes).forEach(key => {
+        const item = manifest.dynamicRoutes[key]
+
+        if (item.dataRouteRegex) {
+          item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+        }
+        if (item.routeRegex) {
+          item.routeRegex = normalizeRegEx(item.routeRegex)
+        }
+      })
+
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
           dataRoute: `/_next/data/${buildId}/blog/[post].json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/blog\\/([^\\/]+?)(?:\\/)?$'
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`
+          ),
+          routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
         },
         '/blog/[post]/[comment]': {
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`,
-          routeRegex: '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
+          ),
+          routeRegex: normalizeRegEx(
+            '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+          ),
         },
         '/user/[user]/profile': {
           dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
-          dataRouteRegex: `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`,
-          routeRegex: `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
-        }
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`
+          ),
+          routeRegex: normalizeRegEx(
+            `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
+          ),
+        },
       })
     })
 
@@ -313,7 +369,7 @@ const runTests = (dev = false) => {
         '/another',
         '/something',
         '/blog/post-1',
-        '/blog/post-2/comment-2'
+        '/blog/post-2/comment-2',
       ]
 
       for (const route of routes) {
@@ -407,7 +463,7 @@ describe('SPR Prerender', () => {
       app = await launchApp(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
-        }
+        },
       })
       buildId = 'development'
     })
@@ -429,7 +485,7 @@ describe('SPR Prerender', () => {
       app = nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
-        }
+        },
       })
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
@@ -440,7 +496,7 @@ describe('SPR Prerender', () => {
       const port = await findPort()
       const server = await startServer({
         BUILD_ID: buildId,
-        PORT: port
+        PORT: port,
       })
       const data = await renderViaHTTP(
         port,
@@ -451,23 +507,55 @@ describe('SPR Prerender', () => {
     })
 
     runTests()
+
+    it('should not show invalid error', async () => {
+      const brokenPage = join(appDir, 'pages/broken.js')
+      await fs.writeFile(
+        brokenPage,
+        `
+        export async function unstable_getStaticProps() {
+          return {
+            hello: 'world'
+          }
+        }
+        export default () => 'hello world'
+      `
+      )
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      await fs.remove(brokenPage)
+      expect(stderr).toContain(
+        'Additional keys were returned from `getStaticProps`'
+      )
+      expect(stderr).not.toContain(
+        'You can not use getInitialProps with unstable_getStaticProps'
+      )
+    })
   })
 
   describe('production mode', () => {
+    let buildOutput = ''
     beforeAll(async () => {
       await fs.remove(nextConfig)
-      await nextBuild(appDir)
+      const { stdout } = await nextBuild(appDir, [], { stdout: true })
+      buildOutput = stdout
+
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
-        }
+        },
       })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       distPagesDir = join(appDir, '.next/server/static', buildId, 'pages')
     })
     afterAll(() => killApp(app))
+
+    it('should of formatted build output correctly', () => {
+      expect(buildOutput).toMatch(/○ \/normal/)
+      expect(buildOutput).toMatch(/● \/blog\/\[post\]/)
+      expect(buildOutput).toMatch(/\+2 more paths/)
+    })
 
     runTests()
   })
@@ -477,7 +565,15 @@ describe('SPR Prerender', () => {
       exportDir = join(appDir, 'out')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { exportTrailingSlash: true }`
+        `module.exports = {
+          exportTrailingSlash: true,
+          exportPathMap: function(defaultPathMap) {
+            if (defaultPathMap['/blog/[post]']) {
+              throw new Error('Found SPR page in the default export path map')
+            }
+            return defaultPathMap
+          },
+        }`
       )
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
@@ -495,7 +591,7 @@ describe('SPR Prerender', () => {
         '/another',
         '/something',
         '/blog/post-1',
-        '/blog/post-2/comment-2'
+        '/blog/post-2/comment-2',
       ]
 
       for (const route of routes) {

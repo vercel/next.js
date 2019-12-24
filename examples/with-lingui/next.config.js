@@ -4,10 +4,10 @@ module.exports = {
       test: /\.po/,
       use: [
         {
-          loader: '@lingui/loader'
-        }
-      ]
+          loader: '@lingui/loader',
+        },
+      ],
     })
     return config
-  }
+  },
 }

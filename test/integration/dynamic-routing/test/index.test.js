@@ -5,15 +5,18 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
   waitFor,
   nextBuild,
-  nextStart
+  nextStart,
+  normalizeRegEx,
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let app
 let appPort
@@ -21,7 +24,7 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests (dev) {
+function runTests(dev) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -141,6 +144,161 @@ function runTests (dev) {
     }
   })
 
+  it('[catch all] should not match root on SSR', async () => {
+    const res = await fetchViaHTTP(appPort, '/p1/p2/all-ssr')
+    expect(res.status).toBe(404)
+  })
+
+  it('[catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[catch all] should strip trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/test2/')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[catch all] should not decode slashes (start)', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/%2Ftest2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","/test2"]}')
+  })
+
+  it('[catch all] should not decode slashes (end)', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1%2F/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1/","test2"]}')
+  })
+
+  it('[catch all] should not decode slashes (middle)', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1/te%2Fst2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1","te/st2"]}')
+  })
+
+  it('[catch-all] should pass params in getInitialProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-single').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[catch-all] should pass params in getInitialProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-multi').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[catch-all] should pass params in getInitialProps during client navigation (encoded)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#catch-all-enc').click()
+      await browser.waitForElementByCss('#all-ssr-content')
+
+      const text = await browser.elementByCss('#all-ssr-content').text()
+      expect(text).toBe('{"rest":["hello1/","he/llo2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[ssg: catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[predefined ssg: catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[predefined ssg: catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/p1/p2/predefined-ssg/test1/test2'
+    )
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/one-level')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["one-level"]}')
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/p1/p2/predefined-ssg/1st-level/2nd-level'
+    )
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe(
+      '{"rest":["1st-level","2nd-level"]}'
+    )
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#ssg-catch-all-single').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#ssg-catch-all-multi').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should update dynamic values on mount', async () => {
     const html = await renderViaHTTP(appPort, '/on-mount/post-1')
     expect(html).toMatch(/onmpost:.*pending/)
@@ -225,6 +383,56 @@ function runTests (dev) {
       await fs.access(bundlePath + '.js', fs.constants.F_OK)
       await fs.access(bundlePath + '.module.js', fs.constants.F_OK)
     })
+
+    it('should output a routes-manifest correctly', async () => {
+      const manifest = await fs.readJson(
+        join(appDir, '.next/routes-manifest.json')
+      )
+
+      expect(manifest).toEqual({
+        version: 1,
+        rewrites: [],
+        redirects: [],
+        dynamicRoutes: [
+          {
+            page: '/blog/[name]/comment/[id]',
+            regex: normalizeRegEx(
+              '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          {
+            page: '/on-mount/[post]',
+            regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          {
+            page: '/p1/p2/all-ssg/[...rest]',
+            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
+          },
+          {
+            page: '/p1/p2/all-ssr/[...rest]',
+            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
+          },
+          {
+            page: '/p1/p2/predefined-ssg/[...rest]',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
+          },
+          {
+            page: '/[name]',
+            regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          {
+            page: '/[name]/comments',
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
+          },
+          {
+            page: '/[name]/[comment]',
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
+          },
+        ],
+      })
+    })
   }
 }
 
@@ -252,7 +460,7 @@ describe('Dynamic Routing', () => {
           module.exports = {
             experimental: {
               modern: true,
-              publicDirectory: true
+              catchAllRouting: true
             }
           }
         `
@@ -269,7 +477,7 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe('SSR production mode', () => {
+  describe('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
@@ -278,7 +486,7 @@ describe('Dynamic Routing', () => {
           target: 'serverless',
           experimental: {
             modern: true,
-            publicDirectory: true
+            catchAllRouting: true
           }
         }
       `

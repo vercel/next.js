@@ -31,6 +31,7 @@ import { isInAmpMode } from '../lib/amp'
 import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
+import { AMP_RENDER_TARGET } from '../lib/constants'
 
 export type ManifestItem = {
   id: number | string
@@ -136,7 +137,6 @@ type RenderOpts = {
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
-  skeleton?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
@@ -156,9 +156,9 @@ type RenderOpts = {
     params: any | undefined
   }) => {
     props: any
-    revalidate: number | false
+    revalidate?: number | boolean
   }
-  unstable_getStaticParams?: () => void
+  unstable_getStaticPaths?: () => void
 }
 
 function renderDocument(
@@ -175,7 +175,6 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     autoExport,
-    skeleton,
     dynamicImportsIds,
     dangerousAsPath,
     hasCssMode,
@@ -229,7 +228,6 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
-            skeleton, // If this is a skeleton page for experimentalPrerender
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -281,14 +279,17 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
     unstable_getStaticProps,
-    unstable_getStaticParams,
+    unstable_getStaticPaths,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
 
     if ((Document as any)[`${method}Middleware`]) {
-      const curResults = await (Document as any)[`${method}Middleware`](...args)
+      let middlewareFunc = await (Document as any)[`${method}Middleware`]
+      middlewareFunc = middlewareFunc.default || middlewareFunc
+
+      const curResults = await middlewareFunc(...args)
       if (props) {
         for (const result of curResults) {
           results = {
@@ -320,9 +321,9 @@ export async function renderToHTML(
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!unstable_getStaticParams && !isSpr) {
+  if (!!unstable_getStaticPaths && !isSpr) {
     throw new Error(
-      `unstable_getStaticParams was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticParams does nothing`
+      `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
     )
   }
 
@@ -431,18 +432,15 @@ export async function renderToHTML(
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
-            `\n\n\treturn { props: { title: 'My Title', content: '...' }` +
-            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.
-        `
+            `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
         )
       }
 
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${
-              data.revalidate
-            }', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
                 data.revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
@@ -460,14 +458,14 @@ export async function renderToHTML(
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === false) {
-        // `false` is an allowed behavior. We'll catch `revalidate: true` and
-        // fall into our default behavior.
-      } else {
-        // By default, we revalidate after 1 second. This value is optimal for
+      } else if (data.revalidate === true) {
+        // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
         data.revalidate = 1
+      } else {
+        // By default, we never revalidate.
+        data.revalidate = false
       }
 
       props.pageProps = data.props
@@ -612,7 +610,7 @@ export async function renderToHTML(
     const manifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.map(item => {
+      manifestItem.forEach(item => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })
@@ -650,11 +648,13 @@ export async function renderToHTML(
   })
 
   if (inAmpMode && html) {
-    // use replace to allow rendering directly to body in AMP mode
-    html = html.replace(
-      '__NEXT_AMP_RENDER_TARGET__',
-      `<!-- __NEXT_DATA__ -->${docProps.html}`
-    )
+    // inject HTML to AMP_RENDER_TARGET to allow rendering
+    // directly to body in AMP mode
+    const ampRenderIndex = html.indexOf(AMP_RENDER_TARGET)
+    html =
+      html.substring(0, ampRenderIndex) +
+      `<!-- __NEXT_DATA__ -->${docProps.html}` +
+      html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
     html = await optimizeAmp(html)
 
     if (renderOpts.ampValidator) {

@@ -9,8 +9,8 @@ const Title = ({ path }) => (
       </h1>
     ) : (
       <p>
-        <Link href='/'>
-          <a rel='me'>{siteMeta.title}</a>
+        <Link href="/">
+          <a rel="me">{siteMeta.title}</a>
         </Link>
       </p>
     )}

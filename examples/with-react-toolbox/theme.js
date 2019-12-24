@@ -13,13 +13,13 @@ module.exports = {
     primary: '_3tTAW',
     accent: '_2wp6F',
     neutral: '_2CPs4',
-    inverse: '_2SPZr'
+    inverse: '_2SPZr',
   },
   RTRipple: {
     rippleWrapper: '_16N7o',
     ripple: '_3SV_u',
     rippleRestarting: '_2OZWa',
-    rippleActive: '_3O2Ue'
+    rippleActive: '_3O2Ue',
   },
   RTDatePicker: {
     input: '_2ISvI',
@@ -50,7 +50,7 @@ module.exports = {
     slideLeftEnter: 'bGml_',
     slideLeftLeave: '_2WGqM',
     slideLeftEnterActive: '_3Ghls',
-    slideLeftLeaveActive: '_2WLHG'
+    slideLeftLeaveActive: '_2WLHG',
   },
   RTInput: {
     input: 'lFVgC',
@@ -67,7 +67,7 @@ module.exports = {
     counter: '_1oTuT',
     disabled: '_3ZfJq',
     errored: '_2s74E',
-    hidden: '_2gAMv'
+    hidden: '_2gAMv',
   },
   RTDialog: {
     wrapper: '_3nrqp',
@@ -80,7 +80,7 @@ module.exports = {
     title: '_2J-aP',
     body: '_1Ivuq',
     navigation: 'wgwdj',
-    button: '_22_c6'
+    button: '_22_c6',
   },
-  RTOverlay: { overlay: '_2LA9x', active: '_1mb5R' }
+  RTOverlay: { overlay: '_2LA9x', active: '_1mb5R' },
 }

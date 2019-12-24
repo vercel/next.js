@@ -1,19 +1,25 @@
-import { format, UrlObject, URLFormatOptions } from 'url'
-import { ServerResponse, IncomingMessage } from 'http'
-import { ComponentType } from 'react'
+import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
+import { ComponentType } from 'react'
+import { format, URLFormatOptions, UrlObject } from 'url'
+
 import { ManifestItem } from '../server/render'
 import { NextRouter } from './router/router'
-import { DocumentContext as DocumentComponentContext } from './document-context'
 
 /**
  * Types used by both next and next-server
  */
+
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
   IP = {},
   P = {}
 > = ComponentType<P> & {
+  /**
+   * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
+   * Make sure to return plain `Object` without using `Date`, `Map`, `Set`.
+   * @param ctx Context of `page`
+   */
   getInitialProps?(context: C): IP | Promise<IP>
 }
 
@@ -72,7 +78,6 @@ export type NEXT_DATA = {
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
   autoExport?: boolean
-  skeleton?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
 }
@@ -85,7 +90,7 @@ export interface NextPageContext {
   /**
    * Error object if encountered during rendering
    */
-  err?: Error & { statusCode?: number } | null
+  err?: (Error & { statusCode?: number }) | null
   /**
    * `HTTP` request object.
    */

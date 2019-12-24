@@ -1,4 +1,3 @@
-/* global __NEXT_DATA__ */
 declare const __NEXT_DATA__: any
 
 import { resolve, parse, UrlObject } from 'url'
@@ -111,6 +110,7 @@ const listenToIntersections = (el: any, cb: any) => {
 class Link extends Component<LinkProps> {
   static propTypes?: any
   p: boolean
+
   constructor(props: LinkProps) {
     super(props)
     if (process.env.NODE_ENV !== 'production') {
@@ -129,12 +129,25 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
+  getHref() {
+    const { pathname } = window.location
+    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
+    return resolve(pathname, parsedHref)
+  }
+
   handleRef(ref: Element) {
+    const isPrefetched = (Router.router as any).pageLoader.prefetched[
+      this.getHref()
+    ]
+
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
-      this.cleanUpListeners = listenToIntersections(ref, () => {
-        this.prefetch()
-      })
+
+      if (!isPrefetched) {
+        this.cleanUpListeners = listenToIntersections(ref, () => {
+          this.prefetch()
+        })
+      }
     }
   }
 
@@ -195,12 +208,8 @@ class Link extends Component<LinkProps> {
 
   prefetch() {
     if (!this.p || typeof window === 'undefined') return
-
     // Prefetch the JSON page if asked (only in the client)
-    const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    const href = resolve(pathname, parsedHref)
-    Router.prefetch(href)
+    Router.prefetch(this.getHref())
   }
 
   render() {

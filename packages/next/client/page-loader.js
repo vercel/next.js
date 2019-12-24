@@ -1,31 +1,44 @@
-/* global document, window */
 import mitt from '../next-server/lib/mitt'
 
-function supportsPreload (el) {
+function hasPrefetch(link) {
   try {
-    return el.relList.supports('preload')
-  } catch {
-    return false
-  }
+    link = document.createElement('link')
+    return link.relList.supports('prefetch')
+  } catch {}
 }
 
-const hasPreload = supportsPreload(document.createElement('link'))
+const relPrefetch = hasPrefetch()
+  ? // https://caniuse.com/#feat=link-rel-prefetch
+    // IE 11, Edge 12+, nearly all evergreen
+    'prefetch'
+  : // https://caniuse.com/#feat=link-rel-preload
+    // macOS and iOS (Safari does not support prefetch)
+    'preload'
 
-function preloadScript (url) {
-  const link = document.createElement('link')
-  link.rel = 'preload'
-  link.crossOrigin = process.crossOrigin
-  link.href = encodeURI(url)
-  link.as = 'script'
-  document.head.appendChild(link)
+const hasNoModule = 'noModule' in document.createElement('script')
+
+function appendLink(href, rel, as) {
+  return new Promise((res, rej, link) => {
+    link = document.createElement('link')
+    link.crossOrigin = process.crossOrigin
+    link.href = href
+    link.rel = rel
+    if (as) link.as = as
+
+    link.onload = res
+    link.onerror = rej
+
+    document.head.appendChild(link)
+  })
 }
 
 export default class PageLoader {
-  constructor (buildId, assetPrefix) {
+  constructor(buildId, assetPrefix) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -42,13 +55,14 @@ export default class PageLoader {
   }
 
   // Returns a promise for the dependencies for a particular route
-  getDependencies (route) {
+  getDependencies(route) {
     return this.promisedBuildManifest.then(
-      man => (man[route] && man[route].map(url => `/_next/${url}`)) || []
+      man =>
+        (man[route] && man[route].map(url => `/_next/${encodeURI(url)}`)) || []
     )
   }
 
-  normalizeRoute (route) {
+  normalizeRoute(route) {
     if (route[0] !== '/') {
       throw new Error(`Route name should start with a "/", got "${route}"`)
     }
@@ -58,11 +72,11 @@ export default class PageLoader {
     return route.replace(/\/$/, '')
   }
 
-  loadPage (route) {
+  loadPage(route) {
     return this.loadPageScript(route).then(v => v.page)
   }
 
-  loadPageScript (route) {
+  loadPageScript(route) {
     route = this.normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
@@ -98,8 +112,20 @@ export default class PageLoader {
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
-              if (/\.js$/.test(d) && !document.querySelector(`script[src^="${d}"]`)) {
+              if (
+                /\.js$/.test(d) &&
+                !document.querySelector(`script[src^="${d}"]`)
+              ) {
                 this.loadScript(d, route, false)
+              }
+              if (
+                /\.css$/.test(d) &&
+                !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
+              ) {
+                appendLink(d, 'stylesheet').catch(() => {
+                  // FIXME: handle failure
+                  // Right now, this is needed to prevent an unhandled rejection.
+                })
               }
             })
             this.loadRoute(route)
@@ -113,26 +139,26 @@ export default class PageLoader {
     })
   }
 
-  async loadRoute (route) {
+  async loadRoute(route) {
     route = this.normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
       this.buildId
-    )}/pages${scriptRoute}`
+    )}/pages${encodeURI(scriptRoute)}`
     this.loadScript(url, route, true)
   }
 
-  loadScript (url, route, isPage) {
+  loadScript(url, route, isPage) {
     const script = document.createElement('script')
-    if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
+    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
       script.type = 'module'
       // Only page bundle scripts need to have .module added to url,
       // dependencies already have it added during build manifest creation
       if (isPage) url = url.replace(/\.js$/, '.module.js')
     }
     script.crossOrigin = process.crossOrigin
-    script.src = encodeURI(url)
+    script.src = url
     script.onerror = () => {
       const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
@@ -142,7 +168,7 @@ export default class PageLoader {
   }
 
   // This method if called by the route code.
-  registerPage (route, regFn) {
+  registerPage(route, regFn) {
     const register = () => {
       try {
         const mod = regFn()
@@ -177,71 +203,52 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch (route, isDependency) {
-    route = this.normalizeRoute(route)
-    let scriptRoute = `${route === '/' ? '/index' : route}.js`
-
-    if (
-      process.env.__NEXT_MODERN_BUILD &&
-      'noModule' in document.createElement('script')
-    ) {
-      scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+  async prefetch(route, isDependency) {
+    // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
+    // License: Apache 2.0
+    let cn
+    if ((cn = navigator.connection)) {
+      // Don't prefetch if using 2G or if Save-Data is enabled.
+      if (cn.saveData || /2g/.test(cn.effectiveType)) return
     }
-    const url =
-      this.assetPrefix +
-      (isDependency
-        ? route
-        : `/_next/static/${encodeURIComponent(
-          this.buildId
-        )}/pages${scriptRoute}`)
 
-    // n.b. If preload is not supported, we fall back to `loadPage` which has
-    // its own deduping mechanism.
+    let url = this.assetPrefix
+    if (isDependency) {
+      url += route
+    } else {
+      route = this.normalizeRoute(route)
+      this.prefetched[route] = true
+
+      let scriptRoute = `${route === '/' ? '/index' : route}.js`
+      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
+        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+      }
+
+      url += `/_next/static/${encodeURIComponent(
+        this.buildId
+      )}/pages${encodeURI(scriptRoute)}`
+    }
+
     if (
       document.querySelector(
-        `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
+        `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
       )
     ) {
       return
     }
 
-    // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
-    let cn
-    if ((cn = navigator.connection)) {
-      // Don't prefetch if the user is on 2G or if Save-Data is enabled.
-      if ((cn.effectiveType || '').indexOf('2g') !== -1 || cn.saveData) {
-        return
-      }
-    }
-
-    if (process.env.__NEXT_GRANULAR_CHUNKS && !isDependency) {
-      ;(await this.getDependencies(route)).forEach(url => {
-        this.prefetch(url, true)
-      })
-    }
-
-    // Feature detection is used to see if preload is supported
-    // If not fall back to loading script tags before the page is loaded
-    // https://caniuse.com/#feat=link-rel-preload
-    if (hasPreload) {
-      preloadScript(url)
-      return
-    }
-
-    if (isDependency) {
-      // loadPage will automatically handle depencies, so no need to
-      // preload them manually
-      return
-    }
-
-    if (document.readyState === 'complete') {
-      return this.loadPage(route).catch(() => {})
-    } else {
-      return new Promise(resolve => {
-        window.addEventListener('load', () => {
-          this.loadPage(route).then(() => resolve(), () => resolve())
-        })
-      })
-    }
+    return Promise.all([
+      appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script'),
+      process.env.__NEXT_GRANULAR_CHUNKS &&
+        !isDependency &&
+        this.getDependencies(route).then(urls =>
+          Promise.all(urls.map(url => this.prefetch(url, true)))
+        ),
+    ]).then(
+      // do not return any data
+      () => {},
+      // swallow prefetch errors
+      () => {}
+    )
   }
 }

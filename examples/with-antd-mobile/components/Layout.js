@@ -8,8 +8,8 @@ export default withRouter(({ router, children, title }) => (
       <title>{title}</title>
     </Head>
     <NavBar
-      mode='light'
-      icon={<Icon type='left' />}
+      mode="light"
+      icon={<Icon type="left" />}
       onLeftClick={() => router.back()}
     >
       Ant Design Mobile example

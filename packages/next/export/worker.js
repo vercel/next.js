@@ -1,5 +1,6 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
+import url from 'url'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../next-server/server/render'
 import { writeFile, access } from 'fs'
@@ -15,10 +16,10 @@ const mkdirp = promisify(mkdirpModule)
 const accessP = promisify(access)
 
 global.__NEXT_DATA__ = {
-  nextExport: true
+  nextExport: true,
 }
 
-export default async function ({
+export default async function({
   path,
   pathMap,
   distDir,
@@ -29,10 +30,10 @@ export default async function ({
   buildExport,
   serverRuntimeConfig,
   subFolders,
-  serverless
+  serverless,
 }) {
   let results = {
-    ampValidations: []
+    ampValidations: [],
   }
 
   try {
@@ -40,14 +41,18 @@ export default async function ({
     const { page } = pathMap
     const filePath = path === '/' ? '/index' : path
     const ampPath = `${filePath}.amp`
+    let params
 
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
-      const params = getRouteMatcher(getRouteRegex(page))(path)
+      params = getRouteMatcher(getRouteRegex(page))(path)
       if (params) {
-        query = {
-          ...query,
-          ...params
+        // we have to pass these separately for serverless
+        if (!serverless) {
+          query = {
+            ...query,
+            ...params,
+          }
         }
       } else {
         throw new Error(
@@ -62,20 +67,20 @@ export default async function ({
       setHeader: () => {},
       hasHeader: () => false,
       removeHeader: () => {},
-      getHeaderNames: () => []
+      getHeaderNames: () => [],
     }
 
     const req = {
       url: path,
-      ...headerMocks
+      ...headerMocks,
     }
     const res = {
-      ...headerMocks
+      ...headerMocks,
     }
 
     envConfig.setConfig({
       serverRuntimeConfig,
-      publicRuntimeConfig: renderOpts.runtimeConfig
+      publicRuntimeConfig: renderOpts.runtimeConfig,
     })
 
     let htmlFilename = `${filePath}${sep}index.html`
@@ -107,26 +112,40 @@ export default async function ({
     }
 
     if (serverless) {
-      const mod = require(join(
+      const curUrl = url.parse(req.url, true)
+      req.url = url.format({
+        ...curUrl,
+        query: {
+          ...curUrl.query,
+          ...query,
+        },
+      })
+      const { Component: mod } = await loadComponents(
         distDir,
-        'serverless/pages',
-        (page === '/' ? 'index' : page) + '.js'
-      ))
+        buildId,
+        page,
+        serverless
+      )
 
-      // for non-dynamic SPR pages we should have already
-      // prerendered the file
-      if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
+      // if it was auto-exported the HTML is loaded here
+      if (typeof mod === 'string') {
+        html = mod
+      } else {
+        // for non-dynamic SPR pages we should have already
+        // prerendered the file
+        if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
-      if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
-        // make sure it ends with .html if the name contains a dot
-        htmlFilename += '.html'
-        htmlFilepath += '.html'
+        if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+          // make sure it ends with .html if the name contains a dot
+          htmlFilename += '.html'
+          htmlFilepath += '.html'
+        }
+
+        renderMethod = mod.renderReqToHTML
+        const result = await renderMethod(req, res, true, { ampPath }, params)
+        curRenderOpts = result.renderOpts || {}
+        html = result.html
       }
-
-      renderMethod = mod.renderReqToHTML
-      const result = await renderMethod(req, res, true)
-      curRenderOpts = result.renderOpts || {}
-      html = result.html
 
       if (!html) {
         throw new Error(`Failed to render serverless page`)
@@ -163,8 +182,8 @@ export default async function ({
       }
     }
 
-    const validateAmp = async (html, page) => {
-      const validator = await AmpHtmlValidator.getInstance()
+    const validateAmp = async (html, page, validatorPath) => {
+      const validator = await AmpHtmlValidator.getInstance(validatorPath)
       const result = validator.validateString(html)
       const errors = result.errors.filter(e => e.severity === 'ERROR')
       const warnings = result.errors.filter(e => e.severity !== 'ERROR')
@@ -174,14 +193,14 @@ export default async function ({
           page,
           result: {
             errors,
-            warnings
-          }
+            warnings,
+          },
         })
       }
     }
 
     if (curRenderOpts.inAmpMode) {
-      await validateAmp(html, path)
+      await validateAmp(html, path, curRenderOpts.ampValidator)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
       let ampHtmlFilename = `${ampPath}${sep}index.html`
@@ -229,7 +248,10 @@ export default async function ({
     await writeFileP(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {
-    console.error(`\nError occurred prerendering page "${path}":`, error)
+    console.error(
+      `\nError occurred prerendering page "${path}" https://err.sh/zeit/next.js/prerender-error:`,
+      error
+    )
     return { ...results, error: true }
   }
 }

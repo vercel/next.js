@@ -4,7 +4,7 @@ import { Button } from 'carbon-components-react'
 import '../static/myCustomTheme.scss'
 
 export default class DemoApp extends Component {
-  render () {
+  render() {
     return (
       <Fragment>
         <Button>Hello, world!</Button>
