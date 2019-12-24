@@ -67,25 +67,15 @@ commands:
             )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
-  # test_safari:
-  #   steps:
-  #     - checkout
-  #     - run:
-  #         name: Enable safaridriver
-  #         command: |
-  #           safaridriver --enable
-  #     - run: defaults write com.apple.Safari AllowRemoteAutomation 1
-  #     - run: defaults write com.apple.Safari IncludeDevelopMenu 1
-  #     - run:
-  #         name: Install Dependencies
-  #         command: |
-  #           yarn install --frozen-lockfile --check-files
-  #     - run:
-  #         name: Test Safari
-  #         command: |
-  #           yarn testsafari --forceExit test/integration/production/
-  #         environment:
-  #           NEXT_TELEMETRY_DISABLED: '1'
+  test_safari:
+    steps:
+      - run:
+          name: Test Safari
+          command: |
+            yarn testsafari --forceExit test/integration/production/
+          environment:
+            NEXT_TELEMETRY_DISABLED: '1'
+            BROWSERSTACK: 'true'
   test_firefox:
     steps:
       - run:
@@ -94,19 +84,6 @@ commands:
             yarn testfirefox --forceExit test/integration/production/
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
-  # test_ie11:
-  #   steps:
-  #     - checkout
-  #     - run:
-  #         name: Install Dependencies
-  #         command: |
-  #           yarn install --frozen-lockfile --check-files
-  #     - run:
-  #         name: Test ie11
-  #         command: |
-  #           yarn testie --forceExit test/integration/production/
-  #         environment:
-  #           NEXT_TELEMETRY_DISABLED: '1'
   save_npm_token:
     steps:
       - run:
@@ -201,14 +178,20 @@ workflows:
   build-test-and-deploy:
     jobs:
       - build
-      # - test-ie11
-      # - test-safari
       - test-firefox:
           requires:
             - build
       - test:
           requires:
             - build
+      - test-safari:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
+                - canary
       - lint:
           requires:
             - build
