@@ -147,15 +147,11 @@ jobs:
       - yarn_info
       - test_all
       - *store_test_results
-  # test-ie11:
-  #   executor: win/default
-  #   steps:
-  #     - test_ie11
-  # test-safari:
-  #   macos:
-  #     xcode: '10.3.0'
-  #   steps:
-  #     - test_safari
+  test-safari:
+    executor: node
+    steps:
+      - *attach_workspace
+      - test_safari
   test-firefox:
     executor: node
     steps:
