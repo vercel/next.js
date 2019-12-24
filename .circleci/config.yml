@@ -170,7 +170,7 @@ jobs:
       - test_ie11
   test-safari:
     macos:
-      xcode: '10.0.0'
+      xcode: '10.3.0'
     steps:
       - test_safari
   test-firefox:

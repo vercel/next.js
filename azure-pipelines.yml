@@ -26,10 +26,6 @@ steps:
       wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
     displayName: 'List Chrome version'
 
-  - script: |
-      chromedriver --version
-    displayName: 'List chromedriver version'
-
   - task: NodeTool@0
     inputs:
       versionSpec: $(node_version)
