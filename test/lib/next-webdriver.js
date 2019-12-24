@@ -251,6 +251,10 @@ export default async (appPort, path) => {
       )
     }
 
+    url() {
+      return this.updateChain(() => browser.getCurrentUrl())
+    }
+
     back() {
       return this.updateChain(() => browser.navigate().back())
     }
