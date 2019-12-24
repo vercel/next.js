@@ -1,13 +1,12 @@
-pool:
-  vmImage: 'windows-2019'
-
 variables:
-  NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
+  NEXT_TELEMETRY_DISABLED: '1'
   node_version: ^10.10.0
 
 jobs:
   - job: test_ie11
+    pool:
+      vmImage: 'windows-2019'
     steps:
       - task: NodeTool@0
         inputs:
@@ -29,6 +28,8 @@ jobs:
         displayName: 'Run tests'
 
   - job: test_chrome
+    pool:
+      vmImage: 'windows-2019'
     strategy:
       maxParallel: 10
       matrix:
