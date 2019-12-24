@@ -305,3 +305,20 @@ describe('Bad CSS Customization Array (7)', () => {
     expect(stderr).toMatch(/Build error occurred/)
   })
 })
+
+describe('Bad CSS Customization Function', () => {
+  const appDir = join(fixturesDir, 'bad-custom-configuration-func')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail the build', async () => {
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+    expect(stderr).toMatch(
+      /Your custom PostCSS configuration may not export a function/
+    )
+    expect(stderr).toMatch(/Build error occurred/)
+  })
+})
