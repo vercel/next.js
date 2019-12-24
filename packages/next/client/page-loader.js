@@ -124,7 +124,10 @@ export default class PageLoader {
                 /\.css$/.test(d) &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
-                appendLink(d, 'stylesheet') // FIXME: handle failure
+                appendLink(d, 'stylesheet').catch(() => {
+                  // FIXME: handle failure
+                  // Right now, this is needed to prevent an unhandled rejection.
+                })
               }
             })
             this.loadRoute(route)
