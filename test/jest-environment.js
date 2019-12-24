@@ -69,13 +69,16 @@ class CustomEnvironment extends NodeEnvironment {
   async teardown() {
     await super.teardown()
     if (this.server) {
+      console.log('Stopping new tab server')
       this.server.close()
     }
     if (this.global.wd) {
+      console.log('Killing browser instance')
       await this.global.wd.quit()
     }
     // must come after wd.quit()
     if (this.seleniumServer) {
+      console.log('Stopping Selenium server')
       this.seleniumServer.kill()
     }
   }
