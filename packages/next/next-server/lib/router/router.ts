@@ -588,10 +588,15 @@ export default class Router implements BaseRouter {
         }
         return
       }
-      // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') return
       // @ts-ignore pathname is always defined
       const route = toRoute(pathname)
+
+      // Prefetch is not supported in development mode because it would trigger on-demand-entries
+      if (process.env.NODE_ENV !== 'production') {
+        // mark it as prefetched for debugging in dev
+        this.pageLoader.prefetched[route] = true
+        return
+      }
       this.pageLoader.prefetch(route).then(resolve, reject)
     })
   }

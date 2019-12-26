@@ -266,7 +266,7 @@ const runTests = (dev = false) => {
     const browser = await webdriver(appPort, '/')
     await waitFor(500)
     await browser.eval('window.beforeClick = true')
-    await browser.click('#broken-post')
+    await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
@@ -321,6 +321,17 @@ const runTests = (dev = false) => {
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
       const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+
+      Object.keys(manifest.dynamicRoutes).forEach(key => {
+        const item = manifest.dynamicRoutes[key]
+
+        if (item.dataRouteRegex) {
+          item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+        }
+        if (item.routeRegex) {
+          item.routeRegex = normalizeRegEx(item.routeRegex)
+        }
+      })
 
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual(expectedManifestRoutes())

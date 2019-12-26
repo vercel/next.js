@@ -230,29 +230,31 @@ export const css = curry(async function css(
     })
   )
 
-  // Automatically transform references to files (i.e. url()) into URLs
-  // e.g. url(./logo.svg)
-  fns.push(
-    loader({
-      oneOf: [
-        {
-          // This should only be applied to CSS files
-          issuer: { test: /\.css$/ },
-          // Exclude extensions that webpack handles by default
-          exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
-          use: {
-            // `file-loader` always emits a URL reference, where `url-loader`
-            // might inline the asset as a data URI
-            loader: require.resolve('file-loader'),
-            options: {
-              // Hash the file for immutable cacheability
-              name: 'static/media/[name].[hash].[ext]',
+  if (ctx.isClient) {
+    // Automatically transform references to files (i.e. url()) into URLs
+    // e.g. url(./logo.svg)
+    fns.push(
+      loader({
+        oneOf: [
+          {
+            // This should only be applied to CSS files
+            issuer: { test: /\.css$/ },
+            // Exclude extensions that webpack handles by default
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            use: {
+              // `file-loader` always emits a URL reference, where `url-loader`
+              // might inline the asset as a data URI
+              loader: require.resolve('file-loader'),
+              options: {
+                // Hash the file for immutable cacheability
+                name: 'static/media/[name].[hash].[ext]',
+              },
             },
           },
-        },
-      ],
-    })
-  )
+        ],
+      })
+    )
+  }
 
   const fn = pipe(...fns)
   return fn(config)

@@ -24,6 +24,14 @@ module.exports = {
           destination: '/hello-again',
         },
         {
+          source: '/to-hello',
+          destination: '/hello',
+        },
+        {
+          source: '/blog/post-1',
+          destination: '/blog/post-2',
+        },
+        {
           source: '/test/:path',
           destination: '/:path',
         },
@@ -38,6 +46,10 @@ module.exports = {
         {
           source: '/query-rewrite/:section/:name',
           destination: '/with-params?first=:section&second=:name',
+        },
+        {
+          source: '/hidden/_next/:path*',
+          destination: '/_next/:path*',
         },
       ]
     },
