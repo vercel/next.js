@@ -316,22 +316,32 @@ export default class Router implements BaseRouter {
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
-        const routeMatch = getRouteMatcher(getRouteRegex(route))(asPathname)
+        const routeRegex = getRouteRegex(route)
+        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
-          const error =
-            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-            `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
-
           if (process.env.NODE_ENV !== 'production') {
-            throw new Error(error)
-          } else {
-            console.error(error)
-          }
-          return resolve(false)
-        }
+            console.warn(
+              `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+                `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+            )
 
-        // Merge params into `query`, overwriting any specified in search
-        Object.assign(query, routeMatch)
+            const missingParams = Object.keys(routeRegex.groups).filter(
+              param => !query[param]
+            )
+
+            if (missingParams.length > 0) {
+              throw new Error(
+                `Mismatching \`as\` and \`href\` failed to manually provide ` +
+                  `the params: ${missingParams.join(
+                    ', '
+                  )} in the \`href\`'s \`query\``
+              )
+            }
+          }
+        } else {
+          // Merge params into `query`, overwriting any specified in search
+          Object.assign(query, routeMatch)
+        }
       }
 
       Router.events.emit('routeChangeStart', as)

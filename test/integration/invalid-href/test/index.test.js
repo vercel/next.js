@@ -20,13 +20,36 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
-const showsError = async (pathname, regex, click = false) => {
+const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
+  if (isWarn) {
+    await browser.eval(`(function() {
+      window.warnLogs = []
+      var origWarn = window.console.warn
+      window.console.warn = function() {
+        var warnStr = ''
+        for (var i = 0; i < arguments.length; i++) {
+          if (i > 0) warnStr += ' ';
+          warnStr += arguments[i]
+        }
+        window.warnLogs.push(warnStr)
+        origWarn.apply(undefined, arguments)
+      }
+    })()`)
+  }
+
   if (click) {
     await browser.elementByCss('a').click()
   }
-  const errorContent = await getReactErrorOverlayContent(browser)
-  expect(errorContent).toMatch(regex)
+  if (isWarn) {
+    await waitFor(2000)
+    const warnLogs = await browser.eval('window.warnLogs')
+    console.log(warnLogs)
+    expect(warnLogs.some(log => log.match(regex))).toBe(true)
+  } else {
+    const errorContent = await getReactErrorOverlayContent(browser)
+    expect(errorContent).toMatch(regex)
+  }
   await browser.close()
 }
 
@@ -87,8 +110,18 @@ describe('Invalid hrefs', () => {
       await showsError(
         '/dynamic-route-mismatch',
         /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
+        true,
         true
       )
+      await showsError(
+        '/dynamic-route-mismatch',
+        /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
+        true
+      )
+    })
+
+    it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
+      await noError('/dynamic-route-mismatch-manual', true)
     })
   })
 
