@@ -445,10 +445,14 @@ describe('Production Usage', () => {
       const browser = await webdriver(appPort, '/prefetch')
 
       if (browserName === 'internet explorer') {
-        // IntersectionObserver isn't present so we need to trigger onMouseEnter
-        for (const id of [1, 2, 3, 4]) {
-          await browser.elementByCss(`#prefetch-${id}`).moveTo()
-        }
+        // IntersectionObserver isn't present so we need to trigger manually
+        await waitFor(1000)
+        await browser.eval(`(function() {
+          window.next.router.prefetch('/')
+          window.next.router.prefetch('/process-env')
+          window.next.router.prefetch('/counter')
+          window.next.router.prefetch('/about')
+        })()`)
       }
 
       await waitFor(2000)
