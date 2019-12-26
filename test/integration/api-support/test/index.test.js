@@ -75,6 +75,17 @@ function runTests(dev = false) {
     expect(data).toEqual([{ title: 'Nextjs' }])
   })
 
+  it('should special-case empty JSON body', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+    }).then(res => res.ok && res.json())
+
+    expect(data).toEqual({})
+  })
+
   it('should return error with invalid JSON', async () => {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',

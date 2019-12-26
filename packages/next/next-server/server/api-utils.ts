@@ -104,6 +104,11 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
  * @param str `JSON` string
  */
 function parseJson(str: string) {
+  if (str.length === 0) {
+    // special-case empty json body, as it's a common client-side mistake
+    return {}
+  }
+
   try {
     return JSON.parse(str)
   } catch (e) {
