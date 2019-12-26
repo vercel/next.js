@@ -452,15 +452,21 @@ describe('Production Usage', () => {
       }
 
       await waitFor(2000)
-      const elements = await browser.elementsByCss('link[rel=prefetch]')
 
-      expect(elements.length).toBe(4)
+      if (browserName === 'safari') {
+        const elements = await browser.elementsByCss('link[rel=preload]')
+        // 4 page preloads and 5 existing preloads for _app, commons, main, etc
+        expect(elements.length).toBe(9)
+      } else {
+        const elements = await browser.elementsByCss('link[rel=prefetch]')
+        expect(elements.length).toBe(4)
 
-      for (const element of elements) {
-        const rel = await element.getAttribute('rel')
-        const as = await element.getAttribute('as')
-        expect(rel).toBe('prefetch')
-        expect(as).toBe('script')
+        for (const element of elements) {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('prefetch')
+          expect(as).toBe('script')
+        }
       }
       await browser.close()
     })
