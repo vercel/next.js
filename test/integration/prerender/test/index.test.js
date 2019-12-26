@@ -266,7 +266,7 @@ const runTests = (dev = false) => {
     const browser = await webdriver(appPort, '/')
     await waitFor(500)
     await browser.eval('window.beforeClick = true')
-    await browser.click('#broken-post')
+    await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
