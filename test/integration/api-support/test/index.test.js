@@ -86,6 +86,16 @@ function runTests(dev = false) {
     expect(data).toEqual({})
   })
 
+  it('should support boolean for JSON in api page', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/bool', null, {})
+    const body = res.ok ? await res.json() : null
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe(
+      'application/json; charset=utf-8'
+    )
+    expect(body).toBe(true)
+  })
+
   it('should return error with invalid JSON', async () => {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
