@@ -8,7 +8,7 @@ jobs:
     pool:
       vmImage: 'windows-2019'
     steps:
-      - checkout:
+      - checkout: self
         fetchDepth: 1
 
       - task: CacheBeta@0
