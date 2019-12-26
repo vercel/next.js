@@ -40,6 +40,12 @@ jobs:
           artifactName: build
           downloadPath: $(System.DefaultWorkingDirectory)
 
+      - task: CacheBeta@0
+        inputs:
+          key: yarn | $(Agent.OS) | yarn.lock
+          path: $(YARN_CACHE_FOLDER)
+        displayName: Cache Yarn packages
+
       - task: NodeTool@0
         inputs:
           versionSpec: $(node_version)
@@ -76,6 +82,12 @@ jobs:
         inputs:
           artifactName: build
           downloadPath: $(System.DefaultWorkingDirectory)
+
+      - task: CacheBeta@0
+        inputs:
+          key: yarn | $(Agent.OS) | yarn.lock
+          path: $(YARN_CACHE_FOLDER)
+        displayName: Cache Yarn packages
 
       - script: |
           wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
