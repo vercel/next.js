@@ -1,14 +1,15 @@
 import { initAuth0 } from '@auth0/nextjs-auth0'
+import config from './config'
 
 export default initAuth0({
-  clientId: process.env.AUTH0_CLIENT_ID,
-  clientSecret: process.env.AUTH0_CLIENT_SECRET,
-  scope: process.env.AUTH0_SCOPE,
-  domain: process.env.AUTH0_DOMAIN,
-  redirectUri: process.env.REDIRECT_URI,
-  postLogoutRedirectUri: process.env.POST_LOGOUT_REDIRECT_URI,
+  clientId: config.AUTH0_CLIENT_ID,
+  clientSecret: config.AUTH0_CLIENT_SECRET,
+  scope: config.AUTH0_SCOPE,
+  domain: config.AUTH0_DOMAIN,
+  redirectUri: config.REDIRECT_URI,
+  postLogoutRedirectUri: config.POST_LOGOUT_REDIRECT_URI,
   session: {
-    cookieSecret: process.env.SESSION_COOKIE_SECRET,
-    cookieLifetime: process.env.SESSION_COOKIE_LIFETIME,
+    cookieSecret: config.SESSION_COOKIE_SECRET,
+    cookieLifetime: config.SESSION_COOKIE_LIFETIME,
   },
 })

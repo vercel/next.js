@@ -24,6 +24,14 @@ module.exports = {
           destination: '/hello-again',
         },
         {
+          source: '/to-hello',
+          destination: '/hello',
+        },
+        {
+          source: '/blog/post-1',
+          destination: '/blog/post-2',
+        },
+        {
           source: '/test/:path',
           destination: '/:path',
         },
@@ -34,6 +42,10 @@ module.exports = {
         {
           source: '/params/:something',
           destination: '/with-params',
+        },
+        {
+          source: '/hidden/_next/:path*',
+          destination: '/_next/:path*',
         },
       ]
     },
@@ -91,6 +103,10 @@ module.exports = {
           source: '/redir-chain3',
           destination: '/',
           statusCode: 303,
+        },
+        {
+          source: '/to-external',
+          destination: 'https://google.com',
         },
       ]
     },

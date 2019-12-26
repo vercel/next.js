@@ -156,7 +156,7 @@ type RenderOpts = {
     params: any | undefined
   }) => {
     props: any
-    revalidate: number | false
+    revalidate?: number | boolean
   }
   unstable_getStaticPaths?: () => void
 }
@@ -433,7 +433,7 @@ export async function renderToHTML(
         throw new Error(
           `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
             `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.`
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
         )
       }
 
@@ -458,14 +458,14 @@ export async function renderToHTML(
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === false) {
-        // `false` is an allowed behavior. We'll catch `revalidate: true` and
-        // fall into our default behavior.
-      } else {
-        // By default, we revalidate after 1 second. This value is optimal for
+      } else if (data.revalidate === true) {
+        // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
         data.revalidate = 1
+      } else {
+        // By default, we never revalidate.
+        data.revalidate = false
       }
 
       props.pageProps = data.props
