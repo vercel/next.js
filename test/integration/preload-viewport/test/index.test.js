@@ -37,7 +37,7 @@ describe('Prefetching Links in viewport', () => {
     try {
       browser = await webdriver(appPort, '/')
       await waitFor(2 * 1000)
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
       for (const link of links) {
@@ -60,7 +60,7 @@ describe('Prefetching Links in viewport', () => {
       await browser.elementByCss('button').click()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let foundFirst = false
       let foundAnother = false
 
@@ -83,7 +83,7 @@ describe('Prefetching Links in viewport', () => {
       await browser.elementByCss('#scroll-to-another').click()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
       for (const link of links) {
@@ -106,7 +106,7 @@ describe('Prefetching Links in viewport', () => {
       await browser.elementByCss('#btn-link').moveTo()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
       for (const link of links) {
@@ -126,7 +126,7 @@ describe('Prefetching Links in viewport', () => {
     const browser = await webdriver(appPort, '/opt-out')
     await waitFor(2 * 1000)
 
-    const links = await browser.elementsByCss('link[rel=preload]')
+    const links = await browser.elementsByCss('link[rel=prefetch]')
     let found = false
 
     for (const link of links) {
@@ -143,7 +143,7 @@ describe('Prefetching Links in viewport', () => {
     const browser = await webdriver(appPort, '/multi-prefetch')
     await waitFor(2 * 1000)
 
-    const links = await browser.elementsByCss('link[rel=preload]')
+    const links = await browser.elementsByCss('link[rel=prefetch]')
 
     const hrefs = []
     for (const link of links) {
