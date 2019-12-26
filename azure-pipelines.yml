@@ -5,6 +5,8 @@ variables:
 
 jobs:
   - job: build
+    pool:
+      vmImage: 'windows-2019'
     steps:
       - task: CacheBeta@0
         inputs:
