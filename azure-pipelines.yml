@@ -18,6 +18,10 @@ jobs:
           yarn install --frozen-lockfile --check-files
         displayName: 'Install dependencies'
 
+      - script: |
+          git clean -xdf -e dist
+        displayName: Clean for publishing
+
       - task: PublishBuildArtifacts@1
         inputs:
           pathtoPublish: '$(System.DefaultWorkingDirectory)'
@@ -40,6 +44,10 @@ jobs:
         inputs:
           versionSpec: $(node_version)
         displayName: 'Install Node.js'
+
+      - script: |
+          yarn install --frozen-lockfile --check-files --ignore-scripts
+        displayName: 'Install dependencies'
 
       - script: |
           yarn testie --forceExit test/integration/production/
@@ -77,6 +85,10 @@ jobs:
         inputs:
           versionSpec: $(node_version)
         displayName: 'Install Node.js'
+
+      - script: |
+          yarn install --frozen-lockfile --check-files --ignore-scripts
+        displayName: 'Install dependencies'
 
       - script: |
           node run-tests.js -g $(group)
