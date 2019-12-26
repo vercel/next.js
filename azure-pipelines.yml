@@ -8,6 +8,9 @@ jobs:
     pool:
       vmImage: 'windows-2019'
     steps:
+      - checkout:
+        fetchDepth: 1
+
       - task: CacheBeta@0
         inputs:
           key: yarn | $(Agent.OS) | yarn.lock
@@ -24,8 +27,10 @@ jobs:
 
       - task: PublishBuildArtifacts@1
         inputs:
-          pathtoPublish: '$(System.DefaultWorkingDirectory)'
+          parallel: true
+          parallelCount: 8
           artifactName: build
+          pathtoPublish: '$(System.DefaultWorkingDirectory)'
 
   - job: test_ie11
     dependsOn: build
