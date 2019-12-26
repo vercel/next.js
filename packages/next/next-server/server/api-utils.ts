@@ -204,7 +204,11 @@ export function sendData(res: NextApiResponse, body: any) {
   let str = body
 
   // Stringify JSON body
-  if (typeof body === 'object' || typeof body === 'number') {
+  if (
+    typeof body === 'object' ||
+    typeof body === 'number' ||
+    typeof body === 'boolean'
+  ) {
     str = JSON.stringify(body)
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
