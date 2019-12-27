@@ -624,62 +624,65 @@ export default class Router implements BaseRouter {
     return Component
   }
 
-  async getInitialProps(
-    Component: ComponentType,
-    ctx: NextPageContext
-  ): Promise<any> {
+  _getData<T>(fn: () => Promise<T>): Promise<T> {
     let cancelled = false
     const cancel = () => {
       cancelled = true
     }
     this.clc = cancel
+    return fn().then(data => {
+      if (cancel === this.clc) {
+        this.clc = null
+      }
+
+      if (cancelled) {
+        const err: any = new Error('Loading initial props cancelled')
+        err.cancelled = true
+        throw err
+      }
+
+      return data
+    })
+  }
+
+  getInitialProps(
+    Component: ComponentType,
+    ctx: NextPageContext
+  ): Promise<any> {
     const { Component: App } = this.components['/_app']
-    let props
+    const AppTree = this._wrapApp(App)
+    ctx.AppTree = AppTree
+    return this._getData(() => {
+      if ((Component as any).__NEXT_SPR) {
+        let status: any
+        // pathname should have leading slash
+        let { pathname } = parse(ctx.asPath || ctx.pathname)
+        pathname = !pathname || pathname === '/' ? '/index' : pathname
 
-    if ((Component as any).__NEXT_SPR) {
-      let status: any
-      // pathname should have leading slash
-      let { pathname } = parse(ctx.asPath || ctx.pathname)
-      pathname = !pathname || pathname === '/' ? '/index' : pathname
-
-      props = await fetch(
-        // @ts-ignore __NEXT_DATA__
-        `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
-      )
-        .then(res => {
-          if (!res.ok) {
-            status = res.status
-            throw new Error('failed to load prerender data')
-          }
-          return res.json()
-        })
-        .catch((err: Error) => {
-          console.error(`Failed to load data`, status, err)
-          window.location.href = pathname!
-          return new Promise(() => {})
-        })
-    } else {
-      const AppTree = this._wrapApp(App)
-      ctx.AppTree = AppTree
-      props = await loadGetInitialProps<AppContextType<Router>>(App, {
+        return fetch(
+          // @ts-ignore __NEXT_DATA__
+          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+        )
+          .then(res => {
+            if (!res.ok) {
+              status = res.status
+              throw new Error('failed to load prerender data')
+            }
+            return res.json()
+          })
+          .catch((err: Error) => {
+            console.error(`Failed to load data`, status, err)
+            window.location.href = pathname!
+            return new Promise(() => {})
+          })
+      }
+      return loadGetInitialProps<AppContextType<Router>>(App, {
         AppTree,
         Component,
         router: this,
         ctx,
       })
-    }
-
-    if (cancel === this.clc) {
-      this.clc = null
-    }
-
-    if (cancelled) {
-      const err: any = new Error('Loading initial props cancelled')
-      err.cancelled = true
-      throw err
-    }
-
-    return props
+    })
   }
 
   abortComponentLoad(as: string): void {
