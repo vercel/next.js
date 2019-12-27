@@ -5,7 +5,11 @@ import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
-import { getGlobalImportError, getModuleImportError } from './messages'
+import {
+  getGlobalImportError,
+  getGlobalModuleImportError,
+  getLocalModuleImportError,
+} from './messages'
 import { getPostCssPlugins } from './plugins'
 
 function getClientStyleLoader({
@@ -156,7 +160,7 @@ export const css = curry(async function css(
           use: {
             loader: 'error-loader',
             options: {
-              reason: getModuleImportError(),
+              reason: getLocalModuleImportError(),
             },
           },
         },
@@ -209,6 +213,24 @@ export const css = curry(async function css(
       })
     )
   }
+
+  // Throw an error for Global CSS used inside of `node_modules`
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: /\.css$/,
+          issuer: { include: [/node_modules/] },
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getGlobalModuleImportError(),
+            },
+          },
+        },
+      ],
+    })
+  )
 
   // Throw an error for Global CSS used outside of our custom <App> file
   fns.push(
