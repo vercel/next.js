@@ -2,7 +2,7 @@ module.exports = {
   plugins: [
     require('postcss-easy-import'),
     require('tailwindcss'),
-    require('@fullhuman/postcss-purgecss')({
+    process.env.NODE_ENV === 'production' && require('@fullhuman/postcss-purgecss')({
       content: [
         './pages/**/*.{js,jsx,ts,tsx}',
         './components/**/*.{js,jsx,ts,tsx}',
