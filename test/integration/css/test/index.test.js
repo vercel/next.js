@@ -221,7 +221,7 @@ describe('CSS Support', () => {
       expect(stderr).toMatch(
         /Please move all global CSS imports.*?pages(\/|\\)_app/
       )
-      expect(stderr).toMatch(/Location:.*pages\/index\.js/)
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
 
@@ -241,7 +241,7 @@ describe('CSS Support', () => {
       expect(stderr).toMatch(
         /Please move all global CSS imports.*?pages(\/|\\)_app/
       )
-      expect(stderr).toMatch(/Location:.*pages\/index\.js/)
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
 
@@ -259,7 +259,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toContain('Please move all global CSS imports')
-      expect(stderr).toMatch(/Location:.*pages\/index\.js/)
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
 
