@@ -178,6 +178,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
     expect(stderr).toMatch(
       /CSS Modules.*cannot.*be imported from within.*node_modules/
     )
+    expect(stderr).toMatch(/Location:.*node_modules[\\/]example[\\/]index\.mjs/)
   })
 })
 
@@ -197,6 +198,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
     expect(stderr).toMatch(
       /Global CSS.*cannot.*be imported from within.*node_modules/
     )
+    expect(stderr).toMatch(/Location:.*node_modules[\\/]example[\\/]index\.mjs/)
   })
 })
 
