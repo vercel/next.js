@@ -181,6 +181,25 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 })
 
+describe('Invalid CSS Module Usage in node_modules', () => {
+  const appDir = join(fixturesDir, 'invalid-global-module')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail to build', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    expect(stderr).toContain('Failed to compile')
+    expect(stderr).toContain('node_modules/example/index.css')
+    expect(stderr).toMatch(
+      /Global CSS.*cannot.*be imported from within.*node_modules/
+    )
+  })
+})
+
 describe('Valid CSS Module Usage from within node_modules', () => {
   const appDir = join(fixturesDir, 'nm-module')
 
