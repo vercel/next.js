@@ -91,6 +91,7 @@ function unique() {
         for (let i = 0, len = METATYPES.length; i < len; i++) {
           const metatype = METATYPES[i]
           if (!h.props.hasOwnProperty(metatype)) continue
+          if (Object.values(h.props).includes(undefined)) return
 
           if (metatype === 'charSet') {
             if (metaTypes.has(metatype)) {
