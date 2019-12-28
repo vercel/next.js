@@ -66,6 +66,7 @@ function unique() {
   const metaCategories: { [metatype: string]: Set<string> } = {}
 
   return (h: React.ReactElement<any>) => {
+    if (Object.values(h.props).includes(undefined)) return
     let unique = true
 
     if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') > 0) {
@@ -91,7 +92,6 @@ function unique() {
         for (let i = 0, len = METATYPES.length; i < len; i++) {
           const metatype = METATYPES[i]
           if (!h.props.hasOwnProperty(metatype)) continue
-          if (Object.values(h.props).includes(undefined)) return
 
           if (metatype === 'charSet') {
             if (metaTypes.has(metatype)) {
