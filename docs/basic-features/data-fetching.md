@@ -34,7 +34,7 @@ import useSWR from 'swr'
 
 const API_URL = 'https://api.github.com'
 async function fetcher(path) {
-  const res = fetch(API_URL + path)
+  const res = await fetch(API_URL + path)
   const json = await res.json()
   return json
 }
