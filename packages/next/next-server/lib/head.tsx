@@ -66,7 +66,6 @@ function unique() {
   const metaCategories: { [metatype: string]: Set<string> } = {}
 
   return (h: React.ReactElement<any>) => {
-    if (Object.values(h.props).includes(undefined)) return
     let unique = true
 
     if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') > 0) {
@@ -141,8 +140,11 @@ function reduceComponents(
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
-      const key = c.key || i
-      return React.cloneElement(c, { key })
+      let props: { [key: string]: any } = { key: c.key || i }
+      Object.entries(c.props).forEach(([key, val]) => {
+        if (![val, typeof val].includes('undefined')) props[key] = val
+      })
+      return React.cloneElement(c, props)
     })
 }
 
