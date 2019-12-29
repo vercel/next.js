@@ -187,6 +187,18 @@ const runTests = (isDev = false) => {
     expect(location).toBe('https://google.com/')
   })
 
+  it('should apply headers for exact match', async () => {
+    const res = await fetchViaHTTP(appPort, '/add-header')
+    expect(res.headers.get('x-custom-header')).toBe('hello world')
+    expect(res.headers.get('x-another-header')).toBe('hello again')
+  })
+
+  it('should apply headers for multi match', async () => {
+    const res = await fetchViaHTTP(appPort, '/my-headers/first')
+    expect(res.headers.get('x-first-header')).toBe('first')
+    expect(res.headers.get('x-second-header')).toBe('second')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -198,7 +210,7 @@ const runTests = (isDev = false) => {
       }
 
       expect(manifest).toEqual({
-        version: 1,
+        version: 2,
         redirects: [
           {
             source: '/docs/router-status/:code',
@@ -283,6 +295,38 @@ const runTests = (isDev = false) => {
             regexKeys: [],
             source: '/to-external',
             statusCode: 307,
+          },
+        ],
+        headers: [
+          {
+            headers: [
+              {
+                key: 'x-custom-header',
+                value: 'hello world',
+              },
+              {
+                key: 'x-another-header',
+                value: 'hello again',
+              },
+            ],
+            regex: normalizeRegEx('^\\/add-header$'),
+            regexKeys: [],
+            source: '/add-header',
+          },
+          {
+            headers: [
+              {
+                key: 'x-first-header',
+                value: 'first',
+              },
+              {
+                key: 'x-second-header',
+                value: 'second',
+              },
+            ],
+            regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
+            regexKeys: [0],
+            source: '/my-headers/(.*)',
           },
         ],
         rewrites: [

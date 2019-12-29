@@ -315,8 +315,9 @@ export default class DevServer extends Server {
     const result = {
       redirects: [],
       rewrites: [],
+      headers: [],
     }
-    const { redirects, rewrites } = this.nextConfig.experimental
+    const { redirects, rewrites, headers } = this.nextConfig.experimental
 
     if (typeof redirects === 'function') {
       result.redirects = await redirects()
@@ -326,6 +327,11 @@ export default class DevServer extends Server {
       result.rewrites = await rewrites()
       checkCustomRoutes(result.rewrites, 'rewrite')
     }
+    if (typeof headers === 'function') {
+      result.headers = await headers()
+      checkCustomRoutes(result.headers, 'header')
+    }
+
     this.customRoutes = result
   }
 
