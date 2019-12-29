@@ -245,6 +245,49 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   })
 })
 
+describe('Valid Nested CSS Module Usage from within node_modules', () => {
+  const appDir = join(fixturesDir, 'nm-module-nested')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  let appPort
+  let app
+  beforeAll(async () => {
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+  })
+
+  it(`should've prerendered with relevant data`, async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    const cssPreload = $('#nm-div')
+    expect(cssPreload.text()).toMatchInlineSnapshot(
+      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__2YUgj other_className__bt_-E\\"}"`
+    )
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.other2_other2__2PUfY{color:red}.example_subClass__2YUgj{background:#00f}"`
+    )
+  })
+})
+
 describe('CSS Module Composes Usage (Basic)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-basic')
