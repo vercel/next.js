@@ -3,13 +3,13 @@
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
-  // nextServer,
+  nextServer,
   launchApp,
   findPort,
   killApp,
-  // nextBuild,
-  // startApp,
-  // stopApp,
+  nextBuild,
+  startApp,
+  stopApp,
   waitFor,
   check,
   getBrowserBodyText,
@@ -376,77 +376,61 @@ describe('basePath development', () => {
   })
 })
 
-// describe('basePath production', () => {
-//   const appDir = join(__dirname, '../')
-//   let appPort
-//   let server
-//   let app
+describe('basePath production', () => {
+  const appDir = join(__dirname, '../')
+  let context = {}
+  let server
+  let app
 
-//   beforeAll(async () => {
-//     await nextBuild(appDir)
-//     app = nextServer({
-//       dir: join(__dirname, '../'),
-//       dev: false,
-//       quiet: true,
-//     })
+  beforeAll(async () => {
+    await nextBuild(appDir)
+    app = nextServer({
+      dir: join(__dirname, '../'),
+      dev: false,
+      quiet: true,
+    })
 
-//     server = await startApp(app)
-//     appPort = server.address().port
-//   })
+    server = await startApp(app)
+    context.appPort = server.address().port
+  })
 
-//   afterAll(() => stopApp(server))
+  afterAll(() => stopApp(server))
 
-//   it('allows observation of navigation events using withRouter', async () => {
-//     const browser = await webdriver(appPort, '/a')
-//     await browser.waitForElementByCss('#page-a')
+  it('should show the hello page under the /docs prefix', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello World')
+    } finally {
+      await browser.close()
+    }
+  })
 
-//     let activePage = await browser.elementByCss('.active').text()
-//     expect(activePage).toBe('Foo')
+  it('should show the other-page page under the /docs prefix', async () => {
+    const browser = await webdriver(context.appPort, '/docs/other-page')
+    try {
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello Other')
+    } finally {
+      await browser.close()
+    }
+  })
 
-//     await browser.elementByCss('button').click()
-//     await browser.waitForElementByCss('#page-b')
+  it('should navigate to the page without refresh', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      const text = await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+        .elementByCss('h1')
+        .text()
 
-//     activePage = await browser.elementByCss('.active').text()
-//     expect(activePage).toBe('Bar')
-
-//     await browser.close()
-//   })
-
-//   it('allows observation of navigation events using top level Router', async () => {
-//     const browser = await webdriver(appPort, '/a')
-//     await browser.waitForElementByCss('#page-a')
-
-//     let activePage = await browser
-//       .elementByCss('.active-top-level-router')
-//       .text()
-//     expect(activePage).toBe('Foo')
-
-//     await browser.elementByCss('button').click()
-//     await browser.waitForElementByCss('#page-b')
-
-//     activePage = await browser.elementByCss('.active-top-level-router').text()
-//     expect(activePage).toBe('Bar')
-
-//     await browser.close()
-//   })
-
-//   it('allows observation of navigation events using top level Router deprecated behavior', async () => {
-//     const browser = await webdriver(appPort, '/a')
-//     await browser.waitForElementByCss('#page-a')
-
-//     let activePage = await browser
-//       .elementByCss('.active-top-level-router-deprecated-behavior')
-//       .text()
-//     expect(activePage).toBe('Foo')
-
-//     await browser.elementByCss('button').click()
-//     await browser.waitForElementByCss('#page-b')
-
-//     activePage = await browser
-//       .elementByCss('.active-top-level-router-deprecated-behavior')
-//       .text()
-//     expect(activePage).toBe('Bar')
-
-//     await browser.close()
-//   })
-// })
+      expect(text).toBe('Hello Other')
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+    } finally {
+      await browser.close()
+    }
+  })
+})
