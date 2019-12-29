@@ -249,6 +249,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
       version: 1,
+      basePath: config.experimental.basePath,
       redirects: redirects.map(r => buildCustomRoute(r, true)),
       rewrites: rewrites.map(r => buildCustomRoute(r)),
       dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
