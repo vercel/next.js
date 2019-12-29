@@ -21,6 +21,7 @@ export type ServerlessLoaderQuery = {
   ampBindInitData: boolean | string
   generateEtags: string
   canonicalBase: string
+  basePath: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -36,8 +37,10 @@ const nextServerlessLoader: loader.Loader = function() {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
+    basePath,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
     /\\/g,
@@ -128,6 +131,16 @@ const nextServerlessLoader: loader.Loader = function() {
       export default async (req, res) => {
         try {
           await initServer()
+
+          ${
+            basePath
+              ? `
+          if(req.url.startsWith('${basePath}')) {
+            req.url = req.url.replace('${basePath}', '')
+          }
+          `
+              : ''
+          }
           const parsedUrl = parse(req.url, true)
 
           const params = ${
@@ -181,6 +194,15 @@ const nextServerlessLoader: loader.Loader = function() {
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+      ${
+        basePath
+          ? `
+      if(req.url.startsWith('${basePath}')) {
+        req.url = req.url.replace('${basePath}', '')
+      }
+      `
+          : ''
+      }
       const options = {
         App,
         Document,
