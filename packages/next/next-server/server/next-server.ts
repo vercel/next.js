@@ -232,6 +232,16 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    if (parsedUrl.pathname!.startsWith(this.nextConfig.experimental.basePath)) {
+      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      parsedUrl.pathname =
+        parsedUrl.pathname!.replace(
+          this.nextConfig.experimental.basePath,
+          ''
+        ) || '/'
+      req.url = req.url!.replace(this.nextConfig.experimental.basePath, '')
+    }
+
     res.statusCode = 200
     return this.run(req, res, parsedUrl).catch(err => {
       this.logError(err)

@@ -77,6 +77,7 @@ export function createEntrypoints(
     generateEtags: config.generateEtags,
     ampBindInitData: config.experimental.ampBindInitData,
     canonicalBase: config.canonicalBase,
+    basePath: config.experimental.basePath,
   }
 
   Object.keys(pages).forEach(page => {

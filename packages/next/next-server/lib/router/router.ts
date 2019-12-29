@@ -18,6 +18,12 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
+function addBasePath(path: string): string {
+  // @ts-ignore variable is always a string
+  const p: string = process.env.__NEXT_ROUTER_BASEPATH
+  return path.indexOf(p) !== 0 ? p + path : path
+}
+
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
@@ -284,7 +290,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, as)
+        this.changeState(method, url, addBasePath(as))
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -346,7 +352,7 @@ export default class Router implements BaseRouter {
         }
 
         Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, as, options)
+        this.changeState(method, url, addBasePath(as), options)
         const hash = window.location.hash.substring(1)
 
         if (process.env.NODE_ENV !== 'production') {
