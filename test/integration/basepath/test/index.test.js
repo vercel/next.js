@@ -14,6 +14,8 @@ import {
   check,
   getBrowserBodyText,
   renderViaHTTP,
+  File,
+  nextStart,
 } from 'next-test-utils'
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
 import cheerio from 'cheerio'
@@ -395,6 +397,65 @@ describe('basePath production', () => {
   })
 
   afterAll(() => stopApp(server))
+
+  it('should show the hello page under the /docs prefix', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello World')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should show the other-page page under the /docs prefix', async () => {
+    const browser = await webdriver(context.appPort, '/docs/other-page')
+    try {
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello Other')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should navigate to the page without refresh', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      const text = await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+        .elementByCss('h1')
+        .text()
+
+      expect(text).toBe('Hello Other')
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+    } finally {
+      await browser.close()
+    }
+  })
+})
+
+describe('basePath serverless', () => {
+  const appDir = join(__dirname, '../')
+  let context = {}
+  let app
+
+  const nextConfig = new File(join(appDir, 'next.config.js'))
+
+  beforeAll(async () => {
+    await nextConfig.write(
+      `module.exports = { target: 'serverless', experimental: { basePath: '/docs' } }`
+    )
+    await nextBuild(appDir)
+    context.appPort = await findPort()
+    app = await nextStart(appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+    await nextConfig.restore()
+  })
 
   it('should show the hello page under the /docs prefix', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')

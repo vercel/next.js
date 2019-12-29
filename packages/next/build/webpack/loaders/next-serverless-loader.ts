@@ -40,6 +40,7 @@ const nextServerlessLoader: loader.Loader = function() {
     basePath,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
     /\\/g,
@@ -131,8 +132,14 @@ const nextServerlessLoader: loader.Loader = function() {
         try {
           await initServer()
 
+          ${
+            basePath
+              ? `
           if(req.url.startsWith(${basePath})) {
             req.url = req.url.replace(${basePath}, '')
+          }
+          `
+              : ''
           }
           const parsedUrl = parse(req.url, true)
 
@@ -187,6 +194,15 @@ const nextServerlessLoader: loader.Loader = function() {
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+      ${
+        basePath
+          ? `
+      if(req.url.startsWith(${basePath})) {
+        req.url = req.url.replace(${basePath}, '')
+      }
+      `
+          : ''
+      }
       const options = {
         App,
         Document,
