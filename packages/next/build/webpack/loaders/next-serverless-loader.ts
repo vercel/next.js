@@ -135,8 +135,8 @@ const nextServerlessLoader: loader.Loader = function() {
           ${
             basePath
               ? `
-          if(req.url.startsWith(${basePath})) {
-            req.url = req.url.replace(${basePath}, '')
+          if(req.url.startsWith('${basePath}')) {
+            req.url = req.url.replace('${basePath}', '')
           }
           `
               : ''
@@ -197,8 +197,8 @@ const nextServerlessLoader: loader.Loader = function() {
       ${
         basePath
           ? `
-      if(req.url.startsWith(${basePath})) {
-        req.url = req.url.replace(${basePath}, '')
+      if(req.url.startsWith('${basePath}')) {
+        req.url = req.url.replace('${basePath}', '')
       }
       `
           : ''
