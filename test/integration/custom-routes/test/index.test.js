@@ -198,7 +198,7 @@ const runTests = (isDev = false) => {
       }
 
       expect(manifest).toEqual({
-        version: 1,
+        version: 2,
         basePath: '',
         redirects: [
           {
