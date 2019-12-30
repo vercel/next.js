@@ -440,18 +440,23 @@ export default class Router implements BaseRouter {
           }
         }
 
-        return new Promise((resolve, reject) => {
-          // we provide AppTree later so this needs to be `any`
-          this.getInitialProps(Component, {
-            pathname,
-            query,
-            asPath: as,
-          } as any).then(props => {
-            routeInfo.props = props
-            this.components[route] = routeInfo
-            resolve(routeInfo)
-          }, reject)
-        }) as Promise<RouteInfo>
+        return this._getData<RouteInfo>(() =>
+          (Component as any).__NEXT_SPR
+            ? this._getStaticData(as)
+            : this.getInitialProps(
+                Component,
+                // we provide AppTree later so this needs to be `any`
+                {
+                  pathname,
+                  query,
+                  asPath: as,
+                } as any
+              )
+        ).then(props => {
+          routeInfo.props = props
+          this.components[route] = routeInfo
+          return routeInfo
+        })
       })
       .catch(err => {
         return new Promise(resolve => {
@@ -651,6 +656,25 @@ export default class Router implements BaseRouter {
     })
   }
 
+  _getStaticData = (asPath: string): Promise<any> => {
+    let pathname = parse(asPath).pathname
+    pathname = !pathname || pathname === '/' ? '/index' : pathname
+    return fetch(
+      // @ts-ignore __NEXT_DATA__
+      `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+    )
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to load static props`)
+        }
+        return res.json()
+      })
+      .catch((err: Error) => {
+        ;(err as any).code = 'PAGE_LOAD_ERROR'
+        throw err
+      })
+  }
+
   getInitialProps(
     Component: ComponentType,
     ctx: NextPageContext
@@ -658,36 +682,11 @@ export default class Router implements BaseRouter {
     const { Component: App } = this.components['/_app']
     const AppTree = this._wrapApp(App)
     ctx.AppTree = AppTree
-    return this._getData(() => {
-      if ((Component as any).__NEXT_SPR) {
-        let status: any
-        // pathname should have leading slash
-        let { pathname } = parse(ctx.asPath || ctx.pathname)
-        pathname = !pathname || pathname === '/' ? '/index' : pathname
-
-        return fetch(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
-        )
-          .then(res => {
-            if (!res.ok) {
-              status = res.status
-              throw new Error('failed to load prerender data')
-            }
-            return res.json()
-          })
-          .catch((err: Error) => {
-            console.error(`Failed to load data`, status, err)
-            window.location.href = pathname!
-            return new Promise(() => {})
-          })
-      }
-      return loadGetInitialProps<AppContextType<Router>>(App, {
-        AppTree,
-        Component,
-        router: this,
-        ctx,
-      })
+    return loadGetInitialProps<AppContextType<Router>>(App, {
+      AppTree,
+      Component,
+      router: this,
+      ctx,
     })
   }
 
