@@ -926,6 +926,7 @@ import { useRouter } from 'next/router'
 
 export default ({ children, href }) => {
   const router = useRouter()
+  
   const style = {
     marginRight: 10,
     color: router.pathname === href ? 'red' : 'black',
