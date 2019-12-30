@@ -71,6 +71,8 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: RouteInfo }
+  // Static Data Cache
+  sdc: { [asPath: string]: object } = {}
   sub: Subscription
   clc: ComponentLoadCancel
   pageLoader: any
@@ -656,23 +658,31 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<any> => {
+  _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
     let pathname = parse(asPath).pathname
     pathname = !pathname || pathname === '/' ? '/index' : pathname
-    return fetch(
-      // @ts-ignore __NEXT_DATA__
-      `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
-    )
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`Failed to load static props`)
-        }
-        return res.json()
-      })
-      .catch((err: Error) => {
-        ;(err as any).code = 'PAGE_LOAD_ERROR'
-        throw err
-      })
+
+    return process.env.NODE_ENV === 'production' &&
+      (_cachedData = this.sdc[pathname])
+      ? Promise.resolve(_cachedData)
+      : fetch(
+          // @ts-ignore __NEXT_DATA__
+          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+        )
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`Failed to load static props`)
+            }
+            return res.json()
+          })
+          .then(data => {
+            this.sdc[pathname!] = data
+            return data
+          })
+          .catch((err: Error) => {
+            ;(err as any).code = 'PAGE_LOAD_ERROR'
+            throw err
+          })
   }
 
   getInitialProps(
