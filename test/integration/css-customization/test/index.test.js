@@ -71,6 +71,31 @@ describe('CSS Customization', () => {
   })
 })
 
+describe('Legacy Next-CSS Customization', () => {
+  const appDir = join(fixturesDir, 'custom-configuration-legacy')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should build successfully', async () => {
+    await nextBuild(appDir)
+  })
+
+  it(`should've compiled and prefixed`, async () => {
+    const cssFolder = join(appDir, '.next/static/chunks')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
+    )
+  })
+})
+
 describe('CSS Customization Array', () => {
   const appDir = join(fixturesDir, 'custom-configuration-arr')
 

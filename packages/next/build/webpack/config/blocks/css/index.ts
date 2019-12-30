@@ -1,6 +1,6 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import webpack, { Configuration } from 'webpack'
+import webpack, { Configuration, RuleSetRule } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -66,6 +66,37 @@ function getClientStyleLoader({
       }
 }
 
+export async function __overrideCssConfiguration(
+  rootDirectory: string,
+  config: Configuration
+) {
+  const postCssPlugins = await getPostCssPlugins(rootDirectory)
+
+  function patch(rule: RuleSetRule) {
+    if (
+      rule.options &&
+      typeof rule.options === 'object' &&
+      rule.options['ident'] === '__nextjs_postcss'
+    ) {
+      rule.options.plugins = postCssPlugins
+    } else if (Array.isArray(rule.oneOf)) {
+      rule.oneOf.forEach(patch)
+    } else if (Array.isArray(rule.use)) {
+      rule.use.forEach(u => {
+        if (typeof u === 'object') {
+          patch(u)
+        }
+      })
+    }
+  }
+
+  // TODO: remove this rule, ESLint bug
+  // eslint-disable-next-line no-unused-expressions
+  config.module?.rules?.forEach(entry => {
+    patch(entry)
+  })
+}
+
 export const css = curry(async function css(
   enabled: boolean,
   ctx: ConfigurationContext,
@@ -88,7 +119,13 @@ export const css = curry(async function css(
     }),
   ]
 
-  const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
+  const postCssPlugins = await getPostCssPlugins(
+    ctx.rootDirectory,
+    // TODO: In the future, we should stop supporting old CSS setups and
+    // unconditionally inject ours. When that happens, we should remove this
+    // function argument.
+    true
+  )
   // CSS Modules support must be enabled on the server and client so the class
   // names are availble for SSR or Prerendering.
   fns.push(
@@ -140,7 +177,7 @@ export const css = curry(async function css(
             {
               loader: require.resolve('postcss-loader'),
               options: {
-                ident: 'postcss',
+                ident: '__nextjs_postcss',
                 plugins: postCssPlugins,
                 sourceMap: true,
               },
@@ -202,7 +239,7 @@ export const css = curry(async function css(
               {
                 loader: require.resolve('postcss-loader'),
                 options: {
-                  ident: 'postcss',
+                  ident: '__nextjs_postcss',
                   plugins: postCssPlugins,
                   sourceMap: true,
                 },
