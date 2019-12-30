@@ -193,7 +193,7 @@ const runTests = (isDev = false) => {
         join(appDir, '.next/routes-manifest.json')
       )
 
-      for (const route of manifest.dynamicRoutes) {
+      for (const route of [...manifest.dynamicRoutes, ...manifest.rewrites]) {
         route.regex = normalizeRegEx(route.regex)
       }
 
@@ -288,6 +288,12 @@ const runTests = (isDev = false) => {
         ],
         rewrites: [
           {
+            destination: '/another/one',
+            regex: normalizeRegEx('^\\/to-another$'),
+            regexKeys: [],
+            source: '/to-another',
+          },
+          {
             source: '/hello-world',
             destination: '/static/hello.txt',
             regex: normalizeRegEx('^\\/hello-world$'),
@@ -360,8 +366,12 @@ const runTests = (isDev = false) => {
         ],
         dynamicRoutes: [
           {
+            page: '/another/[id]',
+            regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          {
             page: '/blog/[post]',
-            regex: normalizeRegEx('^\\/blog\\/([^/]+?)(?:\\/)?$'),
+            regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
           },
         ],
       })
@@ -381,6 +391,13 @@ const runTests = (isDev = false) => {
           new RegExp(`${route}.*?${route.destination}`)
         )
       }
+    })
+  } else {
+    it('should show error for dynamic auto export rewrite', async () => {
+      const html = await renderViaHTTP(appPort, '/to-another')
+      expect(html).toContain(
+        `Rewrites don't support auto-exported dynamic pages yet`
+      )
     })
   }
 }
