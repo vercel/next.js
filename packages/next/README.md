@@ -1662,15 +1662,15 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-function Error({ statusCode }) {
-  return (
+const Error = ({ statusCode }) => (
     <p>
-      {statusCode
+      {
+        statusCode
         ? `An error ${statusCode} occurred on server`
-        : 'An error occurred on client'}
+        : 'An error occurred on client'
+      }
     </p>
-  )
-}
+)
 
 Error.getInitialProps = ({ res, err }) => {
   const statusCode = res ? res.statusCode : err ? err.statusCode : 404
