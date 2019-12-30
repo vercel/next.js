@@ -442,7 +442,9 @@ export default class Router implements BaseRouter {
 
         return this._getData<RouteInfo>(() =>
           (Component as any).__NEXT_SPR
-            ? this._getStaticData(as)
+            ? process.env.NODE_ENV === 'production' && routeInfo.props
+              ? routeInfo.props
+              : this._getStaticData(as)
             : this.getInitialProps(
                 Component,
                 // we provide AppTree later so this needs to be `any`
