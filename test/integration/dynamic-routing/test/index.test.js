@@ -391,6 +391,7 @@ function runTests(dev) {
 
       expect(manifest).toEqual({
         version: 2,
+        headers: [],
         rewrites: [],
         redirects: [],
         dynamicRoutes: [
