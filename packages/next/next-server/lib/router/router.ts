@@ -662,28 +662,27 @@ export default class Router implements BaseRouter {
     let pathname = parse(asPath).pathname
     pathname = !pathname || pathname === '/' ? '/index' : pathname
 
-    if ((_cachedData = this.sdc[pathname])) {
-      return Promise.resolve(_cachedData)
-    }
-
-    return fetch(
-      // @ts-ignore __NEXT_DATA__
-      `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
-    )
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`Failed to load static props`)
-        }
-        return res.json()
-      })
-      .then(data => {
-        this.sdc[pathname!] = data
-        return data
-      })
-      .catch((err: Error) => {
-        ;(err as any).code = 'PAGE_LOAD_ERROR'
-        throw err
-      })
+    // eslint-disable-next-line no-cond-assign
+    return (_cachedData = this.sdc[pathname])
+      ? Promise.resolve(_cachedData)
+      : fetch(
+          // @ts-ignore __NEXT_DATA__
+          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+        )
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`Failed to load static props`)
+            }
+            return res.json()
+          })
+          .then(data => {
+            this.sdc[pathname!] = data
+            return data
+          })
+          .catch((err: Error) => {
+            ;(err as any).code = 'PAGE_LOAD_ERROR'
+            throw err
+          })
   }
 
   getInitialProps(
