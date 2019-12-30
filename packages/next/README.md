@@ -161,9 +161,7 @@ After that, the file-system is the main API. Every `.js` file becomes a route th
 Populate `./pages/index.js` inside your project:
 
 ```jsx
-function Home() {
-  return <div>Welcome to Next.js!</div>
-}
+const Home = () => <div>Welcome to Next.js!</div>
 
 export default Home
 ```
@@ -184,9 +182,7 @@ Every `import` you declare gets bundled and served with each page. That means pa
 ```jsx
 import cowsay from 'cowsay-browser'
 
-function CowsayHi() {
-  return <pre>{cowsay.say({ text: 'hi there!' })}</pre>
-}
+const CowsayHi = () => <pre>{cowsay.say({ text: 'hi there!' })}</pre>
 
 export default CowsayHi
 ```
@@ -205,32 +201,30 @@ export default CowsayHi
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
-function HelloWorld() {
-  return (
-    <div>
-      Hello world
-      <p>scoped!</p>
-      <style jsx>{`
-        p {
-          color: blue;
-        }
+const HelloWorld = () => (
+  <div>
+    Hello world
+    <p>scoped!</p>
+    <style jsx>{`
+      p {
+        color: blue;
+      }
+      div {
+        background: red;
+      }
+      @media (max-width: 600px) {
         div {
-          background: red;
+          background: blue;
         }
-        @media (max-width: 600px) {
-          div {
-            background: blue;
-          }
-        }
-      `}</style>
-      <style global jsx>{`
-        body {
-          background: black;
-        }
-      `}</style>
-    </div>
-  )
-}
+      }
+    `}</style>
+    <style global jsx>{`
+      body {
+        background: black;
+      }
+    `}</style>
+  </div>
+)
 
 export default HelloWorld
 ```
@@ -256,9 +250,7 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
 ```jsx
-function HiThere() {
-  return <p style={{ color: 'red' }}>hi there</p>
-}
+const HiThere = () => <p style={{ color: 'red' }}>hi there</p>
 
 export default HiThere
 ```
@@ -279,9 +271,7 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 Create a folder called `public` in your project root directory. From your code you can then reference those files starting from the baseURL `/`
 
 ```jsx
-function MyImage() {
-  return <img src="/my-image.png" alt="my image" />
-}
+const MyImage = () => <img src="/my-image.png" alt="my image" />
 
 export default MyImage
 ```
@@ -382,17 +372,15 @@ We expose a built-in component for appending elements to the `<head>` of the pag
 ```jsx
 import Head from 'next/head'
 
-function IndexPage() {
-  return (
-    <div>
-      <Head>
-        <title>My page title</title>
-        <meta name="viewport" content="initial-scale=1.0, width=device-width" />
-      </Head>
-      <p>Hello world!</p>
-    </div>
-  )
-}
+const IndexPage = () => (
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
+)
 
 export default IndexPage
 ```
@@ -402,28 +390,26 @@ To avoid duplicate tags in your `<head>` you can use the `key` property, which w
 ```jsx
 import Head from 'next/head'
 
-function IndexPage() {
-  return (
-    <div>
-      <Head>
-        <title>My page title</title>
-        <meta
-          name="viewport"
-          content="initial-scale=1.0, width=device-width"
-          key="viewport"
-        />
-      </Head>
-      <Head>
-        <meta
-          name="viewport"
-          content="initial-scale=1.2, width=device-width"
-          key="viewport"
-        />
-      </Head>
-      <p>Hello world!</p>
-    </div>
-  )
-}
+const IndexPage = () => (
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta
+        name="viewport"
+        content="initial-scale=1.0, width=device-width"
+        key="viewport"
+      />
+    </Head>
+    <Head>
+      <meta
+        name="viewport"
+        content="initial-scale=1.2, width=device-width"
+        key="viewport"
+      />
+    </Head>
+    <p>Hello world!</p>  
+  </div>
+)
 
 export default IndexPage
 ```
@@ -450,9 +436,7 @@ Using a function component:
 ```jsx
 import fetch from 'isomorphic-unfetch'
 
-function Page({ stars }) {
-  return <div>Next stars: {stars}</div>
-}
+const Page = ({ stars }) => <div>Next stars: {stars}</div>
 
 Page.getInitialProps = async ({ req }) => {
   const res = await fetch('https://api.github.com/repos/zeit/next.js')
@@ -529,22 +513,20 @@ Consider these two pages:
 // pages/index.js
 import Link from 'next/link'
 
-function Home() {
-  return (
-    <>
-      <ul>
-        <li>Home</li>
-        <li>
-          <Link href="/about">
-            <a>About Us</a>
-          </Link>
-        </li>
-      </ul>
-
-      <h1>This is our homepage.</h1>
-    </>
-  )
-}
+const Home = () => (
+  <>
+    <ul>
+      <li>Home</li>
+      <li>
+        <Link href="/about">
+          <a>About Us</a>
+        </Link>
+      </li>
+    </ul>
+    
+    <h1>This is our homepage.</h1>
+  </>
+)
 
 export default Home
 ```
@@ -553,23 +535,21 @@ export default Home
 // pages/about.js
 import Link from 'next/link'
 
-function About() {
-  return (
-    <>
-      <ul>
-        <li>
-          <Link href="/">
-            <a>Home</a>
-          </Link>
-        </li>
-        <li>About Us</li>
-      </ul>
-
-      <h1>About</h1>
-      <p>We are a cool company.</p>
-    </>
-  )
-}
+const About = () => (
+  <>
+    <ul>
+      <li>
+        <Link href="/">
+          <a>Home</a>
+        </Link>
+      </li>
+      <li>About Us</li>
+    </ul>
+    
+    <h1>About</h1>
+    <p>We are a cool company.</p>
+  </>
+)
 
 export default About
 ```
@@ -624,17 +604,15 @@ Example:
 
 3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of the `query` object to the page.
 
-   ```jsx
-   server.get('/post/:slug', (req, res) => {
-     return app.render(req, res, '/post', { slug: req.params.slug })
-   })
-   ```
+```jsx
+  server.get('/post/:slug', (req, res) => app.render(req, res, '/post', { slug: req.params.slug }))
+```
 
 4. For client side routing, use `next/link`:
 
-   ```jsx
-   <Link href="/post?slug=something" as="/post/something">
-   ```
+```jsx
+  <Link href="/post?slug=something" as="/post/something">
+```
 
    - `href`: the path inside `pages` directory
    - `as`: the path used by your server routes
@@ -662,17 +640,15 @@ The component `<Link>` can also receive a URL object and it will automatically f
 // pages/index.js
 import Link from 'next/link'
 
-function Home() {
-  return (
-    <div>
-      Click{' '}
-      <Link href={{ pathname: '/about', query: { name: 'Zeit' } }}>
-        <a>here</a>
-      </Link>{' '}
-      to read more
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    Click{' '}
+    <Link href={{ pathname: '/about', query: { name: 'Zeit' } }}>
+      <a>here</a>
+    </Link>{' '}
+    to read more
+  </div>
+)
 
 export default Home
 ```
@@ -687,17 +663,15 @@ The default behaviour for the `<Link>` component is to `push` a new url into the
 // pages/index.js
 import Link from 'next/link'
 
-function Home() {
-  return (
-    <div>
-      Click{' '}
-      <Link href="/about" replace>
-        <a>here</a>
-      </Link>{' '}
-      to read more
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    Click{' '}
+    <Link href="/about" replace>
+      <a>here</a>
+    </Link>{' '}
+    to read more
+  </div>
+)
 
 export default Home
 ```
@@ -710,16 +684,14 @@ export default Home
 // pages/index.js
 import Link from 'next/link'
 
-function Home() {
-  return (
-    <div>
-      Click{' '}
-      <Link href="/about">
-        <img src="/static/image.png" alt="image" />
-      </Link>
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    Click{' '}
+    <Link href="/about">
+      <img src="/static/image.png" alt="image" />
+    </Link>
+  </div>
+)
 
 export default Home
 ```
@@ -734,13 +706,11 @@ If child is an `<a>` tag and doesn't have a href attribute we specify it so that
 import Link from 'next/link'
 import Unexpected_A from 'third-library'
 
-function NavLink({ href, name }) {
-  return (
-    <Link href={href} passHref>
-      <Unexpected_A>{name}</Unexpected_A>
-    </Link>
-  )
-}
+const NavLink = ({ href, name }) => (
+  <Link href={href} passHref>
+    <Unexpected_A>{name}</Unexpected_A>
+  </Link>
+)
 
 export default NavLink
 ```
@@ -769,13 +739,11 @@ You can also do client-side page transitions using `next/router`:
 ```jsx
 import Router from 'next/router'
 
-function ReadMore() {
-  return (
-    <div>
-      Click <span onClick={() => Router.push('/about')}>here</span> to read more
-    </div>
-  )
-}
+const ReadMore = () => (
+  <div>
+    Click <span onClick={() => Router.push('/about')}>here</span> to read more
+  </div>
+)
 
 export default ReadMore
 ```
@@ -831,13 +799,11 @@ const handler = () => {
   })
 }
 
-function ReadMore() {
-  return (
-    <div>
-      Click <span onClick={handler}>here</span> to read more
-    </div>
-  )
-}
+const ReadMore = () => (
+  <div>
+    Click <span onClick={handler}>here</span> to read more
+  </div>
+)
 
 export default ReadMore
 ```
@@ -958,7 +924,7 @@ If you want to access the `router` object inside any functional component in you
 ```jsx
 import { useRouter } from 'next/router'
 
-export default function ActiveLink({ children, href }) {
+export default ({ children, href }) => {
   const router = useRouter()
   const style = {
     marginRight: 10,
@@ -997,9 +963,7 @@ If [useRouter](#userouter) is not the best fit for you, `withRouter` can also ad
 ```jsx
 import { withRouter } from 'next/router'
 
-function Page({ router }) {
-  return <p>{router.pathname}</p>
-}
+const Page = ({ router }) => <p>{router.pathname}</p>
 
 export default withRouter(Page)
 ```
@@ -1042,7 +1006,7 @@ Most prefetching needs are addressed by `<Link />`, but we also expose an impera
 ```jsx
 import { useRouter } from 'next/router'
 
-export default function MyLink() {
+export default () => {
   const router = useRouter()
 
   return (
@@ -1062,7 +1026,7 @@ export default function MyLink() {
 ```jsx
 import { useRouter } from 'next/router'
 
-export default function MyLink() {
+export default () => {
   const router = useRouter()
 
   useEffect(() => {
@@ -1172,9 +1136,7 @@ Consider the following page `./pages/api/post/[pid].js`, here is how you get par
 
 ```js
 export default (req, res) => {
-  const {
-    query: { pid },
-  } = req
+  const { query: { pid } } = req
 
   res.end(`Post: ${pid}`)
 }
@@ -1243,7 +1205,7 @@ const cors = Cors({
   allowMethods: ['GET', 'HEAD'],
 })
 
-function Endpoint(req, res) {
+const Endpoint = (req, res) => {
   res.json({ message: 'Hello Everyone!' })
 }
 
@@ -1430,15 +1392,13 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() => import('../components/hello'))
 
-function Home() {
-  return (
-    <div>
-      <Header />
-      <DynamicComponent />
-      <p>HOME PAGE is here!</p>
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    <Header />
+    <DynamicComponent />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
 
 export default Home
 ```
@@ -1447,9 +1407,7 @@ export default Home
 
 ```jsx
 // components/hello.js
-export function Hello() {
-  return <p>Hello!</p>
-}
+export const Hello = () => <p>Hello!</p>
 ```
 
 ```jsx
@@ -1459,15 +1417,13 @@ const DynamicComponent = dynamic(() =>
   import('../components/hello').then(mod => mod.Hello)
 )
 
-function Home() {
-  return (
-    <div>
-      <Header />
-      <DynamicComponent />
-      <p>HOME PAGE is here!</p>
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    <Header />
+    <DynamicComponent />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
 
 export default Home
 ```
@@ -1482,15 +1438,13 @@ const DynamicComponentWithCustomLoading = dynamic(
   { loading: () => <p>...</p> }
 )
 
-function Home() {
-  return (
-    <div>
-      <Header />
-      <DynamicComponentWithCustomLoading />
-      <p>HOME PAGE is here!</p>
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    <Header />
+    <DynamicComponentWithCustomLoading />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
 
 export default Home
 ```
@@ -1505,15 +1459,13 @@ const DynamicComponentWithNoSSR = dynamic(
   { ssr: false }
 )
 
-function Home() {
-  return (
-    <div>
-      <Header />
-      <DynamicComponentWithNoSSR />
-      <p>HOME PAGE is here!</p>
-    </div>
-  )
-}
+const Home = () => (
+  <div>
+    <Header />
+    <DynamicComponentWithNoSSR />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
 
 export default Home
 ```
@@ -1537,9 +1489,7 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 To override, create the `./pages/_app.js` file and override the App class as shown below:
 
 ```js
-function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
-}
+const MyApp = ({ Component, pageProps }) => <Component {...pageProps} />
 
 // Only uncomment this method if you have blocking data requirements for
 // every single page in your application. This disables the ability to
@@ -2015,9 +1965,7 @@ This will allow you to use `process.env.customKey` in your code. For example:
 
 ```jsx
 // pages/index.js
-function Index() {
-  return <h1>The value of customKey is: {process.env.customKey}</h1>
-}
+const Index = () => <h1>The value of customKey is: {process.env.customKey}</h1>
 
 export default Index
 ```
@@ -2073,13 +2021,11 @@ const { serverRuntimeConfig, publicRuntimeConfig } = getConfig()
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
-function MyImage() {
-  return (
-    <div>
-      <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
-    </div>
-  )
-}
+const MyImage = () => (
+  <div>
+    <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
+  </div>
+)
 
 export default MyImage
 ```
@@ -2408,9 +2354,7 @@ To enable AMP support for a page, add `export const config = { amp: true }` to y
 // pages/about.js
 export const config = { amp: true }
 
-export default function AboutPage(props) {
-  return <h3>My AMP About Page!</h3>
-}
+export default (props) => <h3>My AMP About Page!</h3>
 ```
 
 ### Hybrid AMP Page
@@ -2421,24 +2365,22 @@ import { useAmp } from 'next/amp'
 
 export const config = { amp: 'hybrid' }
 
-export default function AboutPage(props) {
-  return (
-    <div>
-      <h3>My AMP Page</h3>
-      {useAmp() ? (
-        <amp-img
-          width="300"
-          height="300"
-          src="/my-img.jpg"
-          alt="a cool image"
-          layout="responsive"
-        />
-      ) : (
-        <img width="300" height="300" src="/my-img.jpg" alt="a cool image" />
-      )}
-    </div>
-  )
-}
+export default (props) => (
+  <div>
+    <h3>My AMP Page</h3>
+    {useAmp() ? (
+      <amp-img
+        width="300"
+        height="300"
+        src="/my-img.jpg"
+        alt="a cool image"
+        layout="responsive"
+      />
+    ) : (
+      <img width="300" height="300" src="/my-img.jpg" alt="a cool image" />
+    )}
+  </div>
+)
 ```
 
 ### AMP Page Modes
@@ -2485,30 +2427,28 @@ import Head from 'next/head'
 
 export const config = { amp: true }
 
-export default function MyAmpPage() {
-  return (
-    <div>
-      <Head>
-        <script
-          async
-          key="amp-timeago"
-          custom-element="amp-timeago"
-          src="https://cdn.ampproject.org/v0/amp-timeago-0.1.js"
-        />
-      </Head>
+export default () => (
+  <div>
+    <Head>
+      <script
+        async
+        key="amp-timeago"
+        custom-element="amp-timeago"
+        src="https://cdn.ampproject.org/v0/amp-timeago-0.1.js"
+      />
+    </Head>
 
-      <p>Some time: {date.toJSON()}</p>
-      <amp-timeago
-        width="0"
-        height="15"
-        datetime={date.toJSON()}
-        layout="responsive"
-      >
-        .
-      </amp-timeago>
-    </div>
-  )
-}
+    <p>Some time: {date.toJSON()}</p>
+    <amp-timeago
+      width="0"
+      height="15"
+      datetime={date.toJSON()}
+      layout="responsive"
+    >
+      .
+    </amp-timeago>
+  </div>
+)
 ```
 
 ### AMP Validation
@@ -2558,19 +2498,14 @@ This function is asynchronous and gets the default `exportPathMap` as a paramete
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: async function(
-    defaultPathMap,
-    { dev, dir, outDir, distDir, buildId }
-  ) {
-    return {
-      '/': { page: '/' },
-      '/about': { page: '/about' },
-      '/readme.md': { page: '/readme' },
-      '/p/hello-nextjs': { page: '/post', query: { title: 'hello-nextjs' } },
-      '/p/learn-nextjs': { page: '/post', query: { title: 'learn-nextjs' } },
-      '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } },
-    }
-  },
+  exportPathMap: async (defaultPathMap, { dev, dir, outDir, distDir, buildId }) => ({
+    '/': { page: '/' },
+    '/about': { page: '/about' },
+    '/readme.md': { page: '/readme' },
+    '/p/hello-nextjs': { page: '/post', query: { title: 'hello-nextjs' } },
+    '/p/learn-nextjs': { page: '/post', query: { title: 'learn-nextjs' } },
+    '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } },
+  }),
 }
 ```
 
