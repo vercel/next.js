@@ -662,8 +662,8 @@ export default class Router implements BaseRouter {
     let pathname = parse(asPath).pathname
     pathname = !pathname || pathname === '/' ? '/index' : pathname
 
-    // eslint-disable-next-line no-cond-assign
-    return (_cachedData = this.sdc[pathname])
+    return process.env.NODE_ENV === 'production' &&
+      (_cachedData = this.sdc[pathname])
       ? Promise.resolve(_cachedData)
       : fetch(
           // @ts-ignore __NEXT_DATA__
