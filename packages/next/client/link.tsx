@@ -20,6 +20,8 @@ function isLocal(href: string) {
   )
 }
 
+console.log('second change')
+
 type Url = string | UrlObject
 type FormatResult = { href: string; as?: string }
 

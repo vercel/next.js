@@ -62,6 +62,8 @@ type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
+console.log('first change')
+
 export default class Router implements BaseRouter {
   route: string
   pathname: string
