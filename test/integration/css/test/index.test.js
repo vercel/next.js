@@ -221,6 +221,7 @@ describe('CSS Support', () => {
       expect(stderr).toMatch(
         /Please move all global CSS imports.*?pages(\/|\\)_app/
       )
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
 
@@ -240,6 +241,7 @@ describe('CSS Support', () => {
       expect(stderr).toMatch(
         /Please move all global CSS imports.*?pages(\/|\\)_app/
       )
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
 
@@ -257,6 +259,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
 
@@ -531,6 +534,31 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(/nprogress/)
+    })
+  })
+
+  describe('Good Nested CSS Import from node_modules', () => {
+    const appDir = join(fixturesDir, 'npm-import-nested')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".other{color:#00f}.test{color:red}"`)
     })
   })
 

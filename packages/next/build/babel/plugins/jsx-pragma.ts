@@ -51,6 +51,7 @@ export default function({
 
               // if the React binding came from a require('react'),
               // make sure that our usage comes after it.
+              let newPath
               if (
                 existingBinding &&
                 t.isVariableDeclarator(existingBinding.path.node) &&
@@ -58,10 +59,16 @@ export default function({
                 t.isIdentifier(existingBinding.path.node.init.callee) &&
                 existingBinding.path.node.init.callee.name === 'require'
               ) {
-                existingBinding.path.parentPath.insertAfter(mapping)
+                ;[newPath] = existingBinding.path.parentPath.insertAfter(
+                  mapping
+                )
               } else {
                 // @ts-ignore
-                path.unshiftContainer('body', mapping)
+                ;[newPath] = path.unshiftContainer('body', mapping)
+              }
+
+              for (const declar of newPath.get('declarations')) {
+                path.scope.registerBinding(newPath.node.kind, declar)
               }
             }
 
@@ -83,7 +90,10 @@ export default function({
               )
 
               // @ts-ignore
-              path.unshiftContainer('body', importSpecifier)
+              const [newPath] = path.unshiftContainer('body', importSpecifier)
+              for (const specifier of newPath.get('specifiers')) {
+                path.scope.registerBinding('module', specifier)
+              }
             }
           }
         },
