@@ -259,6 +259,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
       version: 2,
+      basePath: config.experimental.basePath,
       redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
       rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
       headers: headers.map(r => buildCustomRoute(r, 'header')),

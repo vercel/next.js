@@ -211,6 +211,7 @@ const runTests = (isDev = false) => {
 
       expect(manifest).toEqual({
         version: 2,
+        basePath: '',
         redirects: [
           {
             source: '/docs/router-status/:code',
