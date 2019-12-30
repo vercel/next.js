@@ -17,23 +17,27 @@ import {
   File,
   nextStart,
 } from 'next-test-utils'
-import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
+import fs, {
+  readFileSync,
+  writeFileSync,
+  renameSync,
+  existsSync,
+} from 'fs-extra'
 import cheerio from 'cheerio'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-describe('basePath development', () => {
-  let server
+const appDir = join(__dirname, '..')
 
-  let context = {}
-
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    server = await launchApp(join(__dirname, '..'), context.appPort)
-  })
-  afterAll(async () => {
-    await killApp(server)
-  })
+const runTests = (context, dev = false) => {
+  if (!dev) {
+    it('should add basePath to routes-manifest', async () => {
+      const routesManifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+      expect(routesManifest.basePath).toBe('/docs')
+    })
+  }
 
   it('should show the hello page under the /docs prefix', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
@@ -72,6 +76,22 @@ describe('basePath development', () => {
       await browser.close()
     }
   })
+}
+
+describe('basePath development', () => {
+  let server
+
+  let context = {}
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    server = await launchApp(join(__dirname, '..'), context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(server)
+  })
+
+  runTests(context, true)
 
   describe('Hot Module Reloading', () => {
     describe('delete a page and add it back', () => {
@@ -379,7 +399,6 @@ describe('basePath development', () => {
 })
 
 describe('basePath production', () => {
-  const appDir = join(__dirname, '../')
   let context = {}
   let server
   let app
@@ -398,47 +417,10 @@ describe('basePath production', () => {
 
   afterAll(() => stopApp(server))
 
-  it('should show the hello page under the /docs prefix', async () => {
-    const browser = await webdriver(context.appPort, '/docs/hello')
-    try {
-      const text = await browser.elementByCss('h1').text()
-      expect(text).toBe('Hello World')
-    } finally {
-      await browser.close()
-    }
-  })
-
-  it('should show the other-page page under the /docs prefix', async () => {
-    const browser = await webdriver(context.appPort, '/docs/other-page')
-    try {
-      const text = await browser.elementByCss('h1').text()
-      expect(text).toBe('Hello Other')
-    } finally {
-      await browser.close()
-    }
-  })
-
-  it('should navigate to the page without refresh', async () => {
-    const browser = await webdriver(context.appPort, '/docs/hello')
-    try {
-      await browser.eval('window.itdidnotrefresh = "hello"')
-      const text = await browser
-        .elementByCss('#other-page-link')
-        .click()
-        .waitForElementByCss('#other-page-title')
-        .elementByCss('h1')
-        .text()
-
-      expect(text).toBe('Hello Other')
-      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
-    } finally {
-      await browser.close()
-    }
-  })
+  runTests(context)
 })
 
 describe('basePath serverless', () => {
-  const appDir = join(__dirname, '../')
   let context = {}
   let app
 
@@ -457,41 +439,5 @@ describe('basePath serverless', () => {
     await nextConfig.restore()
   })
 
-  it('should show the hello page under the /docs prefix', async () => {
-    const browser = await webdriver(context.appPort, '/docs/hello')
-    try {
-      const text = await browser.elementByCss('h1').text()
-      expect(text).toBe('Hello World')
-    } finally {
-      await browser.close()
-    }
-  })
-
-  it('should show the other-page page under the /docs prefix', async () => {
-    const browser = await webdriver(context.appPort, '/docs/other-page')
-    try {
-      const text = await browser.elementByCss('h1').text()
-      expect(text).toBe('Hello Other')
-    } finally {
-      await browser.close()
-    }
-  })
-
-  it('should navigate to the page without refresh', async () => {
-    const browser = await webdriver(context.appPort, '/docs/hello')
-    try {
-      await browser.eval('window.itdidnotrefresh = "hello"')
-      const text = await browser
-        .elementByCss('#other-page-link')
-        .click()
-        .waitForElementByCss('#other-page-title')
-        .elementByCss('h1')
-        .text()
-
-      expect(text).toBe('Hello Other')
-      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
-    } finally {
-      await browser.close()
-    }
-  })
+  runTests(context)
 })
