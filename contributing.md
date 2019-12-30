@@ -14,10 +14,28 @@ Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
 
 ## To run tests
 
+Make sure you have `chromedriver` installed for your Chrome version. You can install it with
+
+- `brew install chromedriver` on Mac OS X
+- `chocolatey install chromedriver` on Windows
+- Or manually downloading it from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and adding the binary to `<next-repo>/node_modules/.bin`
+
 Running all tests:
 
 ```sh
 yarn testonly
+```
+
+If you would like to run the tests in headless mode (with the browser windows hidden) you can do
+
+```sh
+yarn testheadless
+```
+
+If you would like to use a specific Chrome/Chromium binary to run tests you can specify it with
+
+```sh
+CHROME_BIN='path/to/chrome/bin' yarn testonly
 ```
 
 Running a specific test suite inside of the `test/integration` directory:
@@ -34,18 +52,12 @@ yarn testonly --testPathPattern "production" -t "should allow etag header suppor
 
 ## Running the integration apps
 
-The correct path to the compiled `next` binary can be discovered by running:
-
-```sh
-find . -name next -perm -u=x -type f
-```
-
 Running examples can be done with:
 
 ```sh
-./packages/next/dist/bin/next ./test/integration/basic
+yarn next ./test/integration/basic
 # OR
-./packages/next/dist/bin/next ./examples/basic-css/
+yarn next ./examples/basic-css/
 ```
 
 To figure out which pages are available for the given example, you can run:

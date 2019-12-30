@@ -724,6 +724,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
+          config.experimental.basePath
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

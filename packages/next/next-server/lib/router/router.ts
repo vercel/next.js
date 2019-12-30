@@ -18,6 +18,12 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
+function addBasePath(path: string): string {
+  // @ts-ignore variable is always a string
+  const p: string = process.env.__NEXT_ROUTER_BASEPATH
+  return path.indexOf(p) !== 0 ? p + path : path
+}
+
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
@@ -284,7 +290,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, as)
+        this.changeState(method, url, addBasePath(as))
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -346,7 +352,7 @@ export default class Router implements BaseRouter {
         }
 
         Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, as, options)
+        this.changeState(method, url, addBasePath(as), options)
         const hash = window.location.hash.substring(1)
 
         if (process.env.NODE_ENV !== 'production') {
@@ -434,18 +440,23 @@ export default class Router implements BaseRouter {
           }
         }
 
-        return new Promise((resolve, reject) => {
-          // we provide AppTree later so this needs to be `any`
-          this.getInitialProps(Component, {
-            pathname,
-            query,
-            asPath: as,
-          } as any).then(props => {
-            routeInfo.props = props
-            this.components[route] = routeInfo
-            resolve(routeInfo)
-          }, reject)
-        }) as Promise<RouteInfo>
+        return this._getData<RouteInfo>(() =>
+          (Component as any).__NEXT_SPR
+            ? this._getStaticData(as)
+            : this.getInitialProps(
+                Component,
+                // we provide AppTree later so this needs to be `any`
+                {
+                  pathname,
+                  query,
+                  asPath: as,
+                } as any
+              )
+        ).then(props => {
+          routeInfo.props = props
+          this.components[route] = routeInfo
+          return routeInfo
+        })
       })
       .catch(err => {
         return new Promise(resolve => {
@@ -624,62 +635,59 @@ export default class Router implements BaseRouter {
     return Component
   }
 
-  async getInitialProps(
-    Component: ComponentType,
-    ctx: NextPageContext
-  ): Promise<any> {
+  _getData<T>(fn: () => Promise<T>): Promise<T> {
     let cancelled = false
     const cancel = () => {
       cancelled = true
     }
     this.clc = cancel
-    const { Component: App } = this.components['/_app']
-    let props
+    return fn().then(data => {
+      if (cancel === this.clc) {
+        this.clc = null
+      }
 
-    if ((Component as any).__NEXT_SPR) {
-      let status: any
-      // pathname should have leading slash
-      let { pathname } = parse(ctx.asPath || ctx.pathname)
-      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      if (cancelled) {
+        const err: any = new Error('Loading initial props cancelled')
+        err.cancelled = true
+        throw err
+      }
 
-      props = await fetch(
-        // @ts-ignore __NEXT_DATA__
-        `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
-      )
-        .then(res => {
-          if (!res.ok) {
-            status = res.status
-            throw new Error('failed to load prerender data')
-          }
-          return res.json()
-        })
-        .catch((err: Error) => {
-          console.error(`Failed to load data`, status, err)
-          window.location.href = pathname!
-          return new Promise(() => {})
-        })
-    } else {
-      const AppTree = this._wrapApp(App)
-      ctx.AppTree = AppTree
-      props = await loadGetInitialProps<AppContextType<Router>>(App, {
-        AppTree,
-        Component,
-        router: this,
-        ctx,
+      return data
+    })
+  }
+
+  _getStaticData = (asPath: string): Promise<any> => {
+    let pathname = parse(asPath).pathname
+    pathname = !pathname || pathname === '/' ? '/index' : pathname
+    return fetch(
+      // @ts-ignore __NEXT_DATA__
+      `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+    )
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to load static props`)
+        }
+        return res.json()
       })
-    }
+      .catch((err: Error) => {
+        ;(err as any).code = 'PAGE_LOAD_ERROR'
+        throw err
+      })
+  }
 
-    if (cancel === this.clc) {
-      this.clc = null
-    }
-
-    if (cancelled) {
-      const err: any = new Error('Loading initial props cancelled')
-      err.cancelled = true
-      throw err
-    }
-
-    return props
+  getInitialProps(
+    Component: ComponentType,
+    ctx: NextPageContext
+  ): Promise<any> {
+    const { Component: App } = this.components['/_app']
+    const AppTree = this._wrapApp(App)
+    ctx.AppTree = AppTree
+    return loadGetInitialProps<AppContextType<Router>>(App, {
+      AppTree,
+      Component,
+      router: this,
+      ctx,
+    })
   }
 
   abortComponentLoad(as: string): void {
