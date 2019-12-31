@@ -6,13 +6,15 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "export": "next build && next export"
+    "export": "cross-env NEXT_EXPORT=true next build && cross-env NEXT_EXPORT=true next export"
   },
   "dependencies": {
     "next": "canary",
     "next-offline": "4.0.6",
     "react": "16.12.0",
-    "react-dom": "16.12.0",
-    "serve": "11.2.0"
+    "react-dom": "16.12.0"
+  },
+  "devDependencies": {
+    "cross-env": "6.0.3"
   }
 }
