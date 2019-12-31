@@ -248,7 +248,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await fsWriteFile(
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
-      version: 2,
+      version: 1,
       basePath: config.experimental.basePath,
       redirects: redirects.map(r => buildCustomRoute(r, true)),
       rewrites: rewrites.map(r => buildCustomRoute(r)),
