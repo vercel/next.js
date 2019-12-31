@@ -48,6 +48,10 @@ module.exports = {
           destination: '/with-params',
         },
         {
+          source: '/query-rewrite/:section/:name',
+          destination: '/with-params?first=:section&second=:name',
+        },
+        {
           source: '/hidden/_next/:path*',
           destination: '/_next/:path*',
         },
@@ -111,6 +115,10 @@ module.exports = {
         {
           source: '/to-external',
           destination: 'https://google.com',
+        },
+        {
+          source: '/query-redirect/:section/:name',
+          destination: '/with-params?first=:section&second=:name',
         },
       ]
     },

@@ -428,10 +428,22 @@ export default class Server {
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
               const parsedDestination = parseUrl(route.destination, true)
+              const destQuery = parsedDestination.query
               let destinationCompiler = compilePathToRegex(
                 `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
               )
               let newUrl
+
+              Object.keys(destQuery).forEach(key => {
+                const val = destQuery[key]
+                if (
+                  typeof val === 'string' &&
+                  val.startsWith(':') &&
+                  params[val.substr(1)]
+                ) {
+                  destQuery[key] = params[val.substr(1)]
+                }
+              })
 
               try {
                 newUrl = destinationCompiler(params)
@@ -456,6 +468,7 @@ export default class Server {
                     ...parsedDestination,
                     pathname: parsedNewUrl.pathname,
                     hash: parsedNewUrl.hash,
+                    search: undefined,
                   })
                 )
                 res.statusCode = route.statusCode || DEFAULT_REDIRECT_STATUS
@@ -470,6 +483,7 @@ export default class Server {
               return {
                 finished: false,
                 pathname: newUrl,
+                query: parsedDestination.query,
               }
             },
           } as Route
@@ -795,6 +809,7 @@ export default class Server {
         const curUrl = parseUrl(req.url!, true)
         req.url = formatUrl({
           ...curUrl,
+          search: undefined,
           query: {
             ...curUrl.query,
             ...query,

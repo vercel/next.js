@@ -4,6 +4,7 @@ import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   launchApp,
@@ -27,6 +28,8 @@ let buildId
 let stdout = ''
 let appPort
 let app
+
+const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
@@ -117,6 +120,33 @@ const runTests = (isDev = false) => {
   it('should double redirect successfully', async () => {
     const html = await renderViaHTTP(appPort, '/docs/github')
     expect(html).toMatch(/hi there/)
+  })
+
+  it('should allow params in query for rewrite', async () => {
+    const html = await renderViaHTTP(appPort, '/query-rewrite/hello/world?a=b')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      first: 'hello',
+      second: 'world',
+      a: 'b',
+      section: 'hello',
+      name: 'world',
+    })
+  })
+
+  it('should allow params in query for redirect', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/query-redirect/hello/world?a=b',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/with-params')
+    expect(query).toEqual({ first: 'hello', second: 'world' })
   })
 
   it('should overwrite param values correctly', async () => {
@@ -285,6 +315,15 @@ const runTests = (isDev = false) => {
             source: '/to-external',
             statusCode: 307,
           },
+          {
+            destination: '/with-params?first=:section&second=:name',
+            regex: normalizeRegEx(
+              '^\\/query-redirect(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+            ),
+            regexKeys: ['section', 'name'],
+            source: '/query-redirect/:section/:name',
+            statusCode: 307,
+          },
         ],
         rewrites: [
           {
@@ -356,6 +395,14 @@ const runTests = (isDev = false) => {
             regexKeys: ['something'],
           },
           {
+            destination: '/with-params?first=:section&second=:name',
+            regex: normalizeRegEx(
+              '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+            ),
+            regexKeys: ['section', 'name'],
+            source: '/query-rewrite/:section/:name',
+          },
+          {
             destination: '/_next/:path*',
             regex: normalizeRegEx(
               '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
@@ -388,7 +435,9 @@ const runTests = (isDev = false) => {
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
         expect(cleanStdout).toMatch(
-          new RegExp(`${route}.*?${route.destination}`)
+          new RegExp(
+            `${escapeRegex(route.source)}.*?${escapeRegex(route.destination)}`
+          )
         )
       }
     })
@@ -413,7 +462,7 @@ describe('Custom routes', () => {
     runTests(true)
   })
 
-  describe('production mode', () => {
+  describe('server mode', () => {
     beforeAll(async () => {
       const { stdout: buildStdout } = await nextBuild(appDir, [], {
         stdout: true,
