@@ -45,7 +45,12 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage } from './utils'
-import { Redirect, Rewrite } from '../../lib/check-custom-routes'
+import {
+  Redirect,
+  Rewrite,
+  RouteType,
+  Header,
+} from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -105,6 +110,7 @@ export default class Server {
   protected customRoutes?: {
     rewrites: Rewrite[]
     redirects: Redirect[]
+    headers: Header[]
   }
 
   public constructor({
@@ -402,16 +408,35 @@ export default class Server {
     const routes: Route[] = []
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
       const getCustomRoute = (
-        r: { source: string; destination: string; statusCode?: number },
-        type: 'redirect' | 'rewrite'
+        r: Rewrite | Redirect | Header,
+        type: RouteType
       ) => ({
         ...r,
         type,
         matcher: getCustomRouteMatcher(r.source),
       })
+
+      // Headers come very first
+      routes.push(
+        ...headers.map(r => {
+          const route = getCustomRoute(r, 'header')
+          return {
+            check: true,
+            match: route.matcher,
+            type: route.type,
+            name: `${route.type} ${route.source} header route`,
+            fn: async (_req, res, _params, _parsedUrl) => {
+              for (const header of (route as Header).headers) {
+                res.setHeader(header.key, header.value)
+              }
+              return { finished: false }
+            },
+          } as Route
+        })
+      )
 
       const customRoutes = [
         ...redirects.map(r => getCustomRoute(r, 'redirect')),
@@ -424,7 +449,7 @@ export default class Server {
             check: true,
             match: route.matcher,
             type: route.type,
-            statusCode: route.statusCode,
+            statusCode: (route as Redirect).statusCode,
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
               const parsedDestination = parseUrl(route.destination, true)
@@ -471,7 +496,8 @@ export default class Server {
                     search: undefined,
                   })
                 )
-                res.statusCode = route.statusCode || DEFAULT_REDIRECT_STATUS
+                res.statusCode =
+                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
                 res.end()
                 return {
                   finished: true,

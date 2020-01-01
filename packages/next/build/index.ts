@@ -9,7 +9,12 @@ import path from 'path'
 import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import checkCustomRoutes from '../lib/check-custom-routes'
+import checkCustomRoutes, {
+  RouteType,
+  Redirect,
+  Rewrite,
+  Header,
+} from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -99,8 +104,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
-  const rewrites = []
-  const redirects = []
+  const rewrites: Rewrite[] = []
+  const redirects: Redirect[] = []
+  const headers: Header[] = []
 
   if (typeof config.experimental.redirects === 'function') {
     redirects.push(...(await config.experimental.redirects()))
@@ -109,6 +115,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (typeof config.experimental.rewrites === 'function') {
     rewrites.push(...(await config.experimental.rewrites()))
     checkCustomRoutes(rewrites, 'rewrite')
+  }
+  if (typeof config.experimental.headers === 'function') {
+    headers.push(...(await config.experimental.headers()))
+    checkCustomRoutes(headers, 'header')
   }
 
   if (ciEnvironment.isCI) {
@@ -223,7 +233,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       source: string
       statusCode?: number
     },
-    isRedirect = false
+    type: RouteType
   ) => {
     const keys: any[] = []
     const routeRegex = pathToRegexp(r.source, keys, {
@@ -234,7 +244,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     return {
       ...r,
-      ...(isRedirect
+      ...(type === 'redirect'
         ? {
             statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
           }
@@ -250,8 +260,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     JSON.stringify({
       version: 1,
       basePath: config.experimental.basePath,
-      redirects: redirects.map(r => buildCustomRoute(r, true)),
-      rewrites: rewrites.map(r => buildCustomRoute(r)),
+      redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
+      rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
+      headers: headers.map(r => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
         page,
         regex: getRouteRegex(page).re.source,

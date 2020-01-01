@@ -122,5 +122,36 @@ module.exports = {
         },
       ]
     },
+
+    async headers() {
+      return [
+        {
+          source: '/add-header',
+          headers: [
+            {
+              key: 'x-custom-header',
+              value: 'hello world',
+            },
+            {
+              key: 'x-another-header',
+              value: 'hello again',
+            },
+          ],
+        },
+        {
+          source: '/my-headers/(.*)',
+          headers: [
+            {
+              key: 'x-first-header',
+              value: 'first',
+            },
+            {
+              key: 'x-second-header',
+              value: 'second',
+            },
+          ],
+        },
+      ]
+    },
   },
 }
