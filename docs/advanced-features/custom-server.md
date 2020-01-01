@@ -1,3 +1,7 @@
+---
+description: Start a Next.js app programmatically using a custom server.
+---
+
 # Custom Server
 
 <details>
