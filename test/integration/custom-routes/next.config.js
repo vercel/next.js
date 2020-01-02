@@ -120,6 +120,10 @@ module.exports = {
           source: '/query-redirect/:section/:name',
           destination: '/with-params?first=:section&second=:name',
         },
+        {
+          source: '/unnamed/(first|second)/(.*)',
+          destination: '/:1/:2',
+        },
       ]
     },
 

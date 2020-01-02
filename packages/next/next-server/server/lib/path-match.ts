@@ -16,6 +16,20 @@ export default (customRoute = false) => {
       if (!res) {
         return false
       }
+
+      if (customRoute) {
+        const newParams: { [k: string]: string } = {}
+        Object.keys(res.params).forEach((key, idx) => {
+          if (key === idx + '') {
+            newParams[idx + 1 + ''] = (res.params as any)[key]
+          }
+        })
+        res.params = {
+          ...res.params,
+          ...newParams,
+        }
+      }
+
       return { ...params, ...res.params }
     }
   }

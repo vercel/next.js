@@ -229,6 +229,15 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should support unnamed parameters correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/unnamed/first/final', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/first/final')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -334,6 +343,15 @@ const runTests = (isDev = false) => {
             ),
             regexKeys: ['section', 'name'],
             source: '/query-redirect/:section/:name',
+            statusCode: 307,
+          },
+          {
+            destination: '/:1/:2',
+            regex: normalizeRegEx(
+              '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
+            ),
+            regexKeys: [0, 1],
+            source: '/unnamed/(first|second)/(.*)',
             statusCode: 307,
           },
         ],
