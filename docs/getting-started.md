@@ -1,5 +1,5 @@
 ---
-description: Getting started with Next.js.
+description: Get started with Next.js in the official documentation, and create production grade React applications that scale.
 ---
 
 # Getting Started

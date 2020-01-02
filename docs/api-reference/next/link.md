@@ -1,3 +1,7 @@
+---
+description: Enable client-side transitions between routes with the built-in Link component.
+---
+
 # next/link
 
 <details>

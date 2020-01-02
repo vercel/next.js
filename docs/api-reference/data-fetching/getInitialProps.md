@@ -1,3 +1,7 @@
+---
+description: Enable Server-Side Rendering in a page and do initial data population with `getInitialProps`.
+---
+
 # getInitialProps
 
 <details>
