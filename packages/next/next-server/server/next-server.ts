@@ -534,7 +534,13 @@ export default class Server {
           }
         }
 
-        if (params && params.path && params.path[0] === 'api') {
+        if (
+          this.nextConfig.experimental &&
+          this.nextConfig.experimental.useApiRoutes &&
+          params &&
+          params.path &&
+          params.path[0] === 'api'
+        ) {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,

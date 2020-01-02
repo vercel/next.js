@@ -54,6 +54,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
+    useApiRoutes: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
