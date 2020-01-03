@@ -1,31 +1,36 @@
-/* global document, window */
 import mitt from '../next-server/lib/mitt'
 
-function supportsPreload(el) {
+function hasRel(rel, link) {
   try {
-    return el.relList.supports('preload')
-  } catch {
-    return false
-  }
+    link = document.createElement('link')
+    return link.relList.supports(rel)
+  } catch {}
 }
 
-const hasPreload = supportsPreload(document.createElement('link'))
+const relPrefetch =
+  hasRel('preload') && !hasRel('prefetch')
+    ? // https://caniuse.com/#feat=link-rel-preload
+      // macOS and iOS (Safari does not support prefetch)
+      'preload'
+    : // https://caniuse.com/#feat=link-rel-prefetch
+      // IE 11, Edge 12+, nearly all evergreen
+      'prefetch'
 
-function preloadLink(url, resourceType) {
-  const link = document.createElement('link')
-  link.rel = 'preload'
-  link.crossOrigin = process.crossOrigin
-  link.href = url
-  link.as = resourceType
-  document.head.appendChild(link)
-}
+const hasNoModule = 'noModule' in document.createElement('script')
 
-function loadStyle(url) {
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.crossOrigin = process.crossOrigin
-  link.href = url
-  document.head.appendChild(link)
+function appendLink(href, rel, as) {
+  return new Promise((res, rej, link) => {
+    link = document.createElement('link')
+    link.crossOrigin = process.crossOrigin
+    link.href = href
+    link.rel = rel
+    if (as) link.as = as
+
+    link.onload = res
+    link.onerror = rej
+
+    document.head.appendChild(link)
+  })
 }
 
 export default class PageLoader {
@@ -34,6 +39,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -104,6 +110,7 @@ export default class PageLoader {
       }
 
       if (!this.loadingRoutes[route]) {
+        this.loadingRoutes[route] = true
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
@@ -117,15 +124,16 @@ export default class PageLoader {
                 /\.css$/.test(d) &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
-                loadStyle(d) // FIXME: handle failure
+                appendLink(d, 'stylesheet').catch(() => {
+                  // FIXME: handle failure
+                  // Right now, this is needed to prevent an unhandled rejection.
+                })
               }
             })
             this.loadRoute(route)
-            this.loadingRoutes[route] = true
           })
         } else {
           this.loadRoute(route)
-          this.loadingRoutes[route] = true
         }
       }
     })
@@ -143,7 +151,7 @@ export default class PageLoader {
 
   loadScript(url, route, isPage) {
     const script = document.createElement('script')
-    if (process.env.__NEXT_MODERN_BUILD && 'noModule' in script) {
+    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
       script.type = 'module'
       // Only page bundle scripts need to have .module added to url,
       // dependencies already have it added during build manifest creation
@@ -196,79 +204,51 @@ export default class PageLoader {
   }
 
   async prefetch(route, isDependency) {
-    route = this.normalizeRoute(route)
-    let scriptRoute = `${route === '/' ? '/index' : route}.js`
-
-    if (
-      process.env.__NEXT_MODERN_BUILD &&
-      'noModule' in document.createElement('script')
-    ) {
-      scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+    // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
+    // License: Apache 2.0
+    let cn
+    if ((cn = navigator.connection)) {
+      // Don't prefetch if using 2G or if Save-Data is enabled.
+      if (cn.saveData || /2g/.test(cn.effectiveType)) return
     }
-    const url =
-      this.assetPrefix +
-      (isDependency
-        ? route
-        : `/_next/static/${encodeURIComponent(this.buildId)}/pages${encodeURI(
-            scriptRoute
-          )}`)
 
-    // n.b. If preload is not supported, we fall back to `loadPage` which has
-    // its own deduping mechanism.
+    let url = this.assetPrefix
+    if (isDependency) {
+      url += route
+    } else {
+      route = this.normalizeRoute(route)
+      this.prefetched[route] = true
+
+      let scriptRoute = `${route === '/' ? '/index' : route}.js`
+      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
+        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+      }
+
+      url += `/_next/static/${encodeURIComponent(
+        this.buildId
+      )}/pages${encodeURI(scriptRoute)}`
+    }
+
     if (
       document.querySelector(
-        `link[rel="preload"][href^="${url}"], script[data-next-page="${route}"]`
+        `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
       )
     ) {
       return
     }
 
-    // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
-    let cn
-    if ((cn = navigator.connection)) {
-      // Don't prefetch if the user is on 2G or if Save-Data is enabled.
-      if ((cn.effectiveType || '').indexOf('2g') !== -1 || cn.saveData) {
-        return
-      }
-    }
-
-    // Feature detection is used to see if preload is supported
-    // If not fall back to loading script tags before the page is loaded
-    // https://caniuse.com/#feat=link-rel-preload
-    if (hasPreload) {
-      preloadLink(url, url.match(/\.css$/) ? 'style' : 'script')
-    }
-
-    // This has to come after `preloadLink` so the operation is sync with the
-    // DOM access dedupe. Otherwise, multiple calls will result in multiple
-    // prefetches.
-    if (process.env.__NEXT_GRANULAR_CHUNKS && !isDependency) {
-      ;(await this.getDependencies(route)).forEach(url => {
-        this.prefetch(url, true)
-      })
-    }
-
-    if (hasPreload) {
-      return
-    }
-
-    if (isDependency) {
-      // loadPage will automatically handle depencies, so no need to
-      // preload them manually
-      return
-    }
-
-    if (document.readyState === 'complete') {
-      return this.loadPage(route).catch(() => {})
-    } else {
-      return new Promise(resolve => {
-        window.addEventListener('load', () => {
-          this.loadPage(route).then(
-            () => resolve(),
-            () => resolve()
-          )
-        })
-      })
-    }
+    return Promise.all([
+      appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script'),
+      process.env.__NEXT_GRANULAR_CHUNKS &&
+        !isDependency &&
+        this.getDependencies(route).then(urls =>
+          Promise.all(urls.map(url => this.prefetch(url, true)))
+        ),
+    ]).then(
+      // do not return any data
+      () => {},
+      // swallow prefetch errors
+      () => {}
+    )
   }
 }

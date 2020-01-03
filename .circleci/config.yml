@@ -20,10 +20,13 @@ aliases:
 # Executors
 #########################
 
+orbs:
+  win: circleci/windows@2.2.0
+
 executors:
   node:
     docker:
-      - image: circleci/node@sha256:8631b3dc0f49fc179940bbd4254ced0c41b99d02bfdbf1d8bdd4d0b135e3ee5f
+      - image: circleci/node:10-browsers
     working_directory: ~/repo
 
 #########################
@@ -36,13 +39,6 @@ commands:
       - run:
           name: Installing Dependencies
           command: yarn install --frozen-lockfile --check-files
-      - run:
-          name: Install correct Chrome Driver version
-          command: node node_modules/chromedriver/install.js
-          environment:
-            CHROMEDRIVER_VERSION: '76.0.3809.68'
-      - run: google-chrome --version
-      - run: yarn chromedriver --version
   yarn_lint:
     steps:
       - run:
@@ -53,8 +49,6 @@ commands:
       - run:
           name: Upgrade to most recent release in React's Next channel
           command: yarn upgrade react@next react-dom@next -W --dev # upgrade (vs add) will skip re-building Next.js, which doesn't bundle React internals (so this is OK!)
-          environment:
-            CHROMEDRIVER_VERSION: '76.0.3809.68'
   yarn_info:
     steps:
       - run:
@@ -62,6 +56,8 @@ commands:
           command: yarn why react && yarn why react-dom
   test_all:
     steps:
+      - run: google-chrome --version
+      - run: chromedriver --version
       - run:
           name: Run All Tests
           command: |
@@ -71,22 +67,22 @@ commands:
             )
           environment:
             NEXT_TELEMETRY_DISABLED: '1'
-  test_browser:
-    parameters:
-      browser:
-        type: string
+  test_safari:
     steps:
       - run:
-          name: Test in a browser
+          name: Test Safari
           command: |
-            if [[ ! -z $BROWSERSTACK_USERNAME ]]; then
-              yarn testall test/integration/production/
-            else
-              echo "Not running for PR"
-            fi
+            yarn testsafari --forceExit test/integration/production/
           environment:
+            NEXT_TELEMETRY_DISABLED: '1'
             BROWSERSTACK: 'true'
-            BROWSER_NAME: << parameters.browser >>
+  test_firefox:
+    steps:
+      - run:
+          name: Test Firefox
+          command: |
+            yarn testfirefox --forceExit test/integration/production/
+          environment:
             NEXT_TELEMETRY_DISABLED: '1'
   save_npm_token:
     steps:
@@ -151,24 +147,16 @@ jobs:
       - yarn_info
       - test_all
       - *store_test_results
-  test-ie11:
-    executor: node
-    steps:
-      - *attach_workspace
-      - test_browser:
-          browser: 'ie'
   test-safari:
     executor: node
     steps:
       - *attach_workspace
-      - test_browser:
-          browser: 'safari'
+      - test_safari
   test-firefox:
     executor: node
     steps:
       - *attach_workspace
-      - test_browser:
-          browser: 'firefox'
+      - test_firefox
   deploy:
     executor: node
     steps:
@@ -186,41 +174,23 @@ workflows:
   build-test-and-deploy:
     jobs:
       - build
-      - test:
-          requires:
-            - build
-      - lint:
-          requires:
-            - build
-      - test-ie11:
-          requires:
-            - build
-          filters:
-            branches:
-              only:
-                - master
-                - canary
-      - test-safari:
-          requires:
-            - build
-            - test
-            - test-ie11
-          filters:
-            branches:
-              only:
-                - master
-                - canary
       - test-firefox:
           requires:
             - build
-            - test
-            - test-ie11
-            - test-safari
+      - test:
+          requires:
+            - build
+      - test-safari:
+          requires:
+            - build
           filters:
             branches:
               only:
                 - master
                 - canary
+      - lint:
+          requires:
+            - build
       - deploy:
           requires:
             - test

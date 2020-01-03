@@ -317,6 +317,20 @@ export async function renderToHTML(
   const isAutoExport =
     !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
 
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    isAutoExport &&
+    isDynamicRoute(pathname) &&
+    (req as any)._nextDidRewrite
+  ) {
+    // TODO: add err.sh when rewrites go stable
+    // Behavior might change before then (prefer SSR in this case)
+    throw new Error(
+      `Rewrites don't support auto-exported dynamic pages yet. ` +
+        `Using this will cause the page to fail to parse the params on the client`
+    )
+  }
+
   if (hasPageGetInitialProps && isSpr) {
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
@@ -433,7 +447,7 @@ export async function renderToHTML(
         throw new Error(
           `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
             `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-            `\n\nKeys that need moved: ${invalidKeys.join(', ')}.`
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
         )
       }
 
@@ -485,8 +499,8 @@ export async function renderToHTML(
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...getPageFiles(buildManifest, pathname),
       ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, pathname),
     ]),
   ]
   const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')

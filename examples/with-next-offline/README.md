@@ -12,7 +12,7 @@ npx create-next-app --example with-next-offline with-next-offline-app
 yarn create next-app --example with-next-offline with-next-offline-app
 ```
 
-### Download manually
+### Download
 
 Download the example:
 
@@ -21,19 +21,47 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-next-offline
 ```
 
-Install it and run:
+### Install dependecies
 
 ```bash
 npm install
-npm run dev
-npm run export
-serve -s out
 # or
 yarn
-yarn dev
-yarn export
-serve -s out
 ```
+
+### Build
+
+#### Static export
+
+```bash
+npm run export
+# or
+yarn export
+```
+
+To serve it yourself, you can run:
+
+```bash
+npx serve -s out
+```
+
+#### Server hosted
+
+```bash
+npm run build
+# or
+yarn build
+```
+
+To serve it yourself, run:
+
+```bash
+npm start
+# or
+yarn start
+```
+
+### Deploy
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 

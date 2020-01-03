@@ -28,6 +28,7 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
+import { __overrideCssConfiguration } from './webpack/config/blocks/css'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -642,7 +643,30 @@ export default async function getBaseWebpackConfig(
             }
             return /node_modules/.test(path)
           },
-          use: defaultLoaders.babel,
+          use: config.experimental.babelMultiThread
+            ? [
+                // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
+                // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
+                {
+                  loader: 'cache-loader',
+                  options: {
+                    cacheContext: dir,
+                    cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+                    cacheIdentifier: `webpack${isServer ? '-server' : ''}${
+                      config.experimental.modern ? '-hasmodern' : ''
+                    }`,
+                  },
+                },
+                {
+                  loader: 'thread-loader',
+                  options: {
+                    workers: 2,
+                    workerParallelJobs: Infinity,
+                  },
+                },
+                defaultLoaders.babel,
+              ]
+            : defaultLoaders.babel,
         },
       ].filter(Boolean),
     },
@@ -700,6 +724,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
+        ),
+        'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
+          config.experimental.basePath
         ),
         ...(isServer
           ? {
@@ -842,6 +869,7 @@ export default async function getBaseWebpackConfig(
     isServer,
     hasSupportCss: !!config.experimental.css,
     hasExperimentalData: !!config.experimental.ampBindInitData,
+    assetPrefix: config.assetPrefix || '',
   })
 
   if (typeof config.webpack === 'function') {
@@ -920,6 +948,8 @@ export default async function getBaseWebpackConfig(
           e => (e as any).__next_css_remove !== true
         )
       }
+    } else {
+      await __overrideCssConfiguration(dir, webpackConfig)
     }
   }
 
