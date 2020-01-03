@@ -6,7 +6,7 @@ import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
 import fetch from 'isomorphic-unfetch'
 
-let apolloClient = null
+let globalApolloClient = null
 
 /**
  * Creates and provides the apolloContext
@@ -44,7 +44,7 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
 
       // Initialize ApolloClient, add it to the ctx object so
       // we can use it in `PageComponent.getInitialProp`.
-      const apolloClient = (ctx.apolloClient = initApolloClient())
+      globalApolloClient = ctx.apolloClient = initApolloClient()
 
       // Run wrapped getInitialProps methods
       let pageProps = {}
@@ -69,7 +69,7 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
               <AppTree
                 pageProps={{
                   ...pageProps,
-                  apolloClient,
+                  globalApolloClient,
                 }}
               />
             )
@@ -87,7 +87,7 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
       }
 
       // Extract query data from the Apollo store
-      const apolloState = apolloClient.cache.extract()
+      const apolloState = globalApolloClient.cache.extract()
 
       return {
         ...pageProps,
@@ -112,11 +112,11 @@ function initApolloClient(initialState) {
   }
 
   // Reuse client on the client-side
-  if (!apolloClient) {
-    apolloClient = createApolloClient(initialState)
+  if (!globalApolloClient) {
+    globalApolloClient = createApolloClient(initialState)
   }
 
-  return apolloClient
+  return globalApolloClient
 }
 
 /**

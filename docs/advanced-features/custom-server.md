@@ -93,39 +93,3 @@ module.exports = {
 > Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
 
 > You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; for that refer to [`Router.beforePopState`](/docs/api-reference/next/router.md#router.beforePopState).
-
-## Dynamic `assetPrefix`
-
-Sometimes you may need to set the [`assetPrefix`](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) dynamically. This is useful when changing the `assetPrefix` based on incoming requests.
-
-For that, you can use `app.setAssetPrefix`, as in the following example:
-
-```js
-const next = require('next')
-const http = require('http')
-
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
-const handleNextRequests = app.getRequestHandler()
-
-app.prepare().then(() => {
-  const server = new http.Server((req, res) => {
-    // Add assetPrefix support based on the hostname
-    if (req.headers.host === 'my-app.com') {
-      app.setAssetPrefix('http://cdn.com/myapp')
-    } else {
-      app.setAssetPrefix('')
-    }
-
-    handleNextRequests(req, res)
-  })
-
-  server.listen(port, err => {
-    if (err) {
-      throw err
-    }
-
-    console.log(`> Ready on http://localhost:${port}`)
-  })
-})
-```
