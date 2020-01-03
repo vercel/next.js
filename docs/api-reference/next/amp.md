@@ -1,3 +1,7 @@
+---
+description: Enable AMP in a page, and control the way Next.js adds AMP to the page with the AMP config.
+---
+
 # next/amp
 
 <details>

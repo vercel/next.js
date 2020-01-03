@@ -499,8 +499,8 @@ export async function renderToHTML(
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...getPageFiles(buildManifest, pathname),
       ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, pathname),
     ]),
   ]
   const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')

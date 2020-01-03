@@ -469,7 +469,7 @@ describe('CSS Support', () => {
     })
   })
 
-  describe('CSS URL via `file-loader', () => {
+  describe('CSS URL via `file-loader`', () => {
     const appDir = join(fixturesDir, 'url-global')
 
     beforeAll(async () => {
@@ -490,7 +490,97 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+      )
+
+      const mediaFiles = await readdir(mediaFolder)
+      expect(mediaFiles.length).toBe(3)
+      expect(
+        mediaFiles
+          .map(fileName =>
+            /^(.+?)\..{32}\.(.+?)$/
+              .exec(fileName)
+              .slice(1)
+              .join('.')
+          )
+          .sort()
+      ).toMatchInlineSnapshot(`
+        Array [
+          "dark.svg",
+          "dark2.svg",
+          "light.svg",
+        ]
+      `)
+    })
+  })
+
+  describe('CSS URL via `file-loader` and asset prefix (1)', () => {
+    const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+      const mediaFolder = join(appDir, '.next/static/media')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+      )
+
+      const mediaFiles = await readdir(mediaFolder)
+      expect(mediaFiles.length).toBe(3)
+      expect(
+        mediaFiles
+          .map(fileName =>
+            /^(.+?)\..{32}\.(.+?)$/
+              .exec(fileName)
+              .slice(1)
+              .join('.')
+          )
+          .sort()
+      ).toMatchInlineSnapshot(`
+        Array [
+          "dark.svg",
+          "dark2.svg",
+          "light.svg",
+        ]
+      `)
+    })
+  })
+
+  describe('CSS URL via `file-loader` and asset prefix (2)', () => {
+    const appDir = join(fixturesDir, 'url-global-asset-prefix-2')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      await nextBuild(appDir)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+      const mediaFolder = join(appDir, '.next/static/media')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter(f => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)

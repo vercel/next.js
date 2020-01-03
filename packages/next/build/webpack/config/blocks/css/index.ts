@@ -14,8 +14,10 @@ import { getPostCssPlugins } from './plugins'
 
 function getClientStyleLoader({
   isDevelopment,
+  assetPrefix,
 }: {
   isDevelopment: boolean
+  assetPrefix: string
 }): webpack.RuleSetUseItem {
   return isDevelopment
     ? {
@@ -62,7 +64,7 @@ function getClientStyleLoader({
       }
     : {
         loader: MiniCssExtractPlugin.loader,
-        options: {},
+        options: { publicPath: `${assetPrefix}/_next/` },
       }
 }
 
@@ -150,7 +152,10 @@ export const css = curry(async function css(
             // Add appropriate development more or production mode style
             // loader
             ctx.isClient &&
-              getClientStyleLoader({ isDevelopment: ctx.isDevelopment }),
+              getClientStyleLoader({
+                isDevelopment: ctx.isDevelopment,
+                assetPrefix: ctx.assetPrefix,
+              }),
 
             // Resolve CSS `@import`s and `url()`s
             {
@@ -227,7 +232,10 @@ export const css = curry(async function css(
             use: [
               // Add appropriate development more or production mode style
               // loader
-              getClientStyleLoader({ isDevelopment: ctx.isDevelopment }),
+              getClientStyleLoader({
+                isDevelopment: ctx.isDevelopment,
+                assetPrefix: ctx.assetPrefix,
+              }),
 
               // Resolve CSS `@import`s and `url()`s
               {
