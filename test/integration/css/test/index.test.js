@@ -469,7 +469,7 @@ describe('CSS Support', () => {
     })
   })
 
-  describe('CSS URL via `file-loader', () => {
+  describe('CSS URL via `file-loader`', () => {
     const appDir = join(fixturesDir, 'url-global')
 
     beforeAll(async () => {

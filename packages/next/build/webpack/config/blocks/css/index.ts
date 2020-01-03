@@ -62,7 +62,11 @@ function getClientStyleLoader({
       }
     : {
         loader: MiniCssExtractPlugin.loader,
-        options: {},
+        options: {
+          // Next.js apps can be mounted at arbitrary URLs, so we must access
+          // our media using a relative URL.
+          publicPath: '../../',
+        },
       }
 }
 
