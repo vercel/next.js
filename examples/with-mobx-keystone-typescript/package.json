@@ -10,7 +10,7 @@
     "mobx": "^5.15.1",
     "mobx-keystone": "^0.30.0",
     "mobx-react-lite": "^1.5.2",
-    "next": "^9.1.6",
+    "next": "latest",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "typescript": "^3.7.4"
