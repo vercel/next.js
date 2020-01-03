@@ -1,3 +1,7 @@
+---
+description: Learn how AMP pages are created when used together with `next export`.
+---
+
 # AMP in Static HTML export
 
 When using `next export` to do [Static HTML export](/docs/advanced-features/static-html-export.md) statically prerender pages, Next.js will detect if the page supports AMP and change the exporting behavior based on that.

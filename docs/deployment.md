@@ -1,3 +1,7 @@
+---
+description: Compile and deploy your Next.js app to production with ZEIT Now and other hosting alternatives.
+---
+
 # Deployment
 
 To go to production Next.js has a `next build` command. When ran it will compile your project and automatically apply numerous optimizations.

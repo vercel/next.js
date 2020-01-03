@@ -1,3 +1,7 @@
+---
+description: The Next.js CLI allows you to start, build, and export your application. Learn more about it here.
+---
+
 # Next.js CLI
 
 The Next.js CLI allows you to start, build, and export your application.
