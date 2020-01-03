@@ -13,6 +13,7 @@ export async function build(
     isServer,
     hasSupportCss,
     hasExperimentalData,
+    assetPrefix,
   }: {
     rootDirectory: string
     customAppFile: string | null
@@ -20,6 +21,7 @@ export async function build(
     isServer: boolean
     hasSupportCss: boolean
     hasExperimentalData: boolean
+    assetPrefix: string
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -29,6 +31,11 @@ export async function build(
     isProduction: !isDevelopment,
     isServer,
     isClient: !isServer,
+    assetPrefix: assetPrefix
+      ? assetPrefix.endsWith('/')
+        ? assetPrefix.slice(0, -1)
+        : assetPrefix
+      : '',
   }
 
   const fn = pipe(
