@@ -16,7 +16,7 @@ Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
 
 Make sure you have `chromedriver` installed for your Chrome version. You can install it with
 
-- `brew install chromedriver` on Mac OS X
+- `brew cask install chromedriver` on Mac OS X
 - `chocolatey install chromedriver` on Windows
 - Or manually downloading it from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and adding the binary to `<next-repo>/node_modules/.bin`
 
