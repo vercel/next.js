@@ -1,3 +1,7 @@
+---
+description: Learn to add and access environment variables in your Next.js application at build time.
+---
+
 # Environment Variables
 
 <details>

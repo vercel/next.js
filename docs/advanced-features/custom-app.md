@@ -1,3 +1,7 @@
+---
+description: Control page initialization and add a layout that persists for all pages by overriding the default App component used by Next.js.
+---
+
 # Custom `App`
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:

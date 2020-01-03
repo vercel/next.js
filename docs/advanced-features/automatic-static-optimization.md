@@ -1,3 +1,7 @@
+---
+description: Next.js automatically optimizes your app to be static HTML whenever possible. Learn how it works here.
+---
+
 # Automatic Static Optimization
 
 Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements. This determination is made by the absence of `getInitialProps` in the page.

@@ -1,3 +1,7 @@
+---
+description: Export your Next.js app to static HTML, and run it standalone without the need of a Node.js server.
+---
+
 # Static HTML Export
 
 <details>

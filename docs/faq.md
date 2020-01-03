@@ -1,3 +1,7 @@
+---
+description: Get to know more about Next.js with the frequently asked questions.
+---
+
 # Frequently Asked Questions
 
 <details>

@@ -1,3 +1,7 @@
+---
+description: API Routes provide built-in middlewares that parse the incoming request. Learn more about them here.
+---
+
 # API Middlewares
 
 API routes provide built in middlewares which parse the incoming request (`req`). Those middlewares are:
