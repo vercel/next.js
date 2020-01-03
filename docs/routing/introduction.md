@@ -1,3 +1,7 @@
+---
+description: Next.js has a built-in, opinionated, and file-system based Router. You can learn how it works here.
+---
+
 # Routing
 
 Next.js has a file-system based router built on the [concept of pages](/docs/basic-features/pages.md).
