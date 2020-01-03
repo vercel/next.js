@@ -42,7 +42,6 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    catchAllRouting: false,
     css: false,
     documentMiddleware: false,
     granularChunks: false,
