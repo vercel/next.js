@@ -1,3 +1,7 @@
+---
+description: API Routes include a set of Express.js-like methods for the response to help you creating new API endpoints. Learn how it works here.
+---
+
 # Response Helpers
 
 The response (`res`) includes a set of Express.js-like methods to improve the developer experience and increase the speed of creating new API endpoints, take a look at the following example:
