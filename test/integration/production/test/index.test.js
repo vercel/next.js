@@ -460,7 +460,7 @@ describe('Production Usage', () => {
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
         // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(9)
+        expect(elements.length).toBe(13)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
