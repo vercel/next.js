@@ -119,6 +119,7 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
+          shallow: true,
         }
       )
     }
