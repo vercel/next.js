@@ -46,7 +46,7 @@ The [hybrid pages](/docs/basic-features/pages.md) approach is fully supported ou
 
 In case of [Static Generation](/docs/basic-features/pages.md#static-generation) the page will automatically be served from the ZEIT Now Smart CDN.
 
-When the page is using [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) it will become an isolated serverless function automatically. This allows the page rendering to scale automatically and be independent--errors on one page won't affect another.
+When the page is using [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) it will become an isolated serverless function automatically. This allows the page rendering to scale automatically and be independent—errors on one page won't affect another.
 
 API routes will also become separate serverless functions that execute and scale separately from each other.
 
