@@ -65,7 +65,6 @@ export default function onDemandEntryHandler(
   let reloading = false
   let stopped = false
   let reloadCallbacks: EventEmitter | null = new EventEmitter()
-  let lastEntry: string | null = null
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise(
@@ -225,7 +224,6 @@ export default function onDemandEntryHandler(
     // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
       // if (page !== lastEntry) client pings, but there's no entry for page
-      lastEntry = page
       return { invalid: true }
     }
 
