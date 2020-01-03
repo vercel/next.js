@@ -181,6 +181,12 @@ export default function loadConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
+    if (Object.keys(userConfig).length === 0) {
+      throw new Error(
+        '`next.config.js` file found, but nothing was exported from it'
+      )
+    }
+
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(
         `Specified target is invalid. Provided: "${
