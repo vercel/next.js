@@ -1,5 +1,5 @@
 ---
-description: Customize the pages that will be exported as HTML files when using `next` export.
+description: Customize the pages that will be exported as HTML files when using `next export`.
 ---
 
 # exportPathMap
