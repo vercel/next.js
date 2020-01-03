@@ -44,7 +44,7 @@ const defaultConfig: { [key: string]: any } = {
     ),
     css: false,
     documentMiddleware: false,
-    granularChunks: false,
+    granularChunks: true,
     modern: false,
     plugins: false,
     profiling: false,
