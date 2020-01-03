@@ -1,42 +1,30 @@
-import { getSnapshot, SnapshotOutOf } from 'mobx-keystone'
-import App from 'next/app'
-import React from 'react'
-import { RootStore, StoreProvider, initStore } from '../store'
+import { AppContext } from 'next/app'
+import { getSnapshot } from 'mobx-keystone'
+import { StoreProvider, initStore } from '../store'
 
-interface IOwnProps {
-  isServer: boolean
-  initialState: SnapshotOutOf<RootStore>
+export default function App({ Component, pageProps, initialState }: any) {
+  return (
+    <StoreProvider snapshot={initialState}>
+      <Component {...pageProps} />
+    </StoreProvider>
+  )
 }
 
-class MyApp extends App<IOwnProps> {
-  public static async getInitialProps({ Component, router, ctx }) {
-    //
-    // Use getInitialProps as a step in the lifecycle when
-    // we can initialize our store
-    //
-    const store = initStore()
+App.getInitialProps = async ({ Component, ctx }: AppContext) => {
+  //
+  // Use getInitialProps as a step in the lifecycle when
+  // we can initialize our store
+  //
+  const store = initStore()
 
-    //
-    // Check whether the page being rendered by the App has a
-    // static getInitialProps method and if so call it
-    //
-    let pageProps = {}
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { initialState: getSnapshot(store), pageProps }
+  //
+  // Check whether the page being rendered by the App has a
+  // static getInitialProps method and if so call it
+  //
+  let pageProps = {}
+  if (Component.getInitialProps) {
+    pageProps = await Component.getInitialProps(ctx)
   }
 
-  public render() {
-    const { Component, pageProps, initialState } = this.props
-
-    return (
-      <StoreProvider snapshot={initialState}>
-        <Component {...pageProps} />
-      </StoreProvider>
-    )
-  }
+  return { initialState: getSnapshot(store), pageProps }
 }
-
-export default MyApp

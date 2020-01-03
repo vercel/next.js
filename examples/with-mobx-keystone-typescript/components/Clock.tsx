@@ -2,9 +2,9 @@ import React, { FC } from 'react'
 
 import { RootStore } from '../store'
 
-const format = t =>
+const format = (t: Date) =>
   `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-const pad = n => (n < 10 ? `0${n}` : n)
+const pad = (n: number) => (n < 10 ? `0${n}` : n)
 
 interface Props extends Pick<RootStore, 'lastUpdate' | 'light'> {}
 
@@ -16,7 +16,9 @@ const Clock: FC<Props> = props => {
     font: '50px menlo, monaco, monospace',
     padding: '15px',
   }
-  return <div style={divStyle}>{format(new Date(props.lastUpdate))}</div>
+  return (
+    <div style={divStyle}>{format(new Date(props.lastUpdate as number))}</div>
+  )
 }
 
 export { Clock }
