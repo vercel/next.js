@@ -44,7 +44,7 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
 
       // Initialize ApolloClient, add it to the ctx object so
       // we can use it in `PageComponent.getInitialProp`.
-      globalApolloClient = ctx.apolloClient = initApolloClient()
+      const apolloClient = (ctx.apolloClient = initApolloClient())
 
       // Run wrapped getInitialProps methods
       let pageProps = {}
@@ -69,7 +69,7 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
               <AppTree
                 pageProps={{
                   ...pageProps,
-                  globalApolloClient,
+                  apolloClient,
                 }}
               />
             )
@@ -87,7 +87,7 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
       }
 
       // Extract query data from the Apollo store
-      const apolloState = globalApolloClient.cache.extract()
+      const apolloState = apolloClient.cache.extract()
 
       return {
         ...pageProps,
