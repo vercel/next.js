@@ -546,13 +546,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId)
 
-  if (config.experimental.catchAllRouting !== true) {
-    if (dynamicRoutes.some(page => /\/\[\.{3}[^/]+?\](?=\/|$)/.test(page))) {
-      throw new Error(
-        'Catch-all routing is still experimental. You cannot use it yet.'
-      )
-    }
-  }
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
