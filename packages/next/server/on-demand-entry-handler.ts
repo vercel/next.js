@@ -224,9 +224,7 @@ export default function onDemandEntryHandler(
 
     // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
-      // if (page !== lastEntry) {
-        // client pings, but there's no entry for page
-      // }
+      // if (page !== lastEntry) client pings, but there's no entry for page
       lastEntry = page
       return { invalid: true }
     }
