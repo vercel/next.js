@@ -14,7 +14,6 @@ class MyApp extends App<IOwnProps> {
     // Use getInitialProps as a step in the lifecycle when
     // we can initialize our store
     //
-    const isServer = typeof window === 'undefined'
     const store = initStore()
 
     //
@@ -25,11 +24,8 @@ class MyApp extends App<IOwnProps> {
     if (Component.getInitialProps) {
       pageProps = await Component.getInitialProps(ctx)
     }
-    return {
-      initialState: getSnapshot(store),
-      isServer,
-      pageProps,
-    }
+
+    return { initialState: getSnapshot(store), pageProps }
   }
 
   public render() {

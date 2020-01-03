@@ -9,14 +9,13 @@ import {
 
 import { RootStore } from './root'
 
-const isServer = typeof window === 'undefined'
 // eslint-disable-next-line react-hooks/rules-of-hooks
-useStaticRendering(isServer)
+useStaticRendering(typeof window === 'undefined')
 
 let store: RootStore | null = null
 
 export const initStore = (snapshot?: SnapshotInOf<RootStore>) => {
-  if (isServer) {
+  if (typeof window === 'undefined') {
     store = new RootStore({})
   }
   if (!store) {
