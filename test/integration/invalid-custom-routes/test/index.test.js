@@ -134,6 +134,91 @@ const invalidRewriteAssertions = (stderr = '') => {
   expect(stderr).toContain('Invalid rewrites found')
 }
 
+const invalidHeaders = [
+  {
+    // missing source
+    headers: [
+      {
+        'x-first': 'first',
+      },
+    ],
+  },
+  {
+    // invalid headers value
+    source: '/hello',
+    headers: {
+      'x-first': 'first',
+    },
+  },
+  {
+    source: '/again',
+    headers: [
+      {
+        // missing key
+        value: 'idk',
+      },
+    ],
+  },
+  {
+    source: '/again',
+    headers: [
+      {
+        // missing value
+        key: 'idk',
+      },
+    ],
+  },
+  {
+    // non-allowed destination
+    source: '/again',
+    destination: '/another',
+    headers: [
+      {
+        key: 'x-first',
+        value: 'idk',
+      },
+    ],
+  },
+  {
+    // valid one
+    source: '/valid-header',
+    headers: [
+      {
+        key: 'x-first',
+        value: 'first',
+      },
+      {
+        key: 'x-another',
+        value: 'again',
+      },
+    ],
+  },
+]
+
+const invalidHeaderAssertions = (stderr = '') => {
+  expect(stderr).toContain(
+    '`source` is missing, `key` in header item must be string for route {"headers":[{"x-first":"first"}]}'
+  )
+
+  expect(stderr).toContain(
+    '`headers` field must be an array for route {"source":"/hello","headers":{"x-first":"first"}}'
+  )
+
+  expect(stderr).toContain(
+    '`key` in header item must be string for route {"source":"/again","headers":[{"value":"idk"}]}'
+  )
+
+  expect(stderr).toContain(
+    '`value` in header item must be string for route {"source":"/again","headers":[{"key":"idk"}]}'
+  )
+
+  expect(stderr).toContain(
+    'invalid field: destination for route {"source":"/again","destination":"/another","headers":[{"key":"x-first","value":"idk"}]}'
+  )
+
+  expect(stderr).not.toContain('/valid-header')
+}
+
 describe('Errors on invalid custom routes', () => {
   afterAll(() => fs.remove(nextConfigPath))
 
@@ -147,6 +232,12 @@ describe('Errors on invalid custom routes', () => {
     await writeConfig(invalidRewrites, 'rewrites')
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
     invalidRewriteAssertions(stderr)
+  })
+
+  it('should error during next build for invalid headers', async () => {
+    await writeConfig(invalidHeaders, 'headers')
+    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+    invalidHeaderAssertions(stderr)
   })
 
   it('should error during next dev for invalid redirects', async () => {
@@ -169,5 +260,16 @@ describe('Errors on invalid custom routes', () => {
       },
     })
     invalidRewriteAssertions(stderr)
+  })
+
+  it('should error during next dev for invalid headers', async () => {
+    await writeConfig(invalidHeaders, 'headers')
+    let stderr = ''
+    await launchApp(appDir, await findPort(), {
+      onStderr: msg => {
+        stderr += msg
+      },
+    })
+    invalidHeaderAssertions(stderr)
   })
 })

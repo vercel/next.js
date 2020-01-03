@@ -110,6 +110,7 @@ export default class PageLoader {
       }
 
       if (!this.loadingRoutes[route]) {
+        this.loadingRoutes[route] = true
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
@@ -130,11 +131,9 @@ export default class PageLoader {
               }
             })
             this.loadRoute(route)
-            this.loadingRoutes[route] = true
           })
         } else {
           this.loadRoute(route)
-          this.loadingRoutes[route] = true
         }
       }
     })

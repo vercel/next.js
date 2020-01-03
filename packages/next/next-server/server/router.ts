@@ -11,6 +11,7 @@ export type RouteMatch = (pathname: string | undefined) => false | Params
 type RouteResult = {
   finished: boolean
   pathname?: string
+  query?: { [k: string]: string }
 }
 
 export type Route = {
@@ -103,6 +104,13 @@ export default class Router {
 
         if (result.pathname) {
           parsedUrlUpdated.pathname = result.pathname
+        }
+
+        if (result.query) {
+          parsedUrlUpdated.query = {
+            ...parsedUrlUpdated.query,
+            ...result.query,
+          }
         }
 
         // check filesystem

@@ -28,6 +28,7 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
+import { __overrideCssConfiguration } from './webpack/config/blocks/css'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -724,6 +725,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
+          config.experimental.basePath
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -943,6 +947,8 @@ export default async function getBaseWebpackConfig(
           e => (e as any).__next_css_remove !== true
         )
       }
+    } else {
+      await __overrideCssConfiguration(dir, webpackConfig)
     }
   }
 
