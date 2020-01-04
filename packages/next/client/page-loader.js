@@ -209,7 +209,7 @@ export default class PageLoader {
     let cn
     if ((cn = navigator.connection)) {
       // Don't prefetch if using 2G or if Save-Data is enabled.
-      if (cn.saveData || /2g/.test(cn.effectiveType)) return
+      if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
     let url = this.assetPrefix
