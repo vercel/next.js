@@ -1,8 +1,10 @@
 import mitt from '../next-server/lib/mitt'
 
+const createElement = document.createElement
+const querySelector = document.querySelector
 function hasRel(rel, link) {
   try {
-    link = document.createElement('link')
+    link = createElement('link')
     return link.relList.supports(rel)
   } catch {}
 }
@@ -16,7 +18,7 @@ const relPrefetch =
       // IE 11, Edge 12+, nearly all evergreen
       'prefetch'
 
-const hasNoModule = 'noModule' in document.createElement('script')
+const hasNoModule = 'noModule' in createElement('script')
 
 function normalizeRoute(route) {
   if (route[0] !== '/') {
@@ -30,7 +32,7 @@ function normalizeRoute(route) {
 
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
-    link = document.createElement('link')
+    link = createElement('link')
     link.crossOrigin = process.crossOrigin
     link.href = href
     link.rel = rel
@@ -105,7 +107,7 @@ export default class PageLoader {
 
       // If the page is loading via SSR, we need to wait for it
       // rather downloading it again.
-      if (document.querySelector(`script[data-next-page="${route}"]`)) {
+      if (querySelector(`script[data-next-page="${route}"]`)) {
         return
       }
 
@@ -114,15 +116,12 @@ export default class PageLoader {
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
-              if (
-                /\.js$/.test(d) &&
-                !document.querySelector(`script[src^="${d}"]`)
-              ) {
+              if (/\.js$/.test(d) && !querySelector(`script[src^="${d}"]`)) {
                 this.loadScript(d, route, false)
               }
               if (
                 /\.css$/.test(d) &&
-                !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
+                !querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
                 appendLink(d, 'stylesheet').catch(() => {
                   // FIXME: handle failure
@@ -150,7 +149,7 @@ export default class PageLoader {
   }
 
   loadScript(url, route, isPage) {
-    const script = document.createElement('script')
+    const script = createElement('script')
     if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
       script.type = 'module'
       // Only page bundle scripts need to have .module added to url,
@@ -230,7 +229,7 @@ export default class PageLoader {
     }
 
     return Promise.all(
-      document.querySelector(
+      querySelector(
         `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
       )
         ? []

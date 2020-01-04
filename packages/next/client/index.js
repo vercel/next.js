@@ -309,43 +309,43 @@ function renderReactElement(reactEl, domEl) {
 
 function markHydrateComplete() {
   if (!ST) return
+  const mark = performance.mark
+  const measure = performance.measure
+  const entries = performance.getEntriesByName
 
-  performance.mark('afterHydrate') // mark end of hydration
+  mark('afterHydrate') // mark end of hydration
 
-  performance.measure(
-    'Next.js-before-hydration',
-    'navigationStart',
-    'beforeRender'
-  )
-  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+  measure('Next.js-before-hydration', 'navigationStart', 'beforeRender')
+  measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
   if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
-    performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
+    entries('Next.js-hydration').forEach(onPerfEntry)
+    entries('beforeRender').forEach(onPerfEntry)
   }
   clearMarks()
 }
 
 function markRenderComplete() {
   if (!ST) return
+  const mark = performance.mark
+  const measure = performance.measure
+  const entries = performance.getEntriesByName
 
-  performance.mark('afterRender') // mark end of render
-  const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
+  mark('afterRender') // mark end of render
+  const navStartEntries = entries('routeChange', 'mark')
 
   if (!navStartEntries.length) {
     return
   }
 
-  performance.measure(
+  measure(
     'Next.js-route-change-to-render',
     navStartEntries[0].name,
     'beforeRender'
   )
-  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
+  measure('Next.js-render', 'beforeRender', 'afterRender')
   if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
+    entries('Next.js-render').forEach(onPerfEntry)
+    entries('Next.js-route-change-to-render').forEach(onPerfEntry)
   }
   clearMarks()
 }
