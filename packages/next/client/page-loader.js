@@ -118,13 +118,13 @@ export default class PageLoader {
                 /\.js$/.test(d) &&
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
-                this.loadScript(d, route, false)
+                this.loadScript(`${this.assetPrefix}${d}`, route, false)
               }
               if (
                 /\.css$/.test(d) &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
-                appendLink(d, 'stylesheet').catch(() => {
+                appendLink(`${this.assetPrefix}${d}`, 'stylesheet').catch(() => {
                   // FIXME: handle failure
                   // Right now, this is needed to prevent an unhandled rejection.
                 })
