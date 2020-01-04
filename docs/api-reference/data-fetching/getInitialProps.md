@@ -37,6 +37,7 @@ Or using a class component:
 
 ```jsx
 import React from 'react'
+import fetch from 'isomorphic-unfetch'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
@@ -46,7 +47,7 @@ class Page extends React.Component {
   }
 
   render() {
-    return <div>Next stars: {stars}</div>
+    return <div>Next stars: {this.props.stars}</div>
   }
 }
 
