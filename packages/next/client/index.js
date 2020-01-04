@@ -4,11 +4,7 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
-import {
-  loadGetInitialProps,
-  getURL,
-  SUPPORTS_PERFORMANCE_USER_TIMING,
-} from '../next-server/lib/utils'
+import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
@@ -70,7 +66,7 @@ const appElement = document.getElementById('__next')
 let lastAppProps
 let webpackHMR
 export let router
-export let ErrorComponent
+let ErrorComponent
 let Component
 let App, onPerfEntry
 
@@ -187,7 +183,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err, emitter })
+      render({ App, Component, props, err })
     },
   })
 
@@ -203,7 +199,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       })
   }
 
-  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  const renderCtx = { App, Component, props, err: initialErr }
   render(renderCtx)
 
   return emitter
@@ -272,7 +268,7 @@ let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
 function renderReactElement(reactEl, domEl) {
   // mark start of hydrate/render
-  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+  if (ST) {
     performance.mark('beforeRender')
   }
 
@@ -297,7 +293,7 @@ function renderReactElement(reactEl, domEl) {
     }
   }
 
-  if (onPerfEntry && SUPPORTS_PERFORMANCE_USER_TIMING) {
+  if (onPerfEntry && ST) {
     if (!(PerformanceObserver in window)) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
@@ -312,7 +308,7 @@ function renderReactElement(reactEl, domEl) {
 }
 
 function markHydrateComplete() {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+  if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
 
@@ -330,7 +326,7 @@ function markHydrateComplete() {
 }
 
 function markRenderComplete() {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+  if (!ST) return
 
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
