@@ -325,8 +325,8 @@ export function formatWithValidation(
   return format(url as any, options)
 }
 
-export const SUPPORTS_PERFORMANCE = typeof performance !== 'undefined'
-export const SUPPORTS_PERFORMANCE_USER_TIMING =
-  SUPPORTS_PERFORMANCE &&
+export const SP = typeof performance !== 'undefined'
+export const ST =
+  SP &&
   typeof performance.mark === 'function' &&
   typeof performance.measure === 'function'
