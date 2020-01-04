@@ -111,6 +111,7 @@ describe('Chunking', () => {
 
   describe('Serving', () => {
     let server
+    let appPort
 
     beforeAll(async () => {
       await nextBuild(appDir)
@@ -126,13 +127,12 @@ describe('Chunking', () => {
       expressApp.use(app.getRequestHandler())
       server = http.createServer(expressApp)
       await promiseCall(server, 'listen')
+      appPort = server.address().port
     })
 
     afterAll(() => stopApp(server))
 
     it('should hydrate with granularChunks config', async () => {
-      const appPort = server.address().port
-
       const browser = await webdriver(appPort, '/page2')
       await waitFor(1000)
       const text = await browser.elementByCss('#padded-str').text()
@@ -143,10 +143,8 @@ describe('Chunking', () => {
     })
 
     it('should load chunks when navigating', async () => {
-      const appPort = server.address().port
-
       const browser = await webdriver(appPort, '/page3')
-      await waitFor(9000)
+      await waitFor(1000)
       const text = await browser
         .elementByCss('#page2-link')
         .click()
