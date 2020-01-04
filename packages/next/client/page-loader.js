@@ -124,10 +124,12 @@ export default class PageLoader {
                 /\.css$/.test(d) &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
-                appendLink(`${this.assetPrefix}${d}`, 'stylesheet').catch(() => {
-                  // FIXME: handle failure
-                  // Right now, this is needed to prevent an unhandled rejection.
-                })
+                appendLink(`${this.assetPrefix}${d}`, 'stylesheet').catch(
+                  () => {
+                    // FIXME: handle failure
+                    // Right now, this is needed to prevent an unhandled rejection.
+                  }
+                )
               }
             })
             this.loadRoute(route)
