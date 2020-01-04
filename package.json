@@ -88,7 +88,7 @@
     "prettier": "1.19.1",
     "react": "16.10.2",
     "react-dom": "16.10.2",
-    "react-ssr-prepass": "1.0.7",
+    "react-ssr-prepass": "1.0.8",
     "release": "6.0.1",
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
