@@ -229,22 +229,24 @@ export default class PageLoader {
       )}/pages${encodeURI(scriptRoute)}`
     }
 
-    if (
+    return Promise.all(
       document.querySelector(
         `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
       )
-    ) {
-      return
-    }
-
-    return Promise.all([
-      appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script'),
-      process.env.__NEXT_GRANULAR_CHUNKS &&
-        !isDependency &&
-        this.getDependencies(route).then(urls =>
-          Promise.all(urls.map(url => this.prefetch(url, true)))
-        ),
-    ]).then(
+        ? []
+        : [
+            appendLink(
+              url,
+              relPrefetch,
+              url.match(/\.css$/) ? 'style' : 'script'
+            ),
+            process.env.__NEXT_GRANULAR_CHUNKS &&
+              !isDependency &&
+              this.getDependencies(route).then(urls =>
+                Promise.all(urls.map(url => this.prefetch(url, true)))
+              ),
+          ]
+    ).then(
       // do not return any data
       () => {},
       // swallow prefetch errors
