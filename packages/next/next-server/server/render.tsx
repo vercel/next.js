@@ -19,10 +19,8 @@ import {
 import Head, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
-import { DataManagerContext } from '../lib/data-manager-context'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { DataManager } from '../lib/data-manager'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
@@ -126,7 +124,6 @@ function render(
 
 type RenderOpts = {
   documentMiddlewareEnabled: boolean
-  ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
@@ -140,7 +137,6 @@ type RenderOpts = {
   dev?: boolean
   ampMode?: any
   ampPath?: string
-  dataOnly?: boolean
   inAmpMode?: boolean
   hybridAmp?: boolean
   buildManifest: BuildManifest
@@ -164,7 +160,6 @@ type RenderOpts = {
 function renderDocument(
   Document: DocumentType,
   {
-    dataManagerData,
     props,
     docProps,
     pathname,
@@ -193,7 +188,6 @@ function renderDocument(
     bodyTags,
     headTags,
   }: RenderOpts & {
-    dataManagerData: string
     props: any
     docProps: DocumentInitialProps
     pathname: string
@@ -219,7 +213,6 @@ function renderDocument(
       <AmpStateContext.Provider value={ampState}>
         {Document.renderDocument(Document, {
           __NEXT_DATA__: {
-            dataManager: dataManagerData,
             props, // The result of getInitialProps
             page: pathname, // The rendered page
             query, // querystring parsed / passed by the user
@@ -267,7 +260,6 @@ export async function renderToHTML(
     err,
     dev = false,
     documentMiddlewareEnabled = false,
-    ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
     App,
@@ -399,11 +391,6 @@ export async function renderToHTML(
     await DocumentMiddleware(ctx)
   }
 
-  let dataManager: DataManager | undefined
-  if (ampBindInitData) {
-    dataManager = new DataManager()
-  }
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -414,15 +401,13 @@ export async function renderToHTML(
 
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
-      <DataManagerContext.Provider value={dataManager}>
-        <AmpStateContext.Provider value={ampState}>
-          <LoadableContext.Provider
-            value={moduleName => reactLoadableModules.push(moduleName)}
-          >
-            {children}
-          </LoadableContext.Provider>
-        </AmpStateContext.Provider>
-      </DataManagerContext.Provider>
+      <AmpStateContext.Provider value={ampState}>
+        <LoadableContext.Provider
+          value={moduleName => reactLoadableModules.push(moduleName)}
+        >
+          {children}
+        </LoadableContext.Provider>
+      </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
 
@@ -525,96 +510,35 @@ export async function renderToHTML(
     }
   }
 
-  let renderPage: RenderPage
+  let renderPage: RenderPage = (
+    options: ComponentsEnhancer = {}
+  ): { html: string; head: any } => {
+    const renderError = renderPageError()
+    if (renderError) return renderError
 
-  if (ampBindInitData) {
-    const ssrPrepass = require('react-ssr-prepass')
+    const {
+      App: EnhancedApp,
+      Component: EnhancedComponent,
+    } = enhanceComponents(options, App, Component)
 
-    renderPage = async (
-      options: ComponentsEnhancer = {}
-    ): Promise<{ html: string; head: any; dataOnly?: true }> => {
-      const renderError = renderPageError()
-      if (renderError) return renderError
-
-      const {
-        App: EnhancedApp,
-        Component: EnhancedComponent,
-      } = enhanceComponents(options, App, Component)
-
-      const Application = () => (
-        <AppContainer>
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </AppContainer>
-      )
-
-      const element = <Application />
-
-      try {
-        return render(renderElementToString, element, ampState)
-      } catch (err) {
-        if (err && typeof err === 'object' && typeof err.then === 'function') {
-          await ssrPrepass(element)
-          if (renderOpts.dataOnly) {
-            return {
-              html: '',
-              head: [],
-              dataOnly: true,
-            }
-          } else {
-            return render(renderElementToString, element, ampState)
-          }
-        }
-        throw err
-      }
-    }
-  } else {
-    renderPage = (
-      options: ComponentsEnhancer = {}
-    ): { html: string; head: any } => {
-      const renderError = renderPageError()
-      if (renderError) return renderError
-
-      const {
-        App: EnhancedApp,
-        Component: EnhancedComponent,
-      } = enhanceComponents(options, App, Component)
-
-      return render(
-        renderElementToString,
-        <AppContainer>
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </AppContainer>,
-        ampState
-      )
-    }
+    return render(
+      renderElementToString,
+      <AppContainer>
+        <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
+      </AppContainer>,
+      ampState
+    )
   }
   const documentCtx = { ...ctx, renderPage }
   const docProps = await loadGetInitialProps(Document, documentCtx)
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
-  let dataManagerData = '[]'
-  if (dataManager) {
-    dataManagerData = JSON.stringify([...dataManager.getData()])
-  }
-
   if (!docProps || typeof docProps.html !== 'string') {
     const message = `"${getDisplayName(
       Document
     )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
     throw new Error(message)
-  }
-
-  if (docProps.dataOnly) {
-    return dataManagerData
   }
 
   const dynamicImportIdsSet = new Set<string>()
@@ -642,7 +566,6 @@ export async function renderToHTML(
   let html = renderDocument(Document, {
     ...renderOpts,
     dangerousAsPath: router.asPath,
-    dataManagerData,
     ampState,
     props,
     headTags: await headTags(documentCtx),

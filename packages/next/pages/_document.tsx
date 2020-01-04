@@ -93,7 +93,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
       return (props: any) => <App {...props} />
     }
 
-    const { html, head, dataOnly } = await ctx.renderPage({ enhanceApp })
+    const { html, head } = await ctx.renderPage({ enhanceApp })
     const styles = [
       ...flush(),
       ...(process.env.__NEXT_PLUGINS
@@ -103,7 +103,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
           ).then(mod => mod.default(ctx))
         : []),
     ]
-    return { html, head, styles, dataOnly }
+    return { html, head, styles }
   }
 
   static renderDocument<P>(
