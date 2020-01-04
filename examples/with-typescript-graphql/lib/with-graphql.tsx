@@ -1,11 +1,22 @@
-import { NextPage } from 'next'
+import { NextPage, NextPageContext } from 'next'
 import React from 'react'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient } from 'apollo-client'
-import { InMemoryCache } from 'apollo-cache-inmemory'
+import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 
-let apolloClient = null
+type TApolloClient = ApolloClient<NormalizedCacheObject>
+
+type InitialProps = {
+  apolloClient: TApolloClient
+  apolloState: any
+} & Record<string, any>
+
+type WithGraphQLPageContext = {
+  apolloClient: TApolloClient
+} & NextPageContext
+
+let apolloClient: TApolloClient
 
 /**
  * Creates and provides the apolloContext
@@ -16,7 +27,11 @@ export default function withGraphQL(
   PageComponent: NextPage,
   { ssr = true } = {}
 ) {
-  const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
+  const WithGraphQL = ({
+    apolloClient,
+    apolloState,
+    ...pageProps
+  }: InitialProps) => {
     const client = apolloClient || initApolloClient(apolloState)
     return (
       <ApolloProvider client={client}>
@@ -31,14 +46,14 @@ export default function withGraphQL(
       PageComponent.displayName || PageComponent.name || 'Component'
 
     if (displayName === 'App') {
-      console.warn('This withApollo HOC only works with PageComponents.')
+      console.warn('This withGraphQL HOC only works with PageComponents.')
     }
 
-    WithApollo.displayName = `withApollo(${displayName})`
+    WithGraphQL.displayName = `withGraphQL(${displayName})`
   }
 
   if (ssr || PageComponent.getInitialProps) {
-    WithApollo.getInitialProps = async ctx => {
+    WithGraphQL.getInitialProps = async (ctx: WithGraphQLPageContext) => {
       const { AppTree } = ctx
 
       // Initialize ApolloClient, add it to the ctx object so
@@ -95,7 +110,7 @@ export default function withGraphQL(
     }
   }
 
-  return WithApollo
+  return WithGraphQL
 }
 
 /**
@@ -137,7 +152,7 @@ function createApolloClient(initialState = {}) {
 function createIsomorphLink() {
   if (typeof window === 'undefined') {
     const { SchemaLink } = require('apollo-link-schema')
-    const schema = require('./index').default
+    const schema = require('./schema').default
     return new SchemaLink({ schema })
   } else {
     const { HttpLink } = require('apollo-link-http')

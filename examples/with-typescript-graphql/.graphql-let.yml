@@ -1,5 +1,5 @@
 generateDir: __generated__
-schema: schema/**/*.graphqls
+schema: lib/**/*.graphqls
 documents: pages/**/*.graphql
 plugins:
   - typescript

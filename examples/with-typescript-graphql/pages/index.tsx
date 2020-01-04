@@ -1,4 +1,4 @@
-import withGraphQL from '../schema/with-graphql'
+import withGraphQL from '../lib/with-graphql'
 import Link from 'next/link'
 import { useViewerQuery } from './viewer.graphql'
 

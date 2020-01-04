@@ -5,5 +5,5 @@ type User {
 }
 
 type Query {
-    viewer: User
+    viewer: User!
 }

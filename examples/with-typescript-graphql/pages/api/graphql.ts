@@ -1,5 +1,5 @@
 import { ApolloServer } from 'apollo-server-micro'
-import schema from '../../schema'
+import schema from '../../lib/schema'
 
 const apolloServer = new ApolloServer({ schema })
 

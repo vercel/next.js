@@ -1,3 +1,21 @@
-const withTypeScriptGraphQL = require('./with-typescript-graphql')
-
 module.exports = withTypeScriptGraphQL()
+
+function withTypeScriptGraphQL(nextConfig = {}) {
+  return Object.assign({}, nextConfig, {
+    webpack(config, options) {
+      config.module.rules.push({
+        test: /\.graphql$/,
+        exclude: /node_modules/,
+        use: [options.defaultLoaders.babel, { loader: 'graphql-let/loader' }],
+      })
+
+      config.module.rules.push({
+        test: /\.graphqls$/,
+        exclude: /node_modules/,
+        loader: 'graphql-tag/loader',
+      })
+
+      return config
+    },
+  })
+}
