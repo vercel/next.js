@@ -18,6 +18,16 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
+function normalizeRoute(route) {
+  if (route[0] !== '/') {
+    throw new Error(`Route name should start with a "/", got "${route}"`)
+  }
+  route = route.replace(/\/index$/, '/')
+
+  if (route === '/') return route
+  return route.replace(/\/$/, '')
+}
+
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
     link = document.createElement('link')
@@ -63,22 +73,12 @@ export default class PageLoader {
     )
   }
 
-  normalizeRoute(route) {
-    if (route[0] !== '/') {
-      throw new Error(`Route name should start with a "/", got "${route}"`)
-    }
-    route = route.replace(/\/index$/, '/')
-
-    if (route === '/') return route
-    return route.replace(/\/$/, '')
-  }
-
   loadPage(route) {
     return this.loadPageScript(route).then(v => v.page)
   }
 
   loadPageScript(route) {
-    route = this.normalizeRoute(route)
+    route = normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
       const fire = ({ error, page, mod }) => {
@@ -139,8 +139,8 @@ export default class PageLoader {
     })
   }
 
-  async loadRoute(route) {
-    route = this.normalizeRoute(route)
+  loadRoute(route) {
+    route = normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
@@ -203,20 +203,20 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch(route, isDependency) {
+  prefetch(route, isDependency) {
     // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
     // License: Apache 2.0
     let cn
     if ((cn = navigator.connection)) {
       // Don't prefetch if using 2G or if Save-Data is enabled.
-      if (cn.saveData || /2g/.test(cn.effectiveType)) return
+      if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
     let url = this.assetPrefix
     if (isDependency) {
       url += route
     } else {
-      route = this.normalizeRoute(route)
+      route = normalizeRoute(route)
       this.prefetched[route] = true
 
       let scriptRoute = `${route === '/' ? '/index' : route}.js`
@@ -229,22 +229,24 @@ export default class PageLoader {
       )}/pages${encodeURI(scriptRoute)}`
     }
 
-    if (
+    return Promise.all(
       document.querySelector(
         `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
       )
-    ) {
-      return
-    }
-
-    return Promise.all([
-      appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script'),
-      process.env.__NEXT_GRANULAR_CHUNKS &&
-        !isDependency &&
-        this.getDependencies(route).then(urls =>
-          Promise.all(urls.map(url => this.prefetch(url, true)))
-        ),
-    ]).then(
+        ? []
+        : [
+            appendLink(
+              url,
+              relPrefetch,
+              url.match(/\.css$/) ? 'style' : 'script'
+            ),
+            process.env.__NEXT_GRANULAR_CHUNKS &&
+              !isDependency &&
+              this.getDependencies(route).then(urls =>
+                Promise.all(urls.map(url => this.prefetch(url, true)))
+              ),
+          ]
+    ).then(
       // do not return any data
       () => {},
       // swallow prefetch errors
