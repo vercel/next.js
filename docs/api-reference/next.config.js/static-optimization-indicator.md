@@ -1,3 +1,7 @@
+---
+description: Optimized pages include an indicator to let you know if it's being statically optimized. You can opt-out of it here.
+---
+
 # Static Optimization Indicator
 
 When a page qualifies for [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) we show an indicator to let you know.

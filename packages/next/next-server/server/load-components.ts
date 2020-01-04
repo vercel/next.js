@@ -64,6 +64,8 @@ export async function loadComponents(
   const DocumentMod = require(documentPath)
   const { middleware: DocumentMiddleware } = DocumentMod
 
+  const AppMod = require(appPath)
+
   const ComponentMod = requirePage(pathname, distDir, serverless)
 
   const [
@@ -77,7 +79,7 @@ export async function loadComponents(
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
     interopDefault(ComponentMod),
     interopDefault(DocumentMod),
-    interopDefault(require(appPath)),
+    interopDefault(AppMod),
   ])
 
   return {
