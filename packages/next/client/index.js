@@ -12,9 +12,7 @@ import {
 import PageLoader from './page-loader'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import { DataManagerContext } from '../next-server/lib/data-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
-import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
@@ -44,9 +42,6 @@ const {
   runtimeConfig,
   dynamicIds,
 } = data
-
-const d = JSON.parse(window.__NEXT_DATA__.dataManager)
-export const dataManager = new DataManager(d)
 
 const prefix = assetPrefix || ''
 
@@ -384,11 +379,9 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <DataManagerContext.Provider value={dataManager}>
-          <HeadManagerContext.Provider value={headManager.updateHead}>
-            {children}
-          </HeadManagerContext.Provider>
-        </DataManagerContext.Provider>
+        <HeadManagerContext.Provider value={headManager.updateHead}>
+          {children}
+        </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
   )

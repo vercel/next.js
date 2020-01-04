@@ -56,7 +56,6 @@ export type ComponentsEnhancer =
 export type RenderPageResult = {
   html: string
   head?: Array<JSX.Element | null>
-  dataOnly?: true
 }
 
 export type RenderPage = (
@@ -69,7 +68,6 @@ export type BaseContext = {
 }
 
 export type NEXT_DATA = {
-  dataManager: string
   props: any
   page: string
   query: ParsedUrlQuery
