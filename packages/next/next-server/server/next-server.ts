@@ -92,7 +92,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -141,7 +140,6 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     this.renderOpts = {
-      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       documentMiddlewareEnabled: this.nextConfig.experimental
@@ -743,13 +741,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {
-      dataOnly:
-        (this.renderOpts.ampBindInitData && Boolean(query.dataOnly)) ||
-        (req.headers &&
-          (req.headers.accept || '').indexOf('application/amp.bind+json') !==
-            -1),
-    })
+    const html = await this.renderToHTML(req, res, pathname, query, {})
     // Request was ended by the user
     if (html === null) {
       return
@@ -952,12 +944,10 @@ export default class Server {
     query: ParsedUrlQuery = {},
     {
       amphtml,
-      dataOnly,
       hasAmp,
     }: {
       amphtml?: boolean
       hasAmp?: boolean
-      dataOnly?: boolean
     } = {}
   ): Promise<string | null> {
     return this.findPageComponents(pathname, query)
@@ -971,7 +961,7 @@ export default class Server {
               ? { _nextSprData: query._nextSprData }
               : query,
             result,
-            { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+            { ...this.renderOpts, amphtml, hasAmp }
           )
         },
         err => {
@@ -1003,7 +993,6 @@ export default class Server {
                     ...this.renderOpts,
                     amphtml,
                     hasAmp,
-                    dataOnly,
                   }
                 )
               }
