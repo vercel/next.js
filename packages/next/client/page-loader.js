@@ -69,7 +69,11 @@ export default class PageLoader {
   getDependencies(route) {
     return this.promisedBuildManifest.then(
       man =>
-        (man[route] && man[route].map(url => `/_next/${encodeURI(url)}`)) || []
+        (man[route] &&
+          man[route].map(
+            url => `${this.assetPrefix}/_next/${encodeURI(url)}`
+          )) ||
+        []
     )
   }
 
@@ -118,18 +122,16 @@ export default class PageLoader {
                 /\.js$/.test(d) &&
                 !document.querySelector(`script[src^="${d}"]`)
               ) {
-                this.loadScript(`${this.assetPrefix}${d}`, route, false)
+                this.loadScript(d, route, false)
               }
               if (
                 /\.css$/.test(d) &&
                 !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
               ) {
-                appendLink(`${this.assetPrefix}${d}`, 'stylesheet').catch(
-                  () => {
-                    // FIXME: handle failure
-                    // Right now, this is needed to prevent an unhandled rejection.
-                  }
-                )
+                appendLink(d, 'stylesheet').catch(() => {
+                  // FIXME: handle failure
+                  // Right now, this is needed to prevent an unhandled rejection.
+                })
               }
             })
             this.loadRoute(route)
@@ -214,9 +216,9 @@ export default class PageLoader {
       if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
-    let url = this.assetPrefix
+    let url
     if (isDependency) {
-      url += route
+      url = route
     } else {
       route = normalizeRoute(route)
       this.prefetched[route] = true
@@ -226,7 +228,7 @@ export default class PageLoader {
         scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
       }
 
-      url += `/_next/static/${encodeURIComponent(
+      url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
       )}/pages${encodeURI(scriptRoute)}`
     }
