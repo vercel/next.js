@@ -2,7 +2,6 @@ declare const __NEXT_DATA__: any
 
 import { resolve, parse, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
-import PropTypes from 'prop-types'
 import Router from './router'
 import { rewriteUrlForNextExport } from '../next-server/lib/router/rewrite-url-for-export'
 import {
@@ -108,7 +107,6 @@ const listenToIntersections = (el: any, cb: any) => {
 }
 
 class Link extends Component<LinkProps> {
-  static propTypes?: any
   p: boolean
 
   constructor(props: LinkProps) {
@@ -283,7 +281,9 @@ if (process.env.NODE_ENV === 'development') {
   const warn = execOnce(console.error)
 
   // This module gets removed by webpack.IgnorePlugin
+  const PropTypes = require('prop-types')
   const exact = require('prop-types-exact')
+  // @ts-ignore the property is supported, when declaring it on the class it outputs an extra bit of code which is not needed.
   Link.propTypes = exact({
     href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
     as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
@@ -294,7 +294,7 @@ if (process.env.NODE_ENV === 'development') {
     scroll: PropTypes.bool,
     children: PropTypes.oneOfType([
       PropTypes.element,
-      (props: any, propName) => {
+      (props: any, propName: string) => {
         const value = props[propName]
 
         if (typeof value === 'string') {
