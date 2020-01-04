@@ -3,7 +3,6 @@ declare const __NEXT_DATA__: any
 import { resolve, parse, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
 import Router from './router'
-import { rewriteUrlForNextExport } from '../next-server/lib/router/rewrite-url-for-export'
 import {
   execOnce,
   formatWithValidation,
@@ -264,6 +263,8 @@ class Link extends Component<LinkProps> {
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly.
     if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
+        .rewriteUrlForNextExport
       if (
         props.href &&
         typeof __NEXT_DATA__ !== 'undefined' &&
