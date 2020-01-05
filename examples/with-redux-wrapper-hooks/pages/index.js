@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { bindActionCreators } from 'redux'
-import { startClock, addCount, serverRenderClock } from '../store'
+import { startClock, addCount, serverRenderClock } from '../store/store'
 import { connect } from 'react-redux'
 import Page from '../components/Page'
 
