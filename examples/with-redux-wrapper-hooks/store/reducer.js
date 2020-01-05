@@ -6,7 +6,6 @@ export const exampleInitialState = {
   count: 0
 }
 
-// REDUCERS
 export default (state = exampleInitialState, action) => {
   switch (action.type) {
     case actionTypes.TICK:
