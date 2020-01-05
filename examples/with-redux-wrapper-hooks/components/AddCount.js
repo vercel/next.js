@@ -12,14 +12,16 @@ const AddCount = ({ count, addCount }) => {
         }
       `}</style>
       <h1>
-        AddCount: <span>{count.count}</span>
+        AddCount: <span>{count}</span>
       </h1>
       <button onClick={addCount}>Add To Count</button>
   </div>
   )
 }
 
-const mapStateToProps = ({ count }) => ({ count })
+const mapStateToProps = state => ({
+  count: state.count.count
+})
 
 const mapDispatchToProps = dispatch => {
   return {
