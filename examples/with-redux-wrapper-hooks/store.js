@@ -1,5 +1,4 @@
 import { createStore, applyMiddleware } from 'redux'
-import { composeWithDevTools } from 'redux-devtools-extension'
 import thunkMiddleware from 'redux-thunk'
 
 const exampleInitialState = {
@@ -46,10 +45,18 @@ export const addCount = () => dispatch => {
   return dispatch({ type: actionTypes.ADD })
 }
 
+const bindMiddleware = (middleware) => {
+  if (process.env.NODE_ENV !== 'production') {
+    const { composeWithDevTools } = require('redux-devtools-extension')
+    return composeWithDevTools(applyMiddleware(...middleware))
+  }
+  return applyMiddleware(...middleware)
+}
+
 export const initStore = (initialState = exampleInitialState) => {
   return createStore(
     reducer,
     initialState,
-    composeWithDevTools(applyMiddleware(thunkMiddleware))
+    bindMiddleware([thunkMiddleware])
   )
 }
