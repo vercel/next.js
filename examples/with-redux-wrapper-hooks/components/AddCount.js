@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux'
-import { addCount } from '../store/store'
+import { addCount } from '../store/action'
 
 const AddCount = ({ count, addCount }) => (
   <div>
