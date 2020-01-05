@@ -1,10 +1,16 @@
 # Redux-Observable example
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-redux-observable)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-redux-observable with-redux-observable-app
@@ -31,6 +37,11 @@ yarn
 yarn dev
 ```
 
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+
+```bash
+now
+```
 
 ### The idea behind the example
 
@@ -67,13 +78,13 @@ the default export from
 
 We transform the Observable we get from `ajax` into a Promise in order to await
 its resolution. That resolution should be a action (since the epic returns
-Observables of actions). We immediately dispatch that action to the store. 
+Observables of actions). We immediately dispatch that action to the store.
 
 This server-side solution allows compatibility with Next. It may not be
 something you wish to emulate. In other situations, calling or awaiting epics
 directly and passing their result to the store would be an anti-pattern. You
 should only trigger epics by dispatching actions. This solution may not
-generalise to resolving more complicated sets of actions. 
+generalise to resolving more complicated sets of actions.
 
 The layout of the redux related functionality is split between:
 
@@ -85,5 +96,5 @@ The layout of the redux related functionality is split between:
 and organized in `redux/index.js`.
 
 Excepting in those manners discussed above, the configuration is similar the
-configuration found in [with-redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux) 
-and [redux-observable docs](https://redux-observable.js.org/). 
+configuration found in [with-redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux)
+and [redux-observable docs](https://redux-observable.js.org/).

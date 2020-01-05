@@ -10,7 +10,7 @@
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "next-page-transitions": "1.0.0-alpha.2"
+    "next-page-transitions": "1.0.0-beta.2"
   },
   "license": "ISC"
 }

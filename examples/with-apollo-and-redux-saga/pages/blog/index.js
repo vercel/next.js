@@ -11,11 +11,11 @@ import Submit from '../../components/Submit'
 import PostList from '../../components/PostList'
 
 class BlogIndex extends React.Component {
-  componentDidMount () {
-    this.props.dispatch(startClock())
+  componentDidMount() {
+    this.props.store.dispatch(startClock())
   }
 
-  render () {
+  render() {
     return (
       <App>
         <Header />

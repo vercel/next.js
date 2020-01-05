@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "hoist-non-react-statics": "^2.2.2",
+    "hoist-non-react-statics": "^3.3.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"

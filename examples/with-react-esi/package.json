@@ -4,7 +4,7 @@
   "main": "dist/server.js",
   "dependencies": {
     "express": "^4.16.4",
-    "next": "^7.0.2",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "react-esi": "^0.1"

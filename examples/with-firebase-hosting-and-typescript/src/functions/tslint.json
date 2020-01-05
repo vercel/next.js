@@ -74,27 +74,26 @@
     // Disallow duplicate imports in the same file.
     "no-duplicate-imports": true,
 
-
     // -- Strong Warnings --
     // These rules should almost never be needed, but may be included due to legacy code.
     // They are left as a warning to avoid frustration with blocked deploys when the developer
     // understand the warning and wants to deploy anyway.
 
     // Warn when an empty interface is defined. These are generally not useful.
-    "no-empty-interface": {"severity": "warning"},
+    "no-empty-interface": { "severity": "warning" },
 
     // Warn when an import will have side effects.
-    "no-import-side-effect": {"severity": "warning"},
+    "no-import-side-effect": { "severity": "warning" },
 
     // Warn when variables are defined with var. Var has subtle meaning that can lead to bugs. Strongly prefer const for
     // most values and let for values that will change.
-    "no-var-keyword": {"severity": "warning"},
+    "no-var-keyword": { "severity": "warning" },
 
     // Prefer === and !== over == and !=. The latter operators support overloads that are often accidental.
-    "triple-equals": {"severity": "warning"},
+    "triple-equals": { "severity": "warning" },
 
     // Warn when using deprecated APIs.
-    "deprecation": {"severity": "warning"},
+    "deprecation": { "severity": "warning" },
 
     // -- Light Warnigns --
     // These rules are intended to help developers use better style. Simpler code has fewer bugs. These would be "info"
@@ -102,16 +101,16 @@
 
     // prefer for( ... of ... ) to an index loop when the index is only used to fetch an object from an array.
     // (Even better: check out utils like .map if transforming an array!)
-    "prefer-for-of": {"severity": "warning"},
+    "prefer-for-of": { "severity": "warning" },
 
     // Warns if function overloads could be unified into a single function with optional or rest parameters.
-    "unified-signatures": {"severity": "warning"},
+    "unified-signatures": { "severity": "warning" },
 
     // Prefer const for values that will not change. This better documents code.
-    "prefer-const": {"severity": "warning"},
+    "prefer-const": { "severity": "warning" },
 
     // Multi-line object liiterals and function calls should have a trailing comma. This helps avoid merge conflicts.
-    "trailing-comma": {"severity": "warning"}
+    "trailing-comma": { "severity": "warning" }
   },
 
   "defaultSeverity": "error"

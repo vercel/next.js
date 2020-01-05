@@ -1,7 +1,15 @@
 {
-  "env": {
-    "SECRET": "@my-secret-key",
-    "ANOTHER_SECRET": "@my-other-secret-key",
-    "SECRET_FAIL": "@this-is-not-defined"
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@now/next"
+    }
+  ],
+  "build": {
+    "env": {
+      "SECRET": "@my-secret-key",
+      "ANOTHER_SECRET": "@my-other-secret-key"
+    }
   }
 }

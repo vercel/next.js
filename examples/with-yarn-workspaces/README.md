@@ -1,12 +1,16 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-yarn-workspaces)
-
 # Yarn workspaces example
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-yarn-workspaces)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-yarn-workspaces with-yarn-workspaces-app
@@ -30,7 +34,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now
@@ -42,13 +46,13 @@ Workspaces are a new way to setup your package architecture that’s available b
 
 In this example we have three workspaces:
 
-* **web-app**: A Next.js app
-* **foo**: A normal node module
-* **bar**: A react component, that gets compiled by Next.js (see [packages/web-app/next.config.js](./packages/web-app/next.config.js) for more info)
+- **web-app**: A Next.js app
+- **foo**: A normal node module
+- **bar**: A react component, that gets compiled by Next.js (see [packages/web-app/next.config.js](./packages/web-app/next.config.js) for more info)
 
 ## Useful Links
 
-* [Documentation](https://yarnpkg.com/en/docs/workspaces)
-* [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
-* [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
-* [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)
+- [Documentation](https://yarnpkg.com/en/docs/workspaces)
+- [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
+- [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
+- [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)

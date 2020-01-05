@@ -1,11 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-intl)
 # Example app with [React Intl][]
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-react-intl with-react-intl-app
@@ -47,10 +46,9 @@ This example app shows how to integrate [React Intl][] with Next.
 - Server-side language negotiation
 - React Intl locale data loading via `pages/_document.js` customization
 - React Intl integration with [custom App](https://github.com/zeit/next.js#custom-app) component
-- `<IntlProvider>` creation with `locale`, `messages`, and `initialNow` props
+- `<IntlProvider>` creation with `locale`, `messages` props
 - Default message extraction via `babel-plugin-react-intl` integration
 - Translation management via build script and customized Next server
-- withIntl HOC for pages because injectIntl do not hoist static methods.
 
 ### Translation Management
 
@@ -65,4 +63,4 @@ $ npm start
 
 You can then switch your browser's language preferences to French and refresh the page to see the UI update accordingly.
 
-[React Intl]: https://github.com/yahoo/react-intl
+[react intl]: https://github.com/yahoo/react-intl

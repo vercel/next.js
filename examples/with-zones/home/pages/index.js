@@ -8,15 +8,13 @@ export default () => (
     <Header />
     <p>This is our homepage</p>
     <div>
-      <Link href='/blog'>
-        <a>Blog</a>
-      </Link>
+      <a href="/blog">Blog</a>
     </div>
     <div>
-      <Link href='/about'>
+      <Link href="/about">
         <a>About us</a>
       </Link>
     </div>
-    <img width={200} src='/static/nextjs.png' />
+    <img width={200} src="/static/nextjs.png" />
   </div>
 )

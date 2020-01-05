@@ -1,6 +1,11 @@
 import React from 'react'
 export default class ErrorInRenderPage extends React.Component {
-  render () {
+  static async getInitialProps() {
+    return {}
+  }
+
+  // eslint-disable-next-line react/require-render-return
+  render() {
     throw new Error('An Expected error occured')
   }
 }

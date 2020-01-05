@@ -9,14 +9,14 @@ import UserForm from './UserForm'
 import Social from './Social'
 
 class Main extends Component {
-  render () {
+  render() {
     return (
       <div>
         <Head>
           <title>Form Handler</title>
           <link
-            rel='stylesheet'
-            href='https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css'
+            rel="stylesheet"
+            href="https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css"
           />
         </Head>
         <Header />

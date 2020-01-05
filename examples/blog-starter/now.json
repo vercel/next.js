@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "nextjs-blog-starter",
+  "alias": ["nextjs-blog-starter.now.sh"],
+  "builds": [{ "src": "package.json", "use": "@now/next" }],
+  "routes": [
+    { "src": "/feed.json", "dest": "/_next/static/feed.json" },
+    { "src": "/blog/(?<page>[^/]+)$", "dest": "/blog?page=$page" }
+  ]
+}

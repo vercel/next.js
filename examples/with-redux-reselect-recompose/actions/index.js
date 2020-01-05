@@ -1,4 +1,4 @@
-import { TICK, ADD } from 'constants/actionTypes'
+import { TICK, ADD } from '../constants/actionTypes'
 
 export const addCount = () => ({ type: ADD })
 

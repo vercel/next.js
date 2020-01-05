@@ -1,16 +1,16 @@
 import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import Head from 'next/head'
 
 export default class CustomApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
-      <Container>
+      <>
         <Head>
           <meta
-            name='viewport'
-            content='width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no'
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
           />
           <style global jsx>{`
             html,
@@ -22,7 +22,7 @@ export default class CustomApp extends App {
           `}</style>
         </Head>
         <Component {...pageProps} />
-      </Container>
+      </>
     )
   }
 }

@@ -1,12 +1,16 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-dynamic-app-layout)
-
 # With dynamic `App` layout example
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-dynamic-app-layout)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-dynamic-app-layout with-dynamic-app-layout-app
@@ -33,7 +37,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now
@@ -41,5 +45,5 @@ now
 
 ## The idea behind the example
 
-Shows how to use _app.js to implement _dynamic_ layouts for pages.
+Shows how to use _app.js to implement \_dynamic_ layouts for pages.
 This is achieved by attaching a static `Layout` property to each page that needs a different layout. In that way, once we use `_app.js` to wrap our pages, we can get it from `Component.Layout` and render it accordingly.

@@ -1,12 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-docker&env=API_URL&docker=true)
-
 # With Docker
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-docker with-docker-app
@@ -32,7 +30,13 @@ docker build -t next-app .
 docker build -t next-app -f ./Dockerfile.multistage .
 ```
 
-Run it:
+Alternatively you can add these commands as scripts to your package.json and simply run
+
+`yarn build-docker`
+or
+`yarn build-docker-multistage`
+
+Run the docker image:
 
 ```bash
 docker run --rm -it \
@@ -40,6 +44,8 @@ docker run --rm -it \
   -e "API_URL=https://example.com" \
   next-app
 ```
+
+or use `yarn build-docker-multistage`
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
@@ -49,7 +55,7 @@ now --docker -e API_URL="https://example.com"
 
 ## The idea behind the example
 
-This example show how to set custom environment variables for your __docker application__ at runtime.
+This example show how to set custom environment variables for your **docker application** at runtime.
 
 The `dockerfile` is the simplest way to run Next.js app in docker, and the size of output image is `173MB`. However, for an even smaller build, you can do multi-stage builds with `dockerfile.multistage`. The size of output image is `85MB`.
 

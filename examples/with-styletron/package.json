@@ -8,10 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "styletron": "^3.0.4",
-    "styletron-engine-atomic": "^1.0.8",
-    "styletron-react": "^4.3.5"
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0",
+    "styletron-engine-atomic": "^1.1.2",
+    "styletron-react": "^5.0.1"
   }
 }

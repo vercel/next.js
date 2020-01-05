@@ -21,7 +21,7 @@ export default class Index extends Component {
     }
   `
 
-  render () {
+  render() {
     return (
       <div>
         <BlogPosts viewer={this.props.viewer} />

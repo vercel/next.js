@@ -1,9 +1,9 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 import io from 'socket.io-client'
 
 class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -13,26 +13,22 @@ class MyApp extends App {
     return { pageProps }
   }
   state = {
-    socket: null
+    socket: null,
   }
-  componentDidMount () {
+  componentDidMount() {
     // connect to WS server and listen event
     const socket = io()
     this.setState({ socket })
   }
 
   // close socket connection
-  componentWillUnmount () {
+  componentWillUnmount() {
     this.state.socket.close()
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
-    return (
-      <Container>
-        <Component {...pageProps} socket={this.state.socket} />
-      </Container>
-    )
+    return <Component {...pageProps} socket={this.state.socket} />
   }
 }
 

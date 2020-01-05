@@ -1,12 +1,16 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/analyze-bundles)
-
 # Analyzer Bundles example
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/analyze-bundles)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example analyze-bundles analyze-bundles-app
@@ -35,16 +39,12 @@ yarn dev
 
 ## The idea behind the example
 
-This example shows how to analyze the output bundles using [@zeit/next-bundle-analyzer](https://github.com/zeit/next-plugins/tree/master/packages/next-bundle-analyzer)
+This example shows how to analyze the output bundles using [@next/bundle-analyzer](https://github.com/zeit/next.js/tree/master/packages/next-bundle-analyzer)
 
 To analyze your webpack output, invoke the following command:
 
 ```bash
 npm run analyze
-npm run analyze:server
-npm run analyze:browser
 # or
 yarn analyze
-yarn analyze:server
-yarn analyze:browser
 ```

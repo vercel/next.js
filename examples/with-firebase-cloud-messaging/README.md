@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-firebase-cloud-messaging)
+# With Firebase Cloud Messaging example
 
 ## How to run
 

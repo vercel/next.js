@@ -1,12 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 // test suits
 import hmr from './hmr'
@@ -20,9 +15,7 @@ describe('Page Extensions', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
 
     // pre-build all pages at the start
-    await Promise.all([
-      renderViaHTTP(context.appPort, '/hmr/some-page')
-    ])
+    await Promise.all([renderViaHTTP(context.appPort, '/hmr/some-page')])
   })
   afterAll(() => killApp(context.server))
 

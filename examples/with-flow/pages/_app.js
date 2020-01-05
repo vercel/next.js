@@ -1,9 +1,9 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import Link from 'next/link'
 import React from 'react'
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
+  static async getInitialProps({ Component, router, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -13,21 +13,21 @@ export default class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
-      <Container>
+      <>
         <header>
           <nav>
-            <Link href='/'>
+            <Link href="/">
               <a>Home</a>
             </Link>
             |
-            <Link href='/about'>
+            <Link href="/about">
               <a>About</a>
             </Link>
             |
-            <Link href='/contact'>
+            <Link href="/contact">
               <a>Contact</a>
             </Link>
           </nav>
@@ -36,7 +36,7 @@ export default class MyApp extends App {
         <Component {...pageProps} />
 
         <footer>I`m here to stay</footer>
-      </Container>
+      </>
     )
   }
 }

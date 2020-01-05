@@ -11,10 +11,10 @@ class Input extends Component {
     inputChange(title, name, e.target.value)
   }
 
-  render () {
+  render() {
     return (
       <div>
-        <FormGroup controlId='formBasicText'>
+        <FormGroup controlId="formBasicText">
           <ControlLabel>{this.props.controlLabel}</ControlLabel>
           <FormControl
             disabled={this.props.disabled}
@@ -31,11 +31,8 @@ class Input extends Component {
 
 const mapDispatchToProps = dispatch => {
   return {
-    inputChange: bindActionCreators(inputChange, dispatch)
+    inputChange: bindActionCreators(inputChange, dispatch),
   }
 }
 
-export default connect(
-  null,
-  mapDispatchToProps
-)(Input)
+export default connect(null, mapDispatchToProps)(Input)

@@ -7,7 +7,29 @@ import fetch from 'node-fetch'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-let responseSizes
+let server
+let scriptsUrls
+let baseResponseSize
+
+function getResponseSizes(resourceUrls) {
+  return Promise.all(
+    resourceUrls.map(async url => {
+      const context = await fetch(url).then(res => res.text())
+      return {
+        url,
+        bytes: context.length,
+      }
+    })
+  )
+}
+
+function getResponseSizesKB(responseSizes) {
+  const responseSizeBytes = responseSizes.reduce(
+    (accumulator, responseSizeObj) => accumulator + responseSizeObj.bytes,
+    0
+  )
+  return Math.ceil(responseSizeBytes / 1024)
+}
 
 describe('Production response size', () => {
   beforeAll(async () => {
@@ -17,55 +39,70 @@ describe('Production response size', () => {
     await nextBuild(dir)
 
     // Start next app
-    const server = await startApp(
+    server = await startApp(
       nextServer({
         dir,
         dev: false,
-        quiet: true
+        quiet: true,
       })
     )
 
     // Get the html document
-    const baseUrl = `http://localhost:${server.address().port}`
+    let baseUrl = `http://localhost:${server.address().port}`
     const htmlResponse = await fetch(baseUrl)
 
     // Find all script urls
     const html = await htmlResponse.text()
+    baseResponseSize = { url: baseUrl, bytes: html.length }
     const $ = cheerio.load(html)
-    const scriptsUrls = $('script[src]')
+    scriptsUrls = $('script[src]')
       .map((i, el) => $(el).attr('src'))
       .get()
       .map(path => `${baseUrl}${path}`)
+  })
 
-    // Measure the html document and all scripts
-    const resourceUrls = [
-      baseUrl,
-      ...scriptsUrls
-    ]
-
-    // Fetch all resources and get their size (bytes)
-    responseSizes = await Promise.all(resourceUrls.map(async (url) => {
-      const context = await fetch(url).then(res => res.text())
-      return {
-        url,
-        bytes: context.length
-      }
-    }))
-
+  afterAll(async () => {
     // Clean up
     await stopApp(server)
   })
 
-  it('should not increase the overall response size', async () => {
-    const responseSizeBytes = responseSizes.reduce(
-      (accumulator, responseSizeObj) => accumulator + responseSizeObj.bytes,
-      0
+  it('should not increase the overall response size of default build', async () => {
+    const responseSizes = [
+      baseResponseSize,
+      ...(await getResponseSizes(
+        scriptsUrls.filter(path => !path.endsWith('.module.js'))
+      )),
+    ]
+    const responseSizeKilobytes = getResponseSizesKB(responseSizes)
+    console.log(
+      `Response Sizes for default:\n${responseSizes
+        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+        .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
     )
-    const responseSizeKilobytes = Math.ceil(responseSizeBytes / 1024)
-
-    console.log(`Response Sizes:\n${responseSizes.map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`).join('\n')} \nOverall: ${responseSizeKilobytes} KB`)
 
     // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(216) // Kilobytes
+    const delta = responseSizeKilobytes - 228
+    expect(delta).toBeLessThanOrEqual(0) // don't increase size
+    expect(delta).toBeGreaterThanOrEqual(-1) // don't decrease size without updating target
+  })
+
+  it('should not increase the overall response size of modern build', async () => {
+    const responseSizes = [
+      baseResponseSize,
+      ...(await getResponseSizes(
+        scriptsUrls.filter(path => path.endsWith('.module.js'))
+      )),
+    ]
+    const responseSizeKilobytes = getResponseSizesKB(responseSizes)
+    console.log(
+      `Response Sizes for modern:\n${responseSizes
+        .map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`)
+        .join('\n')} \nOverall: ${responseSizeKilobytes} KB`
+    )
+
+    // These numbers are without gzip compression!
+    const delta = responseSizeKilobytes - 198
+    expect(delta).toBeLessThanOrEqual(0) // don't increase size
+    expect(delta).toBeGreaterThanOrEqual(-1) // don't decrease size without updating target
   })
 })

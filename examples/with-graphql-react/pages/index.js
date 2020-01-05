@@ -1,13 +1,11 @@
-import { Query } from 'graphql-react'
+import { useGraphQL } from 'graphql-react'
 
-export default () => (
-  <Query
-    loadOnMount
-    loadOnReset
-    fetchOptionsOverride={options => {
+export default () => {
+  const { loading, cacheValue: { data } = {} } = useGraphQL({
+    fetchOptionsOverride(options) {
       options.url = 'https://graphql-pokemon.now.sh'
-    }}
-    operation={{
+    },
+    operation: {
       query: /* GraphQL */ `
         {
           pokemon(name: "Pikachu") {
@@ -15,17 +13,18 @@ export default () => (
             image
           }
         }
-      `
-    }}
-  >
-    {({ data, loading }) =>
-      data ? (
-        <img src={data.pokemon.image} alt={data.pokemon.name} />
-      ) : loading ? (
-        <p>Loading…</p>
-      ) : (
-        <p>Error!</p>
-      )
-    }
-  </Query>
-)
+      `,
+    },
+    loadOnMount: true,
+    loadOnReload: true,
+    loadOnReset: true,
+  })
+
+  return data ? (
+    <img src={data.pokemon.image} alt={data.pokemon.name} />
+  ) : loading ? (
+    <p>Loading…</p>
+  ) : (
+    <p>Error!</p>
+  )
+}

@@ -1,0 +1,27 @@
+{
+  "name": "custom-server-reasonml",
+  "version": "0.1.0",
+  "scripts": {
+    "clean": "bsb -clean-world",
+    "build": "bsb -make-world",
+    "watch": "bsb -make-world -w",
+    "next-build": "next build",
+    "dev": "bsb -make-world && node server/server.bs.js",
+    "next:build": "bsb -make-world && next build",
+    "start": "cross-env NODE_ENV=production node server/server.bs.js"
+  },
+  "keywords": [
+    "BuckleScript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "bs-platform": "^7.0.1"
+  },
+  "dependencies": {
+    "cross-env": "^5.2.0",
+    "next": "latest",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  }
+}

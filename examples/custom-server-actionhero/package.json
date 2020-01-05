@@ -6,7 +6,7 @@
     "actionhero": "^18.1.2",
     "ioredis": "^3.2.2",
     "isomorphic-fetch": "^2.2.1",
-    "next": "^5.0.1-canary.9",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "ws": "^4.1.0"

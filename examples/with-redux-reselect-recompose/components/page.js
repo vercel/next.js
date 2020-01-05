@@ -1,4 +1,3 @@
-import React from 'react'
 import PropTypes from 'prop-types'
 import Link from 'next/link'
 import { compose, setDisplayName, pure, setPropTypes } from 'recompose'
@@ -26,7 +25,7 @@ export default compose(
     light: PropTypes.bool,
     lastUpdate: PropTypes.number,
     count: PropTypes.number,
-    addCount: PropTypes.func
+    addCount: PropTypes.func,
   }),
   pure
 )(Page)

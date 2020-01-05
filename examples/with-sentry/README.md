@@ -1,12 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-sentry)
-
 # Sentry example
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-sentry with-sentry-app
@@ -21,18 +19,17 @@ Download the example:
 Install it and run:
 
 **npm**
+
 ```bash
 npm install
 npm run dev
-# or
-yarn
-yarn dev
 ```
 
 **yarn**
+
 ```bash
-npm install
-npm run dev
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -43,14 +40,22 @@ now
 
 ## About example
 
-This example show you how to add Sentry to catch errors in next.js
+An example showing use of [Sentry](https://sentry.io) to catch & report errors on both client + server side.
 
-You will need a Sentry DSN for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.
+### Configuration
 
-The Sentry DSN should then be added as an environment variable when running:
+You will need a _Sentry DSN_ for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.
+
+The Sentry DSN should then be added as an environment variable when running the `dev`, `build`, and `start` scripts in `package.json`:
 
 ```bash
-$ SENTRY_DSN=<dsn-here> npm run dev
+{
+  "scripts": {
+    "dev": "SENTRY_DSN=<dsn> node server.js",
+    "build": "SENTRY_DSN=<dsn> next build",
+    "start": "SENTRY_DSN=<dsn> NODE_ENV=production node server.js"
+  }
+}
 ```
 
-Note that if you are using a custom server, there is logging available for common platforms: https://docs.sentry.io/platforms/
+_Note: Setting environment variables in a `package.json` is not secure, it is done here only for demo purposes. See the [`with-dotenv`](../with-dotenv) example for an example of how to set environment variables safely._

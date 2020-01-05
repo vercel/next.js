@@ -1,16 +1,29 @@
 [![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
-[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
-[![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
-[![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
+<p align="center">
+  <a aria-label="ZEIT logo" href="https://github.com/zeit">
+    <img src="https://img.shields.io/badge/MADE%20BY%20ZEIT-000000.svg?style=for-the-badge&logo=ZEIT&labelColor=000000&logoWidth=20">
+  </a>
+  <a aria-label="NPM version" href="https://www.npmjs.com/package/next">
+    <img alt="" src="https://img.shields.io/npm/v/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="License" href="https://github.com/zeit/next.js/blob/canary/license.md">
+    <img alt="" src="https://img.shields.io/npm/l/next.svg?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="join us in spectrum" href="https://spectrum.chat/next-js">
+    <img alt="" src="https://img.shields.io/badge/Join%20the%20community-blueviolet.svg?style=for-the-badge&logo=Next.js&labelColor=000000&logoWidth=20">
+  </a>
+</p>
 
-**Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
+<p align="center">
+  <strong>
+    Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+  </strong>
+</p>
 
 ---
 
-**The below readme is the documentation for the `canary` (prerelease) branch. To view the documentation for the latest stable Next.js version visit [nextjs.org/docs](https://nextjs.org/docs)**
+**The below readme is the documentation for the `canary` (prerelease) branch. To view the documentation for the latest stable Next.js version visit [nextjs.org/docs](https://nextjs.org/docs).**
 
 ---
 
@@ -20,12 +33,15 @@
 
 - [How to use](#how-to-use)
   - [Setup](#setup)
+    - [Quick Start](#quick-start)
+    - [Manual Setup](#manual-setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
     - [Built-in CSS support](#built-in-css-support)
     - [CSS-in-JS](#css-in-js)
     - [Importing CSS / Sass / Less / Stylus files](#importing-css--sass--less--stylus-files)
   - [Static file serving (e.g.: images)](#static-file-serving-eg-images)
+  - [Dynamic Routing](#dynamic-routing)
   - [Populating `<head>`](#populating-head)
   - [Fetching data and component lifecycle](#fetching-data-and-component-lifecycle)
   - [Routing](#routing)
@@ -40,18 +56,24 @@
       - [With URL object](#with-url-object-1)
       - [Router Events](#router-events)
       - [Shallow Routing](#shallow-routing)
+    - [useRouter](#userouter)
     - [Using a Higher Order Component](#using-a-higher-order-component)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
+  - [API Routes](#api-routes)
+    - [Dynamic routes support](#dynamic-routes-support)
+    - [API Middlewares](#api-middlewares)
+    - [Helper Functions](#helper-functions)
   - [Custom server and routing](#custom-server-and-routing)
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
+    - [Changing x-powered-by](#changing-x-powered-by)
   - [Dynamic Import](#dynamic-import)
-    - [1. Basic Usage (Also does SSR)](#1-basic-usage-also-does-ssr)
-    - [2. With Custom Loading Component](#2-with-custom-loading-component)
-    - [3. With No SSR](#3-with-no-ssr)
-    - [4. With Multiple Modules At Once](#4-with-multiple-modules-at-once)
+    - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
+    - [With named exports](#with-named-exports)
+    - [With Custom Loading Component](#with-custom-loading-component)
+    - [With No SSR](#with-no-ssr)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
     - [Customizing `renderPage`](#customizing-renderpage)
@@ -63,25 +85,39 @@
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
     - [Configuring the build ID](#configuring-the-build-id)
-    - [Configuring Next process script](#configuring-next-process-script)
+    - [Configuring next process script](#configuring-next-process-script)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+    - [Build-time configuration](#build-time-configuration)
+    - [Runtime configuration](#runtime-configuration)
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
+- [Automatic Static Optimization](#automatic-static-optimization)
+- [Automatic Static Optimization Indicator](#automatic-static-optimization-indicator)
 - [Production deployment](#production-deployment)
+  - [Compression](#compression)
   - [Serverless deployment](#serverless-deployment)
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
+- [TypeScript](#typescript)
+  - [Exported types](#exported-types)
+- [AMP Support](#amp-support)
+  - [Enabling AMP Support](#enabling-amp-support)
+  - [AMP First Page](#amp-first-page)
+  - [Hybrid AMP Page](#hybrid-amp-page)
+  - [AMP Page Modes](#amp-page-modes)
+  - [AMP Behavior with `next export`](#amp-behavior-with-next-export)
+  - [Adding AMP Components](#adding-amp-components)
+  - [AMP Validation](#amp-validation)
+  - [TypeScript Support](#typescript-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
-  - [Copying custom files](#copying-custom-files)
   - [Limitation](#limitation)
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
   - [How to merge them](#how-to-merge-them)
-- [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Authors](#authors)
@@ -92,7 +128,17 @@
 
 ### Setup
 
-Install it:
+#### Quick Start
+
+```bash
+npx create-next-app
+```
+
+_([npx](https://medium.com/@maybekatz/introducing-npx-an-npm-package-runner-55f7d4bd282b) comes with npm 5.2+ and higher, see [instructions for older npm versions](https://gist.github.com/timer/833d9946fa8a05ba855729d05a38ac23))_
+
+#### Manual Setup
+
+Install it in your project:
 
 ```bash
 npm install --save next react react-dom
@@ -116,7 +162,7 @@ Populate `./pages/index.js` inside your project:
 
 ```jsx
 function Home() {
-  return <div>Welcome to next.js!</div>
+  return <div>Welcome to Next.js!</div>
 }
 
 export default Home
@@ -128,10 +174,8 @@ So far, we get:
 
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
-- Server rendering and indexing of `./pages`
-- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
-
-To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
+- Server rendering and indexing of `./pages/`
+- Static file serving. `./public/` is mapped to `/` (given you [create a `./public/` directory](#static-file-serving-eg-images) inside your project)
 
 ### Automatic code splitting
 
@@ -141,11 +185,7 @@ Every `import` you declare gets bundled and served with each page. That means pa
 import cowsay from 'cowsay-browser'
 
 function CowsayHi() {
-  return (
-    <pre>
-      {cowsay.say({ text: 'hi there!' })}
-    </pre>
-  )
+  return <pre>{cowsay.say({ text: 'hi there!' })}</pre>
 }
 
 export default CowsayHi
@@ -161,8 +201,6 @@ export default CowsayHi
     <li><a href="/examples/basic-css">Basic css</a></li>
   </ul>
 </details>
-
-<p></p>
 
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
@@ -215,8 +253,6 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
   </ul>
 </details>
 
-<p></p>
-
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
 ```jsx
@@ -240,29 +276,106 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
-Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
+Create a folder called `public` in your project root directory. From your code you can then reference those files starting from the baseURL `/`
 
 ```jsx
 function MyImage() {
-  return <img src="/static/my-image.png" alt="my image" />
+  return <img src="/my-image.png" alt="my image" />
 }
 
 export default MyImage
 ```
 
-_Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
+_Note: Don't name the `public` directory anything else. The name can't be changed and is the only directory that Next.js uses for serving static assets._
 
-### Populating `<head>`
+### Dynamic Routing
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="/examples/head-elements">Head elements</a></li>
-    <li><a href="/examples/layout-component">Layout component</a></li>
+    <li><a href="/examples/dynamic-routing">Dynamic routing</a></li>
   </ul>
 </details>
 
-<p></p>
+Defining routes by using predefined paths is not always enough for complex applications, in Next.js you can add brackets to a page (`[param]`) to create a dynamic route (a.k.a. url slugs, pretty urls, et al).
+
+Consider the following page `pages/post/[pid].js`:
+
+```jsx
+import { useRouter } from 'next/router'
+
+const Post = () => {
+  const router = useRouter()
+  const { pid } = router.query
+
+  return <p>Post: {pid}</p>
+}
+
+export default Post
+```
+
+Any route like `/post/1`, `/post/abc`, etc will be matched by `pages/post/[pid].js`.
+The matched path parameter will be sent as a query parameter to the page.
+
+For example, the route `/post/abc` will have the following `query` object: `{ pid: 'abc' }`.
+Similarly, the route `/post/abc?foo=bar` will have the `query` object: `{ foo: 'bar', pid: 'abc' }`.
+
+> Note: Multiple dynamic route segments work the same way.
+>
+> For example, `pages/post/[pid]/[comment].js` would match `/post/1/a-comment`.
+> Its `query` object would be: `{ pid: '1', comment: 'a-comment' }`.
+
+A `<Link>` for `/post/abc` looks like so:
+
+```jsx
+<Link href="/post/[pid]" as="/post/abc">
+  <a>First Post</a>
+</Link>
+```
+
+- `href`: the path inside `pages` directory.
+- `as`: the path that will be rendered in the browser URL bar.
+
+As `href` is a filesystem path, it shouldn't change at runtime, instead, you will probably need to change `as`
+dynamically according to your needs. Here's an example to create a list of links:
+
+```jsx
+const pids = ['id1', 'id2', 'id3']
+{
+  pids.map(pid => (
+    <Link href="/post/[pid]" as={`/post/${pid}`}>
+      <a>Post {pid}</a>
+    </Link>
+  ))
+}
+```
+
+> You can [read more about `<Link>` here](#with-link).
+
+However, if a query and route param name are the same, route parameters will override the matching query params.
+For example, `/post/abc?pid=bcd` will have the `query` object: `{ pid: 'abc' }`.
+
+> **Note**: Predefined routes take precedence over dynamic routes.
+> For example, if you have `pages/post/[pid].js` and `pages/post/create.js`, the route `/post/create` will be matched by `pages/post/create.js` instead of the dynamic route (`[pid]`).
+
+> **Note**: Pages that are statically optimized by [automatic static optimization](#automatic-static-optimization) will be hydrated without their route parameters provided (`query` will be empty, i.e. `{}`).
+> After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
+> If your application cannot tolerate this behavior, you can opt-out of static optimization by capturing the query parameter in `getInitialProps`.
+
+> **Note**: If deploying to [ZEIT Now](https://zeit.co/now) dynamic routes will work out-of-the-box.
+> You do not need to configure custom routes in a `now.json` file.
+>
+> If you are new to ZEIT Now, you can learn how to deploy a Next.js app to it in the [_Deploying a Next.js App_ Learn section](https://nextjs.org/learn/basics/deploying-a-nextjs-app).
+
+### Populating `<head>`
+
+<details>
+<summary><b>Examples</b></summary>
+<ul>
+ <li><a href="/examples/head-elements">Head elements</a></li>
+ <li><a href="/examples/layout-component">Layout component</a></li>
+</ul>
+</details>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -294,10 +407,18 @@ function IndexPage() {
     <div>
       <Head>
         <title>My page title</title>
-        <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+        <meta
+          name="viewport"
+          content="initial-scale=1.0, width=device-width"
+          key="viewport"
+        />
       </Head>
       <Head>
-        <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
+        <meta
+          name="viewport"
+          content="initial-scale=1.2, width=device-width"
+          key="viewport"
+        />
       </Head>
       <p>Hello world!</p>
     </div>
@@ -309,7 +430,7 @@ export default IndexPage
 
 In this case only the second `<meta name="viewport" />` is rendered.
 
-_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added._
 
 _Note: `<title>` and `<meta>` elements need to be contained as **direct** children of the `<Head>` element, or wrapped into maximum one level of `<React.Fragment>`, otherwise the metatags won't be correctly picked up on clientside navigation._
 
@@ -322,49 +443,13 @@ _Note: `<title>` and `<meta>` elements need to be contained as **direct** childr
   </ul>
 </details>
 
-<p></p>
+When you need state, lifecycle hooks or **initial data population** you can export a function component that uses [Hooks](https://reactjs.org/docs/hooks-intro.html) or a [class component](https://reactjs.org/docs/react-component.html).
 
-When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
-
-```jsx
-import React from 'react'
-
-class HelloUA extends React.Component {
-  static async getInitialProps({ req }) {
-    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
-    return { userAgent }
-  }
-
-  render() {
-    return (
-      <div>
-        Hello World {this.props.userAgent}
-      </div>
-    )
-  }
-}
-
-export default HelloUA
-```
-
-Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
-
-Data returned from `getInitialProps` is serialized when server rendering, similar to a `JSON.stringify`. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
-
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
-
-_Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
-
-<br/>
-
-> If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules).
-> Otherwise, it'll slow down your app.
-
-<br/>
-
-You can also define the `getInitialProps` lifecycle method for stateless components:
+Using a function component:
 
 ```jsx
+import fetch from 'isomorphic-unfetch'
+
 function Page({ stars }) {
   return <div>Next stars: {stars}</div>
 }
@@ -377,6 +462,38 @@ Page.getInitialProps = async ({ req }) => {
 
 export default Page
 ```
+
+Using a class component:
+
+```jsx
+import React from 'react'
+
+class HelloUA extends React.Component {
+  static async getInitialProps({ req }) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
+  }
+
+  render() {
+    return <div>Hello World {this.props.userAgent}</div>
+  }
+}
+
+export default HelloUA
+```
+
+Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
+
+Data returned from `getInitialProps` is serialized when server rendering, similar to a `JSON.stringify`. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
+
+For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
+
+<br/>
+
+> - `getInitialProps` can **not** be used in children components. Only in `pages`.
+> - If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise, it'll slow down your app.
+
+<br/>
 
 `getInitialProps` receives a context object with the following properties:
 
@@ -400,9 +517,9 @@ Next.js does not ship a routes manifest with every possible route in the applica
   </ul>
 </details>
 
-<p></p>
-
 Client-side transitions between routes can be enabled via a `<Link>` component.
+
+> This component is not required for navigations to static pages that require a hard refresh, like when using [AMP](#amp-support).
 
 **Basic Example**
 
@@ -414,13 +531,18 @@ import Link from 'next/link'
 
 function Home() {
   return (
-    <div>
-      Click{' '}
-      <Link href="/about">
-        <a>here</a>
-      </Link>{' '}
-      to read more
-    </div>
+    <>
+      <ul>
+        <li>Home</li>
+        <li>
+          <Link href="/about">
+            <a>About Us</a>
+          </Link>
+        </li>
+      </ul>
+
+      <h1>This is our homepage.</h1>
+    </>
   )
 }
 
@@ -429,60 +551,101 @@ export default Home
 
 ```jsx
 // pages/about.js
+import Link from 'next/link'
+
 function About() {
-  return <p>Welcome to About!</p>
+  return (
+    <>
+      <ul>
+        <li>
+          <Link href="/">
+            <a>Home</a>
+          </Link>
+        </li>
+        <li>About Us</li>
+      </ul>
+
+      <h1>About</h1>
+      <p>We are a cool company.</p>
+    </>
+  )
 }
 
 export default About
 ```
 
+Note: if passing a functional component as a child of `<Link>` you will need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref)
+
+**Example with `React.forwardRef`**
+
+```jsx
+import React from 'react'
+import Link from 'next/link'
+
+// `onClick`, `href`, and `ref` need to be passed to the DOM element
+// for proper handling
+const MyButton = React.forwardRef(({ onClick, href }, ref) => (
+  <a href={href} onClick={onClick} ref={ref}>
+    Click Me
+  </a>
+))
+
+export default () => (
+  <>
+    <Link href="/another">
+      <MyButton />
+    </Link>
+  </>
+)
+```
+
 **Custom routes (using props from URL)**
 
- `<Link>` component has two main props:
-
-* `href`: the path inside `pages` directory + query string.
-* `as`: the path that will be rendered in the browser URL bar.
+If you find that your use case is not covered by [Dynamic Routing](#dynamic-routing) then you can create a custom server and manually add dynamic routes.
 
 Example:
 
 1. Consider you have the URL `/post/:slug`.
 
-2. You created the `pages/post.js`
+2. You created `pages/post.js`:
 
-    ```jsx
-    class Post extends React.Component {
-      static async getInitialProps({query}) {
-        console.log('SLUG', query.slug)
-        return {}
-      }
-      render() {
-        return <h1>My blog post</h1>
-      }
-    }
+   ```jsx
+   import { useRouter } from 'next/router'
 
-    export default Post
-    ```
-3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
+   const Post = () => {
+     const router = useRouter()
+     const { slug } = router.query
 
-    ```jsx
-    server.get("/post/:slug", (req, res) => {
-      return app.render(req, res, "/post", { slug: req.params.slug })
-    })
-    ```
+     return <p>My Blog Post: {slug}</p>
+   }
+
+   export default Post
+   ```
+
+3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of the `query` object to the page.
+
+   ```jsx
+   server.get('/post/:slug', (req, res) => {
+     return app.render(req, res, '/post', { slug: req.params.slug })
+   })
+   ```
+
 4. For client side routing, use `next/link`:
-    ```jsx
-    <Link href="/post?slug=something" as="/post/something">
-    ```
 
-__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
+   ```jsx
+   <Link href="/post?slug=something" as="/post/something">
+   ```
+
+   - `href`: the path inside `pages` directory
+   - `as`: the path used by your server routes
 
 Client-side routing behaves exactly like the browser:
 
-1. The component is fetched
-2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
-3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
+1. The component is fetched.
+2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered.
+3. After 1 and 2 complete, `pushState` is performed and the new component is rendered.
 
-To inject the `pathname`, `query` or `asPath` in your component, you can use [withRouter](#using-a-higher-order-component).
+To inject the `pathname`, `query` or `asPath` in your component, you can use the [useRouter](#userouter) hook, or [withRouter](#using-a-higher-order-component) for class components.
 
 ##### With URL object
 
@@ -493,9 +656,7 @@ To inject the `pathname`, `query` or `asPath` in your component, you can use [wi
   </ul>
 </details>
 
-<p></p>
-
-The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+The component `<Link>` can also receive a URL object and it will automatically format it to create the URL string.
 
 ```jsx
 // pages/index.js
@@ -565,9 +726,9 @@ export default Home
 
 ##### Forcing the Link to expose `href` to its child
 
-If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hyperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
+If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a _hyperlink_, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
 
-**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
+**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your site’s SEO.
 
 ```jsx
 import Link from 'next/link'
@@ -576,9 +737,7 @@ import Unexpected_A from 'third-library'
 function NavLink({ href, name }) {
   return (
     <Link href={href} passHref>
-      <Unexpected_A>
-        {name}
-      </Unexpected_A>
+      <Unexpected_A>{name}</Unexpected_A>
     </Link>
   )
 }
@@ -605,9 +764,7 @@ The default behaviour of `<Link>` is to scroll to the top of the page. When ther
   </ul>
 </details>
 
-<p></p>
-
-You can also do client-side page transitions using the `next/router`
+You can also do client-side page transitions using `next/router`:
 
 ```jsx
 import Router from 'next/router'
@@ -634,14 +791,14 @@ import Router from 'next/router'
 
 Router.beforePopState(({ url, as, options }) => {
   // I only want to allow these two routes!
-  if (as !== "/" || as !== "/other") {
+  if (as !== '/' && as !== '/other') {
     // Have SSR render bad routes as a 404.
     window.location.href = as
     return false
   }
 
   return true
-});
+})
 ```
 
 If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
@@ -652,16 +809,17 @@ Above `Router` object comes with the following API:
 
 - `route` - `String` of the current route
 - `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
+- `query` - `Object` with the parsed query string. Defaults to `{}`.
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
-- `beforePopState(cb=function)` - intercept popstate before router processes the event.
+- `beforePopState(cb=function)` - intercept popstate before router processes the event
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
+
+You can use a URL object the same way you use it in a `<Link>` component to `push` and `replace` a URL.
 
 ```jsx
 import Router from 'next/router'
@@ -669,12 +827,12 @@ import Router from 'next/router'
 const handler = () => {
   Router.push({
     pathname: '/about',
-    query: { name: 'Zeit' }
+    query: { name: 'Zeit' },
   })
 }
 
 function ReadMore() {
-    return (
+  return (
     <div>
       Click <span onClick={handler}>here</span> to read more
     </div>
@@ -684,7 +842,7 @@ function ReadMore() {
 export default ReadMore
 ```
 
-This uses the same exact parameters as in the `<Link>` component.
+This uses the same exact parameters as [in the `<Link>` component](#with-url-object). The first parameter maps to `href` while the second parameter maps to `as` in the `<Link>` component as documented [here](#with-url-object).
 
 ##### Router Events
 
@@ -693,7 +851,7 @@ Here's a list of supported events:
 
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
 - `beforeHistoryChange(url)` - Fires just before changing the browser's history
 - `hashChangeStart(url)` - Fires when the hash will change but not the page
 - `hashChangeComplete(url)` - Fires when the hash has changed but not the page
@@ -726,6 +884,22 @@ Router.events.on('routeChangeError', (err, url) => {
 })
 ```
 
+> **Note**: Using router events in `getInitialProps` is discouraged as it may result in unexpected behavior.<br/>
+> Router events should be registered when a component mounts (`useEffect` or `componentDidMount`/`componentWillUnmount`) or imperatively when an event happens.
+>
+> ```js
+> useEffect(() => {
+>   const handleRouteChange = url => {
+>     console.log('App is changing to: ', url)
+>   }
+>
+>   Router.events.on('routeChangeStart', handleRouteChange)
+>   return () => {
+>     Router.events.off('routeChangeStart', handleRouteChange)
+>   }
+> }, [])
+> ```
+
 ##### Shallow Routing
 
 <details>
@@ -735,9 +909,7 @@ Router.events.on('routeChangeError', (err, url) => {
   </ul>
 </details>
 
-<p></p>
-
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected using [`withRouter`](#using-a-higher-order-component)), without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected by using [`useRouter`](#userouter) or [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -765,34 +937,35 @@ componentDidUpdate(prevProps) {
 > NOTES:
 >
 > Shallow routing works **only** for same page URL changes. For an example, let's assume we have another page called `about`, and you run this:
+>
 > ```js
 > Router.push('/?counter=10', '/about?counter=10', { shallow: true })
 > ```
+>
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
-#### Using a Higher Order Component
+#### useRouter
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
+    <li><a href="/examples/dynamic-routing">Dynamic routing</a></li>
   </ul>
 </details>
 
-<p></p>
-
-If you want to access the `router` object inside any component in your app, you can use the `withRouter` Higher-Order Component. Here's how to use it:
+If you want to access the `router` object inside any functional component in your app, you can use the `useRouter` hook, here's how to use it:
 
 ```jsx
-import { withRouter } from 'next/router'
+import { useRouter } from 'next/router'
 
-function ActiveLink({ children, router, href }) {
+export default function ActiveLink({ children, href }) {
+  const router = useRouter()
   const style = {
     marginRight: 10,
-    color: router.pathname === href ? 'red' : 'black'
+    color: router.pathname === href ? 'red' : 'black',
   }
 
-  const handleClick = (e) => {
+  const handleClick = e => {
     e.preventDefault()
     router.push(href)
   }
@@ -803,11 +976,33 @@ function ActiveLink({ children, router, href }) {
     </a>
   )
 }
-
-export default withRouter(ActiveLink)
 ```
 
+> **Note**: `useRouter` is a React hook, meaning it cannot be used with classes.
+> You can either use [`withRouter`](#using-a-higher-order-component) (a higher order component) or wrap your class in a functional component.
+
 The above `router` object comes with an API similar to [`next/router`](#imperatively).
+
+#### Using a Higher Order Component
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
+  </ul>
+</details>
+
+If [useRouter](#userouter) is not the best fit for you, `withRouter` can also add the same `router` object to any component, here's how to use it:
+
+```jsx
+import { withRouter } from 'next/router'
+
+function Page({ router }) {
+  return <p>{router.pathname}</p>
+}
+
+export default withRouter(Page)
+```
 
 ### Prefetching Pages
 
@@ -820,46 +1015,24 @@ The above `router` object comes with an API similar to [`next/router`](#imperati
   </ul>
 </details>
 
-<p></p>
-
 Next.js has an API which allows you to prefetch pages.
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
 
+> Automatic prefetching is disabled if your device is connected with 2G network or [Save-Data](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Save-Data) header is `on`.
+
+> `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892.
+
 #### With `<Link>`
 
-You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those pages in the background.
+`<Link>` will automatically prefetch pages in the background as they appear in the view. If certain pages are rarely visited you can manually set `prefetch` to `false`, here's how:
 
 ```jsx
-import Link from 'next/link'
-
-function Header() {
-  return (
-    <nav>
-      <ul>
-        <li>
-          <Link prefetch href="/">
-            <a>Home</a>
-          </Link>
-        </li>
-        <li>
-          <Link prefetch href="/about">
-            <a>About</a>
-          </Link>
-        </li>
-        <li>
-          <Link prefetch href="/contact">
-            <a>Contact</a>
-          </Link>
-        </li>
-      </ul>
-    </nav>
-  )
-}
-
-export default Header
+<Link href="/about" prefetch={false}>
+  <a>About</a>
+</Link>
 ```
 
 #### Imperatively
@@ -867,24 +1040,44 @@ export default Header
 Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
-import { withRouter } from 'next/router'
+import { useRouter } from 'next/router'
 
-function MyLink({ router }) {
+export default function MyLink() {
+  const router = useRouter()
+
   return (
-    <div>
+    <>
       <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
         A route transition will happen after 100ms
       </a>
-      {// but we can prefetch it!
+      {// and we can prefetch it!
       router.prefetch('/dynamic')}
-    </div>
+    </>
   )
 }
-
-export default withRouter(MyLink)
 ```
 
-The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperative `prefetch` method in the `useEffect()` hook:
+
+```jsx
+import { useRouter } from 'next/router'
+
+export default function MyLink() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.prefetch('/dynamic')
+  })
+
+  return (
+    <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+      A route transition will happen after 100ms
+    </a>
+  )
+}
+```
+
+You can also add it to the `componentDidMount()` lifecycle method when using `React.Component`:
 
 ```jsx
 import React from 'react'
@@ -900,17 +1093,176 @@ class MyLink extends React.Component {
     const { router } = this.props
 
     return (
-       <div>
-        <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
-          A route transition will happen after 100ms
-        </a>
-      </div>
+      <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+        A route transition will happen after 100ms
+      </a>
     )
   }
 }
 
 export default withRouter(MyLink)
 ```
+
+### API Routes
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/api-routes">Basic API routes</a></li>
+    <li><a href="/examples/api-routes-micro">API routes with micro</a></li>
+    <li><a href="/examples/api-routes-middleware">API routes with middleware</a></li>
+    <li><a href="/examples/api-routes-graphql">API routes with GraphQL server</a></li>
+    <li><a href="/examples/api-routes-rest">API routes with REST</a></li>
+  </ul>
+</details>
+
+API routes provide a straightforward solution to build your **API** with Next.js.
+Start by creating the `api/` folder inside the `./pages/` folder.
+
+Every file inside `./pages/api` is mapped to `/api/*`.
+For example, `./pages/api/posts.js` is mapped to the route `/api/posts`.
+
+Here's an example API route file:
+
+```js
+export default (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.statusCode = 200
+  res.end(JSON.stringify({ name: 'Nextjs' }))
+}
+```
+
+- `req` refers to [NextApiRequest](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L143-L158) which extends [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
+
+- `res` refers to [NextApiResponse](https://github.com/zeit/next.js/blob/v9.0.0/packages/next-server/lib/utils.ts#L168-L178) which extends [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+
+For [API routes](#api-routes) there are built-in types `NextApiRequest` and `NextApiResponse`, which extend the `Node.js` request and response objects.
+
+```ts
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ title: 'Next.js' })
+}
+```
+
+To handle different HTTP methods for API calls you can access `req.method` in your resolver function:
+
+```js
+export default (req, res) => {
+  if (req.method === 'POST') {
+    // Process your POST request
+  } else {
+    // Handle the rest of your HTTP methods
+  }
+}
+```
+
+> **Note**: API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), so they'll be **same-origin only** by default.
+> You can customize this behavior by wrapping your export with CORS middleware.
+> We provide an [example of this below](#api-middlewares).
+
+API Routes do not increase your client-side bundle size. They are server-side only bundles.
+
+#### Dynamic routes support
+
+API pages support [dynamic routing](#dynamic-routing), so you can use all benefits mentioned already above.
+
+Consider the following page `./pages/api/post/[pid].js`, here is how you get parameters inside the resolver method:
+
+```js
+export default (req, res) => {
+  const {
+    query: { pid },
+  } = req
+
+  res.end(`Post: ${pid}`)
+}
+```
+
+#### API Middlewares
+
+API routes provides built in middlewares which parse the incoming `req`.
+Those middlewares are:
+
+- `req.cookies` - an object containing the cookies sent by the request. Defaults to `{}`
+- `req.query` - an object containing the [query string](https://en.wikipedia.org/wiki/Query_string). Defaults to `{}`
+- `req.body` - an object containing the body parsed by `content-type`, or `null` if no body is sent
+
+Body parsing is enabled by default with a size limit of `1mb` for the parsed body.
+You can opt-out of automatic body parsing if you need to consume it as a `Stream`:
+
+```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+```
+
+You can adjust size of parsed body by adding `sizeLimit` key to `bodyParser`, supported values are by [bytes](https://github.com/visionmedia/bytes.js) library.
+
+```js
+// ./pages/api/my-endpoint.js
+export default (req, res) => {
+  // ...
+}
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    },
+  },
+}
+```
+
+As an added bonus, you can also use any [Micro](https://github.com/zeit/micro) compatible [middleware](https://github.com/amio/awesome-micro)!
+
+For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging `micro-cors`.
+
+First, install `micro-cors`:
+
+```bash
+npm i micro-cors
+# or
+yarn add micro-cors
+```
+
+Then, import `micro-cors` and [configure it](https://github.com/possibilities/micro-cors#readme). Finally, wrap your exported function in the middleware:
+
+```js
+import Cors from 'micro-cors'
+
+const cors = Cors({
+  allowMethods: ['GET', 'HEAD'],
+})
+
+function Endpoint(req, res) {
+  res.json({ message: 'Hello Everyone!' })
+}
+
+export default cors(Endpoint)
+```
+
+#### Helper Functions
+
+We're providing a set of Express.js-like methods to improve the developer experience and increase the speed of creating new API endpoints:
+
+```js
+export default (req, res) => {
+  res.status(200).json({ name: 'Next.js' })
+}
+```
+
+- `res.status(code)` - a function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `res.json(json)` - Sends a `JSON` response. `json` must be a valid `JSON` object
+- `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 
 ### Custom server and routing
 
@@ -921,12 +1273,9 @@ export default withRouter(MyLink)
     <li><a href="/examples/custom-server-express">Express integration</a></li>
     <li><a href="/examples/custom-server-hapi">Hapi integration</a></li>
     <li><a href="/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="/examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="/examples/ssr-caching">SSR caching</a></li>
   </ul>
 </details>
-
-<p></p>
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc.
 
@@ -978,9 +1327,11 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
+
 - `next(opts: object)`
 
 Supported options:
+
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
@@ -989,6 +1340,7 @@ Supported options:
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
 #### Disabling file-system routing
+
 By default, `Next` will serve each file in `/pages` under a pathname matching the filename (eg, `/pages/some-file.js` is served at `site.com/some-file`.
 
 If your project uses custom routing, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX.
@@ -998,16 +1350,13 @@ To disable this behavior & prevent routing based on files in `/pages`, simply se
 ```js
 // next.config.js
 module.exports = {
-  useFileSystemPublicRoutes: false
+  useFileSystemPublicRoutes: false,
 }
 ```
 
-Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing
-may still access those paths. If using this option, you should guard against navigation to routes
-you do not want programmatically.
+Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing may still access those paths. If using this option, you should guard against navigation to routes you do not want programmatically.
 
-You may also wish to configure the client-side Router to disallow client-side redirects to filename
-routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
+You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
 
 #### Dynamic assetPrefix
 
@@ -1036,7 +1385,7 @@ app.prepare().then(() => {
     handleNextRequests(req, res)
   })
 
-  server.listen(port, (err) => {
+  server.listen(port, err => {
     if (err) {
       throw err
     }
@@ -1044,7 +1393,17 @@ app.prepare().then(() => {
     console.log(`> Ready on http://localhost:${port}`)
   })
 })
+```
 
+#### Changing x-powered-by
+
+By default Next.js will add `x-powered-by` to the request headers. There's an optional way to opt-out of this:
+
+```js
+// next.config.js
+module.exports = {
+  poweredByHeader: false,
+}
 ```
 
 ### Dynamic Import
@@ -1056,9 +1415,7 @@ app.prepare().then(() => {
   </ul>
 </details>
 
-<p></p>
-
-Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
+Next.js supports ES2020 [dynamic `import()`](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
 With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
 
 You can think dynamic imports as another way to split your code into manageable chunks.
@@ -1066,7 +1423,7 @@ Since Next.js supports dynamic imports with SSR, you could do amazing things wit
 
 Here are a few ways to use dynamic imports.
 
-#### 1. Basic Usage (Also does SSR)
+#### Basic Usage (Also does SSR)
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1086,14 +1443,44 @@ function Home() {
 export default Home
 ```
 
-#### 2. With Custom Loading Component
+#### With named exports
+
+```jsx
+// components/hello.js
+export function Hello() {
+  return <p>Hello!</p>
+}
+```
 
 ```jsx
 import dynamic from 'next/dynamic'
 
-const DynamicComponentWithCustomLoading = dynamic(() => import('../components/hello2'), {
-  loading: () => <p>...</p>
-})
+const DynamicComponent = dynamic(() =>
+  import('../components/hello').then(mod => mod.Hello)
+)
+
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponent />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+}
+
+export default Home
+```
+
+#### With Custom Loading Component
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicComponentWithCustomLoading = dynamic(
+  () => import('../components/hello2'),
+  { loading: () => <p>...</p> }
+)
 
 function Home() {
   return (
@@ -1108,14 +1495,15 @@ function Home() {
 export default Home
 ```
 
-#### 3. With No SSR
+#### With No SSR
 
 ```jsx
 import dynamic from 'next/dynamic'
 
-const DynamicComponentWithNoSSR = dynamic(() => import('../components/hello3'), {
-  ssr: false
-})
+const DynamicComponentWithNoSSR = dynamic(
+  () => import('../components/hello3'),
+  { ssr: false }
+)
 
 function Home() {
   return (
@@ -1130,37 +1518,6 @@ function Home() {
 export default Home
 ```
 
-#### 4. With Multiple Modules At Once
-
-```jsx
-import dynamic from 'next/dynamic'
-
-const HelloBundle = dynamic({
-  modules: () => {
-    const components = {
-      Hello1: () => import('../components/hello1'),
-      Hello2: () => import('../components/hello2')
-    }
-
-    return components
-  },
-  render: (props, { Hello1, Hello2 }) =>
-    <div>
-      <h1>
-        {props.title}
-      </h1>
-      <Hello1 />
-      <Hello2 />
-    </div>
-})
-
-function DynamicBundle() {
-  return <HelloBundle title="Dynamic Bundle" />
-}
-
-export default DynamicBundle
-```
-
 ### Custom `<App>`
 
 <details>
@@ -1171,45 +1528,35 @@ export default DynamicBundle
   </ul>
 </details>
 
-<p></p>
-
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
 
 - Persisting layout between page changes
 - Keeping state when navigating pages
-- Custom error handling using `componentDidCatch`
 - Inject additional data into pages (for example by processing GraphQL queries)
 
 To override, create the `./pages/_app.js` file and override the App class as shown below:
 
 ```js
-import React from 'react'
-import App, { Container } from 'next/app'
-
-class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
-
-  render () {
-    const { Component, pageProps } = this.props
-
-    return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
-    )
-  }
+function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
 }
+
+// Only uncomment this method if you have blocking data requirements for
+// every single page in your application. This disables the ability to
+// perform automatic static optimization, causing every page in your app to
+// be server-side rendered.
+//
+// MyApp.getInitialProps = async (appContext) => {
+//   // calls page's `getInitialProps` and fills `appProps.pageProps`
+//   const appProps = await App.getInitialProps(appContext);
+//
+//   return { ...appProps }
+// }
 
 export default MyApp
 ```
+
+> **Note:** Adding a custom `getInitialProps` in App will affect [Automatic Static Optimization](#automatic-static-optimization)
 
 ### Custom `<Document>`
 
@@ -1217,17 +1564,25 @@ export default MyApp
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="/examples/with-styled-components">Styled components custom document</a></li>
-    <li><a href="/examples/with-amp">Google AMP</a></li>
   </ul>
 </details>
 
-<p></p>
+A custom `<Document>` is commonly used to augment your application's `<html>` and `<body>` tags.
+This is necessary because Next.js pages skip the definition of the surrounding document's markup.
 
-- Is rendered on the server side
-- Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+This allows you to support Server-Side Rendering for CSS-in-JS libraries like
+[styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion).
+Note, [styled-jsx](https://github.com/zeit/styled-jsx) is included in Next.js by default.
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
+A custom `<Document>` can also include `getInitialProps` for expressing asynchronous server-rendering data requirements.
+
+> **Note**: `<Document>`'s `getInitialProps` function is not called during client-side transitions,
+> nor when a page is [automatically statically optimized](#automatic-static-optimization).
+
+> **Note**: Make sure to check if `ctx.req` / `ctx.res` are defined in `getInitialProps`.
+> These variables will be `undefined` when a page is being statically exported for `next export` or [automatic static optimization](#automatic-static-optimization).
+
+To use a custom `<Document>`, you must create a file at `./pages/_document.js` and extend the `Document` class:
 
 ```jsx
 // _document is only rendered on the server side and not on the client side
@@ -1245,10 +1600,8 @@ class MyDocument extends Document {
   render() {
     return (
       <Html>
-        <Head>
-          <style>{`body { margin: 0 } /* custom! */`}</style>
-        </Head>
-        <body className="custom_class">
+        <Head />
+        <body>
           <Main />
           <NextScript />
         </body>
@@ -1260,19 +1613,20 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
+All of `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
-__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
+**Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the [`<App>`](#custom-app) component instead.**
 
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
-- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
+- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering).
 
 #### Customizing `renderPage`
+
 🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with css-in-js libraries
 that need to wrap the application to properly work with server-rendering. 🚧
 
-- It takes as argument an options object for further customization
+- It takes as argument an options object for further customization:
 
 ```js
 import Document from 'next/document'
@@ -1281,12 +1635,13 @@ class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const originalRenderPage = ctx.renderPage
 
-    ctx.renderPage = () => originalRenderPage({
-      // useful for wrapping the whole react tree
-      enhanceApp: App => App,
-      // userful for wrapping in a per-page basis
-      enhanceComponent: Component => Component
-    })
+    ctx.renderPage = () =>
+      originalRenderPage({
+        // useful for wrapping the whole react tree
+        enhanceApp: App => App,
+        // useful for wrapping in a per-page basis
+        enhanceComponent: Component => Component,
+      })
 
     // Run the parent `getInitialProps` using `ctx` that now includes our custom `renderPage`
     const initialProps = await Document.getInitialProps(ctx)
@@ -1307,21 +1662,19 @@ export default MyDocument
 ```jsx
 import React from 'react'
 
-class Error extends React.Component {
-  static getInitialProps({ res, err }) {
-    const statusCode = res ? res.statusCode : err ? err.statusCode : null;
-    return { statusCode }
-  }
+function Error({ statusCode }) {
+  return (
+    <p>
+      {statusCode
+        ? `An error ${statusCode} occurred on server`
+        : 'An error occurred on client'}
+    </p>
+  )
+}
 
-  render() {
-    return (
-      <p>
-        {this.props.statusCode
-          ? `An error ${this.props.statusCode} occurred on server`
-          : 'An error occurred on client'}
-      </p>
-    )
-  }
+Error.getInitialProps = ({ res, err }) => {
+  const statusCode = res ? res.statusCode : err ? err.statusCode : 404
+  return { statusCode }
 }
 
 export default Error
@@ -1336,32 +1689,28 @@ import React from 'react'
 import Error from 'next/error'
 import fetch from 'isomorphic-unfetch'
 
-class Page extends React.Component {
-  static async getInitialProps() {
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const errorCode = res.statusCode > 200 ? res.statusCode : false
-    const json = await res.json()
-
-    return { errorCode, stars: json.stargazers_count }
+const Page = ({ errorCode, stars }) => {
+  if (errorCode) {
+    return <Error statusCode={errorCode} />
   }
 
-  render() {
-    if (this.props.errorCode) {
-      return <Error statusCode={this.props.errorCode} />
-    }
+  return <div>Next stars: {stars}</div>
+}
 
-    return (
-      <div>
-        Next stars: {this.props.stars}
-      </div>
-    )
-  }
+Page.getInitialProps = async () => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const errorCode = res.statusCode > 200 ? res.statusCode : false
+  const json = await res.json()
+
+  return { errorCode, stars: json.stargazers_count }
 }
 
 export default Page
 ```
 
-> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`.
+
+The Error component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.
 
 ### Custom configuration
 
@@ -1379,20 +1728,20 @@ module.exports = {
 Or use a function:
 
 ```js
-module.exports = (phase, {defaultConfig}) => {
+module.exports = (phase, { defaultConfig }) => {
   return {
     /* config options here */
   }
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.js)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/next-server/lib/constants.ts)
 Phases can be imported from `next/constants`:
 
 ```js
-const {PHASE_DEVELOPMENT_SERVER} = require('next/constants')
-module.exports = (phase, {defaultConfig}) => {
-  if(phase === PHASE_DEVELOPMENT_SERVER) {
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
+module.exports = (phase, { defaultConfig }) => {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
     return {
       /* development only config options here */
     }
@@ -1411,7 +1760,7 @@ You can specify a name to use for a custom build directory. For example, the fol
 ```js
 // next.config.js
 module.exports = {
-  distDir: 'build'
+  distDir: 'build',
 }
 ```
 
@@ -1422,7 +1771,7 @@ You can disable etag generation for HTML pages depending on your cache strategy.
 ```js
 // next.config.js
 module.exports = {
-  generateEtags: false
+  generateEtags: false,
 }
 ```
 
@@ -1436,7 +1785,7 @@ module.exports = {
     // period (in ms) where the server will keep pages in the buffer
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
-    pagesBufferLength: 2
+    pagesBufferLength: 2,
   },
 }
 ```
@@ -1445,12 +1794,12 @@ This is development-only feature. If you want to cache SSR pages in production, 
 
 #### Configuring extensions looked for when resolving pages in `pages`
 
-Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+Aimed at modules like [`@next/mdx`](https://github.com/zeit/next.js/tree/canary/packages/next-mdx), that add support for pages ending with `.mdx`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
 
 ```js
 // next.config.js
 module.exports = {
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['mdx', 'jsx', 'js'],
 }
 ```
 
@@ -1464,7 +1813,7 @@ module.exports = {
   generateBuildId: async () => {
     // For example get the latest git commit hash here
     return 'my-build-id'
-  }
+  },
 }
 ```
 
@@ -1474,12 +1823,12 @@ To fall back to the default of generating a unique id return `null` from the fun
 module.exports = {
   generateBuildId: async () => {
     // When process.env.YOUR_BUILD_ID is undefined we fall back to the default
-    if(process.env.YOUR_BUILD_ID) {
+    if (process.env.YOUR_BUILD_ID) {
       return process.env.YOUR_BUILD_ID
     }
 
     return null
-  }
+  },
 }
 ```
 
@@ -1490,12 +1839,7 @@ You can pass any node arguments to `next` CLI command.
 ```bash
 NODE_OPTIONS="--throw-deprecation" next
 NODE_OPTIONS="-r esm" next
-```
-
-`--inspect` is a special case since it binds to a port and can't double-bind to the child process the `next` CLI creates.
-
-```
-next start --inspect
+NODE_OPTIONS="--inspect" next
 ```
 
 ### Customizing webpack config
@@ -1507,30 +1851,30 @@ next start --inspect
   </ul>
 </details>
 
-<p></p>
-
 Some commonly asked for features are available as modules:
 
 - [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+- [@next/mdx](https://github.com/zeit/next.js/tree/canary/packages/next-mdx)
 
-*Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
+> **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property.
 
 Multiple configurations can be combined together with function composition. For example:
 
 ```js
-const withTypescript = require('@zeit/next-typescript')
+const withMDX = require('@next/mdx')
 const withSass = require('@zeit/next-sass')
 
-module.exports = withTypescript(withSass({
-  webpack(config, options) {
-    // Further custom configuration here
-    return config
-  }
-}))
+module.exports = withMDX(
+  withSass({
+    webpack(config, options) {
+      // Further custom configuration here
+      return config
+    },
+  })
+)
 ```
 
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
@@ -1539,16 +1883,20 @@ In order to extend our usage of `webpack`, you can define a function that extend
 // next.config.js is not transformed by Babel. So you can only use javascript features supported by your version of Node.js.
 
 module.exports = {
-  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Note: we provide webpack above so you should not `require` it
     // Perform customizations to webpack config
     // Important: return the modified config
+
+    // Example using webpack option
+    config.plugins.push(new webpack.IgnorePlugin(/\/__tests__\//))
     return config
   },
   webpackDevMiddleware: config => {
     // Perform customizations to webpack dev middleware config
     // Important: return the modified config
     return config
-  }
+  },
 }
 ```
 
@@ -1556,17 +1904,16 @@ The second argument to `webpack` is an object containing properties useful when 
 
 - `buildId` - `String` the build id used as a unique identifier between builds
 - `dev` - `Boolean` shows if the compilation is done in development mode
-- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client size compilation (`false`).
+- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client side compilation (`false`)
 - `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
-  - `babel` - `Object` the `babel-loader` configuration for Next.js.
-  - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
+  - `babel` - `Object` the `babel-loader` configuration for Next.js
 
 Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source:
-// https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
+// This source was taken from the @next/mdx plugin source:
+// https://github.com/zeit/next.js/tree/canary/packages/next-mdx
 module.exports = {
   webpack: (config, options) => {
     config.module.rules.push({
@@ -1575,13 +1922,13 @@ module.exports = {
         options.defaultLoaders.babel,
         {
           loader: '@mdx-js/loader',
-          options: pluginOptions.options
-        }
-      ]
+          options: pluginOptions.options,
+        },
+      ],
     })
 
     return config
-  }
+  },
 }
 ```
 
@@ -1594,11 +1941,9 @@ module.exports = {
   </ul>
 </details>
 
-<p></p>
-
 In order to extend our usage of `babel`, you can simply define a `.babelrc` file at the root of your app. This file is optional.
 
-If found, we're going to consider it the *source of truth*, therefore it needs to define what next needs as well, which is the `next/babel` preset.
+If found, we're going to consider it the _source of truth_, therefore it needs to define what next needs as well, which is the `next/babel` preset.
 
 This is designed so that you are not surprised by modifications we could make to the babel configurations.
 
@@ -1615,6 +1960,7 @@ The `next/babel` preset includes everything needed to transpile React applicatio
 
 - preset-env
 - preset-react
+- preset-typescript
 - plugin-proposal-class-properties
 - plugin-proposal-object-rest-spread
 - plugin-transform-runtime
@@ -1625,12 +1971,15 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
 ```json
 {
   "presets": [
-    ["next/babel", {
-      "preset-env": {},
-      "transform-runtime": {},
-      "styled-jsx": {},
-      "class-properties": {}
-    }]
+    [
+      "next/babel",
+      {
+        "preset-env": {},
+        "transform-runtime": {},
+        "styled-jsx": {},
+        "class-properties": {}
+      }
+    ]
   ],
   "plugins": []
 }
@@ -1647,7 +1996,7 @@ Next.js supports 2 ways of providing configuration:
 - Build-time configuration
 - Runtime configuration
 
-#### Build time configuration
+#### Build-time configuration
 
 The way build-time configuration works is by inlining the provided values into the Javascript bundle.
 
@@ -1657,8 +2006,8 @@ You can add the `env` key in `next.config.js`:
 // next.config.js
 module.exports = {
   env: {
-    customKey: 'value'
-  }
+    customKey: 'value',
+  },
 }
 ```
 
@@ -1667,18 +2016,29 @@ This will allow you to use `process.env.customKey` in your code. For example:
 ```jsx
 // pages/index.js
 function Index() {
-  return <h1>The value of customEnv is: {process.env.customEnv}</h1>
+  return <h1>The value of customKey is: {process.env.customKey}</h1>
 }
 
 export default Index
 ```
 
+> **Warning:** Note that it is not possible to destructure process.env variables due to the webpack `DefinePlugin` replacing process.env.XXXX inline at build time.
+
+```js
+// Will not work
+const { CUSTOM_KEY, CUSTOM_SECRET } = process.env
+AuthMethod({ key: CUSTOM_KEY, secret: CUSTOM_SECRET })
+
+// Will work as replaced inline
+AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET })
+```
+
 #### Runtime configuration
 
-> :warning: Note that this option is not available when using `target: 'serverless'`
+> **Warning:** Note that these options are not available when using `target: 'serverless'`
 
-> :warning: Generally you want to use build-time configuration to provide your configuration.
-The reason for this is that runtime configuration adds a small rendering / initialization overhead.
+> **Warning:** Generally you want to use build-time configuration to provide your configuration.
+> The reason for this is that runtime configuration adds rendering / initialization overhead and is **incompatible with [automatic static optimization](#automatic-static-optimization)**.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
@@ -1686,16 +2046,21 @@ Place any server-only runtime config under a `serverRuntimeConfig` property.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
+> **Note**: A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [automatic static optimization](#automatic-static-optimization).
+> You can also de-optimize your entire application by creating a [Custom `<App>`](#custom-app) with `getInitialProps`.
+
 ```js
 // next.config.js
 module.exports = {
-  serverRuntimeConfig: { // Will only be available on the server side
+  serverRuntimeConfig: {
+    // Will only be available on the server side
     mySecret: 'secret',
-    secondSecret: process.env.SECOND_SECRET // Pass through env variables
+    secondSecret: process.env.SECOND_SECRET, // Pass through env variables
   },
-  publicRuntimeConfig: { // Will be available on both server and client
+  publicRuntimeConfig: {
+    // Will be available on both server and client
     staticFolder: '/static',
-  }
+  },
 }
 ```
 
@@ -1703,7 +2068,7 @@ module.exports = {
 // pages/index.js
 import getConfig from 'next/config'
 // Only holds serverRuntimeConfig and publicRuntimeConfig from next.config.js nothing else.
-const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
+const { serverRuntimeConfig, publicRuntimeConfig } = getConfig()
 
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
@@ -1731,7 +2096,7 @@ To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN
 const isProd = process.env.NODE_ENV === 'production'
 module.exports = {
   // You may only need to add assetPrefix in the production.
-  assetPrefix: isProd ? 'https://cdn.mydomain.com' : ''
+  assetPrefix: isProd ? 'https://cdn.mydomain.com' : '',
 }
 ```
 
@@ -1742,9 +2107,58 @@ If your CDN is on a separate domain and you would like assets to be requested us
 ```js
 // next.config.js
 module.exports = {
-  crossOrigin: 'anonymous'
+  crossOrigin: 'anonymous',
 }
 ```
+
+## Automatic Static Optimization
+
+Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements.
+This determination is made by the absence of `getInitialProps` in the page.
+
+If `getInitialProps` is present, Next.js will not statically optimize the page.
+Instead, Next.js will use its default behavior and render the page on-demand, per-request (meaning Server-Side Rendering).
+
+If `getInitialProps` is absent, Next.js will **statically optimize** your page automatically by prerendering it to static HTML. During prerendering, the router's `query` object will be empty since we do not have `query` information to provide during this phase. Any `query` values will be populated client side after hydration.
+
+This feature allows Next.js to emit hybrid applications that contain **both server-rendered and statically generated pages**.
+This ensures Next.js always emits applications that are **fast by default**.
+
+> **Note**: Statically generated pages are still reactive: Next.js will hydrate your application client-side to give it full interactivity.
+
+This feature provides many benefits.
+For example, optimized pages require no server-side computation and can be instantly streamed to the end-user from CDN locations.
+
+The result is an _ultra fast_ loading experience for your users.
+
+`next build` will emit `.html` files for statically optimized pages.
+The result will be a file named `.next/server/static/${BUILD_ID}/about.html` instead of `.next/server/static/${BUILD_ID}/about.js`.
+This behavior is similar for `target: 'serverless'`.
+
+The built-in Next.js server (`next start`) and programmatic API (`app.getRequestHandler()`) both support this build output transparently.
+There is no configuration or special handling required.
+
+> **Note**: If you have a [custom `<App>`](#custom-app) with `getInitialProps` then this optimization will be disabled.
+
+> **Note**: If you have a [custom `<Document>`](#custom-document) with `getInitialProps` be sure you check if `ctx.req` is defined before assuming the page is server-side rendered.
+> `ctx.req` will be `undefined` for pages that are prerendered.
+
+## Automatic Static Optimization Indicator
+
+When a page qualifies for automatic static optimization we show an indicator to let you know.
+This is helpful since the automatic static optimization can be very beneficial and knowing immediately in development if it qualifies can be useful.
+See above for information on the benefits of this optimization.
+
+In some cases this indicator might not be as useful like when working on electron applications. For these cases you can disable the indicator in your `next.config.js` by setting
+
+```js
+module.exports = {
+  devIndicators: {
+    autoPrerender: false,
+  },
+}
+```
+
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -1754,13 +2168,26 @@ next build
 next start
 ```
 
-To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js](https://zeit.co/guides/deploying-nextjs-with-now/) or the [Next.js Learn section about deploying on ZEIT Now](https://nextjs.org/learn/basics/deploying-a-nextjs-app/deploying-to-zeit-now).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
+
+### Compression
+
+Next.js provides [gzip](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. Compression only works with the `server` target. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
+
+To disable **compression** in Next.js, set `compress` to `false` in `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  compress: false,
+}
+```
 
 ### Serverless deployment
 
@@ -1773,23 +2200,28 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
   </ul>
 </details>
 
-Serverless deployment dramatically improves reliability and scalability by splitting your application into smaller parts (also called [**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)). In the case of Next.js, each page in the `pages` directory becomes a serverless lambda.
+Serverless deployment dramatically improves reliability and scalability by splitting your application into smaller parts (also called [**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)).
+In the case of Next.js, each page in the `pages` directory becomes a serverless lambda.
 
-There are [a number of benefits](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express) to serverless. The referenced link talks about some of them in the context of Express, but the principles apply universally: serverless allows for distributed points of failure, infinite scalability, and is incredibly affordable with a "pay for what you use" model.
+There are [a number of benefits](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express) to serverless.
+The referenced link talks about some of them in the context of Express, but the principles apply universally:
+serverless allows for distributed points of failure, infinite scalability, and is incredibly affordable with a "pay for what you use" model.
 
 To enable **serverless mode** in Next.js, add the `serverless` build `target` in `next.config.js`:
 
 ```js
 // next.config.js
 module.exports = {
-  target: "serverless",
-};
+  target: 'serverless',
+}
 ```
 
-The `serverless` target will output a single lambda per page. This file is completely standalone and doesn't require any dependencies to run:
+The `serverless` target will output a single lambda or [HTML file](#automatic-static-optimization) per page.
+This file is completely standalone and doesn't require any dependencies to run:
 
 - `pages/index.js` => `.next/serverless/pages/index.js`
 - `pages/about.js` => `.next/serverless/pages/about.js`
+- `pages/blog.js` => `.next/serverless/pages/blog.html`
 
 The signature of the Next.js Serverless function is similar to the Node.js HTTP server callback:
 
@@ -1801,19 +2233,22 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
 
+The static HTML files are ready to be served as-is.
+You can read more about this feature, including how to opt-out, in the [Automatic Static Optimization section](#automatic-static-optimization).
+
 Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
 #### One Level Lower
 
-Next.js provides low-level APIs for serverless deployments as hosting platforms have different function signatures. In general you will want to wrap the output of a Next.js serverless build with a compatability layer.
+Next.js provides low-level APIs for serverless deployments as hosting platforms have different function signatures. In general you will want to wrap the output of a Next.js serverless build with a compatibility layer.
 
 For example if the platform supports the Node.js [`http.Server`](https://nodejs.org/api/http.html#http_class_http_server) class:
 
 ```js
-const http = require("http");
-const page = require("./.next/serverless/pages/about.js");
-const server = new http.Server((req, res) => page.render(req, res));
-server.listen(3000, () => console.log("Listening on http://localhost:3000"));
+const http = require('http')
+const page = require('./.next/serverless/pages/about.js')
+const server = new http.Server((req, res) => page.render(req, res))
+server.listen(3000, () => console.log('Listening on http://localhost:3000'))
 ```
 
 For specific platform examples see [the examples section above](#serverless-deployment).
@@ -1835,6 +2270,258 @@ Next.js supports IE11 and all modern browsers out of the box using [`@babel/pres
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
+## TypeScript
+
+Next.js provides an integrated TypeScript experience out of the box, similar to an IDE.
+
+To get started, create a empty `tsconfig.json` file in the root of your project:
+
+```bash
+touch tsconfig.json
+```
+
+Next.js will automatically configure this file with default values (providing [your own `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported).
+
+Then, run `next dev` (normally `npm run dev`) and Next.js will guide you through installing the necessary packages to complete setup.
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install typescript, @types/react, and @types/node by running:
+#
+#         yarn add --dev typescript @types/react @types/node
+#
+# ...
+```
+
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits TypeScript provides!
+
+To learn more about TypeScript checkout its [documentation](https://www.typescriptlang.org/).
+
+> **Note**: Next.js will create a file named `next-env.d.ts` in the root of your project.
+> This file ensures Next.js' types are picked up by the TypeScript compiler.
+>
+> **You cannot remove this file, however, you can edit it (but don't need to).**
+
+> **Note**: Next.js does not enable TypeScript's `strict` mode by default.
+> When you feel comfortable with TypeScript, you may turn this option on in your `tsconfig.json`.
+
+> **Note**: By default, Next.js reports TypeScript errors during development for pages you are actively working on.
+> TypeScript errors for inactive pages **do not** block the development process.
+>
+> If you don't want to leverage this behavior and instead, e.g. prefer your editor's integration, you can set the following option in `next.config.js`:
+>
+> ```js
+> // next.config.js
+> module.exports = {
+>   typescript: {
+>     ignoreDevErrors: true,
+>   },
+> }
+> ```
+>
+> Next.js will still fail your **production build** (`next build`) when TypeScript errors are present in your project.
+>
+> If you'd like Next.js to dangerously produce production code even when your application is broken, you can set the following option in your `next.config.js`.
+> Be sure you are running type checks as part of your build or deploy process!
+>
+> ```js
+> // next.config.js
+> module.exports = {
+>   typescript: {
+>     // !! WARN !!
+>     // Dangerously allow production builds to successfully complete even if
+>     // your project has type errors.
+>     //
+>     // This option is rarely needed, and should be reserved for advanced
+>     // setups. You may be looking for `ignoreDevErrors` instead.
+>     // !! WARN !!
+>     ignoreBuildErrors: true,
+>   },
+> }
+> ```
+
+### Exported types
+
+Next.js provides `NextPage` type that can be used for pages in the `pages` directory. `NextPage` adds definitions for [`getInitialProps`](#fetching-data-and-component-lifecycle) so that it can be used without any extra typing needed.
+
+```tsx
+import { NextPage } from 'next'
+
+interface Props {
+  userAgent?: string
+}
+
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
+)
+
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
+}
+
+export default Page
+```
+
+For `React.Component` you can use `NextPageContext`:
+
+```tsx
+import React from 'react'
+import { NextPageContext } from 'next'
+
+interface Props {
+  userAgent?: string
+}
+
+export default class Page extends React.Component<Props> {
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
+  }
+
+  render() {
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
+  }
+}
+```
+
+## AMP Support
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">amp</a></li>
+  </ul>
+</details>
+
+### Enabling AMP Support
+
+To enable AMP support for a page, add `export const config = { amp: true }` to your page.
+
+### AMP First Page
+
+```js
+// pages/about.js
+export const config = { amp: true }
+
+export default function AboutPage(props) {
+  return <h3>My AMP About Page!</h3>
+}
+```
+
+### Hybrid AMP Page
+
+```js
+// pages/hybrid-about.js
+import { useAmp } from 'next/amp'
+
+export const config = { amp: 'hybrid' }
+
+export default function AboutPage(props) {
+  return (
+    <div>
+      <h3>My AMP Page</h3>
+      {useAmp() ? (
+        <amp-img
+          width="300"
+          height="300"
+          src="/my-img.jpg"
+          alt="a cool image"
+          layout="responsive"
+        />
+      ) : (
+        <img width="300" height="300" src="/my-img.jpg" alt="a cool image" />
+      )}
+    </div>
+  )
+}
+```
+
+### AMP Page Modes
+
+AMP pages can specify two modes:
+
+- AMP-only (default)
+  - Pages have no Next.js or React client-side runtime
+  - Pages are automatically optimized with [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer), an optimizer that applies the same transformations as AMP caches (improves performance by up to 42%)
+  - Pages have a user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
+  - Opt-in via `export const config = { amp: true }`
+- Hybrid
+  - Pages are able to be rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
+  - The AMP version of the page only has valid optimizations applied with AMP Optimizer so that it is indexable by search-engines
+  - Opt-in via `export const config = { amp: 'hybrid' }`
+  - Able to differentiate between modes using `useAmp` from `next/amp`
+
+Both of these page modes provide a consistently fast experience for users accessing pages through search engines.
+
+### AMP Behavior with `next export`
+
+When using `next export` to statically prerender pages Next.js will detect if the page supports AMP and change the exporting behavior based on that.
+
+Hybrid AMP (`pages/about.js`) would output:
+
+- `out/about.html` - with client-side React runtime
+- `out/about.amp.html` - AMP page
+
+AMP-only (`pages/about.js`) would output:
+
+- `out/about.html` - Optimized AMP page
+
+During export Next.js automatically detects if a page is hybrid AMP and outputs the AMP version to `page.amp.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
+
+> **Note**: When using `exportTrailingSlash: true` in `next.config.js`, output will be different. For Hybrid AMP pages, output will be `out/page/index.html` and `out/page.amp/index.html`, and for AMP-only pages, output will be `out/page/index.html`
+
+### Adding AMP Components
+
+The AMP community provides [many components](https://amp.dev/documentation/components/) to make AMP pages more interactive. You can add these components to your page by using `next/head`:
+
+```js
+// pages/hello.js
+import Head from 'next/head'
+
+export const config = { amp: true }
+
+export default function MyAmpPage() {
+  return (
+    <div>
+      <Head>
+        <script
+          async
+          key="amp-timeago"
+          custom-element="amp-timeago"
+          src="https://cdn.ampproject.org/v0/amp-timeago-0.1.js"
+        />
+      </Head>
+
+      <p>Some time: {date.toJSON()}</p>
+      <amp-timeago
+        width="0"
+        height="15"
+        datetime={date.toJSON()}
+        layout="responsive"
+      >
+        .
+      </amp-timeago>
+    </div>
+  )
+}
+```
+
+### AMP Validation
+
+AMP pages are automatically validated with [amphtml-validator](https://www.npmjs.com/package/amphtml-validator) during development. Errors and warnings will appear in the terminal where you started Next.js.
+
+Pages are also validated during `next export` and any warnings / errors will be printed to the terminal.
+Any AMP errors will cause `next export` to exit with status code `1` because the export is not valid AMP.
+
+### TypeScript Support
+
+AMP currently doesn't have built-in types for TypeScript, but it's in their roadmap ([#13791](https://github.com/ampproject/amphtml/issues/13791)). As a workaround you can manually add the types to `amp.d.ts` like [here](https://stackoverflow.com/a/50601125).
+
 ## Static HTML export
 
 <details>
@@ -1844,18 +2531,15 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
   </ul>
 </details>
 
-<p></p>
-
 `next export` is a way to run your Next.js app as a standalone static app without the need for a Node.js server.
 The exported app supports almost every feature of Next.js, including dynamic urls, prefetching, preloading and dynamic imports.
 
-The way `next export` works is by pre-rendering all pages possible to HTML. It does so based on a mapping of `pathname` key to page object. This mapping is called the `exportPathMap`.
+The way `next export` works is by prerendering all pages possible to HTML. It does so based on a mapping of `pathname` key to page object. This mapping is called the `exportPathMap`.
 
 The page object has 2 values:
 
 - `page` - `String` the page inside the `pages` directory to render
-- `query` - `Object` the `query` object passed to `getInitialProps` when pre-rendering. Defaults to `{}`
-
+- `query` - `Object` the `query` object passed to `getInitialProps` when prerendering. Defaults to `{}`
 
 ### Usage
 
@@ -1874,20 +2558,44 @@ This function is asynchronous and gets the default `exportPathMap` as a paramete
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: async function (defaultPathMap) {
+  exportPathMap: async function(
+    defaultPathMap,
+    { dev, dir, outDir, distDir, buildId }
+  ) {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
       '/readme.md': { page: '/readme' },
       '/p/hello-nextjs': { page: '/post', query: { title: 'hello-nextjs' } },
       '/p/learn-nextjs': { page: '/post', query: { title: 'learn-nextjs' } },
-      '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } }
+      '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } },
     }
-  }
+  },
 }
 ```
 
-> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
+The pages will be exported as html files, i.e. `/about` will become `/about.html`.
+
+It is possible to configure Next.js to export pages as `index.html` files and require trailing slashes, i.e. `/about` becomes `/about/index.html` and is routable via `/about/`.
+This was the default behavior prior to Next.js 9.
+You can use the following `next.config.js` to switch back to this behavior:
+
+```js
+// next.config.js
+module.exports = {
+  exportTrailingSlash: true,
+}
+```
+
+> **Note**: If the export path is a filename (e.g. `/readme.md`) and is different than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
+
+The second argument is an `object` with:
+
+- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes.
+- `dir` - Absolute path to the project directory
+- `outDir` - Absolute path to the `out/` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
+- `distDir` - Absolute path to the `.next/` directory (configurable using the `distDir` config key)
+- `buildId` - The `buildId` the export is running for
 
 Then simply run these commands:
 
@@ -1925,41 +2633,13 @@ For an example, simply visit the `out` directory and run following command to de
 now
 ```
 
-### Copying custom files
-
-In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
-
-- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
-- `dir` - Absolute path to the project directory
-- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
-- `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key)
-- `buildId` - The buildId the export is running for
-
-```js
-// next.config.js
-const fs = require('fs')
-const { join } = require('path')
-const { promisify } = require('util')
-const copyFile = promisify(fs.copyFile)
-
-module.exports = {
-  exportPathMap: async function (defaultPathMap, {dev, dir, outDir, distDir, buildId}) {
-    if (dev) {
-      return defaultPathMap
-    }
-    // This will copy robots.txt from your project root into the out directory
-    await copyFile(join(dir, 'robots.txt'), join(outDir, 'robots.txt'))
-    return defaultPathMap
-  }
-}
-```
-
 ### Limitation
 
 With `next export`, we build a HTML version of your app. At export time we will run `getInitialProps` of your pages.
 
-The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
+The `req` and `res` fields of the `context` object passed to `getInitialProps` are empty objects during export as there is no server running.
+
+> **Note**: If your pages don't have `getInitialProps` you may not need `next export` at all, `next build` is already enough thanks to [automatic static optimization](#automatic-static-optimization).
 
 > You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
@@ -1972,49 +2652,45 @@ The `req` and `res` fields of the `context` object passed to `getInitialProps` a
   </ul>
 </details>
 
-<p></p>
-
-A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones. Then you can merge them as a single app.
+A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones and then you can merge them as a single app.
 
 For an example, you can have two zones like this:
 
-* https://docs.my-app.com for serving `/docs/**`
-* https://ui.my-app.com for serving all other pages
+- An app for serving `/blog/**`
+- Another app for serving all other pages
 
-With multi zones support, you can merge both these apps into a single one. Which allows your customers to browse it using a single URL. But you can develop and deploy both apps independently.
+With multi zones support, you can merge both these apps into a single one allowing your customers to browse it using a single URL, but you can develop and deploy both apps independently.
 
-> This is exactly the same concept as microservices, but for frontend apps.
+> This is exactly the same concept of microservices, but for frontend apps.
 
 ### How to define a zone
 
-There are no special zones related APIs. You only need to do following things:
+There are no special zones related APIs. You only need to do following:
 
-* Make sure to keep only the pages you need in your app. (For an example, https://ui.my-app.com should not contain pages for `/docs/**`)
-* Make sure your app has an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix). (You can also define the assetPrefix [dynamically](https://github.com/zeit/next.js#dynamic-assetprefix).)
+- Make sure to keep only the pages you need in your app, meaning that an app can't have pages from another app, if app `A` has `/blog` then app `B` shouldn't have it too.
+- Make sure to add an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix) to avoid conflicts with static files.
 
 ### How to merge them
 
 You can merge zones using any HTTP proxy.
 
-You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local proxy server. It allows you to easily define routing rules like below:
+You can use [now dev](https://zeit.co/docs/v2/development/basics) as your local development server. It allows you to easily define routing routes for multiple apps like below:
 
 ```json
 {
-  "rules": [
-    {"pathname": "/docs**", "method":["GET", "POST", "OPTIONS"], "dest": "https://docs.my-app.com"},
-    {"pathname": "/**", "dest": "https://ui.my-app.com"}
+  "version": 2,
+  "builds": [
+    { "src": "docs/next.config.js", "use": "@now/next" },
+    { "src": "home/next.config.js", "use": "@now/next" }
+  ],
+  "routes": [
+    { "src": "/docs(.*)", "dest": "docs$1", "continue": true },
+    { "src": "(?!/?docs)(.*)", "dest": "home$1", "continue": true }
   ]
 }
 ```
 
-For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as shown above.
-
-## Recipes
-
-- [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
-- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
-- [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
-- [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
+For the production deployment, you can use the same configuration and run `now` to do the deployment with [ZEIT Now](https://zeit.co/now). Otherwise you can also configure a proxy server to route using a set of routes like the ones above, e.g deploy the docs app to `https://docs.example.com` and the home app to `https://home.example.com` and then add a proxy server for both apps in `https://example.com`.
 
 ## FAQ
 
@@ -2022,10 +2698,9 @@ For the production deployment, you can use the [path alias](https://zeit.co/docs
   <summary>Is this production ready?</summary>
   Next.js has been powering https://zeit.co since its inception.
 
-  We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
-</details>
+We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
 
-<p></p>
+</details>
 
 <details>
   <summary>How big is it?</summary>
@@ -2035,8 +2710,6 @@ A small Next main bundle is around 65kb gzipped.
 
 </details>
 
-<p></p>
-
 <details>
   <summary>Is this like `create-react-app`?</summary>
 
@@ -2045,10 +2718,12 @@ Yes and No.
 Yes in that both make your life easier.
 
 No in that it enforces a _structure_ so that we can do more advanced things like:
+
 - Server side rendering
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
+
 - Routing with lazy component loading: `<Link>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
@@ -2056,26 +2731,21 @@ If you want to create re-usable React components that you can embed in your Next
 
 </details>
 
-<p></p>
-
 <details>
   <summary>How do I use CSS-in-JS solutions?</summary>
 
 Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
-</details>
 
-<p></p>
+</details>
 
 <details>
   <summary>What syntactic features are transpiled? How do I change them?</summary>
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See the  documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.js) for more information.
+See the documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.ts) for more information.
 
 </details>
-
-<p></p>
 
 <details>
   <summary>Why a new Router?</summary>
@@ -2091,29 +2761,23 @@ As a result, we were able to introduce a very simple approach to routing that co
 - Every top level component receives a `url` object to inspect the url or perform modifications to the history
 - A `<Link />` component is used to wrap elements like anchors (`<a/>`) to perform client-side transitions
 
-We tested the flexibility of the routing with some interesting scenarios. For an example, check out [nextgram](https://github.com/zeit/nextgram).
-
 </details>
-
-<p></p>
 
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
+Next.js provide [dynamic routing](#dynamic-routing) solution out of the box. This allows to use pretty links in url.
 
-On the client side, we have a parameter call `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
+You can check an [example](https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing) to see how it works.
+
 </details>
-
-<p></p>
 
 <details>
 <summary>How do I fetch data?</summary>
 
 It’s up to you. `getInitialProps` is an `async` function (or a regular function that returns a `Promise`). It can retrieve data from anywhere.
-</details>
 
-<p></p>
+</details>
 
 <details>
   <summary>Can I use it with GraphQL?</summary>
@@ -2122,23 +2786,26 @@ Yes! Here's an example with [Apollo](/examples/with-apollo).
 
 </details>
 
-<p></p>
+<details>
+<summary>Can I use it with Redux and thunk?</summary>
+
+Yes! Here's an [example](/examples/with-redux-thunk).
+
+</details>
 
 <details>
 <summary>Can I use it with Redux?</summary>
 
-Yes! Here's an [example](/examples/with-redux)
-</details>
+Yes! Here's an [example](/examples/with-redux).
 
-<p></p>
+</details>
 
 <details>
 <summary>Can I use Next with my favorite Javascript library or toolkit?</summary>
 
-Since our first release we've had **many** example contributions, you can check them out in the [examples](/examples) directory
-</details>
+Since our first release we've had **many** example contributions, you can check them out in the [examples](/examples) directory.
 
-<p></p>
+</details>
 
 <details>
 <summary>What is this inspired by?</summary>
@@ -2153,11 +2820,9 @@ As we were researching options for server-rendering React that didn’t involve 
 
 </details>
 
-<p></p>
-
 ## Contributing
 
-Please see our [contributing.md](/contributing.md)
+Please see our [contributing.md](/contributing.md).
 
 ## Authors
 

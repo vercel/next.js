@@ -2,10 +2,10 @@ import React, { Component } from 'react'
 import { firebaseCloudMessaging } from '../utils/webPush'
 
 class Index extends Component {
-  componentDidMount () {
+  componentDidMount() {
     firebaseCloudMessaging.init()
   }
-  render () {
+  render() {
     return <div>Next.js with firebase cloud messaging.</div>
   }
 }

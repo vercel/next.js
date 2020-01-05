@@ -1,8 +1,7 @@
 /* eslint-env jest */
-
 import webdriver from 'next-webdriver'
 
-export default (context) => {
+export default context => {
   describe('Client Navigation 404', () => {
     describe('should show 404 upon client replacestate', () => {
       it('should navigate the page', async () => {
@@ -18,9 +17,9 @@ export default (context) => {
 
         expect({ serverCode, clientCode }).toMatchObject({
           serverCode: '404',
-          clientCode: '404'
+          clientCode: '404',
         })
-        browser.close()
+        await browser.close()
       })
     })
   })

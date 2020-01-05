@@ -1,12 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/custom-server-typescript)
-
 # Custom server with TypeScript + Nodemon example
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example custom-server-typescript custom-server-typescript-app
@@ -42,5 +40,6 @@ now
 ## The idea behind the example
 
 The example shows how you can use [TypeScript](https://typescriptlang.com) on both the server and the client while using [Nodemon](https://nodemon.io/) to live reload the server code without affecting the Next.js universal code.
-Server entry point is `server/index.ts` in development and `production-server/index.js` in production.
+
+Server entry point is `server/index.ts` in development and `dist/index.js` in production.
 The second directory should be added to `.gitignore`.

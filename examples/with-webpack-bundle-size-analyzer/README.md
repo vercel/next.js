@@ -1,12 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-webpack-bundle-size-analyzer)
-
 # Webpack Bundle Size Analyzer
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-webpack-bundle-size-analyzer with-webpack-bundle-size-analyzer-app
@@ -23,7 +21,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-webpack-bundle-size-analyzer
 ```
 
-Install it
+Install it and run:
 
 ```bash
 npm install

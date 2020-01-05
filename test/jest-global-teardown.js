@@ -1,7 +1,9 @@
-'use strict'
+let globalTeardown = () => {}
 
-const chromedriver = require('chromedriver')
+if (process.env.BROWSERSTACK) {
+  globalTeardown = () => global.browserStackLocal.killAllProcesses(() => {})
+}
 
-module.exports = async function globalSetup () {
-  chromedriver.stop()
+module.exports = async () => {
+  await globalTeardown()
 }

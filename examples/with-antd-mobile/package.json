@@ -6,6 +6,7 @@
     "antd-mobile": "2.2.5",
     "babel-plugin-import": "^1.2.1",
     "next": "latest",
+    "null-loader": "2.0.0",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },

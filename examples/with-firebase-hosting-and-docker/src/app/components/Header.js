@@ -1,23 +1,23 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import Link from 'next/link'
+import React from 'react';
+import PropTypes from 'prop-types';
+import Link from 'next/link';
 
 const propTypes = {
-  pathname: PropTypes.String
-}
+  pathname: PropTypes.String,
+};
 
 const Header = ({ pathname }) => (
   <header>
-    <Link href='/'>
+    <Link href="/">
       <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
     </Link>
     <span> - </span>
-    <Link href='/about'>
+    <Link href="/about">
       <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
     </Link>
   </header>
-)
+);
 
-Header.propTypes = propTypes
+Header.propTypes = propTypes;
 
-export default Header
+export default Header;

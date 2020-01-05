@@ -20,6 +20,6 @@ This is code for that:
 window.onbeforeunload = function(e) {
   // Get the application state (usually from a store like Redux)
   const appState = {}
-  localStorage.setItem('app-state', JSON.stringify(appState));
-};
+  localStorage.setItem('app-state', JSON.stringify(appState))
+}
 ```

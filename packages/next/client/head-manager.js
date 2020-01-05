@@ -2,26 +2,26 @@ const DOMAttributeNames = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
-  httpEquiv: 'http-equiv'
+  httpEquiv: 'http-equiv',
 }
 
 export default class HeadManager {
-  constructor () {
+  constructor() {
     this.updatePromise = null
   }
 
-  updateHead = (head) => {
-    const promise = this.updatePromise = Promise.resolve().then(() => {
+  updateHead = head => {
+    const promise = (this.updatePromise = Promise.resolve().then(() => {
       if (promise !== this.updatePromise) return
 
       this.updatePromise = null
       this.doUpdateHead(head)
-    })
+    }))
   }
 
-  doUpdateHead (head) {
+  doUpdateHead(head) {
     const tags = {}
-    head.forEach((h) => {
+    head.forEach(h => {
       const components = tags[h.type] || []
       components.push(h)
       tags[h.type] = components
@@ -30,12 +30,12 @@ export default class HeadManager {
     this.updateTitle(tags.title ? tags.title[0] : null)
 
     const types = ['meta', 'base', 'link', 'style', 'script']
-    types.forEach((type) => {
+    types.forEach(type => {
       this.updateElements(type, tags[type] || [])
     })
   }
 
-  updateTitle (component) {
+  updateTitle(component) {
     let title = ''
     if (component) {
       const { children } = component.props
@@ -44,26 +44,52 @@ export default class HeadManager {
     if (title !== document.title) document.title = title
   }
 
-  updateElements (type, components) {
+  updateElements(type, components) {
     const headEl = document.getElementsByTagName('head')[0]
-    const oldTags = Array.prototype.slice.call(headEl.querySelectorAll(type + '.next-head'))
-    const newTags = components.map(reactElementToDOM).filter((newTag) => {
-      for (let i = 0, len = oldTags.length; i < len; i++) {
-        const oldTag = oldTags[i]
+    const headCountEl = headEl.querySelector('meta[name=next-head-count]')
+    if (process.env.NODE_ENV !== 'production') {
+      if (!headCountEl) {
+        console.error(
+          'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+        )
+        return
+      }
+    }
+
+    const headCount = Number(headCountEl.content)
+    const oldTags = []
+
+    for (
+      let i = 0, j = headCountEl.previousElementSibling;
+      i < headCount;
+      i++, j = j.previousElementSibling
+    ) {
+      if (j.tagName.toLowerCase() === type) {
+        oldTags.push(j)
+      }
+    }
+    const newTags = components.map(reactElementToDOM).filter(newTag => {
+      for (let k = 0, len = oldTags.length; k < len; k++) {
+        const oldTag = oldTags[k]
         if (oldTag.isEqualNode(newTag)) {
-          oldTags.splice(i, 1)
+          oldTags.splice(k, 1)
           return false
         }
       }
       return true
     })
 
-    oldTags.forEach((t) => t.parentNode.removeChild(t))
-    newTags.forEach((t) => headEl.appendChild(t))
+    oldTags.forEach(t => t.parentNode.removeChild(t))
+    newTags.forEach(t => headEl.insertBefore(t, headCountEl))
+    headCountEl.content = (
+      headCount -
+      oldTags.length +
+      newTags.length
+    ).toString()
   }
 }
 
-function reactElementToDOM ({ type, props }) {
+function reactElementToDOM({ type, props }) {
   const el = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue

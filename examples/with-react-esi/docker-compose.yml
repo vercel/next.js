@@ -6,7 +6,7 @@ services:
       context: .
       target: node
     ports:
-      - "8080:80" # To debug
+      - '8080:80' # To debug
 
   varnish:
     build:
@@ -19,4 +19,4 @@ services:
     tmpfs:
       - /usr/local/var/varnish:exec
     ports:
-      - "80:80"
+      - '80:80'

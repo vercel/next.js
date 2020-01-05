@@ -11,8 +11,9 @@ const BreakingNews = props => (
           <p>{breaking.body}</p>
         </article>
       ))}
-    We are <b>{process.browser ? 'client-side' : 'server-side'}</b> (now, check
-    the source of this page)
+    We are{' '}
+    <b>{typeof window !== 'undefined' ? 'client-side' : 'server-side'}</b> (now,
+    check the source of this page)
     <div>
       <small>generated at {new Date().toISOString()}</small>
     </div>
@@ -34,13 +35,13 @@ BreakingNews.getInitialProps = async ({ props, req, res }) => {
           news: [
             {
               title: 'Aenean eleifend ex',
-              body: 'Proin commodo ullamcorper cursus.'
+              body: 'Proin commodo ullamcorper cursus.',
             },
             {
               title: 'Morbi rutrum tortor nec eros vestibulum',
-              body: 'Maecenas gravida eu sapien quis sollicitudin.'
-            }
-          ]
+              body: 'Maecenas gravida eu sapien quis sollicitudin.',
+            },
+          ],
         }),
       5000
     )

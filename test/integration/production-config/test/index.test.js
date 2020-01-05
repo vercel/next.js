@@ -1,14 +1,14 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   nextServer,
   nextBuild,
   startApp,
   stopApp,
-  runNextCommand
+  runNextCommand,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -23,7 +23,7 @@ describe('Production Config Usage', () => {
     const app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
     server = await startApp(app)
     appPort = server.address().port
@@ -40,30 +40,34 @@ describe('Production Config Usage', () => {
   })
 
   describe('env', () => {
-    it('should fail with __ in env key', async () => {
-      const result = await runNextCommand(['build', appDir], { spawnOptions: {
-        env: {
-          ...process.env,
-          ENABLE_ENV_FAIL_UNDERSCORE: true
-        }
-      },
-      stdout: true,
-      stderr: true })
+    it('should fail with leading __ in env key', async () => {
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_FAIL_UNDERSCORE: true },
+        stdout: true,
+        stderr: true,
+      })
 
       expect(result.stderr).toMatch(/The key "__NEXT_MY_VAR" under/)
     })
 
     it('should fail with NODE_ in env key', async () => {
-      const result = await runNextCommand(['build', appDir], { spawnOptions: {
-        env: {
-          ...process.env,
-          ENABLE_ENV_FAIL_NODE: true
-        }
-      },
-      stdout: true,
-      stderr: true })
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_FAIL_NODE: true },
+        stdout: true,
+        stderr: true,
+      })
 
       expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
+    })
+
+    it('should allow __ within env key', async () => {
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_WITH_UNDERSCORES: true },
+        stdout: true,
+        stderr: true,
+      })
+
+      expect(result.stderr).not.toMatch(/The key "SOME__ENV__VAR" under/)
     })
   })
 
@@ -75,17 +79,17 @@ describe('Production Config Usage', () => {
 
       const html = await browser.elementByCss('html').getAttribute('innerHTML')
       expect(html).toMatch('custom-buildid')
-      return browser.close()
+      await browser.close()
     })
   })
 })
 
-async function testBrowser () {
+async function testBrowser() {
   const browser = await webdriver(appPort, '/')
   const element = await browser.elementByCss('#mounted')
   const text = await element.text()
   expect(text).toMatch(/ComponentDidMount executed on client\./)
   expect(await element.getComputedCss('font-size')).toBe('40px')
   expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
-  return browser.close()
+  await browser.close()
 }

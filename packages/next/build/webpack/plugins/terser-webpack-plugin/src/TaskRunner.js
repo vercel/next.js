@@ -1,106 +1,82 @@
-import os from 'os';
+import { join } from 'path'
+import minify from './minify'
+import { promisify } from 'util'
+import Worker from 'jest-worker'
+import { writeFile, readFile } from 'fs'
+import mkdirp from 'mkdirp'
 
-import cacache from 'cacache';
-import findCacheDir from 'find-cache-dir';
-import workerFarm from 'worker-farm';
-import serialize from 'serialize-javascript';
-
-import minify from './minify';
-
-const worker = require.resolve('./worker');
+const worker = require.resolve('./minify')
+const writeFileP = promisify(writeFile)
+const readFileP = promisify(readFile)
 
 export default class TaskRunner {
-  constructor(options = {}) {
-    const { cache, parallel } = options;
-    this.cacheDir =
-      cache === true ? findCacheDir({ name: 'terser-webpack-plugin' }) : cache;
+  constructor({ distDir, cpus, cache, workerThreads }) {
+    if (cache) {
+      mkdirp.sync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
+    }
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
-    const cpus = os.cpus() || { length: 1 };
-    this.maxConcurrentWorkers =
-      parallel === true
-        ? cpus.length - 1
-        : Math.min(Number(parallel) || 0, cpus.length - 1);
+    this.maxConcurrentWorkers = cpus
+    this.useWorkerThreads = workerThreads
   }
 
   run(tasks, callback) {
     /* istanbul ignore if */
     if (!tasks.length) {
-      callback(null, []);
-      return;
+      callback(null, [])
+      return
     }
 
     if (this.maxConcurrentWorkers > 1) {
-      const workerOptions =
-        process.platform === 'win32'
-          ? {
-              maxConcurrentWorkers: this.maxConcurrentWorkers,
-              maxConcurrentCallsPerWorker: 1,
-            }
-          : { maxConcurrentWorkers: this.maxConcurrentWorkers };
-      this.workers = workerFarm(workerOptions, worker);
-      this.boundWorkers = (options, cb) => {
-        try {
-          this.workers(serialize(options), cb);
-        } catch (error) {
-          // worker-farm can fail with ENOMEM or something else
-          cb(error);
-        }
-      };
+      this.workers = new Worker(worker, {
+        enableWorkerThreads: this.useWorkerThreads,
+        numWorkers: this.maxConcurrentWorkers,
+      })
+      this.boundWorkers = options => this.workers.default(options)
     } else {
-      this.boundWorkers = (options, cb) => {
-        try {
-          cb(null, minify(options));
-        } catch (error) {
-          cb(error);
-        }
-      };
+      this.boundWorkers = async options => minify(options)
     }
 
-    let toRun = tasks.length;
-    const results = [];
+    let toRun = tasks.length
+    const results = []
     const step = (index, data) => {
-      toRun -= 1;
-      results[index] = data;
+      toRun -= 1
+      results[index] = data
 
       if (!toRun) {
-        callback(null, results);
+        callback(null, results)
       }
-    };
+    }
 
     tasks.forEach((task, index) => {
-      const enqueue = () => {
-        this.boundWorkers(task, (error, data) => {
-          const result = error ? { error } : data;
-          const done = () => step(index, result);
-
-          if (this.cacheDir && !result.error) {
-            cacache
-              .put(
-                this.cacheDir,
-                serialize(task.cacheKeys),
-                JSON.stringify(data)
-              )
-              .then(done, done);
-          } else {
-            done();
+      const cachePath = this.cacheDir && join(this.cacheDir, task.cacheKey)
+      const enqueue = async () => {
+        try {
+          const result = await this.boundWorkers(task)
+          const done = () => step(index, result)
+          if (cachePath) {
+            writeFileP(cachePath, JSON.stringify(result), 'utf8')
+              .then(done)
+              .catch(done)
           }
-        });
-      };
+        } catch (error) {
+          step(index, { error })
+        }
+      }
 
       if (this.cacheDir) {
-        cacache
-          .get(this.cacheDir, serialize(task.cacheKeys))
-          .then(({ data }) => step(index, JSON.parse(data)), enqueue);
+        readFileP(cachePath, 'utf8')
+          .then(data => step(index, JSON.parse(data)))
+          .catch(() => enqueue())
       } else {
-        enqueue();
+        enqueue()
       }
-    });
+    })
   }
 
   exit() {
     if (this.workers) {
-      workerFarm.end(this.workers);
+      this.workers.end()
     }
   }
 }

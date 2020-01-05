@@ -1,6 +1,6 @@
 import React from 'react'
 
-import withReduxSaga from '../lib/withReduxSaga'
+import { connect } from 'react-redux'
 
 import { startClock } from '../lib/clock/actions'
 import { countIncrease } from '../lib/count/actions'
@@ -11,25 +11,25 @@ import Header from '../components/Header'
 import Page from '../components/Page'
 
 class PageIndex extends React.Component {
-  static async getInitialProps ({ store }) {
+  static async getInitialProps({ ctx: { store } }) {
     store.dispatch(countIncrease())
     if (!store.getState().placeholder.data) {
       store.dispatch(loadData())
     }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.props.dispatch(startClock())
   }
 
-  render () {
+  render() {
     return (
       <App>
         <Header />
-        <Page title='Home Page' />
+        <Page title="Home Page" />
       </App>
     )
   }
 }
 
-export default withReduxSaga(PageIndex)
+export default connect()(PageIndex)

@@ -2,7 +2,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next"
+    "start": "next start"
   },
   "dependencies": {
     "babel-plugin-transform-assets": "^0.2.0",

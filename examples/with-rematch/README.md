@@ -1,12 +1,16 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-rematch)
-
 # Rematch example
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-rematch)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-rematch with-rematch-app
@@ -30,7 +34,7 @@ npm install
 npm run dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now
@@ -48,6 +52,6 @@ Besides the `pages` directory, there is a directory called shared which holds al
 
 Some features of this example are :
 
-* Pages are connected to rematch using `withRematch` util. These pages are capable of accessing values from the store and dispatching changes
-* Components are inside the `shared/components` folder. The `counter-display` component is connected to the store using the `connect` function to show how components which are not pages, can connect with Rematch.
-* The file `shared/store` exports an initStore function which is used by `withRematch` to create store universally on the server and on the client.
+- Pages are connected to rematch using `withRematch` util. These pages are capable of accessing values from the store and dispatching changes
+- Components are inside the `shared/components` folder. The `counter-display` component is connected to the store using the `connect` function to show how components which are not pages, can connect with Rematch.
+- The file `shared/store` exports an initStore function which is used by `withRematch` to create store universally on the server and on the client.

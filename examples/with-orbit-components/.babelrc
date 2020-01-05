@@ -1,0 +1,4 @@
+{
+  "presets": ["next/babel"],
+  "plugins": [["styled-components", { "ssr": true }], "@kiwicom/babel-plugin-orbit-components"]
+}

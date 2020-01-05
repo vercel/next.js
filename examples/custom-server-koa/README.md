@@ -1,12 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/custom-server-koa)
-
 # Custom Koa Server example
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example custom-server-koa custom-server-koa-app
@@ -47,19 +45,16 @@ Because the Next.js server is just a node.js module you can combine it with any 
 
 The example shows a server that serves the component living in `pages/a.js` when the route `/b` is requested and `pages/b.js` when the route `/a` is accessed. This is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.js`.
 
-
 ## Side note: Enabling gzip compression
 
-The most common Koa middleware for handling the gzip compression is [compress](https://github.com/koajs/compress), but unfortunately it is currently not compatible with Next.  
-`koa-compress` handles the compression of the response body by checking `res.body`, which will be empty in the case of the routes handled by Next (because Next sends and ends the response by itself). 
+The most common Koa middleware for handling the gzip compression is [compress](https://github.com/koajs/compress), but unfortunately it is currently not compatible with Next.<br>
+`koa-compress` handles the compression of the response body by checking `res.body`, which will be empty in the case of the routes handled by Next (because Next sends and ends the response by itself).
 
-If you need to enable the gzip compression, the most simple way to do so is by wrapping the express-middleware [compression](https://github.com/expressjs/compression) with [koa-connect](https://github.com/vkurchatkin/koa-connect):  
+If you need to enable the gzip compression, the most simple way to do so is by wrapping the express-middleware [compression](https://github.com/expressjs/compression) with [koa-connect](https://github.com/vkurchatkin/koa-connect):
 
 ```javascript
-const compression = require('compression');
-const koaConnect = require('koa-connect');
+const compression = require('compression')
+const koaConnect = require('koa-connect')
 
-
-server.use(koaConnect(compression()));
-
+server.use(koaConnect(compression()))
 ```

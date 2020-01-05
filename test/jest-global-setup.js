@@ -1,14 +1,24 @@
-'use strict'
+let globalSetup = () => {}
 
-const chromedriver = require('chromedriver')
-const waitPort = require('wait-port')
+if (process.env.BROWSERSTACK) {
+  const { Local } = require('browserstack-local')
+  const browserStackLocal = new Local()
+  const localBrowserStackOpts = {
+    key: process.env.BROWSERSTACK_ACCESS_KEY,
+    localIdentifier: new Date().getTime(), // Adding a unique local identifier to run parallel tests on BrowserStack
+  }
+  global.browserStackLocal = browserStackLocal
+  global.browserStackLocalId = localBrowserStackOpts.localIdentifier
 
-module.exports = async function globalSetup () {
-  chromedriver.start()
-
-  // https://github.com/giggio/node-chromedriver/issues/117
-  await waitPort({
-    port: 9515,
-    timeout: 1000 * 60 * 2 // 2 Minutes
-  })
+  globalSetup = () => {
+    return new Promise((resolve, reject) => {
+      browserStackLocal.start(localBrowserStackOpts, err => {
+        if (err) return reject(err)
+        console.log('Started BrowserStackLocal', browserStackLocal.isRunning())
+        resolve()
+      })
+    })
+  }
 }
+
+module.exports = globalSetup

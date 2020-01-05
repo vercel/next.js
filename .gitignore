@@ -18,8 +18,13 @@ pids
 coverage
 
 # test output
-test/**/out
+test/**/out*
+test/**/next-env.d.ts
 .DS_Store
 
 # Editors
 **/.idea
+
+# example output
+examples/**/out
+

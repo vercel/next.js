@@ -1,0 +1,18 @@
+{
+  "name": "with-mobx-react-lite",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "mobx": "^5.9.0",
+    "mobx-react-lite": "^1.1.1",
+    "next": "latest",
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4"
+  },
+  "license": "ISC",
+  "devDependencies": {}
+}

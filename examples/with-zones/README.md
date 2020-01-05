@@ -1,12 +1,16 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-zones)
-
 # Using multiple zones
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-zones)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-zones with-zones-app
@@ -23,89 +27,36 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-zones
 ```
 
-Install it and run:
-
-```bash
-npm install
-# or
-yarn
-```
-
 ## The idea behind this example
 
-With Next.js you can use multiple apps as a single app using it's multi-zones feature.
-This is an example showing how to use it.
+With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs#multi-zones). This is an example showing how to use it.
 
-In this example, we've two apps: 'home' and 'blog'.
-We also have a set of rules defined in `rules.json` for the proxy.
-
-Now let's start two of our app using:
+In this example, we have two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
 
 ```bash
-npm run home
-npm run blog
-# or
-yarn home
-yarn blog
+now dev
 ```
 
-Then start the proxy:
+Then, you can visit <http://localhost:3000> and develop for both apps as a single app.
+
+You can also start the apps separately, for example:
 
 ```bash
-npm run proxy
-# or
-yarn proxy
+cd blog
+yarn dev
 ```
-
-Now you can visit http://localhost:9000 and access and develop both apps a single app.
-
-### Proxy Rules
-
-This is the place we define rules for our proxy. Here are the rules(in `rules.json`) available for this app:
-
-```json
-{
-  "rules": [
-    {
-      "pathname": "/blog",
-      "method": ["GET", "POST", "OPTIONS"],
-      "dest": "http://localhost:5000"
-    },
-    { "pathname": "/**", "dest": "http://localhost:4000" }
-  ]
-}
-```
-
-These rules are based on ZEIT now [path alias](https://zeit.co/docs/features/path-aliases) rules and use [`micro-proxy`](https://github.com/zeit/micro-proxy) as the proxy.
 
 ## Special Notes
 
-* All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviour in client side navigation.
-  * According to the above example, a page named `blog` should not be exist in the `home` zone.
+- All pages should be unique across zones. For example, the 'home' app should not have a `pages/blog/index.js` page.
+- The 'blog' app sets `assetPrefix` so that generated JS bundles are within the `/blog` subfolder.
+  - To also support the plain `next dev` scenario, `assetPrefix` is set dynamically based on the `BUILDING_FOR_NOW` environment variable, see [`now.json`](now.json) and [`blog/next.config.js`](blog/next.config.js).
+  - Images and other `/static` assets have to be prefixed manually, e.g., `` <img src={`${process.env.ASSET_PREFIX}/static/image.png`} /> ``, see [`blog/pages/blog/index.js`](blog/pages/blog/index.js).
 
 ## Production Deployment
 
-Here's how are going to deploy this application into production.
-
-* Open the `now.json` file in both `blog` and `home` directories and change the aliases as you wish.
-* Then update `rules-prod.json` accordingly.
-* Now deploy both apps:
+We only need to run `now`, the same `now.json` used for development will be used for the deployment:
 
 ```bash
-cd home
-now && now alias
-cd ../blog
-now && now alias
-cd ..
+now
 ```
-
-* Finally, set the path alias rules with
-
-```bash
-now alias with-zones.now.sh -r rules-prod.json
-```
-
-> You can use a domain name of your choice in the above command instead of `with-zones.now.sh`.
-
-That's it.
-Now you can access the final app via: <https://with-zones.now.sh>

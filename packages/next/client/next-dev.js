@@ -1,7 +1,9 @@
 import initNext, * as next from './'
-import EventSourcePolyfill from './event-source-polyfill'
-import initOnDemandEntries from './on-demand-entries-client'
-import initWebpackHMR from './webpack-hot-middleware-client'
+import EventSourcePolyfill from './dev/event-source-polyfill'
+import initOnDemandEntries from './dev/on-demand-entries-client'
+import initWebpackHMR from './dev/webpack-hot-middleware-client'
+import initializeBuildWatcher from './dev/dev-build-watcher'
+import initializePrerenderIndicator from './dev/prerender-indicator'
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
@@ -15,9 +17,7 @@ if (!window.EventSource) {
 }
 
 const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
+  __NEXT_DATA__: { assetPrefix },
 } = window
 
 const prefix = assetPrefix || ''
@@ -25,8 +25,30 @@ const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
-  .then((emitter) => {
+  .then(emitter => {
     initOnDemandEntries({ assetPrefix: prefix })
+    if (process.env.__NEXT_BUILD_INDICATOR) initializeBuildWatcher()
+    if (
+      process.env.__NEXT_PRERENDER_INDICATOR &&
+      // disable by default in electron
+      !(typeof process !== 'undefined' && 'electron' in process.versions)
+    ) {
+      initializePrerenderIndicator()
+    }
+
+    // This is the fallback helper that removes Next.js' no-FOUC styles when
+    // CSS mode is enabled. This only really activates if you haven't created
+    // _any_ styles in your application yet.
+    ;(window.requestAnimationFrame || setTimeout)(function() {
+      for (
+        var x = document.querySelectorAll('[data-next-hide-fouc]'),
+          i = x.length;
+        i--;
+
+      ) {
+        x[i].parentNode.removeChild(x[i])
+      }
+    })
 
     let lastScroll
 
@@ -36,7 +58,7 @@ initNext({ webpackHMR })
         const { pageXOffset, pageYOffset } = window
         lastScroll = {
           x: pageXOffset,
-          y: pageYOffset
+          y: pageYOffset,
         }
       }
     })
@@ -49,6 +71,7 @@ initNext({ webpackHMR })
         lastScroll = null
       }
     })
-  }).catch((err) => {
+  })
+  .catch(err => {
     console.error('Error was not caught', err)
   })

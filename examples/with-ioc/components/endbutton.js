@@ -3,7 +3,7 @@ import { inject } from 'ioc'
 import PropTypes from 'prop-types'
 
 @inject({
-  Router: PropTypes.object
+  Router: PropTypes.object,
 })
 export default class extends React.Component {
   render() {
@@ -14,7 +14,7 @@ export default class extends React.Component {
         style={{
           marginTop: '5px',
           border: '1px dashed #00ff00',
-          padding: '10px'
+          padding: '10px',
         }}
       >
         <h3>EndButton</h3>

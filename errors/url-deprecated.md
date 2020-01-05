@@ -22,7 +22,7 @@ import { withRouter } from 'next/router'
 
 class Page extends React.Component {
   render() {
-    const {router} = this.props
+    const { router } = this.props
     console.log(router)
     return <div>{router.pathname}</div>
   }
