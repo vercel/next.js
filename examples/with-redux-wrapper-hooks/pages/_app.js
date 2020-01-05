@@ -12,12 +12,4 @@ const MyApp = props => {
   )
 }
 
-MyApp.getInitialState = async ({ Component, ctx }) => {
-  return {
-    pageProps: Component.getInitialProps
-      ? await Component.getInitialProps(ctx)
-      : {}
-  }
-}
-
 export default withRedux(initStore)(MyApp)

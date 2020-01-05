@@ -20,8 +20,8 @@ const Counter = props => {
 }
 
 Counter.getInitialProps = async ({ store, isServer }) => {
-  store.tick.dispatch(serverRenderClock(isServer))
-  store.count.dispatch(addCount())
+  store.dispatch(serverRenderClock(isServer))
+  store.dispatch(addCount())
   return { isServer }
 }
 
