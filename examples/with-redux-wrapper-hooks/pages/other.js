@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { bindActionCreators } from 'redux'
-import { startClock, addCount, serverRenderClock } from '../store/action'
+import { addCount } from '../store/count/action'
+import { startClock, serverRenderClock } from '../store/tick/action'
 import { connect } from 'react-redux'
 import Page from '../components/Page'
 
@@ -19,8 +20,8 @@ const Counter = props => {
 }
 
 Counter.getInitialProps = async ({ store, isServer }) => {
-  store.dispatch(serverRenderClock(isServer))
-  store.dispatch(addCount())
+  store.tick.dispatch(serverRenderClock(isServer))
+  store.count.dispatch(addCount())
   return { isServer }
 }
 

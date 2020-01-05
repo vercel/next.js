@@ -1,4 +1,4 @@
-export default ({ lastUpdate, light }) => {
+export default ({ lastUpdate, light}) => {
   return (
     <div className={light ? 'light' : ''}>
       {format(new Date(lastUpdate))}

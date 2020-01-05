@@ -1,6 +1,7 @@
-import { createStore, applyMiddleware } from 'redux'
+import { createStore, applyMiddleware, combineReducers } from 'redux'
 import thunkMiddleware from 'redux-thunk'
-import reducer, { exampleInitialState } from './reducer'
+import count from './count/reducer'
+import tick from './tick/reducer'
 
 const bindMiddleware = (middleware) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -10,10 +11,12 @@ const bindMiddleware = (middleware) => {
   return applyMiddleware(...middleware)
 }
 
-export const initStore = (initialState = exampleInitialState) => {
+export const initStore = () => {
   return createStore(
-    reducer,
-    initialState,
+    combineReducers({
+      count,
+      tick
+    }),
     bindMiddleware([thunkMiddleware])
   )
 }
