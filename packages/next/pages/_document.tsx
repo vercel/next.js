@@ -279,6 +279,16 @@ export class Head extends Component<
         })
   }
 
+  getFidPolyfill(): JSX.Element {
+    return (
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
+        }}
+      />
+    )
+  }
+
   render() {
     const {
       styles,
@@ -464,6 +474,7 @@ export class Head extends Component<
                 }}
               />
             </noscript>
+            {this.getFidPolyfill()}
             <script async src="https://cdn.ampproject.org/v0.js" />
           </>
         )}
@@ -516,14 +527,10 @@ export class Head extends Component<
                 <noscript id="__next_css__DO_NOT_USE__" />
               )}
             {styles || null}
+            {this.getFidPolyfill()}
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(${fidPolyfill})(addEventListener, removeEventListener)`,
-          }}
-        />
       </head>
     )
   }

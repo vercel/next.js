@@ -337,8 +337,6 @@ function renderReactElement(reactEl, domEl) {
 function markHydrateComplete() {
   if (!ST) return
 
-  measureFid()
-
   performance.mark('afterHydrate') // mark end of hydration
 
   performance.measure(
@@ -348,6 +346,7 @@ function markHydrateComplete() {
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
   if (onPerfEntry) {
+    measureFid()
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
     performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
   }
@@ -408,26 +407,22 @@ function measureFid() {
       const { startTime, duration } = hydrationMeasures[0]
       const hydrateEnd = startTime + duration
 
-      if (onPerfEntry) {
-        onPerfEntry({
-          name: 'first-input-delay-after-hydration',
-          startTime: event.timeStamp,
-          value: delay,
-        })
-        onPerfEntry({
-          name: 'time-to-first-input-after-hydration',
-          startTime: hydrateEnd,
-          value: event.timeStamp - hydrateEnd,
-        })
-      }
+      onPerfEntry({
+        name: 'first-input-delay-after-hydration',
+        startTime: event.timeStamp,
+        value: delay,
+      })
+      onPerfEntry({
+        name: 'time-to-first-input-after-hydration',
+        startTime: hydrateEnd,
+        value: event.timeStamp - hydrateEnd,
+      })
     } else {
-      if (onPerfEntry) {
-        onPerfEntry({
-          name: 'first-input-delay-before-hydration',
-          startTime: event.timeStamp,
-          value: delay,
-        })
-      }
+      onPerfEntry({
+        name: 'first-input-delay-before-hydration',
+        startTime: event.timeStamp,
+        value: delay,
+      })
     }
   })
 
