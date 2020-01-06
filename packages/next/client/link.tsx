@@ -2,9 +2,7 @@ declare const __NEXT_DATA__: any
 
 import { resolve, parse, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
-import PropTypes from 'prop-types'
 import Router from './router'
-import { rewriteUrlForNextExport } from '../next-server/lib/router/rewrite-url-for-export'
 import {
   execOnce,
   formatWithValidation,
@@ -108,8 +106,8 @@ const listenToIntersections = (el: any, cb: any) => {
 }
 
 class Link extends Component<LinkProps> {
-  static propTypes?: any
   p: boolean
+
   constructor(props: LinkProps) {
     super(props)
     if (process.env.NODE_ENV !== 'production') {
@@ -128,12 +126,25 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
+  getHref() {
+    const { pathname } = window.location
+    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
+    return resolve(pathname, parsedHref)
+  }
+
   handleRef(ref: Element) {
+    const isPrefetched = (Router.router as any).pageLoader.prefetched[
+      this.getHref()
+    ]
+
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
-      this.cleanUpListeners = listenToIntersections(ref, () => {
-        this.prefetch()
-      })
+
+      if (!isPrefetched) {
+        this.cleanUpListeners = listenToIntersections(ref, () => {
+          this.prefetch()
+        })
+      }
     }
   }
 
@@ -194,12 +205,8 @@ class Link extends Component<LinkProps> {
 
   prefetch() {
     if (!this.p || typeof window === 'undefined') return
-
     // Prefetch the JSON page if asked (only in the client)
-    const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    const href = resolve(pathname, parsedHref)
-    Router.prefetch(href)
+    Router.prefetch(this.getHref())
   }
 
   render() {
@@ -256,6 +263,8 @@ class Link extends Component<LinkProps> {
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly.
     if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      const rewriteUrlForNextExport = require('../next-server/lib/router/rewrite-url-for-export')
+        .rewriteUrlForNextExport
       if (
         props.href &&
         typeof __NEXT_DATA__ !== 'undefined' &&
@@ -273,7 +282,9 @@ if (process.env.NODE_ENV === 'development') {
   const warn = execOnce(console.error)
 
   // This module gets removed by webpack.IgnorePlugin
+  const PropTypes = require('prop-types')
   const exact = require('prop-types-exact')
+  // @ts-ignore the property is supported, when declaring it on the class it outputs an extra bit of code which is not needed.
   Link.propTypes = exact({
     href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
     as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
@@ -284,7 +295,7 @@ if (process.env.NODE_ENV === 'development') {
     scroll: PropTypes.bool,
     children: PropTypes.oneOfType([
       PropTypes.element,
-      (props: any, propName) => {
+      (props: any, propName: string) => {
         const value = props[propName]
 
         if (typeof value === 'string') {

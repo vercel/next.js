@@ -36,16 +36,14 @@ const defaultConfig: { [key: string]: any } = {
   },
   exportTrailingSlash: false,
   experimental: {
-    ampBindInitData: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    catchAllRouting: false,
     css: false,
     documentMiddleware: false,
-    granularChunks: false,
+    granularChunks: true,
     modern: false,
     plugins: false,
     profiling: false,
@@ -53,6 +51,7 @@ const defaultConfig: { [key: string]: any } = {
     deferScripts: false,
     reactMode: 'legacy',
     workerThreads: false,
+    basePath: '',
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -99,7 +98,53 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   })
 
-  return { ...defaultConfig, ...userConfig }
+  const result = { ...defaultConfig, ...userConfig }
+
+  if (typeof result.assetPrefix !== 'string') {
+    throw new Error(
+      `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://err.sh/zeit/next.js/invalid-assetprefix`
+    )
+  }
+  if (result.experimental) {
+    if (result.experimental.css) {
+      // The new CSS support requires granular chunks be enabled.
+      result.experimental.granularChunks = true
+    }
+
+    if (typeof result.experimental.basePath !== 'string') {
+      throw new Error(
+        `Specified basePath is not a string, found type "${typeof result
+          .experimental.basePath}"`
+      )
+    }
+
+    if (result.experimental.basePath !== '') {
+      if (result.experimental.basePath === '/') {
+        throw new Error(
+          `Specified basePath /. basePath has to be either an empty string or a path prefix"`
+        )
+      }
+
+      if (!result.experimental.basePath.startsWith('/')) {
+        throw new Error(
+          `Specified basePath has to start with a /, found "${result.experimental.basePath}"`
+        )
+      }
+
+      if (result.experimental.basePath !== '/') {
+        if (result.experimental.basePath.endsWith('/')) {
+          throw new Error(
+            `Specified basePath should not end with /, found "${result.experimental.basePath}"`
+          )
+        }
+
+        if (result.assetPrefix === '') {
+          result.assetPrefix = result.experimental.basePath
+        }
+      }
+    }
+  }
+  return result
 }
 
 function normalizeConfig(phase: string, config: any) {

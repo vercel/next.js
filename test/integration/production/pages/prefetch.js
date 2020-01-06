@@ -6,22 +6,22 @@ export default () => {
       <ul>
         <li>
           <Link href="/" prefetch>
-            <a>index</a>
+            <a id="prefetch-1">index</a>
           </Link>
         </li>
         <li>
           <Link href="/process-env" prefetch>
-            <a>process env</a>
+            <a id="prefetch-2">process env</a>
           </Link>
         </li>
         <li>
           <Link href="/counter" prefetch>
-            <a>counter</a>
+            <a id="prefetch-3">counter</a>
           </Link>
         </li>
         <li>
           <Link href="/about" prefetch>
-            <a>about</a>
+            <a id="prefetch-4">about</a>
           </Link>
         </li>
       </ul>

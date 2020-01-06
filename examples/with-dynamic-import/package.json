@@ -1,8 +1,6 @@
 {
   "name": "with-dynamic-import",
   "version": "1.0.0",
-  "description": "This example features:",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",

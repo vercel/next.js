@@ -30,7 +30,13 @@ docker build -t next-app .
 docker build -t next-app -f ./Dockerfile.multistage .
 ```
 
-Run it:
+Alternatively you can add these commands as scripts to your package.json and simply run
+
+`yarn build-docker`
+or
+`yarn build-docker-multistage`
+
+Run the docker image:
 
 ```bash
 docker run --rm -it \
@@ -38,6 +44,8 @@ docker run --rm -it \
   -e "API_URL=https://example.com" \
   next-app
 ```
+
+or use `yarn build-docker-multistage`
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
