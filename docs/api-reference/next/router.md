@@ -1,3 +1,7 @@
+---
+description: Learn more about the API of the Next.js Router, and access the router instance in your page with the useRouter hook.
+---
+
 # next/router
 
 > Before moving forward, we recommend you to read [Routing Introduction](/docs/routing/introduction.md) first.

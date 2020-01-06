@@ -1,3 +1,7 @@
+---
+description: Client-side navigations are also possible using the Router API instead of the Link component. Learn more here.
+---
+
 # Imperatively
 
 <details>

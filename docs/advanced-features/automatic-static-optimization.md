@@ -1,3 +1,7 @@
+---
+description: Next.js automatically optimizes your app to be static HTML whenever possible. Learn how it works here.
+---
+
 # Automatic Static Optimization
 
 Next.js automatically determines that a page is static (can be prerendered) if it has no blocking data requirements. This determination is made by the absence of `getInitialProps` in the page.
@@ -6,7 +10,7 @@ This feature allows Next.js to emit hybrid applications that contain **both serv
 
 > Statically generated pages are still reactive: Next.js will hydrate your application client-side to give it full interactivity.
 
-One of the main benefits this feature is that optimized pages require no server-side computation, and can be instantly streamed to the end-user from multiple CDN locations. The result is an _ultra fast_ loading experience for your users.
+One of the main benefits of this feature is that optimized pages require no server-side computation, and can be instantly streamed to the end-user from multiple CDN locations. The result is an _ultra fast_ loading experience for your users.
 
 ## How it works
 
