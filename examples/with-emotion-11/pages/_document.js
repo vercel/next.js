@@ -1,8 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import createEmotionServer from 'create-emotion-server'
-import { emotionCache } from '../shared/emotionCache'
-
-const { extractCritical } = createEmotionServer(emotionCache)
+import { extractCritical } from '@emotion/server'
 
 export default class MyDocument extends Document {
   static getInitialProps({ renderPage }) {

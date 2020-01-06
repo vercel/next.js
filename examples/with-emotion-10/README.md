@@ -4,7 +4,7 @@
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-emotion-fiber)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-emotion-10)
 
 ## How to use
 
@@ -13,9 +13,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-emotion-fiber with-emotion-fiber-app
+npx create-next-app --example with-emotion-10 with-emotion-10-app
 # or
-yarn create next-app --example with-emotion-fiber with-emotion-fiber-app
+yarn create next-app --example with-emotion-10 with-emotion-10-app
 ```
 
 ### Download manually
@@ -47,6 +47,7 @@ now
 
 Extract and inline critical css with:
 
+- [emotion](https://github.com/emotion-js/emotion/tree/master/packages/emotion)
+- [emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/emotion-server)
 - [@emotion/core](https://github.com/emotion-js/emotion/tree/master/packages/core)
 - [@emotion/styled](https://github.com/emotion-js/emotion/tree/master/packages/styled)
-- [create-emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/create-emotion-server)
