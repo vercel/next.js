@@ -476,7 +476,7 @@ export default async function getBaseWebpackConfig(
             // Default pages have to be transpiled
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-              (res.match(/next[/\\]dist[/\\]/) ||
+              (res.match(/[/\\]next[/\\]dist[/\\]/) ||
                 res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
                 res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
             ) {
@@ -672,9 +672,6 @@ export default async function getBaseWebpackConfig(
           : {}),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
-        ),
-        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
-          config.experimental.deferScripts
         ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
