@@ -133,9 +133,8 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = (Router.router as any).pageLoader.prefetched[
-      this.getHref()
-    ]
+    const isPrefetched =
+      Router.router && Router.router.pageLoader.prefetched[this.getHref()]
 
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
