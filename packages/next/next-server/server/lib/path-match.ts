@@ -4,12 +4,19 @@ export { pathToRegexp }
 
 export default (customRoute = false) => {
   return (path: string) => {
-    const matcher = pathToRegexp.match(path, {
+    const keys: pathToRegexp.Key[] = []
+    const matcherOptions = {
       sensitive: false,
       delimiter: '/',
       ...(customRoute ? { strict: true } : undefined),
       decode: decodeParam,
-    })
+    }
+    const matcherRegex = pathToRegexp.pathToRegexp(path, keys, matcherOptions)
+    const matcher = pathToRegexp.regexpToFunction(
+      matcherRegex,
+      keys,
+      matcherOptions
+    )
 
     return (pathname: string | null | undefined, params?: any) => {
       const res = pathname == null ? false : matcher(pathname)
@@ -19,11 +26,14 @@ export default (customRoute = false) => {
 
       if (customRoute) {
         const newParams: { [k: string]: string } = {}
-        Object.keys(res.params).forEach((key, idx) => {
-          if (key === idx + '') {
-            newParams[idx + 1 + ''] = (res.params as any)[key]
+        for (const key of keys) {
+          // unnamed matches should always be a number while named
+          // should be a string
+          if (typeof key.name === 'number') {
+            newParams[key.name + 1 + ''] = (res.params as any)[key.name + '']
+            delete (res.params as any)[key.name + '']
           }
-        })
+        }
         res.params = {
           ...res.params,
           ...newParams,

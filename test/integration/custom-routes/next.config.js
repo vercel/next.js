@@ -124,6 +124,10 @@ module.exports = {
           source: '/unnamed/(first|second)/(.*)',
           destination: '/:1/:2',
         },
+        {
+          source: '/named-like-unnamed/:0',
+          destination: '/:0',
+        },
       ]
     },
 

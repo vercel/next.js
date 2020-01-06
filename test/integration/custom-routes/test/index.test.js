@@ -238,13 +238,32 @@ const runTests = (isDev = false) => {
     expect(pathname).toBe('/first/final')
   })
 
+  it('should support named like unnamed parameters correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/named-like-unnamed/first',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/first')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
 
-      for (const route of [...manifest.dynamicRoutes, ...manifest.rewrites]) {
+      for (const route of [
+        ...manifest.dynamicRoutes,
+        ...manifest.rewrites,
+        ...manifest.redirects,
+        ...manifest.headers,
+      ]) {
         route.regex = normalizeRegEx(route.regex)
       }
 
@@ -352,6 +371,13 @@ const runTests = (isDev = false) => {
             ),
             regexKeys: [0, 1],
             source: '/unnamed/(first|second)/(.*)',
+            statusCode: 307,
+          },
+          {
+            destination: '/:0',
+            regex: normalizeRegEx('^\\/named-like-unnamed(?:\\/([^\\/]+?))$'),
+            regexKeys: ['0'],
+            source: '/named-like-unnamed/:0',
             statusCode: 307,
           },
         ],
