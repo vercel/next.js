@@ -141,8 +141,8 @@ function reduceComponents(
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
       let props: { [key: string]: any } = { key: c.key || i }
-      Object.entries(c.props).forEach(([key, val]) => {
-        if (typeof val !== 'undefined') props[key] = val
+      Object.keys(c.props).forEach(key => {
+        if (typeof c.props[key] !== 'undefined') props[key] = c.props[key]
       })
       return React.cloneElement(c, props)
     })
