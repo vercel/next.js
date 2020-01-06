@@ -62,7 +62,7 @@ Dynamic routes can be extended to catch all paths by adding three dots (`...`) i
 
 - `pages/post/[...slug]` matches `/post/a`, but also `post/a/b`, `post/a/b/c` and so on.
 
-Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will be always be an array, so, the path `/post/a` will have the following `query` object:
+Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/post/a` will have the following `query` object:
 
 ```json
 { "slug": ["a"] }
