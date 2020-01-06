@@ -276,82 +276,70 @@ const runTests = (isDev = false) => {
             destination: '/docs/v2/network/status-codes#:code',
             statusCode: 301,
             regex: normalizeRegEx('^\\/docs\\/router-status(?:\\/([^\\/]+?))$'),
-            regexKeys: ['code'],
           },
           {
             source: '/docs/github',
             destination: '/docs/v2/advanced/now-for-github',
             statusCode: 301,
             regex: normalizeRegEx('^\\/docs\\/github$'),
-            regexKeys: [],
           },
           {
             source: '/docs/v2/advanced/:all(.*)',
             destination: '/docs/v2/more/:all',
             statusCode: 301,
             regex: normalizeRegEx('^\\/docs\\/v2\\/advanced(?:\\/(.*))$'),
-            regexKeys: ['all'],
           },
           {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
             regex: normalizeRegEx('^\\/hello(?:\\/([^\\/]+?))\\/another$'),
-            regexKeys: ['id'],
           },
           {
             source: '/redirect1',
             destination: '/',
             statusCode: 307,
             regex: normalizeRegEx('^\\/redirect1$'),
-            regexKeys: [],
           },
           {
             source: '/redirect2',
             destination: '/',
             statusCode: 301,
             regex: normalizeRegEx('^\\/redirect2$'),
-            regexKeys: [],
           },
           {
             source: '/redirect3',
             destination: '/another',
             statusCode: 302,
             regex: normalizeRegEx('^\\/redirect3$'),
-            regexKeys: [],
           },
           {
             source: '/redirect4',
             destination: '/',
             statusCode: 308,
             regex: normalizeRegEx('^\\/redirect4$'),
-            regexKeys: [],
           },
           {
             source: '/redir-chain1',
             destination: '/redir-chain2',
             statusCode: 301,
             regex: normalizeRegEx('^\\/redir-chain1$'),
-            regexKeys: [],
           },
           {
             source: '/redir-chain2',
             destination: '/redir-chain3',
             statusCode: 302,
             regex: normalizeRegEx('^\\/redir-chain2$'),
-            regexKeys: [],
           },
           {
             source: '/redir-chain3',
             destination: '/',
             statusCode: 303,
             regex: normalizeRegEx('^\\/redir-chain3$'),
-            regexKeys: [],
           },
           {
             destination: 'https://google.com',
             regex: normalizeRegEx('^\\/to-external$'),
-            regexKeys: [],
             source: '/to-external',
             statusCode: 307,
           },
@@ -360,7 +348,6 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/query-redirect(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
             ),
-            regexKeys: ['section', 'name'],
             source: '/query-redirect/:section/:name',
             statusCode: 307,
           },
@@ -369,14 +356,12 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
             ),
-            regexKeys: [0, 1],
             source: '/unnamed/(first|second)/(.*)',
             statusCode: 307,
           },
           {
             destination: '/:0',
             regex: normalizeRegEx('^\\/named-like-unnamed(?:\\/([^\\/]+?))$'),
-            regexKeys: ['0'],
             source: '/named-like-unnamed/:0',
             statusCode: 307,
           },
@@ -394,7 +379,6 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx('^\\/add-header$'),
-            regexKeys: [],
             source: '/add-header',
           },
           {
@@ -409,7 +393,6 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
-            regexKeys: [0],
             source: '/my-headers/(.*)',
           },
         ],
@@ -417,56 +400,47 @@ const runTests = (isDev = false) => {
           {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
-            regexKeys: [],
             source: '/to-another',
           },
           {
             source: '/hello-world',
             destination: '/static/hello.txt',
             regex: normalizeRegEx('^\\/hello-world$'),
-            regexKeys: [],
           },
           {
             source: '/',
             destination: '/another',
             regex: normalizeRegEx('^\\/$'),
-            regexKeys: [],
           },
           {
             source: '/another',
             destination: '/multi-rewrites',
             regex: normalizeRegEx('^\\/another$'),
-            regexKeys: [],
           },
           {
             source: '/first',
             destination: '/hello',
             regex: normalizeRegEx('^\\/first$'),
-            regexKeys: [],
           },
           {
             source: '/second',
             destination: '/hello-again',
             regex: normalizeRegEx('^\\/second$'),
-            regexKeys: [],
           },
           {
             destination: '/hello',
             regex: normalizeRegEx('^\\/to-hello$'),
-            regexKeys: [],
             source: '/to-hello',
           },
           {
             destination: '/blog/post-2',
             regex: normalizeRegEx('^\\/blog\\/post-1$'),
-            regexKeys: [],
             source: '/blog/post-1',
           },
           {
             source: '/test/:path',
             destination: '/:path',
             regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))$'),
-            regexKeys: ['path'],
           },
           {
             source: '/test-overwrite/:something/:another',
@@ -474,20 +448,17 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
             ),
-            regexKeys: ['something', 'another'],
           },
           {
             source: '/params/:something',
             destination: '/with-params',
             regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))$'),
-            regexKeys: ['something'],
           },
           {
             destination: '/with-params?first=:section&second=:name',
             regex: normalizeRegEx(
               '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
             ),
-            regexKeys: ['section', 'name'],
             source: '/query-rewrite/:section/:name',
           },
           {
@@ -495,7 +466,6 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
-            regexKeys: ['path'],
             source: '/hidden/_next/:path*',
           },
         ],
