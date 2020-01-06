@@ -1,4 +1,4 @@
-import withGraphQL from '../lib/with-graphql'
+import withApolo from '../lib/with-apolo'
 import Link from 'next/link'
 import { useViewerQuery } from './viewer.graphql'
 
@@ -21,4 +21,4 @@ const Index = () => {
   return <div>...</div>
 }
 
-export default withGraphQL(Index)
+export default withApolo(Index)

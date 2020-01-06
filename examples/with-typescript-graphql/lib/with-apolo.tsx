@@ -12,7 +12,7 @@ type InitialProps = {
   apolloState: any
 } & Record<string, any>
 
-type WithGraphQLPageContext = {
+type WithApolloPageContext = {
   apolloClient: TApolloClient
 } & NextPageContext
 
@@ -23,11 +23,11 @@ let apolloClient: TApolloClient
  * to a next.js PageTree. Use it by wrapping
  * your PageComponent via HOC pattern.
  */
-export default function withGraphQL(
+export default function withApolo(
   PageComponent: NextPage,
   { ssr = true } = {}
 ) {
-  const WithGraphQL = ({
+  const WithApollo = ({
     apolloClient,
     apolloState,
     ...pageProps
@@ -46,14 +46,14 @@ export default function withGraphQL(
       PageComponent.displayName || PageComponent.name || 'Component'
 
     if (displayName === 'App') {
-      console.warn('This withGraphQL HOC only works with PageComponents.')
+      console.warn('This withApollo HOC only works with PageComponents.')
     }
 
-    WithGraphQL.displayName = `withGraphQL(${displayName})`
+    WithApollo.displayName = `withApollo(${displayName})`
   }
 
   if (ssr || PageComponent.getInitialProps) {
-    WithGraphQL.getInitialProps = async (ctx: WithGraphQLPageContext) => {
+    WithApollo.getInitialProps = async (ctx: WithApolloPageContext) => {
       const { AppTree } = ctx
 
       // Initialize ApolloClient, add it to the ctx object so
@@ -110,7 +110,7 @@ export default function withGraphQL(
     }
   }
 
-  return WithGraphQL
+  return WithApollo
 }
 
 /**
