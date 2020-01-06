@@ -1,3 +1,7 @@
+---
+description: Next.js pages are React Components exported in a file in the pages directory. Learn how they work here.
+---
+
 # Pages
 
 A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory.

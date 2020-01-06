@@ -45,7 +45,12 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage } from './utils'
-import { Redirect, Rewrite } from '../../lib/check-custom-routes'
+import {
+  Redirect,
+  Rewrite,
+  RouteType,
+  Header,
+} from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -87,7 +92,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -105,6 +109,7 @@ export default class Server {
   protected customRoutes?: {
     rewrites: Rewrite[]
     redirects: Redirect[]
+    headers: Header[]
   }
 
   public constructor({
@@ -135,7 +140,6 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     this.renderOpts = {
-      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       documentMiddlewareEnabled: this.nextConfig.experimental
@@ -402,16 +406,35 @@ export default class Server {
     const routes: Route[] = []
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
       const getCustomRoute = (
-        r: { source: string; destination: string; statusCode?: number },
-        type: 'redirect' | 'rewrite'
+        r: Rewrite | Redirect | Header,
+        type: RouteType
       ) => ({
         ...r,
         type,
         matcher: getCustomRouteMatcher(r.source),
       })
+
+      // Headers come very first
+      routes.push(
+        ...headers.map(r => {
+          const route = getCustomRoute(r, 'header')
+          return {
+            check: true,
+            match: route.matcher,
+            type: route.type,
+            name: `${route.type} ${route.source} header route`,
+            fn: async (_req, res, _params, _parsedUrl) => {
+              for (const header of (route as Header).headers) {
+                res.setHeader(header.key, header.value)
+              }
+              return { finished: false }
+            },
+          } as Route
+        })
+      )
 
       const customRoutes = [
         ...redirects.map(r => getCustomRoute(r, 'redirect')),
@@ -424,14 +447,26 @@ export default class Server {
             check: true,
             match: route.matcher,
             type: route.type,
-            statusCode: route.statusCode,
+            statusCode: (route as Redirect).statusCode,
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
               const parsedDestination = parseUrl(route.destination, true)
+              const destQuery = parsedDestination.query
               let destinationCompiler = compilePathToRegex(
                 `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
               )
               let newUrl
+
+              Object.keys(destQuery).forEach(key => {
+                const val = destQuery[key]
+                if (
+                  typeof val === 'string' &&
+                  val.startsWith(':') &&
+                  params[val.substr(1)]
+                ) {
+                  destQuery[key] = params[val.substr(1)]
+                }
+              })
 
               try {
                 newUrl = destinationCompiler(params)
@@ -456,9 +491,11 @@ export default class Server {
                     ...parsedDestination,
                     pathname: parsedNewUrl.pathname,
                     hash: parsedNewUrl.hash,
+                    search: undefined,
                   })
                 )
-                res.statusCode = route.statusCode || DEFAULT_REDIRECT_STATUS
+                res.statusCode =
+                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
                 res.end()
                 return {
                   finished: true,
@@ -470,6 +507,7 @@ export default class Server {
               return {
                 finished: false,
                 pathname: newUrl,
+                query: parsedDestination.query,
               }
             },
           } as Route
@@ -703,13 +741,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {
-      dataOnly:
-        (this.renderOpts.ampBindInitData && Boolean(query.dataOnly)) ||
-        (req.headers &&
-          (req.headers.accept || '').indexOf('application/amp.bind+json') !==
-            -1),
-    })
+    const html = await this.renderToHTML(req, res, pathname, query, {})
     // Request was ended by the user
     if (html === null) {
       return
@@ -795,6 +827,7 @@ export default class Server {
         const curUrl = parseUrl(req.url!, true)
         req.url = formatUrl({
           ...curUrl,
+          search: undefined,
           query: {
             ...curUrl.query,
             ...query,
@@ -911,12 +944,10 @@ export default class Server {
     query: ParsedUrlQuery = {},
     {
       amphtml,
-      dataOnly,
       hasAmp,
     }: {
       amphtml?: boolean
       hasAmp?: boolean
-      dataOnly?: boolean
     } = {}
   ): Promise<string | null> {
     return this.findPageComponents(pathname, query)
@@ -930,7 +961,7 @@ export default class Server {
               ? { _nextSprData: query._nextSprData }
               : query,
             result,
-            { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+            { ...this.renderOpts, amphtml, hasAmp }
           )
         },
         err => {
@@ -962,7 +993,6 @@ export default class Server {
                     ...this.renderOpts,
                     amphtml,
                     hasAmp,
-                    dataOnly,
                   }
                 )
               }

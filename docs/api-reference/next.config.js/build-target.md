@@ -1,3 +1,7 @@
+---
+description: Learn more about the build targets used by Next.js, which decide the way your application is built and run.
+---
+
 # Build Target
 
 Next.js supports various build targets, each changing the way your application is built and run. We'll explain each of the targets below.

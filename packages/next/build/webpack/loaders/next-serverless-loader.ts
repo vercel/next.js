@@ -18,7 +18,6 @@ export type ServerlessLoaderQuery = {
   absoluteErrorPath: string
   buildId: string
   assetPrefix: string
-  ampBindInitData: boolean | string
   generateEtags: string
   canonicalBase: string
   basePath: string
@@ -32,7 +31,6 @@ const nextServerlessLoader: loader.Loader = function() {
     buildId,
     canonicalBase,
     assetPrefix,
-    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
@@ -213,8 +211,6 @@ const nextServerlessLoader: loader.Loader = function() {
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
-        ampBindInitData: ${ampBindInitData === true ||
-          ampBindInitData === 'true'},
         ..._renderOpts
       }
       let sprData = false
@@ -231,7 +227,6 @@ const nextServerlessLoader: loader.Loader = function() {
         {
           Component,
           pageConfig: config,
-          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },
         options,

@@ -390,8 +390,9 @@ function runTests(dev) {
       )
 
       expect(manifest).toEqual({
-        version: 2,
+        version: 1,
         basePath: '',
+        headers: [],
         rewrites: [],
         redirects: [],
         dynamicRoutes: [
@@ -460,8 +461,7 @@ describe('Dynamic Routing', () => {
           `
           module.exports = {
             experimental: {
-              modern: true,
-              catchAllRouting: true
+              modern: true
             }
           }
         `
@@ -486,8 +486,7 @@ describe('Dynamic Routing', () => {
         module.exports = {
           target: 'serverless',
           experimental: {
-            modern: true,
-            catchAllRouting: true
+            modern: true
           }
         }
       `

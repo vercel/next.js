@@ -9,6 +9,8 @@ export type ConfigurationContext = {
 
   isServer: boolean
   isClient: boolean
+
+  assetPrefix: string
 }
 
 export type ConfigurationFn = (

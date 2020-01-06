@@ -54,7 +54,7 @@ export async function apiResolver(
     apiRes.json = data => sendJson(apiRes, data)
 
     const resolver = interopDefault(resolverModule)
-    resolver(req, res)
+    await resolver(req, res)
   } catch (err) {
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
