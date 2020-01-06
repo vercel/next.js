@@ -1,6 +1,7 @@
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer')
   .BundleAnalyzerPlugin
 module.exports = {
+  assetPrefix: '/foo/',
   experimental: {
     granularChunks: true,
   },
