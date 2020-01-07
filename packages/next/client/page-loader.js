@@ -49,7 +49,6 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -221,7 +220,6 @@ export default class PageLoader {
       url = route
     } else {
       route = normalizeRoute(route)
-      this.prefetched[route] = true
 
       let scriptRoute = `${route === '/' ? '/index' : route}.js`
       if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {

@@ -56,6 +56,7 @@ let observer: IntersectionObserver
 const listeners = new Map()
 const IntersectionObserver =
   typeof window !== 'undefined' ? (window as any).IntersectionObserver : null
+const prefetched: { [href: string]: boolean } = {}
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -133,10 +134,7 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = (Router.router as any).pageLoader.prefetched[
-      this.getHref()
-    ]
-
+    const isPrefetched = prefetched[this.getHref()]
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
