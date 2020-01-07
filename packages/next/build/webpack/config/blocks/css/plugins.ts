@@ -95,6 +95,9 @@ function getDefaultPlugins(
         // Enable CSS features that have shipped to the
         // web platform, i.e. in 2+ browsers unflagged.
         stage: 3,
+        features: {
+          'custom-properties': false,
+        },
       },
     ],
   ]
