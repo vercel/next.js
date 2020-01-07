@@ -48,7 +48,6 @@ const defaultConfig: { [key: string]: any } = {
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    deferScripts: false,
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',

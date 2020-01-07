@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
+import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
@@ -69,12 +70,24 @@ async function loadPlugin(
   }
 }
 
-function getDefaultPlugins(): CssPluginCollection {
+function getDefaultPlugins(
+  baseDirectory: string,
+  isProduction: boolean
+): CssPluginCollection {
+  let browsers: any
+  try {
+    browsers = browserslist.loadConfig({
+      path: baseDirectory,
+      env: isProduction ? 'production' : 'development',
+    })
+  } catch {}
+
   return [
     require.resolve('postcss-flexbugs-fixes'),
     [
       require.resolve('postcss-preset-env'),
       {
+        browsers: browsers ?? ['defaults'],
         autoprefixer: {
           // Disable legacy flexbox support
           flexbox: 'no-2009',
@@ -89,6 +102,7 @@ function getDefaultPlugins(): CssPluginCollection {
 
 export async function getPostCssPlugins(
   dir: string,
+  isProduction: boolean,
   defaults: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
   let config = defaults
@@ -96,7 +110,7 @@ export async function getPostCssPlugins(
     : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
 
   if (config == null) {
-    config = { plugins: getDefaultPlugins() }
+    config = { plugins: getDefaultPlugins(dir, isProduction) }
   }
 
   if (typeof config === 'function') {

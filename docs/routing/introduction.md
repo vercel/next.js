@@ -30,6 +30,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 - `pages/blog/[slug].js` → `/blog/:slug` (`/blog/hello-world`)
 - `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
+- `pages/post/[...all]` → `/post/*` (`/post/2020/id/title`)
 
 ## Linking between pages
 
