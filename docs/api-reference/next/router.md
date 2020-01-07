@@ -37,7 +37,7 @@ export default ActiveLink
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
-- `pathname`: `String` - Current route. That is the path of the page in `/pages`.
+- `pathname`: `String` - Current route. That is the path of the page in `/pages`
 - `query`: `Object` - The query string parsed to an object. Defaults to `{}`
 - `asPath`: `String` - Actual path (including the query) shown in the browser
 
