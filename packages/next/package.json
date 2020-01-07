@@ -81,6 +81,7 @@
     "babel-plugin-syntax-jsx": "6.18.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
+    "browserslist": "4.8.3",
     "cache-loader": "4.1.0",
     "chalk": "2.4.2",
     "ci-info": "2.0.0",
