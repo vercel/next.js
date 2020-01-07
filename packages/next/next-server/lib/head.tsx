@@ -139,10 +139,9 @@ function reduceComponents(
     .concat(defaultHead(props.inAmpMode))
     .filter(unique())
     .reverse()
-    .map((c: React.ReactElement<any>, i: number) => {
-      let props: { [key: string]: any } = { key: c.key || i, ...c.props }
-      return React.cloneElement(c, props)
-    })
+    .map((c: React.ReactElement<any>, i: number) =>
+      React.cloneElement(c, { key: c.key || i, ...c.props })
+    )
 }
 
 const Effect = withSideEffect()
