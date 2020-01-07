@@ -1,3 +1,7 @@
+---
+description: Next.js includes styled-jsx by default for isolated and scoped CSS support, but you can also use any other CSS-in-JS solution!. Learn more here.
+---
+
 # Built-in CSS Support
 
 <details>

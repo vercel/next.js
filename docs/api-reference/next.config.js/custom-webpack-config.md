@@ -1,3 +1,7 @@
+---
+description: Extend the default webpack config added by Next.js.
+---
+
 # Custom Webpack Config
 
 Some commonly asked for features are available as plugins:

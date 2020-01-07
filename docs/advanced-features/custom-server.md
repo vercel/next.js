@@ -1,3 +1,7 @@
+---
+description: Start a Next.js app programmatically using a custom server.
+---
+
 # Custom Server
 
 <details>
@@ -13,7 +17,7 @@
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to use custom route patterns.
 
-> Before deciding to use a custom a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
+> Before deciding to use a custom server please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
 
 Take a look at the following example of a custom server:
 
@@ -71,7 +75,7 @@ const app = next({})
 
 The above `next` import is a function that receives an object with the following options:
 
-- `dev`: `Boolean` - Whether or not to launch Next.js in dev mode. Defaults `false`
+- `dev`: `Boolean` - Whether or not to launch Next.js in dev mode. Defaults to `false`
 - `dir`: `String` - Location of the Next.js project. Defaults to `'.'`
 - `quiet`: `Boolean` - Hide error messages containing server information. Defaults to `false`
 - `conf`: `object` - The same object you would use in [next.config.js](/docs/api-reference/next.config.js/introduction.md). Defaults to `{}`
@@ -82,7 +86,7 @@ The returned `app` can then be used to let Next.js handle requests as required.
 
 By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename. If your project uses a custom server, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX.
 
-To disable this behavior & prevent routing based on files in `pages`, open `next.config.js` and disable the `useFileSystemPublicRoutes` config:
+To disable this behavior and prevent routing based on files in `pages`, open `next.config.js` and disable the `useFileSystemPublicRoutes` config:
 
 ```js
 module.exports = {
@@ -93,39 +97,3 @@ module.exports = {
 > Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
 
 > You may also wish to configure the client-side Router to disallow client-side redirects to filename routes; for that refer to [`Router.beforePopState`](/docs/api-reference/next/router.md#router.beforePopState).
-
-## Dynamic `assetPrefix`
-
-Sometimes you may need to set the [`assetPrefix`](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) dynamically. This is useful when changing the `assetPrefix` based on incoming requests.
-
-For that, you can use `app.setAssetPrefix`, as in the following example:
-
-```js
-const next = require('next')
-const http = require('http')
-
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
-const handleNextRequests = app.getRequestHandler()
-
-app.prepare().then(() => {
-  const server = new http.Server((req, res) => {
-    // Add assetPrefix support based on the hostname
-    if (req.headers.host === 'my-app.com') {
-      app.setAssetPrefix('http://cdn.com/myapp')
-    } else {
-      app.setAssetPrefix('')
-    }
-
-    handleNextRequests(req, res)
-  })
-
-  server.listen(port, err => {
-    if (err) {
-      throw err
-    }
-
-    console.log(`> Ready on http://localhost:${port}`)
-  })
-})
-```

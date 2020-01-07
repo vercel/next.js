@@ -11,9 +11,8 @@ import {
   getURL,
   loadGetInitialProps,
   NextPageContext,
-  SUPPORTS_PERFORMANCE_USER_TIMING,
+  ST,
 } from '../utils'
-import { rewriteUrlForNextExport } from './rewrite-url-for-export'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
@@ -154,7 +153,13 @@ export default class Router implements BaseRouter {
 
   // @deprecated backwards compatibility even though it's a private method.
   static _rewriteUrlForNextExport(url: string): string {
-    return rewriteUrlForNextExport(url)
+    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
+        .rewriteUrlForNextExport
+      return rewriteUrlForNextExport(url)
+    } else {
+      return url
+    }
   }
 
   onPopState = (e: PopStateEvent): void => {
@@ -263,7 +268,7 @@ export default class Router implements BaseRouter {
         this.isSsr = false
       }
       // marking route changes as a navigation start entry
-      if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+      if (ST) {
         performance.mark('routeChange')
       }
 
@@ -275,6 +280,8 @@ export default class Router implements BaseRouter {
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
       if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+        const rewriteUrlForNextExport = require('./rewrite-url-for-export')
+          .rewriteUrlForNextExport
         // @ts-ignore this is temporarily global (attached to window)
         if (__NEXT_DATA__.nextExport) {
           as = rewriteUrlForNextExport(as)
