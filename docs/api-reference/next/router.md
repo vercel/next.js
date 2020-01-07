@@ -209,7 +209,7 @@ You can listen to different events happening inside the Router. Here's a list of
 For example, to listen to the router event `routeChangeStart`, do the following:
 
 ```jsx
-import Router from 'router/events'
+import Router from 'next/router'
 
 const handleRouteChange = url => {
   console.log('App is changing to: ', url)
@@ -221,7 +221,7 @@ Router.events.on('routeChangeStart', handleRouteChange)
 If you no longer want to listen to the event, unsubscribe with the `off` method:
 
 ```jsx
-import Router from 'router/events'
+import Router from 'next/router'
 
 Router.events.off('routeChangeStart', handleRouteChange)
 ```
@@ -229,7 +229,7 @@ Router.events.off('routeChangeStart', handleRouteChange)
 If a route load is cancelled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
 
 ```jsx
-import Router from 'router/events'
+import Router from 'next/router'
 
 Router.events.on('routeChangeError', (err, url) => {
   if (err.cancelled) {
@@ -241,7 +241,7 @@ Router.events.on('routeChangeError', (err, url) => {
 Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens, as in the following example:
 
 ```jsx
-import Router from 'router/events'
+import Router from 'next/router'
 
 useEffect(() => {
   const handleRouteChange = url => {
