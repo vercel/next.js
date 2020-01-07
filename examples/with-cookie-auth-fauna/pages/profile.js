@@ -1,9 +1,9 @@
 import React from 'react'
-import Router from 'next/router'
-import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
-import {query as q} from 'faunadb'
-import { withAuthSync, faunaClient } from '../utils/auth'
+import { withAuthSync } from '../utils/auth'
+import cookie from 'cookie'
+import { FAUNA_SECRET_COOKIE } from '../utils/fauna-auth'
+import { profileApi } from './api/profile'
 
 const Profile = props => {
   const { userId } = props
@@ -23,20 +23,34 @@ const Profile = props => {
 }
 
 Profile.getInitialProps = async ctx => {
-  const { token } = nextCookie(ctx)
+  if (ctx.req) {
+    console.log(ctx.req.headers.cookie)
+    var cookies = cookie.parse(ctx.req.headers.cookie ?? '')
+    var faunaSecret = cookies[FAUNA_SECRET_COOKIE]
+    if (!faunaSecret) {
+      // If `ctx.req` is available it means we are on the server.
+      ctx.res.writeHead(302, { Location: '/login' });
+      ctx.res.end();
+    }
+    var profileInfo = await profileApi(faunaSecret);
+    return {userId: profileInfo};
+  } else {
+    const response = await fetch('/api/profile', {
+      method: 'POST',
 
-  const redirectOnError = () =>
-    typeof window !== 'undefined'
-      ? Router.push('/login')
-      : ctx.res.writeHead(302, { Location: '/login' }).end()
-
-  try {
-    const ref = await faunaClient(token).query(q.Identity())
-    return {userId: ref.id}
-  } catch (error) {
-    console.log(error)
-    // Implementation or Network error
-    return redirectOnError()
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    if (response.status === 200) {
+      const { userId } = await response.json()
+      return { userId }
+    } else {
+      console.log('Profile lookup failed.')
+      // https://github.com/developit/unfetch#caveats
+      const { message } = await response.json()
+      let error = new Error(message ? message : response.statusText)
+      throw error
+    }
   }
 }
 

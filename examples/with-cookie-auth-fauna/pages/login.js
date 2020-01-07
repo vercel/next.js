@@ -1,18 +1,27 @@
 import React, { useState } from 'react'
-import {query as q} from 'faunadb'
+import Router from 'next/router'
 import Layout from '../components/layout'
-import { login, faunaClient } from '../utils/auth'
+import { login } from '../utils/auth'
 
 const signin = async (email, password) => {
-  const loginRes = (await faunaClient().query(
-    q.Login(q.Match(q.Index('users_by_email'), email), {
-      password,
-    })
-  ))
-  if (!loginRes.secret) {
-    throw new Error('No secret present in login query response.');
+  const url = '/api/login'
+  const response = await fetch(url, {
+    method: 'POST',
+
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (response.status === 200) {
+    const { email } = await response.json()
+    login({ email })
+    Router.push('/profile')
+  } else {
+    console.log('Login failed.')
+    // https://github.com/developit/unfetch#caveats
+    const { message } = await response.json()
+    let error = new Error(message ? message : response.statusText)
+    throw error
   }
-  return loginRes.secret;
 };
 
 function Login() {
@@ -26,8 +35,7 @@ function Login() {
     const password = userData.password
 
     try {
-      const token = await signin(email, password)
-      login({ token })
+      await signin(email, password)
     } catch (error) {
       console.error(
         'You have an error in your code or there are Network issues.',

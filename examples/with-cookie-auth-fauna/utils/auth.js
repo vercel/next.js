@@ -1,38 +1,42 @@
 import { useEffect } from 'react'
 import Router from 'next/router'
-import nextCookie from 'next-cookies'
-import cookie from 'js-cookie'
-import faunadb from 'faunadb'
+import cookie from 'cookie'
+import { FAUNA_SECRET_COOKIE } from './fauna-auth'
 
-export const faunaClient = (secret = process.env.FAUNA_CLIENT_KEY) => new faunadb.Client({
-  secret: secret,
-});
-
-export const login = ({ token }) => {
-  cookie.set('token', token, { expires: 1 })
+export const login = ({ email }) => {
+  window.localStorage.setItem('loggedInUser', email)
   Router.push('/profile')
 }
 
 export const auth = ctx => {
-  const { token } = nextCookie(ctx)
-
-  // If there's no token, it means the user is not logged in.
-  if (!token) {
-    if (typeof window === 'undefined') {
-      ctx.res.writeHead(302, { Location: '/login' })
-      ctx.res.end()
-    } else {
-      Router.push('/login')
+  if (ctx.req) {
+    var cookies = cookie.parse(ctx.req.headers.cookie ?? '')
+    var faunaSecret = cookies[FAUNA_SECRET_COOKIE]
+    if (!faunaSecret) {
+      // If `ctx.req` is available it means we are on the server.
+      ctx.res.writeHead(302, { Location: '/login' });
+      ctx.res.end();
     }
+    return faunaSecret;
+  } else {
+    if (!window.localStorage.getItem('loggedInUser')) {
+      Router.push('/login');
+    }
+    // The user is logged in, the page will perform it's own
+    // authed API call.
+    return null;
   }
-
-  return token
 }
 
-export const logout = () => {
-  cookie.remove('token')
+export const logout = async () => {
   // to support logging out from all windows
+  await fetch('/api/logout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
   window.localStorage.setItem('logout', Date.now())
+  window.localStorage.removeItem('loggedInUser')
   Router.push('/login')
 }
 

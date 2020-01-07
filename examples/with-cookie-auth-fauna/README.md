@@ -48,7 +48,7 @@ now
 
 ## The idea behind the example
 
-In this example, we authenticate users and store a token in a cookie. The example only shows how the user session works, keeping a user logged in between pages.
+In this example, we authenticate users and store a token in a secure (non-JS) cookie. The example only shows how the user session works, keeping a user logged in between pages.
 
 This example uses Fauna(https://fauna.com/) as the auth service and DB.
 

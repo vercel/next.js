@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
+import Router from 'next/router'
 
 function Signup() {
   const [userData, setUserData] = useState({ email: '', password: '', error: '' })
@@ -22,8 +23,9 @@ function Signup() {
         body: JSON.stringify({ email, password }),
       })
       if (response.status === 200) {
-        const { token } = await response.json()
-        login({ token })
+        const { email } = await response.json()
+        login({ email })
+        Router.push('/profile')
       } else {
         console.log('Signup failed.')
         // https://github.com/developit/unfetch#caveats

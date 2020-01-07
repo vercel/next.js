@@ -1,33 +1,18 @@
-import fetch from 'isomorphic-unfetch'
+import {query as q} from 'faunadb'
+import cookie from 'cookie'
+import { faunaClient, FAUNA_SECRET_COOKIE } from '../../utils/fauna-auth'
+
+export const profileApi = async (faunaSecret) => {
+  const ref = await faunaClient(faunaSecret).query(q.Identity())
+  return ref.id
+}
 
 export default async (req, res) => {
-  if (!('authorization' in req.headers)) {
-    return res.status(401).send('Authorization header missing')
+  const cookies = cookie.parse(req.headers.cookie ?? '')
+  const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
+  if (!faunaSecret) {
+    return res.status(401).send('Auth cookie missing.')
   }
 
-  const auth = await req.headers.authorization
-
-  try {
-    const { token } = JSON.parse(auth)
-    const url = `https://api.github.com/user/${token}`
-
-    const response = await fetch(url)
-
-    if (response.ok) {
-      const js = await response.json()
-      // Need camelcase in the frontend
-      const data = Object.assign({}, { avatarUrl: js.avatar_url }, js)
-      return res.status(200).json({ data })
-    } else {
-      // https://github.com/developit/unfetch#caveats
-      const error = new Error(response.statusText)
-      error.response = response
-      throw error
-    }
-  } catch (error) {
-    const { response } = error
-    return response
-      ? res.status(response.status).json({ message: response.statusText })
-      : res.status(400).json({ message: error.message })
-  }
+  res.status(200).json({userId: await profileApi(faunaSecret)})
 }

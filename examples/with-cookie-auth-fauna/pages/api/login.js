@@ -8,23 +8,9 @@ export default async (req, res) => {
     if (!email || !password) {
       throw new Error('Email and password must be provided.')
     }
-    console.log(`email: ${email} trying to create user.`)
-    let createRes
-    try {
-      createRes = await serverClient.query(
-        q.Create(q.Collection('User'), {
-          credentials: { password },
-          data: { email },
-        })
-      )
-    } catch (err) {
-      throw new Error('User already exists.');
-    }
-    if (!createRes.ref) {
-      throw new Error('No ref present in create query response.');
-    }
+    
     const loginRes = (await serverClient.query(
-      q.Login(createRes.ref, {
+      q.Login(q.Match(q.Index('users_by_email'), email), {
         password,
       })
     ))
