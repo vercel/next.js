@@ -362,11 +362,6 @@ export default class DevServer extends Server {
     return { routes, fsRoutes, catchAllRoute, dynamicRoutes, pageChecker }
   }
 
-  // In development public files are not added to the router but handled as a fallback instead
-  protected generatePublicRoutes() {
-    return []
-  }
-
   // In development dynamic routes cannot be known ahead of time
   protected getDynamicRoutes() {
     return []

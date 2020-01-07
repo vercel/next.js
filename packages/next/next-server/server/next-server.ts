@@ -654,7 +654,7 @@ export default class Server {
       const unixPath = path.replace(/\\/g, '/')
       // Only include public files that will not replace a page path
       // this should not occur now that we check this during build
-      if (!this.pagesManifest![unixPath]) {
+      if (!this.pagesManifest || !this.pagesManifest![unixPath]) {
         routes.push({
           match: route(unixPath),
           type: 'route',
