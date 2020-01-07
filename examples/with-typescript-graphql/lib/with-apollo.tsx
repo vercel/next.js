@@ -16,7 +16,7 @@ type WithApolloPageContext = {
   apolloClient: TApolloClient
 } & NextPageContext
 
-let apolloClient: TApolloClient
+let globalApolloClient: TApolloClient
 
 /**
  * Creates and provides the apolloContext
@@ -126,11 +126,11 @@ function initApolloClient(initialState?: any) {
   }
 
   // Reuse client on the client-side
-  if (!apolloClient) {
-    apolloClient = createApolloClient(initialState)
+  if (!globalApolloClient) {
+    globalApolloClient = createApolloClient(initialState)
   }
 
-  return apolloClient
+  return globalApolloClient
 }
 
 /**

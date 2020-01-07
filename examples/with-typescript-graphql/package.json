@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "author": "",
   "license": "ISC",
+  "scripts": {
+    "codegen": "graphql-let",
+    "dev": "yarn codegen && next",
+    "build": "yarn codegen && next build",
+    "start": "next start"
+  },
   "dependencies": {
     "@apollo/react-common": "3.1.3",
     "@apollo/react-components": "^3.1.3",
@@ -27,11 +33,5 @@
     "@types/react": "^16.9.17",
     "graphql-let": "^0.3.2",
     "typescript": "^3.7.4"
-  },
-  "scripts": {
-    "codegen": "graphql-let",
-    "dev": "yarn codegen && next",
-    "build": "yarn codegen && next build",
-    "start": "next start"
   }
 }
