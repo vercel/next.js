@@ -4,7 +4,6 @@ import { CacheProvider } from '@emotion/react'
 import { cache } from '@emotion/css'
 import { globalStyles } from '../shared/styles'
 
-
 export default class App extends NextApp {
   render() {
     const { Component, pageProps } = this.props

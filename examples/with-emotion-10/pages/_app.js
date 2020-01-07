@@ -7,7 +7,6 @@ import { cache } from 'emotion'
 
 import { globalStyles } from '../shared/styles'
 
-
 export default class App extends NextApp {
   render() {
     const { Component, pageProps } = this.props
