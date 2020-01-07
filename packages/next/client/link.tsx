@@ -204,7 +204,9 @@ class Link extends Component<LinkProps> {
   prefetch() {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    Router.prefetch(this.getHref())
+    const href = this.getHref()
+    Router.prefetch(href)
+    prefetched[href] = true
   }
 
   render() {
