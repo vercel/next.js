@@ -917,7 +917,7 @@ export default async function getBaseWebpackConfig(
         )
       }
     } else {
-      await __overrideCssConfiguration(dir, webpackConfig)
+      await __overrideCssConfiguration(dir, !dev, webpackConfig)
     }
   }
 
