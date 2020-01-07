@@ -36,7 +36,6 @@ const defaultConfig: { [key: string]: any } = {
   },
   exportTrailingSlash: false,
   experimental: {
-    ampBindInitData: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -44,12 +43,11 @@ const defaultConfig: { [key: string]: any } = {
     ),
     css: false,
     documentMiddleware: false,
-    granularChunks: false,
+    granularChunks: true,
     modern: false,
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    deferScripts: false,
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',

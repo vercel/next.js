@@ -4,7 +4,7 @@ description: Compile and deploy your Next.js app to production with ZEIT Now and
 
 # Deployment
 
-To go to production Next.js has a `next build` command. When ran it will compile your project and automatically apply numerous optimizations.
+To go to production Next.js has a `next build` command. When run, it will compile your project and automatically apply numerous optimizations.
 
 ## Prepare your package.json
 
@@ -46,9 +46,9 @@ The [hybrid pages](/docs/basic-features/pages.md) approach is fully supported ou
 
 In case of [Static Generation](/docs/basic-features/pages.md#static-generation) the page will automatically be served from the ZEIT Now Smart CDN.
 
-When the page is using [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) it will become an isolated serverless function automatically. This allows the page rendering to scale automatically and be independent, errors on one page won't affect another.
+When the page is using [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) it will become an isolated serverless function automatically. This allows the page rendering to scale automatically and be independent—errors on one page won't affect another.
 
-API routes will also become separate serverless functions that execute and scale separately from eachother.
+API routes will also become separate serverless functions that execute and scale separately from each other.
 
 ### CDN + HTTPS by default
 
@@ -60,7 +60,7 @@ HTTPS is enabled by default and doesn't require extra configuration.
 
 #### From a git repository
 
-You can link your project in [GitHub](https://zeit.co/new), [GitLab](https://zeit.co/new), or [Bitbucket](https://zeit.co/new) through the [web interface](https://zeit.co/new). This will automatically set up deployment previews for pull-requests and commits.
+You can link your project in [GitHub](https://zeit.co/new), [GitLab](https://zeit.co/new), or [Bitbucket](https://zeit.co/new) through the [web interface](https://zeit.co/new). This will automatically set up deployment previews for pull requests and commits.
 
 #### Through the ZEIT Now CLI
 
@@ -93,7 +93,7 @@ Generally you'll have to follow these steps to deploy to production:
 - Potentially copy the `.next`, `node_modules`, and `package.json` to your server.
 - Run `npm run start` (runs `next start`) on the server
 
-In case you're doing a full static export using `next export` the steps are slightly different and doesn't involve using `next start`:
+In case you're doing a full static export using `next export` the steps are slightly different and don't involve using `next start`:
 
 - Run `npm install`
 - Run `npm run build` (runs `next build && next export`)

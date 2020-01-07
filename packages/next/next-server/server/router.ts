@@ -6,7 +6,7 @@ export const route = pathMatch()
 
 export type Params = { [param: string]: any }
 
-export type RouteMatch = (pathname: string | undefined) => false | Params
+export type RouteMatch = (pathname: string | null | undefined) => false | Params
 
 type RouteResult = {
   finished: boolean
