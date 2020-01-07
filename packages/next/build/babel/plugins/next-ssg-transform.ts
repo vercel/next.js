@@ -109,7 +109,7 @@ export default function nextTransformSsg({
     state: PluginState
   ) {
     const ident = getIdentifier(path)
-    if (ident && ident.node && isIdentifierReferenced(ident)) {
+    if (ident?.node && isIdentifierReferenced(ident)) {
       state.refs.add(ident)
     }
   }
@@ -153,8 +153,7 @@ export default function nextTransformSsg({
           ) {
             const ident = getIdentifier(path)
             if (
-              ident &&
-              ident.node &&
+              ident?.node &&
               refs.has(ident) &&
               !isIdentifierReferenced(ident)
             ) {

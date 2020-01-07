@@ -356,7 +356,7 @@ export default class Router implements BaseRouter {
       this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
         const { error } = routeInfo
 
-        if (error && error.cancelled) {
+        if (error?.cancelled) {
           return resolve(false)
         }
 

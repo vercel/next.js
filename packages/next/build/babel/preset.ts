@@ -54,7 +54,7 @@ type BabelPreset = {
 
 // Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
 function supportsStaticESM(caller: any) {
-  return !!(caller && caller.supportsStaticESM)
+  return !!caller?.supportsStaticESM
 }
 
 module.exports = (
@@ -66,8 +66,7 @@ module.exports = (
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
   const isLaxModern =
     isModern ||
-    (options['preset-env'] &&
-      options['preset-env'].targets &&
+    (options['preset-env']?.targets &&
       options['preset-env'].targets.esmodules === true)
 
   const presetEnvConfig = {

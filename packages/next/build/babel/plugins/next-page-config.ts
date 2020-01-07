@@ -81,13 +81,7 @@ export default function nextPageConfig({
                 }
 
                 if (config.amp === true) {
-                  if (
-                    !(
-                      state.file &&
-                      state.file.opts &&
-                      state.file.opts.caller.isDev
-                    )
-                  ) {
+                  if (!state.file?.opts?.caller.isDev) {
                     // don't replace bundle in development so HMR can track
                     // dependencies and trigger reload when they are changed
                     replaceBundle(path, t)
