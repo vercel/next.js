@@ -1,1 +1,1 @@
-module.exports = { experimental: { css: true } }
+module.exports = {}

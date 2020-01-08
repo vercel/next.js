@@ -4,7 +4,6 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   experimental: {
-    css: true,
     // Intentionally set false to ensure we force to true.
     granularChunks: false,
   },
