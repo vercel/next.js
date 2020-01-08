@@ -246,6 +246,8 @@ export default class Router implements BaseRouter {
     }
   }
 
+  addBasePath = addBasePath
+
   onPopState = (e: PopStateEvent): void => {
     if (!e.state) {
       // We get state as undefined for two reasons.
