@@ -10,11 +10,7 @@ export class DropClientPage implements Plugin {
       Object.keys(compilation.assets).forEach(assetKey => {
         const asset = compilation.assets[assetKey]
 
-        if (
-          asset &&
-          asset._value &&
-          asset._value.includes('__NEXT_DROP_CLIENT_FILE__')
-        ) {
+        if (asset?._value?.includes?.('__NEXT_DROP_CLIENT_FILE__')) {
           const cleanAssetKey = assetKey.replace(/\\/g, '/')
           const page = '/' + cleanAssetKey.split('pages/')[1]
           const pageNoExt = page.split(extname(page))[0]

@@ -144,7 +144,7 @@ export default class DevServer extends Server {
 
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(pagesDir!, (_, files) => {
-        if (files && files.length) {
+        if (files?.length) {
           return
         }
 

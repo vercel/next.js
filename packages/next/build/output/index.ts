@@ -292,8 +292,8 @@ export function watchCompilers(
         stats.toJson({ all: false, warnings: true, errors: true })
       )
 
-      const hasErrors = errors && errors.length
-      const hasWarnings = warnings && warnings.length
+      const hasErrors = !!errors?.length
+      const hasWarnings = !!warnings?.length
 
       onEvent({
         loading: false,

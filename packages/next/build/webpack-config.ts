@@ -203,8 +203,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript && config.typescript.ignoreDevErrors
-    : config.typescript && config.typescript.ignoreBuildErrors
+    ? config.typescript?.ignoreDevErrors
+    : config.typescript?.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling

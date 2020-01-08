@@ -172,7 +172,7 @@ export default function loadConfig(
   })
 
   // If config file was found
-  if (path && path.length) {
+  if (path?.length) {
     const userConfigModule = require(path)
     const userConfig = normalizeConfig(
       phase,
@@ -186,7 +186,7 @@ export default function loadConfig(
       )
     }
 
-    if (userConfig.amp && userConfig.amp.canonicalBase) {
+    if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
@@ -210,8 +210,7 @@ export default function loadConfig(
     }
 
     if (
-      userConfig.experimental &&
-      userConfig.experimental.reactMode &&
+      userConfig.experimental?.reactMode &&
       !reactModes.includes(userConfig.experimental.reactMode)
     ) {
       throw new Error(
@@ -233,7 +232,7 @@ export default function loadConfig(
       ],
       { cwd: dir }
     )
-    if (nonJsPath && nonJsPath.length) {
+    if (nonJsPath?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath
