@@ -70,9 +70,10 @@ function getClientStyleLoader({
 
 export async function __overrideCssConfiguration(
   rootDirectory: string,
+  isProduction: boolean,
   config: Configuration
 ) {
-  const postCssPlugins = await getPostCssPlugins(rootDirectory)
+  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
 
   function patch(rule: RuleSetRule) {
     if (
@@ -123,6 +124,7 @@ export const css = curry(async function css(
 
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
+    ctx.isProduction,
     // TODO: In the future, we should stop supporting old CSS setups and
     // unconditionally inject ours. When that happens, we should remove this
     // function argument.
