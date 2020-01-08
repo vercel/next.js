@@ -24,7 +24,9 @@ export function addBasePath(path: string): string {
 }
 
 function delBasePath(path: string): string {
-  return path.replace(new RegExp(`^${basePath}`), '')
+  return path.indexOf(basePath) === 0
+    ? path.substr(basePath.length) || '/'
+    : path
 }
 
 function toRoute(path: string): string {
