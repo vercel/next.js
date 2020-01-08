@@ -73,6 +73,12 @@ const runTests = (context, dev = false) => {
     }
   })
 
+  it('should have basePath field on Router', async () => {
+    const html = await renderViaHTTP(context.appPort, '/docs/hello')
+    const $ = cheerio.load(html)
+    expect($('#base-path').text()).toBe('/docs')
+  })
+
   it('should navigate to the page without refresh', async () => {
     const browser = await webdriver(context.appPort, '/docs/hello')
     try {

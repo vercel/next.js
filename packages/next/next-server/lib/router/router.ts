@@ -45,6 +45,7 @@ export type BaseRouter = {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
 }
 
 export type NextRouter = BaseRouter &
@@ -140,6 +141,8 @@ export default class Router implements BaseRouter {
   pathname: string
   query: ParsedUrlQuery
   asPath: string
+  basePath: string
+
   /**
    * Map of all components loaded in `Router`
    */
@@ -213,6 +216,7 @@ export default class Router implements BaseRouter {
     this.asPath =
       // @ts-ignore this is temporarily global (attached to window)
       isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+    this.basePath = basePath
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
