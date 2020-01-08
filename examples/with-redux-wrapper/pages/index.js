@@ -1,28 +1,26 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { bindActionCreators } from 'redux'
-import { startClock, addCount, serverRenderClock } from '../store'
+import { addCount } from '../store/count/action'
+import { startClock, serverRenderClock } from '../store/tick/action'
 import { connect } from 'react-redux'
 import Page from '../components/Page'
 
-class Counter extends React.Component {
-  static getInitialProps({ store, isServer }) {
-    store.dispatch(serverRenderClock(isServer))
-    store.dispatch(addCount())
+const Counter = props => {
+  useEffect(() => {
+    const timer = props.startClock()
 
-    return { isServer }
-  }
+    return () => {
+      clearInterval(timer)
+    }
+  }, [props])
 
-  componentDidMount() {
-    this.timer = this.props.startClock()
-  }
+  return <Page title="Index Page" linkTo="/other" />
+}
 
-  componentWillUnmount() {
-    clearInterval(this.timer)
-  }
-
-  render() {
-    return <Page title="Index Page" linkTo="/other" />
-  }
+Counter.getInitialProps = async ({ store, isServer }) => {
+  store.dispatch(serverRenderClock(isServer))
+  store.dispatch(addCount())
+  return { isServer }
 }
 
 const mapDispatchToProps = dispatch => {

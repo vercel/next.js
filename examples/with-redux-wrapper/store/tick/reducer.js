@@ -10,7 +10,7 @@ export default (state = tickInitialState, action) => {
     case tickActionTypes.TICK:
       return Object.assign({}, state, {
         lastUpdate: action.ts,
-        light: !!action.light
+        light: !!action.light,
       })
     default:
       return state
