@@ -2,6 +2,7 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import url from 'url'
 import {
   nextServer,
   launchApp,
@@ -47,6 +48,19 @@ const runTests = (context, dev = false) => {
     } finally {
       await browser.close()
     }
+  })
+
+  it('should have correct href for a link', async () => {
+    const browser = await webdriver(context.appPort, '/docs/hello')
+    const href = await browser.elementByCss('a').getAttribute('href')
+    const { pathname } = url.parse(href)
+    expect(pathname).toBe('/docs/other-page')
+  })
+
+  it('should show 404 for page not under the /docs prefix', async () => {
+    const text = await renderViaHTTP(context.appPort, '/hello')
+    expect(text).not.toContain('Hello World')
+    expect(text).toContain('This page could not be found')
   })
 
   it('should show the other-page page under the /docs prefix', async () => {
