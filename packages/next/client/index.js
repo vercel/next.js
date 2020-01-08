@@ -1,4 +1,4 @@
-/* global location, hydrationMetrics */
+/* global location */
 import React from 'react'
 import ReactDOM from 'react-dom'
 import initHeadManager from './head-manager'
@@ -345,8 +345,16 @@ function markHydrateComplete() {
     'beforeRender'
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+
   if (onPerfEntry) {
-    measureFid()
+    import('../next-server/lib/fid-measure')
+      .then(mod => {
+        mod.default(onPerfEntry)
+      })
+      .catch(err => {
+        console.error('Error measuring FID', err)
+      })
+
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
     performance.getEntriesByName('beforeRender').forEach(onPerfEntry)
   }
@@ -376,6 +384,9 @@ function markRenderComplete() {
       .forEach(onPerfEntry)
   }
   clearMarks()
+  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach(measure =>
+    performance.clearMeasures(measure)
+  )
 }
 
 function clearMarks() {
@@ -385,48 +396,6 @@ function clearMarks() {
     'afterRender',
     'routeChange',
   ].forEach(mark => performance.clearMarks(mark))
-}
-
-function clearMeasures() {
-  ;[
-    'Next.js-before-hydration',
-    'Next.js-hydration',
-    'Next.js-route-change-to-render',
-    'Next.js-render',
-  ].forEach(measure => performance.clearMeasures(measure))
-}
-
-function measureFid() {
-  hydrationMetrics.onInputDelay((delay, event) => {
-    const hydrationMeasures = performance.getEntriesByName(
-      'Next.js-hydration',
-      'measure'
-    )
-
-    if (hydrationMeasures.length > 0) {
-      const { startTime, duration } = hydrationMeasures[0]
-      const hydrateEnd = startTime + duration
-
-      onPerfEntry({
-        name: 'first-input-delay-after-hydration',
-        startTime: event.timeStamp,
-        value: delay,
-      })
-      onPerfEntry({
-        name: 'time-to-first-input-after-hydration',
-        startTime: hydrateEnd,
-        value: event.timeStamp - hydrateEnd,
-      })
-    } else {
-      onPerfEntry({
-        name: 'first-input-delay-before-hydration',
-        startTime: event.timeStamp,
-        value: delay,
-      })
-    }
-  })
-
-  clearMeasures()
 }
 
 function AppContainer({ children }) {
