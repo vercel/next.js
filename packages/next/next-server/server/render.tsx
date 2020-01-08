@@ -71,7 +71,6 @@ class ServerRouter implements NextRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-
     this.isFallback = isFallback
     this.basePath = basePath
   }
@@ -457,7 +456,7 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath = req.url as string
+  const asPath: string = req.url as string
   const router = new ServerRouter(pathname, query, asPath, {
     isFallback: isFallback,
   }, basePath)
