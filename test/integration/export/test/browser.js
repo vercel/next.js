@@ -21,6 +21,13 @@ export default function(context) {
       expect(link.substr(link.length - 1)).toBe('/')
     })
 
+    it('should not add any slash on hash Link', async () => {
+      const browser = await webdriver(context.port, '/hash-link')
+      const link = await browser.elementByCss('#hash-link').getAttribute('href')
+
+      expect(link).toMatch(/\/hash-link\/#hash$/)
+    })
+
     it('should not add trailing slash on Link when disabled', async () => {
       const browser = await webdriver(context.portNoTrailSlash, '/')
       const link = await browser
