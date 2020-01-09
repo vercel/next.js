@@ -24,8 +24,8 @@ describe('Build Output', () => {
 
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_app')
@@ -50,8 +50,8 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\/_app [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_error')
@@ -77,8 +77,8 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/amp .* AMP/)
       expect(stdout).toMatch(/\/hybrid [ 0-9.]* B/)
       expect(stdout).toMatch(/\+ shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_error')
@@ -102,8 +102,8 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
       expect(stdout).toMatch(/λ \/_error [ ]* \d{1,} B/)
       expect(stdout).toMatch(/\+ shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/ runtime\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_app')
