@@ -30,7 +30,7 @@ module.exports = function(task) {
     // Workaround for noop.js loading
     if (file.base === 'next-dev.js') {
       output.code = output.code.replace(
-        '__REPLACE_NOOP_IMPORT__',
+        /__REPLACE_NOOP_IMPORT__/g,
         `import('./dev/noop');`
       )
     }
