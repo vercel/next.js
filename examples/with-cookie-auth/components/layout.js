@@ -3,7 +3,7 @@ import Head from 'next/head'
 import Header from './header'
 
 const Layout = props => (
-  <React.Fragment>
+  <>
     <Head>
       <title>With Cookies</title>
     </Head>
@@ -34,7 +34,7 @@ const Layout = props => (
     <main>
       <div className="container">{props.children}</div>
     </main>
-  </React.Fragment>
+  </>
 )
 
 export default Layout
