@@ -350,6 +350,27 @@ function runTests(dev) {
     expect(data).toMatch(/hello world/)
   })
 
+  it('should serve file with space from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with plus from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello+copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with %20 from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello%20copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world')
+    expect(res.status).toBe(200)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')

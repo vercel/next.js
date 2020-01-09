@@ -647,30 +647,32 @@ export default class Server {
   }
 
   protected generatePublicRoutes(): Route[] {
-    const routes: Route[] = []
-    const publicFiles = recursiveReadDirSync(this.publicDir)
+    const publicFiles = new Set(recursiveReadDirSync(this.publicDir))
 
-    publicFiles.forEach(path => {
-      const unixPath = path.replace(/\\/g, '/')
-      // Only include public files that will not replace a page path
-      // this should not occur now that we check this during build
-      if (!this.pagesManifest![unixPath]) {
-        routes.push({
-          match: route(unixPath),
-          type: 'route',
-          name: 'public catchall',
-          fn: async (req, res, _params, parsedUrl) => {
-            const p = join(this.publicDir, unixPath)
-            await this.serveStatic(req, res, p, parsedUrl)
+    return [
+      {
+        match: route('/:path*'),
+        name: 'public folder catchall',
+        fn: async (req, res, params, parsedUrl) => {
+          const path = `/${(params.path || []).join('/')}`
+
+          if (publicFiles.has(path)) {
+            this.serveStatic(
+              req,
+              res,
+              join(this.dir, 'public', path),
+              parsedUrl
+            )
             return {
               finished: true,
             }
-          },
-        })
-      }
-    })
-
-    return routes
+          }
+          return {
+            finished: false,
+          }
+        },
+      } as Route,
+    ]
   }
 
   protected getDynamicRoutes() {
