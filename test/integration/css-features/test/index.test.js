@@ -100,6 +100,40 @@ describe('Custom Properties: Pass-Through Modern', () => {
   })
 })
 
+describe('Custom Properties: Fail for :root {} in CSS Modules', () => {
+  const appDir = join(fixturesDir, 'cp-global-modules')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail to build', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    expect(stderr).toContain('Failed to compile')
+    expect(stderr).toContain('pages/styles.module.css')
+    expect(stderr).toContain('CssSyntax error: Selector ":root" is not pure')
+  })
+})
+
+describe('Custom Properties: Fail for global element in CSS Modules', () => {
+  const appDir = join(fixturesDir, 'cp-el-modules')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail to build', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    expect(stderr).toContain('Failed to compile')
+    expect(stderr).toContain('pages/styles.module.css')
+    expect(stderr).toContain('CssSyntax error: Selector "h1" is not pure')
+  })
+})
+
 describe('CSS Modules: Import Global CSS', () => {
   const appDir = join(fixturesDir, 'module-import-global')
 
