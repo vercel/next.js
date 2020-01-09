@@ -294,7 +294,7 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!(PerformanceObserver in window)) {
+    if (!('PerformanceObserver' in window)) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
       })
