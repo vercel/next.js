@@ -103,9 +103,9 @@ export async function printTreeView(
       `${symbol} ${
         item === '/_app'
           ? ' '
-          : pageInfo && pageInfo.static
+          : pageInfo?.static
           ? '○'
-          : pageInfo && pageInfo.isSsg
+          : pageInfo?.isSsg
           ? '●'
           : 'λ'
       } ${item}`,
@@ -118,7 +118,7 @@ export async function printTreeView(
         : '',
     ])
 
-    if (pageInfo && pageInfo.ssgPageRoutes && pageInfo.ssgPageRoutes.length) {
+    if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
       const previewPages = totalRoutes === 4 ? 4 : 3
       const contSymbol = i === arr.length - 1 ? ' ' : '├'
