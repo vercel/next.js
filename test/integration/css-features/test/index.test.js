@@ -99,3 +99,43 @@ describe('Custom Properties: Pass-Through Modern', () => {
     )
   })
 })
+
+describe('CSS Modules: Import Global CSS', () => {
+  const appDir = join(fixturesDir, 'module-import-global')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    await nextBuild(appDir)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `"a .styles_foo__31qlD{all:initial}"`
+    )
+  })
+})
+
+describe('CSS Modules: Importing Invalid Global CSS', () => {
+  const appDir = join(fixturesDir, 'module-import-global-invalid')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail to build', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    expect(stderr).toContain('Failed to compile')
+    expect(stderr).toContain('pages/styles.module.css')
+    expect(stderr).toContain('CssSyntax error: Selector "a" is not pure')
+  })
+})
