@@ -2,7 +2,7 @@
 /* global jasmine */
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { killApp, findPort, launchApp } from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -12,7 +12,8 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 describe('Analytics relayer', () => {
   beforeAll(async () => {
     appPort = await findPort()
-    server = await launchApp(appDir, appPort)
+    await nextBuild(appDir)
+    server = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(server))
 
