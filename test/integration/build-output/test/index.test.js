@@ -30,6 +30,7 @@ describe('Build Output', () => {
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_app')
       expect(stdout).not.toContain(' /_error')
+      expect(stdout).not.toContain('<buildId>')
 
       expect(stdout).toContain('○ /')
     })
@@ -55,6 +56,7 @@ describe('Build Output', () => {
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_error')
+      expect(stdout).not.toContain('<buildId>')
 
       expect(stdout).toContain(' /_app')
       expect(stdout).toContain('○ /')
@@ -82,6 +84,7 @@ describe('Build Output', () => {
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_error')
+      expect(stdout).not.toContain('<buildId>')
 
       expect(stdout).toContain('○ /')
     })
@@ -107,6 +110,7 @@ describe('Build Output', () => {
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_app')
+      expect(stdout).not.toContain('<buildId>')
 
       expect(stdout).toContain(' /_error')
       expect(stdout).toContain('○ /')
@@ -126,6 +130,7 @@ describe('Build Output', () => {
         stdout: true,
       })
       expect(stdout).toContain('○ /_error')
+      expect(stdout).not.toContain('<buildId>')
     })
 
     // This test is not really correct.
@@ -135,6 +140,7 @@ describe('Build Output', () => {
         stdout: true,
       })
       expect(stdout).toContain('λ /_error')
+      expect(stdout).not.toContain('<buildId>')
     })
   })
 })
