@@ -647,7 +647,9 @@ export default class Server {
   }
 
   protected generatePublicRoutes(): Route[] {
-    const publicFiles = new Set(recursiveReadDirSync(this.publicDir))
+    const publicFiles = new Set(
+      recursiveReadDirSync(this.publicDir).map(p => p.replace(/\\/g, '/'))
+    )
 
     return [
       {
