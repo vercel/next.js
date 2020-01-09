@@ -66,13 +66,13 @@ You can link your project in [GitHub](https://zeit.co/new), [GitLab](https://zei
 
 You can install the command line tool using npm:
 
-```
+```bash
 npm install -g now
 ```
 
 You can deploy your application by running the following command in the root of the project directory:
 
-```
+```bash
 now
 ```
 
