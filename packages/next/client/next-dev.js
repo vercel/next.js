@@ -4,6 +4,7 @@ import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import initializePrerenderIndicator from './dev/prerender-indicator'
+import { displayContent } from './dev/fouc'
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
@@ -36,19 +37,7 @@ initNext({ webpackHMR })
       initializePrerenderIndicator()
     }
 
-    // This is the fallback helper that removes Next.js' no-FOUC styles when
-    // CSS mode is enabled. This only really activates if you haven't created
-    // _any_ styles in your application yet.
-    ;(window.requestAnimationFrame || setTimeout)(function() {
-      for (
-        var x = document.querySelectorAll('[data-next-hide-fouc]'),
-          i = x.length;
-        i--;
-
-      ) {
-        x[i].parentNode.removeChild(x[i])
-      }
-    })
+    displayContent()
 
     let lastScroll
 
