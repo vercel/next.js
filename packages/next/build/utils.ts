@@ -343,7 +343,7 @@ async function computeFromManifest(
 
   // Add well-known shared file
   files.set(
-    path.join(
+    path.posix.join(
       `static/${buildId}/pages/`,
       `/_app${isModern ? '.module' : ''}.js`
     ),
