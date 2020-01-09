@@ -41,7 +41,7 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    css: false,
+    css: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -107,7 +107,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (result.experimental) {
     if (result.experimental.css) {
       // The new CSS support requires granular chunks be enabled.
-      result.experimental.granularChunks = true
+      if (result.experimental.granularChunks !== true) {
+        throw new Error(
+          `The new CSS support requires granular chunks be enabled.`
+        )
+      }
     }
 
     if (typeof result.experimental.basePath !== 'string') {
