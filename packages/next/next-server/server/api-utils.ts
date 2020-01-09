@@ -57,9 +57,9 @@ export async function apiResolver(
     const resolver = interopDefault(resolverModule)
     await resolver(req, res)
 
-    if (!isResSent(res)) {
-      throw new Error(
-        `API resolved without sending a response, this results in stalled requests`
+    if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
+      console.warn(
+        `API resolved without sending a response for ${req.url}, this may result in a stalled requests`
       )
     }
   } catch (err) {
