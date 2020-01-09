@@ -172,7 +172,7 @@ export async function printTreeView(
         // Re-add `static/` for root files
         .replace(/^<buildId>/, 'static')
         // Remove file hash
-        .replace(/[.-][0-9a-z]{20}(?=\.)/, '')
+        .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
       messages.push([
         `  ${innerSymbol} ${cleanName}`,
