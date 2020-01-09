@@ -1,51 +1,66 @@
-pool:
-  vmImage: 'windows-2019'
-
 variables:
-  NEXT_TELEMETRY_DISABLED: '1'
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
-  CHROMEDRIVER_VERSION: '78.0.3904.70'
+  NEXT_TELEMETRY_DISABLED: '1'
+  node_version: ^10.10.0
 
-strategy:
-  maxParallel: 10
-  matrix:
-    node-10-1:
-      group: 1/4
-      node_version: ^10.10.0
-    node-10-2:
-      group: 2/4
-      node_version: ^10.10.0
-    node-10-3:
-      group: 3/4
-      node_version: ^10.10.0
-    node-10-4:
-      group: 4/4
-      node_version: ^10.10.0
+jobs:
+  - job: test_ie11
+    pool:
+      vmImage: 'windows-2019'
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: $(node_version)
+        displayName: 'Install Node.js'
 
-steps:
-  - script: |
-      wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
-    displayName: 'List Chrome version'
+      - task: CacheBeta@0
+        inputs:
+          key: yarn | $(Agent.OS) | yarn.lock
+          path: $(YARN_CACHE_FOLDER)
+        displayName: Cache Yarn packages
 
-  - task: NodeTool@0
-    inputs:
-      versionSpec: $(node_version)
-    displayName: 'Install Node.js'
+      - script: |
+          yarn install --frozen-lockfile --check-files
+        displayName: 'Install dependencies'
 
-  - task: CacheBeta@0
-    inputs:
-      key: yarn | $(Agent.OS) | yarn.lock
-      path: $(YARN_CACHE_FOLDER)
-    displayName: Cache Yarn packages
+      - script: |
+          yarn testie --forceExit test/integration/production/
+        displayName: 'Run tests'
 
-  - script: |
-      yarn install --frozen-lockfile --check-files
-    displayName: 'Install dependencies'
+  - job: test_chrome
+    pool:
+      vmImage: 'windows-2019'
+    strategy:
+      maxParallel: 10
+      matrix:
+        node-10-1:
+          group: 1/4
+        node-10-2:
+          group: 2/4
+        node-10-3:
+          group: 3/4
+        node-10-4:
+          group: 4/4
+    steps:
+      - script: |
+          wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+        displayName: 'List Chrome version'
 
-  - script: |
-      node node_modules/chromedriver/install.js
-    displayName: 'Install correct Chrome Driver version'
+      - task: NodeTool@0
+        inputs:
+          versionSpec: $(node_version)
+        displayName: 'Install Node.js'
 
-  - script: |
-      node run-tests.js -g $(group)
-    displayName: 'Run tests'
+      - task: CacheBeta@0
+        inputs:
+          key: yarn | $(Agent.OS) | yarn.lock
+          path: $(YARN_CACHE_FOLDER)
+        displayName: Cache Yarn packages
+
+      - script: |
+          yarn install --frozen-lockfile --check-files
+        displayName: 'Install dependencies'
+
+      - script: |
+          node run-tests.js -g $(group)
+        displayName: 'Run tests'

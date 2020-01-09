@@ -1,17 +1,23 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import webpack, { Configuration } from 'webpack'
+import webpack, { Configuration, RuleSetRule } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
-import { getGlobalImportError, getModuleImportError } from './messages'
+import {
+  getGlobalImportError,
+  getGlobalModuleImportError,
+  getLocalModuleImportError,
+} from './messages'
 import { getPostCssPlugins } from './plugins'
 
 function getClientStyleLoader({
   isDevelopment,
+  assetPrefix,
 }: {
   isDevelopment: boolean
+  assetPrefix: string
 }): webpack.RuleSetUseItem {
   return isDevelopment
     ? {
@@ -58,8 +64,40 @@ function getClientStyleLoader({
       }
     : {
         loader: MiniCssExtractPlugin.loader,
-        options: {},
+        options: { publicPath: `${assetPrefix}/_next/` },
       }
+}
+
+export async function __overrideCssConfiguration(
+  rootDirectory: string,
+  isProduction: boolean,
+  config: Configuration
+) {
+  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
+
+  function patch(rule: RuleSetRule) {
+    if (
+      rule.options &&
+      typeof rule.options === 'object' &&
+      rule.options['ident'] === '__nextjs_postcss'
+    ) {
+      rule.options.plugins = postCssPlugins
+    } else if (Array.isArray(rule.oneOf)) {
+      rule.oneOf.forEach(patch)
+    } else if (Array.isArray(rule.use)) {
+      rule.use.forEach(u => {
+        if (typeof u === 'object') {
+          patch(u)
+        }
+      })
+    }
+  }
+
+  // TODO: remove this rule, ESLint bug
+  // eslint-disable-next-line no-unused-expressions
+  config.module?.rules?.forEach(entry => {
+    patch(entry)
+  })
 }
 
 export const css = curry(async function css(
@@ -84,7 +122,14 @@ export const css = curry(async function css(
     }),
   ]
 
-  const postCssPlugins = await getPostCssPlugins(ctx.rootDirectory)
+  const postCssPlugins = await getPostCssPlugins(
+    ctx.rootDirectory,
+    ctx.isProduction,
+    // TODO: In the future, we should stop supporting old CSS setups and
+    // unconditionally inject ours. When that happens, we should remove this
+    // function argument.
+    true
+  )
   // CSS Modules support must be enabled on the server and client so the class
   // names are availble for SSR or Prerendering.
   fns.push(
@@ -109,7 +154,10 @@ export const css = curry(async function css(
             // Add appropriate development more or production mode style
             // loader
             ctx.isClient &&
-              getClientStyleLoader({ isDevelopment: ctx.isDevelopment }),
+              getClientStyleLoader({
+                isDevelopment: ctx.isDevelopment,
+                assetPrefix: ctx.assetPrefix,
+              }),
 
             // Resolve CSS `@import`s and `url()`s
             {
@@ -136,7 +184,7 @@ export const css = curry(async function css(
             {
               loader: require.resolve('postcss-loader'),
               options: {
-                ident: 'postcss',
+                ident: '__nextjs_postcss',
                 plugins: postCssPlugins,
                 sourceMap: true,
               },
@@ -156,7 +204,7 @@ export const css = curry(async function css(
           use: {
             loader: 'error-loader',
             options: {
-              reason: getModuleImportError(),
+              reason: getLocalModuleImportError(),
             },
           },
         },
@@ -186,7 +234,10 @@ export const css = curry(async function css(
             use: [
               // Add appropriate development more or production mode style
               // loader
-              getClientStyleLoader({ isDevelopment: ctx.isDevelopment }),
+              getClientStyleLoader({
+                isDevelopment: ctx.isDevelopment,
+                assetPrefix: ctx.assetPrefix,
+              }),
 
               // Resolve CSS `@import`s and `url()`s
               {
@@ -198,7 +249,7 @@ export const css = curry(async function css(
               {
                 loader: require.resolve('postcss-loader'),
                 options: {
-                  ident: 'postcss',
+                  ident: '__nextjs_postcss',
                   plugins: postCssPlugins,
                   sourceMap: true,
                 },
@@ -209,6 +260,24 @@ export const css = curry(async function css(
       })
     )
   }
+
+  // Throw an error for Global CSS used inside of `node_modules`
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: /\.css$/,
+          issuer: { include: [/node_modules/] },
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getGlobalModuleImportError(),
+            },
+          },
+        },
+      ],
+    })
+  )
 
   // Throw an error for Global CSS used outside of our custom <App> file
   fns.push(
@@ -230,29 +299,31 @@ export const css = curry(async function css(
     })
   )
 
-  // Automatically transform references to files (i.e. url()) into URLs
-  // e.g. url(./logo.svg)
-  fns.push(
-    loader({
-      oneOf: [
-        {
-          // This should only be applied to CSS files
-          issuer: { test: /\.css$/ },
-          // Exclude extensions that webpack handles by default
-          exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
-          use: {
-            // `file-loader` always emits a URL reference, where `url-loader`
-            // might inline the asset as a data URI
-            loader: require.resolve('file-loader'),
-            options: {
-              // Hash the file for immutable cacheability
-              name: 'static/media/[name].[hash].[ext]',
+  if (ctx.isClient) {
+    // Automatically transform references to files (i.e. url()) into URLs
+    // e.g. url(./logo.svg)
+    fns.push(
+      loader({
+        oneOf: [
+          {
+            // This should only be applied to CSS files
+            issuer: { test: /\.css$/ },
+            // Exclude extensions that webpack handles by default
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            use: {
+              // `file-loader` always emits a URL reference, where `url-loader`
+              // might inline the asset as a data URI
+              loader: require.resolve('file-loader'),
+              options: {
+                // Hash the file for immutable cacheability
+                name: 'static/media/[name].[hash].[ext]',
+              },
             },
           },
-        },
-      ],
-    })
-  )
+        ],
+      })
+    )
+  }
 
   const fn = pipe(...fns)
   return fn(config)

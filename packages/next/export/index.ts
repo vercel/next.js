@@ -166,7 +166,7 @@ export default async function(
     // default. In most cases, this would never work. There is no server that
     // could run `getStaticProps`. If users make their page work lazily, they
     // can manually add it to the `exportPathMap`.
-    if (prerenderManifest && prerenderManifest.dynamicRoutes[page]) {
+    if (prerenderManifest?.dynamicRoutes[page]) {
       continue
     }
 
@@ -230,11 +230,9 @@ export default async function(
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
+    canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
-    ampValidator:
-      (nextConfig.experimental.amp && nextConfig.experimental.amp.validator) ||
-      undefined,
+    ampValidator: nextConfig.experimental.amp?.validator || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -333,7 +331,7 @@ export default async function(
         ampValidations[page] = result
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result && result.errors) && result.errors.length > 0)
+          (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
 

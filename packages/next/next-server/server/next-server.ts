@@ -34,12 +34,23 @@ import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { Params, route, Route, RouteMatch } from './router'
+import Router, {
+  Params,
+  route,
+  Route,
+  DynamicRoutes,
+  PageChecker,
+} from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
 import { isBlockedPage } from './utils'
-import { Redirect, Rewrite } from '../../lib/check-custom-routes'
+import {
+  Redirect,
+  Rewrite,
+  RouteType,
+  Header,
+} from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -81,7 +92,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -95,10 +105,11 @@ export default class Server {
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   router: Router
-  protected dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
+  protected dynamicRoutes?: DynamicRoutes
   protected customRoutes?: {
     rewrites: Rewrite[]
     redirects: Redirect[]
+    headers: Header[]
   }
 
   public constructor({
@@ -129,7 +140,6 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     this.renderOpts = {
-      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       documentMiddlewareEnabled: this.nextConfig.experimental
@@ -226,6 +236,16 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    if (parsedUrl.pathname!.startsWith(this.nextConfig.experimental.basePath)) {
+      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      parsedUrl.pathname =
+        parsedUrl.pathname!.replace(
+          this.nextConfig.experimental.basePath,
+          ''
+        ) || '/'
+      req.url = req.url!.replace(this.nextConfig.experimental.basePath, '')
+    }
+
     res.statusCode = 200
     return this.run(req, res, parsedUrl).catch(err => {
       this.logError(err)
@@ -256,7 +276,13 @@ export default class Server {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  protected generateRoutes(): Route[] {
+  protected generateRoutes(): {
+    routes: Route[]
+    fsRoutes: Route[]
+    catchAllRoute: Route
+    pageChecker: PageChecker
+    dynamicRoutes: DynamicRoutes | undefined
+  } {
     this.customRoutes = this.getCustomRoutes()
 
     const publicRoutes = fs.existsSync(this.publicDir)
@@ -283,7 +309,7 @@ export default class Server {
         ]
       : []
 
-    const topRoutes: Route[] = [
+    const fsRoutes: Route[] = [
       {
         match: route('/_next/static/:path*'),
         type: 'route',
@@ -377,19 +403,38 @@ export default class Server {
       ...publicRoutes,
       ...staticFilesRoute,
     ]
-    const routes: Route[] = [...topRoutes]
+    const routes: Route[] = []
 
     if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+      const { redirects, rewrites, headers } = this.customRoutes
 
       const getCustomRoute = (
-        r: { source: string; destination: string; statusCode?: number },
-        type: 'redirect' | 'rewrite'
+        r: Rewrite | Redirect | Header,
+        type: RouteType
       ) => ({
         ...r,
         type,
         matcher: getCustomRouteMatcher(r.source),
       })
+
+      // Headers come very first
+      routes.push(
+        ...headers.map(r => {
+          const route = getCustomRoute(r, 'header')
+          return {
+            check: true,
+            match: route.matcher,
+            type: route.type,
+            name: `${route.type} ${route.source} header route`,
+            fn: async (_req, res, _params, _parsedUrl) => {
+              for (const header of (route as Header).headers) {
+                res.setHeader(header.key, header.value)
+              }
+              return { finished: false }
+            },
+          } as Route
+        })
+      )
 
       const customRoutes = [
         ...redirects.map(r => getCustomRoute(r, 'redirect')),
@@ -399,16 +444,29 @@ export default class Server {
       routes.push(
         ...customRoutes.map(route => {
           return {
+            check: true,
             match: route.matcher,
             type: route.type,
-            statusCode: route.statusCode,
+            statusCode: (route as Redirect).statusCode,
             name: `${route.type} ${route.source} route`,
             fn: async (_req, res, params, _parsedUrl) => {
               const parsedDestination = parseUrl(route.destination, true)
+              const destQuery = parsedDestination.query
               let destinationCompiler = compilePathToRegex(
                 `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
               )
               let newUrl
+
+              Object.keys(destQuery).forEach(key => {
+                const val = destQuery[key]
+                if (
+                  typeof val === 'string' &&
+                  val.startsWith(':') &&
+                  params[val.substr(1)]
+                ) {
+                  destQuery[key] = params[val.substr(1)]
+                }
+              })
 
               try {
                 newUrl = destinationCompiler(params)
@@ -433,44 +491,64 @@ export default class Server {
                     ...parsedDestination,
                     pathname: parsedNewUrl.pathname,
                     hash: parsedNewUrl.hash,
+                    search: undefined,
                   })
                 )
-                res.statusCode = route.statusCode || DEFAULT_REDIRECT_STATUS
+                res.statusCode =
+                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
                 res.end()
                 return {
                   finished: true,
                 }
+              } else {
+                ;(_req as any)._nextDidRewrite = true
               }
 
               return {
                 finished: false,
                 pathname: newUrl,
+                query: parsedDestination.query,
               }
             },
           } as Route
         })
       )
-      // make sure previous routes can still be rewritten to by
-      // custom routes e.g. /docs/_next/static -> /_next/static
-      routes.push(...topRoutes)
     }
 
-    routes.push({
-      match: route('/api/:path*'),
+    const catchAllRoute: Route = {
+      match: route('/:path*'),
       type: 'route',
-      name: 'API Route',
+      name: 'Catchall render',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname } = parsedUrl
-        await this.handleApiRequest(
-          req as NextApiRequest,
-          res as NextApiResponse,
-          pathname!
-        )
+        const { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // Used in development to check public directory paths
+        if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
+          return {
+            finished: true,
+          }
+        }
+
+        if (params?.path?.[0] === 'api') {
+          const handled = await this.handleApiRequest(
+            req as NextApiRequest,
+            res as NextApiResponse,
+            pathname!
+          )
+          if (handled) {
+            return { finished: true }
+          }
+        }
+
+        await this.render(req, res, pathname, query, parsedUrl)
         return {
           finished: true,
         }
       },
-    })
+    }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
@@ -479,32 +557,16 @@ export default class Server {
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      routes.push({
-        match: route('/:path*'),
-        type: 'route',
-        name: 'Catchall render',
-        fn: async (req, res, params, parsedUrl) => {
-          const { pathname, query } = parsedUrl
-          if (!pathname) {
-            throw new Error('pathname is undefined')
-          }
-
-          // Used in development to check public directory paths
-          if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
-            return {
-              finished: true,
-            }
-          }
-
-          await this.render(req, res, pathname, query, parsedUrl)
-          return {
-            finished: true,
-          }
-        },
-      })
+      routes.push(catchAllRoute)
     }
 
-    return routes
+    return {
+      routes,
+      fsRoutes,
+      catchAllRoute,
+      dynamicRoutes: this.dynamicRoutes,
+      pageChecker: this.hasPage.bind(this),
+    }
   }
 
   private async getPagePath(pathname: string) {
@@ -564,7 +626,7 @@ export default class Server {
     }
 
     if (!pageFound) {
-      return this.render404(req, res)
+      return false
     }
     // Make sure the page is built before getting the path
     // or else it won't be in the manifest yet
@@ -575,11 +637,13 @@ export default class Server {
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
-        return pageModule.default(req, res)
+        await pageModule.default(req, res)
+        return true
       }
     }
 
     await apiResolver(req, res, params, pageModule, this.onErrorMiddleware)
+    return true
   }
 
   protected generatePublicRoutes(): Route[] {
@@ -677,13 +741,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {
-      dataOnly:
-        (this.renderOpts.ampBindInitData && Boolean(query.dataOnly)) ||
-        (req.headers &&
-          (req.headers.accept || '').indexOf('application/amp.bind+json') !==
-            -1),
-    })
+    const html = await this.renderToHTML(req, res, pathname, query, {})
     // Request was ended by the user
     if (html === null) {
       return
@@ -769,6 +827,7 @@ export default class Server {
         const curUrl = parseUrl(req.url!, true)
         req.url = formatUrl({
           ...curUrl,
+          search: undefined,
           query: {
             ...curUrl.query,
             ...query,
@@ -885,12 +944,10 @@ export default class Server {
     query: ParsedUrlQuery = {},
     {
       amphtml,
-      dataOnly,
       hasAmp,
     }: {
       amphtml?: boolean
       hasAmp?: boolean
-      dataOnly?: boolean
     } = {}
   ): Promise<string | null> {
     return this.findPageComponents(pathname, query)
@@ -904,7 +961,7 @@ export default class Server {
               ? { _nextSprData: query._nextSprData }
               : query,
             result,
-            { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+            { ...this.renderOpts, amphtml, hasAmp }
           )
         },
         err => {
@@ -936,7 +993,6 @@ export default class Server {
                     ...this.renderOpts,
                     amphtml,
                     hasAmp,
-                    dataOnly,
                   }
                 )
               }

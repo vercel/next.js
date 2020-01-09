@@ -2,7 +2,7 @@ import { getRouteRegex } from './route-regex'
 
 export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
   const { re, groups } = routeRegex
-  return (pathname: string | undefined) => {
+  return (pathname: string | null | undefined) => {
     const routeMatch = re.exec(pathname!)
     if (!routeMatch) {
       return false

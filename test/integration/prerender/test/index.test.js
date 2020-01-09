@@ -110,7 +110,7 @@ const expectedManifestRoutes = () => ({
   },
 })
 
-const navigateTest = () => {
+const navigateTest = (dev = false) => {
   it('should navigate between pages successfully', async () => {
     const toBuild = [
       '/',
@@ -133,18 +133,52 @@ const navigateTest = () => {
     await waitFor(2500)
 
     // go to /another
-    await browser.elementByCss('#another').click()
-    await browser.waitForElementByCss('#home')
-    text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
+    async function goFromHomeToAnother() {
+      await browser.elementByCss('#another').click()
+      await browser.waitForElementByCss('#home')
+      text = await browser.elementByCss('p').text()
+      expect(text).toMatch(/hello.*?world/)
+    }
+    await goFromHomeToAnother()
 
     // go to /
-    await browser.eval('window.didTransition = 1')
-    await browser.elementByCss('#home').click()
-    await browser.waitForElementByCss('#another')
-    text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
-    expect(await browser.eval('window.didTransition')).toBe(1)
+    async function goFromAnotherToHome() {
+      await browser.eval('window.didTransition = 1')
+      await browser.elementByCss('#home').click()
+      await browser.waitForElementByCss('#another')
+      text = await browser.elementByCss('p').text()
+      expect(text).toMatch(/hello.*?world/)
+      expect(await browser.eval('window.didTransition')).toBe(1)
+    }
+    await goFromAnotherToHome()
+
+    // Client-side SSG data caching test
+    // eslint-disable-next-line no-lone-blocks
+    {
+      // Let revalidation period lapse
+      await waitFor(2000)
+
+      // Trigger revalidation (visit page)
+      await goFromHomeToAnother()
+      const snapTime = await browser.elementByCss('#anotherTime').text()
+
+      // Wait for revalidation to finish
+      await waitFor(2000)
+
+      // Re-visit page
+      await goFromAnotherToHome()
+      await goFromHomeToAnother()
+
+      const nextTime = await browser.elementByCss('#anotherTime').text()
+      if (dev) {
+        expect(snapTime).not.toMatch(nextTime)
+      } else {
+        expect(snapTime).toMatch(nextTime)
+      }
+
+      // Reset to Home for next test
+      await goFromAnotherToHome()
+    }
 
     // go to /something
     await browser.elementByCss('#something').click()
@@ -180,7 +214,7 @@ const navigateTest = () => {
 }
 
 const runTests = (dev = false) => {
-  navigateTest()
+  navigateTest(dev)
 
   it('should SSR normal page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
@@ -266,7 +300,7 @@ const runTests = (dev = false) => {
     const browser = await webdriver(appPort, '/')
     await waitFor(500)
     await browser.eval('window.beforeClick = true')
-    await browser.click('#broken-post')
+    await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
@@ -306,6 +340,23 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
+
+    it('should not re-call getStaticProps when updating query', async () => {
+      const browser = await webdriver(appPort, '/something?hello=world')
+      await waitFor(2000)
+
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({ hello: 'world' })
+
+      const {
+        props: {
+          pageProps: { random: initialRandom },
+        },
+      } = await browser.eval('window.__NEXT_DATA__')
+
+      const curRandom = await browser.elementByCss('#random').text()
+      expect(curRandom).toBe(initialRandom + '')
+    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -321,6 +372,17 @@ const runTests = (dev = false) => {
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
       const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+
+      Object.keys(manifest.dynamicRoutes).forEach(key => {
+        const item = manifest.dynamicRoutes[key]
+
+        if (item.dataRouteRegex) {
+          item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+        }
+        if (item.routeRegex) {
+          item.routeRegex = normalizeRegEx(item.routeRegex)
+        }
+      })
 
       expect(manifest.version).toBe(1)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
