@@ -13,7 +13,7 @@ describe('Analytics relayer', () => {
   beforeAll(async () => {
     appPort = await findPort()
     await nextBuild(appDir)
-    await nextStart(appDir, appPort)
+    server = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(server))
 
