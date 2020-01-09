@@ -27,9 +27,9 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
 
-      expect(stdout).not.toContain('/_document')
-      expect(stdout).not.toContain('/_app')
-      expect(stdout).not.toContain('/_error')
+      expect(stdout).not.toContain(' /_document')
+      expect(stdout).not.toContain(' /_app')
+      expect(stdout).not.toContain(' /_error')
 
       expect(stdout).toContain('○ /')
     })
@@ -53,10 +53,10 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
 
-      expect(stdout).not.toContain('/_document')
-      expect(stdout).not.toContain('/_error')
+      expect(stdout).not.toContain(' /_document')
+      expect(stdout).not.toContain(' /_error')
 
-      expect(stdout).toContain('/_app')
+      expect(stdout).toContain(' /_app')
       expect(stdout).toContain('○ /')
     })
   })
@@ -73,15 +73,15 @@ describe('Build Output', () => {
         stdout: true,
       })
 
-      expect(stdout).toMatch(/\/ [ 0-9.]* kB/)
+      expect(stdout).toMatch(/\/ [ 0-9.]* B [ 0-9.]* kB/)
       expect(stdout).toMatch(/\/amp .* AMP/)
       expect(stdout).toMatch(/\/hybrid [ 0-9.]* B/)
       expect(stdout).toMatch(/\+ shared by all [ 0-9.]* kB/)
       expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
 
-      expect(stdout).not.toContain('/_document')
-      expect(stdout).not.toContain('/_error')
+      expect(stdout).not.toContain(' /_document')
+      expect(stdout).not.toContain(' /_error')
 
       expect(stdout).toContain('○ /')
     })
@@ -105,10 +105,10 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/ runtime\/main\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.js [ 0-9. ]* kB/)
 
-      expect(stdout).not.toContain('/_document')
-      expect(stdout).not.toContain('/_app')
+      expect(stdout).not.toContain(' /_document')
+      expect(stdout).not.toContain(' /_app')
 
-      expect(stdout).toContain('/_error')
+      expect(stdout).toContain(' /_error')
       expect(stdout).toContain('○ /')
     })
   })
