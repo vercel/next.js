@@ -2,6 +2,7 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
+import AbortController from 'abort-controller'
 import {
   killApp,
   findPort,
@@ -302,6 +303,19 @@ function runTests(dev = false) {
     ).then(res => res.ok && res.json())
 
     expect(data).toEqual({ post: 'post-1', id: '1' })
+  })
+
+  it('should throw an error when the API resolves without ending the request', async () => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => {
+      controller.abort()
+    }, 2000)
+    const res = await fetchViaHTTP(appPort, '/api/test-no-end', undefined, {
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('Internal Server Error')
   })
 
   if (dev) {

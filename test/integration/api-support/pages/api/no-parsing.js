@@ -5,14 +5,17 @@ export const config = {
 }
 
 export default (req, res) => {
-  if (!req.body) {
-    let buffer = ''
-    req.on('data', chunk => {
-      buffer += chunk
-    })
+  return new Promise(resolve => {
+    if (!req.body) {
+      let buffer = ''
+      req.on('data', chunk => {
+        buffer += chunk
+      })
 
-    req.on('end', () => {
-      res.status(200).json(JSON.parse(Buffer.from(buffer).toString()))
-    })
-  }
+      req.on('end', () => {
+        res.status(200).json(JSON.parse(Buffer.from(buffer).toString()))
+        resolve()
+      })
+    }
+  })
 }
