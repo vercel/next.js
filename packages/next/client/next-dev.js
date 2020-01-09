@@ -1,3 +1,4 @@
+/* globals __REPLACE_NOOP_IMPORT__ */
 import initNext, * as next from './'
 import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
@@ -10,7 +11,8 @@ import { displayContent } from './dev/fouc'
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
 // The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
 // The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
-// REPLACE_NOOP_IMPORT
+// eslint-disable-next-line no-unused-expressions
+__REPLACE_NOOP_IMPORT__
 
 // Support EventSource on Internet Explorer 11
 if (!window.EventSource) {

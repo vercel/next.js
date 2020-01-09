@@ -10,6 +10,7 @@ module.exports = function(task) {
     const options = {
       ...babelOpts,
       compact: true,
+      comments: false,
       babelrc: false,
       configFile: false,
       filename: file.base,
@@ -30,7 +31,7 @@ module.exports = function(task) {
     // Workaround for noop.js loading
     if (file.base === 'next-dev.js') {
       output.code = output.code.replace(
-        '// REPLACE_NOOP_IMPORT',
+        '__REPLACE_NOOP_IMPORT__',
         `import('./dev/noop');`
       )
     }
