@@ -400,11 +400,15 @@ export class Head extends Component<
             <>
               <style
                 data-next-hide-fouc
+                data-ampdevmode={inAmpMode ? 'true' : undefined}
                 dangerouslySetInnerHTML={{
                   __html: `body{display:none}`,
                 }}
               />
-              <noscript data-next-hide-fouc>
+              <noscript
+                data-next-hide-fouc
+                data-ampdevmode={inAmpMode ? 'true' : undefined}
+              >
                 <style
                   dangerouslySetInnerHTML={{
                     __html: `body{display:block}`,
