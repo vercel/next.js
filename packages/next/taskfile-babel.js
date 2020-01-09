@@ -10,7 +10,8 @@ module.exports = function(task) {
     const options = {
       ...babelOpts,
       compact: true,
-      comments: false,
+      // Important to keep comments for /*#__PURE__*/ annotations
+      comments: true,
       babelrc: false,
       configFile: false,
       filename: file.base,
