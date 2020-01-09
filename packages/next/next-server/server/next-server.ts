@@ -660,7 +660,8 @@ export default class Server {
             this.serveStatic(
               req,
               res,
-              join(this.dir, 'public', path),
+              // we need to re-encode it since send decodes it
+              join(this.dir, 'public', encodeURIComponent(path)),
               parsedUrl
             )
             return {
