@@ -56,6 +56,26 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 
 Client-side navigations to a dynamic route can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes).
 
+### Catch all routes
+
+Dynamic routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
+
+- `pages/post/[...slug]` matches `/post/a`, but also `post/a/b`, `post/a/b/c` and so on.
+
+Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/post/a` will have the following `query` object:
+
+```json
+{ "slug": ["a"] }
+```
+
+And in the case of `post/a/b`, and any other matching path, new parameters will be added to the array, like so:
+
+```json
+{ "slug": ["a", "b"] }
+```
+
+> A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
+
 ## Caveats
 
 - Predefined routes take precedence over dynamic routes. Take a look at the following examples:

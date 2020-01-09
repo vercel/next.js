@@ -4,17 +4,11 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
-import {
-  loadGetInitialProps,
-  getURL,
-  SUPPORTS_PERFORMANCE_USER_TIMING,
-} from '../next-server/lib/utils'
+import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import { DataManagerContext } from '../next-server/lib/data-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
-import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
@@ -45,9 +39,6 @@ const {
   dynamicIds,
 } = data
 
-const d = JSON.parse(window.__NEXT_DATA__.dataManager)
-export const dataManager = new DataManager(d)
-
 const prefix = assetPrefix || ''
 
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
@@ -75,7 +66,7 @@ const appElement = document.getElementById('__next')
 let lastAppProps
 let webpackHMR
 export let router
-export let ErrorComponent
+let ErrorComponent
 let Component
 let App, onPerfEntry
 
@@ -192,7 +183,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err, emitter })
+      render({ App, Component, props, err })
     },
   })
 
@@ -208,7 +199,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       })
   }
 
-  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  const renderCtx = { App, Component, props, err: initialErr }
   render(renderCtx)
 
   return emitter
@@ -277,7 +268,7 @@ let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
 function renderReactElement(reactEl, domEl) {
   // mark start of hydrate/render
-  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
+  if (ST) {
     performance.mark('beforeRender')
   }
 
@@ -302,7 +293,7 @@ function renderReactElement(reactEl, domEl) {
     }
   }
 
-  if (onPerfEntry && SUPPORTS_PERFORMANCE_USER_TIMING) {
+  if (onPerfEntry && ST) {
     if (!(PerformanceObserver in window)) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
@@ -317,7 +308,7 @@ function renderReactElement(reactEl, domEl) {
 }
 
 function markHydrateComplete() {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+  if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
 
@@ -335,7 +326,7 @@ function markHydrateComplete() {
 }
 
 function markRenderComplete() {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+  if (!ST) return
 
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
@@ -384,11 +375,9 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <DataManagerContext.Provider value={dataManager}>
-          <HeadManagerContext.Provider value={headManager.updateHead}>
-            {children}
-          </HeadManagerContext.Provider>
-        </DataManagerContext.Provider>
+        <HeadManagerContext.Provider value={headManager.updateHead}>
+          {children}
+        </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
   )

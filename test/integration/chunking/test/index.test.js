@@ -1,12 +1,14 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
+import express from 'express'
+import http from 'http'
 import {
   nextBuild,
-  findPort,
   waitFor,
-  nextStart,
-  killApp,
+  nextServer,
+  promiseCall,
+  stopApp,
 } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
 import cheerio from 'cheerio'
@@ -107,18 +109,52 @@ describe('Chunking', () => {
     expect(misplacedReactDom).toBe(false)
   })
 
-  it('should hydrate with granularChunks config', async () => {
-    const appPort = await findPort()
-    const app = await nextStart(appDir, appPort)
+  describe('Serving', () => {
+    let server
+    let appPort
 
-    const browser = await webdriver(appPort, '/page2')
-    await waitFor(1000)
-    const text = await browser.elementByCss('#padded-str').text()
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const app = nextServer({
+        dir: join(__dirname, '../'),
+        dev: false,
+        quiet: true,
+      })
 
-    expect(text).toBe('__rad__')
+      const expressApp = express()
+      await app.prepare()
+      expressApp.use('/foo/_next', express.static(join(__dirname, '../.next')))
+      expressApp.use(app.getRequestHandler())
+      server = http.createServer(expressApp)
+      await promiseCall(server, 'listen')
+      appPort = server.address().port
+    })
 
-    await browser.close()
+    afterAll(() => stopApp(server))
 
-    await killApp(app)
+    it('should hydrate with granularChunks config', async () => {
+      const browser = await webdriver(appPort, '/page2')
+      await waitFor(1000)
+      const text = await browser.elementByCss('#padded-str').text()
+
+      expect(text).toBe('__rad__')
+
+      await browser.close()
+    })
+
+    it('should load chunks when navigating', async () => {
+      const browser = await webdriver(appPort, '/page3')
+      await waitFor(1000)
+      const text = await browser
+        .elementByCss('#page2-link')
+        .click()
+        .waitForElementByCss('#padded-str')
+        .elementByCss('#padded-str')
+        .text()
+
+      expect(text).toBe('__rad__')
+
+      await browser.close()
+    })
   })
 })

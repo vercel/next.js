@@ -56,7 +56,6 @@ export type ComponentsEnhancer =
 export type RenderPageResult = {
   html: string
   head?: Array<JSX.Element | null>
-  dataOnly?: true
 }
 
 export type RenderPage = (
@@ -69,7 +68,6 @@ export type BaseContext = {
 }
 
 export type NEXT_DATA = {
-  dataManager: string
   props: any
   page: string
   query: ParsedUrlQuery
@@ -247,7 +245,7 @@ export async function loadGetInitialProps<
   P = {}
 >(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
-    if (App.prototype && App.prototype.getInitialProps) {
+    if (App.prototype?.getInitialProps) {
       const message = `"${getDisplayName(
         App
       )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
@@ -327,8 +325,8 @@ export function formatWithValidation(
   return format(url as any, options)
 }
 
-export const SUPPORTS_PERFORMANCE = typeof performance !== 'undefined'
-export const SUPPORTS_PERFORMANCE_USER_TIMING =
-  SUPPORTS_PERFORMANCE &&
+export const SP = typeof performance !== 'undefined'
+export const ST =
+  SP &&
   typeof performance.mark === 'function' &&
   typeof performance.measure === 'function'

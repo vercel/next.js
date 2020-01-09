@@ -203,8 +203,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript && config.typescript.ignoreDevErrors
-    : config.typescript && config.typescript.ignoreBuildErrors
+    ? config.typescript?.ignoreDevErrors
+    : config.typescript?.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -445,21 +445,6 @@ export default async function getBaseWebpackConfig(
             try {
               res = resolveRequest(request, `${context}/`)
             } catch (err) {
-              // This is a special case for the Next.js data experiment. This
-              // will be removed in the future.
-              // We're telling webpack to externalize a package that doesn't
-              // exist because we know it won't ever be used at runtime.
-              if (
-                request === 'react-ssr-prepass' &&
-                !config.experimental.ampBindInitData
-              ) {
-                if (
-                  context.replace(/\\/g, '/').includes('next-server/server')
-                ) {
-                  return callback(undefined, `commonjs ${request}`)
-                }
-              }
-
               // If the request cannot be resolved, we need to tell webpack to
               // "bundle" it so that webpack shows an error (that it cannot be
               // resolved).
@@ -491,7 +476,7 @@ export default async function getBaseWebpackConfig(
             // Default pages have to be transpiled
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-              (res.match(/next[/\\]dist[/\\]/) ||
+              (res.match(/[/\\]next[/\\]dist[/\\]/) ||
                 res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
                 res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
             ) {
@@ -520,19 +505,6 @@ export default async function getBaseWebpackConfig(
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
           '@ampproject/toolbox-optimizer', // except this one
-          (context, request, callback) => {
-            if (
-              request === 'react-ssr-prepass' &&
-              !config.experimental.ampBindInitData
-            ) {
-              // if it's the Next.js' require mark it as external
-              // since it's not used
-              if (context.replace(/\\/g, '/').includes('next-server/server')) {
-                return callback(undefined, `commonjs ${request}`)
-              }
-            }
-            return callback()
-          },
         ],
     optimization: {
       checkWasmTypes: false,
@@ -701,9 +673,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
-          config.experimental.deferScripts
-        ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
@@ -868,7 +837,6 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
-    hasExperimentalData: !!config.experimental.ampBindInitData,
     assetPrefix: config.assetPrefix || '',
   })
 
@@ -949,7 +917,7 @@ export default async function getBaseWebpackConfig(
         )
       }
     } else {
-      await __overrideCssConfiguration(dir, webpackConfig)
+      await __overrideCssConfiguration(dir, !dev, webpackConfig)
     }
   }
 

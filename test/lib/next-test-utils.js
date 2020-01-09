@@ -271,7 +271,7 @@ export async function stopApp(server) {
   await promiseCall(server, 'close')
 }
 
-function promiseCall(obj, method, ...args) {
+export function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,

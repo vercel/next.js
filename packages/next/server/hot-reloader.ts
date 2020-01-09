@@ -198,7 +198,7 @@ export default class HotReloader {
         // Make sure to 404 for AMP first pages
         try {
           const mod = require(bundlePath)
-          if (mod && mod.config && mod.config.amp === true) {
+          if (mod?.config?.amp === true) {
             res.statusCode = 404
             res.end()
             return { finished: true }
