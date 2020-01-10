@@ -659,7 +659,7 @@ export default class Server {
           const path = `/${(params.path || []).join('/')}`
 
           if (publicFiles.has(path)) {
-            this.serveStatic(
+            await this.serveStatic(
               req,
               res,
               // we need to re-encode it since send decodes it
