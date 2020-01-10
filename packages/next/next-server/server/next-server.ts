@@ -485,17 +485,22 @@ export default class Server {
 
               if (route.type === 'redirect') {
                 const parsedNewUrl = parseUrl(newUrl)
-                res.setHeader(
-                  'Location',
-                  formatUrl({
-                    ...parsedDestination,
-                    pathname: parsedNewUrl.pathname,
-                    hash: parsedNewUrl.hash,
-                    search: undefined,
-                  })
-                )
-                const redir = route as Redirect
-                res.statusCode = getRedirectStatus(redir)
+                const updatedDestination = formatUrl({
+                  ...parsedDestination,
+                  pathname: parsedNewUrl.pathname,
+                  hash: parsedNewUrl.hash,
+                  search: undefined,
+                })
+
+                res.setHeader('Location', updatedDestination)
+                res.statusCode = getRedirectStatus(route as Redirect)
+
+                // Since IE11 doesn't support the 308 header add backwards
+                // compatibility using refresh header
+                if (res.statusCode === 308) {
+                  res.setHeader('Refresh', `0;url=${updatedDestination}`)
+                }
+
                 res.end()
                 return {
                   finished: true,
