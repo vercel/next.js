@@ -65,7 +65,7 @@ const runTests = (isDev = false) => {
     expect(res3location).toBe('/')
   })
 
-  it('should redirect successfully with default statusCode', async () => {
+  it('should redirect successfully with permanent: false', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual',
     })
@@ -270,6 +270,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
             regex: normalizeRegEx('^\\/hello(?:\\/([^\\/]+?))\\/another$'),
             regexKeys: ['id'],
+            permanent: false,
           },
           {
             source: '/redirect1',
@@ -277,6 +278,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
             regex: normalizeRegEx('^\\/redirect1$'),
             regexKeys: [],
+            permanent: false,
           },
           {
             source: '/redirect2',
@@ -298,6 +300,7 @@ const runTests = (isDev = false) => {
             statusCode: 308,
             regex: normalizeRegEx('^\\/redirect4$'),
             regexKeys: [],
+            permanent: true,
           },
           {
             source: '/redir-chain1',
@@ -326,6 +329,7 @@ const runTests = (isDev = false) => {
             regexKeys: [],
             source: '/to-external',
             statusCode: 307,
+            permanent: false,
           },
           {
             destination: '/with-params?first=:section&second=:name',
@@ -335,6 +339,7 @@ const runTests = (isDev = false) => {
             regexKeys: ['section', 'name'],
             source: '/query-redirect/:section/:name',
             statusCode: 307,
+            permanent: false,
           },
         ],
         headers: [

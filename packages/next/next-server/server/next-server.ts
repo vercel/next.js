@@ -17,7 +17,6 @@ import {
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -50,6 +49,7 @@ import {
   Rewrite,
   RouteType,
   Header,
+  getRedirectStatus,
 } from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -494,8 +494,8 @@ export default class Server {
                     search: undefined,
                   })
                 )
-                res.statusCode =
-                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
+                const redir = route as Redirect
+                res.statusCode = getRedirectStatus(redir)
                 res.end()
                 return {
                   finished: true,
