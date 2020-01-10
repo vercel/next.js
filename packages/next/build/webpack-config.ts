@@ -865,18 +865,31 @@ export default async function getBaseWebpackConfig(
       return false
     }
 
-    const fileName = '/tmp/test.css'
+    const fileNames = [
+      '/tmp/test.css',
+      '/tmp/test.scss',
+      '/tmp/test.sass',
+      '/tmp/test.less',
+      '/tmp/test.styl',
+    ]
 
-    if (rule instanceof RegExp && rule.test(fileName)) {
+    if (rule instanceof RegExp && fileNames.some(input => rule.test(input))) {
       return true
     }
 
     if (typeof rule === 'function') {
-      try {
-        if (rule(fileName)) {
-          return true
-        }
-      } catch (_) {}
+      if (
+        fileNames.some(input => {
+          try {
+            if (rule(input)) {
+              return true
+            }
+          } catch (_) {}
+          return false
+        })
+      ) {
+        return true
+      }
     }
 
     if (Array.isArray(rule) && rule.some(canMatchCss)) {
@@ -888,10 +901,9 @@ export default async function getBaseWebpackConfig(
 
   if (config.experimental.css) {
     const hasUserCssConfig =
-      webpackConfig.module &&
-      webpackConfig.module.rules.some(
+      webpackConfig.module?.rules.some(
         rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      )
+      ) ?? false
 
     if (hasUserCssConfig) {
       if (webpackConfig.module?.rules.length) {
