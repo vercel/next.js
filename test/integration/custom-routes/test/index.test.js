@@ -235,6 +235,14 @@ const runTests = (isDev = false) => {
     expect(await res.text()).toContain('ZEIT, Inc')
   })
 
+  it('should add refresh header for 308 redirect', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(308)
+    expect(res.headers.get('refresh')).toBe(`0;url=/`)
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(

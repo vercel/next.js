@@ -496,6 +496,13 @@ export default class Server {
                 res.setHeader('Location', updatedDestination)
                 res.statusCode =
                   (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
+
+                // Since IE11 doesn't support the 308 header add backwards
+                // compatibility using refresh header
+                if (res.statusCode === 308) {
+                  res.setHeader('Refresh', `0;url=${updatedDestination}`)
+                }
+
                 res.end()
                 return {
                   finished: true,
@@ -510,7 +517,7 @@ export default class Server {
                   })
                   proxy.web(req, res)
 
-                  proxy.on('error', err => {
+                  proxy.on('error', (err: Error) => {
                     console.error(
                       `Error occurred proxying ${updatedDestination}`,
                       err
