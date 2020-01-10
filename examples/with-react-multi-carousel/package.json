@@ -15,7 +15,7 @@
     "@material-ui/icons": "^3.0.2",
     "jss": "^9.8.7",
     "mobile-detect": "^1.4.3",
-    "next": "9.1.8-canary.11",
+    "next": "^9.1.8-canary.11",
     "react": "^16.8.3",
     "react-dom": "^16.8.3",
     "react-jss": "^8.6.1",
