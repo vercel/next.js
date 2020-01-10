@@ -45,4 +45,4 @@ now
 
 ## The idea behind the example
 
-This example demonstrates how to use the [next-css plugin](https://github.com/zeit/next-plugins/tree/master/packages/next-css) It includes patterns for with and without CSS Modules, with PostCSS and with additional webpack configurations on top of the next-css plugin.
+This example demonstrates how to use Next.js' built-in CSS imports and CSS modules support.
