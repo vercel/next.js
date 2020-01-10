@@ -55,6 +55,10 @@ module.exports = {
           source: '/hidden/_next/:path*',
           destination: '/_next/:path*',
         },
+        {
+          source: '/proxy-me',
+          destination: 'https://zeit.co',
+        },
       ]
     },
     async redirects() {

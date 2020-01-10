@@ -229,6 +229,12 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should support proxying to external site', async () => {
+    const res = await fetchViaHTTP(appPort, '/proxy-me')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('ZEIT, Inc')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -453,6 +459,12 @@ const runTests = (isDev = false) => {
             ),
             regexKeys: ['path'],
             source: '/hidden/_next/:path*',
+          },
+          {
+            destination: 'https://zeit.co',
+            regex: normalizeRegEx('^\\/proxy-me$'),
+            regexKeys: [],
+            source: '/proxy-me',
           },
         ],
         dynamicRoutes: [

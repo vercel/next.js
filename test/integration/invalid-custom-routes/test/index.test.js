@@ -121,7 +121,7 @@ const invalidRewriteAssertions = (stderr = '') => {
   )
 
   expect(stderr).toContain(
-    `\`destination\` does not start with / for route {"source":"/hello","destination":"another"}`
+    `\`destination\` does not start with \`/\`, \`http://\`, or \`https://\` for route {"source":"/hello","destination":"another"}`
   )
 
   expect(stderr).toContain(
