@@ -252,6 +252,6 @@ export default async function({
       `\nError occurred prerendering page "${path}" https://err.sh/zeit/next.js/prerender-error:`,
       error
     )
-    return { ...results, error: true }
+    return { ...results, error: true, path }
   }
 }

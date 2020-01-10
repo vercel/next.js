@@ -309,6 +309,7 @@ export default async function(
   worker.getStderr().pipe(process.stderr)
 
   let renderError = false
+  const errorPaths: string[] = []
 
   await Promise.all(
     filteredPaths.map(async path => {
@@ -334,6 +335,7 @@ export default async function(
           (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
+      if (!!result.error) errorPaths.push(result.path)
 
       if (
         options.buildExport &&
@@ -380,7 +382,11 @@ export default async function(
   }
 
   if (renderError) {
-    throw new Error(`Export encountered errors`)
+    throw new Error(
+      `Export encountered errors on following paths:\n\t${errorPaths
+        .sort()
+        .join('\n\t')}`
+    )
   }
   // Add an empty line to the console for the better readability.
   log('')
