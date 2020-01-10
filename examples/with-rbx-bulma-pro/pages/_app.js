@@ -1,4 +1,4 @@
-import '../styles/index.css'
+import 'bulma-pro/css/bulma.css'
 
 function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
