@@ -20,11 +20,5 @@
     "react-dom": "^16.8.3",
     "react-jss": "^8.6.1",
     "react-multi-carousel": "^1.2.5"
-  },
-  "devDependencies": {
-    "file-loader": "^3.0.1",
-    "next-compose-plugins": "^2.1.1",
-    "next-fonts": "^0.17.0",
-    "url-loader": "^1.1.2"
   }
 }
