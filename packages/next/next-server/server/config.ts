@@ -41,7 +41,7 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    css: false,
+    css: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -107,7 +107,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (result.experimental) {
     if (result.experimental.css) {
       // The new CSS support requires granular chunks be enabled.
-      result.experimental.granularChunks = true
+      if (result.experimental.granularChunks !== true) {
+        throw new Error(
+          `The new CSS support requires granular chunks be enabled.`
+        )
+      }
     }
 
     if (typeof result.experimental.basePath !== 'string') {
@@ -172,7 +176,7 @@ export default function loadConfig(
   })
 
   // If config file was found
-  if (path && path.length) {
+  if (path?.length) {
     const userConfigModule = require(path)
     const userConfig = normalizeConfig(
       phase,
@@ -192,7 +196,7 @@ export default function loadConfig(
       )
     }
 
-    if (userConfig.amp && userConfig.amp.canonicalBase) {
+    if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
@@ -216,8 +220,7 @@ export default function loadConfig(
     }
 
     if (
-      userConfig.experimental &&
-      userConfig.experimental.reactMode &&
+      userConfig.experimental?.reactMode &&
       !reactModes.includes(userConfig.experimental.reactMode)
     ) {
       throw new Error(
@@ -239,7 +242,7 @@ export default function loadConfig(
       ],
       { cwd: dir }
     )
-    if (nonJsPath && nonJsPath.length) {
+    if (nonJsPath?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath

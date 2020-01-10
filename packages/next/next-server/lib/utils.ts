@@ -245,7 +245,7 @@ export async function loadGetInitialProps<
   P = {}
 >(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
-    if (App.prototype && App.prototype.getInitialProps) {
+    if (App.prototype?.getInitialProps) {
       const message = `"${getDisplayName(
         App
       )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`

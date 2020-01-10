@@ -109,7 +109,7 @@ export default class NextEsmPlugin implements Plugin {
         ruleLoader = ruleLoader.loader
       }
       if (
-        (ruleUse && ruleUse.loader && predicate(ruleUse.loader)) ||
+        (ruleUse?.loader && predicate(ruleUse.loader)) ||
         (ruleLoader && predicate(ruleLoader as string))
       ) {
         results.push(ruleUse || rule)
@@ -228,7 +228,7 @@ export default class NextEsmPlugin implements Plugin {
     compilation.chunks.forEach((chunk: compilation.Chunk) => {
       const childChunk = childChunkFileMap[chunk.name]
 
-      if (childChunk && childChunk.files) {
+      if (childChunk?.files) {
         delete childChunkFileMap[chunk.name]
         chunk.files.push(
           ...childChunk.files.filter((v: any) => !chunk.files.includes(v))

@@ -497,8 +497,8 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 `getInitialProps` receives a context object with the following properties:
 
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
+- `pathname` - Current route. That is the path of the page in `/pages`
+- `query` - Query string section of URL parsed as an object
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
@@ -807,8 +807,7 @@ See [Disabling File-System Routing](#disabling-file-system-routing).
 
 Above `Router` object comes with the following API:
 
-- `route` - `String` of the current route
-- `pathname` - `String` of the current path excluding the query string
+- `pathname` - `String` of the current route. That is the path of the page in `/pages`
 - `query` - `Object` with the parsed query string. Defaults to `{}`.
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
