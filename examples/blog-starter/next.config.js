@@ -15,28 +15,14 @@ module.exports = withMDX({
       module: 'empty',
     }
 
-    config.module.rules.push(
-      {
-        test: /\.css$/,
-        use: [
-          defaultLoaders.babel,
-          {
-            loader: require('styled-jsx/webpack').loader,
-            options: {
-              type: 'global',
-            },
-          },
-        ],
-      },
-      {
-        test: /\.svg$/,
-        use: [
-          {
-            loader: '@svgr/webpack',
-          },
-        ],
-      }
-    )
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: [
+        {
+          loader: '@svgr/webpack',
+        },
+      ],
+    })
 
     if (isServer && !dev) {
       const originalEntry = config.entry
