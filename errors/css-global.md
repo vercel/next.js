@@ -9,3 +9,14 @@ Global CSS cannot be used in files other than your [Custom `<App>`](https://next
 #### Possible Ways to Fix It
 
 Relocate all Global CSS imports to your [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app).
+
+#### Example
+
+```jsx
+// pages/_app.js
+import '../styles.css'
+
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
