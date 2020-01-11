@@ -15,7 +15,7 @@ To override the default `App`, create the file `./pages/_app.js` as shown below:
 
 ```jsx
 // Only uncomment this import and the method below if you have blocking data requirements for
-// every single page in your application. `getInitialProps` This disables the ability to
+// every single page in your application. `getInitialProps` disables the ability to
 // perform automatic static optimization, causing every page in your app to
 // be server-side rendered.
 //
