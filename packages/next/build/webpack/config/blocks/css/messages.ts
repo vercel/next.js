@@ -19,8 +19,9 @@ export function getGlobalModuleImportError() {
 }
 
 export function getLocalModuleImportError() {
-  // TODO: Read more link
   return `CSS Modules ${chalk.bold(
     'cannot'
-  )} be imported from within ${chalk.bold('node_modules')}.`
+  )} be imported from within ${chalk.bold(
+    'node_modules'
+  )}.\nRead more: https://err.sh/next.js/css-modules-npm`
 }
