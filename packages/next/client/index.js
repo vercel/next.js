@@ -294,11 +294,15 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!(PerformanceObserver in window)) {
+    if (!('PerformanceObserver' in window)) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
       })
     } else {
+      performance.getEntriesByType('paint').forEach(onPerfEntry)
+
+      // Start an observer to catch any paint metrics which may fire _after_
+      // the load event is fired on the window
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(onPerfEntry)
       })

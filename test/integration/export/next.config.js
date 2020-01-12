@@ -15,6 +15,7 @@ module.exports = phase => {
         '/': { page: '/' },
         '/about': { page: '/about' },
         '/button-link': { page: '/button-link' },
+        '/hash-link': { page: '/hash-link' },
         '/get-initial-props-with-no-query': {
           page: '/get-initial-props-with-no-query',
         },

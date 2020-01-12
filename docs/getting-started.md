@@ -23,7 +23,7 @@ Install `next`, `react` and `react-dom` in your project:
 npm install --save next react react-dom
 ```
 
-<br/><br />Open `package.json` and add the following `scripts`:
+Open `package.json` and add the following `scripts`:
 
 ```json
 "scripts": {
@@ -39,13 +39,9 @@ These scripts refer to the different stages of developing an application:
 - `build` - Runs `next build` which builds the application for production usage
 - `start` - Runs `next start` which starts a Next.js production server
 
-<br/>
-
 Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory.
 
 Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even add dynamic route parameters with the filename.
-
-<br/>
 
 Create a `pages` directory inside your project.
 
@@ -59,13 +55,9 @@ function HomePage() {
 export default HomePage
 ```
 
-<br/>
-
 To start developing your application run `npm run dev`. This starts the development server on `http://localhost:3000`.
 
 Visit `http://localhost:3000` to view your application.
-
-<br/>
 
 So far, we get:
 

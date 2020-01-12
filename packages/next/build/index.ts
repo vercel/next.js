@@ -420,7 +420,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await Promise.all(
     pageKeys.map(async page => {
       const actualPage = page === '/' ? '/index' : page
-      const size = await getPageSizeInKb(
+      const [selfSize, allSize] = await getPageSizeInKb(
         actualPage,
         distDir,
         buildId,
@@ -507,7 +507,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       pageInfos.set(page, {
-        size,
+        size: selfSize,
+        totalSize: allSize,
         serverBundle,
         static: isStatic,
         isSsg,
@@ -753,6 +754,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isLikeServerless,
     {
       distPath: distDir,
+      buildId: buildId,
       pagesDir,
       pageExtensions: config.pageExtensions,
       buildManifest,
