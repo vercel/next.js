@@ -154,17 +154,25 @@ export class NextScript extends Component {
           async
         />
       )
-    })
+    }).filter(Boolean)
   }
 
   render () {
     const { __NEXT_DATA__ } = this.context._documentProps
+    const { pathname } = __NEXT_DATA__
+
+    const scripts = this.getScripts()
+    if (!scripts.length && pathname !== '/_error') {
+      throw new Error(
+        `No scripts found for ${pathname}. Please check path and SKIP_LEGACY filter`
+      )
+    }
 
     return <Fragment>
       <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `module={};__NEXT_DATA__=${htmlescape(__NEXT_DATA__)}`
       }} />
-      {this.getScripts()}
+      {scripts}
     </Fragment>
   }
 }
