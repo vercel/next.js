@@ -8,6 +8,19 @@ const handler = (req, res) => {
 
   const { token } = req.body
 
+  // Here, we decode the user's Firebase token and store it in a cookie, so
+  // user data only exists on the client side. Use express-session (or similar)
+  // to store the session data server-side.
+  // An alternative approach is to use Firebase's `createSessionCookie`. See:
+  // https://firebase.google.com/docs/auth/admin/manage-cookies
+  // Firebase docs:
+  //   "This is a low overhead operation. The public certificates are initially
+  //    queried and cached until they expire. Session cookie verification can be
+  //    done with the cached public certificates without any additional network
+  //    requests."
+  // However, in a serverless environment, we shouldn't rely on caching, so
+  // it's possible Firebase's `verifySessionCookie` will make frequent network
+  // requests in a serverless context.
   return verifyIdToken(token)
     .then(decodedToken => {
       req.session.decodedToken = decodedToken
