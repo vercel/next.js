@@ -2,6 +2,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { get } from 'lodash/object'
 import Link from 'next/link'
+import Router from 'next/router'
 import withAuthUserInfo from '../utils/pageWrappers/withAuthUserInfo'
 import logout from '../utils/auth/logout'
 
@@ -32,7 +33,14 @@ const Index = props => {
               textDecoration: 'underline',
               cursor: 'pointer',
             }}
-            onClick={logout}
+            onClick={async () => {
+              try {
+                await logout()
+                Router.push('/auth')
+              } catch (e) {
+                console.error(e)
+              }
+            }}
           >
             Log out
           </p>
