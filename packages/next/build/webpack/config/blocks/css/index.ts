@@ -2,7 +2,7 @@ import curry from 'lodash.curry'
 import path from 'path'
 import webpack, { Configuration, RuleSetRule } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
-import { loader } from '../../helpers'
+import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 import {
@@ -322,6 +322,27 @@ export const css = curry(async function css(
           },
         ],
       })
+    )
+  }
+
+  if (ctx.isClient && ctx.isProduction) {
+    // Extract CSS as CSS file(s) in the client-side production bundle.
+    fns.push(
+      plugin(
+        new MiniCssExtractPlugin({
+          filename: 'static/css/[contenthash].css',
+          chunkFilename: 'static/css/[contenthash].css',
+          // Next.js guarantees that CSS order doesn't matter, due to imposed
+          // restrictions:
+          // 1. Global CSS can only be defined in a single entrypoint (_app)
+          // 2. CSS Modules generate scoped class names by default and cannot
+          //    include Global CSS (:global() selector).
+          //
+          // If this warning were to trigger, it'd be unactionable by the user,
+          // but also not valid -- so we disable it.
+          ignoreOrder: true,
+        })
+      )
     )
   }
 
