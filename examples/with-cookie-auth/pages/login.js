@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import fetch from 'isomorphic-unfetch'
-import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
 const Login = () => {
@@ -46,7 +45,7 @@ const Login = () => {
   }
 
   return (
-    <Layout>
+    <>
       <div className="login">
         <form onSubmit={handleSubmit}>
           <label htmlFor="username">GitHub username</label>
@@ -98,7 +97,7 @@ const Login = () => {
           color: brown;
         }
       `}</style>
-    </Layout>
+    </>
   )
 }
 
