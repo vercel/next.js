@@ -31,6 +31,7 @@ App.getInitialProps = async ({ Component, ctx }) => {
   // Get the AuthUserInfo object.
   let AuthUserInfo
   if (typeof window === 'undefined') {
+    // FIXME: make sure cookieSession isn't bundled in the client JS.
     // If server-side, get AuthUserInfo from the session in the request.
     addSession(req, res)
     AuthUserInfo = createAuthUserInfo({

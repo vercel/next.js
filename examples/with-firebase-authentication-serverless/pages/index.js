@@ -4,6 +4,8 @@ import { get } from 'lodash/object'
 import Link from 'next/link'
 import withAuthUserInfo from '../utils/pageWrappers/withAuthUserInfo'
 
+// TODO: add logout functionality.
+
 const Index = props => {
   const { AuthUserInfo, data } = props
   const AuthUser = get(AuthUserInfo, 'AuthUser', null)
