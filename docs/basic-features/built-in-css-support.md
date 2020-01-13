@@ -81,7 +81,8 @@ export function Button() {
 }
 ```
 
-CSS Modules are an _optional feature_. Regular `<link>` stylesheets and CSS files are fully supported.
+CSS Modules are an _optional feature_. Regular `<link>` stylesheets and CSS
+files are fully supported.
 CSS Modules are **only enabled for files with the `.module.css` extension**.
 
 In production, all CSS Module files will be automatically concatenated into
@@ -104,7 +105,8 @@ the minimal amount of CSS is loaded for your application to paint.
   </ul>
 </details>
 
-It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
+It's possible to use any existing CSS-in-JS solution.
+The simplest one is inline styles:
 
 ```jsx
 function HiThere() {
