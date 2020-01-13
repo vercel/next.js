@@ -2,21 +2,17 @@
   "name": "with-firebase",
   "version": "1.0.0",
   "scripts": {
-    "dev": "NODE_ENV=dev node server.js",
-    "build": "NODE_ENV=production next build",
-    "start": "NODE_ENV=production node server.js"
+    "dev": "NODE_ENV=development next dev",
+    "build": "NODE_ENV=production yarn run relay && next build",
+    "start": "NODE_ENV=production next start"
   },
   "dependencies": {
-    "body-parser": "^1.17.1",
     "dotenv": "8.2.0",
-    "express": "^4.14.0",
-    "express-session": "^1.15.2",
     "firebase": "^7.6.1",
     "firebase-admin": "^8.9.0",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
     "react": "^16.12.0",
-    "react-dom": "^16.12.0",
-    "session-file-store": "^1.0.0"
+    "react-dom": "^16.12.0"
   }
 }
