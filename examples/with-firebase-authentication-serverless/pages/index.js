@@ -6,8 +6,6 @@ import Router from 'next/router'
 import withAuthUserInfo from '../utils/pageWrappers/withAuthUserInfo'
 import logout from '../utils/auth/logout'
 
-// TODO: add logout functionality.
-
 const Index = props => {
   const { AuthUserInfo, data } = props
   const AuthUser = get(AuthUserInfo, 'AuthUser', null)
