@@ -29,7 +29,7 @@ const Layout = props => (
         padding-right: 1rem;
       }
     `}</style>
-    <Header />
+    <Header token={props.token} />
 
     <main>
       <div className="container">{props.children}</div>

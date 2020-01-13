@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
 import fetch from 'isomorphic-unfetch'
 import { login } from '../utils/auth'
+import Link from 'next/link'
 
-const Login = () => {
+const Login = props => {
+  const { token } = props
   const [userData, setUserData] = useState({ username: '', error: '' })
 
   const handleSubmit = async event => {
@@ -47,6 +49,14 @@ const Login = () => {
   return (
     <>
       <div className="login">
+        {token && (
+          <>
+            <h1>You are already logged in.</h1>
+            <Link href="/profile">
+              <a>Go to Profile.</a>
+            </Link>
+          </>
+        )}
         <form onSubmit={handleSubmit}>
           <label htmlFor="username">GitHub username</label>
 
@@ -95,6 +105,16 @@ const Login = () => {
         .error {
           margin: 0.5rem 0 0;
           color: brown;
+        }
+
+        h1 {
+          font-size: 20px;
+          margin: 0;
+        }
+
+        a {
+          display: inline-block;
+          margin-bottom: 1rem;
         }
       `}</style>
     </>

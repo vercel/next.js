@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { logout } from '../utils/auth'
 
-const Header = () => (
+const Header = props => (
   <header>
     <nav>
       <ul>
@@ -20,9 +20,14 @@ const Header = () => (
             <a>Profile</a>
           </Link>
         </li>
-        <li>
-          <button onClick={logout}>Logout</button>
-        </li>
+        {props.token && (
+          <>
+            <li>Token: {props.token}</li>
+            <li>
+              <button onClick={logout}>Logout</button>
+            </li>
+          </>
+        )}
       </ul>
     </nav>
     <style jsx>{`

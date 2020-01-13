@@ -64,3 +64,21 @@ export const withAuthSync = WrappedComponent => {
 
   return Wrapper
 }
+
+export const withAuth = App => {
+  const Wrapper = props => {
+    return <App {...props} />
+  }
+
+  Wrapper.getInitialProps = async ctx => {
+    const { token } = nextCookie(ctx.ctx)
+
+    const appProps = App.getInitialProps && (await App.getInitialProps(ctx))
+
+    if (appProps.pageProps) appProps.pageProps.token = token
+
+    return { ...appProps, token }
+  }
+
+  return Wrapper
+}
