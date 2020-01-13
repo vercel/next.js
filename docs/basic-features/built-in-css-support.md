@@ -6,7 +6,83 @@ description: Next.js supports including CSS files as Global CSS or CSS Modules, 
 
 ## Adding a Stylesheet
 
+Next.js allows you to import CSS files from a JavaScript file (`pages/_app.js`).
+This is possible because Next.js extends the concept of `import` beyond JavaScript.
+
+To add a stylesheet to your application, import the CSS file within `pages/_app.js`:
+
+### `styles.css`
+
+```css
+body {
+  font-family: 'SF Pro Text', 'SF Pro Icons', system-ui;
+  padding: 20px 20px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+```
+
+### `pages/_app.js`
+
+```jsx
+import '../styles.css'
+
+// This default export is required in a new `pages/_app.js` file.
+// Read more: https://nextjs.org/docs/advanced-features/custom-app
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+In development, expressing stylesheets this way allows your styles to be
+hot reloaded as you edit them—meaning you can keep application state.
+
+In production, all CSS files will be automatically concatenated into a single
+minified `.css` file.
+
 ## Adding Component-Level CSS
+
+Next.js supports [CSS Modules](https://github.com/css-modules/css-modules)
+using the `[name].module.css` file naming convention.
+
+CSS Modules locally scope CSS by automatically creating a unique class name.
+This allows you to use the same CSS class name in different files without
+worrying about collisions.
+
+This behavior makes CSS Modules the ideal way to include component-level CSS.
+CSS Module files **can be imported anywhere in your application**.
+
+For example:
+
+### `components/Button.module.css`
+
+```css
+/*
+You do not need to worry about .error {} colliding with any other `.css`
+files!
+*/
+.error {
+  color: white;
+  background-color: red;
+}
+```
+
+### `components/Button.js`
+
+```jsx
+import styles from './Button.module.css'
+
+export function Button() {
+  return (
+    <button type="button" className={styles.error}>
+      Destroy
+    </button>
+  )
+}
+```
+
+CSS Modules are an _optional feature_. Regular `<link>` stylesheets and CSS files are fully supported.
+CSS Modules are **only enabled for files with the `.module.css` extension**.
 
 ## CSS-in-JS
 
