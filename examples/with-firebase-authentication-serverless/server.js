@@ -10,12 +10,15 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-const firebase = admin.initializeApp(
-  {
-    credential: admin.credential.cert(require('./credentials/server')),
-  },
-  'server'
-)
+const firebase = admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    // https://stackoverflow.com/a/41044630/1332513
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  }),
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+})
 
 app.prepare().then(() => {
   const server = express()

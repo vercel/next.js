@@ -2,12 +2,13 @@
   "name": "with-firebase",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
+    "dev": "NODE_ENV=dev node server.js",
+    "build": "NODE_ENV=production next build",
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
     "body-parser": "^1.17.1",
+    "dotenv": "8.2.0",
     "express": "^4.14.0",
     "express-session": "^1.15.2",
     "firebase": "^7.6.1",

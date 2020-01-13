@@ -1,0 +1,8 @@
+
+# Local dotenv files. We're following the file structure used in
+# create-react-app and documented in the Ruby dotenv:
+# https://github.com/bkeepers/dotenv#what-other-env-files-can-i-use
+.env.*local
+
+# For the original example's server.js session storage.
+sessions
