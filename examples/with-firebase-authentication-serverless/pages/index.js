@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { get } from 'lodash/object'
 import Link from 'next/link'
 import withAuthUserInfo from '../utils/pageWrappers/withAuthUserInfo'
+import logout from '../utils/auth/logout'
 
 // TODO: add logout functionality.
 
@@ -22,7 +23,20 @@ const Index = props => {
           </Link>
         </p>
       ) : (
-        <p>You're signed in. Email: {AuthUser.email}</p>
+        <div>
+          <p>You're signed in. Email: {AuthUser.email}</p>
+          <p
+            style={{
+              display: 'inlinelock',
+              color: 'blue',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+            }}
+            onClick={logout}
+          >
+            Log out
+          </p>
+        </div>
       )}
       <div>
         <Link href={'/example'}>

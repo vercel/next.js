@@ -48,7 +48,8 @@ App.getInitialProps = async ({ Component, ctx }) => {
         window.document.getElementById('__MY_AUTH_USER_INFO').textContent
       )
     } catch (e) {
-      console.error(e) // eslint-disable-line no-console
+      // If there's some error, use the default (unauthed) user info.
+      AuthUserInfo = createAuthUserInfo()
     }
   }
 
