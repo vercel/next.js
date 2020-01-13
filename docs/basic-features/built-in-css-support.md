@@ -58,8 +58,8 @@ For example:
 
 ```css
 /*
-You do not need to worry about .error {} colliding with any other `.css`
-files!
+You do not need to worry about .error {} colliding with any other `.css` or
+`.module.css` files!
 */
 .error {
   color: white;
