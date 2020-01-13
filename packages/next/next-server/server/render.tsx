@@ -28,7 +28,11 @@ import { isInAmpMode } from '../lib/amp'
 // Uses a module path because of the compiled output directory location
 import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
+import {
+  SPR_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SPR_CONFLICT,
+} from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
 
 export type ManifestItem = {
@@ -150,11 +154,17 @@ type RenderOpts = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   unstable_getStaticProps?: (params: {
     params: any | undefined
-  }) => {
+  }) => Promise<{
     props: any
     revalidate?: number | boolean
-  }
+  }>
   unstable_getStaticPaths?: () => void
+  unstable_getServerProps?: (context: {
+    req: IncomingMessage
+    res: ServerResponse
+    query: ParsedUrlQuery
+  }) => Promise<{ [key: string]: any }>
+  isDataReq: boolean
 }
 
 function renderDocument(
@@ -272,6 +282,8 @@ export async function renderToHTML(
     ErrorDebug,
     unstable_getStaticProps,
     unstable_getStaticPaths,
+    unstable_getServerProps,
+    isDataReq,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -307,7 +319,10 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const isAutoExport =
-    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
+    !hasPageGetInitialProps &&
+    defaultAppGetInitialProps &&
+    !isSpr &&
+    !unstable_getServerProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -325,6 +340,14 @@ export async function renderToHTML(
 
   if (hasPageGetInitialProps && isSpr) {
     throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (hasPageGetInitialProps && unstable_getServerProps) {
+    throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (unstable_getServerProps && isSpr) {
+    throw new Error(SERVER_PROPS_SPR_CONFLICT + ` ${pathname}`)
   }
 
   if (!!unstable_getStaticPaths && !isSpr) {
@@ -470,13 +493,25 @@ export async function renderToHTML(
       props.pageProps = data.props
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate
-      ;(renderOpts as any).sprData = props
+      ;(renderOpts as any).pageData = props
     }
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
   }
+
+  if (unstable_getServerProps) {
+    props.pageProps = await unstable_getServerProps({
+      query,
+      req,
+      res,
+    })
+    ;(renderOpts as any).pageData = props
+  }
+  // We only need to do this if we want to support calling
+  // _app's getInitialProps for getServerProps if not this can be removed
+  if (isDataReq) return props
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null

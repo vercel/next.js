@@ -1,3 +1,5 @@
+import { IncomingMessage, ServerResponse } from 'http'
+import { ParsedUrlQuery } from 'querystring'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -22,6 +24,11 @@ export type LoadComponentsReturnType = {
     revalidate?: number | boolean
   }
   unstable_getStaticPaths?: () => void
+  unstable_getServerProps?: (context: {
+    req: IncomingMessage
+    res: ServerResponse
+    query: ParsedUrlQuery
+  }) => Promise<{ [key: string]: any }>
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -90,6 +97,7 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
+    unstable_getServerProps: ComponentMod.unstable_getServerProps,
     unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
     unstable_getStaticPaths: ComponentMod.unstable_getStaticPaths,
   }

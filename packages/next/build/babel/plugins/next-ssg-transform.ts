@@ -6,10 +6,12 @@ const prerenderId = '__NEXT_SPR'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
+export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerProps'
 
 const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
+  EXPORT_NAME_GET_SERVER_PROPS,
 ])
 
 type PluginState = {

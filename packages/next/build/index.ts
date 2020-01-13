@@ -254,22 +254,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
+  const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+  const routesManifest: any = {
+    version: 1,
+    basePath: config.experimental.basePath,
+    redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
+    rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
+    headers: headers.map(r => buildCustomRoute(r, 'header')),
+    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+      page,
+      regex: getRouteRegex(page).re.source,
+    })),
+  }
+
   await mkdirp(distDir)
-  await fsWriteFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify({
-      version: 1,
-      basePath: config.experimental.basePath,
-      redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
-      headers: headers.map(r => buildCustomRoute(r, 'header')),
-      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-        page,
-        regex: getRouteRegex(page).re.source,
-      })),
-    }),
-    'utf8'
-  )
+  // We need to write the manifest with rewrites before build
+  // so serverless can import the manifest
+  await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -401,6 +402,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
+  const serverPropsPages = new Set<string>()
   const additionalSprPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
@@ -500,6 +502,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
           } else if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
+          } else if (result.serverProps) {
+            serverPropsPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -519,6 +523,29 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   )
   staticCheckWorkers.end()
+
+  if (serverPropsPages.size > 0) {
+    // We update the routes manifest after the build with the
+    // serverProps routes since we can't determine this until after build
+    routesManifest.serverPropsRoutes = {}
+
+    for (const page of serverPropsPages) {
+      routesManifest.serverPropsRoutes[page] = {
+        page,
+        dataRoute: path.posix.join(
+          '/_next/data',
+          buildId,
+          `${page === '/' ? '/index' : page}.json`
+        ),
+      }
+    }
+
+    await fsWriteFile(
+      routesManifestPath,
+      JSON.stringify(routesManifest),
+      'utf8'
+    )
+  }
 
   if (invalidPages.size > 0) {
     throw new Error(

@@ -25,7 +25,7 @@ export default async function({
   distDir,
   buildId,
   outDir,
-  sprDataDir,
+  pageDataDir,
   renderOpts,
   buildExport,
   serverRuntimeConfig,
@@ -234,14 +234,14 @@ export default async function({
       }
     }
 
-    if (curRenderOpts.sprData) {
+    if (curRenderOpts.pageData) {
       const dataFile = join(
-        sprDataDir,
+        pageDataDir,
         htmlFilename.replace(/\.html$/, '.json')
       )
 
       await mkdirp(dirname(dataFile))
-      await writeFileP(dataFile, JSON.stringify(curRenderOpts.sprData), 'utf8')
+      await writeFileP(dataFile, JSON.stringify(curRenderOpts.pageData), 'utf8')
     }
     results.fromBuildExportRevalidate = curRenderOpts.revalidate
 

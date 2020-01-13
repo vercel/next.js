@@ -5,7 +5,11 @@ import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
 import { Redirect, Rewrite } from '../lib/check-custom-routes'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import {
+  SPR_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SPR_CONFLICT,
+} from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
@@ -482,6 +486,7 @@ export async function isPageStatic(
   static?: boolean
   prerender?: boolean
   isHybridAmp?: boolean
+  serverProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
   try {
@@ -496,6 +501,7 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasServerProps = !!mod.unstable_getServerProps
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
@@ -508,6 +514,14 @@ export async function isPageStatic(
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
       throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+    }
+
+    if (hasGetInitialProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+    }
+
+    if (hasStaticProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_SPR_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -579,9 +593,10 @@ export async function isPageStatic(
 
     const config = mod.config || {}
     return {
-      static: !hasStaticProps && !hasGetInitialProps,
+      static: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes: prerenderPaths,
+      serverProps: hasServerProps,
       prerender: hasStaticProps,
     }
   } catch (err) {

@@ -185,6 +185,7 @@ const nextServerlessLoader: loader.Loader = function() {
     export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
+    export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
     ${handleRewrites}
@@ -206,6 +207,7 @@ const nextServerlessLoader: loader.Loader = function() {
         Document,
         buildManifest,
         unstable_getStaticProps,
+        unstable_getServerProps,
         unstable_getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
@@ -213,10 +215,10 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         ..._renderOpts
       }
-      let sprData = false
+      let _nextData = false
 
       if (req.url.match(/_next\\/data/)) {
-        sprData = true
+        _nextData = true
         req.url = req.url
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
@@ -235,7 +237,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !unstable_getStaticProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps && !unstable_getServerProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -273,14 +275,17 @@ const nextServerlessLoader: loader.Loader = function() {
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
-        if (sprData && !fromExport) {
-          const payload = JSON.stringify(renderOpts.sprData)
+        if (_nextData && !fromExport) {
+          const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
-          res.setHeader(
-            'Cache-Control',
-            \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
-          )
+
+          if (renderOpts.revalidate) {
+            res.setHeader(
+              'Cache-Control',
+              \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
+            )
+          }
           res.end(payload)
           return null
         }

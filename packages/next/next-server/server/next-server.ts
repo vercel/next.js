@@ -380,7 +380,7 @@ export default class Server {
             req,
             res,
             pathname,
-            { _nextSprData: '1' },
+            { _nextDataReq: '1' },
             parsedUrl
           )
           return {
@@ -831,10 +831,36 @@ export default class Server {
       typeof result.Component.renderReqToHTML === 'function'
     const isSpr = !!result.unstable_getStaticProps
 
+    // Toggle whether or not this is a Data request
+    const isDataReq = query._nextDataReq
+    delete query._nextDataReq
+
+    // Serverless requests need its URL transformed back into the original
+    // request path (to emulate lambda behavior in production)
+    if (isLikeServerless && isDataReq) {
+      let { pathname } = parseUrl(req.url || '', true)
+      pathname = !pathname || pathname === '/' ? '/index' : pathname
+      req.url = `/_next/data/${this.buildId}${pathname}.json`
+    }
+
     // non-spr requests should render like normal
     if (!isSpr) {
       // handle serverless
       if (isLikeServerless) {
+        if (isDataReq) {
+          const renderResult = await result.Component.renderReqToHTML(
+            req,
+            res,
+            true
+          )
+
+          this.__sendPayload(
+            res,
+            JSON.stringify(renderResult?.renderOpts?.pageData),
+            'application/json'
+          )
+          return null
+        }
         const curUrl = parseUrl(req.url!, true)
         req.url = formatUrl({
           ...curUrl,
@@ -847,30 +873,37 @@ export default class Server {
         return result.Component.renderReqToHTML(req, res)
       }
 
+      if (isDataReq && typeof result.unstable_getServerProps === 'function') {
+        const props = await renderToHTML(req, res, pathname, query, {
+          ...result,
+          ...opts,
+          isDataReq,
+        })
+        this.__sendPayload(res, JSON.stringify(props), 'application/json')
+        return null
+      }
+
       return renderToHTML(req, res, pathname, query, {
         ...result,
         ...opts,
       })
     }
 
-    // Toggle whether or not this is an SPR Data request
-    const isSprData = isSpr && query._nextSprData
-    delete query._nextSprData
-
     // Compute the SPR cache key
     const sprCacheKey = parseUrl(req.url || '').pathname!
+    const isPageData = isSpr && isDataReq
 
     // Complete the response with cached data if its present
     const cachedData = await getSprCache(sprCacheKey)
     if (cachedData) {
-      const data = isSprData
+      const data = isPageData
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
       this.__sendPayload(
         res,
         data,
-        isSprData ? 'application/json' : 'text/html; charset=utf-8',
+        isPageData ? 'application/json' : 'text/html; charset=utf-8',
         cachedData.curRevalidate
       )
 
@@ -882,20 +915,12 @@ export default class Server {
 
     // If we're here, that means data is missing or it's stale.
 
-    // Serverless requests need its URL transformed back into the original
-    // request path (to emulate lambda behavior in production)
-    if (isLikeServerless && isSprData) {
-      let { pathname } = parseUrl(req.url || '', true)
-      pathname = !pathname || pathname === '/' ? '/index' : pathname
-      req.url = `/_next/data/${this.buildId}${pathname}.json`
-    }
-
     const doRender = withCoalescedInvoke(async function(): Promise<{
       html: string | null
-      sprData: any
+      pageData: any
       sprRevalidate: number | false
     }> {
-      let sprData: any
+      let pageData: any
       let html: string | null
       let sprRevalidate: number | false
 
@@ -905,7 +930,7 @@ export default class Server {
         renderResult = await result.Component.renderReqToHTML(req, res, true)
 
         html = renderResult.html
-        sprData = renderResult.renderOpts.sprData
+        pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
       } else {
         const renderOpts = {
@@ -915,21 +940,21 @@ export default class Server {
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
         html = renderResult
-        sprData = renderOpts.sprData
+        pageData = renderOpts.pageData
         sprRevalidate = renderOpts.revalidate
       }
 
-      return { html, sprData, sprRevalidate }
+      return { html, pageData, sprRevalidate }
     })
 
     return doRender(sprCacheKey, []).then(
-      async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
+      async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {
         // Respond to the request if a payload wasn't sent above (from cache)
         if (!isResSent(res)) {
           this.__sendPayload(
             res,
-            isSprData ? JSON.stringify(sprData) : html,
-            isSprData ? 'application/json' : 'text/html; charset=utf-8',
+            isPageData ? JSON.stringify(pageData) : html,
+            isPageData ? 'application/json' : 'text/html; charset=utf-8',
             sprRevalidate
           )
         }
@@ -938,7 +963,7 @@ export default class Server {
         if (isOrigin) {
           await setSprCache(
             sprCacheKey,
-            { html: html!, pageData: sprData },
+            { html: html!, pageData: pageData },
             sprRevalidate
           )
         }
@@ -969,7 +994,7 @@ export default class Server {
             res,
             pathname,
             result.unstable_getStaticProps
-              ? { _nextSprData: query._nextSprData }
+              ? { _nextDataReq: query._nextDataReq }
               : query,
             result,
             { ...this.renderOpts, amphtml, hasAmp }
@@ -995,7 +1020,7 @@ export default class Server {
                   // only add params for SPR enabled pages
                   {
                     ...(result.unstable_getStaticProps
-                      ? { _nextSprData: query._nextSprData }
+                      ? { _nextDataReq: query._nextDataReq }
                       : query),
                     ...params,
                   },
