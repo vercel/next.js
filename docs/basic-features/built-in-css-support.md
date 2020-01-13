@@ -4,14 +4,14 @@ description: Next.js supports including CSS files as Global CSS or CSS Modules, 
 
 # Built-In CSS Support
 
-## Adding a Stylesheet
+Next.js allows you to import CSS files from a JavaScript file.
+This is possible because Next.js extends the concept of [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) beyond JavaScript.
 
-Next.js allows you to import CSS files from a JavaScript file (`pages/_app.js`).
-This is possible because Next.js extends the concept of `import` beyond JavaScript.
+## Adding a Global Stylesheet
 
-To add a stylesheet to your application, import the CSS file within `pages/_app.js`:
+To add a stylesheet to your application, import the CSS file within `pages/_app.js`.
 
-### `styles.css`
+For example, consider the following stylesheet named `styles.css`:
 
 ```css
 body {
@@ -22,7 +22,8 @@ body {
 }
 ```
 
-### `pages/_app.js`
+Create a [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) if not already present.
+Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
 ```jsx
 import '../styles.css'
@@ -34,27 +35,26 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
-In development, expressing stylesheets this way allows your styles to be
-hot reloaded as you edit them—meaning you can keep application state.
+These styles (`styles.css`) will apply to all pages and components in your application.
+Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](https://nextjs.org/docs/advanced-features/custom-app)**.
 
-In production, all CSS files will be automatically concatenated into a single
-minified `.css` file.
+In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
+
+In production, all CSS files will be automatically concatenated into a single minified `.css` file.
 
 ## Adding Component-Level CSS
 
-Next.js supports [CSS Modules](https://github.com/css-modules/css-modules)
-using the `[name].module.css` file naming convention.
+Next.js supports [CSS Modules](https://github.com/css-modules/css-modules) using the `[name].module.css` file naming convention.
 
 CSS Modules locally scope CSS by automatically creating a unique class name.
-This allows you to use the same CSS class name in different files without
-worrying about collisions.
+This allows you to use the same CSS class name in different files without worrying about collisions.
 
 This behavior makes CSS Modules the ideal way to include component-level CSS.
 CSS Module files **can be imported anywhere in your application**.
 
-For example:
+For example, consider a reusable `Button` component in the `components/` folder:
 
-### `components/Button.module.css`
+First, create `components/Button.module.css` with the following content:
 
 ```css
 /*
@@ -67,28 +67,30 @@ You do not need to worry about .error {} colliding with any other `.css` or
 }
 ```
 
-### `components/Button.js`
+Then, create `components/Button.js`, importing and using the above CSS file:
 
 ```jsx
 import styles from './Button.module.css'
 
 export function Button() {
   return (
-    <button type="button" className={styles.error}>
+    <button
+      type="button"
+      // Note how the "error" class is accessed as a property on the imported
+      // `styles` object.
+      className={styles.error}
+    >
       Destroy
     </button>
   )
 }
 ```
 
-CSS Modules are an _optional feature_. Regular `<link>` stylesheets and CSS
-files are fully supported.
-CSS Modules are **only enabled for files with the `.module.css` extension**.
+CSS Modules are an _optional feature_ and are **only enabled for files with the `.module.css` extension**.
+Regular `<link>` stylesheets and global CSS files are still supported.
 
-In production, all CSS Module files will be automatically concatenated into
-**many minified and code-split** `.css` files.
-These `.css` files represent hot execution paths in your application, ensuring
-the minimal amount of CSS is loaded for your application to paint.
+In production, all CSS Module files will be automatically concatenated into **many minified and code-split** `.css` files.
+These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
 
 ## CSS-in-JS
 
