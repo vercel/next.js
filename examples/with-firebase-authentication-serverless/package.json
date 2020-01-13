@@ -1,5 +1,5 @@
 {
-  "name": "with-firebase",
+  "name": "with-firebase-auth-serverless",
   "version": "1.0.0",
   "scripts": {
     "dev": "NODE_ENV=development next dev",
