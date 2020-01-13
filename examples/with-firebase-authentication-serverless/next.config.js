@@ -1,6 +1,10 @@
 require('./env.js')
 
-module.exports = {
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE_BUNDLE === 'true',
+})
+
+const nextConfig = {
   // Public, build-time env vars.
   // https://nextjs.org/docs#build-time-configuration
   env: {
@@ -10,3 +14,5 @@ module.exports = {
     FIREBASE_PUBLIC_API_KEY: process.env.FIREBASE_PUBLIC_API_KEY,
   },
 }
+
+module.exports = withBundleAnalyzer(nextConfig)

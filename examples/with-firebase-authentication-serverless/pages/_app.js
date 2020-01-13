@@ -5,7 +5,6 @@ import PropTypes from 'prop-types'
 import { get, set } from 'lodash/object'
 import { AuthUserInfoContext, useFirebaseAuth } from '../utils/auth/hooks'
 import { createAuthUser, createAuthUserInfo } from '../utils/auth/user'
-import { addSession } from '../utils/middleware/cookieSession'
 
 const App = props => {
   const { AuthUserInfo, Component, pageProps } = props
@@ -31,8 +30,10 @@ App.getInitialProps = async ({ Component, ctx }) => {
   // Get the AuthUserInfo object.
   let AuthUserInfo
   if (typeof window === 'undefined') {
-    // FIXME: make sure cookieSession isn't bundled in the client JS.
     // If server-side, get AuthUserInfo from the session in the request.
+    // Don't include server middleware in the client JS bundle. See:
+    // https://arunoda.me/blog/ssr-and-server-only-modules
+    const { addSession } = require('../utils/middleware/cookieSession')
     addSession(req, res)
     AuthUserInfo = createAuthUserInfo({
       firebaseUser: get(req, 'session.decodedToken', null),
