@@ -29,7 +29,6 @@ Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Referen
 import '../styles.css'
 
 // This default export is required in a new `pages/_app.js` file.
-// Read more: https://nextjs.org/docs/advanced-features/custom-app
 export default function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
 }
