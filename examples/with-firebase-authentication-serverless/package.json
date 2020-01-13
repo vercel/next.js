@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "NODE_ENV=development next dev",
-    "build": "NODE_ENV=production yarn run relay && next build",
+    "build": "NODE_ENV=production next build",
     "start": "NODE_ENV=production next start"
   },
   "dependencies": {
