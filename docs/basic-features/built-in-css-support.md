@@ -84,6 +84,11 @@ export function Button() {
 CSS Modules are an _optional feature_. Regular `<link>` stylesheets and CSS files are fully supported.
 CSS Modules are **only enabled for files with the `.module.css` extension**.
 
+In production, all CSS Module files will be automatically concatenated into
+**many minified and code-split** `.css` files.
+These `.css` files represent hot execution paths in your application, ensuring
+the minimal amount of CSS is loaded for your application to paint.
+
 ## CSS-in-JS
 
 <details>
