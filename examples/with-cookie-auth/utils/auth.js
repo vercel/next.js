@@ -73,6 +73,8 @@ export const withAuth = App => {
   Wrapper.getInitialProps = async ctx => {
     const { token } = nextCookie(ctx.ctx)
 
+    ctx.ctx.token = token
+
     const appProps = App.getInitialProps && (await App.getInitialProps(ctx))
 
     if (appProps.pageProps) appProps.pageProps.token = token

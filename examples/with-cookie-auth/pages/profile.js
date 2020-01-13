@@ -1,7 +1,6 @@
 import React from 'react'
 import Router from 'next/router'
 import fetch from 'isomorphic-unfetch'
-import nextCookie from 'next-cookies'
 import { withAuthSync } from '../utils/auth'
 import getHost from '../utils/get-host'
 
@@ -41,7 +40,7 @@ const Profile = props => {
 }
 
 Profile.getInitialProps = async ctx => {
-  const { token } = nextCookie(ctx)
+  const { token } = ctx
   const apiUrl = getHost(ctx.req) + '/api/profile'
 
   const redirectOnError = () =>
