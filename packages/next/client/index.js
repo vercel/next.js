@@ -294,11 +294,11 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!('PerformanceObserver' in window)) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
-    } else {
+    if (
+      'PerformanceObserver' in window &&
+      PerformanceObserver.supportedEntryTypes &&
+      PerformanceObserver.supportedEntryTypes.includes('paint')
+    ) {
       performance.getEntriesByType('paint').forEach(onPerfEntry)
 
       // Start an observer to catch any paint metrics which may fire _after_
@@ -307,6 +307,10 @@ function renderReactElement(reactEl, domEl) {
         list.getEntries().forEach(onPerfEntry)
       })
       observer.observe({ entryTypes: ['paint'] })
+    } else {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
     }
   }
 }
