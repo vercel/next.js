@@ -247,6 +247,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...(type === 'redirect'
         ? {
             statusCode: getRedirectStatus(r as Redirect),
+            permanent: undefined,
           }
         : {}),
       regex: routeRegex.source,
