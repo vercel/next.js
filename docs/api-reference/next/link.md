@@ -121,7 +121,7 @@ function Home() {
 export default Home
 ```
 
-The above example will be a link to `/about?name=Zeit`. You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
+The above example will be a link to `/about?name=ZEIT`. You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
 ## Replace the URL instead of push
 
