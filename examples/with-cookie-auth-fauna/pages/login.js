@@ -7,10 +7,10 @@ const signin = async (email, password) => {
   const url = '/api/login'
   const response = await fetch(url, {
     method: 'POST',
-
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
+
   if (response.status === 200) {
     const { email } = await response.json()
     login({ email })
@@ -19,13 +19,17 @@ const signin = async (email, password) => {
     console.log('Login failed.')
     // https://github.com/developit/unfetch#caveats
     const { message } = await response.json()
-    let error = new Error(message ? message : response.statusText)
+    let error = new Error(message || response.statusText)
     throw error
   }
-};
+}
 
 function Login() {
-  const [userData, setUserData] = useState({ email: '', password: '', error: '' })
+  const [userData, setUserData] = useState({
+    email: '',
+    password: '',
+    error: '',
+  })
 
   async function handleSubmit(event) {
     event.preventDefault()

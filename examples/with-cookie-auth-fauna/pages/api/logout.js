@@ -1,4 +1,4 @@
-import {query as q} from 'faunadb'
+import { query as q } from 'faunadb'
 import cookie from 'cookie'
 import { faunaClient, FAUNA_SECRET_COOKIE } from '../../utils/fauna-auth'
 

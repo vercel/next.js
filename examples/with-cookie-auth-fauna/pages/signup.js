@@ -5,7 +5,11 @@ import { login } from '../utils/auth'
 import Router from 'next/router'
 
 function Signup() {
-  const [userData, setUserData] = useState({ email: '', password: '', error: '' })
+  const [userData, setUserData] = useState({
+    email: '',
+    password: '',
+    error: '',
+  })
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -28,7 +32,6 @@ function Signup() {
         Router.push('/profile')
       } else {
         console.log('Signup failed.')
-        // https://github.com/developit/unfetch#caveats
         const { message } = await response.json()
         let error = new Error(message ? message : response.statusText)
         throw error

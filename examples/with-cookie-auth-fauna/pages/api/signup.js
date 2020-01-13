@@ -18,22 +18,23 @@ export default async (req, res) => {
         })
       )
     } catch (err) {
-      throw new Error('User already exists.');
+      console.error('ERR', err)
+      throw new Error('User already exists.')
     }
     if (!createRes.ref) {
-      throw new Error('No ref present in create query response.');
+      throw new Error('No ref present in create query response.')
     }
-    const loginRes = (await serverClient.query(
+    const loginRes = await serverClient.query(
       q.Login(createRes.ref, {
         password,
       })
-    ))
+    )
     if (!loginRes.secret) {
-      throw new Error('No secret present in login query response.');
+      throw new Error('No secret present in login query response.')
     }
-    var cookieSerialized = serializeFaunaCookie(loginRes.secret);
-    res.setHeader('Set-Cookie', cookieSerialized);
-    res.status(200).json({ email });
+    var cookieSerialized = serializeFaunaCookie(loginRes.secret)
+    res.setHeader('Set-Cookie', cookieSerialized)
+    res.status(200).json({ email })
   } catch (error) {
     const { response } = error
     return response
