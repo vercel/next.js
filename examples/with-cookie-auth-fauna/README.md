@@ -1,10 +1,4 @@
-# Example app utilizing cookie-based authentication
-
-## Deploy your own
-
-Deploy the example using [ZEIT Now](https://zeit.co/now):
-
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-cookie-auth-fauna)
+# With Cookie Auth and Fauna
 
 ## How to use
 
@@ -28,14 +22,24 @@ cd with-cookie-auth-fauna
 
 ### Run locally
 
-After you clone the repository you can install the dependencies. You'll need to create an account on [Fauna](https://fauna.com/) and create a database, a `User` collection, a `users_by_email` index, and a server and client key. For more information on how to do that, please refer to the [Authentication tutorial](https://app.fauna.com/tutorials/authentication). Add your server and client key to the `.env` file at the project root.
+First, you'll need to create an account on [Fauna](https://fauna.com/), then you'll be able to create a database and add the following:
 
-Then run `yarn dev` and start hacking! You'll be able to see the application running locally as if it were deployed.
+- `User` Collection
+- `users_by_email` index
+- server and client key
+
+For more information on how to do this, please refer to the [User Authentication Tutorial in Fauna](https://app.fauna.com/tutorials/authentication).
+
+Then add your server and client key to the `.env` file at the project root.
+
+Now, install it and run:
 
 ```bash
-$ cd with-cookie-auth-fauna
-$ (with-cookie-auth-fauna/) yarn install
-$ (with-cookie-auth-fauna/) yarn dev
+npm install
+npm run dev
+# or
+yarn
+yarn dev
 ```
 
 ### Deploy
@@ -50,7 +54,7 @@ now
 
 In this example, we authenticate users and store a token in a secure (non-JS) cookie. The example only shows how the user session works, keeping a user logged in between pages.
 
-This example uses Fauna(https://fauna.com/) as the auth service and DB.
+This example uses [Fauna](https://fauna.com/) as the auth service and DB.
 
 The repo includes a minimal auth backend built with the new [API Routes support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro), [Fauna for Auth](https://app.fauna.com/tutorials/authentication) and [dotenv](https://github.com/zeit/next.js/tree/canary/examples/with-dotenv) for environment variables. The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
 
