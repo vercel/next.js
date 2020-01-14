@@ -303,7 +303,7 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: false }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -325,7 +325,7 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: false }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return __jsx(\\"div\\",null,cats+bar());};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return __jsx(\\"div\\",null,cats+bar());};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
