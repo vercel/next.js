@@ -1052,7 +1052,7 @@ export default class Server {
   ) {
     let result: LoadComponentsReturnType | undefined = undefined
 
-    if (this.customRoutes?.static404) {
+    if (this.customRoutes?.static404 && res.statusCode === 404) {
       try {
         result = await this.findPageComponents('/404', query)
       } catch (err) {
