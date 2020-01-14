@@ -25,6 +25,7 @@ export type LoadComponentsReturnType = {
   }
   unstable_getStaticPaths?: () => void
   unstable_getServerProps?: (context: {
+    params: { [key: string]: string }
     req: IncomingMessage
     res: ServerResponse
     query: ParsedUrlQuery

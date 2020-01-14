@@ -273,6 +273,8 @@ const nextServerlessLoader: loader.Loader = function() {
           `
             : `const nowParams = null;`
         }
+        renderOpts.params = _params || params
+
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
         if (_nextData && !fromExport) {

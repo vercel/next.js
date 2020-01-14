@@ -3,10 +3,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerProps({ query }) {
+export async function unstable_getServerProps({ params }) {
   return {
     world: 'world',
-    params: query || {},
+    params: params || {},
     time: new Date().getTime(),
     random: Math.random(),
   }

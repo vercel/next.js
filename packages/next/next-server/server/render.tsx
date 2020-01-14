@@ -29,9 +29,9 @@ import { isInAmpMode } from '../lib/amp'
 import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import {
-  SPR_GET_INITIAL_PROPS_CONFLICT,
+  SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SPR_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
 
@@ -160,11 +160,13 @@ type RenderOpts = {
   }>
   unstable_getStaticPaths?: () => void
   unstable_getServerProps?: (context: {
+    params: { [key: string]: string }
     req: IncomingMessage
     res: ServerResponse
     query: ParsedUrlQuery
   }) => Promise<{ [key: string]: any }>
   isDataReq: boolean
+  params: { [key: string]: string }
 }
 
 function renderDocument(
@@ -284,6 +286,7 @@ export async function renderToHTML(
     unstable_getStaticPaths,
     unstable_getServerProps,
     isDataReq,
+    params,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -339,7 +342,7 @@ export async function renderToHTML(
   }
 
   if (hasPageGetInitialProps && isSpr) {
-    throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+    throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
   if (hasPageGetInitialProps && unstable_getServerProps) {
@@ -347,7 +350,7 @@ export async function renderToHTML(
   }
 
   if (unstable_getServerProps && isSpr) {
-    throw new Error(SERVER_PROPS_SPR_CONFLICT + ` ${pathname}`)
+    throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
   if (!!unstable_getStaticPaths && !isSpr) {
@@ -503,6 +506,7 @@ export async function renderToHTML(
 
   if (unstable_getServerProps) {
     props.pageProps = await unstable_getServerProps({
+      params,
       query,
       req,
       res,

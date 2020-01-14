@@ -10,9 +10,9 @@ import {
   getRedirectStatus,
 } from '../lib/check-custom-routes'
 import {
-  SPR_GET_INITIAL_PROPS_CONFLICT,
+  SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SPR_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -486,7 +486,7 @@ export async function isPageStatic(
   static?: boolean
   prerender?: boolean
   isHybridAmp?: boolean
-  serverProps?: boolean
+  hasServerProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
   try {
@@ -513,7 +513,7 @@ export async function isPageStatic(
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
-      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
     }
 
     if (hasGetInitialProps && hasServerProps) {
@@ -521,7 +521,7 @@ export async function isPageStatic(
     }
 
     if (hasStaticProps && hasServerProps) {
-      throw new Error(SERVER_PROPS_SPR_CONFLICT)
+      throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -596,8 +596,8 @@ export async function isPageStatic(
       static: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes: prerenderPaths,
-      serverProps: hasServerProps,
       prerender: hasStaticProps,
+      hasServerProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

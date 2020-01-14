@@ -1026,6 +1026,7 @@ export default class Server {
                   result,
                   {
                     ...this.renderOpts,
+                    params,
                     amphtml,
                     hasAmp,
                   }

@@ -164,7 +164,7 @@ const runTests = (dev = false) => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
     const params = $('#params').text()
-    expect(JSON.parse(params)).toEqual({ hello: 'world', post: 'post-1' })
+    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
     const query = $('#query').text()
     expect(JSON.parse(query)).toEqual({ hello: 'world', post: 'post-1' })
   })

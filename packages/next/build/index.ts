@@ -500,11 +500,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSprPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
+          } else if (result.hasServerProps) {
+            serverPropsPages.add(page)
           } else if (result.static && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
-          } else if (result.serverProps) {
-            serverPropsPages.add(page)
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
