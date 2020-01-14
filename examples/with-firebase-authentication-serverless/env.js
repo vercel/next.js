@@ -1,7 +1,7 @@
 // Responsible for setting environment variables.
-// Note: this isn't strictly required for this example—you can
+// Note: this isn't strictly required for this example – you can
 // inline your Firebase config or set environment variables howevever
-// else you wish—but it's a convenient way to make sure the private
+// else you wish – but it's a convenient way to make sure the private
 // key doesn't end up in source control.
 
 const fs = require('fs')
