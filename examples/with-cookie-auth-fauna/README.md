@@ -6,7 +6,7 @@
 
 Download [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
 
-```
+```bash
 npm i -g create-next-app
 create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 ```
@@ -22,18 +22,16 @@ cd with-cookie-auth-fauna
 
 ### Run locally
 
-First, you'll need to create an account on [Fauna](https://fauna.com/), then you'll be able to create a database and add the following:
+First, you'll need to create an account on [Fauna](https://fauna.com/), then follow these steps:
 
-- `User` Collection
-- `users_by_email` index
-- server key
+1. In the [FaunaDB Console](https://dashboard.fauna.com/), click "New Database". Name it whatever you like and click "Save".
+2. Click "New Collection", name it `User`, leave "Create collection index" checked, and click "Save".
+3. Now go to "Indexes" in the left sidebar, and click "New Index". Select the `User` collection, call it `users_by_email`, and in the "terms" field type `data.email`. Select the "Unique" checkbox and click "Save". This will create an index that allows looking up users by their email, which we will use to log a user in.
+4. Next, go to "Security" in the sidebar, then click "New Key". Create a new key with the `Server` role, call it `server-key`, and click "Save". Your key's secret will be displayed, copy that value and paste it as the value for `FAUNA_SERVER_KEY` in the `.env` file at the project root. Keep this key safely as it has privileged access to your database.
 
-For more information on how to do this, please refer to the [User Authentication Tutorial in Fauna](https://app.fauna.com/tutorials/authentication), or follow the steps below:
+> For more information, read the [User Authentication Tutorial in Fauna](https://app.fauna.com/tutorials/authentication).
 
-1. In the FaunaDB Console, click "New Database". Name it whatever you like and click save.
-2. Click "New Collection", name it `User`, leave "Create collection index" checked, and save.
-3. Now go to "Indexes" in the left sidebar, and click "New Index". Select the `User` collection, call it `users_by_email`, and in the "terms" field type `data.email`. Select the "Unique" checkbox and click save. This will create an index that allows looking up users by their email, which we will use to log a user in.
-4. Next, go to "Security" in the sidebar, and create key with the `Server` role and call it `server-key`. Your key's secret will be displayed, copy that value and paste it as the value for `FAUNA_SERVER_KEY` in the `.env` file at the project root. Keep this key safely as it has privileged access to your database.
+> **Add `.env` to `.gitignore`**, files with secrets should never be in the cloud, we have it here for the sake of the example.
 
 Now, install it and run:
 
@@ -47,7 +45,13 @@ yarn dev
 
 ### Deploy
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+We'll use [now](https://zeit.co/now) to deploy our app, first we need to add the server key as a secret using [now secrets](https://zeit.co/docs/v2/serverless-functions/env-and-secrets/?query=secrets#adding-secrets), like so:
+
+```bash
+now secrets add fauna-secret-key "ENTER YOUR FAUNA SERVER KEY"
+```
+
+Then deploy it to the cloud:
 
 ```bash
 now
