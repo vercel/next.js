@@ -1,4 +1,4 @@
-# With Firebase Authentication example
+# Example: Firebase authentication with a serverless API
 
 ## How to use
 
@@ -7,9 +7,9 @@
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-firebase-authentication with-firebase-authentication-app
+npx create-next-app --example with-firebase-authentication-serverless with-firebase-authentication-serverless-app
 # or
-yarn create next-app --example with-firebase-authentication with-firebase-authentication-app
+yarn create next-app --example with-firebase-authentication-serverless with-firebase-authentication-serverless-app
 ```
 
 ### Download manually
@@ -17,28 +17,15 @@ yarn create next-app --example with-firebase-authentication with-firebase-authen
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication
-cd with-firebase-authentication
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication-serverless
+cd with-firebase-authentication-serverless
 ```
 
-Set up firebase:
+Set up Firebase:
 
 - Create a project at the [Firebase console](https://console.firebase.google.com/).
-- Get your account credentials from the Firebase console at _project settings>service accounts_, where you can click on _generate new private key_ and download the credentials as a json file. It will contain keys such as `project_id`, `client_email` and `client_id`. Now copy them into your project in the `credentials/server.js` file.
-- Get your authentication credentials from the Firebase console under _project settings>general>your apps_ Add a new web app if you don't already have one. Under _Firebase SDK snippet_ choose _Config_ to get the configuration as JSON. It will include keys like `apiKey`, `authDomain` and `databaseUrl` and it goes into your project in `credentials/client.js`.
-- Back at the Firebase web console, go to _Authentication>Sign-in method_ and enable _Google_.
-- Create a database in the "Database" tab and select Firestore. Then go to "rules" and set up your write, read rules to this:
-
-```
-// Allow read/write access on all documents to any user signed in to the application
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth.uid != null;
-    }
-  }
-}
-```
+- Get your account credentials from the Firebase console at _Project settings > Service accounts_, where you can click on _generate new private key_ and download the credentials as a json file. It will contain keys such as `project_id`, `client_email` and `client_id`. Set them as environment variables in the `.env` file at the root of this project.
+- Get your authentication credentials from the Firebase console under _Project settings > General> Your apps_ Add a new web app if you don't already have one. Under _Firebase SDK snippet_ choose _Config_ to get the configuration as JSON. It will include keys like `apiKey`, `authDomain` and `databaseUrl`. Set the appropriate environment variables in the `.env` file at the root of this project.
 
 Install it and run:
 
@@ -60,4 +47,4 @@ After `now` successfully deploys, a URL will for your site will be displayed. Co
 
 ## The idea behind the example
 
-The goal is to authenticate users with firebase and store their auth token in sessions. A logged in user will see their messages on page load and then be able to post new messages.
+This example includes Firebase authentication and serverless [API routes](https://nextjs.org/docs/api-routes/introduction). On login, the app calls `/api/login`, which stores the user's info (their decoded Firebase token) in a cookie so that it's available server-side in `getInitialProps`. On logout, the app calls `/api/logout` to destroy the cookie.
