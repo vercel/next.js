@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
+import Router from 'next/router'
 import Layout from '../components/layout'
-import { login } from '../utils/auth'
 
 const signin = async (email, password) => {
   const response = await fetch('/api/login', {
@@ -13,9 +13,7 @@ const signin = async (email, password) => {
     throw new Error(await response.text())
   }
 
-  const data = await response.json()
-
-  login({ email: data.email })
+  Router.push('/profile')
 }
 
 function Login() {

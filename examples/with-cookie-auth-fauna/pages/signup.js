@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
+import Router from 'next/router'
 import Layout from '../components/layout'
-import { login } from '../utils/auth'
 
 function Signup() {
   const [userData, setUserData] = useState({
@@ -27,9 +27,7 @@ function Signup() {
         throw new Error(await response.text())
       }
 
-      const data = await response.json()
-
-      login({ email: data.email })
+      Router.push('/profile')
     } catch (error) {
       console.error(error)
       setUserData({ ...userData, error: error.message })

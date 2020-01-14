@@ -41,7 +41,7 @@ export default async (req, res) => {
     const cookieSerialized = serializeFaunaCookie(loginRes.secret)
 
     res.setHeader('Set-Cookie', cookieSerialized)
-    res.status(200).json({ email })
+    res.status(200).end()
   } catch (error) {
     res.status(400).send(error.message)
   }

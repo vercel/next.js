@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import Router from 'next/router'
 
 export const login = ({ email }) => {
-  window.localStorage.setItem('loggedInUser', email)
   Router.push('/profile')
 }
 
@@ -10,7 +9,6 @@ export const logout = async () => {
   await fetch('/api/logout')
 
   window.localStorage.setItem('logout', Date.now())
-  window.localStorage.removeItem('loggedInUser')
 
   Router.push('/login')
 }
