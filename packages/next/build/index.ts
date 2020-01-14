@@ -419,7 +419,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
   const analysisBegin = process.hrtime()
-  const reservedPagesRegex = /^\/(_app|_document|api)/
+  const reservedPagesRegex = /^\/(_app|_error|_document|api)/
   const runtimeEnvConfig = {
     publicRuntimeConfig: config.publicRuntimeConfig,
     serverRuntimeConfig: config.serverRuntimeConfig,
