@@ -10,6 +10,7 @@ import { pathToRegexp } from 'path-to-regexp'
 import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
+  getRedirectStatus,
   RouteType,
   Redirect,
   Rewrite,
@@ -22,7 +23,6 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
-  DEFAULT_REDIRECT_STATUS,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -246,7 +246,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       ...r,
       ...(type === 'redirect'
         ? {
-            statusCode: r.statusCode || DEFAULT_REDIRECT_STATUS,
+            statusCode: getRedirectStatus(r as Redirect),
+            permanent: undefined,
           }
         : {}),
       regex: routeRegex.source,

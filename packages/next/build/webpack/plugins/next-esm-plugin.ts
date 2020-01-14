@@ -213,22 +213,30 @@ export default class NextEsmPlugin implements Plugin {
       compilation.namedChunkGroups
     )
 
+    const unnamedChunks: compilation.Chunk[] = []
     const childChunkFileMap = childCompilation.chunks.reduce(
       (
         chunkMap: { [key: string]: compilation.Chunk },
         chunk: compilation.Chunk
       ) => {
-        chunkMap[chunk.name] = chunk
+        // Dynamic chunks may not have a name. It'll be null in such cases
+        if (chunk.name === null) {
+          unnamedChunks.push(chunk)
+        } else {
+          chunkMap[chunk.name] = chunk
+        }
+
         return chunkMap
       },
       {}
     )
 
-    // Merge files from similar chunks
+    // Merge chunks - merge the files of chunks with the same name
     compilation.chunks.forEach((chunk: compilation.Chunk) => {
       const childChunk = childChunkFileMap[chunk.name]
 
-      if (childChunk?.files) {
+      // Do not merge null named chunks since they are different
+      if (chunk.name !== null && childChunk?.files) {
         delete childChunkFileMap[chunk.name]
         chunk.files.push(
           ...childChunk.files.filter((v: any) => !chunk.files.includes(v))
@@ -236,15 +244,22 @@ export default class NextEsmPlugin implements Plugin {
       }
     })
 
-    // Add modern only chunks
-    compilation.chunks.push(...Object.values(childChunkFileMap))
+    // Add modern only chunks into the main compilation
+    compilation.chunks.push(
+      ...Object.values(childChunkFileMap),
+      ...unnamedChunks
+    )
 
-    // Place modern only chunk inside the right entry point
+    // Place modern only (unmerged) chunks inside the right entry point
     compilation.entrypoints.forEach((entryPoint, entryPointName) => {
       const childEntryPoint = childCompilation.entrypoints.get(entryPointName)
 
       childEntryPoint.chunks.forEach((chunk: compilation.Chunk) => {
-        if (childChunkFileMap.hasOwnProperty(chunk.name)) {
+        if (
+          // Add null named dynamic chunks since they weren't merged
+          chunk.name === null ||
+          childChunkFileMap.hasOwnProperty(chunk.name)
+        ) {
           entryPoint.chunks.push(chunk)
         }
       })

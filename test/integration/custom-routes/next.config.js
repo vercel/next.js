@@ -77,10 +77,12 @@ module.exports = {
         {
           source: '/hello/:id/another',
           destination: '/blog/:id',
+          permanent: false,
         },
         {
           source: '/redirect1',
           destination: '/',
+          permanent: false,
         },
         {
           source: '/redirect2',
@@ -95,7 +97,7 @@ module.exports = {
         {
           source: '/redirect4',
           destination: '/',
-          statusCode: 308,
+          permanent: true,
         },
         {
           source: '/redir-chain1',
@@ -115,10 +117,12 @@ module.exports = {
         {
           source: '/to-external',
           destination: 'https://google.com',
+          permanent: false,
         },
         {
           source: '/query-redirect/:section/:name',
           destination: '/with-params?first=:section&second=:name',
+          permanent: false,
         },
       ]
     },
