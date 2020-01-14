@@ -5,6 +5,7 @@ import flush from 'styled-jsx/server'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  AMP_RENDER_TARGET,
 } from '../next-server/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
 import {
@@ -92,7 +93,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
       return (props: any) => <App {...props} />
     }
 
-    const { html, head, dataOnly } = await ctx.renderPage({ enhanceApp })
+    const { html, head } = await ctx.renderPage({ enhanceApp })
     const styles = [
       ...flush(),
       ...(process.env.__NEXT_PLUGINS
@@ -102,7 +103,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
           ).then(mod => mod.default(ctx))
         : []),
     ]
-    return { html, head, styles, dataOnly }
+    return { html, head, styles }
   }
 
   static renderDocument<P>(
@@ -399,11 +400,15 @@ export class Head extends Component<
             <>
               <style
                 data-next-hide-fouc
+                data-ampdevmode={inAmpMode ? 'true' : undefined}
                 dangerouslySetInnerHTML={{
                   __html: `body{display:none}`,
                 }}
               />
-              <noscript data-next-hide-fouc>
+              <noscript
+                data-next-hide-fouc
+                data-ampdevmode={inAmpMode ? 'true' : undefined}
+              >
                 <style
                   dangerouslySetInnerHTML={{
                     __html: `body{display:block}`,
@@ -530,7 +535,7 @@ export class Main extends Component {
 
   render() {
     const { inAmpMode, html } = this.context._documentProps
-    if (inAmpMode) return '__NEXT_AMP_RENDER_TARGET__'
+    if (inAmpMode) return AMP_RENDER_TARGET
     return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
   }
 }
@@ -565,8 +570,7 @@ export class NextScript extends Component<OriginProps> {
 
       return (
         <script
-          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
-          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
+          defer
           key={bundle.file}
           src={`${assetPrefix}/_next/${encodeURI(
             bundle.file
@@ -607,8 +611,7 @@ export class NextScript extends Component<OriginProps> {
             file
           )}${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
-          defer={process.env.__NEXT_DEFER_SCRIPTS as any}
-          async={!process.env.__NEXT_DEFER_SCRIPTS as any}
+          defer
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
           {...modernProps}
         />
@@ -623,7 +626,9 @@ export class NextScript extends Component<OriginProps> {
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return polyfillFiles
-      .filter(polyfill => !/\.module\.js$/.test(polyfill))
+      .filter(
+        polyfill => polyfill.endsWith('.js') && !/\.module\.js$/.test(polyfill)
+      )
       .map(polyfill => (
         <script
           key={polyfill}
@@ -659,7 +664,7 @@ export class NextScript extends Component<OriginProps> {
       __NEXT_DATA__,
       bodyTags,
     } = this.context._documentProps
-    const deferScripts: any = process.env.__NEXT_DEFER_SCRIPTS
+
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     if (inAmpMode) {
@@ -715,8 +720,7 @@ export class NextScript extends Component<OriginProps> {
 
     const pageScript = [
       <script
-        defer={deferScripts}
-        async={!deferScripts}
+        defer
         data-next-page={page}
         key={page}
         src={
@@ -730,8 +734,7 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          defer={deferScripts}
-          async={!deferScripts}
+          defer
           data-next-page={page}
           key={`${page}-modern`}
           src={
@@ -750,8 +753,7 @@ export class NextScript extends Component<OriginProps> {
 
     const appScript = [
       <script
-        defer={deferScripts}
-        async={!deferScripts}
+        defer
         data-next-page="/_app"
         src={
           assetPrefix +
@@ -765,8 +767,7 @@ export class NextScript extends Component<OriginProps> {
       />,
       process.env.__NEXT_MODERN_BUILD && (
         <script
-          defer={deferScripts}
-          async={!deferScripts}
+          defer
           data-next-page="/_app"
           src={
             assetPrefix +

@@ -65,7 +65,6 @@ export default function onDemandEntryHandler(
   let reloading = false
   let stopped = false
   let reloadCallbacks: EventEmitter | null = new EventEmitter()
-  let lastEntry: string | null = null
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise(
@@ -80,7 +79,7 @@ export default function onDemandEntryHandler(
           const { name, absolutePagePath } = entries[page]
           const pageExists = await isWriteable(absolutePagePath)
           if (!pageExists) {
-            Log.event('page was removed', page)
+            // page was removed
             delete entries[page]
             return
           }
@@ -224,10 +223,7 @@ export default function onDemandEntryHandler(
 
     // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
-      if (page !== lastEntry) {
-        Log.event(`client pings, but there's no entry for page: ${page}`)
-      }
-      lastEntry = page
+      // if (page !== lastEntry) client pings, but there's no entry for page
       return { invalid: true }
     }
 
@@ -402,7 +398,7 @@ function disposeInactiveEntries(
     disposingPages.forEach((page: any) => {
       delete entries[page]
     })
-    Log.event(`disposing inactive page(s): ${disposingPages.join(', ')}`)
+    // disposing inactive page(s)
     devMiddleware.invalidate()
   }
 }

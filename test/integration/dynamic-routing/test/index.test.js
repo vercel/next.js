@@ -12,6 +12,7 @@ import {
   waitFor,
   nextBuild,
   nextStart,
+  normalizeRegEx,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -151,7 +152,7 @@ function runTests(dev) {
   it('[catch all] should pass param in getInitialProps during SSR', async () => {
     const html = await renderViaHTTP(appPort, '/p1/p2/all-ssr/test1')
     const $ = cheerio.load(html)
-    expect($('#all-ssr-content').text()).toBe('{"rest":"test1"}')
+    expect($('#all-ssr-content').text()).toBe('{"rest":["test1"]}')
   })
 
   it('[catch all] should pass params in getInitialProps during SSR', async () => {
@@ -192,7 +193,7 @@ function runTests(dev) {
       await browser.waitForElementByCss('#all-ssr-content')
 
       const text = await browser.elementByCss('#all-ssr-content').text()
-      expect(text).toBe('{"rest":"hello"}')
+      expect(text).toBe('{"rest":["hello"]}')
     } finally {
       if (browser) await browser.close()
     }
@@ -221,6 +222,78 @@ function runTests(dev) {
 
       const text = await browser.elementByCss('#all-ssr-content').text()
       expect(text).toBe('{"rest":["hello1/","he/llo2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[ssg: catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1/test2')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[predefined ssg: catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/test1')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
+  })
+
+  it('[predefined ssg: catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/p1/p2/predefined-ssg/test1/test2'
+    )
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/one-level')
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe('{"rest":["one-level"]}')
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/p1/p2/predefined-ssg/1st-level/2nd-level'
+    )
+    const $ = cheerio.load(html)
+    expect($('#all-ssg-content').text()).toBe(
+      '{"rest":["1st-level","2nd-level"]}'
+    )
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#ssg-catch-all-single').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#ssg-catch-all-multi').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
     } finally {
       if (browser) await browser.close()
     }
@@ -277,6 +350,34 @@ function runTests(dev) {
     expect(data).toMatch(/hello world/)
   })
 
+  it('should serve file with space from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with plus from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello+copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world +')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file from public folder encoded', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello%20copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with %20 from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello%2520copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world %20')
+    expect(res.status).toBe(200)
+  })
+
   if (dev) {
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
@@ -316,34 +417,52 @@ function runTests(dev) {
         join(appDir, '.next/routes-manifest.json')
       )
 
+      for (const route of manifest.dynamicRoutes) {
+        route.regex = normalizeRegEx(route.regex)
+      }
+
       expect(manifest).toEqual({
         version: 1,
+        basePath: '',
+        headers: [],
         rewrites: [],
         redirects: [],
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',
-            regex: '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx(
+              '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           {
             page: '/on-mount/[post]',
-            regex: '^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          {
+            page: '/p1/p2/all-ssg/[...rest]',
+            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
           },
           {
             page: '/p1/p2/all-ssr/[...rest]',
-            regex: '^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
+          },
+          {
+            page: '/p1/p2/predefined-ssg/[...rest]',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
           },
           {
             page: '/[name]',
-            regex: '^\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
           },
           {
             page: '/[name]/comments',
-            regex: '^\\/([^\\/]+?)\\/comments(?:\\/)?$',
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
           },
           {
             page: '/[name]/[comment]',
-            regex: '^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$',
+            regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
           },
         ],
       })
@@ -374,8 +493,7 @@ describe('Dynamic Routing', () => {
           `
           module.exports = {
             experimental: {
-              modern: true,
-              catchAllRouting: true
+              modern: true
             }
           }
         `
@@ -400,8 +518,7 @@ describe('Dynamic Routing', () => {
         module.exports = {
           target: 'serverless',
           experimental: {
-            modern: true,
-            catchAllRouting: true
+            modern: true
           }
         }
       `

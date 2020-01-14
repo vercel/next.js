@@ -1,28 +1,38 @@
-import React from 'react'
-import NoSSR from 'react-no-ssr'
+import React, { useEffect, useState } from 'react'
 import Loading from '../components/Loading'
 
-export default () => (
-  <main>
-    <section>
-      <h1>This section is server-side rendered.</h1>
-    </section>
+function useMounted() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  return mounted
+}
 
-    <NoSSR onSSR={<Loading />}>
+export default function HomePage() {
+  const isMounted = useMounted()
+  return (
+    <main>
       <section>
-        <h2>
-          This section is <em>only</em> client-side rendered.
-        </h2>
+        <h1>This section is server-side rendered.</h1>
       </section>
-    </NoSSR>
 
-    <style jsx>{`
-      section {
-        align-items: center;
-        display: flex;
-        height: 50vh;
-        justify-content: center;
-      }
-    `}</style>
-  </main>
-)
+      {isMounted ? (
+        <section>
+          <h2>
+            This section is <em>only</em> client-side rendered.
+          </h2>
+        </section>
+      ) : (
+        <Loading />
+      )}
+
+      <style jsx>{`
+        section {
+          align-items: center;
+          display: flex;
+          height: 50vh;
+          justify-content: center;
+        }
+      `}</style>
+    </main>
+  )
+}

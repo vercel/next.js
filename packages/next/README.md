@@ -497,8 +497,8 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 `getInitialProps` receives a context object with the following properties:
 
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
+- `pathname` - Current route. That is the path of the page in `/pages`
+- `query` - Query string section of URL parsed as an object
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
@@ -728,7 +728,7 @@ export default Home
 
 If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a _hyperlink_, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
 
-**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
+**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your site’s SEO.
 
 ```jsx
 import Link from 'next/link'
@@ -807,8 +807,7 @@ See [Disabling File-System Routing](#disabling-file-system-routing).
 
 Above `Router` object comes with the following API:
 
-- `route` - `String` of the current route
-- `pathname` - `String` of the current path excluding the query string
+- `pathname` - `String` of the current route. That is the path of the page in `/pages`
 - `query` - `Object` with the parsed query string. Defaults to `{}`.
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
@@ -1057,7 +1056,7 @@ export default function MyLink() {
 }
 ```
 
-`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperatively `prefetch` method in the `useEffect()` hook:
+`router` methods should be only used inside the client side of your app though. In order to prevent any error regarding this subject use the imperative `prefetch` method in the `useEffect()` hook:
 
 ```jsx
 import { useRouter } from 'next/router'

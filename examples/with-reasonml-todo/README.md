@@ -6,6 +6,12 @@ global state object can be used to track state across page within the applicatio
 It is intended to show how to build a simple, stateful application using hooks
 without the added complexity of a redux type library.
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-reasonml-todo)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -49,7 +55,7 @@ yarn build
 yarn start
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now

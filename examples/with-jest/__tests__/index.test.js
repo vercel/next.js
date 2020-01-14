@@ -1,10 +1,8 @@
-/* eslint-env jest */
-
-import { shallow } from 'enzyme'
 import React from 'react'
+import { shallow } from 'enzyme'
 import renderer from 'react-test-renderer'
 
-import App from '../pages/index.js'
+import App from '../pages/index'
 
 describe('With Enzyme', () => {
   it('App shows "Hello world!"', () => {

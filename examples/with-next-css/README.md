@@ -1,5 +1,11 @@
 # next-css example
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-next-css)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -31,7 +37,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now
@@ -39,4 +45,4 @@ now
 
 ## The idea behind the example
 
-This example demonstrates how to use the [next-css plugin](https://github.com/zeit/next-plugins/tree/master/packages/next-css) It includes patterns for with and without CSS Modules, with PostCSS and with additional webpack configurations on top of the next-css plugin.
+This example demonstrates how to use Next.js' built-in CSS imports and CSS modules support.

@@ -19,9 +19,9 @@ export type LoadComponentsReturnType = {
     params: any
   }) => {
     props: any
-    revalidate: number | false
+    revalidate?: number | boolean
   }
-  unstable_getStaticParams?: () => void
+  unstable_getStaticPaths?: () => void
   buildManifest?: any
   reactLoadableManifest?: any
   Document?: any
@@ -41,7 +41,7 @@ export async function loadComponents(
       Component,
       pageConfig: Component.config || {},
       unstable_getStaticProps: Component.unstable_getStaticProps,
-      unstable_getStaticParams: Component.unstable_getStaticParams,
+      unstable_getStaticPaths: Component.unstable_getStaticPaths,
     }
   }
   const documentPath = join(
@@ -64,6 +64,8 @@ export async function loadComponents(
   const DocumentMod = require(documentPath)
   const { middleware: DocumentMiddleware } = DocumentMod
 
+  const AppMod = require(appPath)
+
   const ComponentMod = requirePage(pathname, distDir, serverless)
 
   const [
@@ -77,7 +79,7 @@ export async function loadComponents(
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
     interopDefault(ComponentMod),
     interopDefault(DocumentMod),
-    interopDefault(require(appPath)),
+    interopDefault(AppMod),
   ])
 
   return {
@@ -89,6 +91,6 @@ export async function loadComponents(
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
-    unstable_getStaticParams: ComponentMod.unstable_getStaticParams,
+    unstable_getStaticPaths: ComponentMod.unstable_getStaticPaths,
   }
 }

@@ -7,6 +7,12 @@ This example sets up the boilerplate for an AMP First Site. You can see a live v
 - App manifest
 - Offline page
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/amp-first)
+
 ## Getting started
 
 To run the app in development, run the following command in the project director:
@@ -66,4 +72,10 @@ To start the application in production mode, run:
 
 ```shell
 $ yarn start
+```
+
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+
+```bash
+now
 ```

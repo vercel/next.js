@@ -35,7 +35,7 @@ yarn dev
 
 To compile `src/add.rs` to `add.wasm` use `npm run build-rust`.
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now

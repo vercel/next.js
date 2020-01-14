@@ -2,8 +2,11 @@ import React from 'react'
 import Link from 'next/link'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticParams() {
-  return ['/blog/post-1/comment-1', { post: 'post-2', comment: 'comment-2' }]
+export async function unstable_getStaticPaths() {
+  return [
+    '/blog/post-1/comment-1',
+    { params: { post: 'post-2', comment: 'comment-2' } },
+  ]
 }
 
 // eslint-disable-next-line camelcase

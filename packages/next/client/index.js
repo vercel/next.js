@@ -4,17 +4,11 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
-import {
-  loadGetInitialProps,
-  getURL,
-  SUPPORTS_PERFORMANCE_USER_TIMING,
-} from '../next-server/lib/utils'
+import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import { DataManagerContext } from '../next-server/lib/data-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
-import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
@@ -45,9 +39,6 @@ const {
   dynamicIds,
 } = data
 
-const d = JSON.parse(window.__NEXT_DATA__.dataManager)
-export const dataManager = new DataManager(d)
-
 const prefix = assetPrefix || ''
 
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
@@ -75,7 +66,7 @@ const appElement = document.getElementById('__next')
 let lastAppProps
 let webpackHMR
 export let router
-export let ErrorComponent
+let ErrorComponent
 let Component
 let App, onPerfEntry
 
@@ -101,8 +92,9 @@ class Container extends React.Component {
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
     if (
-      data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search)
+      (data.nextExport &&
+        (isDynamicRoute(router.pathname) || location.search)) ||
+      (Component && Component.__N_SSG && location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -118,6 +110,7 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
+          shallow: true,
         }
       )
     }
@@ -155,8 +148,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
   if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value }) {
-      mod.unstable_onPerformanceData({ name, startTime, value })
+    onPerfEntry = function({ name, startTime, value, duration }) {
+      mod.unstable_onPerformanceData({ name, startTime, value, duration })
     }
   }
 
@@ -190,7 +183,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err, emitter })
+      render({ App, Component, props, err })
     },
   })
 
@@ -206,7 +199,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
       })
   }
 
-  const renderCtx = { App, Component, props, err: initialErr, emitter }
+  const renderCtx = { App, Component, props, err: initialErr }
   render(renderCtx)
 
   return emitter
@@ -274,23 +267,21 @@ export async function renderError(props) {
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
 function renderReactElement(reactEl, domEl) {
-  // mark start of hydrate/render
-  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
-    performance.mark('beforeRender')
-  }
-
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    let callback = markRenderComplete
     if (!reactRoot) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
           ? ReactDOM.createRoot(domEl, opts)
           : ReactDOM.createBlockingRoot(domEl, opts)
-      callback = markHydrateComplete
     }
-    reactRoot.render(reactEl, callback)
+    reactRoot.render(reactEl)
   } else {
+    // mark start of hydrate/render
+    if (ST) {
+      performance.mark('beforeRender')
+    }
+
     // The check for `.hydrate` is there to support React alternatives like preact
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
@@ -300,13 +291,26 @@ function renderReactElement(reactEl, domEl) {
     }
   }
 
-  if (onPerfEntry) {
-    performance.getEntriesByType('paint').forEach(onPerfEntry)
+  if (onPerfEntry && ST) {
+    if (!('PerformanceObserver' in window)) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
+    } else {
+      performance.getEntriesByType('paint').forEach(onPerfEntry)
+
+      // Start an observer to catch any paint metrics which may fire _after_
+      // the load event is fired on the window
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(onPerfEntry)
+      })
+      observer.observe({ entryTypes: ['paint'] })
+    }
   }
 }
 
 function markHydrateComplete() {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+  if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
 
@@ -324,7 +328,7 @@ function markHydrateComplete() {
 }
 
 function markRenderComplete() {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+  if (!ST) return
 
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
@@ -373,11 +377,9 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <DataManagerContext.Provider value={dataManager}>
-          <HeadManagerContext.Provider value={headManager.updateHead}>
-            {children}
-          </HeadManagerContext.Provider>
-        </DataManagerContext.Provider>
+        <HeadManagerContext.Provider value={headManager.updateHead}>
+          {children}
+        </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
   )

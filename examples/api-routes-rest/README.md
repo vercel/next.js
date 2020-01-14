@@ -1,5 +1,11 @@
 # API routes with REST
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-rest)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -14,7 +20,7 @@ yarn create next-app --example api-routes-rest api-routes-rest-app
 
 ### Deploy to Now
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now

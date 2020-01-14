@@ -1,4 +1,10 @@
-# With env From next.js.config
+# With env From next.config.js
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-env-from-next-config-js)
 
 ## How to use
 
@@ -7,9 +13,9 @@
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-env-from-next-config-app
+npx create-next-app --example with-env-from-next-config-js
 # or
-yarn create next-app --example with-env-from-next-config-app
+yarn create next-app --example with-env-from-next-config-js
 ```
 
 ### Download manually
@@ -17,8 +23,8 @@ yarn create next-app --example with-env-from-next-config-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-dotenv
-cd with-env-from-next-config
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-env-from-next-config-js
+cd with-env-from-next-config-js
 ```
 
 Install it and run:
@@ -31,7 +37,7 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now

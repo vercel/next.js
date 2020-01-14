@@ -2,6 +2,12 @@
 
 Show how to setup [@quentin-sommer/react-useragent](https://github.com/quentin-sommer/react-useragent) using next.js client side and server side rendering.
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-react-useragent)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -23,7 +29,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-react-useragent
 ```
 
-Install it
+Install it and run:
 
 ```bash
 npm install
@@ -31,6 +37,12 @@ npm run dev
 # or
 yarn
 yarn dev
+```
+
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+
+```bash
+now
 ```
 
 ## The idea behind the example

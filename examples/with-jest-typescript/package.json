@@ -13,14 +13,14 @@
     "react-dom": "^16.8.4"
   },
   "devDependencies": {
-    "@types/jest": "^24.0.11",
+    "@types/jest": "^24.0.23",
     "@types/react": "^16.8.8",
     "@types/react-dom": "^16.8.2",
     "babel-core": "^6.26.3",
-    "babel-jest": "^24.5.0",
+    "babel-jest": "^24.9.0",
     "enzyme": "^3.9.0",
     "enzyme-adapter-react-16": "^1.11.2",
-    "jest": "^24.5.0",
+    "jest": "^24.9.0",
     "react-addons-test-utils": "^15.6.2",
     "react-test-renderer": "^16.8.4",
     "typescript": "^3.3.3333"

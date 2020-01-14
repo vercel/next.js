@@ -32,4 +32,4 @@ external createServer: ((Request.t, Response.t) => unit) => http = "";
 
 [@bs.send.pipe: http] external listen: (int, string => unit) => unit = "";
 
-[@bs.module "url"] external parse: (string, bool) => parsedObjectUrl = "";
+[@bs.module "url"] external parse: (string, bool) => parsedObjectUrl = "parse";

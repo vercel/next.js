@@ -38,6 +38,12 @@ const Page = () => (
     >
       <a id="catch-all-enc">Catch-all route (encoded)</a>
     </Link>
+    <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello">
+      <a id="ssg-catch-all-single">Catch-all route (single)</a>
+    </Link>
+    <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello1/hello2">
+      <a id="ssg-catch-all-multi">Catch-all route (multi)</a>
+    </Link>
   </div>
 )
 

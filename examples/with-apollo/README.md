@@ -1,8 +1,12 @@
 # Apollo Example
 
-## Demo
+## Deploy your own
 
-https://next-with-apollo.now.sh
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-apollo)
+
+_Live Example: https://next-with-apollo.now.sh_
 
 ## How to use
 

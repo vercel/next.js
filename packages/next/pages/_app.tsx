@@ -7,6 +7,7 @@ import {
   AppPropsType,
 } from '../next-server/lib/utils'
 import { Router } from '../client/router'
+import '../client/router'
 
 export { AppInitialProps }
 
