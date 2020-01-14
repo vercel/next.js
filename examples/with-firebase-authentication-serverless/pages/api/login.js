@@ -8,9 +8,8 @@ const handler = (req, res) => {
 
   const { token } = req.body
 
-  // Here, we decode the user's Firebase token and store it in a cookie, so
-  // user data only exists on the client side. Use express-session (or similar)
-  // to store the session data server-side.
+  // Here, we decode the user's Firebase token and store it in a cookie. Use
+  // express-session (or similar) to store the session data server-side.
   // An alternative approach is to use Firebase's `createSessionCookie`. See:
   // https://firebase.google.com/docs/auth/admin/manage-cookies
   // Firebase docs:
