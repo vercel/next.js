@@ -70,13 +70,13 @@ Index.getInitialProps = async ctx => {
   // Get the AuthUserInfo object. This is set in _app.js.
   // The AuthUserInfo object is available on both the server and client.
   const AuthUserInfo = get(ctx, 'myCustomData.AuthUserInfo', null)
-  const AuthUserFromSession = get(AuthUserInfo, 'AuthUser', null)
+  const AuthUser = get(AuthUserInfo, 'AuthUser', null)
 
   // You can also get the token (e.g., to authorize a request when fetching data)
   // const AuthUserToken = get(AuthUserInfo, 'token', null)
 
   // You can fetch data here.
-  const data = await mockFetchData(get(AuthUserFromSession, 'id'))
+  const data = await mockFetchData(get(AuthUser, 'id'))
 
   return {
     data,
