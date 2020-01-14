@@ -51,6 +51,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
+    pages404: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

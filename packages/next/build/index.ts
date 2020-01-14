@@ -55,13 +55,14 @@ import createSpinner from './spinner'
 import {
   collectPages,
   getPageSizeInKb,
-  hasCustomAppGetInitialProps,
+  hasCustomGetInitialProps,
   PageInfo,
   printCustomRoutes,
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -259,6 +260,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     path.join(distDir, ROUTES_MANIFEST),
     JSON.stringify({
       version: 1,
+      static404: !!(!pageKeys.includes('/404') || config.experimental.pages404),
       basePath: config.experimental.basePath,
       redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
       rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
@@ -406,8 +408,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
 
-  let customAppGetInitialProps: boolean | undefined
-
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
@@ -418,9 +418,46 @@ export default async function build(dir: string, conf = null): Promise<void> {
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
   const analysisBegin = process.hrtime()
+  const reservedPagesRegex = /^\/(_app|_document|api)/
+  const runtimeEnvConfig = {
+    publicRuntimeConfig: config.publicRuntimeConfig,
+    serverRuntimeConfig: config.serverRuntimeConfig,
+  }
+  const distPagesDir = path.join(
+    distDir,
+    isLikeServerless
+      ? `${SERVERLESS_DIRECTORY}`
+      : `${SERVER_DIRECTORY}/static/${buildId}`,
+    `/pages`
+  )
+  const customAppGetInitialProps = hasCustomGetInitialProps(
+    path.join(
+      distPagesDir,
+      // if in serverless mode check first page's bundle for _app export
+      isLikeServerless ? normalizePagePath(pageKeys[0]) : `/_app.js`
+    ),
+    runtimeEnvConfig
+  )
+  const customErrorGetInitialProps = hasCustomGetInitialProps(
+    path.join(distPagesDir, `/_error.js`),
+    runtimeEnvConfig
+  )
+
+  if (customAppGetInitialProps) {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.yellow(
+          `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
+        )
+    )
+    console.warn(
+      'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+    )
+  }
+
   await Promise.all(
     pageKeys.map(async page => {
-      const actualPage = page === '/' ? '/index' : page
+      const actualPage = normalizePagePath(page)
       const [selfSize, allSize] = await getPageSizeInKb(
         actualPage,
         distDir,
@@ -444,37 +481,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let ssgPageRoutes: string[] | null = null
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
-
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
-
-      if (nonReservedPage && customAppGetInitialProps === undefined) {
-        customAppGetInitialProps = hasCustomAppGetInitialProps(
-          isLikeServerless
-            ? serverBundle
-            : path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                `/static/${buildId}/pages/_app.js`
-              ),
-          runtimeEnvConfig
-        )
-
-        if (customAppGetInitialProps) {
-          console.warn(
-            chalk.bold.yellow(`Warning: `) +
-              chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`.`
-              )
-          )
-          console.warn(
-            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
-          )
-        }
-      }
+      const nonReservedPage = !page.match(reservedPagesRegex)
 
       if (nonReservedPage) {
         try {
@@ -549,8 +556,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
+  const output404Page =
+    !customAppGetInitialProps &&
+    ((!customErrorGetInitialProps && !pageKeys.includes('/404')) ||
+      (staticPages.has('/404') && config.experimental.pages404))
+  const pages404 =
+    config.experimental.pages404 && staticPages.has('/404') ? '/404' : '/_error'
 
-  if (staticPages.size > 0 || sprPages.size > 0) {
+  if (staticPages.size > 0 || sprPages.size > 0 || output404Page) {
     const combinedPages = [...staticPages, ...sprPages]
     const exportApp = require('../export').default
     const exportOptions = {
@@ -587,6 +600,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
             defaultMap[route] = { page }
           })
         })
+
+        if (output404Page) {
+          defaultMap['/404'] = { page: pages404 }
+        }
+
         return defaultMap
       },
       exportTrailingSlash: false,
@@ -627,10 +645,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsMove(orig, dest)
     }
 
+    if (output404Page && !staticPages.has('/404')) {
+      await moveExportedPage('/404', '/404', false, 'html')
+    }
+
     for (const page of combinedPages) {
       const isSpr = sprPages.has(page)
       const isDynamic = isDynamicRoute(page)
-      let file = page === '/' ? '/index' : page
+      let file = normalizePagePath(page)
       // The dynamic version of SPR pages are not prerendered. Below, we handle
       // the specific prerenders of these.
       if (!(isSpr && isDynamic)) {
@@ -653,7 +675,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             dataRoute: path.posix.join(
               '/_next/data',
               buildId,
-              `${page === '/' ? '/index' : page}.json`
+              `${normalizePagePath(page)}.json`
             ),
           }
         } else {
@@ -671,7 +693,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               dataRoute: path.posix.join(
                 '/_next/data',
                 buildId,
-                `${route === '/' ? '/index' : route}.json`
+                `${normalizePagePath(route)}.json`
               ),
             }
           }
@@ -704,7 +726,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
+        `${normalizePagePath(tbdRoute)}.json`
       )
 
       finalDynamicRoutes[tbdRoute] = {

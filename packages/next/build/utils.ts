@@ -590,14 +590,14 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomAppGetInitialProps(
-  _appBundle: string,
+export function hasCustomGetInitialProps(
+  bundlePath: string,
   runtimeEnvConfig: any
 ): boolean {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(_appBundle)
+  let mod = require(bundlePath)
 
-  if (_appBundle.endsWith('_app.js')) {
+  if (bundlePath.endsWith('_app.js') || bundlePath.endsWith('_error.js')) {
     mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page

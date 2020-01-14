@@ -110,6 +110,7 @@ export default class Server {
     rewrites: Rewrite[]
     redirects: Redirect[]
     headers: Header[]
+    static404: boolean
   }
 
   public constructor({
@@ -1050,7 +1051,22 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const result = await this.findPageComponents('/_error', query)
+    let result: LoadComponentsReturnType | undefined = undefined
+
+    if (this.customRoutes?.static404) {
+      try {
+        result = await this.findPageComponents('/404', query)
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          throw err
+        }
+      }
+    }
+
+    if (!result) {
+      result = await this.findPageComponents('/_error', query)
+    }
+
     let html
     try {
       html = await this.renderToHTMLWithComponents(
