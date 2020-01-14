@@ -14,16 +14,16 @@ export default async (req, res) => {
         password,
       })
     )
+
     if (!loginRes.secret) {
       throw new Error('No secret present in login query response.')
     }
-    var cookieSerialized = serializeFaunaCookie(loginRes.secret)
+
+    const cookieSerialized = serializeFaunaCookie(loginRes.secret)
+
     res.setHeader('Set-Cookie', cookieSerialized)
     res.status(200).json({ email })
   } catch (error) {
-    const { response } = error
-    return response
-      ? res.status(response.status).json({ message: response.statusText })
-      : res.status(400).json({ message: error.message })
+    res.status(400).send(error.message)
   }
 }

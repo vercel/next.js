@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import Router from 'next/router'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
@@ -11,17 +10,12 @@ const signin = async (email, password) => {
     body: JSON.stringify({ email, password }),
   })
 
-  if (response.status === 200) {
-    const { email } = await response.json()
-    login({ email })
-    Router.push('/profile')
-  } else {
-    console.log('Login failed.')
-    // https://github.com/developit/unfetch#caveats
-    const { message } = await response.json()
-    let error = new Error(message || response.statusText)
-    throw error
+  if (response.status !== 200) {
+    throw new Error(await response.text())
   }
+
+  const data = await response.json()
+  login({ email: data.email })
 }
 
 function Login() {
@@ -33,7 +27,7 @@ function Login() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    setUserData(Object.assign({}, userData, { error: '' }))
+    setUserData({ ...userData, error: '' })
 
     const email = userData.email
     const password = userData.password
@@ -41,17 +35,8 @@ function Login() {
     try {
       await signin(email, password)
     } catch (error) {
-      console.error(
-        'You have an error in your code or there are Network issues.',
-        error
-      )
-
-      const { response } = error
-      setUserData(
-        Object.assign({}, userData, {
-          error: response ? response.statusText : error.message,
-        })
-      )
+      console.error(error)
+      setUserData({ ...userData, error: error.message })
     }
   }
 
