@@ -24,7 +24,7 @@ export default class WebpackConformancePlugin {
   private tests: IWebpackConformanctTest[]
   private errors: Array<IConformanceAnamoly>
   private warnings: Array<IConformanceAnamoly>
-  private compiler: Compiler
+  private compiler?: Compiler
 
   constructor(options: IWebpackConformancePluginOptions) {
     this.tests = []
@@ -50,7 +50,7 @@ export default class WebpackConformancePlugin {
   ) => {
     const buildStartedResults: IConformanceTestResult[] = this.tests.map(
       test => {
-        if (test.buildStared) {
+        if (test.buildStared && this.compiler) {
           return test.buildStared(this.compiler.options)
         }
         return {
