@@ -94,7 +94,7 @@ class Container extends React.Component {
     if (
       (data.nextExport &&
         (isDynamicRoute(router.pathname) || location.search)) ||
-      (Component.__NEXT_SPR && location.search)
+      (Component.__N_SSG && location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -267,23 +267,21 @@ export async function renderError(props) {
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
 function renderReactElement(reactEl, domEl) {
-  // mark start of hydrate/render
-  if (ST) {
-    performance.mark('beforeRender')
-  }
-
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    let callback = markRenderComplete
     if (!reactRoot) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
           ? ReactDOM.createRoot(domEl, opts)
           : ReactDOM.createBlockingRoot(domEl, opts)
-      callback = markHydrateComplete
     }
-    reactRoot.render(reactEl, callback)
+    reactRoot.render(reactEl)
   } else {
+    // mark start of hydrate/render
+    if (ST) {
+      performance.mark('beforeRender')
+    }
+
     // The check for `.hydrate` is there to support React alternatives like preact
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
