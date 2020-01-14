@@ -205,6 +205,26 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Invalid CSS in _document', () => {
+    const appDir = join(fixturesDir, 'invalid-module-document')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail to build', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('styles.module.css')
+      expect(stderr).toMatch(
+        /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
+      )
+      expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+    })
+  })
+
   describe('Invalid Global CSS', () => {
     const appDir = join(fixturesDir, 'invalid-global')
 
