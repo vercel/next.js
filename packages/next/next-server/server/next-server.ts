@@ -17,7 +17,6 @@ import {
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -50,6 +49,7 @@ import {
   Rewrite,
   RouteType,
   Header,
+  getRedirectStatus,
 } from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -493,8 +493,7 @@ export default class Server {
                 })
 
                 res.setHeader('Location', updatedDestination)
-                res.statusCode =
-                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
+                res.statusCode = getRedirectStatus(route as Redirect)
 
                 // Since IE11 doesn't support the 308 header add backwards
                 // compatibility using refresh header
