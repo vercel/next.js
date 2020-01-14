@@ -1,31 +1,9 @@
 import { useEffect } from 'react'
 import Router from 'next/router'
-import cookie from 'cookie'
-import { FAUNA_SECRET_COOKIE } from './fauna-auth'
 
 export const login = ({ email }) => {
   window.localStorage.setItem('loggedInUser', email)
   Router.push('/profile')
-}
-
-export const auth = ctx => {
-  if (ctx.req) {
-    var cookies = cookie.parse(ctx.req.headers.cookie ?? '')
-    var faunaSecret = cookies[FAUNA_SECRET_COOKIE]
-    if (!faunaSecret) {
-      // If `ctx.req` is available it means we are on the server.
-      ctx.res.writeHead(302, { Location: '/login' })
-      ctx.res.end()
-    }
-    return faunaSecret
-  } else {
-    if (!window.localStorage.getItem('loggedInUser')) {
-      Router.push('/login')
-    }
-    // The user is logged in, the page will perform it's own
-    // authed API call.
-    return null
-  }
 }
 
 export const logout = async () => {
@@ -37,7 +15,7 @@ export const logout = async () => {
   Router.push('/login')
 }
 
-export const withAuthSync = WrappedComponent => {
+export const withAuthSync = Component => {
   const Wrapper = props => {
     const syncLogout = event => {
       if (event.key === 'logout') {
@@ -55,17 +33,11 @@ export const withAuthSync = WrappedComponent => {
       }
     }, [])
 
-    return <WrappedComponent {...props} />
+    return <Component {...props} />
   }
 
-  Wrapper.getInitialProps = async ctx => {
-    const token = auth(ctx)
-
-    const componentProps =
-      WrappedComponent.getInitialProps &&
-      (await WrappedComponent.getInitialProps(ctx))
-
-    return { ...componentProps, token }
+  if (Component.getInitialProps) {
+    Wrapper.getInitialProps = Component.getInitialProps
   }
 
   return Wrapper
