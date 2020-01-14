@@ -26,7 +26,7 @@ export async function unstable_getStaticProps() {
 export default ({ world, time }) => (
   <>
     <p>hello {world}</p>
-    <span>time: {time}</span>
+    <span id="anotherTime">time: {time}</span>
     <Link href="/">
       <a id="home">to home</a>
     </Link>

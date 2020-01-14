@@ -1,15 +1,17 @@
-import { match } from 'path-to-regexp'
+import * as pathToRegexp from 'path-to-regexp'
+
+export { pathToRegexp }
 
 export default (customRoute = false) => {
   return (path: string) => {
-    const matcher = match(path, {
+    const matcher = pathToRegexp.match(path, {
       sensitive: false,
       delimiter: '/',
       ...(customRoute ? { strict: true } : undefined),
       decode: decodeParam,
     })
 
-    return (pathname: string | undefined, params?: any) => {
+    return (pathname: string | null | undefined, params?: any) => {
       const res = pathname == null ? false : matcher(pathname)
       if (!res) {
         return false

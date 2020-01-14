@@ -2,6 +2,7 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
+import AbortController from 'abort-controller'
 import {
   killApp,
   findPort,
@@ -17,6 +18,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
+let stderr
 let mode
 let app
 
@@ -63,6 +65,13 @@ function runTests(dev = false) {
     expect(text).toBe('Internal Server Error')
   })
 
+  it('should throw Internal Server Error (async)', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/user-error-async', null, {})
+    const text = await res.text()
+    expect(res.status).toBe(500)
+    expect(text).toBe('Internal Server Error')
+  })
+
   it('should parse JSON body', async () => {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
@@ -73,6 +82,27 @@ function runTests(dev = false) {
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
+  })
+
+  it('should special-case empty JSON body', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+    }).then(res => res.ok && res.json())
+
+    expect(data).toEqual({})
+  })
+
+  it('should support boolean for JSON in api page', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/bool', null, {})
+    const body = res.ok ? await res.json() : null
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe(
+      'application/json; charset=utf-8'
+    )
+    expect(body).toBe(true)
   })
 
   it('should return error with invalid JSON', async () => {
@@ -304,6 +334,19 @@ function runTests(dev = false) {
         )
       ).toBeTruthy()
     })
+
+    it('should show warning when the API resolves without ending the request in dev mode', async () => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort()
+      }, 2000)
+      await fetchViaHTTP(appPort, '/api/test-no-end', undefined, {
+        signal: controller.signal,
+      }).catch(() => {})
+      expect(stderr).toContain(
+        `API resolved without sending a response for /api/test-no-end, this may result in a stalled requests`
+      )
+    })
   } else {
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
@@ -332,8 +375,13 @@ function runTests(dev = false) {
 describe('API routes', () => {
   describe('dev support', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        },
+      })
     })
     afterAll(() => killApp(app))
 

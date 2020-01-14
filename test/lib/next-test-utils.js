@@ -271,7 +271,7 @@ export async function stopApp(server) {
   await promiseCall(server, 'close')
 }
 
-function promiseCall(obj, method, ...args) {
+export function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
@@ -401,5 +401,5 @@ export function getBrowserBodyText(browser) {
 }
 
 export function normalizeRegEx(src) {
-  return new RegExp(src).source
+  return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }

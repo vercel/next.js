@@ -6,6 +6,7 @@ import { parse } from 'content-type'
 import { Params } from './router'
 import { PageConfig } from '../../types'
 import { interopDefault } from './load-components'
+import { isResSent } from '../lib/utils'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -54,7 +55,13 @@ export async function apiResolver(
     apiRes.json = data => sendJson(apiRes, data)
 
     const resolver = interopDefault(resolverModule)
-    resolver(req, res)
+    await resolver(req, res)
+
+    if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
+      console.warn(
+        `API resolved without sending a response for ${req.url}, this may result in a stalled requests.`
+      )
+    }
   } catch (err) {
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
@@ -104,6 +111,11 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
  * @param str `JSON` string
  */
 function parseJson(str: string) {
+  if (str.length === 0) {
+    // special-case empty json body, as it's a common client-side mistake
+    return {}
+  }
+
   try {
     return JSON.parse(str)
   } catch (e) {
@@ -199,7 +211,11 @@ export function sendData(res: NextApiResponse, body: any) {
   let str = body
 
   // Stringify JSON body
-  if (typeof body === 'object' || typeof body === 'number') {
+  if (
+    typeof body === 'object' ||
+    typeof body === 'number' ||
+    typeof body === 'boolean'
+  ) {
     str = JSON.stringify(body)
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
