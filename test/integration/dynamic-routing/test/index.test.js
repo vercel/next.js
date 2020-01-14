@@ -427,6 +427,7 @@ function runTests(dev) {
         headers: [],
         rewrites: [],
         redirects: [],
+        static404: true,
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',

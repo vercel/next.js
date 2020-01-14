@@ -250,6 +250,7 @@ const runTests = (isDev = false) => {
       expect(manifest).toEqual({
         version: 1,
         basePath: '',
+        static404: true,
         redirects: [
           {
             source: '/docs/router-status/:code',
