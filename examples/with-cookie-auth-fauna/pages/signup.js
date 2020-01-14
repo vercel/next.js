@@ -1,8 +1,6 @@
 import React, { useState } from 'react'
-import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
-import Router from 'next/router'
 
 function Signup() {
   const [userData, setUserData] = useState({
@@ -13,39 +11,28 @@ function Signup() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    setUserData(Object.assign({}, userData, { error: '' }))
+    setUserData({ ...userData, error: '' })
 
     const email = userData.email
     const password = userData.password
-    const url = '/api/signup'
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch('/api/signup', {
         method: 'POST',
-
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      if (response.status === 200) {
-        const { email } = await response.json()
-        login({ email })
-        Router.push('/profile')
-      } else {
-        console.log('Signup failed.')
-        const { message } = await response.json()
-        let error = new Error(message ? message : response.statusText)
-        throw error
+
+      if (response.status !== 200) {
+        throw new Error(await response.text())
       }
+
+      const data = await response.json()
+
+      login({ email: data.email })
     } catch (error) {
-      console.error(
-        'You have an error in your code or there are Network issues.',
-        error
-      )
-      setUserData(
-        Object.assign({}, userData, {
-          error: error.message,
-        })
-      )
+      console.error(error)
+      setUserData({ ...userData, error: error.message })
     }
   }
 

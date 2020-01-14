@@ -3,8 +3,7 @@ import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
 const signin = async (email, password) => {
-  const url = '/api/login'
-  const response = await fetch(url, {
+  const response = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -15,6 +14,7 @@ const signin = async (email, password) => {
   }
 
   const data = await response.json()
+
   login({ email: data.email })
 }
 

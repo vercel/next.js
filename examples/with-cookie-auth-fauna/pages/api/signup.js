@@ -9,36 +9,40 @@ export default async (req, res) => {
       throw new Error('Email and password must be provided.')
     }
     console.log(`email: ${email} trying to create user.`)
-    let createRes
+
+    let user
+
     try {
-      createRes = await serverClient.query(
+      user = await serverClient.query(
         q.Create(q.Collection('User'), {
           credentials: { password },
           data: { email },
         })
       )
-    } catch (err) {
-      console.error('ERR', err)
+    } catch (error) {
+      console.error('Fauna create user error:', error)
       throw new Error('User already exists.')
     }
-    if (!createRes.ref) {
+
+    if (!user.ref) {
       throw new Error('No ref present in create query response.')
     }
+
     const loginRes = await serverClient.query(
-      q.Login(createRes.ref, {
+      q.Login(user.ref, {
         password,
       })
     )
+
     if (!loginRes.secret) {
       throw new Error('No secret present in login query response.')
     }
-    var cookieSerialized = serializeFaunaCookie(loginRes.secret)
+
+    const cookieSerialized = serializeFaunaCookie(loginRes.secret)
+
     res.setHeader('Set-Cookie', cookieSerialized)
     res.status(200).json({ email })
   } catch (error) {
-    const { response } = error
-    return response
-      ? res.status(response.status).json({ message: response.statusText })
-      : res.status(400).json({ message: error.message })
+    res.status(400).send(error.message)
   }
 }
