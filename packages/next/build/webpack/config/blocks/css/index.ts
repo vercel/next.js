@@ -6,6 +6,7 @@ import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 import {
+  getCustomDocumentError,
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
@@ -130,6 +131,28 @@ export const css = curry(async function css(
     // function argument.
     true
   )
+
+  // CSS cannot be imported in _document. This comes before everything because
+  // global CSS nor CSS modules work in said file.
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: /\.css$/,
+          // Use a loose regex so we don't have to crawl the file system to
+          // find the real file name (if present).
+          issuer: { test: /pages[\\/]_document\./ },
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getCustomDocumentError(),
+            },
+          },
+        },
+      ],
+    })
+  )
+
   // CSS Modules support must be enabled on the server and client so the class
   // names are availble for SSR or Prerendering.
   fns.push(
