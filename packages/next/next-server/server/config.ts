@@ -58,6 +58,7 @@ const defaultConfig: { [key: string]: any } = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
+  babelIncludeRegexes: [],
 }
 
 const experimentalWarning = execOnce(() => {

@@ -158,6 +158,7 @@ export default async function getBaseWebpackConfig(
     ...(config.experimental.plugins
       ? VALID_MIDDLEWARE.map(name => new RegExp(`src(\\\\|/)${name}`))
       : []),
+    ...config.babelIncludeRegexes,
   ]
 
   // Support for NODE_PATH
