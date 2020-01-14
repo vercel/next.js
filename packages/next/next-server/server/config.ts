@@ -36,23 +36,21 @@ const defaultConfig: { [key: string]: any } = {
   },
   exportTrailingSlash: false,
   experimental: {
-    ampBindInitData: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    catchAllRouting: false,
-    css: false,
+    css: true,
     documentMiddleware: false,
-    granularChunks: false,
+    granularChunks: true,
     modern: false,
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    deferScripts: false,
     reactMode: 'legacy',
     workerThreads: false,
+    basePath: '',
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -100,9 +98,54 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   })
 
   const result = { ...defaultConfig, ...userConfig }
-  if (result.experimental && result.experimental.css) {
-    // The new CSS support requires granular chunks be enabled.
-    result.experimental.granularChunks = true
+
+  if (typeof result.assetPrefix !== 'string') {
+    throw new Error(
+      `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://err.sh/zeit/next.js/invalid-assetprefix`
+    )
+  }
+  if (result.experimental) {
+    if (result.experimental.css) {
+      // The new CSS support requires granular chunks be enabled.
+      if (result.experimental.granularChunks !== true) {
+        throw new Error(
+          `The new CSS support requires granular chunks be enabled.`
+        )
+      }
+    }
+
+    if (typeof result.experimental.basePath !== 'string') {
+      throw new Error(
+        `Specified basePath is not a string, found type "${typeof result
+          .experimental.basePath}"`
+      )
+    }
+
+    if (result.experimental.basePath !== '') {
+      if (result.experimental.basePath === '/') {
+        throw new Error(
+          `Specified basePath /. basePath has to be either an empty string or a path prefix"`
+        )
+      }
+
+      if (!result.experimental.basePath.startsWith('/')) {
+        throw new Error(
+          `Specified basePath has to start with a /, found "${result.experimental.basePath}"`
+        )
+      }
+
+      if (result.experimental.basePath !== '/') {
+        if (result.experimental.basePath.endsWith('/')) {
+          throw new Error(
+            `Specified basePath should not end with /, found "${result.experimental.basePath}"`
+          )
+        }
+
+        if (result.assetPrefix === '') {
+          result.assetPrefix = result.experimental.basePath
+        }
+      }
+    }
   }
   return result
 }
@@ -133,7 +176,7 @@ export default function loadConfig(
   })
 
   // If config file was found
-  if (path && path.length) {
+  if (path?.length) {
     const userConfigModule = require(path)
     const userConfig = normalizeConfig(
       phase,
@@ -147,7 +190,7 @@ export default function loadConfig(
       )
     }
 
-    if (userConfig.amp && userConfig.amp.canonicalBase) {
+    if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
@@ -171,8 +214,7 @@ export default function loadConfig(
     }
 
     if (
-      userConfig.experimental &&
-      userConfig.experimental.reactMode &&
+      userConfig.experimental?.reactMode &&
       !reactModes.includes(userConfig.experimental.reactMode)
     ) {
       throw new Error(
@@ -194,7 +236,7 @@ export default function loadConfig(
       ],
       { cwd: dir }
     )
-    if (nonJsPath && nonJsPath.length) {
+    if (nonJsPath?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath

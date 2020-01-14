@@ -1,6 +1,29 @@
-# Custom server REASONML
+# Custom server ReasonML example
 
-# Install it and run:
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+
+```bash
+npx create-next-app --example custom-server-reasonml custom-server-reasonml-app
+# or
+yarn create next-app --example custom-server-reasonml custom-server-reasonml-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-reasonml
+cd custom-server-reasonml
+```
+
+### Run the development app
+
+Install it and run:
 
 ```bash
 npm install
@@ -10,26 +33,36 @@ yarn
 yarn dev
 ```
 
-# Build the app
+### Build the app
 
 ```bash
-yarn next:build
 npm run next:build
+# or
+yarn next:build
 ```
 
-# Run the production app
+### Run the production app
 
-Run this command after yarn build.
+Run this command after building:
 
 ```bash
+npm start
+# or
 yarn start
 ```
 
-# The idea behind this example
+### Deploy the app
 
-ReasonML is an exciting new language and since it can compile directly to JS via bucklescript
-that means that we can power our backend server with REASONML and also have the frontend built with
-reasonreact, which is covered in another [example](https://github.com/zeit/next.js/tree/canary/examples/with-reasonml).
-This example shows how powerful & helpful it can be to build a next js custom server with a typesafe language.
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
-The example has been built off the `custom-server` example that uses pure `nodejs` to build the custom server.
+```bash
+now
+```
+
+## The idea behind this example
+
+ReasonML is an exciting new language. Since it can compile directly to JS via [BuckleScript](https://bucklescript.github.io/en/),
+we can power our backend server with ReasonML and also build the frontend with
+[ReasonReact](https://reasonml.github.io/reason-react/en/) (covered in the [with-reasonml example](https://github.com/zeit/next.js/tree/canary/examples/with-reasonml)).
+
+This example shows how powerful and helpful it is to build a Next.js custom server with a typesafe language. It is based off the [custom-server example](https://github.com/zeit/next.js/tree/canary/examples/custom-server) that uses pure Node.js to build the custom server.

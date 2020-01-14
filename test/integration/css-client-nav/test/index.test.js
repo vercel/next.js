@@ -74,6 +74,9 @@ describe('CSS Module client-side navigation in Production', () => {
     const serverCssPreloads = $('link[rel="preload"][as="style"]')
     expect(serverCssPreloads.length).toBe(1)
 
+    const serverCssPrefetches = $('link[rel="prefetch"][as="style"]')
+    expect(serverCssPrefetches.length).toBe(0)
+
     let browser
     try {
       browser = await webdriver(appPort, '/blue')
@@ -89,15 +92,19 @@ describe('CSS Module client-side navigation in Production', () => {
 
       // Check that Red was preloaded
       const result = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel="preload"][as="style"]')).map(e=>({href:e.href})).sort()`
+        `[].slice.call(document.querySelectorAll('link[rel="prefetch"][as="style"]')).map(e=>({href:e.href})).sort()`
       )
-      expect(result.length).toBe(2)
+      expect(result.length).toBe(1)
 
       // Check that CSS was not loaded as script
       const cssPreloads = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
       )
       expect(cssPreloads.every(e => e === 'style')).toBe(true)
+      const cssPreloads2 = await browser.eval(
+        `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
+      )
+      expect(cssPreloads2.every(e => e === 'style')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 

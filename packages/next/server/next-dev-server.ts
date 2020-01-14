@@ -21,7 +21,7 @@ import {
 } from '../next-server/lib/router/utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { route, Params } from '../next-server/server/router'
+import Router, { route, Params } from '../next-server/server/router'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
@@ -144,7 +144,7 @@ export default class DevServer extends Server {
 
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(pagesDir!, (_, files) => {
-        if (files && files.length) {
+        if (files?.length) {
           return
         }
 
@@ -186,6 +186,7 @@ export default class DevServer extends Server {
           page,
           match: getRouteMatcher(getRouteRegex(page)),
         }))
+        this.router.setDynamicRoutes(this.dynamicRoutes)
 
         if (!resolved) {
           resolve()
@@ -212,8 +213,7 @@ export default class DevServer extends Server {
       const { redirects, rewrites } = this.customRoutes
 
       if (redirects.length || rewrites.length) {
-        // TODO: don't reach into router instance
-        this.router.routes = this.generateRoutes()
+        this.router = new Router(this.generateRoutes())
       }
     }
 
@@ -258,14 +258,14 @@ export default class DevServer extends Server {
   protected async _beforeCatchAllRender(
     req: IncomingMessage,
     res: ServerResponse,
-    _params: Params,
+    params: Params,
     parsedUrl: UrlWithParsedQuery
   ) {
     const { pathname } = parsedUrl
-
+    const path = `/${(params.path || []).join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
-    if (await this.hasPublicFile(pathname!)) {
+    if (await this.hasPublicFile(path)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/zeit/next.js/conflicting-public-file-page`
@@ -274,7 +274,7 @@ export default class DevServer extends Server {
         await this.renderError(err, req, res, pathname!, {})
         return true
       }
-      await this.servePublic(req, res, pathname!)
+      await this.servePublic(req, res, path)
       return true
     }
 
@@ -315,8 +315,9 @@ export default class DevServer extends Server {
     const result = {
       redirects: [],
       rewrites: [],
+      headers: [],
     }
-    const { redirects, rewrites } = this.nextConfig.experimental
+    const { redirects, rewrites, headers } = this.nextConfig.experimental
 
     if (typeof redirects === 'function') {
       result.redirects = await redirects()
@@ -326,15 +327,26 @@ export default class DevServer extends Server {
       result.rewrites = await rewrites()
       checkCustomRoutes(result.rewrites, 'rewrite')
     }
+    if (typeof headers === 'function') {
+      result.headers = await headers()
+      checkCustomRoutes(result.headers, 'header')
+    }
+
     this.customRoutes = result
   }
 
   generateRoutes() {
-    const routes = super.generateRoutes()
+    const {
+      routes,
+      fsRoutes,
+      catchAllRoute,
+      dynamicRoutes,
+      pageChecker,
+    } = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    routes.unshift({
+    fsRoutes.unshift({
       match: route('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
@@ -347,7 +359,7 @@ export default class DevServer extends Server {
       },
     })
 
-    return routes
+    return { routes, fsRoutes, catchAllRoute, dynamicRoutes, pageChecker }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
@@ -414,13 +426,8 @@ export default class DevServer extends Server {
             continue
           }
 
-          // eslint-disable-next-line no-loop-func
-          return this.hotReloader!.ensurePage(dynamicRoute.page).then(() => {
-            pathname = dynamicRoute.page
-            query = Object.assign({}, query, params)
-          })
+          return this.hotReloader!.ensurePage(dynamicRoute.page)
         }
-
         throw err
       })
     } catch (err) {
@@ -477,7 +484,8 @@ export default class DevServer extends Server {
   }
 
   servePublic(req: IncomingMessage, res: ServerResponse, path: string) {
-    const p = join(this.publicDir, path)
+    const p = join(this.publicDir, encodeURIComponent(path))
+    // we need to re-encode it since send decodes it
     return this.serveStatic(req, res, p)
   }
 

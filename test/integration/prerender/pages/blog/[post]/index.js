@@ -27,6 +27,7 @@ export async function unstable_getStaticProps({ params }) {
 
   return {
     props: {
+      params,
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
@@ -34,11 +35,12 @@ export async function unstable_getStaticProps({ params }) {
   }
 }
 
-export default ({ post, time }) => {
+export default ({ post, time, params }) => {
   return (
     <>
       <p>Post: {post}</p>
       <span>time: {time}</span>
+      <div id="params">{JSON.stringify(params)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <Link href="/">
         <a id="home">to home</a>

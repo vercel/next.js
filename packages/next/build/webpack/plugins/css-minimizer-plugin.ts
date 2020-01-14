@@ -12,6 +12,8 @@ type CssMinimizerPluginOptions = {
 }
 
 export class CssMinimizerPlugin {
+  __next_css_remove = true
+
   private options: CssMinimizerPluginOptions
 
   constructor(options: CssMinimizerPluginOptions) {

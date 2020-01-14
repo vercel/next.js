@@ -1,0 +1,4 @@
+/* this should be transformed to width/height */
+.video {
+  max-size: 400px 300px;
+}
