@@ -26,11 +26,14 @@ First, you'll need to create an account on [Fauna](https://fauna.com/), then you
 
 - `User` Collection
 - `users_by_email` index
-- server and client key
+- server key
 
-For more information on how to do this, please refer to the [User Authentication Tutorial in Fauna](https://app.fauna.com/tutorials/authentication).
+For more information on how to do this, please refer to the [User Authentication Tutorial in Fauna](https://app.fauna.com/tutorials/authentication), or follow the steps below:
 
-Then add your server and client key to the `.env` file at the project root.
+1. In the FaunaDB Console, click "New Database". Name it whatever you like and click save.
+2. Click "New Collection", name it `User`, leave "Create collection index" checked, and save.
+3. Now go to "Indexes" in the left sidebar, and click "New Index". Select the `User` collection, call it `users_by_email`, and in the "terms" field type `data.email`. Select the "Unique" checkbox and click save. This will create an index that allows looking up users by their email, which we will use to log a user in.
+4. Next, go to "Security" in the sidebar, and create key with the `Server` role and call it `server-key`. Your key's secret will be displayed, copy that value and paste it as the value for `FAUNA_SERVER_KEY` in the `.env` file at the project root. Keep this key safely as it has privileged access to your database.
 
 Now, install it and run:
 
