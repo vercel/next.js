@@ -29,14 +29,11 @@ export const auth = ctx => {
 }
 
 export const logout = async () => {
-  // to support logging out from all windows
-  await fetch('/api/logout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-  })
+  await fetch('/api/logout')
+
   window.localStorage.setItem('logout', Date.now())
   window.localStorage.removeItem('loggedInUser')
+
   Router.push('/login')
 }
 

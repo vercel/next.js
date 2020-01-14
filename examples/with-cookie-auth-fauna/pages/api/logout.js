@@ -7,8 +7,7 @@ export default async (req, res) => {
   const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
   if (!faunaSecret) {
     // Already logged out.
-    res.status(200).json({})
-    return
+    return res.status(200).end()
   }
   // Invalidate secret (ie. logout from Fauna).
   await faunaClient(faunaSecret).query(q.Logout(false))
@@ -21,5 +20,5 @@ export default async (req, res) => {
     path: '/',
   })
   res.setHeader('Set-Cookie', cookieSerialized)
-  res.status(200).json({})
+  res.status(200).end()
 }
