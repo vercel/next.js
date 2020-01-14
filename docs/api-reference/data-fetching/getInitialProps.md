@@ -64,8 +64,8 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 `getInitialProps` receives a single argument called `context`, it's an object with the following properties:
 
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
+- `pathname` - Current route. That is the path of the page in `/pages`
+- `query` - Query string section of URL parsed as an object
 - `asPath` - `String` of the actual path (including the query) shown in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)

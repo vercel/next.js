@@ -17,7 +17,6 @@ import {
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -50,6 +49,7 @@ import {
   Rewrite,
   RouteType,
   Header,
+  getRedirectStatus,
 } from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -485,17 +485,22 @@ export default class Server {
 
               if (route.type === 'redirect') {
                 const parsedNewUrl = parseUrl(newUrl)
-                res.setHeader(
-                  'Location',
-                  formatUrl({
-                    ...parsedDestination,
-                    pathname: parsedNewUrl.pathname,
-                    hash: parsedNewUrl.hash,
-                    search: undefined,
-                  })
-                )
-                res.statusCode =
-                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
+                const updatedDestination = formatUrl({
+                  ...parsedDestination,
+                  pathname: parsedNewUrl.pathname,
+                  hash: parsedNewUrl.hash,
+                  search: undefined,
+                })
+
+                res.setHeader('Location', updatedDestination)
+                res.statusCode = getRedirectStatus(route as Redirect)
+
+                // Since IE11 doesn't support the 308 header add backwards
+                // compatibility using refresh header
+                if (res.statusCode === 308) {
+                  res.setHeader('Refresh', `0;url=${updatedDestination}`)
+                }
+
                 res.end()
                 return {
                   finished: true,
@@ -532,7 +537,7 @@ export default class Server {
           }
         }
 
-        if (params && params.path && params.path[0] === 'api') {
+        if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -647,30 +652,35 @@ export default class Server {
   }
 
   protected generatePublicRoutes(): Route[] {
-    const routes: Route[] = []
-    const publicFiles = recursiveReadDirSync(this.publicDir)
+    const publicFiles = new Set(
+      recursiveReadDirSync(this.publicDir).map(p => p.replace(/\\/g, '/'))
+    )
 
-    publicFiles.forEach(path => {
-      const unixPath = path.replace(/\\/g, '/')
-      // Only include public files that will not replace a page path
-      // this should not occur now that we check this during build
-      if (!this.pagesManifest![unixPath]) {
-        routes.push({
-          match: route(unixPath),
-          type: 'route',
-          name: 'public catchall',
-          fn: async (req, res, _params, parsedUrl) => {
-            const p = join(this.publicDir, unixPath)
-            await this.serveStatic(req, res, p, parsedUrl)
+    return [
+      {
+        match: route('/:path*'),
+        name: 'public folder catchall',
+        fn: async (req, res, params, parsedUrl) => {
+          const path = `/${(params.path || []).join('/')}`
+
+          if (publicFiles.has(path)) {
+            await this.serveStatic(
+              req,
+              res,
+              // we need to re-encode it since send decodes it
+              join(this.dir, 'public', encodeURIComponent(path)),
+              parsedUrl
+            )
             return {
               finished: true,
             }
-          },
-        })
-      }
-    })
-
-    return routes
+          }
+          return {
+            finished: false,
+          }
+        },
+      } as Route,
+    ]
   }
 
   protected getDynamicRoutes() {

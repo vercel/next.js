@@ -65,7 +65,7 @@ const runTests = (isDev = false) => {
     expect(res3location).toBe('/')
   })
 
-  it('should redirect successfully with default statusCode', async () => {
+  it('should redirect successfully with permanent: false', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual',
     })
@@ -227,6 +227,14 @@ const runTests = (isDev = false) => {
     const res = await fetchViaHTTP(appPort, '/my-headers/first')
     expect(res.headers.get('x-first-header')).toBe('first')
     expect(res.headers.get('x-second-header')).toBe('second')
+  })
+
+  it('should add refresh header for 308 redirect', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(308)
+    expect(res.headers.get('refresh')).toBe(`0;url=/`)
   })
 
   if (!isDev) {

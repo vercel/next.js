@@ -4,8 +4,6 @@ import { withStyles } from '@material-ui/core/styles'
 import Carousel from 'react-multi-carousel'
 
 import Image from '../components/image'
-import '../style.css'
-import 'react-multi-carousel/lib/styles.css'
 
 const styles = theme => ({
   root: {

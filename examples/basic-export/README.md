@@ -40,8 +40,6 @@ yarn dev
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
-npm run export
-cd out
 now
 ```
 
