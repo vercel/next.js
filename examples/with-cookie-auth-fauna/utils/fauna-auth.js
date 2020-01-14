@@ -1,4 +1,4 @@
-import faunadb, { query as q } from 'faunadb'
+import faunadb from 'faunadb'
 import cookie from 'cookie'
 
 
