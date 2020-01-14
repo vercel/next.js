@@ -4,11 +4,14 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
-import { Redirect, Rewrite } from '../lib/check-custom-routes'
+import {
+  Redirect,
+  Rewrite,
+  getRedirectStatus,
+} from '../lib/check-custom-routes'
 import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
@@ -250,10 +253,7 @@ export function printCustomRoutes({
               route.source,
               route.destination,
               ...(isRedirects
-                ? [
-                    ((route as Redirect).statusCode ||
-                      DEFAULT_REDIRECT_STATUS) + '',
-                  ]
+                ? [getRedirectStatus(route as Redirect) + '']
                 : []),
             ]
           }),
