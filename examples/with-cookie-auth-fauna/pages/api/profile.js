@@ -10,6 +10,7 @@ export const profileApi = async faunaSecret => {
 export default async (req, res) => {
   const cookies = cookie.parse(req.headers.cookie ?? '')
   const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
+
   if (!faunaSecret) {
     return res.status(401).send('Auth cookie missing.')
   }

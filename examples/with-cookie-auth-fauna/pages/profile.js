@@ -1,9 +1,9 @@
-import React from 'react'
-import Layout from '../components/layout'
-import { withAuthSync } from '../utils/auth'
 import cookie from 'cookie'
+import Router from 'next/router'
+import { withAuthSync } from '../utils/auth'
 import { FAUNA_SECRET_COOKIE } from '../utils/fauna-auth'
 import { profileApi } from './api/profile'
+import Layout from '../components/layout'
 
 const Profile = props => {
   const { userId } = props
@@ -22,13 +22,14 @@ const Profile = props => {
 }
 
 Profile.getInitialProps = async ctx => {
-  if (ctx.req) {
-    const cookies = cookie.parse(ctx.req.headers.cookie ?? '')
+  if (typeof window === 'undefined') {
+    const { req, res } = ctx
+    const cookies = cookie.parse(req.headers.cookie ?? '')
     const faunaSecret = cookies[FAUNA_SECRET_COOKIE]
 
     if (!faunaSecret) {
-      ctx.res.writeHead(302, { Location: '/login' })
-      ctx.res.end()
+      res.writeHead(302, { Location: '/login' })
+      res.end()
       return {}
     }
 
@@ -37,16 +38,17 @@ Profile.getInitialProps = async ctx => {
     return { userId: profileInfo }
   }
 
-  const response = await fetch('/api/profile', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-  })
-  const data = await response.json()
+  const response = await fetch('/api/profile')
 
-  if (response.status !== 200) {
-    throw new Error(data.message || response.statusText)
+  if (response.status === 401) {
+    Router.push('/login')
+    return {}
   }
+  if (response.status !== 200) {
+    throw new Error(await response.text())
+  }
+
+  const data = await response.json()
 
   return { userId: data.userId }
 }
