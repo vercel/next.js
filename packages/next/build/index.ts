@@ -431,14 +431,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
       : `${SERVER_DIRECTORY}/static/${buildId}`,
     `/pages`
   )
-  const customAppGetInitialProps = hasCustomGetInitialProps(
-    path.join(
-      distPagesDir,
-      // if in serverless mode check first page's bundle for _app export
-      isLikeServerless ? normalizePagePath(pageKeys[0]) : `/_app.js`
-    ),
-    runtimeEnvConfig
-  )
+  const nonReservedPage = pageKeys.find(key => !key.match(reservedPagesRegex))
+  const customAppGetInitialProps =
+    nonReservedPage &&
+    hasCustomGetInitialProps(
+      path.join(
+        distPagesDir,
+        // if in serverless mode check first page's bundle for _app export
+        isLikeServerless ? normalizePagePath(nonReservedPage!) : `/_app.js`
+      ),
+      runtimeEnvConfig
+    )
   const customErrorGetInitialProps = hasCustomGetInitialProps(
     path.join(distPagesDir, `/_error.js`),
     runtimeEnvConfig

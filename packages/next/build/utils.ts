@@ -601,8 +601,7 @@ export function hasCustomGetInitialProps(
     mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page
-    // if only an API page exists this won't be available
-    mod = mod._app || {}
+    mod = mod._app
   }
   return mod.getInitialProps !== mod.origGetInitialProps
 }
