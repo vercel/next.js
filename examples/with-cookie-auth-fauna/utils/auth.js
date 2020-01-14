@@ -14,17 +14,17 @@ export const auth = ctx => {
     var faunaSecret = cookies[FAUNA_SECRET_COOKIE]
     if (!faunaSecret) {
       // If `ctx.req` is available it means we are on the server.
-      ctx.res.writeHead(302, { Location: '/login' });
-      ctx.res.end();
+      ctx.res.writeHead(302, { Location: '/login' })
+      ctx.res.end()
     }
-    return faunaSecret;
+    return faunaSecret
   } else {
     if (!window.localStorage.getItem('loggedInUser')) {
-      Router.push('/login');
+      Router.push('/login')
     }
     // The user is logged in, the page will perform it's own
     // authed API call.
-    return null;
+    return null
   }
 }
 
