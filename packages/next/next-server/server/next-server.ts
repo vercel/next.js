@@ -110,7 +110,7 @@ export default class Server {
     rewrites: Rewrite[]
     redirects: Redirect[]
     headers: Header[]
-    static404: boolean
+    static404?: boolean
   }
 
   public constructor({
