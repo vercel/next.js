@@ -828,7 +828,7 @@ export default class Server {
     const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
-    const isSpr = !!result.unstable_getStaticProps
+    const isSSG = !!result.unstable_getStaticProps
 
     // Toggle whether or not this is a Data request
     const isDataReq = query._nextDataReq
@@ -843,7 +843,7 @@ export default class Server {
     }
 
     // non-spr requests should render like normal
-    if (!isSpr) {
+    if (!isSSG) {
       // handle serverless
       if (isLikeServerless) {
         if (isDataReq) {
@@ -889,20 +889,19 @@ export default class Server {
     }
 
     // Compute the SPR cache key
-    const sprCacheKey = parseUrl(req.url || '').pathname!
-    const isPageData = isSpr && isDataReq
+    const ssgCacheKey = parseUrl(req.url || '').pathname!
 
     // Complete the response with cached data if its present
-    const cachedData = await getSprCache(sprCacheKey)
+    const cachedData = await getSprCache(ssgCacheKey)
     if (cachedData) {
-      const data = isPageData
+      const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
       this.__sendPayload(
         res,
         data,
-        isPageData ? 'application/json' : 'text/html; charset=utf-8',
+        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
         cachedData.curRevalidate
       )
 
@@ -946,14 +945,14 @@ export default class Server {
       return { html, pageData, sprRevalidate }
     })
 
-    return doRender(sprCacheKey, []).then(
+    return doRender(ssgCacheKey, []).then(
       async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {
         // Respond to the request if a payload wasn't sent above (from cache)
         if (!isResSent(res)) {
           this.__sendPayload(
             res,
-            isPageData ? JSON.stringify(pageData) : html,
-            isPageData ? 'application/json' : 'text/html; charset=utf-8',
+            isDataReq ? JSON.stringify(pageData) : html,
+            isDataReq ? 'application/json' : 'text/html; charset=utf-8',
             sprRevalidate
           )
         }
@@ -961,8 +960,8 @@ export default class Server {
         // Update the SPR cache if the head request
         if (isOrigin) {
           await setSprCache(
-            sprCacheKey,
-            { html: html!, pageData: pageData },
+            ssgCacheKey,
+            { html: html!, pageData },
             sprRevalidate
           )
         }

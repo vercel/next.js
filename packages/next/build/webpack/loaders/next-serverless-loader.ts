@@ -300,6 +300,7 @@ const nextServerlessLoader: loader.Loader = function() {
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
+            unstable_getServerProps: undefined,
             Component: Error
           }))
           return result
@@ -309,6 +310,7 @@ const nextServerlessLoader: loader.Loader = function() {
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
+            unstable_getServerProps: undefined,
             Component: Error,
             err
           }))

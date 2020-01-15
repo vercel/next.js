@@ -276,7 +276,7 @@ export default async function(
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
-  const pageDataDir = options.buildExport
+  const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
 
@@ -318,7 +318,7 @@ export default async function(
         distDir,
         buildId,
         outDir,
-        pageDataDir,
+        pagesDataDir,
         renderOpts,
         serverRuntimeConfig,
         subFolders,
@@ -360,7 +360,7 @@ export default async function(
             subFolders && route !== '/index' ? `${sep}index` : ''
           }.html`
         )
-        const jsonDest = join(pageDataDir, `${route}.json`)
+        const jsonDest = join(pagesDataDir, `${route}.json`)
 
         await mkdirp(dirname(htmlDest))
         await mkdirp(dirname(jsonDest))

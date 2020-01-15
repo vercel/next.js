@@ -25,7 +25,7 @@ export default async function({
   distDir,
   buildId,
   outDir,
-  pageDataDir,
+  pagesDataDir,
   renderOpts,
   buildExport,
   serverRuntimeConfig,
@@ -131,7 +131,7 @@ export default async function({
       if (typeof mod === 'string') {
         html = mod
       } else {
-        // for non-dynamic SPR pages we should have already
+        // for non-dynamic SSG pages we should have already
         // prerendered the file
         if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
@@ -158,7 +158,7 @@ export default async function({
         serverless
       )
 
-      // for non-dynamic SPR pages we should have already
+      // for non-dynamic SSG pages we should have already
       // prerendered the file
       if (renderedDuringBuild(components.unstable_getStaticProps)) {
         return results
@@ -177,7 +177,7 @@ export default async function({
       if (typeof components.Component === 'string') {
         html = components.Component
       } else {
-        curRenderOpts = { ...components, ...renderOpts, ampPath }
+        curRenderOpts = { ...components, ...renderOpts, ampPath, params }
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
@@ -236,7 +236,7 @@ export default async function({
 
     if (curRenderOpts.pageData) {
       const dataFile = join(
-        pageDataDir,
+        pagesDataDir,
         htmlFilename.replace(/\.html$/, '.json')
       )
 
