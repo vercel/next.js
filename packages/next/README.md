@@ -15,17 +15,13 @@
   </a>
 </p>
 
-<p align="center">
-  <strong>
-    Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
-  </strong>
-</p>
+## Getting Started
 
-<p align="center">
-  <strong>
-    Visit <a aria-label="next.js learn" href="https://nextjs.org/docs">https://nextjs.org/docs</a> to see the documentation.
-  </strong>
-</p>
+Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+
+## Documentation
+
+Visit <a aria-label="next.js learn" href="https://nextjs.org/docs">https://nextjs.org/docs</a> to view the documentation.
 
 ## Contributing
 
