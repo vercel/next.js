@@ -233,7 +233,9 @@ export default class Server {
 
     // For non-ASCII page names
     if (typeof parsedUrl.pathname === 'string') {
-      parsedUrl.pathname = decodeURI(parsedUrl.pathname)
+      try {
+        parsedUrl.pathname = decodeURI(parsedUrl.pathname)
+      } catch (e) {}
     }
 
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
