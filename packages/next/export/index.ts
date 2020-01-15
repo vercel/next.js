@@ -254,8 +254,8 @@ export default async function(
     distDir,
     buildId,
   })
-  if (!exportPathMap['/404']) {
-    exportPathMap['/404.html'] = exportPathMap['/404.html'] || {
+  if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
+    exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
