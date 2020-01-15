@@ -197,6 +197,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
+  const errorPageRegex = new RegExp(
+    `^(/|\\\\)_error\\.(?:${config.pageExtensions.join('|')})$`
+  )
+  const hasCustomErrorPage = pagePaths.some(page => page.match(errorPageRegex))
 
   if (hasPublicDir) {
     try {
@@ -521,6 +525,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   staticCheckWorkers.end()
 
+  const useStatic404 =
+    !customAppGetInitialProps &&
+    !hasCustomErrorPage &&
+    config.experimental.static404
+
   if (invalidPages.size > 0) {
     throw new Error(
       `Build optimization failed: found page${
@@ -551,7 +560,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const finalPrerenderRoutes: { [route: string]: SprRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
-  if (staticPages.size > 0 || sprPages.size > 0) {
+  if (staticPages.size > 0 || sprPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...sprPages]
     const exportApp = require('../export').default
     const exportOptions = {
@@ -588,6 +597,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
             defaultMap[route] = { page }
           })
         })
+
+        if (useStatic404) {
+          defaultMap['/_errors/404'] = { page: '/_error' }
+        }
+
         return defaultMap
       },
       exportTrailingSlash: false,
@@ -626,6 +640,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
+    }
+
+    if (useStatic404) {
+      await moveExportedPage('/_errors/404', '/_errors/404', false, 'html')
     }
 
     for (const page of combinedPages) {
