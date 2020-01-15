@@ -292,19 +292,19 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!('PerformanceObserver' in window)) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
-    } else {
-      performance.getEntriesByType('paint').forEach(onPerfEntry)
-
-      // Start an observer to catch any paint metrics which may fire _after_
-      // the load event is fired on the window
+    try {
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(onPerfEntry)
       })
-      observer.observe({ entryTypes: ['paint'] })
+      // Start observing paint entry types.
+      observer.observe({
+        type: 'paint',
+        buffered: true,
+      })
+    } catch (e) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
     }
   }
 }
