@@ -231,6 +231,11 @@ export default class Server {
       parsedUrl = parseUrl(url, true)
     }
 
+    // For non-ASCII page names
+    if (typeof parsedUrl.pathname === 'string') {
+      parsedUrl.pathname = decodeURI(parsedUrl.pathname)
+    }
+
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
