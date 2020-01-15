@@ -12,7 +12,8 @@
     "@lingui/react": "latest",
     "next": "latest",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react-dom": "^16.7.0",
+    "typescript": "latest"
   },
   "devDependencies": {
     "@lingui/cli": "latest",
