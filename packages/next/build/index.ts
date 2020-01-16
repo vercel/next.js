@@ -197,10 +197,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
-  const errorPageRegex = new RegExp(
-    `^(/|\\\\)_error\\.(?:${config.pageExtensions.join('|')})$`
+  const hasCustomErrorPage = mappedPages['/_error'].startsWith(
+    'private-next-pages'
   )
-  const hasCustomErrorPage = pagePaths.some(page => page.match(errorPageRegex))
 
   if (hasPublicDir) {
     try {
