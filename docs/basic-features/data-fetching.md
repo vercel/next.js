@@ -69,7 +69,7 @@ Using `getInitialProps` will make the page opt-in to on-demand [server-side rend
 // Next.js will execute `getInitialProps`
 // It will wait for the result of `getInitialProps`
 // When the results comes back Next.js will render the page.
-// Next.js wil do this for every request that comes in.
+// Next.js will do this for every request that comes in.
 import fetch from 'isomorphic-unfetch'
 
 function HomePage({ stars }) {

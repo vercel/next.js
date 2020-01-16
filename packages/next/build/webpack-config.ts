@@ -35,7 +35,6 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
-import MiniCssExtractPlugin from './webpack/plugins/mini-css-extract-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -335,7 +334,14 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (module.type === `css/mini-extract`) {
+            if (
+              // mini-css-extract-plugin
+              module.type === `css/mini-extract` ||
+              // extract-css-chunks-webpack-plugin (old)
+              module.type === `css/extract-chunks` ||
+              // extract-css-chunks-webpack-plugin (new)
+              module.type === `css/extract-css-chunks`
+            ) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -433,8 +439,7 @@ export default async function getBaseWebpackConfig(
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            const start = request.charAt(0)
-            if (start === '.' || start === '/') {
+            if (request.startsWith('.') || request.startsWith('/')) {
               return callback()
             }
 
@@ -780,14 +785,6 @@ export default async function getBaseWebpackConfig(
           buildId,
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
-        }),
-      // Extract CSS as CSS file(s) in the client-side production bundle.
-      config.experimental.css &&
-        !isServer &&
-        !dev &&
-        new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].chunk.css',
         }),
       tracer &&
         new ProfilingPlugin({
