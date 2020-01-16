@@ -1,5 +1,5 @@
 ---
-description: Extend the PostCSS config adn plugins added by Next.js with your own.
+description: Extend the PostCSS config and plugins added by Next.js with your own.
 ---
 
 # Customizing PostCSS Config
