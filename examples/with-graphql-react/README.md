@@ -6,31 +6,42 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 [![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-graphql-react)
 
-## Setup
+## How to use
 
-1. Download the example:
+### Using `create-next-app`
 
-   ```sh
-   curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-react
-   ```
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
-2. Change directory to it:
+```bash
+npm init next-app --example with-graphql-react with-graphql-react-app
+# or
+yarn create next-app --example with-graphql-react with-graphql-react-app
+```
 
-   ```sh
-   cd with-graphql-react
-   ```
+### Download manually
 
-3. Install it:
+Download the example:
 
-   ```sh
-   npm install
-   ```
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-react
+cd with-graphql-react
+```
 
-4. Run it:
+Install it and run:
 
-   ```sh
-   npm run dev
-   ```
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
+
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+
+```bash
+now
+```
 
 ## The idea behind the example
 
