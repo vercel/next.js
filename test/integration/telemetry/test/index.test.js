@@ -13,6 +13,9 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const appDir = path.join(__dirname, '..')
+const pagesDir = path.join(appDir, 'pages')
+const testsDir = path.join(pagesDir, '__tests__')
+const generatedDir = path.join(pagesDir, '__generated__')
 
 describe('Telemetry CLI', () => {
   it('can print telemetry status', async () => {
@@ -124,5 +127,71 @@ describe('Telemetry CLI', () => {
     await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr).toMatch(/isSrcDir.*?true/)
+  })
+
+  it('detects test files', async () => {
+    const testDir = path.join(pagesDir, 'test')
+
+    await fs.ensureDir(testDir)
+    await fs.writeFile(
+      path.join(testDir, 'index.test.js'),
+      `export default () => null`
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(testDir)
+
+    const buildId = await fs.readFile(
+      path.join(appDir, '.next/BUILD_ID'),
+      'utf8'
+    )
+    // Remove the generated test file or tests will break at a second run
+    await fs.remove(path.join(appDir, '.next/static', buildId))
+
+    expect(stderr).toMatch(/hasInvalidPages.*?true/)
+  })
+
+  it('detects tests in __tests__', async () => {
+    await fs.ensureDir(testsDir)
+    await fs.writeFile(
+      path.join(testsDir, 'index.js'),
+      `export default () => null`
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(testsDir)
+
+    expect(stderr).toMatch(/hasInvalidPages.*?true/)
+  })
+
+  it('Detects __generated__', async () => {
+    await fs.ensureDir(generatedDir)
+    await fs.writeFile(
+      path.join(generatedDir, 'query.graphql.js'),
+      `export default () => null`
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(generatedDir)
+
+    expect(stderr).toMatch(/hasInvalidPages.*?true/)
   })
 })
