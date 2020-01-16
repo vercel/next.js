@@ -15,7 +15,7 @@ Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages
 ```bash
 npx create-next-app --example with-styled-components with-styled-components-app
 # or
-yarn create next-app --example with-styled-components with-styled-components-app
+yarn create-next-app --example with-styled-components with-styled-components-app
 ```
 
 ### Download manually
