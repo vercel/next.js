@@ -23,7 +23,7 @@ module.exports = {
 }
 ```
 
-> Next.js implement a **proprietary, string-based array format** identical to a Babel configuration. You should not use `require()` with each plugin, as it will fail the build.
+> Next.js implement a **proprietary, string-based array format** identical to a Babel configuration. You should not use `require()` with each plugin, as the build will fail.
 
 If your `postcss.config.js` needs to support other non-Next.js tools in the same project, you should use the interoperable object-based format instead:
 
