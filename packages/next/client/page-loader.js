@@ -89,7 +89,7 @@ export default class PageLoader {
       m =>
         m.some(r => r.test(asPath)) &&
         appendLink(
-          `${this.assetPrefix}/_next/${this.buildId}/${
+          `${this.assetPrefix}/_next/data/${this.buildId}/${
             asPath === '/' ? '/index' : asPath
           }.json`,
           relPrefetch,
