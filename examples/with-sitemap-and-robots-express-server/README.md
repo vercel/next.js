@@ -1,13 +1,18 @@
 # Example with sitemap.xml and robots.txt using Express server
 
+This example app shows you how to set up sitemap.xml and robots.txt files for proper indexing by search engine bots.
+
+The app is deployed at: https://sitemap-robots.now.sh. Open the page and click the links to see sitemap.xml and robots.txt. Here is a snapshot of these files, with sitemap.xml on the left and robots.txt on the right:
+![sitemap-robots](https://user-images.githubusercontent.com/26158226/38786210-4d0c3f70-40db-11e8-8e44-b2c90cfd1b74.png)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-sitemap-and-robots-express-server with-sitemap-and-robots-express-server-app
+npm init next-app --example with-sitemap-and-robots-express-server with-sitemap-and-robots-express-server-app
 # or
 yarn create next-app --example with-sitemap-and-robots-express-server with-sitemap-and-robots-express-server-app
 ```
@@ -37,14 +42,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
-
-This example app shows you how to set up sitemap.xml and robots.txt files for proper indexing by search engine bots.
-
-The app is deployed at: https://sitemap-robots.now.sh. Open the page and click the links to see sitemap.xml and robots.txt. Here is a snapshot of these files, with sitemap.xml on the left and robots.txt on the right:
-![sitemap-robots](https://user-images.githubusercontent.com/26158226/38786210-4d0c3f70-40db-11e8-8e44-b2c90cfd1b74.png)
-
-Notes:
+## Notes
 
 - routes `/a` and `/b` are added to sitemap manually
 - routes that start with `/posts` are added automatically to sitemap; the current example creates an array of posts (see `server/posts.js`), but in a production-level web app, you would want to update `sitemap.xml` dynamically by getting posts from a database:
