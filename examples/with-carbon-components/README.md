@@ -1,5 +1,9 @@
 # Example app with carbon-components-react
 
+This example features how you use IBM's [carbon-components-react](https://github.com/IBM/carbon-components-react) [(Carbon Design System)](http://www.carbondesignsystem.com/components/overview) with Next.js.
+
+Create your own theme with Carbon Design System's [theming tools](http://themes.carbondesignsystem.com/) and put it all together as demonstrated in `static/myCustomTheme.scss`
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +14,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-carbon-components with-carbon-components-app
+npm init next-app --example with-carbon-components with-carbon-components-app
 # or
 yarn create next-app --example with-carbon-components with-carbon-components-app
 ```
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how you use IBM's [carbon-components-react](https://github.com/IBM/carbon-components-react) [(Carbon Design System)](http://www.carbondesignsystem.com/components/overview) with Next.js.
-
-Create your own theme with Carbon Design System's [theming tools](http://themes.carbondesignsystem.com/) and put it all together as demonstrated in `static/myCustomTheme.scss`
