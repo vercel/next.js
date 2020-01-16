@@ -1,13 +1,34 @@
 # With Firebase Cloud Messaging example
 
-## How to run
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+
+```bash
+npm init next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
+# or
+yarn create next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-cloud-messaging
+cd with-firebase-cloud-messaging
+```
 
 Install it and run:
 
 ```bash
 npm install
-npm run build
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 ## Set your send id
