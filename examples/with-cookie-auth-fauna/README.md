@@ -1,14 +1,25 @@
 # With Cookie Auth and Fauna
 
+In this example, we authenticate users and store a token in a secure (non-JS) cookie. The example only shows how the user session works, keeping a user logged in between pages.
+
+This example uses [Fauna](https://fauna.com/) as the auth service and DB.
+
+The repo includes a minimal auth backend built with the new [API Routes support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro), [Fauna for Auth](https://app.fauna.com/tutorials/authentication) and [dotenv](https://github.com/zeit/next.js/tree/canary/examples/with-dotenv) for environment variables. The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
+
+Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
+
+The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm i -g create-next-app
-create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
+npm init next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
+# or
+yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 ```
 
 ### Download manually
@@ -56,15 +67,3 @@ Then deploy it to the cloud:
 ```bash
 now
 ```
-
-## The idea behind the example
-
-In this example, we authenticate users and store a token in a secure (non-JS) cookie. The example only shows how the user session works, keeping a user logged in between pages.
-
-This example uses [Fauna](https://fauna.com/) as the auth service and DB.
-
-The repo includes a minimal auth backend built with the new [API Routes support](https://github.com/zeit/next.js/pull/7296) (`pages/api`), [Micro](https://www.npmjs.com/package/micro), [Fauna for Auth](https://app.fauna.com/tutorials/authentication) and [dotenv](https://github.com/zeit/next.js/tree/canary/examples/with-dotenv) for environment variables. The backend allows the user to create an account (a User document), login, and see their user id (User ref id).
-
-Session is synchronized across tabs. If you logout your session gets removed on all the windows as well. We use the HOC `withAuthSync` for this.
-
-The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
