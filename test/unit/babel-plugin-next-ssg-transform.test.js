@@ -40,7 +40,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -53,7 +53,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -66,7 +66,7 @@ describe('babel plugin (next-ssg-transform)', () => {
         }
       `)
       expect(output).toMatchInlineSnapshot(
-        `"export{foo,bar as baz}from'.';const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"export{foo,bar as baz}from'.';const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -86,7 +86,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -106,7 +106,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -124,7 +124,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export function Noop(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"export function Noop(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -144,7 +144,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -164,7 +164,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -184,7 +184,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export const foo=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"export const foo=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -202,7 +202,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -220,7 +220,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const a=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const a=2;const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -238,7 +238,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -258,7 +258,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"export class MyClass{}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"export class MyClass{}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -305,7 +305,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       `)
 
       expect(output).toMatchInlineSnapshot(
-        `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__NEXT_SPR=true export default __NEXT_COMP;"`
+        `"import keep_me from'hello';import{keep_me2}from'hello2';import*as keep_me3 from'hello3';import{but_not_me}from'bar';var leave_me_alone=1;function dont_bug_me_either(){}const __NEXT_COMP=function Test(){return __jsx(\\"div\\",null);};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 

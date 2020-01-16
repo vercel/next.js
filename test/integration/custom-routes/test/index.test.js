@@ -65,7 +65,7 @@ const runTests = (isDev = false) => {
     expect(res3location).toBe('/')
   })
 
-  it('should redirect successfully with default statusCode', async () => {
+  it('should redirect successfully with permanent: false', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual',
     })
