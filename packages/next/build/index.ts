@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import devalue from 'devalue'
 import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
@@ -11,10 +12,10 @@ import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
   getRedirectStatus,
-  RouteType,
+  Header,
   Redirect,
   Rewrite,
-  Header,
+  RouteType,
 } from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -23,6 +24,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
+  CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -726,6 +728,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
+
+    generateClientSsgManifest(prerenderManifest, { distDir, buildId })
+  } else {
+    // Generate empty version if not used
+    generateClientSsgManifest(
+      { version: 0, routes: {}, dynamicRoutes: {} },
+      { distDir, buildId }
+    )
   }
 
   await fsWriteFile(
@@ -823,4 +833,34 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await telemetry.flush()
+}
+
+function generateClientSsgManifest(
+  prerenderManifest: PrerenderManifest,
+  { buildId, distDir }: { buildId: string; distDir: string }
+) {
+  const regexOperatorsRegex = /[|\\{}()[\]^$+*?.-]/g
+  const ssgMatchers: RegExp[] = []
+  Object.keys(prerenderManifest.routes).forEach(route =>
+    ssgMatchers.push(
+      new RegExp('^' + route.replace(regexOperatorsRegex, '\\$&') + '$')
+    )
+  )
+  Object.values(prerenderManifest.dynamicRoutes).forEach(entry =>
+    ssgMatchers.push(new RegExp(entry.routeRegex))
+  )
+
+  const clientSsgManifestPaths = [
+    '_ssgManifest.js',
+    '_ssgManifest.module.js',
+  ].map(f => path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f))
+  const clientSsgManifestContent = `self.__SSG_MANIFEST = ${devalue(
+    ssgMatchers
+  )};self.__SSG_MANIFEST_CB && self.__SSG_MANIFEST_CB()`
+  clientSsgManifestPaths.forEach(clientSsgManifestPath =>
+    fs.writeFileSync(
+      path.join(distDir, clientSsgManifestPath),
+      clientSsgManifestContent
+    )
+  )
 }

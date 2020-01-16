@@ -56,12 +56,18 @@ export default class PageLoader {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
         } else {
-          window.__BUILD_MANIFEST_CB = () => {
-            resolve(window.__BUILD_MANIFEST)
-          }
+          window.__BUILD_MANIFEST_CB = () => resolve(window.__BUILD_MANIFEST)
         }
       })
     }
+    /** @type {Promise<RegExp[]>} */
+    this.promisedSsgManifest = new Promise(resolve => {
+      if (window.__SSG_MANIFEST) {
+        resolve(window.__SSG_MANIFEST)
+      } else {
+        window.__SSG_MANIFEST_CB = () => resolve(window.__SSG_MANIFEST)
+      }
+    })
   }
 
   // Returns a promise for the dependencies for a particular route
@@ -73,6 +79,22 @@ export default class PageLoader {
             url => `${this.assetPrefix}/_next/${encodeURI(url)}`
           )) ||
         []
+    )
+  }
+
+  /** @param {string} asPath */
+  prefetchAs(asPath) {
+    asPath = normalizeRoute(asPath)
+    return this.promisedSsgManifest.then(
+      m =>
+        m.some(r => r.test(asPath)) &&
+        appendLink(
+          `${this.assetPrefix}/_next/${this.buildId}/${
+            asPath === '/' ? '/index' : asPath
+          }.json`,
+          relPrefetch,
+          'fetch'
+        )
     )
   }
 
@@ -206,6 +228,10 @@ export default class PageLoader {
     register()
   }
 
+  /**
+   * @param {string} route
+   * @param {boolean} [isDependency]
+   */
   prefetch(route, isDependency) {
     // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
     // License: Apache 2.0
@@ -215,6 +241,7 @@ export default class PageLoader {
       if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
+    /** @type {string} */
     let url
     if (isDependency) {
       url = route

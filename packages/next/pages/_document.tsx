@@ -45,7 +45,7 @@ function getOptionalModernScriptVariant(path: string) {
 }
 
 function isLowPriority(file: string) {
-  return file.includes('_buildManifest')
+  return file.includes('_buildManifest') || file.includes('_ssgManifest')
 }
 
 /**

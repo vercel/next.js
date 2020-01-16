@@ -149,6 +149,17 @@ export default class BuildManifestPlugin {
           }
         }
 
+        // Add the runtime ssg manifest file (generated later in the build) as
+        // a dependency for the app.
+        assetMap.pages['/_app'].push(
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+        )
+        if (this.modern) {
+          assetMap.pages['/_app'].push(
+            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
+          )
+        }
+
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
