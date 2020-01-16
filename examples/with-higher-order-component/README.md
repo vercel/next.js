@@ -14,7 +14,7 @@ Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages
 bootstrap the example:
 
 ```bash
-npx create-next-app --example with-higher-order-component with-higher-order-component-app
+npm init next-app --example with-higher-order-component with-higher-order-component-app
 # or
 yarn create next-app --example with-higher-order-component with-higher-order-component-app
 ```

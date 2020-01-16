@@ -13,7 +13,7 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute create-next-app with yarn or npm to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
+npm init next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 # or
 yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 ```

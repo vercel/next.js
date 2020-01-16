@@ -7,7 +7,7 @@
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example custom-server-reasonml custom-server-reasonml-app
+npm init next-app --example custom-server-reasonml custom-server-reasonml-app
 # or
 yarn create next-app --example custom-server-reasonml custom-server-reasonml-app
 ```

@@ -9,7 +9,7 @@ Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example auth0 auth0
+npm init next-app --example auth0 auth0
 # or
 yarn create next-app --example auth0 auth0
 ```

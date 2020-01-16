@@ -7,7 +7,7 @@
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-now-env with-now-env-app
+npm init next-app --example with-now-env with-now-env-app
 # or
 yarn create next-app --example with-now-env with-now-env-app
 ```

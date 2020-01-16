@@ -9,7 +9,7 @@
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-sentry-simple with-sentry-simple
+npm init next-app --example with-sentry-simple with-sentry-simple
 # or
 yarn create next-app --example with-sentry-simple with-sentry-simple
 ```
