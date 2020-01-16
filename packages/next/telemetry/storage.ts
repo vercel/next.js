@@ -195,12 +195,9 @@ export class Telemetry {
   private submitRecord = (
     _events: TelemetryEvent | TelemetryEvent[]
   ): Promise<any> => {
-    let events: TelemetryEvent[]
-    if (Array.isArray(_events)) {
-      events = _events
-    } else {
-      events = [_events]
-    }
+    const events: TelemetryEvent[] = Array.isArray(_events)
+      ? _events
+      : [_events]
 
     if (events.length < 1) {
       return Promise.resolve()

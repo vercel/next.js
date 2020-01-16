@@ -20,7 +20,10 @@ import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import {
+  verifyTypeScriptSetup,
+  hasTypeScript,
+} from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_MANIFEST,
   EXPORT_DETAIL,
@@ -157,6 +160,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
       isCustomServer: null,
+      hasTypescript: await hasTypeScript(pagesDir),
     })
   )
 

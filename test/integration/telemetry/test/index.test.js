@@ -176,7 +176,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasInvalidPages.*?true/)
   })
 
-  it('Detects __generated__', async () => {
+  it('detects __generated__', async () => {
     await fs.ensureDir(generatedDir)
     await fs.writeFile(
       path.join(generatedDir, 'query.graphql.js'),
@@ -193,5 +193,23 @@ describe('Telemetry CLI', () => {
     await fs.remove(generatedDir)
 
     expect(stderr).toMatch(/hasInvalidPages.*?true/)
+  })
+
+  it('detects TypeScript', async () => {
+    const file = path.join(pagesDir, 'about.tsx')
+
+    await fs.writeFile(file, `export default () => null`)
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(file)
+    await fs.remove(path.join(appDir, 'tsconfig.json'))
+
+    expect(stderr).toMatch(/hasTypescript.*?true/)
   })
 })

@@ -7,6 +7,7 @@ type EventCliSessionStarted = {
   isSrcDir: boolean | null
   hasNowJson: boolean
   isCustomServer: boolean | null
+  hasTypescript: boolean
 }
 
 export function eventVersion(
@@ -27,7 +28,8 @@ export function eventVersion(
         isSrcDir: event.isSrcDir,
         hasNowJson: event.hasNowJson,
         isCustomServer: event.isCustomServer,
-      } as EventCliSessionStarted,
+        hasTypescript: event.hasTypescript,
+      },
     },
   ]
 }
