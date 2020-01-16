@@ -40,7 +40,8 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
-import loadConfig, {
+import {
+  loadAppConfig,
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import {
@@ -103,7 +104,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const { userConfig, config } = loadAppConfig(
+    PHASE_PRODUCTION_BUILD,
+    dir,
+    conf
+  )
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
@@ -161,6 +166,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
       isCustomServer: null,
       hasTypescript: await hasTypeScript(pagesDir),
+      target: userConfig?.target || null,
     })
   )
 

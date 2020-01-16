@@ -13,6 +13,7 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const appDir = path.join(__dirname, '..')
+const nextConfig = path.join(appDir, 'next.config.js')
 const pagesDir = path.join(appDir, 'pages')
 const testsDir = path.join(pagesDir, '__tests__')
 const generatedDir = path.join(pagesDir, '__generated__')
@@ -211,5 +212,20 @@ describe('Telemetry CLI', () => {
     await fs.remove(path.join(appDir, 'tsconfig.json'))
 
     expect(stderr).toMatch(/hasTypescript.*?true/)
+  })
+
+  it('saves the target', async () => {
+    await fs.writeFile(nextConfig, `module.exports = { target: 'serverless' }`)
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toMatch(/target.*?serverless/)
   })
 })

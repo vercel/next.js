@@ -73,31 +73,33 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
-  Object.keys(userConfig).forEach((key: string) => {
+  const config = { ...userConfig }
+
+  Object.keys(config).forEach((key: string) => {
     if (
       key === 'experimental' &&
-      userConfig[key] &&
-      userConfig[key] !== defaultConfig[key]
+      config[key] &&
+      config[key] !== defaultConfig[key]
     ) {
       experimentalWarning()
     }
 
-    if (key === 'distDir' && userConfig[key] === 'public') {
+    if (key === 'distDir' && config[key] === 'public') {
       throw new Error(
         `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
       )
     }
 
-    const maybeObject = userConfig[key]
+    const maybeObject = config[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
-      userConfig[key] = {
+      config[key] = {
         ...(defaultConfig[key] || {}),
-        ...userConfig[key],
+        ...config[key],
       }
     }
   })
 
-  const result = { ...defaultConfig, ...userConfig }
+  const result = { ...defaultConfig, ...config }
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
@@ -163,69 +165,19 @@ function normalizeConfig(phase: string, config: any) {
   return config
 }
 
-export default function loadConfig(
+function loadUserConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
-) {
+): { [key: string]: any } | undefined {
   if (customConfig) {
-    return assignDefaults({ configOrigin: 'server', ...customConfig })
+    return { configOrigin: 'server', ...customConfig }
   }
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir,
   })
 
-  // If config file was found
-  if (path?.length) {
-    const userConfigModule = require(path)
-    const userConfig = normalizeConfig(
-      phase,
-      userConfigModule.default || userConfigModule
-    )
-    if (userConfig.target && !targets.includes(userConfig.target)) {
-      throw new Error(
-        `Specified target is invalid. Provided: "${
-          userConfig.target
-        }" should be one of ${targets.join(', ')}`
-      )
-    }
-
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
-    }
-
-    if (
-      userConfig.target &&
-      userConfig.target !== 'server' &&
-      ((userConfig.publicRuntimeConfig &&
-        Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
-        (userConfig.serverRuntimeConfig &&
-          Object.keys(userConfig.serverRuntimeConfig).length !== 0))
-    ) {
-      // TODO: change error message tone to "Only compatible with [fat] server mode"
-      throw new Error(
-        'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
-      )
-    }
-
-    if (
-      userConfig.experimental?.reactMode &&
-      !reactModes.includes(userConfig.experimental.reactMode)
-    ) {
-      throw new Error(
-        `Specified React Mode is invalid. Provided: ${
-          userConfig.experimental.reactMode
-        } should be one of ${reactModes.join(', ')}`
-      )
-    }
-
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
-  } else {
+  if (!path?.length) {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
       [
@@ -243,9 +195,77 @@ export default function loadConfig(
         )}' is not supported. Please replace the file with 'next.config.js'.`
       )
     }
+    return
   }
 
-  return defaultConfig
+  const userConfigModule = require(path)
+  const userConfig = normalizeConfig(
+    phase,
+    userConfigModule.default || userConfigModule
+  )
+  if (userConfig.target && !targets.includes(userConfig.target)) {
+    throw new Error(
+      `Specified target is invalid. Provided: "${
+        userConfig.target
+      }" should be one of ${targets.join(', ')}`
+    )
+  }
+
+  if (userConfig.amp?.canonicalBase) {
+    const { canonicalBase } = userConfig.amp || ({} as any)
+    userConfig.amp = userConfig.amp || {}
+    userConfig.amp.canonicalBase =
+      (canonicalBase.endsWith('/')
+        ? canonicalBase.slice(0, -1)
+        : canonicalBase) || ''
+  }
+
+  if (
+    userConfig.target &&
+    userConfig.target !== 'server' &&
+    ((userConfig.publicRuntimeConfig &&
+      Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
+      (userConfig.serverRuntimeConfig &&
+        Object.keys(userConfig.serverRuntimeConfig).length !== 0))
+  ) {
+    // TODO: change error message tone to "Only compatible with [fat] server mode"
+    throw new Error(
+      'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
+    )
+  }
+
+  if (
+    userConfig.experimental?.reactMode &&
+    !reactModes.includes(userConfig.experimental.reactMode)
+  ) {
+    throw new Error(
+      `Specified React Mode is invalid. Provided: ${
+        userConfig.experimental.reactMode
+      } should be one of ${reactModes.join(', ')}`
+    )
+  }
+
+  return { configOrigin: CONFIG_FILE, ...userConfig }
+}
+
+export function loadAppConfig(
+  phase: string,
+  dir: string,
+  customConfig?: object | null
+) {
+  const userConfig = loadUserConfig(phase, dir, customConfig)
+  return {
+    userConfig,
+    config: userConfig ? assignDefaults(userConfig) : defaultConfig,
+  }
+}
+
+export default function loadConfig(
+  phase: string,
+  dir: string,
+  customConfig?: object | null
+) {
+  return loadAppConfig(phase, dir, customConfig).config
 }
 
 export function isTargetLikeServerless(target: string) {
