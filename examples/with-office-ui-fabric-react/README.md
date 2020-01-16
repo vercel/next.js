@@ -1,13 +1,15 @@
 # Office UI Fabric React example
 
+This example shows how to use Office UI Fabric React in Next.js.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-office-ui-fabric-react with-office-ui-fabric-react-app
+npm init next-app --example with-office-ui-fabric-react with-office-ui-fabric-react-app
 # or
 yarn create next-app --example with-office-ui-fabric-react with-office-ui-fabric-react-app
 ```
@@ -36,7 +38,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to use Office UI Fabric React in Next.js.

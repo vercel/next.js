@@ -1,13 +1,15 @@
 # Example app with Jest tests
 
+This example features an app with jest tests.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-jest with-jest-app
+npm init next-app --example with-jest with-jest-app
 # or
 yarn create next-app --example with-jest with-jest-app
 ```
@@ -38,9 +40,3 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app with jest tests
