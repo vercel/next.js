@@ -27,6 +27,13 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-stencil
 ```
 
+Build stencil component:
+
+```bash
+cd packages/test-component
+yarn build
+```
+
 Install it and run:
 
 ```bash
