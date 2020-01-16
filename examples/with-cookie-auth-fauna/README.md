@@ -4,11 +4,12 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npm i -g create-next-app
-create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
+npm init next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
+# or
+yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 ```
 
 ### Download manually
