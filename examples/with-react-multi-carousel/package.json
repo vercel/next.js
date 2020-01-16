@@ -13,19 +13,12 @@
   "dependencies": {
     "@material-ui/core": "^3.9.2",
     "@material-ui/icons": "^3.0.2",
-    "@zeit/next-css": "^1.0.1",
     "jss": "^9.8.7",
     "mobile-detect": "^1.4.3",
-    "next": "latest",
+    "next": "^9.1.8-canary.11",
     "react": "^16.8.3",
     "react-dom": "^16.8.3",
     "react-jss": "^8.6.1",
     "react-multi-carousel": "^1.2.5"
-  },
-  "devDependencies": {
-    "file-loader": "^3.0.1",
-    "next-compose-plugins": "^2.1.1",
-    "next-fonts": "^0.17.0",
-    "url-loader": "^1.1.2"
   }
 }

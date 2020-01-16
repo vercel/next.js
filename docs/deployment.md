@@ -60,11 +60,11 @@ HTTPS is enabled by default and doesn't require extra configuration.
 
 #### From a git repository
 
-You can link your project in [GitHub](https://zeit.co/new), [GitLab](https://zeit.co/new), or [Bitbucket](https://zeit.co/new) through the [web interface](https://zeit.co/new). This will automatically set up deployment previews for pull requests and commits.
+You can link your project in [GitHub](https://zeit.co/new), [GitLab](https://zeit.co/new), or [Bitbucket](https://zeit.co/new) through the [web interface](https://zeit.co/new). This will automatically set up deployment previews for pull requests and commits. To learn more about ZEIT Now’s Git integration, take a look at [our documentation here](https://zeit.co/docs/v2/git-integration/).
 
 #### Through the ZEIT Now CLI
 
-You can install the command line tool using npm:
+You can install [Now CLI](https://zeit.co/download) from either npm or Yarn. Using npm, run the following command from your terminal:
 
 ```bash
 npm install -g now
@@ -77,6 +77,10 @@ now
 ```
 
 You will receive a unique link similar to the following: https://your-project.username.now.sh.
+
+#### Custom domains
+
+Once deployed on ZEIT Now, your projects can be assigned to a custom domain of your choice. To learn more, take a look at [our documentation here](https://zeit.co/docs/v2/custom-domains/).
 
 ## Self hosting
 

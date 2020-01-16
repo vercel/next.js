@@ -23,7 +23,7 @@ let globalApolloClient: TApolloClient
  * to a next.js PageTree. Use it by wrapping
  * your PageComponent via HOC pattern.
  */
-export default function withApolo(
+export default function withApollo(
   PageComponent: NextPage,
   { ssr = true } = {}
 ) {
