@@ -1,5 +1,9 @@
 # Recompose example
 
+This example show how to use [Recompose](https://github.com/acdlite/recompose) to wrap page components using High Order Components and use `getInitialProps` without worries.
+
+It also configure Babel to change our recompose imports so we're going to actually import only the functions we need and reduce the bundle size.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example show how to use [Recompose](https://github.com/acdlite/recompose) to wrap page components using High Order Components and use `getInitialProps` without worries.
-
-It also configure Babel to change our recompose imports so we're going to actually import only the functions we need and reduce the bundle size.

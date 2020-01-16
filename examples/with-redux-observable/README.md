@@ -1,5 +1,13 @@
 # Redux-Observable example
 
+This example is a page that renders information about Star-Wars characters. It
+fetches new character every 3 seconds having the initial character fetched on
+a server.
+
+Example also uses `redux-logger` to log every action.
+
+![demo page](demo.png)
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -43,15 +51,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-### The idea behind the example
-
-This example is a page that renders information about Star-Wars characters. It
-fetches new character every 3 seconds having the initial character fetched on
-a server.
-
-Example also uses `redux-logger` to log every action.
-
-![demo page](demo.png)
+### Notes
 
 The main problem with integrating Redux, Redux-Observable and Next.js is
 probably making initial requests on a server. That's because, the

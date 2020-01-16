@@ -1,5 +1,9 @@
 # Quilljs editor Example
 
+[Quill](https://quilljs.com/) is powerful rich text editor. This example uses [react-quill](https://github.com/zenoamaro/react-quill) to integrate Quill with Next.js.
+
+Quill does not suppport SSR, so it's only loaded and rendered in the browser.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-[Quill](https://quilljs.com/) is powerful rich text editor. This example uses [react-quill](https://github.com/zenoamaro/react-quill) to integrate Quill with Next.js.
-
-Quill does not suppport SSR, so it's only loaded and rendered in the browser.

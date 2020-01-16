@@ -1,5 +1,7 @@
 # Pass Server Data Directly to a Next.js Page during SSR
 
+Extract and inline critical css with [emotion](https://github.com/emotion-js/emotion) using [emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/emotion-server) and [react-emotion](https://github.com/emotion-js/emotion/tree/master/packages/react-emotion).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Extract and inline critical css with [emotion](https://github.com/emotion-js/emotion) using [emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/emotion-server) and [react-emotion](https://github.com/emotion-js/emotion/tree/master/packages/react-emotion).

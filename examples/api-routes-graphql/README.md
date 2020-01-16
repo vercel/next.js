@@ -1,5 +1,7 @@
 # API routes with GraphQL server
 
+Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes), which provide an easy solution to build your own `API`. This example shows their usage alongside [apollo-server-micro](https://github.com/apollographql/apollo-server/tree/master/packages/apollo-server-micro) to provide simple GraphQL server consumed by Next.js app.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes), which provide an easy solution to build your own `API`. This example shows their usage alongside [apollo-server-micro](https://github.com/apollographql/apollo-server/tree/master/packages/apollo-server-micro) to provide simple GraphQL server consumed by Next.js app.

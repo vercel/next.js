@@ -1,5 +1,7 @@
 # Using the style-sheet CSS in JS library and extract CSS to file.
 
+This example features an app using the [style-sheet](https://www.npmjs.com/package/style-sheet) CSS in JS library and demonstrates how it is possible to extract styles to file.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features an app using the [style-sheet](https://www.npmjs.com/package/style-sheet) CSS in JS library and demonstrates how it is possible to extract styles to file.

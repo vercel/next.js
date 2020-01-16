@@ -1,5 +1,7 @@
 # Example app with google analytics & amp
 
+This example shows how to use [Next.js](https://github.com/zeit/next.js) along with [Google Analytics](https://developers.google.com/analytics/devguides/collection/gtagjs/) in conjunction with [AMP](https://nextjs.org/docs#amp-support). A custom [\_document](https://github.com/zeit/next.js/#custom-document) is used to inject [tracking snippet](https://developers.google.com/analytics/devguides/collection/gtagjs/) and track [pageviews](https://developers.google.com/analytics/devguides/collection/gtagjs/pages) and [event](https://developers.google.com/analytics/devguides/collection/gtagjs/events). There are two separate initializations of the Google Analytics tracking code; one for AMP and one for non-AMP pages.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -39,7 +41,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to use [Next.js](https://github.com/zeit/next.js) along with [Google Analytics](https://developers.google.com/analytics/devguides/collection/gtagjs/) in conjunction with [AMP](https://nextjs.org/docs#amp-support). A custom [\_document](https://github.com/zeit/next.js/#custom-document) is used to inject [tracking snippet](https://developers.google.com/analytics/devguides/collection/gtagjs/) and track [pageviews](https://developers.google.com/analytics/devguides/collection/gtagjs/pages) and [event](https://developers.google.com/analytics/devguides/collection/gtagjs/events). There are two separate initializations of the Google Analytics tracking code; one for AMP and one for non-AMP pages.

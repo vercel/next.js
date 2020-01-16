@@ -1,5 +1,7 @@
 # React-UWP example
 
+This example features how you use [react-uwp](https://github.com/myxvisual/react-uwp) (React Components that Implement Microsoft's UWP Design & Fluent Design.) with Next.js.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how you use [react-uwp](https://github.com/myxvisual/react-uwp) (React Components that Implement Microsoft's UWP Design & Fluent Design.) with Next.js.

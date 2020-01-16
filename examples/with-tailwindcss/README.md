@@ -45,7 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
+## Notes
 
 This setup is a basic starting point for using [Tailwind CSS](https://tailwindcss.com) with Next.js. This example also includes the following [PostCSS](https://github.com/postcss/postcss) plugins:
 

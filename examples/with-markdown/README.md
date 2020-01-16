@@ -1,5 +1,7 @@
 # With Markdown example
 
+This example shows how to integrate an [MDX](https://github.com/mdx-js/mdx) which is a _"JSX in Markdown loader, parser, and renderer for ambitious projects"_.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to integrate an [MDX](https://github.com/mdx-js/mdx) which is a _"JSX in Markdown loader, parser, and renderer for ambitious projects"_.

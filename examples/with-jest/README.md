@@ -1,5 +1,7 @@
 # Example app with Jest tests
 
+This example features an app with jest tests.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -38,9 +40,3 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app with jest tests

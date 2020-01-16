@@ -1,5 +1,7 @@
 # Basic CSS example
 
+Next.js ships with [styled-jsx](https://github.com/zeit/styled-jsx) allowing you to write scope styled components with full css support. This is important for the modularity and code size of your bundles and also for the learning curve of the framework. If you know css you can write styled-jsx right away.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Next.js ships with [styled-jsx](https://github.com/zeit/styled-jsx) allowing you
-to write scope styled components with full css support. This is important for
-the modularity and code size of your bundles and also for the learning curve of the framework. If you know css you can write styled-jsx right away.

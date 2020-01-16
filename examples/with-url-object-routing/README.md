@@ -1,5 +1,9 @@
 # URL object routing
 
+Next.js allows using [Node.js URL objects](https://nodejs.org/api/url.html#url_url_strings_and_url_objects) as `href` and `as` values for `<Link>` component and parameters of `Router#push` and `Router#replace`.
+
+This simplify the usage of parameterized URLs when you have many query values.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,9 +40,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Next.js allows using [Node.js URL objects](https://nodejs.org/api/url.html#url_url_strings_and_url_objects) as `href` and `as` values for `<Link>` component and parameters of `Router#push` and `Router#replace`.
-
-This simplify the usage of parameterized URLs when you have many query values.

@@ -1,5 +1,9 @@
 # Example app with carbon-components-react
 
+This example features how you use IBM's [carbon-components-react](https://github.com/IBM/carbon-components-react) [(Carbon Design System)](http://www.carbondesignsystem.com/components/overview) with Next.js.
+
+Create your own theme with Carbon Design System's [theming tools](http://themes.carbondesignsystem.com/) and put it all together as demonstrated in `static/myCustomTheme.scss`
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how you use IBM's [carbon-components-react](https://github.com/IBM/carbon-components-react) [(Carbon Design System)](http://www.carbondesignsystem.com/components/overview) with Next.js.
-
-Create your own theme with Carbon Design System's [theming tools](http://themes.carbondesignsystem.com/) and put it all together as demonstrated in `static/myCustomTheme.scss`

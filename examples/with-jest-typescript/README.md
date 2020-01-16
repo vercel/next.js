@@ -1,5 +1,7 @@
 # Example app with Jest tests inside a NextJS TypeScript app
 
+This example shows a configuration and several examples for a running Jest tests in a NextJS TypeScript app.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -38,7 +40,3 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This example shows a configuration and several examples for a running Jest tests in a NextJS TypeScript app

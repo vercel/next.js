@@ -1,5 +1,7 @@
 # Custom server with Nodemon example
 
+The example shows how you can apply [Nodemon](https://nodemon.io/) to a custom server to have live reload of the server code without being affected by the Next.js universal code.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,7 +38,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-The example shows how you can apply [Nodemon](https://nodemon.io/) to a custom server to have live reload of the server code without being affected by the Next.js universal code.

@@ -1,5 +1,9 @@
 # Example app with polyfills
 
+Next.js supports browsers from IE10 to the latest. It adds polyfills as they need. But Next.js cannot add polyfills for code inside NPM modules. So sometimes, you need to add polyfills by yourself.
+
+This how you can do it easily with Next.js's custom webpack config feature.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,10 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Next.js supports browsers from IE10 to the latest. It adds polyfills as they need. But Next.js cannot add polyfills for code inside NPM modules.
-So sometimes, you need to add polyfills by yourself.
-
-This how you can do it easily with Next.js's custom webpack config feature.

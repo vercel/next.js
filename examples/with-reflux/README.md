@@ -1,5 +1,7 @@
 # Pass Server Data Directly to a Next.js Page during SSR
 
+Use [reflux](https://github.com/reflux/refluxjs) to manage an application store with unidirectional dataflow.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Use [reflux](https://github.com/reflux/refluxjs) to manage an application store with unidirectional dataflow.

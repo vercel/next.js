@@ -1,5 +1,7 @@
 # Noscript example
 
+This example show you how to use `<noscript></noscript>` with image resource in next.js.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -66,7 +68,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## About example
-
-This example show you how to use `<noscript></noscript>` with image resource in next.js

@@ -1,5 +1,7 @@
 # Example app with Mocha tests
 
+This example features an app with Mocha tests.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -38,11 +40,5 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app with Mocha tests
 
 > A very important part of this example is the `.babelrc` file which configures the `test` environment to use `babel-preset-env` and configures it to transpile modules to `commonjs`). [Learn more](https://github.com/zeit/next.js/issues/2895).

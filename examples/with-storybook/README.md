@@ -1,5 +1,7 @@
 # Example app with Storybook
 
+This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -57,7 +59,3 @@ yarn build-storybook
 cd storybook-static
 now
 ```
-
-## The idea behind the example
-
-This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.

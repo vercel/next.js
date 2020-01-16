@@ -1,5 +1,9 @@
 # Shallow Routing Example
 
+With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
+
+We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
-
-We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.

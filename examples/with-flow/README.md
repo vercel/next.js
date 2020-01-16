@@ -1,5 +1,7 @@
 # Example app with [Flow](https://flowtype.org/)
 
+This example shows how you can use Flow, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how you can use Flow, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.
-
-![with-flow](with-flow.gif)

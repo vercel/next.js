@@ -1,5 +1,9 @@
 # Example app with imported and hashed statics
 
+This example shows how to import images, videos, etc. from `/static` and get the URL with a hash query allowing to use better cache without problems.
+
+This example supports `.svg`, `.png` and `.txt` extensions, but it can be configured to support any possible extension changing the `extensions` array in the `next.config.js` [file](https://github.com/zeit/next.js/blob/canary/examples/with-hashed-statics/next.config.js#L4).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to import images, videos, etc. from `/static` and get the URL with a hash query allowing to use better cache without problems.
-
-This example supports `.svg`, `.png` and `.txt` extensions, but it can be configured to support any possible extension changing the `extensions` array in the `next.config.js` [file](https://github.com/zeit/next.js/blob/canary/examples/with-hashed-statics/next.config.js#L4).

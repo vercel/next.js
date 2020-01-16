@@ -1,5 +1,7 @@
 # With dynamic `App` layout example
 
+Shows how to use _app.js to implement \_dynamic_ layouts for pages. This is achieved by attaching a static `Layout` property to each page that needs a different layout. In that way, once we use `_app.js` to wrap our pages, we can get it from `Component.Layout` and render it accordingly.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,8 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Shows how to use _app.js to implement \_dynamic_ layouts for pages.
-This is achieved by attaching a static `Layout` property to each page that needs a different layout. In that way, once we use `_app.js` to wrap our pages, we can get it from `Component.Layout` and render it accordingly.

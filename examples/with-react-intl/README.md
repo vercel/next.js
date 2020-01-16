@@ -1,5 +1,7 @@
 # Example app with [React Intl][]
 
+This example app shows how to integrate [React Intl][] with Next.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,10 +38,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example app shows how to integrate [React Intl][] with Next.
 
 ### Features of this example app
 

@@ -1,5 +1,7 @@
 # Overmind example
 
+This example uses [overmind](https://overmindjs.org/?view=react&typescript=false).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):

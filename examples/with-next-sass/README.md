@@ -1,5 +1,7 @@
 # Example app with next-sass
 
+This example uses next-sass without css-modules. The config can be found in `next.config.js`, change `withSass()` to `withSass({cssModules: true})` if you use css-modules. Then in the code, you import the stylesheet as `import style from '../styles/style.scss'` and use it like `<div className={style.example}>`. [Learn more](https://github.com/zeit/next-plugins/tree/master/packages/next-sass).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -52,13 +54,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app with next-sass
-
-This example uses next-sass without css-modules. The config can be found in `next.config.js`, change `withSass()` to `withSass({cssModules: true})` if you use css-modules. Then in the code, you import the stylesheet as `import style from '../styles/style.scss'` and use it like `<div className={style.example}>`.
-
-[Learn more](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)

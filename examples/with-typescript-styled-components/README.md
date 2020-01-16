@@ -45,7 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
+## Notes
 
 This is an amalgamation of the 2 existing examples:
 

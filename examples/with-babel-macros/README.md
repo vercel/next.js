@@ -1,5 +1,7 @@
 # Example app with [babel-macros](https://github.com/kentcdodds/babel-macros)
 
+This example features how to configure and use [`babel-macros`](https://github.com/kentcdodds/babel-macros) which allows you to easily add babel plugins which export themselves as a macro without needing to configure them.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -43,11 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
-
-This example features how to configure and use [`babel-macros`](https://github.com/kentcdodds/babel-macros) which allows you
-to easily add babel plugins which export themselves as a macro without needing
-to configure them.
+## Note
 
 You'll notice the configuration in `.babelrc` includes the `babel-macros`
 plugin, then we can use the `preval.macro` in `pages/index.js` to pre-evaluate

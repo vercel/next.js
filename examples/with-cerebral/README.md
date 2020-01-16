@@ -1,5 +1,39 @@
 # Declarative State & Side-effect management with [CerebralJS](https://cerebraljs.com/)
 
+Use [CerebralJS](https://cerebraljs.com/) to manage an apps state and side effects in a declarative manner:
+
+Declarative CerebralJS:
+
+```js
+;[
+  setLoading(true),
+  getUser,
+  {
+    success: setUser,
+    error: setError,
+  },
+  setLoading(false),
+]
+```
+
+vs imperative JS:
+
+```js
+function getUser() {
+  this.isLoading = true
+  ajax
+    .get('/user')
+    .then(user => {
+      this.data = user
+      this.isLoading = false
+    })
+    .catch(error => {
+      this.error = error
+      this.isLoading = false
+    })
+}
+```
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -41,40 +75,4 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 
 ```bash
 now
-```
-
-## The idea behind the example
-
-Use [CerebralJS](https://cerebraljs.com/) to manage an apps state and side effects in a declarative manner:
-
-Declarative CerebralJS:
-
-```js
-;[
-  setLoading(true),
-  getUser,
-  {
-    success: setUser,
-    error: setError,
-  },
-  setLoading(false),
-]
-```
-
-vs imperative JS:
-
-```js
-function getUser() {
-  this.isLoading = true
-  ajax
-    .get('/user')
-    .then(user => {
-      this.data = user
-      this.isLoading = false
-    })
-    .catch(error => {
-      this.error = error
-      this.isLoading = false
-    })
-}
 ```

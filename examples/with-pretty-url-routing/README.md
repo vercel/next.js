@@ -1,5 +1,10 @@
 # Example app with pretty url routing
 
+This example features:
+
+- route customisation and parameterization
+- reverse routing
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,10 +41,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features:
-
-- route customisation and parameterization
-- reverse routing

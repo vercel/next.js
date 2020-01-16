@@ -1,5 +1,7 @@
 # Example app with next-sass
 
+This example features an app with external CSS written in SASS and loaded and automatically scoped with `styled-jsx/webpack`. [Learn more](https://github.com/zeit/styled-jsx#styles-in-regular-css-files)
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features:
-
-An app with external CSS written in SASS and loaded and automatically scoped with `styled-jsx/webpack`. [Learn more](https://github.com/zeit/styled-jsx#styles-in-regular-css-files)

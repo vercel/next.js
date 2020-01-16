@@ -1,5 +1,9 @@
 # With universal runtime configuration
 
+This example show how to set custom environment variables for your application at runtime using the `publicRuntimeConfig` key in `next.config.js`
+
+For documentation see: https://github.com/zeit/next.js#exposing-configuration-to-the-server--client-side
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,9 +40,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example show how to set custom environment variables for your application at runtime using the `publicRuntimeConfig` key in `next.config.js`
-
-For documentation see: https://github.com/zeit/next.js#exposing-configuration-to-the-server--client-side

@@ -1,5 +1,7 @@
 # Example app with absolute imports
 
+This example shows how to configure Babel to have absolute imports instead of relative imports without modifying the Webpack configuration.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to configure Babel to have absolute imports instead of relative imports without modifying the Webpack configuration.

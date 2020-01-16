@@ -1,5 +1,7 @@
 # Example app with dynamic-imports
 
+This examples shows how to dynamically import modules via [`import()`](https://github.com/tc39/proposal-dynamic-import) API
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This examples shows how to dynamically import modules via [`import()`](https://github.com/tc39/proposal-dynamic-import) API

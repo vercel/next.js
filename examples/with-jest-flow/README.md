@@ -1,5 +1,7 @@
 # Example app with Jest tests and [Flow](https://flowtype.org/)
 
+This example features an app with jest tests and the [Flow](https://flowtype.org/) static type checker, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -38,10 +40,3 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app with jest tests
-- The [Flow](https://flowtype.org/) static type checker, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.

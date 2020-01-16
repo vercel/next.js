@@ -1,5 +1,7 @@
 # Using multiple zones
 
+With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs#multi-zones). This is an example showing how to use it.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -27,9 +29,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-zones
 ```
 
-## The idea behind this example
-
-With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs#multi-zones). This is an example showing how to use it.
+## Notes
 
 In this example, we have two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
 

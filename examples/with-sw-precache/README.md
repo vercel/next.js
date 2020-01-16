@@ -1,5 +1,9 @@
 # sw-precache example
 
+You'll often want your Service Worker to be registered at the root level to give it access to your whole application.
+
+This example shows how this can be achieved alongside [sw-precache](https://github.com/GoogleChrome/sw-precache) (via [the webpack plugin](https://github.com/goldhand/sw-precache-webpack-plugin)).
+
 ## How to use
 
 ### Using `create-next-app`
@@ -34,9 +38,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-You'll often want your Service Worker to be registered at the root level to give it access to your whole application.
-
-This example shows how this can be achieved alongside [sw-precache](https://github.com/GoogleChrome/sw-precache) (via [the webpack plugin](https://github.com/goldhand/sw-precache-webpack-plugin)).

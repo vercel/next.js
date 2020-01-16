@@ -1,6 +1,13 @@
 # react-useragent example
 
-Show how to setup [@quentin-sommer/react-useragent](https://github.com/quentin-sommer/react-useragent) using next.js client side and server side rendering.
+This example shows how to add user-agent awarness to your next.js app and set it up for server side rendering using [@quentin-sommer/react-useragent](https://github.com/quentin-sommer/react-useragent). It will enable you to directly detect the device from the server side.
+
+You can then decide what to render depending on the device. For example:
+
+- Smaller image for phones
+- Dedicated download button fos iOS devices.
+
+The example uses the `pages/_app.js` file to automatically inject user-agent detection in all your pages.
 
 ## Deploy your own
 
@@ -44,14 +51,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to add user-agent awarness to your next.js app and set it up for server side rendering. It will enable you to directly detect the device from the server side.
-
-You can then decide what to render depending on the device. For example:
-
-- Smaller image for phones
-- Dedicated download button fos iOS devices.
-
-The example uses the `pages/_app.js` file to automatically injectuser-agent detection in all your pages.

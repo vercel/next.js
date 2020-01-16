@@ -1,5 +1,7 @@
 # activeClassName example
 
+ReactRouter has a convenience property on the `Link` element to allow an author to set the _active_ className on a link. This example replicates that functionality using Next's own `Link`.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-ReactRouter has a convenience property on the `Link` element to allow an author to set the _active_ className on a link. This example replicates that functionality using Next's own `Link`.

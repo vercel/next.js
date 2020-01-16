@@ -45,7 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
+## Notes
 
 Right to left allows to "flip" every element in your site to fit the needs of the cultures that are read from right to left (like arabic for example).
 

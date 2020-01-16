@@ -1,5 +1,7 @@
 # Higher Order Component example
 
+This example show you how to create Higher Order Component in next.js.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -44,7 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now)
 ```bash
 now
 ```
-
-## About example
-
-This example show you how to create Higher Order Component in next.js

@@ -1,5 +1,11 @@
 # Example app with prefetching pages
 
+This example features an app with four simple pages:
+
+- Home/Features: Default API
+- About: Imperative API
+- Contact: Disable API
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,13 +48,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app with four simple pages
-
-  - Home/Features: Default api
-  - About: Imperative api
-  - Contact: Disable api

@@ -1,5 +1,7 @@
 # Webpack Bundle Size Analyzer
 
+This example shows how to analyze the output bundles using [webpack-bundle-size-analyzer](https://www.npmjs.com/package/webpack-bundle-size-analyzer)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -31,9 +33,7 @@ yarn
 yarn dev
 ```
 
-## The idea behind the example
-
-This example shows how to analyze the output bundles using [webpack-bundle-size-analyzer](https://www.npmjs.com/package/webpack-bundle-size-analyzer)
+## Notes
 
 To analyze your webpack output, invoke the following command:
 

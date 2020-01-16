@@ -1,6 +1,6 @@
 # TypeScript Next.js example
 
-This is a really simple project that show the usage of Next.js with TypeScript.
+This is a really simple project that shows the usage of Next.js with TypeScript.
 
 ## Deploy your own
 
@@ -45,7 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
+## Notes
 
 This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all we have to do is to install TypeScript.
 

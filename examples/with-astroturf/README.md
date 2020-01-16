@@ -1,5 +1,7 @@
 # Example app with [astroturf](https://github.com/4Catalyzer/astroturf)
 
+This example features how to use [astroturf](https://github.com/4Catalyzer/astroturf) as the zero-runtime CSS-in-JS styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how to use [astroturf](https://github.com/4Catalyzer/astroturf) as the zero-runtime CSS-in-JS styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).

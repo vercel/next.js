@@ -1,5 +1,11 @@
 # Blog starter example
 
+This is an example of a blog built with Next.js. [Read more about the motivation and how it is built](https://jolvera.dev/posts/rebuilding-my-blog-with-nextjs).
+
+The blog is still barebones and need more improvements and styling, but this should be enough to get you started.
+
+[Demo deployed in Now](https://nextjs-blog-starter.now.sh/)
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -43,11 +49,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This is an example of a blog built with Next.js. [Read more about the motivation and how it is built](https://jolvera.dev/posts/rebuilding-my-blog-with-nextjs).
-
-The blog is still barebones and need more improvements and styling, but this should be enough to get you started.
-
-[Demo deployed in Now](https://nextjs-blog-starter.now.sh/)

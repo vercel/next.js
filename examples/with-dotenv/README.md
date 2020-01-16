@@ -1,5 +1,7 @@
 # With Dotenv example
 
+This example shows how to inline env vars.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -43,11 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
-
-This example shows how to inline env vars.
-
-**Please note**:
+## Note
 
 - It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
 - In this example, as soon as you reference an env var in your code, it will automatically be made publicly available and exposed to the client.

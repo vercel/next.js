@@ -45,7 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
+## Notes
 
 This setup has inspiration from [examples/with-tailwindcss](https://github.com/zeit/next.js/blob/canary/examples/with-tailwindcss/README.md). This example will show you how to integrate [Emotion](https://emotion.sh/docs/introduction) with [tailwind](https://tailwindcss.com/).
 

@@ -1,5 +1,7 @@
 # Sentry example
 
+An example showing use of [Sentry](https://sentry.io) to catch & report errors on both client + server side.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -37,10 +39,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## About example
-
-An example showing use of [Sentry](https://sentry.io) to catch & report errors on both client + server side.
 
 ### Configuration
 

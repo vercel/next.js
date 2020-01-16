@@ -1,5 +1,7 @@
 # HTTP2 server example
 
+This example shows the most basic example using an HTTP2 server. We have 2 pages: `pages/index.js` and `pages/about.js`. The former responds to `/` requests and the latter to `/about`. Using `next/link` you can add hyperlinks between them with universal routing capabilities.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -43,7 +45,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows the most basic example using an HTTP2 server. We have 2 pages: `pages/index.js` and `pages/about.js`. The former responds to `/` requests and the latter to `/about`. Using `next/link` you can add hyperlinks between them with universal routing capabilities.

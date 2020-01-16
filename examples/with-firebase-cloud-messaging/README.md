@@ -1,5 +1,7 @@
 # With Firebase Cloud Messaging example
 
+To demo how to implement firebase cloud messaging to send web push notification in next.js.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -44,7 +46,3 @@ now
 ## How to send a notification
 
 https://firebase.google.com/docs/cloud-messaging/js/first-message,
-
-## The idea behind the example
-
-To demo how to implement firebase cloud messaging to send web push notification in next.js.

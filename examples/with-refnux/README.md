@@ -1,5 +1,8 @@
 # Refnux example
 
+This example, just like `with-redux` and `with-mobx` examples, shows how to manage a global state in your web-application.
+In this case we are using [refnux](https://github.com/algesten/refnux) which is an alternative, simpler, purely functional store state manager.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -43,10 +46,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
-
-This example, just like `with-redux` and `with-mobx` examples, shows how to manage a global state in your web-application.
-In this case we are using [refnux](https://github.com/algesten/refnux) which is an alternative, simpler, purely functional store state manager.
+## Notes
 
 We have two very similar pages (page1.js, page2.js). They both
 

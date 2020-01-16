@@ -1,5 +1,7 @@
 # Example with Server Side Rendered portals
 
+An example of Server Side Rendered React [Portals](https://reactjs.org/docs/portals.html) with [`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal) and Next.js.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,9 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-An example of Server Side Rendered React [Portals](https://reactjs.org/docs/portals.html) with
-[`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal)
-and Next.js.

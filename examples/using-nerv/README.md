@@ -1,5 +1,11 @@
 # Hello World example
 
+This example uses [Nerv](https://nerv.aotu.io/) instead of React. It's a "blazing fast React alternative, compatible with IE8 and React 16". Here we've customized Next.js to use Nerv instead of React.
+
+Here's how we did it:
+
+- Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,11 +42,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example uses [Nerv](https://nerv.aotu.io/) instead of React. It's a "blazing fast React alternative, compatible with IE8 and React 16". Here we've customized Next.js to use Nerv instead of React.
-
-Here's how we did it:
-
-- Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)

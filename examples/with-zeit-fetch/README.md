@@ -1,5 +1,7 @@
 # @zeit/fetch example
 
+This example shows how to use [`@zeit/fetch`](https://npmjs.com/package/@zeit/fetch) in a Next.js application.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to use [`@zeit/fetch`](https://npmjs.com/package/@zeit/fetch) in a Next.js application.

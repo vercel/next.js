@@ -1,5 +1,7 @@
 # mobx-keystone example
 
+Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -53,10 +55,6 @@ This example is a typescript and mobx-keysone port of the [with-redux](https://g
   "plugins": ["transform-decorators-legacy"]
 }
 ```
-
-## The idea behind the example
-
-Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
 
 In this example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color than the client one.
 

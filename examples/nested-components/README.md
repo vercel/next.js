@@ -1,5 +1,7 @@
 # Example app using nested components
 
+Taking advantage of the composable nature of React components we can modularize our apps in self-contained, meaningful components. This example has a page under `pages/index.js` that uses `components/paragraph.js` and `components/post.js` that can be styled and managed separately.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Taking advantage of the composable nature of React components we can modularize our apps in self-contained, meaningful components. This example has a page under `pages/index.js` that uses `components/paragraph.js` and `components/post.js` that can be styled and managed separately.

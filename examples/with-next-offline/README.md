@@ -1,5 +1,7 @@
 # next-offline example
 
+This example demonstrates how to use the [next-offline plugin](https://github.com/hanford/next-offline) It includes manifest.json to install app via chrome
+
 ## How to use
 
 ### Using `create-next-app`
@@ -68,7 +70,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example demonstrates how to use the [next-offline plugin](https://github.com/hanford/next-offline) It includes manifest.json to install app via chrome

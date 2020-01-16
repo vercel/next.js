@@ -1,5 +1,7 @@
 # Example app with Rebass
 
+This example features how you use [Rebass](http://jxnblk.com/rebass/) functional UI library with Next.js.
+
 ![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
 
 ## Deploy your own
@@ -46,7 +48,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how you use [Rebass](http://jxnblk.com/rebass/) functional UI library with Next.js.

@@ -1,5 +1,7 @@
 # Analyzer Bundles example
 
+This example shows how to analyze the output bundles using [@next/bundle-analyzer](https://github.com/zeit/next.js/tree/master/packages/next-bundle-analyzer)
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -37,9 +39,7 @@ yarn
 yarn dev
 ```
 
-## The idea behind the example
-
-This example shows how to analyze the output bundles using [@next/bundle-analyzer](https://github.com/zeit/next.js/tree/master/packages/next-bundle-analyzer)
+### Analyze webpack output
 
 To analyze your webpack output, invoke the following command:
 

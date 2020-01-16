@@ -1,5 +1,9 @@
 # Example app with react-md
 
+This example features how you use [react-md](https://react-md.mlaursen.com/) (React Material Design) with Next.js.
+
+I recommend reading [layout-component](../layout-component) example next to learn how to reuse the layout across the pages.
+
 ![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
 
 ## Deploy your own
@@ -46,9 +50,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how you use [react-md](https://react-md.mlaursen.com/) (React Material Design) with Next.js.
-
-I recommend reading [layout-component](../layout-component) example next to learn how to reuse the layout across the pages.

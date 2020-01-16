@@ -1,5 +1,11 @@
 # Example app with styled-components
 
+[Orbit-components](https://orbit.kiwi) is a React component library which provides developers with the easiest possible way of building Kiwi.com’s products.
+
+For this purpose we are extending `<App />` of injected `<ThemeProvider/>`, and also adding `@kiwicom/babel-plugin-orbit-components`.
+
+This fork comes from [styled-components-example](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,11 +48,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-[Orbit-components](https://orbit.kiwi) is a React component library which provides developers with the easiest possible way of building Kiwi.com’s products.
-
-For this purpose we are extending `<App />` of injected `<ThemeProvider/>`, and also adding `@kiwicom/babel-plugin-orbit-components`
-
-This fork comes from [styled-components-example](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)

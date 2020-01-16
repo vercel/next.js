@@ -1,5 +1,7 @@
 # Google AMP Story
 
+This example shows how to create an AMP page with `amp-story` using Next.js and the AMP feature.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to create an AMP page with `amp-story` using Next.js and the AMP feature.

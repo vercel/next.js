@@ -1,5 +1,7 @@
 # kea example
 
+This example uses [kea](https://github.com/keajs/kea).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):

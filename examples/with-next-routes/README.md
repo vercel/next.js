@@ -1,5 +1,9 @@
 # Named routes example ([next-routes](https://github.com/fridays/next-routes))
 
+This example uses [next-routes](https://github.com/fridays/next-routes) for dynamic routing, which lets you define parameterized, named routes with express-style parameters matching.
+
+It works similar to the [parameterized-routing](https://github.com/zeit/next.js/tree/master/examples/parameterized-routing) example and makes use of next.js [custom server and routing](https://github.com/zeit/next.js#custom-server-and-routing) possibilities.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,9 +40,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example uses [next-routes](https://github.com/fridays/next-routes) for dynamic routing, which lets you define parameterized, named routes with express-style parameters matching.
-
-It works similar to the [parameterized-routing](https://github.com/zeit/next.js/tree/master/examples/parameterized-routing) example and makes use of next.js [custom server and routing](https://github.com/zeit/next.js#custom-server-and-routing) possibilities.

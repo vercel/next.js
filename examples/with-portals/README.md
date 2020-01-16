@@ -1,5 +1,7 @@
 # Example with portals
 
+This example show how to use the React [Portals](https://reactjs.org/docs/portals.html) feature with Next.js.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example show how to use the React [Portals](https://reactjs.org/docs/portals.html) feature with Next.js.

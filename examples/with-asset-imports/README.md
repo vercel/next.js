@@ -1,5 +1,7 @@
 # Example app with asset imports
 
+This example shows how to enable the imports of assets (images, videos, etc.) and get a URL pointing to `/public`.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -43,9 +45,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-## The idea behind the example
-
-This example shows how to enable the imports of assets (images, videos, etc.) and get a URL pointing to `/public`.
+## Note
 
 This is also configurable to point to a CDN changing the `baseUri` to the CDN domain, something similar to this:
 

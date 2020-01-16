@@ -1,5 +1,11 @@
 # Example app with strict CSP generating script hash
 
+This example features how you can set up a strict CSP for your pages whitelisting next's inline bootstrap script by hash.
+In contrast to the example `with-strict-csp` based on nonces, this way doesn't require running a server to generate fresh nonce values on every document request.
+It defines the CSP by document `meta` tag.
+
+Note: There are still valid cases for using a nonce in case you need to inline scripts or styles for which calculating a hash is not feasible.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,11 +48,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how you can set up a strict CSP for your pages whitelisting next's inline bootstrap script by hash.
-In contrast to the example `with-strict-csp` based on nonces, this way doesn't require running a server to generate fresh nonce values on every document request.
-It defines the CSP by document `meta` tag.
-
-Note: There are still valid cases for using a nonce in case you need to inline scripts or styles for which calculating a hash is not feasible.

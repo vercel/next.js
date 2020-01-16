@@ -1,5 +1,7 @@
 # Form Handler
 
+Sometimes handle multiple forms can be tricky, the idea is to have a global reducer with the name of each form and the inputs of it; making accessible everywhere.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -36,8 +38,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Sometimes handle multiple forms can be tricky, the idea is to have a global reducer
-with the name of each form and the inputs of it; making accessible everywhere.

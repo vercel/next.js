@@ -1,5 +1,8 @@
 # React-GA example
 
+This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app)
+component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,8 +45,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app)
-component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.

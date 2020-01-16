@@ -1,5 +1,7 @@
 # Example app with React Testing Library and Jest
 
+This example features an app with [react testing library](https://github.com/kentcdodds/react-testing-library) by [Kent Dodds](https://github.com/kentcdodds/). This library encourages your applications to be more accessible and allows you to get your tests closer to using your components the way a user will, which allows your tests to give you more confidence that your application will work when a real user uses it. And also, is a replacement for enzyme.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -38,11 +40,3 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This library encourages your applications to be more accessible and allows you to get your tests closer to using your components the way a user will, which allows your tests to give you more confidence that your application will work when a real user uses it. And also, is a replacement for enzyme.
-
-This example features:
-
-- An app with [react testing library](https://github.com/kentcdodds/react-testing-library) by [Kent Dodds](https://github.com/kentcdodds/)

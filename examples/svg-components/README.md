@@ -1,5 +1,7 @@
 # SVG components example
 
+This example uses a custom `.babelrc` to add support for importing `.svg` files and rendering them as React components. [babel-plugin-inline-react-svg](https://www.npmjs.com/package/babel-plugin-inline-react-svg) is used to handle transpiling the SVGs.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example uses a custom `.babelrc` to add support for importing `.svg` files and rendering them as React components. [babel-plugin-inline-react-svg](https://www.npmjs.com/package/babel-plugin-inline-react-svg) is used to handle transpiling the SVGs.

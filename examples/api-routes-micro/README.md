@@ -1,5 +1,7 @@
 # API routes with Micro example
 
+Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes), which provide an easy solution to build your own `API`. This example shows their usage alongside [Micro](https://github.com/zeit/micro), an `http` server for microservices
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -42,7 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Next.js ships with [API routes](https://github.com/zeit/next.js#api-routes), which provide an easy solution to build your own `API`. This example shows their usage alongside [Micro](https://github.com/zeit/micro), an `http` server for microservices

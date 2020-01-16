@@ -1,5 +1,7 @@
 # Socket.io example
 
+This example shows how to use [socket.io](https://socket.io/) inside a Next.js application using a custom hook. The example combines the WebSocket server with the Next server. In a production application you should consider splitting them into different services.
+
 ## How to use
 
 ### Using `create-next-app`
@@ -30,7 +32,3 @@ npm run dev
 yarn
 yarn dev
 ```
-
-## The idea behind the example
-
-This example shows how to use [socket.io](https://socket.io/) inside a Next.js application using a custom hook. The example combines the WebSocket server with the Next server. In a production application you should consider splitting them into different services.
