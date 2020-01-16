@@ -127,10 +127,12 @@ module.exports = {
         {
           source: '/unnamed/(first|second)/(.*)',
           destination: '/:1/:2',
+          permanent: false,
         },
         {
           source: '/named-like-unnamed/:0',
           destination: '/:0',
+          permanent: false,
         },
       ]
     },
