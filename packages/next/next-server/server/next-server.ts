@@ -1052,7 +1052,7 @@ export default class Server {
     let result: null | LoadComponentsReturnType = null
 
     // use static 404 page if available and is 404 response
-    if (this.nextConfig.experimental.static404 && res.statusCode === 404) {
+    if (this.nextConfig.experimental.static404 && err === null) {
       try {
         result = await this.findPageComponents('/_errors/404')
       } catch (err) {
