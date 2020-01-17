@@ -251,7 +251,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
         : {}),
       regex: routeRegex.source,
-      regexKeys: keys.map(k => k.name),
     }
   }
 
