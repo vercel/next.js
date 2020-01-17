@@ -27,6 +27,7 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
 }
 
 interface ConfigState {
+  filename: string
   bundleDropped?: boolean
 }
 
@@ -40,6 +41,17 @@ export default function nextPageConfig({
     visitor: {
       Program: {
         enter(path, state: ConfigState) {
+          // Make sure next/router is imported in _app or else granularChunks
+          // might cause the router to not be able to load causing hydration
+          // to fail
+          if (state.filename.match(/\/_app\./)) {
+            path.node.body.splice(
+              0,
+              0,
+              t.importDeclaration([], t.stringLiteral('next/router'))
+            )
+          }
+
           path.traverse(
             {
               ExportNamedDeclaration(

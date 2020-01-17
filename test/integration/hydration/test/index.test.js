@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import path from 'path'
+import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -17,6 +18,7 @@ let appPort
 
 describe('Hydration', () => {
   beforeAll(async () => {
+    await fs.remove(path.join(appDir, '.next'))
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
