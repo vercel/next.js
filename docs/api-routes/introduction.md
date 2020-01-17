@@ -1,3 +1,7 @@
+---
+description: Next.js supports API Routes, which allow you to build your API without leaving your Next.js app. Learn how it works here.
+---
+
 # API Routes
 
 <details>
@@ -21,7 +25,7 @@ For example, the following API route `pages/api/user.js` handles a simple `json`
 export default (req, res) => {
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify({ name: 'Jhon Doe' }))
+  res.end(JSON.stringify({ name: 'John Doe' }))
 }
 ```
 

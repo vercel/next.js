@@ -1,3 +1,7 @@
+---
+description: Add custom elements to the `head` of your page with the built-in Head component.
+---
+
 # next/head
 
 <details>

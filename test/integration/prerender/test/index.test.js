@@ -340,6 +340,23 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
+
+    it('should not re-call getStaticProps when updating query', async () => {
+      const browser = await webdriver(appPort, '/something?hello=world')
+      await waitFor(2000)
+
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({ hello: 'world' })
+
+      const {
+        props: {
+          pageProps: { random: initialRandom },
+        },
+      } = await browser.eval('window.__NEXT_DATA__')
+
+      const curRandom = await browser.elementByCss('#random').text()
+      expect(curRandom).toBe(initialRandom + '')
+    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')

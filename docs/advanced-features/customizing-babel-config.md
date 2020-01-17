@@ -1,3 +1,7 @@
+---
+description: Extend the babel preset added by Next.js with your own configs.
+---
+
 # Customizing Babel Config
 
 <details>

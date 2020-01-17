@@ -17,7 +17,6 @@ import {
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -50,6 +49,7 @@ import {
   Rewrite,
   RouteType,
   Header,
+  getRedirectStatus,
 } from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -92,7 +92,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -141,7 +140,6 @@ export default class Server {
     this.buildId = this.readBuildId()
 
     this.renderOpts = {
-      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       documentMiddlewareEnabled: this.nextConfig.experimental
@@ -382,7 +380,7 @@ export default class Server {
             req,
             res,
             pathname,
-            { _nextSprData: '1' },
+            { _nextDataReq: '1' },
             parsedUrl
           )
           return {
@@ -487,17 +485,22 @@ export default class Server {
 
               if (route.type === 'redirect') {
                 const parsedNewUrl = parseUrl(newUrl)
-                res.setHeader(
-                  'Location',
-                  formatUrl({
-                    ...parsedDestination,
-                    pathname: parsedNewUrl.pathname,
-                    hash: parsedNewUrl.hash,
-                    search: undefined,
-                  })
-                )
-                res.statusCode =
-                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
+                const updatedDestination = formatUrl({
+                  ...parsedDestination,
+                  pathname: parsedNewUrl.pathname,
+                  hash: parsedNewUrl.hash,
+                  search: undefined,
+                })
+
+                res.setHeader('Location', updatedDestination)
+                res.statusCode = getRedirectStatus(route as Redirect)
+
+                // Since IE11 doesn't support the 308 header add backwards
+                // compatibility using refresh header
+                if (res.statusCode === 308) {
+                  res.setHeader('Refresh', `0;url=${updatedDestination}`)
+                }
+
                 res.end()
                 return {
                   finished: true,
@@ -534,7 +537,7 @@ export default class Server {
           }
         }
 
-        if (params && params.path && params.path[0] === 'api') {
+        if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -649,30 +652,35 @@ export default class Server {
   }
 
   protected generatePublicRoutes(): Route[] {
-    const routes: Route[] = []
-    const publicFiles = recursiveReadDirSync(this.publicDir)
+    const publicFiles = new Set(
+      recursiveReadDirSync(this.publicDir).map(p => p.replace(/\\/g, '/'))
+    )
 
-    publicFiles.forEach(path => {
-      const unixPath = path.replace(/\\/g, '/')
-      // Only include public files that will not replace a page path
-      // this should not occur now that we check this during build
-      if (!this.pagesManifest![unixPath]) {
-        routes.push({
-          match: route(unixPath),
-          type: 'route',
-          name: 'public catchall',
-          fn: async (req, res, _params, parsedUrl) => {
-            const p = join(this.publicDir, unixPath)
-            await this.serveStatic(req, res, p, parsedUrl)
+    return [
+      {
+        match: route('/:path*'),
+        name: 'public folder catchall',
+        fn: async (req, res, params, parsedUrl) => {
+          const path = `/${(params.path || []).join('/')}`
+
+          if (publicFiles.has(path)) {
+            await this.serveStatic(
+              req,
+              res,
+              // we need to re-encode it since send decodes it
+              join(this.dir, 'public', encodeURIComponent(path)),
+              parsedUrl
+            )
             return {
               finished: true,
             }
-          },
-        })
-      }
-    })
-
-    return routes
+          }
+          return {
+            finished: false,
+          }
+        },
+      } as Route,
+    ]
   }
 
   protected getDynamicRoutes() {
@@ -743,13 +751,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {
-      dataOnly:
-        (this.renderOpts.ampBindInitData && Boolean(query.dataOnly)) ||
-        (req.headers &&
-          (req.headers.accept || '').indexOf('application/amp.bind+json') !==
-            -1),
-    })
+    const html = await this.renderToHTML(req, res, pathname, query, {})
     // Request was ended by the user
     if (html === null) {
       return
@@ -826,10 +828,10 @@ export default class Server {
     const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
-    const isSpr = !!result.unstable_getStaticProps
+    const isSSG = !!result.unstable_getStaticProps
 
     // non-spr requests should render like normal
-    if (!isSpr) {
+    if (!isSSG) {
       // handle serverless
       if (isLikeServerless) {
         const curUrl = parseUrl(req.url!, true)
@@ -851,23 +853,23 @@ export default class Server {
     }
 
     // Toggle whether or not this is an SPR Data request
-    const isSprData = isSpr && query._nextSprData
-    delete query._nextSprData
+    const isDataReq = query._nextDataReq
+    delete query._nextDataReq
 
     // Compute the SPR cache key
-    const sprCacheKey = parseUrl(req.url || '').pathname!
+    const ssgCacheKey = parseUrl(req.url || '').pathname!
 
     // Complete the response with cached data if its present
-    const cachedData = await getSprCache(sprCacheKey)
+    const cachedData = await getSprCache(ssgCacheKey)
     if (cachedData) {
-      const data = isSprData
+      const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
       this.__sendPayload(
         res,
         data,
-        isSprData ? 'application/json' : 'text/html; charset=utf-8',
+        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
         cachedData.curRevalidate
       )
 
@@ -881,7 +883,7 @@ export default class Server {
 
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
-    if (isLikeServerless && isSprData) {
+    if (isLikeServerless && isDataReq) {
       let { pathname } = parseUrl(req.url || '', true)
       pathname = !pathname || pathname === '/' ? '/index' : pathname
       req.url = `/_next/data/${this.buildId}${pathname}.json`
@@ -889,10 +891,10 @@ export default class Server {
 
     const doRender = withCoalescedInvoke(async function(): Promise<{
       html: string | null
-      sprData: any
+      pageData: any
       sprRevalidate: number | false
     }> {
-      let sprData: any
+      let pageData: any
       let html: string | null
       let sprRevalidate: number | false
 
@@ -902,7 +904,7 @@ export default class Server {
         renderResult = await result.Component.renderReqToHTML(req, res, true)
 
         html = renderResult.html
-        sprData = renderResult.renderOpts.sprData
+        pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
       } else {
         const renderOpts = {
@@ -912,21 +914,21 @@ export default class Server {
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
         html = renderResult
-        sprData = renderOpts.sprData
+        pageData = renderOpts.pageData
         sprRevalidate = renderOpts.revalidate
       }
 
-      return { html, sprData, sprRevalidate }
+      return { html, pageData, sprRevalidate }
     })
 
-    return doRender(sprCacheKey, []).then(
-      async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
+    return doRender(ssgCacheKey, []).then(
+      async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {
         // Respond to the request if a payload wasn't sent above (from cache)
         if (!isResSent(res)) {
           this.__sendPayload(
             res,
-            isSprData ? JSON.stringify(sprData) : html,
-            isSprData ? 'application/json' : 'text/html; charset=utf-8',
+            isDataReq ? JSON.stringify(pageData) : html,
+            isDataReq ? 'application/json' : 'text/html; charset=utf-8',
             sprRevalidate
           )
         }
@@ -934,8 +936,8 @@ export default class Server {
         // Update the SPR cache if the head request
         if (isOrigin) {
           await setSprCache(
-            sprCacheKey,
-            { html: html!, pageData: sprData },
+            ssgCacheKey,
+            { html: html!, pageData },
             sprRevalidate
           )
         }
@@ -952,12 +954,10 @@ export default class Server {
     query: ParsedUrlQuery = {},
     {
       amphtml,
-      dataOnly,
       hasAmp,
     }: {
       amphtml?: boolean
       hasAmp?: boolean
-      dataOnly?: boolean
     } = {}
   ): Promise<string | null> {
     return this.findPageComponents(pathname, query)
@@ -968,10 +968,10 @@ export default class Server {
             res,
             pathname,
             result.unstable_getStaticProps
-              ? { _nextSprData: query._nextSprData }
+              ? { _nextDataReq: query._nextDataReq }
               : query,
             result,
-            { ...this.renderOpts, amphtml, hasAmp, dataOnly }
+            { ...this.renderOpts, amphtml, hasAmp }
           )
         },
         err => {
@@ -994,7 +994,7 @@ export default class Server {
                   // only add params for SPR enabled pages
                   {
                     ...(result.unstable_getStaticProps
-                      ? { _nextSprData: query._nextSprData }
+                      ? { _nextDataReq: query._nextDataReq }
                       : query),
                     ...params,
                   },
@@ -1003,7 +1003,6 @@ export default class Server {
                     ...this.renderOpts,
                     amphtml,
                     hasAmp,
-                    dataOnly,
                   }
                 )
               }

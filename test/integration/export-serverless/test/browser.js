@@ -183,11 +183,10 @@ export default function(context) {
     })
 
     it('should update query after mount', async () => {
-      const browser = await webdriver(context.port, '/query?hello=1')
-
-      await waitFor(1000)
-      const text = await browser.eval('document.body.innerHTML')
-      expect(text).toMatch(/hello/)
+      const browser = await webdriver(context.port, '/query-update?hello=world')
+      await waitFor(2000)
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({ hello: 'world', a: 'blue' })
       await browser.close()
     })
 

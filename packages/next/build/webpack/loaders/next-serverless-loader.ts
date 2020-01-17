@@ -18,7 +18,6 @@ export type ServerlessLoaderQuery = {
   absoluteErrorPath: string
   buildId: string
   assetPrefix: string
-  ampBindInitData: boolean | string
   generateEtags: string
   canonicalBase: string
   basePath: string
@@ -32,7 +31,6 @@ const nextServerlessLoader: loader.Loader = function() {
     buildId,
     canonicalBase,
     assetPrefix,
-    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
@@ -213,14 +211,12 @@ const nextServerlessLoader: loader.Loader = function() {
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
-        ampBindInitData: ${ampBindInitData === true ||
-          ampBindInitData === 'true'},
         ..._renderOpts
       }
-      let sprData = false
+      let _nextData = false
 
       if (req.url.match(/_next\\/data/)) {
-        sprData = true
+        _nextData = true
         req.url = req.url
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
@@ -231,7 +227,6 @@ const nextServerlessLoader: loader.Loader = function() {
         {
           Component,
           pageConfig: config,
-          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },
         options,
@@ -278,8 +273,8 @@ const nextServerlessLoader: loader.Loader = function() {
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
-        if (sprData && !fromExport) {
-          const payload = JSON.stringify(renderOpts.sprData)
+        if (_nextData && !fromExport) {
+          const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
           res.setHeader(
