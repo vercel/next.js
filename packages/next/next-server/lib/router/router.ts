@@ -668,6 +668,11 @@ export default class Router implements BaseRouter {
     let pathname = parse(asPath).pathname
     pathname = !pathname || pathname === '/' ? '/index' : pathname
 
+    // remove trailing slash from path
+    if (pathname.substr(pathname.length - 1) === '/') {
+      pathname = pathname.substr(0, pathname.length - 1)
+    }
+
     return process.env.NODE_ENV === 'production' &&
       (_cachedData = this.sdc[pathname])
       ? Promise.resolve(_cachedData)
