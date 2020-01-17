@@ -666,7 +666,7 @@ export default class Router implements BaseRouter {
 
   _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
     let { pathname, query } = parse(asPath, true)
-    pathname = !pathname || pathname === '/' ? '/index' : pathname
+    pathname = toRoute(!pathname || pathname === '/' ? '/index' : pathname)
 
     return process.env.NODE_ENV === 'production' &&
       (_cachedData = this.sdc[pathname])
