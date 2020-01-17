@@ -44,7 +44,7 @@ export default function nextPageConfig({
           // Make sure next/router is imported in _app or else granularChunks
           // might cause the router to not be able to load causing hydration
           // to fail
-          if (state.filename?.match(/\/_app\./)) {
+          if (state.filename?.match(/(\\|\/)_app\./)) {
             path.node.body.splice(
               0,
               0,
