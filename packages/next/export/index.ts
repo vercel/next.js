@@ -343,7 +343,7 @@ export default async function(
         options.buildExport &&
         typeof result.fromBuildExportRevalidate !== 'undefined'
       ) {
-        configuration.initialPageRevalidationMap[path] =
+        nextConfig.initialPageRevalidationMap[path] =
           result.fromBuildExportRevalidate
       }
       if (progress) progress()
