@@ -214,6 +214,26 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasTypescript.*?true/)
   })
 
+  it('detects unused custom configs', async () => {
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    expect(stderr).toMatch(/target.*?null/)
+    expect(stderr).toMatch(/hasCustomWebpack.*?false/)
+    expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
+    expect(stderr).toMatch(/hasAssetPrefix.*?false/)
+    expect(stderr).toMatch(/hasCustomBuildId.*?false/)
+    expect(stderr).toMatch(/hasRuntimeConfig.*?false/)
+    expect(stderr).toMatch(/hasReactStrictMode.*?false/)
+    expect(stderr).toMatch(/hasRewrites.*?false/)
+    expect(stderr).toMatch(/hasRedirects.*?false/)
+    expect(stderr).toMatch(/hasMdx.*?false/)
+  })
+
   it('detects custom configs in next.config.js', async () => {
     await fs.writeFile(
       nextConfig,

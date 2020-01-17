@@ -160,27 +160,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let hasPublicDir = false
 
   telemetry.record(
-    eventVersion({
+    eventVersion(userConfig || {}, {
       cliCommand: 'build',
       isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
       isCustomServer: null,
       hasTypescript: await hasTypeScript(pagesDir),
-      target: userConfig?.target || null,
-      hasCustomWebpack: typeof userConfig?.webpack === 'function',
-      hasCustomWebpackDev:
-        typeof userConfig?.webpackDevMiddleware === 'function',
-      hasAssetPrefix: userConfig?.assetPrefix?.length > 0,
-      hasCustomBuildId: typeof userConfig?.generateBuildId === 'function',
-      hasRuntimeConfig:
-        Object.keys(userConfig?.publicRuntimeConfig ?? {}).length > 0 ||
-        Object.keys(userConfig?.serverRuntimeConfig ?? {}).length > 0,
-      hasReactStrictMode: !!userConfig?.reactStrictMode,
       hasRewrites: rewrites.length > 0,
       hasRedirects: redirects.length > 0,
-      hasMdxPages:
-        Array.isArray(userConfig?.pageExtensions) &&
-        userConfig!.pageExtensions.includes('mdx'),
     })
   )
 
