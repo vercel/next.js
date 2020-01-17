@@ -219,9 +219,22 @@ describe('Telemetry CLI', () => {
       nextConfig,
       `
       module.exports = {
-        target: 'serverless',
+        target: 'server',
         webpack: config => config,
-        webpackDevMiddleware: config => config
+        webpackDevMiddleware: config => config,
+        assetPrefix: 'prefix',
+        generateBuildId: () => null,
+        publicRuntimeConfig: { key: 'value' },
+        reactStrictMode: true,
+        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+        experimental: {
+          async rewrites() {
+            return [{ source: '/', destination: '/' }]
+          },
+          async redirects() {
+            return [{ source: '/', destination: '/', statusCode: 301 }]
+          }
+        }
       }
     `
     )
@@ -235,8 +248,33 @@ describe('Telemetry CLI', () => {
 
     await fs.remove(nextConfig)
 
-    expect(stderr).toMatch(/target.*?serverless/)
+    expect(stderr).toMatch(/target.*?server/)
     expect(stderr).toMatch(/hasCustomWebpack.*?true/)
     expect(stderr).toMatch(/hasCustomWebpackDev.*?true/)
+    expect(stderr).toMatch(/hasAssetPrefix.*?true/)
+    expect(stderr).toMatch(/hasCustomBuildId.*?true/)
+    expect(stderr).toMatch(/hasRuntimeConfig.*?true/)
+    expect(stderr).toMatch(/hasReactStrictMode.*?true/)
+    expect(stderr).toMatch(/hasRewrites.*?true/)
+    expect(stderr).toMatch(/hasRedirects.*?true/)
+    expect(stderr).toMatch(/hasMdx.*?true/)
+  })
+
+  it('detects runtime config if serverRuntimeConfig is set', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { serverRuntimeConfig: { key: 'value' } }`
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toMatch(/hasRuntimeConfig.*?true/)
   })
 })

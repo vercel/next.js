@@ -11,6 +11,13 @@ type EventCliSessionStarted = {
   target: string | null
   hasCustomWebpack: boolean
   hasCustomWebpackDev: boolean
+  hasAssetPrefix: boolean
+  hasCustomBuildId: boolean
+  hasRuntimeConfig: boolean
+  hasReactStrictMode: boolean
+  hasRewrites: boolean
+  hasRedirects: boolean
+  hasMdxPages: boolean
 }
 
 export function eventVersion(
