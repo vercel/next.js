@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
-import Router from 'next/router'
 
 let count = 0
 
@@ -10,22 +9,6 @@ export default class SelfReload extends Component {
     count += 1
 
     return { count }
-  }
-
-  handleAClick = () => {
-    Router.push('/nav/hash-changes', '/nav/hash-changes#', {
-      historyCount: (window.history.state.options.historyCount || 0) + 1,
-      shallowHistoryCount: window.history.state.options.shallowHistoryCount,
-    })
-  }
-
-  handleAShallowClick = () => {
-    Router.push('/nav/hash-changes#', '/nav/hash-changes#', {
-      shallow: true,
-      historyCount: window.history.state.options.historyCount,
-      shallowHistoryCount:
-        (window.history.state.options.shallowHistoryCount || 0) + 1,
-    })
   }
 
   render() {
@@ -50,25 +33,6 @@ export default class SelfReload extends Component {
           <a id="scroll-to-name-item-400">Go to name item 400</a>
         </Link>
         <p>COUNT: {this.props.count}</p>
-        <a id="increment-history-count" onClick={this.handleAClick}>
-          Increment history count
-        </a>
-        <div id="history-count">
-          HISTORY COUNT:{' '}
-          {typeof window !== 'undefined' &&
-            window.history.state.options.historyCount}
-        </div>
-        <a
-          id="increment-shallow-history-count"
-          onClick={this.handleAShallowClick}
-        >
-          Increment shallow history count
-        </a>
-        <div id="shallow-history-count">
-          SHALLOW HISTORY COUNT:{' '}
-          {typeof window !== 'undefined' &&
-            window.history.state.options.shallowHistoryCount}
-        </div>
         {Array.from({ length: 500 }, (x, i) => i + 1).map(i => {
           return (
             <div key={`item-${i}`} id={`item-${i}`}>

@@ -556,28 +556,15 @@ describe('Client Navigation', () => {
         await browser.close()
       })
     })
+  })
 
-    describe('when hash changed to a different hash', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
-
-        const counter = await browser
-          .elementByCss('#via-a')
-          .click()
-          .elementByCss('#via-link')
-          .click()
-          .elementByCss('p')
-          .text()
-
-        expect(counter).toBe('COUNT: 0')
-
-        await browser.close()
-      })
-    })
-
+  describe('with hash changes with state', () => {
     describe('when passing state via hash change', () => {
       it('should increment the history state counter', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes#')
+        const browser = await webdriver(
+          context.appPort,
+          '/nav/hash-changes-with-state#'
+        )
 
         const historyCount = await browser
           .elementByCss('#increment-history-count')
@@ -597,7 +584,10 @@ describe('Client Navigation', () => {
       })
 
       it('should increment the shallow history state counter', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes#')
+        const browser = await webdriver(
+          context.appPort,
+          '/nav/hash-changes-with-state#'
+        )
 
         const historyCount = await browser
           .elementByCss('#increment-shallow-history-count')
