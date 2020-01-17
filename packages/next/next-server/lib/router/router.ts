@@ -334,24 +334,22 @@ export default class Router implements BaseRouter {
         const routeRegex = getRouteRegex(route)
         const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
-          if (process.env.NODE_ENV !== 'production') {
+          const missingParams = Object.keys(routeRegex.groups).filter(
+            param => !query[param]
+          )
+
+          if (missingParams.length > 0) {
             console.warn(
+              `Mismatching \`as\` and \`href\` failed to manually provide ` +
+                `the params: ${missingParams.join(
+                  ', '
+                )} in the \`href\`'s \`query\``
+            )
+
+            throw new Error(
               `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
                 `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
             )
-
-            const missingParams = Object.keys(routeRegex.groups).filter(
-              param => !query[param]
-            )
-
-            if (missingParams.length > 0) {
-              throw new Error(
-                `Mismatching \`as\` and \`href\` failed to manually provide ` +
-                  `the params: ${missingParams.join(
-                    ', '
-                  )} in the \`href\`'s \`query\``
-              )
-            }
           }
         } else {
           // Merge params into `query`, overwriting any specified in search

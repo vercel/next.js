@@ -110,12 +110,12 @@ describe('Invalid hrefs', () => {
       await showsError(
         '/dynamic-route-mismatch',
         /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
-        true,
         true
       )
       await showsError(
         '/dynamic-route-mismatch',
         /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
+        true,
         true
       )
     })
