@@ -13,6 +13,7 @@ import {
   waitFor,
   nextBuild,
   nextStart,
+  normalizeRegEx,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -22,38 +23,66 @@ let app
 let appPort
 let buildId
 
+const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+
 const expectedManifestRoutes = () => ({
-  '/user/[user]/profile': {
-    dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
-    page: '/user/[user]/profile',
-  },
-  '/': {
-    dataRoute: `/_next/data/${buildId}/index.json`,
-    page: '/',
-  },
-  '/blog/[post]/[comment]': {
-    dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
-    page: '/blog/[post]/[comment]',
-  },
-  '/blog': {
-    dataRoute: `/_next/data/${buildId}/blog.json`,
-    page: '/blog',
-  },
-  '/default-revalidate': {
-    dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
-    page: '/default-revalidate',
-  },
-  '/another': {
-    dataRoute: `/_next/data/${buildId}/another.json`,
-    page: '/another',
+  '/something': {
+    page: '/something',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
+    ),
   },
   '/blog/[post]': {
-    dataRoute: `/_next/data/${buildId}/blog/[post].json`,
     page: '/blog/[post]',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^/]+?)\\.json$`
+    ),
   },
-  '/something': {
-    dataRoute: `/_next/data/${buildId}/something.json`,
-    page: '/something',
+  '/': {
+    page: '/',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
+    ),
+  },
+  '/default-revalidate': {
+    page: '/default-revalidate',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
+    ),
+  },
+  '/catchall/[...path]': {
+    page: '/catchall/[...path]',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
+    ),
+  },
+  '/blog': {
+    page: '/blog',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
+    ),
+  },
+  '/blog/[post]/[comment]': {
+    page: '/blog/[post]/[comment]',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/blog\\/([^/]+?)\\/([^/]+?)\\.json$`
+    ),
+  },
+  '/user/[user]/profile': {
+    page: '/user/[user]/profile',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/user\\/([^/]+?)\\/profile\\.json$`
+    ),
+  },
+  '/another': {
+    page: '/another',
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
+    ),
   },
 })
 
@@ -169,16 +198,40 @@ const runTests = (dev = false) => {
     expect(JSON.parse(query)).toEqual({ hello: 'world', post: 'post-1' })
   })
 
+  it('should supply params values for catchall correctly', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall/first')
+    const $ = cheerio.load(html)
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({ path: ['first'] })
+    const query = $('#query').text()
+    expect(JSON.parse(query)).toEqual({ path: ['first'] })
+
+    const data = JSON.parse(
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${escapeRegex(buildId)}/catchall/first.json`
+      )
+    )
+
+    expect(data.pageProps.params).toEqual({ path: ['first'] })
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, `/_next/data/${buildId}/something.json`)
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${escapeRegex(buildId)}/something.json`
+      )
     )
     expect(data.pageProps.world).toBe('world')
   })
 
   it('should return data correctly for dynamic page', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-1.json`)
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${escapeRegex(buildId)}/blog/post-1.json`
+      )
     )
     expect(data.pageProps.post).toBe('post-1')
   })
@@ -254,17 +307,21 @@ const runTests = (dev = false) => {
     })
 
     it('should output routes-manifest correctly', async () => {
-      const routesManifest = await fs.readJSON(
+      const { serverPropsRoutes } = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
+      for (const key of Object.keys(serverPropsRoutes)) {
+        const val = serverPropsRoutes[key].dataRouteRegex
+        serverPropsRoutes[key].dataRouteRegex = normalizeRegEx(val)
+      }
 
-      expect(routesManifest.serverPropsRoutes).toEqual(expectedManifestRoutes())
+      expect(serverPropsRoutes).toEqual(expectedManifestRoutes())
     })
 
     it('should set no-cache, no-store, must-revalidate header', async () => {
       const res = await fetchViaHTTP(
         appPort,
-        `/_next/data/${buildId}/something.json`
+        `/_next/data/${escapeRegex(buildId)}/something.json`
       )
       expect(res.headers.get('cache-control')).toBe(
         'no-cache, no-store, must-revalidate'
