@@ -1,3 +1,7 @@
+---
+description: Enable Server-Side Rendering in a page and do initial data population with `getInitialProps`.
+---
+
 # getInitialProps
 
 <details>
@@ -33,6 +37,7 @@ Or using a class component:
 
 ```jsx
 import React from 'react'
+import fetch from 'isomorphic-unfetch'
 
 class Page extends React.Component {
   static async getInitialProps(ctx) {
@@ -42,7 +47,7 @@ class Page extends React.Component {
   }
 
   render() {
-    return <div>Next stars: {stars}</div>
+    return <div>Next stars: {this.props.stars}</div>
   }
 }
 
@@ -59,8 +64,8 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 `getInitialProps` receives a single argument called `context`, it's an object with the following properties:
 
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
+- `pathname` - Current route. That is the path of the page in `/pages`
+- `query` - Query string section of URL parsed as an object
 - `asPath` - `String` of the actual path (including the query) shown in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
@@ -69,7 +74,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 ## Caveats
 
 - `getInitialProps` can **not** be used in children components, only in the default export of every page
-- If you are using server-side only modules inside `getinitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
+- If you are using server-side only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
 
 ## Related
 

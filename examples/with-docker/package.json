@@ -4,7 +4,10 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "build-docker": "docker build -t next-app .",
+    "build-docker-multistage": "docker build -t next-app -f ./Dockerfile.multistage .",
+    "run-docker": "docker run --rm -it -p 3000:3000 -e 'API_URL=https://example.com' next-app"
   },
   "dependencies": {
     "next": "latest",

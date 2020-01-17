@@ -1,3 +1,7 @@
+---
+description: Set a custom build directory to use instead of the default .next directory.
+---
+
 # Setting a custom build directory
 
 You can specify a name to use for a custom build directory to use instead of `.next`.

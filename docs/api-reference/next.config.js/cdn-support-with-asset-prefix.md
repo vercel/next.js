@@ -1,3 +1,7 @@
+---
+description: A custom asset prefix allows you serve static assets from a CDN. Learn more about it here.
+---
+
 # CDN Support with Asset Prefix
 
 To set up a [CDN](https://en.wikipedia.org/wiki/Content_delivery_network), you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.

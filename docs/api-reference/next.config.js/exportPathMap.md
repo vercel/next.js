@@ -1,3 +1,7 @@
+---
+description: Customize the pages that will be exported as HTML files when using `next export`.
+---
+
 # exportPathMap
 
 > This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.

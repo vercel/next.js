@@ -7,14 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "^9.1.8-canary.11",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^0.84.0"
   },
   "devDependencies": {
-    "@zeit/next-css": "^1.0.1",
     "file-loader": "^3.0.1",
     "url-loader": "^1.1.2",
     "webpack": "^4.29.0"

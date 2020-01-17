@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
+import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
@@ -69,12 +70,24 @@ async function loadPlugin(
   }
 }
 
-function getDefaultPlugins(): CssPluginCollection {
+function getDefaultPlugins(
+  baseDirectory: string,
+  isProduction: boolean
+): CssPluginCollection {
+  let browsers: any
+  try {
+    browsers = browserslist.loadConfig({
+      path: baseDirectory,
+      env: isProduction ? 'production' : 'development',
+    })
+  } catch {}
+
   return [
     require.resolve('postcss-flexbugs-fixes'),
     [
       require.resolve('postcss-preset-env'),
       {
+        browsers: browsers ?? ['defaults'],
         autoprefixer: {
           // Disable legacy flexbox support
           flexbox: 'no-2009',
@@ -82,21 +95,25 @@ function getDefaultPlugins(): CssPluginCollection {
         // Enable CSS features that have shipped to the
         // web platform, i.e. in 2+ browsers unflagged.
         stage: 3,
+        features: {
+          'custom-properties': false,
+        },
       },
     ],
   ]
 }
 
 export async function getPostCssPlugins(
-  dir: string
+  dir: string,
+  isProduction: boolean,
+  defaults: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = await findConfig<{ plugins: CssPluginCollection }>(
-    dir,
-    'postcss'
-  )
+  let config = defaults
+    ? null
+    : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
 
   if (config == null) {
-    config = { plugins: getDefaultPlugins() }
+    config = { plugins: getDefaultPlugins(dir, isProduction) }
   }
 
   if (typeof config === 'function') {
@@ -176,6 +193,15 @@ export async function getPostCssPlugins(
         }
         throw new Error(genericErrorText)
       }
+    } else if (typeof plugin === 'function') {
+      console.error(
+        `${chalk.red.bold(
+          'Error'
+        )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
+          'string'
+        )}.`
+      )
+      throw new Error(genericErrorText)
     } else {
       console.error(
         `${chalk.red.bold(

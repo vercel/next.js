@@ -65,6 +65,53 @@ describe('Basic CSS Module Support', () => {
   })
 })
 
+describe('3rd Party CSS Module Support', () => {
+  const appDir = join(fixturesDir, '3rd-party-module')
+
+  let appPort
+  let app
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".index_foo__29BAH{position:relative}.index_foo__29BAH .bar,.index_foo__29BAH .baz{height:100%;overflow:hidden}.index_foo__29BAH .lol,.index_foo__29BAH>.lel{width:80%}"`
+    )
+  })
+
+  it(`should've injected the CSS on server render`, async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    const cssPreload = $('link[rel="preload"][as="style"]')
+    expect(cssPreload.length).toBe(1)
+    expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+    const cssSheet = $('link[rel="stylesheet"]')
+    expect(cssSheet.length).toBe(1)
+    expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+    expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
+      `"index_foo__29BAH"`
+    )
+  })
+})
+
 describe('Has CSS Module in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'dev-module')
 
@@ -178,6 +225,27 @@ describe('Invalid CSS Module Usage in node_modules', () => {
     expect(stderr).toMatch(
       /CSS Modules.*cannot.*be imported from within.*node_modules/
     )
+    expect(stderr).toMatch(/Location:.*node_modules[\\/]example[\\/]index\.mjs/)
+  })
+})
+
+describe('Invalid CSS Module Usage in node_modules', () => {
+  const appDir = join(fixturesDir, 'invalid-global-module')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail to build', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    expect(stderr).toContain('Failed to compile')
+    expect(stderr).toContain('node_modules/example/index.css')
+    expect(stderr).toMatch(
+      /Global CSS.*cannot.*be imported from within.*node_modules/
+    )
+    expect(stderr).toMatch(/Location:.*node_modules[\\/]example[\\/]index\.mjs/)
   })
 })
 
@@ -220,6 +288,49 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
       `".example_redText__1rb5g{color:\\"red\\"}"`
+    )
+  })
+})
+
+describe('Valid Nested CSS Module Usage from within node_modules', () => {
+  const appDir = join(fixturesDir, 'nm-module-nested')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  let appPort
+  let app
+  beforeAll(async () => {
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+  })
+
+  it(`should've prerendered with relevant data`, async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    const cssPreload = $('#nm-div')
+    expect(cssPreload.text()).toMatchInlineSnapshot(
+      `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__2YUgj other_className__bt_-E\\"}"`
+    )
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.other2_other2__2PUfY{color:red}.example_subClass__2YUgj{background:#00f}"`
     )
   })
 })

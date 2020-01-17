@@ -1,3 +1,7 @@
+---
+description: AMP pages are automatically validated by Next.js during development and on build. Learn more about it here.
+---
+
 # AMP Validation
 
 AMP pages are automatically validated with [amphtml-validator](https://www.npmjs.com/package/amphtml-validator) during development. Errors and warnings will appear in the terminal where you started Next.js.

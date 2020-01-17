@@ -81,10 +81,6 @@
           "title": "Advanced Features",
           "routes": [
             {
-              "title": "Custom Configuration",
-              "path": "/docs/advanced-features/custom-configuration.md"
-            },
-            {
               "title": "Dynamic Import",
               "path": "/docs/advanced-features/dynamic-import.md"
             },

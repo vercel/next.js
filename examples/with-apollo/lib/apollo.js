@@ -6,7 +6,7 @@ import { InMemoryCache } from 'apollo-cache-inmemory'
 import { HttpLink } from 'apollo-link-http'
 import fetch from 'isomorphic-unfetch'
 
-let apolloClient = null
+let globalApolloClient = null
 
 /**
  * Creates and provides the apolloContext
@@ -112,11 +112,11 @@ function initApolloClient(initialState) {
   }
 
   // Reuse client on the client-side
-  if (!apolloClient) {
-    apolloClient = createApolloClient(initialState)
+  if (!globalApolloClient) {
+    globalApolloClient = createApolloClient(initialState)
   }
 
-  return apolloClient
+  return globalApolloClient
 }
 
 /**

@@ -1,3 +1,7 @@
+---
+description: Next.js reports TypeScript errors by default. Learn to opt-out of this behavior here.
+---
+
 # Ignoring TypeScript Errors
 
 Next.js reports TypeScript errors by default. If you don't want to leverage this behavior and prefer something else instead, like your editor's integration, you may want to disable it.

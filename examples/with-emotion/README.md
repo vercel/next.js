@@ -1,5 +1,11 @@
 # Example app with [emotion](https://github.com/tkh44/emotion)
 
+This example features how to use [emotion](https://github.com/tkh44/emotion) as the styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
+
+We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseedo-selector and CSS animations.
+
+This is based off the with-glamorous example.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +16,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-emotion with-emotion-app
+npm init next-app --example with-emotion with-emotion-app
 # or
 yarn create next-app --example with-emotion with-emotion-app
 ```
@@ -42,11 +48,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features how to use [emotion](https://github.com/tkh44/emotion) as the styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
-
-We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseedo-selector and CSS animations.
-
-This is based off the with-glamorous example.

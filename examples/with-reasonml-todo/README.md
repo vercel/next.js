@@ -6,6 +6,14 @@ global state object can be used to track state across page within the applicatio
 It is intended to show how to build a simple, stateful application using hooks
 without the added complexity of a redux type library.
 
+This example features:
+
+- An app that mixes together JavaScript and ReasonML components and functions
+- An app with two pages which has a common Counter component
+- That Counter component maintain the counter inside its module. This is used
+  primarily to illustrate that modules get initialized once and their state
+  variables persist in runtime
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -16,12 +24,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with
-[Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or
-[npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-reasonml-todo with-reasonml-app
+npm init next-app --example with-reasonml-todo with-reasonml-app
 # or
 yarn create next-app --example with-reasonml-todo with-reasonml-app
 ```
@@ -79,13 +85,3 @@ There are 2 convenience scripts to facilitate running these separate processes:
    script. This will also hot reload as you make changes.
 
 You should start the scripts in the presented order.
-
-## The idea behind the example
-
-This example features:
-
-- An app that mixes together JavaScript and ReasonML components and functions
-- An app with two pages which has a common Counter component
-- That Counter component maintain the counter inside its module. This is used
-  primarily to illustrate that modules get initialized once and their state
-  variables persist in runtime

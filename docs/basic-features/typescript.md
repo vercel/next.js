@@ -1,3 +1,7 @@
+---
+description: Next.js supports TypeScript by default and has built-in types for pages and the API. You can get started with Next.js and TypeScript here.
+---
+
 # TypeScript
 
 <details>

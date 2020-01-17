@@ -1,3 +1,7 @@
+---
+description: Next.js can handle data fetching in multiple ways for server-rendered and static pages. Learn how it works here.
+---
+
 # Data fetching
 
 Next.js has 2 pre-rendering modes built-in:
@@ -34,7 +38,7 @@ import useSWR from 'swr'
 
 const API_URL = 'https://api.github.com'
 async function fetcher(path) {
-  const res = fetch(API_URL + path)
+  const res = await fetch(API_URL + path)
   const json = await res.json()
   return json
 }
@@ -65,7 +69,7 @@ Using `getInitialProps` will make the page opt-in to on-demand [server-side rend
 // Next.js will execute `getInitialProps`
 // It will wait for the result of `getInitialProps`
 // When the results comes back Next.js will render the page.
-// Next.js wil do this for every request that comes in.
+// Next.js will do this for every request that comes in.
 import fetch from 'isomorphic-unfetch'
 
 function HomePage({ stars }) {

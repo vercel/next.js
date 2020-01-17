@@ -1,13 +1,15 @@
 # Example app with Jest tests inside a NextJS TypeScript app
 
+This example shows a configuration and several examples for a running Jest tests in a NextJS TypeScript app.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-jest-typescript with-jest-typescript-app
+npm init next-app --example with-jest-typescript with-jest-typescript-app
 # or
 yarn create next-app --example with-jest-typescript with-jest-typescript-app
 ```
@@ -38,7 +40,3 @@ npm run test
 # or
 yarn test
 ```
-
-## The idea behind the example
-
-This example shows a configuration and several examples for a running Jest tests in a NextJS TypeScript app
