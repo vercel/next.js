@@ -214,8 +214,17 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasTypescript.*?true/)
   })
 
-  it('saves the target', async () => {
-    await fs.writeFile(nextConfig, `module.exports = { target: 'serverless' }`)
+  it('detects custom configs in next.config.js', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `
+      module.exports = {
+        target: 'serverless',
+        webpack: config => config,
+        webpackDevMiddleware: config => config
+      }
+    `
+    )
 
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
@@ -227,5 +236,7 @@ describe('Telemetry CLI', () => {
     await fs.remove(nextConfig)
 
     expect(stderr).toMatch(/target.*?serverless/)
+    expect(stderr).toMatch(/hasCustomWebpack.*?true/)
+    expect(stderr).toMatch(/hasCustomWebpackDev.*?true/)
   })
 })

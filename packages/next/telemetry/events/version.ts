@@ -9,6 +9,8 @@ type EventCliSessionStarted = {
   isCustomServer: boolean | null
   hasTypescript: boolean
   target: string | null
+  hasCustomWebpack: boolean
+  hasCustomWebpackDev: boolean
 }
 
 export function eventVersion(
@@ -31,6 +33,8 @@ export function eventVersion(
         isCustomServer: event.isCustomServer,
         hasTypescript: event.hasTypescript,
         target: event.target,
+        hasCustomWebpack: event.hasCustomWebpack,
+        hasCustomWebpackDev: event.hasCustomWebpackDev,
       },
     },
   ]

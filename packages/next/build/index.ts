@@ -167,6 +167,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isCustomServer: null,
       hasTypescript: await hasTypeScript(pagesDir),
       target: userConfig?.target || null,
+      hasCustomWebpack: typeof userConfig?.webpack === 'function',
+      hasCustomWebpackDev:
+        typeof userConfig?.webpackDevMiddleware === 'function',
     })
   )
 
