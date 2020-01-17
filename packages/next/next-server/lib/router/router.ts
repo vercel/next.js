@@ -665,15 +665,18 @@ export default class Router implements BaseRouter {
   }
 
   _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
-    let pathname = parse(asPath).pathname
+    let { pathname, query } = parse(asPath, true)
     pathname = !pathname || pathname === '/' ? '/index' : pathname
 
     return process.env.NODE_ENV === 'production' &&
       (_cachedData = this.sdc[pathname])
       ? Promise.resolve(_cachedData)
       : fetch(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
+          formatWithValidation({
+            // @ts-ignore __NEXT_DATA__
+            pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+            query,
+          })
         )
           .then(res => {
             if (!res.ok) {

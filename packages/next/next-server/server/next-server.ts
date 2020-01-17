@@ -380,7 +380,7 @@ export default class Server {
             req,
             res,
             pathname,
-            { _nextDataReq: '1' },
+            { ..._parsedUrl.query, _nextDataReq: '1' },
             parsedUrl
           )
           return {
@@ -842,7 +842,10 @@ export default class Server {
     if (isLikeServerless && isDataReq) {
       let { pathname } = parseUrl(req.url || '', true)
       pathname = !pathname || pathname === '/' ? '/index' : pathname
-      req.url = `/_next/data/${this.buildId}${pathname}.json`
+      req.url = formatUrl({
+        pathname: `/_next/data/${this.buildId}${pathname}.json`,
+        query,
+      })
     }
 
     // non-spr requests should render like normal

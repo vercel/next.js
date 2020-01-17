@@ -35,6 +35,9 @@ const Page = ({ world, time }) => {
       <Link href="/blog/[post]/[comment]" as="/blog/post-1/comment-1">
         <a id="comment-1">to another dynamic</a>
       </Link>
+      <Link href="/something?another=thing">
+        <a id="something-query">to something?another=thing</a>
+      </Link>
     </>
   )
 }

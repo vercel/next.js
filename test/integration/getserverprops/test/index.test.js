@@ -207,10 +207,7 @@ const runTests = (dev = false) => {
     expect(JSON.parse(query)).toEqual({ path: ['first'] })
 
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/catchall/first.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/catchall/first.json`)
     )
 
     expect(data.pageProps.params).toEqual({ path: ['first'] })
@@ -218,20 +215,24 @@ const runTests = (dev = false) => {
 
   it('should return data correctly', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/something.json`)
     )
     expect(data.pageProps.world).toBe('world')
   })
 
-  it('should return data correctly for dynamic page', async () => {
+  it('should pass query for data request', async () => {
     const data = JSON.parse(
       await renderViaHTTP(
         appPort,
-        `/_next/data/${escapeRegex(buildId)}/blog/post-1.json`
+        `/_next/data/${buildId}/something.json?another=thing`
       )
+    )
+    expect(data.pageProps.query.another).toBe('thing')
+  })
+
+  it('should return data correctly for dynamic page', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-1.json`)
     )
     expect(data.pageProps.post).toBe('post-1')
   })
@@ -253,6 +254,18 @@ const runTests = (dev = false) => {
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
     expect(text).toMatch(/post.*?post-1/)
+  })
+
+  it('should pass query for data request on navigation', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = true')
+    await browser.elementByCss('#something-query').click()
+    await browser.waitForElementByCss('#initial-query')
+    const query = JSON.parse(
+      await browser.elementByCss('#initial-query').text()
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(true)
+    expect(query.another).toBe('thing')
   })
 
   it('should reload page on failed data request', async () => {

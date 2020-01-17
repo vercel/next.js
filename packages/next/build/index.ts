@@ -530,6 +530,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     routesManifest.serverPropsRoutes = {}
 
     for (const page of serverPropsPages) {
+      const cleanDataRoute = path.posix.join(
+        '/_next/data',
+        buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&'),
+        `${page === '/' ? '/index' : page}.json`
+      )
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
@@ -543,7 +548,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               /\(\?:\\\/\)\?\$$/,
               '\\.json$'
             )
-          : new RegExp(`^${dataRoute}$`).source,
+          : new RegExp(`^${cleanDataRoute}$`).source,
       }
     }
 
