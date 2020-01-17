@@ -34,7 +34,6 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
-import { LoadComponentsReturnType } from './load-components'
 
 export type ManifestItem = {
   id: number | string
@@ -127,7 +126,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = LoadComponentsReturnType & {
+type RenderOpts = {
   documentMiddlewareEnabled: boolean
   staticMarkup: boolean
   buildId: string
@@ -155,6 +154,21 @@ type RenderOpts = LoadComponentsReturnType & {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   isDataReq: boolean
   params: { [key: string]: string }
+  unstable_getStaticProps?: (params: {
+    params: { [key: string]: string | string[] }
+  }) => {
+    props: any
+    revalidate?: number | boolean
+  }
+  unstable_getStaticPaths?: () => Promise<
+    Array<string | { [key: string]: string | string[] }>
+  >
+  unstable_getServerProps?: (context: {
+    params: { [key: string]: string | string[] }
+    req: IncomingMessage
+    res: ServerResponse
+    query: ParsedUrlQuery
+  }) => Promise<{ [key: string]: any }>
 }
 
 function renderDocument(
