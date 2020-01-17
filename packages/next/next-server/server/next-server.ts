@@ -799,7 +799,9 @@ export default class Server {
       if (revalidate) {
         res.setHeader(
           'Cache-Control',
-          `s-maxage=${revalidate}, stale-while-revalidate`
+          revalidate < 0
+            ? `no-cache, no-store, must-revalidate`
+            : `s-maxage=${revalidate}, stale-while-revalidate`
         )
       } else if (revalidate === false) {
         res.setHeader(
@@ -829,6 +831,7 @@ export default class Server {
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
     const isSSG = !!result.unstable_getStaticProps
+    const isServerProps = !!result.unstable_getServerProps
 
     // Toggle whether or not this is a Data request
     const isDataReq = query._nextDataReq
@@ -856,7 +859,8 @@ export default class Server {
           this.__sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
-            'application/json'
+            'application/json',
+            -1
           )
           return null
         }
@@ -872,13 +876,13 @@ export default class Server {
         return result.Component.renderReqToHTML(req, res)
       }
 
-      if (isDataReq && typeof result.unstable_getServerProps === 'function') {
+      if (isDataReq && isServerProps) {
         const props = await renderToHTML(req, res, pathname, query, {
           ...result,
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json')
+        this.__sendPayload(res, JSON.stringify(props), 'application/json', -1)
         return null
       }
 

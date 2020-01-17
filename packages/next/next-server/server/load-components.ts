@@ -18,14 +18,16 @@ export type LoadComponentsReturnType = {
   Component: any
   pageConfig: PageConfig
   unstable_getStaticProps?: (params: {
-    params: any
+    params: { [key: string]: string | string[] }
   }) => {
     props: any
     revalidate?: number | boolean
   }
-  unstable_getStaticPaths?: () => void
+  unstable_getStaticPaths?: () => Promise<
+    Array<string | { [key: string]: string | string[] }>
+  >
   unstable_getServerProps?: (context: {
-    params: { [key: string]: string }
+    params: { [key: string]: string | string[] }
     req: IncomingMessage
     res: ServerResponse
     query: ParsedUrlQuery

@@ -34,6 +34,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
+import { LoadComponentsReturnType } from './load-components'
 
 export type ManifestItem = {
   id: number | string
@@ -126,7 +127,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = {
+type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled: boolean
   staticMarkup: boolean
   buildId: string
@@ -152,19 +153,6 @@ type RenderOpts = {
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  unstable_getStaticProps?: (params: {
-    params: any | undefined
-  }) => Promise<{
-    props: any
-    revalidate?: number | boolean
-  }>
-  unstable_getStaticPaths?: () => void
-  unstable_getServerProps?: (context: {
-    params: { [key: string]: string }
-    req: IncomingMessage
-    res: ServerResponse
-    query: ParsedUrlQuery
-  }) => Promise<{ [key: string]: any }>
   isDataReq: boolean
   params: { [key: string]: string }
 }
@@ -447,7 +435,7 @@ export async function renderToHTML(
 
     if (isSpr) {
       const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? query : undefined,
+        params: isDynamicRoute(pathname) ? (query as any) : undefined,
       })
 
       const invalidKeys = Object.keys(data).filter(
@@ -569,7 +557,10 @@ export async function renderToHTML(
     )
   }
   const documentCtx = { ...ctx, renderPage }
-  const docProps = await loadGetInitialProps(Document, documentCtx)
+  const docProps: DocumentInitialProps = await loadGetInitialProps(
+    Document,
+    documentCtx
+  )
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
@@ -584,7 +575,7 @@ export async function renderToHTML(
   const dynamicImports: ManifestItem[] = []
 
   for (const mod of reactLoadableModules) {
-    const manifestItem = reactLoadableManifest[mod]
+    const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
       manifestItem.forEach(item => {

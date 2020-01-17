@@ -260,6 +260,16 @@ const runTests = (dev = false) => {
 
       expect(routesManifest.serverPropsRoutes).toEqual(expectedManifestRoutes())
     })
+
+    it('should set no-cache, no-store, must-revalidate header', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/something.json`
+      )
+      expect(res.headers.get('cache-control')).toBe(
+        'no-cache, no-store, must-revalidate'
+      )
+    })
   }
 }
 
