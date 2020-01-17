@@ -155,7 +155,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?false/)
     expect(stderr).toMatch(/hasRewrites.*?false/)
     expect(stderr).toMatch(/hasRedirects.*?false/)
-    expect(stderr).toMatch(/hasMdx.*?false/)
+    expect(stderr).toMatch(/hasMdxPages.*?false/)
     expect(stderr).toMatch(/hasTrailingSlash.*?false/)
     expect(stderr).toMatch(/hasExportPathMap.*?false/)
   })
@@ -211,7 +211,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?true/)
     expect(stderr).toMatch(/hasRewrites.*?true/)
     expect(stderr).toMatch(/hasRedirects.*?true/)
-    expect(stderr).toMatch(/hasMdx.*?true/)
+    expect(stderr).toMatch(/hasMdxPages.*?true/)
     expect(stderr).toMatch(/hasTrailingSlash.*?true/)
     expect(stderr).toMatch(/hasExportPathMap.*?true/)
   })
@@ -341,7 +341,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?false/)
     expect(stderr).toMatch(/hasRewrites.*?false/)
     expect(stderr).toMatch(/hasRedirects.*?false/)
-    expect(stderr).toMatch(/hasMdx.*?false/)
+    expect(stderr).toMatch(/hasMdxPages.*?false/)
   })
 
   it('detects custom configs in next.config.js for `next build`', async () => {
@@ -387,7 +387,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?true/)
     expect(stderr).toMatch(/hasRewrites.*?true/)
     expect(stderr).toMatch(/hasRedirects.*?true/)
-    expect(stderr).toMatch(/hasMdx.*?true/)
+    expect(stderr).toMatch(/hasMdxPages.*?true/)
   })
 
   it('detects runtime config if serverRuntimeConfig is set for `next build`', async () => {
