@@ -574,6 +574,48 @@ describe('Client Navigation', () => {
         await browser.close()
       })
     })
+
+    describe('when passing state via hash change', () => {
+      it('should increment the history state counter', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes#')
+
+        const historyCount = await browser
+          .elementByCss('#increment-history-count')
+          .click()
+          .elementByCss('#increment-history-count')
+          .click()
+          .elementByCss('div#history-count')
+          .text()
+
+        expect(historyCount).toBe('HISTORY COUNT: 2')
+
+        const counter = await browser.elementByCss('p').text()
+
+        expect(counter).toBe('COUNT: 2')
+
+        await browser.close()
+      })
+
+      it('should increment the shallow history state counter', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes#')
+
+        const historyCount = await browser
+          .elementByCss('#increment-shallow-history-count')
+          .click()
+          .elementByCss('#increment-shallow-history-count')
+          .click()
+          .elementByCss('div#shallow-history-count')
+          .text()
+
+        expect(historyCount).toBe('SHALLOW HISTORY COUNT: 2')
+
+        const counter = await browser.elementByCss('p').text()
+
+        expect(counter).toBe('COUNT: 0')
+
+        await browser.close()
+      })
+    })
   })
 
   describe('with shallow routing', () => {
