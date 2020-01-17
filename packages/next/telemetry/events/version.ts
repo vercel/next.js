@@ -25,16 +25,9 @@ export function eventVersion(
     {
       eventName: EVENT_VERSION,
       payload: {
+        ...event,
         nextVersion: process.env.__NEXT_VERSION,
         nodeVersion: process.version,
-        cliCommand: event.cliCommand,
-        isSrcDir: event.isSrcDir,
-        hasNowJson: event.hasNowJson,
-        isCustomServer: event.isCustomServer,
-        hasTypescript: event.hasTypescript,
-        target: event.target,
-        hasCustomWebpack: event.hasCustomWebpack,
-        hasCustomWebpackDev: event.hasCustomWebpackDev,
       },
     },
   ]
