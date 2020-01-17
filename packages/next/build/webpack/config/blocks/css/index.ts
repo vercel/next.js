@@ -132,13 +132,58 @@ export const css = curry(async function css(
     true
   )
 
+  function getModuleStyleLoader(
+    cssOptions: webpack.ParserOptions,
+    preProcessor: string
+  ) {
+    const loaders: webpack.RuleSetUseItem[] = [
+      // Resolve CSS `@import`s and `url()`s
+      {
+        loader: require.resolve('css-loader'),
+        options: cssOptions,
+      },
+
+      // Compile CSS
+      {
+        loader: require.resolve('postcss-loader'),
+        options: {
+          ident: '__nextjs_postcss',
+          plugins: postCssPlugins,
+          sourceMap: true,
+        },
+      },
+    ].filter(Boolean)
+
+    // Add appropriate development mode or production mode style loader first
+    if (ctx.isClient) {
+      loaders.unshift(
+        getClientStyleLoader({
+          isDevelopment: ctx.isDevelopment,
+          assetPrefix: ctx.assetPrefix,
+        })
+      )
+    }
+
+    // Add preprocessor loader
+    if (preProcessor) {
+      loaders.push({
+        loader: require.resolve(preProcessor),
+        options: {
+          sourceMap: true,
+        },
+      })
+    }
+
+    return loaders
+  }
+
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
   fns.push(
     loader({
       oneOf: [
         {
-          test: /\.css$/,
+          test: /\.(css|scss|sass)$/,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
           issuer: { test: /pages[\\/]_document\./ },
@@ -173,46 +218,62 @@ export const css = curry(async function css(
             exclude: /node_modules/,
           },
 
-          use: ([
-            // Add appropriate development more or production mode style
-            // loader
-            ctx.isClient &&
-              getClientStyleLoader({
-                isDevelopment: ctx.isDevelopment,
-                assetPrefix: ctx.assetPrefix,
-              }),
-
-            // Resolve CSS `@import`s and `url()`s
+          use: getModuleStyleLoader(
             {
-              loader: require.resolve('css-loader'),
-              options: {
-                importLoaders: 1,
-                sourceMap: true,
-                onlyLocals: ctx.isServer,
-                modules: {
-                  // Disallow global style exports so we can code-split CSS and
-                  // not worry about loading order.
-                  mode: 'pure',
-                  // Generate a friendly production-ready name so it's
-                  // reasonably understandable. The same name is used for
-                  // development.
-                  // TODO: Consider making production reduce this to a single
-                  // character?
-                  getLocalIdent: getCssModuleLocalIdent,
-                },
+              importLoaders: 1,
+              sourceMap: true,
+              onlyLocals: ctx.isServer,
+              modules: {
+                // Disallow global style exports so we can code-split CSS and
+                // not worry about loading order.
+                mode: 'pure',
+                // Generate a friendly production-ready name so it's
+                // reasonably understandable. The same name is used for
+                // development.
+                // TODO: Consider making production reduce this to a single
+                // character?
+                getLocalIdent: getCssModuleLocalIdent,
               },
             },
+            'sass-loader'
+          ),
+        },
+        // Opt-in support for SASS (using .scss or .sass extensions).
+        // By default we support SASS Modules with the
+        // extensions .module.scss or .module.sass
+        {
+          // CSS Modules should never have side effects. This setting will
+          // allow unused CSS to be removed from the production build.
+          // We ensure this by disallowing `:global()` CSS at the top-level
+          // via the `pure` mode in `css-loader`.
+          sideEffects: false,
+          test: /\.module\.(scss|sass)$/,
+          // CSS Modules are only supported in the user's application. We're
+          // not yet allowing CSS imports _within_ `node_modules`.
+          issuer: {
+            include: [ctx.rootDirectory],
+            exclude: /node_modules/,
+          },
 
-            // Compile CSS
+          use: getModuleStyleLoader(
             {
-              loader: require.resolve('postcss-loader'),
-              options: {
-                ident: '__nextjs_postcss',
-                plugins: postCssPlugins,
-                sourceMap: true,
+              importLoaders: 2,
+              sourceMap: true,
+              onlyLocals: ctx.isServer,
+              modules: {
+                // Disallow global style exports so we can code-split CSS and
+                // not worry about loading order.
+                mode: 'pure',
+                // Generate a friendly production-ready name so it's
+                // reasonably understandable. The same name is used for
+                // development.
+                // TODO: Consider making production reduce this to a single
+                // character?
+                getLocalIdent: getCssModuleLocalIdent,
               },
             },
-          ] as webpack.RuleSetUseItem[]).filter(Boolean),
+            'sass-loader'
+          ),
         },
       ],
     })
@@ -223,7 +284,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.module\.css$/,
+          test: /\.module\.(css|scss|sass)$/,
           use: {
             loader: 'error-loader',
             options: {
@@ -238,7 +299,9 @@ export const css = curry(async function css(
   if (ctx.isServer) {
     fns.push(
       loader({
-        oneOf: [{ test: /\.css$/, use: require.resolve('ignore-loader') }],
+        oneOf: [
+          { test: /\.(css|scss|sass)$/, use: require.resolve('ignore-loader') },
+        ],
       })
     )
   } else if (ctx.customAppFile) {
@@ -279,6 +342,40 @@ export const css = curry(async function css(
               },
             ],
           },
+          {
+            // A global CSS import always has side effects. Webpack will tree
+            // shake the CSS without this option if the issuer claims to have
+            // no side-effects.
+            // See https://github.com/webpack/webpack/issues/6571
+            sideEffects: true,
+            test: /\.(scss|sass)$/,
+            issuer: { include: ctx.customAppFile },
+
+            use: [
+              // Add appropriate development more or production mode style
+              // loader
+              getClientStyleLoader({
+                isDevelopment: ctx.isDevelopment,
+                assetPrefix: ctx.assetPrefix,
+              }),
+
+              // Resolve CSS `@import`s and `url()`s
+              {
+                loader: require.resolve('css-loader'),
+                options: { importLoaders: 1, sourceMap: true },
+              },
+
+              // Compile CSS
+              {
+                loader: require.resolve('postcss-loader'),
+                options: {
+                  ident: '__nextjs_postcss',
+                  plugins: postCssPlugins,
+                  sourceMap: true,
+                },
+              },
+            ],
+          },
         ],
       })
     )
@@ -289,7 +386,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.css$/,
+          test: /\.(css|scss|sass)$/,
           issuer: { include: [/node_modules/] },
           use: {
             loader: 'error-loader',
@@ -307,7 +404,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.css$/,
+          test: /\.(css|scss|sass)$/,
           use: {
             loader: 'error-loader',
             options: {
