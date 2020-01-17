@@ -33,7 +33,8 @@ class CustomDocument extends Document {
 }
 
 CustomDocument.getInitialProps = async ctx => {
-  // Get the AuthUserInfo object. This is set in _app.js.
+  // Get the AuthUserInfo object. This is set if the server-rendered page
+  // is wrapped in the `withAuthUser` higher-order component.
   const AuthUserInfo = get(ctx, 'myCustomData.AuthUserInfo', null)
 
   const initialProps = await Document.getInitialProps(ctx)

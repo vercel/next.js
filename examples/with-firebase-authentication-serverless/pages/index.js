@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { get } from 'lodash/object'
 import Link from 'next/link'
 import Router from 'next/router'
+import withAuthUser from '../utils/pageWrappers/withAuthUser'
 import withAuthUserInfo from '../utils/pageWrappers/withAuthUserInfo'
 import logout from '../utils/auth/logout'
 
@@ -67,7 +68,7 @@ const mockFetchData = async userId => ({
 })
 
 Index.getInitialProps = async ctx => {
-  // Get the AuthUserInfo object. This is set in _app.js.
+  // Get the AuthUserInfo object. This is set in `withAuthUser.js`.
   // The AuthUserInfo object is available on both the server and client.
   const AuthUserInfo = get(ctx, 'myCustomData.AuthUserInfo', null)
   const AuthUser = get(AuthUserInfo, 'AuthUser', null)
@@ -106,4 +107,8 @@ Index.defaultProps = {
   AuthUserInfo: null,
 }
 
-export default withAuthUserInfo(Index)
+// Use `withAuthUser` to get the authed user server-side, which
+// disables static rendering.
+// Use `withAuthUserInfo` to include the authed user as a prop
+// to your component.
+export default withAuthUser(withAuthUserInfo(Index))

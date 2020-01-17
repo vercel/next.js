@@ -22,7 +22,6 @@ export default ComposedComponent => {
   }
 
   WithAuthUserInfoComp.getInitialProps = async ctx => {
-    // Get the AuthUserInfo object. This is set in _app.js.
     const AuthUserInfo = get(ctx, 'myCustomData.AuthUserInfo', null)
 
     // Evaluate the composed component's getInitialProps().
@@ -47,7 +46,7 @@ export default ComposedComponent => {
         emailVerified: PropTypes.bool.isRequired,
       }),
       token: PropTypes.string,
-    }).isRequired,
+    }),
   }
 
   WithAuthUserInfoComp.defaultProps = {}
