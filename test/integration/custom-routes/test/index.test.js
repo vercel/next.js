@@ -238,6 +238,7 @@ const runTests = (isDev = false) => {
     const res = await fetchViaHTTP(appPort, '/proxy-me/first')
     expect(res.status).toBe(200)
     expect([...externalServerHits]).toEqual(['/first'])
+    expect(await res.text()).toContain('hi from external')
   })
 
   it('should support unnamed parameters correctly', async () => {
