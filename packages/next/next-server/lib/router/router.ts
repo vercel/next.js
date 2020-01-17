@@ -449,9 +449,11 @@ export default class Router implements BaseRouter {
           }
         }
 
+        const isServerProps = (Component as any).__N_SPROPS
+
         return this._getData<RouteInfo>(() =>
-          (Component as any).__N_SSG
-            ? this._getStaticData(as)
+          (Component as any).__N_SSG || isServerProps
+            ? this._getStaticData(as, !isServerProps)
             : this.getInitialProps(
                 Component,
                 // we provide AppTree later so this needs to be `any`
@@ -664,13 +666,12 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
+  _getStaticData = (asPath: string, cache?: boolean): Promise<object> => {
     let { pathname, query } = parse(asPath, true)
     pathname = toRoute(!pathname || pathname === '/' ? '/index' : pathname)
 
-    return process.env.NODE_ENV === 'production' &&
-      (_cachedData = this.sdc[pathname])
-      ? Promise.resolve(_cachedData)
+    return process.env.NODE_ENV === 'production' && this.sdc[pathname]
+      ? Promise.resolve(this.sdc[pathname])
       : fetch(
           formatWithValidation({
             // @ts-ignore __NEXT_DATA__
@@ -685,7 +686,9 @@ export default class Router implements BaseRouter {
             return res.json()
           })
           .then(data => {
-            this.sdc[pathname!] = data
+            if (cache) {
+              this.sdc[pathname!] = data
+            }
             return data
           })
           .catch((err: Error) => {

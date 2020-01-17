@@ -134,11 +134,7 @@ const navigateTest = (dev = false) => {
     await goFromHomeToAnother()
 
     const nextTime = await browser.elementByCss('#anotherTime').text()
-    if (dev) {
-      expect(snapTime).not.toMatch(nextTime)
-    } else {
-      expect(snapTime).toMatch(nextTime)
-    }
+    expect(snapTime).not.toMatch(nextTime)
 
     // Reset to Home for next test
     await goFromAnotherToHome()
