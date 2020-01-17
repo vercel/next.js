@@ -49,7 +49,7 @@ export default async function({
     const hasOrigQueryValues = Object.keys(originalQuery).length > 0
     const queryWithAutoExportWarn = () => {
       if (hasOrigQueryValues) {
-        console.warn(
+        throw new Error(
           `\nWarn: you provided query values for ${path} which is an auto-exported page. These can not be applied since the page can no longer be re-rendered on the server. To disable auto-export for this page add \`getInitialProps\`\n`
         )
       }
