@@ -27,7 +27,7 @@ import {
 import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
-import { loadAppConfig, isTargetLikeServerless } from './config'
+import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -123,7 +123,7 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    const { userConfig, config } = loadAppConfig(phase, this.dir, conf)
+    const { userConfig, config } = loadConfig(phase, this.dir, conf)
     this.userConfig = userConfig
     this.nextConfig = config
     this.distDir = join(this.dir, this.nextConfig.distDir)

@@ -28,8 +28,7 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
-import {
-  loadAppConfig,
+import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventVersion } from '../telemetry/events'
@@ -98,7 +97,7 @@ export default async function(
 
   dir = resolve(dir)
   const { userConfig, config: nextConfig } =
-    configuration || loadAppConfig(PHASE_EXPORT, dir)
+    configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
 

@@ -40,8 +40,7 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
-import {
-  loadAppConfig,
+import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import {
@@ -104,11 +103,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  const { userConfig, config } = loadAppConfig(
-    PHASE_PRODUCTION_BUILD,
-    dir,
-    conf
-  )
+  const { userConfig, config } = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)

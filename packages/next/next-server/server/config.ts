@@ -248,7 +248,7 @@ function loadUserConfig(
   return { configOrigin: CONFIG_FILE, ...userConfig }
 }
 
-export function loadAppConfig(
+export default function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
@@ -258,14 +258,6 @@ export function loadAppConfig(
     userConfig,
     config: userConfig ? assignDefaults(userConfig) : defaultConfig,
   }
-}
-
-export default function loadConfig(
-  phase: string,
-  dir: string,
-  customConfig?: object | null
-) {
-  return loadAppConfig(phase, dir, customConfig).config
 }
 
 export function isTargetLikeServerless(target: string) {
