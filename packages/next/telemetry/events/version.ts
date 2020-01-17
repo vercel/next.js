@@ -19,11 +19,14 @@ type SessionStartedNextConfig = {
   hasCustomWebpackDev: boolean
   hasAssetPrefix: boolean
   hasCustomBuildId: boolean
+  hasDistDir: boolean
   hasRuntimeConfig: boolean
   hasReactStrictMode: boolean
   hasRewrites: boolean
   hasRedirects: boolean
   hasMdxPages: boolean
+  hasTrailingSlash: boolean
+  hasExportPathMap: boolean
 }
 
 type EventCliSessionStarted = SessionStartedVersions &
@@ -31,7 +34,7 @@ type EventCliSessionStarted = SessionStartedVersions &
   SessionStartedNextConfig
 
 export function eventVersion(
-  userConfig: { [key: string]: any },
+  userConfig: { [key: string]: any } = {},
   event: SessionStarted &
     Pick<SessionStartedNextConfig, 'hasRewrites' | 'hasRedirects'>
 ): { eventName: string; payload: EventCliSessionStarted }[] {
@@ -47,19 +50,22 @@ export function eventVersion(
         ...event,
         nextVersion: process.env.__NEXT_VERSION,
         nodeVersion: process.version,
-        target: userConfig?.target || null,
-        hasCustomWebpack: typeof userConfig?.webpack === 'function',
+        target: userConfig.target || null,
+        hasCustomWebpack: typeof userConfig.webpack === 'function',
         hasCustomWebpackDev:
-          typeof userConfig?.webpackDevMiddleware === 'function',
-        hasAssetPrefix: userConfig?.assetPrefix?.length > 0,
-        hasCustomBuildId: typeof userConfig?.generateBuildId === 'function',
+          typeof userConfig.webpackDevMiddleware === 'function',
+        hasAssetPrefix: userConfig.assetPrefix?.length > 0,
+        hasCustomBuildId: typeof userConfig.generateBuildId === 'function',
+        hasDistDir: userConfig.distDir ? userConfig.distDir !== '.next' : false,
         hasRuntimeConfig:
-          Object.keys(userConfig?.publicRuntimeConfig ?? {}).length > 0 ||
-          Object.keys(userConfig?.serverRuntimeConfig ?? {}).length > 0,
-        hasReactStrictMode: !!userConfig?.reactStrictMode,
+          Object.keys(userConfig.publicRuntimeConfig ?? {}).length > 0 ||
+          Object.keys(userConfig.serverRuntimeConfig ?? {}).length > 0,
+        hasReactStrictMode: !!userConfig.reactStrictMode,
         hasMdxPages:
-          Array.isArray(userConfig?.pageExtensions) &&
-          userConfig!.pageExtensions.includes('mdx'),
+          Array.isArray(userConfig.pageExtensions) &&
+          userConfig.pageExtensions.includes('mdx'),
+        hasTrailingSlash: !!userConfig.exportTrailingSlash,
+        hasExportPathMap: typeof userConfig.exportPathMap === 'function',
       },
     },
   ]

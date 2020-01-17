@@ -214,7 +214,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasTypescript.*?true/)
   })
 
-  it('detects unused custom configs', async () => {
+  it('detects unused configs', async () => {
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
@@ -296,5 +296,81 @@ describe('Telemetry CLI', () => {
     await fs.remove(nextConfig)
 
     expect(stderr).toMatch(/hasRuntimeConfig.*?true/)
+  })
+
+  it('detects custom distDir', async () => {
+    await fs.writeFile(nextConfig, `module.exports = { distDir: 'dist' }`)
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(nextConfig)
+    await fs.remove(path.join(appDir, 'dist'))
+
+    expect(stderr).toMatch(/hasDistDir.*?true/)
+  })
+
+  it('detects unused configs in next export', async () => {
+    await runNextCommand(['build', appDir], {
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    const { stderr } = await runNextCommand(['export', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    expect(stderr).toMatch(/target.*?null/)
+    expect(stderr).toMatch(/hasAssetPrefix.*?false/)
+    expect(stderr).toMatch(/hasDistDir.*?false/)
+    expect(stderr).toMatch(/hasRuntimeConfig.*?false/)
+    expect(stderr).toMatch(/hasTrailingSlash.*?false/)
+    expect(stderr).toMatch(/hasExportPathMap.*?false/)
+  })
+
+  it('detects custom features in next export', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `
+        module.exports = {
+          target: 'server',
+          distDir: 'dist',
+          assetPrefix: 'prefix',
+          publicRuntimeConfig: { key: 'value' },
+          exportTrailingSlash: true,
+          exportPathMap: defaultMap => defaultMap
+        }
+      `
+    )
+    await runNextCommand(['build', appDir], {
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    const { stderr } = await runNextCommand(['export', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(nextConfig)
+    await fs.remove(path.join(appDir, 'dist'))
+
+    expect(stderr).toMatch(/target.*?server/)
+    expect(stderr).toMatch(/hasAssetPrefix.*?true/)
+    expect(stderr).toMatch(/hasDistDir.*?true/)
+    expect(stderr).toMatch(/hasRuntimeConfig.*?true/)
+    expect(stderr).toMatch(/hasTrailingSlash.*?true/)
+    expect(stderr).toMatch(/hasExportPathMap.*?true/)
   })
 })

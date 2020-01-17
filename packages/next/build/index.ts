@@ -603,7 +603,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       },
       exportTrailingSlash: false,
     }
-    await exportApp(dir, exportOptions, exportConfig)
+    await exportApp(dir, exportOptions, { userConfig, config: exportConfig })
 
     // remove server bundles that were exported
     for (const page of staticPages) {
