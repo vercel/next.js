@@ -111,8 +111,9 @@ export function runNextCommand(argv, options = {}) {
       })
     }
 
-    instance.on('close', () => {
+    instance.on('close', code => {
       resolve({
+        code,
         stdout: stdoutOutput,
         stderr: stderrOutput,
       })
