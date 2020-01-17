@@ -27,7 +27,7 @@ import {
 import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver } from './api-utils'
-import loadConfig, { isTargetLikeServerless } from './config'
+import { loadAppConfig, isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -82,6 +82,7 @@ export type ServerConstructor = {
 export default class Server {
   dir: string
   quiet: boolean
+  userConfig: NextConfig
   nextConfig: NextConfig
   distDir: string
   pagesDir?: string
@@ -122,7 +123,9 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    this.nextConfig = loadConfig(phase, this.dir, conf)
+    const { userConfig, config } = loadAppConfig(phase, this.dir, conf)
+    this.userConfig = userConfig
+    this.nextConfig = config
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))

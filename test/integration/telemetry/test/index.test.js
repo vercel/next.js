@@ -130,7 +130,117 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/isSrcDir.*?true/)
   })
 
-  it('detects test files', async () => {
+  it('detects unused configs for `next dev`', async () => {
+    let stderr = ''
+    const port = await findPort()
+    const app = await launchApp(appDir, port, {
+      onStderr: msg => {
+        stderr += msg
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await waitFor(1000)
+    await killApp(app)
+
+    expect(stderr).toMatch(/target.*?null/)
+    expect(stderr).toMatch(/hasTypescript.*?false/)
+    expect(stderr).toMatch(/hasCustomWebpack.*?false/)
+    expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
+    expect(stderr).toMatch(/hasAssetPrefix.*?false/)
+    expect(stderr).toMatch(/hasCustomBuildId.*?false/)
+    expect(stderr).toMatch(/hasRuntimeConfig.*?false/)
+    expect(stderr).toMatch(/hasReactStrictMode.*?false/)
+    expect(stderr).toMatch(/hasRewrites.*?false/)
+    expect(stderr).toMatch(/hasRedirects.*?false/)
+    expect(stderr).toMatch(/hasMdx.*?false/)
+    expect(stderr).toMatch(/hasTrailingSlash.*?false/)
+    expect(stderr).toMatch(/hasExportPathMap.*?false/)
+  })
+
+  it('detects custom configs in next.config.js for `next dev`', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `
+      module.exports = {
+        target: 'server',
+        webpack: config => config,
+        webpackDevMiddleware: config => config,
+        assetPrefix: 'prefix',
+        generateBuildId: () => null,
+        publicRuntimeConfig: { key: 'value' },
+        reactStrictMode: true,
+        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+        exportTrailingSlash: true,
+        exportPathMap: defaultMap => defaultMap,
+        experimental: {
+          async rewrites() {
+            return [{ source: '/', destination: '/' }]
+          },
+          async redirects() {
+            return [{ source: '/', destination: '/', statusCode: 301 }]
+          }
+        }
+      }
+    `
+    )
+
+    let stderr = ''
+    const port = await findPort()
+    const app = await launchApp(appDir, port, {
+      onStderr: msg => {
+        stderr += msg
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await waitFor(1000)
+    await killApp(app)
+    await fs.remove(nextConfig)
+
+    expect(stderr).toMatch(/target.*?server/)
+    expect(stderr).toMatch(/hasCustomWebpack.*?true/)
+    expect(stderr).toMatch(/hasCustomWebpackDev.*?true/)
+    expect(stderr).toMatch(/hasAssetPrefix.*?true/)
+    expect(stderr).toMatch(/hasCustomBuildId.*?true/)
+    expect(stderr).toMatch(/hasRuntimeConfig.*?true/)
+    expect(stderr).toMatch(/hasReactStrictMode.*?true/)
+    expect(stderr).toMatch(/hasRewrites.*?true/)
+    expect(stderr).toMatch(/hasRedirects.*?true/)
+    expect(stderr).toMatch(/hasMdx.*?true/)
+    expect(stderr).toMatch(/hasTrailingSlash.*?true/)
+    expect(stderr).toMatch(/hasExportPathMap.*?true/)
+  })
+
+  it('detects TypeScript correctly for `next dev`', async () => {
+    const file = path.join(pagesDir, 'about.tsx')
+
+    await fs.writeFile(file, `export default () => null`)
+
+    let stderr = ''
+    const port = await findPort()
+    const app = await launchApp(appDir, port, {
+      onStderr: msg => {
+        stderr += msg
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await waitFor(1000)
+    await killApp(app)
+    await fs.remove(file)
+    await fs.remove(path.join(appDir, 'tsconfig.json'))
+
+    expect(stderr).toMatch(/hasTypescript.*?true/)
+  })
+
+  it('detects test files correctly for `next build`', async () => {
     const testDir = path.join(pagesDir, 'test')
 
     await fs.ensureDir(testDir)
@@ -158,7 +268,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasInvalidPages.*?true/)
   })
 
-  it('detects tests in __tests__', async () => {
+  it('detects tests in __tests__ correctly for `next build`', async () => {
     await fs.ensureDir(testsDir)
     await fs.writeFile(
       path.join(testsDir, 'index.js'),
@@ -177,7 +287,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasInvalidPages.*?true/)
   })
 
-  it('detects __generated__', async () => {
+  it('detects __generated__ correctly for `next build`', async () => {
     await fs.ensureDir(generatedDir)
     await fs.writeFile(
       path.join(generatedDir, 'query.graphql.js'),
@@ -196,7 +306,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasInvalidPages.*?true/)
   })
 
-  it('detects TypeScript', async () => {
+  it('detects TypeScript correctly for `next build`', async () => {
     const file = path.join(pagesDir, 'about.tsx')
 
     await fs.writeFile(file, `export default () => null`)
@@ -214,7 +324,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasTypescript.*?true/)
   })
 
-  it('detects unused configs', async () => {
+  it('detects unused configs for `next build`', async () => {
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
@@ -234,7 +344,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasMdx.*?false/)
   })
 
-  it('detects custom configs in next.config.js', async () => {
+  it('detects custom configs in next.config.js for `next build`', async () => {
     await fs.writeFile(
       nextConfig,
       `
@@ -280,7 +390,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasMdx.*?true/)
   })
 
-  it('detects runtime config if serverRuntimeConfig is set', async () => {
+  it('detects runtime config if serverRuntimeConfig is set for `next build`', async () => {
     await fs.writeFile(
       nextConfig,
       `module.exports = { serverRuntimeConfig: { key: 'value' } }`
@@ -298,7 +408,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasRuntimeConfig.*?true/)
   })
 
-  it('detects custom distDir', async () => {
+  it('detects custom distDir for `next build`', async () => {
     await fs.writeFile(nextConfig, `module.exports = { distDir: 'dist' }`)
 
     const { stderr } = await runNextCommand(['build', appDir], {
@@ -314,7 +424,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasDistDir.*?true/)
   })
 
-  it('detects unused configs in next export', async () => {
+  it('detects unused configs for `next export`', async () => {
     await runNextCommand(['build', appDir], {
       env: {
         NEXT_TELEMETRY_DEBUG: 1,
@@ -336,7 +446,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasExportPathMap.*?false/)
   })
 
-  it('detects custom features in next export', async () => {
+  it('detects custom configs in next.config.js for `next export`', async () => {
     await fs.writeFile(
       nextConfig,
       `

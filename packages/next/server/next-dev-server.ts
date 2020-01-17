@@ -206,15 +206,14 @@ export default class DevServer extends Server {
   }
 
   async prepare() {
-    await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    const hasTypescript = await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+
     await this.loadCustomRoutes()
 
-    if (this.customRoutes) {
-      const { redirects, rewrites } = this.customRoutes
+    const { redirects, rewrites } = this.customRoutes || {}
 
-      if (redirects.length || rewrites.length) {
-        this.router = new Router(this.generateRoutes())
-      }
+    if (redirects?.length || rewrites?.length) {
+      this.router = new Router(this.generateRoutes())
     }
 
     this.hotReloader = new HotReloader(this.dir, {
@@ -230,11 +229,14 @@ export default class DevServer extends Server {
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
-      eventVersion({
+      eventVersion(this.userConfig, {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
+        hasRewrites: !!rewrites?.length,
+        hasRedirects: !!redirects?.length,
+        hasTypescript,
       })
     )
   }
