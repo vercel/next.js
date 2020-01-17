@@ -346,9 +346,11 @@ export default class Router implements BaseRouter {
                 )} in the \`href\`'s \`query\``
             )
 
-            throw new Error(
-              `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+            return reject(
+              new Error(
+                `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+              )
             )
           }
         } else {
