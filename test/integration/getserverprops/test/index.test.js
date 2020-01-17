@@ -323,9 +323,7 @@ const runTests = (dev = false) => {
         appPort,
         `/_next/data/${escapeRegex(buildId)}/something.json`
       )
-      expect(res.headers.get('cache-control')).toBe(
-        'no-cache, no-store, must-revalidate'
-      )
+      expect(res.headers.get('cache-control')).toContain('no-cache')
     })
   }
 }
