@@ -450,7 +450,7 @@ export default class Router implements BaseRouter {
         }
 
         return this._getData<RouteInfo>(() =>
-          (Component as any).__NEXT_SPR
+          (Component as any).__N_SSG
             ? this._getStaticData(as)
             : this.getInitialProps(
                 Component,

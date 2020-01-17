@@ -56,8 +56,8 @@ module.exports = {
           destination: '/_next/:path*',
         },
         {
-          source: '/proxy-me',
-          destination: 'https://zeit.co',
+          source: '/proxy-me/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
         },
       ]
     },
@@ -81,10 +81,12 @@ module.exports = {
         {
           source: '/hello/:id/another',
           destination: '/blog/:id',
+          permanent: false,
         },
         {
           source: '/redirect1',
           destination: '/',
+          permanent: false,
         },
         {
           source: '/redirect2',
@@ -99,7 +101,7 @@ module.exports = {
         {
           source: '/redirect4',
           destination: '/',
-          statusCode: 308,
+          permanent: true,
         },
         {
           source: '/redir-chain1',
@@ -119,10 +121,22 @@ module.exports = {
         {
           source: '/to-external',
           destination: 'https://google.com',
+          permanent: false,
         },
         {
           source: '/query-redirect/:section/:name',
           destination: '/with-params?first=:section&second=:name',
+          permanent: false,
+        },
+        {
+          source: '/unnamed/(first|second)/(.*)',
+          destination: '/:1/:2',
+          permanent: false,
+        },
+        {
+          source: '/named-like-unnamed/:0',
+          destination: '/:0',
+          permanent: false,
         },
       ]
     },

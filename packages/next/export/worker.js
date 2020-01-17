@@ -25,7 +25,7 @@ export default async function({
   distDir,
   buildId,
   outDir,
-  sprDataDir,
+  pagesDataDir,
   renderOpts,
   buildExport,
   serverRuntimeConfig,
@@ -131,7 +131,7 @@ export default async function({
       if (typeof mod === 'string') {
         html = mod
       } else {
-        // for non-dynamic SPR pages we should have already
+        // for non-dynamic SSG pages we should have already
         // prerendered the file
         if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
 
@@ -158,7 +158,7 @@ export default async function({
         serverless
       )
 
-      // for non-dynamic SPR pages we should have already
+      // for non-dynamic SSG pages we should have already
       // prerendered the file
       if (renderedDuringBuild(components.unstable_getStaticProps)) {
         return results
@@ -234,14 +234,14 @@ export default async function({
       }
     }
 
-    if (curRenderOpts.sprData) {
+    if (curRenderOpts.pageData) {
       const dataFile = join(
-        sprDataDir,
+        pagesDataDir,
         htmlFilename.replace(/\.html$/, '.json')
       )
 
       await mkdirp(dirname(dataFile))
-      await writeFileP(dataFile, JSON.stringify(curRenderOpts.sprData), 'utf8')
+      await writeFileP(dataFile, JSON.stringify(curRenderOpts.pageData), 'utf8')
     }
     results.fromBuildExportRevalidate = curRenderOpts.revalidate
 

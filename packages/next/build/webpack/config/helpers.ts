@@ -1,5 +1,5 @@
 import curry from 'lodash.curry'
-import { Configuration, RuleSetRule } from 'webpack'
+import { Configuration, Plugin, RuleSetRule } from 'webpack'
 
 export const loader = curry(function loader(
   rule: RuleSetRule,
@@ -38,5 +38,13 @@ export const unshiftLoader = curry(function loader(
   }
 
   config.module.rules.unshift(rule)
+  return config
+})
+
+export const plugin = curry(function plugin(p: Plugin, config: Configuration) {
+  if (!config.plugins) {
+    config.plugins = []
+  }
+  config.plugins.push(p)
   return config
 })

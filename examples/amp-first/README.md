@@ -13,12 +13,35 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 [![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/amp-first)
 
-## Getting started
+## How to use
 
-To run the app in development, run the following command in the project director:
+### Using `create-next-app`
 
-```shell
-$ yarn dev
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
+```bash
+npm init next-app --example amp-first amp-first-app
+# or
+yarn create next-app --example amp-first amp-first-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/amp-first
+cd amp-first
+```
+
+Install it and run:
+
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view it in the browser. The page will reload if you make edits. You will also see AMP validation errors in the console.

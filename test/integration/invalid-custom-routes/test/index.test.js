@@ -28,11 +28,13 @@ const invalidRedirects = [
   {
     // missing destination
     source: '/hello',
+    permanent: false,
   },
   {
     // invalid source
     source: 123,
     destination: '/another',
+    permanent: false,
   },
   {
     // invalid statusCode type
@@ -46,15 +48,21 @@ const invalidRedirects = [
     destination: '/another',
     statusCode: 404,
   },
+  {
+    // invalid permanent value
+    source: '/hello',
+    destination: '/another',
+    permanent: 'yes',
+  },
 ]
 
 const invalidRedirectAssertions = (stderr = '') => {
   expect(stderr).toContain(
-    `\`destination\` is missing for route {"source":"/hello"}`
+    `\`destination\` is missing for route {"source":"/hello","permanent":false}`
   )
 
   expect(stderr).toContain(
-    `\`source\` is not a string for route {"source":123,"destination":"/another"}`
+    `\`source\` is not a string for route {"source":123,"destination":"/another","permanent":false}`
   )
 
   expect(stderr).toContain(
@@ -63,6 +71,10 @@ const invalidRedirectAssertions = (stderr = '') => {
 
   expect(stderr).toContain(
     `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
+  )
+
+  expect(stderr).toContain(
+    `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
   )
 
   expect(stderr).toContain(
