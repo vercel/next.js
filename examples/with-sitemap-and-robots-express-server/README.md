@@ -22,7 +22,7 @@ yarn create next-app --example with-sitemap-and-robots-express-server with-sitem
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-sitemap-and-robots-expres-server
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-sitemap-and-robots-express-server
 cd with-sitemap-and-robots-express-server
 ```
 
