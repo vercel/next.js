@@ -57,7 +57,7 @@ module.exports = babelLoader.custom(babel => {
         isModern: opts.isModern,
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
-        babelPresetPlugins: opts.babelPresetPlugins,
+        babelPresetPlugins: opts.babelPresetPlugins || [],
         development: opts.development,
       }
       const filename = join(opts.cwd, 'noop.js')
