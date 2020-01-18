@@ -5,9 +5,11 @@ import BlogPostPreview from './BlogPostPreview'
 const BlogPosts = ({ viewer }) => (
   <div>
     <h1>Blog posts</h1>
-    {viewer.allBlogPosts.edges.map(({ node }) => (
-      <BlogPostPreview key={node.id} post={node} />
-    ))}
+    <ul>
+      {viewer.allBlogPosts.edges.map(({ node }) => (
+        <BlogPostPreview key={node.id} post={node} />
+      ))}
+    </ul>
   </div>
 )
 
