@@ -203,7 +203,10 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 
   if (process.env.NODE_ENV === 'production') {
     render(renderCtx)
-  } else {
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
     return { emitter, render, renderCtx }
   }
 }
