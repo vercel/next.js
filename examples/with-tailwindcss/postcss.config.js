@@ -14,6 +14,6 @@ module.exports = {
           },
         ]
       : undefined,
-      'postcss-preset-env'
+    'postcss-preset-env',
   ],
 }
