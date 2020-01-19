@@ -427,7 +427,7 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: /\.css$/ },
+            issuer: { test: /\.(css|scss|sass)$/ },
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {
