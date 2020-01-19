@@ -217,7 +217,7 @@ describe('SCSS Support', () => {
         stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles.module.css')
+      expect(stderr).toContain('styles.module.scss')
       expect(stderr).toMatch(
         /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
       )
@@ -237,7 +237,7 @@ describe('SCSS Support', () => {
         stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles/global.css')
+      expect(stderr).toContain('styles/global.scss')
       expect(stderr).toMatch(
         /Please move all global CSS imports.*?pages(\/|\\)_app/
       )
@@ -257,7 +257,7 @@ describe('SCSS Support', () => {
         stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles/global.css')
+      expect(stderr).toContain('styles/global.scss')
       expect(stderr).toMatch(
         /Please move all global CSS imports.*?pages(\/|\\)_app/
       )
@@ -277,7 +277,7 @@ describe('SCSS Support', () => {
         stderr: true,
       })
       expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain('styles/global.css')
+      expect(stderr).toContain('styles/global.scss')
       expect(stderr).toContain('Please move all global CSS imports')
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -317,7 +317,7 @@ describe('SCSS Support', () => {
         )
         expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
 
-        const cssFile = new File(join(appDir, 'styles/global1.css'))
+        const cssFile = new File(join(appDir, 'styles/global1.scss'))
         try {
           cssFile.replace('color: red', 'color: purple')
           await waitFor(2000) // wait for HMR
