@@ -449,7 +449,7 @@ export default class Router implements BaseRouter {
           }
         }
 
-        const isServerProps = (Component as any).__N_SPROPS
+        const isServerProps = (Component as any).__N_SSP
 
         return this._getData<RouteInfo>(() =>
           (Component as any).__N_SSG || isServerProps

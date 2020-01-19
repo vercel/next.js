@@ -3,7 +3,7 @@ import * as BabelTypes from '@babel/types'
 
 const pageComponentVar = '__NEXT_COMP'
 const prerenderId = '__N_SSG'
-const serverPropsId = '__N_SPROPS'
+const serverPropsId = '__N_SSP'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
