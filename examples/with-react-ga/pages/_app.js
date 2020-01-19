@@ -17,7 +17,7 @@ export default class MyApp extends App {
   componentDidMount() {
     initGA()
     logPageView()
-    Router.router.events.on('routeChangeComplete', logPageView)
+    Router.events.on('routeChangeComplete', logPageView)
   }
 
   render() {
