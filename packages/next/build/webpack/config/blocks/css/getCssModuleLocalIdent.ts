@@ -15,8 +15,12 @@ export function getCssModuleLocalIdent(
   // Generate a more meaningful name (parent folder) when the user names the
   // file `index.module.css`.
   const fileNameOrFolder =
-    relativePath.endsWith('index.module.css') &&
-    relativePath !== 'pages/index.module.css'
+    (relativePath.endsWith('index.module.css') ||
+      relativePath.endsWith('index.module.scss') ||
+      relativePath.endsWith('index.module.sass')) &&
+    relativePath !== 'pages/index.module.css' &&
+      relativePath !== 'pages/index.module.scss' &&
+      relativePath !== 'pages/index.module.sass'
       ? '[folder]'
       : '[name]'
 
