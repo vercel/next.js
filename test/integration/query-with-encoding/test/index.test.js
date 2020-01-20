@@ -18,7 +18,7 @@ let appPort
 let app
 let server
 
-describe('New Line in Query', () => {
+describe('Query String with Encoding', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     app = nextServer({
@@ -58,7 +58,7 @@ describe('New Line in Query', () => {
   })
 
   it('should have correct query on simple client-side <Link>', async () => {
-    const browser = await webdriver(appPort, '/another')
+    const browser = await webdriver(appPort, '/newline')
     try {
       await waitFor(2000)
       await browser.elementByCss('#hello-lf').click()
@@ -71,7 +71,7 @@ describe('New Line in Query', () => {
   })
 
   it('should have correct query on complex client-side <Link>', async () => {
-    const browser = await webdriver(appPort, '/another')
+    const browser = await webdriver(appPort, '/newline')
     try {
       await waitFor(2000)
       await browser.elementByCss('#hello-complex').click()
