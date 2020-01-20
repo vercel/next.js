@@ -15,7 +15,7 @@ description: Export your Next.js app to static HTML, and run it standalone witho
 
 The exported app supports almost every feature of Next.js, including dynamic routes, prefetching, preloading and dynamic imports.
 
-The way `next export` works is by prerendering all pages to HTML; it does so based on a mapping called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md).
+The way `next export` works is by prerendering all pages to HTML; it does so based on a mapping called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) which offers a way to pre-define paths you will render as html.
 
 > If your pages don't have `getInitialProps` you may not need `next export` at all; `next build` is already enough thanks to [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
 
