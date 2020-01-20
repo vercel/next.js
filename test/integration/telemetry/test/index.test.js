@@ -156,9 +156,9 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?false/)
     expect(stderr).toMatch(/hasRewrites.*?false/)
     expect(stderr).toMatch(/hasRedirects.*?false/)
-    expect(stderr).toMatch(/hasMdxPages.*?false/)
     expect(stderr).toMatch(/hasTrailingSlash.*?false/)
     expect(stderr).toMatch(/hasExportPathMap.*?false/)
+    expect(stderr).toMatch(/pageExtensions.*?null/)
   })
 
   it('detects custom configs in next.config.js for `next dev`', async () => {
@@ -173,7 +173,6 @@ describe('Telemetry CLI', () => {
         generateBuildId: () => null,
         publicRuntimeConfig: { key: 'value' },
         reactStrictMode: true,
-        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
         exportTrailingSlash: true,
         exportPathMap: defaultMap => defaultMap,
         experimental: {
@@ -212,7 +211,6 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?true/)
     expect(stderr).toMatch(/hasRewrites.*?true/)
     expect(stderr).toMatch(/hasRedirects.*?true/)
-    expect(stderr).toMatch(/hasMdxPages.*?true/)
     expect(stderr).toMatch(/hasTrailingSlash.*?true/)
     expect(stderr).toMatch(/hasExportPathMap.*?true/)
   })
@@ -343,7 +341,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?false/)
     expect(stderr).toMatch(/hasRewrites.*?false/)
     expect(stderr).toMatch(/hasRedirects.*?false/)
-    expect(stderr).toMatch(/hasMdxPages.*?false/)
+    expect(stderr).toMatch(/pageExtensions.*?null/)
   })
 
   it('detects custom configs in next.config.js for `next build`', async () => {
@@ -358,7 +356,6 @@ describe('Telemetry CLI', () => {
         generateBuildId: () => null,
         publicRuntimeConfig: { key: 'value' },
         reactStrictMode: true,
-        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
         experimental: {
           async rewrites() {
             return [{ source: '/', destination: '/' }]
@@ -389,7 +386,6 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?true/)
     expect(stderr).toMatch(/hasRewrites.*?true/)
     expect(stderr).toMatch(/hasRedirects.*?true/)
-    expect(stderr).toMatch(/hasMdxPages.*?true/)
   })
 
   it('detects runtime config if serverRuntimeConfig is set for `next build`', async () => {
@@ -424,6 +420,26 @@ describe('Telemetry CLI', () => {
     await fs.remove(path.join(appDir, 'dist'))
 
     expect(stderr).toMatch(/hasDistDir.*?true/)
+  })
+
+  it('detects valid page extensions for `next build`', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = {
+        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx', 'mdx', 'md', 'verylongextension', '', 123, null]
+      }`
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toMatch(/pageExtensions.*?\[\s*"mdx",\s*"md"\s*]/)
   })
 
   it('detects unused configs for `next export`', async () => {

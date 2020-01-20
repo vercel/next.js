@@ -1,4 +1,5 @@
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
+const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
 
 type SessionStartedVersions = {
   nextVersion: string
@@ -24,9 +25,9 @@ type SessionStartedNextConfig = {
   hasReactStrictMode: boolean
   hasRewrites: boolean
   hasRedirects: boolean
-  hasMdxPages: boolean
   hasTrailingSlash: boolean
   hasExportPathMap: boolean
+  pageExtensions: string[] | null
 }
 
 type EventCliSessionStarted = SessionStartedVersions &
@@ -42,6 +43,18 @@ export function eventVersion(
   if (typeof process.env.__NEXT_VERSION !== 'string') {
     return []
   }
+
+  const customExtensions = Array.isArray(userConfig.pageExtensions)
+    ? userConfig.pageExtensions.filter(
+        (ext, i) =>
+          typeof ext === 'string' &&
+          ext.length > 0 &&
+          ext.length <= 10 &&
+          !pageExtensions.includes(ext) &&
+          // Remove duplicates
+          userConfig.pageExtensions.indexOf(ext, i + 1) === -1
+      )
+    : []
 
   return [
     {
@@ -61,11 +74,9 @@ export function eventVersion(
           Object.keys(userConfig.publicRuntimeConfig ?? {}).length > 0 ||
           Object.keys(userConfig.serverRuntimeConfig ?? {}).length > 0,
         hasReactStrictMode: !!userConfig.reactStrictMode,
-        hasMdxPages:
-          Array.isArray(userConfig.pageExtensions) &&
-          userConfig.pageExtensions.includes('mdx'),
         hasTrailingSlash: !!userConfig.exportTrailingSlash,
         hasExportPathMap: typeof userConfig.exportPathMap === 'function',
+        pageExtensions: customExtensions.length ? customExtensions : null,
       },
     },
   ]
