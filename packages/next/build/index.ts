@@ -524,6 +524,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   staticCheckWorkers.end()
 
+  // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
+  // Only export the static 404 when there is no /_error present
   const useStatic404 =
     !customAppGetInitialProps &&
     !hasCustomErrorPage &&
