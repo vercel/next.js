@@ -51,7 +51,6 @@ This setup is a basic starting point for using [Tailwind CSS](https://tailwindcs
 
 - [postcss-preset-env](https://preset-env.cssdb.org/) - Adds stage 2+ features and autoprefixes
 - [purgecss](https://github.com/FullHuman/purgecss) - Removes unused CSS
-- [postcss-easy-import](https://github.com/TrySound/postcss-easy-import) - Allows importing one stylesheet into another
 
 ## Limitations
 
