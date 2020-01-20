@@ -1,5 +1,5 @@
 {
-  "name": "with-emotion-fiber",
+  "name": "with-emotion-11",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,11 +12,13 @@
   "author": "Thomas Greco",
   "license": "ISC",
   "dependencies": {
-    "emotion": "^8.0.11",
-    "emotion-server": "^8.0.11",
+    "@emotion/cache": "11.0.0-next.10",
+    "@emotion/css": "11.0.0-next.10",
+    "@emotion/react": "11.0.0-next.10",
+    "@emotion/server": "11.0.0-next.10",
+    "@emotion/styled": "11.0.0-next.10",
     "next": "latest",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-emotion": "^8.0.11"
+    "react-dom": "^16.7.0"
   }
 }
