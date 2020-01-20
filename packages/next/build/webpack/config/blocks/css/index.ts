@@ -148,17 +148,7 @@ export const css = curry(async function css(
       )
     }
 
-    // Add preprocessor loader
-    if (preProcessor) {
-      loaders.push({
-        loader: preProcessor,
-        options: {
-          sourceMap: true,
-        },
-      })
-    }
-
-    // Add remaining loaders
+    // Add main loaders
     loaders.push(
       // Resolve CSS `@import`s and `url()`s
       {
@@ -176,6 +166,16 @@ export const css = curry(async function css(
         },
       }
     )
+
+    // Add preprocessor loader
+    if (preProcessor) {
+      loaders.push({
+        loader: preProcessor,
+        options: {
+          sourceMap: true,
+        },
+      })
+    }
 
     return loaders
   }
