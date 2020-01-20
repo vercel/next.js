@@ -44,8 +44,6 @@ describe('Page Extensions', () => {
 
     await fs.remove(nextConfig)
 
-    console.log('ERR', stderr)
-
     expect(stderr).toContain(
       'Specified pageExtensions is not an array of strings, found "123" of type "number". Please update this config or remove it'
     )
