@@ -1,4 +1,4 @@
-import { IncomingMessage } from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import { NextApiResponse, NextApiRequest } from '../lib/utils'
 import { Stream } from 'stream'
 import getRawBody from 'raw-body'
@@ -6,17 +6,21 @@ import { parse } from 'content-type'
 import { Params } from './router'
 import { PageConfig } from '../../types'
 import { interopDefault } from './load-components'
+import { isResSent } from '../lib/utils'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
 
 export async function apiResolver(
-  req: NextApiRequest,
-  res: NextApiResponse,
+  req: IncomingMessage,
+  res: ServerResponse,
   params: any,
   resolverModule: any,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
+  const apiReq = req as NextApiRequest
+  const apiRes = res as NextApiResponse
+
   try {
     let config: PageConfig = {}
     let bodyParser = true
@@ -33,32 +37,38 @@ export async function apiResolver(
       }
     }
     // Parsing of cookies
-    setLazyProp({ req }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
     // Parsing query string
-    setLazyProp({ req, params }, 'query', getQueryParser(req))
+    setLazyProp({ req: apiReq, params }, 'query', getQueryParser(req))
     // // Parsing of body
     if (bodyParser) {
-      req.body = await parseBody(
-        req,
+      apiReq.body = await parseBody(
+        apiReq,
         config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
           ? config.api.bodyParser.sizeLimit
           : '1mb'
       )
     }
 
-    res.status = statusCode => sendStatusCode(res, statusCode)
-    res.send = data => sendData(res, data)
-    res.json = data => sendJson(res, data)
+    apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
+    apiRes.send = data => sendData(apiRes, data)
+    apiRes.json = data => sendJson(apiRes, data)
 
     const resolver = interopDefault(resolverModule)
-    resolver(req, res)
+    await resolver(req, res)
+
+    if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
+      console.warn(
+        `API resolved without sending a response for ${req.url}, this may result in a stalled requests.`
+      )
+    }
   } catch (err) {
     if (err instanceof ApiError) {
-      sendError(res, err.statusCode, err.message)
+      sendError(apiRes, err.statusCode, err.message)
     } else {
       console.error(err)
       if (onError) await onError({ err })
-      sendError(res, 500, 'Internal Server Error')
+      sendError(apiRes, 500, 'Internal Server Error')
     }
   }
 }
@@ -101,6 +111,11 @@ export async function parseBody(req: NextApiRequest, limit: string | number) {
  * @param str `JSON` string
  */
 function parseJson(str: string) {
+  if (str.length === 0) {
+    // special-case empty json body, as it's a common client-side mistake
+    return {}
+  }
+
   try {
     return JSON.parse(str)
   } catch (e) {
@@ -196,7 +211,11 @@ export function sendData(res: NextApiResponse, body: any) {
   let str = body
 
   // Stringify JSON body
-  if (typeof body === 'object' || typeof body === 'number') {
+  if (
+    typeof body === 'object' ||
+    typeof body === 'number' ||
+    typeof body === 'boolean'
+  ) {
     str = JSON.stringify(body)
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }

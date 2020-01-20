@@ -4,6 +4,8 @@ export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
+export const EXPORT_MARKER = 'export-marker.json'
+export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
 export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
@@ -30,4 +32,5 @@ export const IS_BUNDLED_PAGE_REGEX = /^static[/\\][^/\\]+[/\\]pages.*\.js$/
 // matches static/<buildid>/pages/:page*.js
 export const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
 export const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
-export const DEFAULT_REDIRECT_STATUS = 307
+export const TEMPORARY_REDIRECT_STATUS = 307
+export const PERMANENT_REDIRECT_STATUS = 308

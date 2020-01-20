@@ -1,27 +1,26 @@
 import chalk from 'chalk'
-import fs from 'fs'
+import gzipSize from 'gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
-import { promisify } from 'util'
-
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import {
+  Redirect,
+  Rewrite,
+  getRedirectStatus,
+} from '../lib/check-custom-routes'
+import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { Redirect, Rewrite } from '../next-server/server/next-server'
-import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
+import { findPageFile } from '../server/lib/find-page-file'
 
-const fsStatPromise = promisify(fs.stat)
-const fileStats: { [k: string]: Promise<fs.Stats> } = {}
-const fsStat = (file: string) => {
-  if (fileStats[file]) return fileStats[file]
-
-  fileStats[file] = fsStatPromise(file)
-
-  return fileStats[file]
+const fileGzipStats: { [k: string]: Promise<number> } = {}
+const fsStatGzip = (file: string) => {
+  if (fileGzipStats[file]) return fileGzipStats[file]
+  fileGzipStats[file] = gzipSize.file(file)
+  return fileGzipStats[file]
 }
 
 export function collectPages(
@@ -36,67 +35,158 @@ export function collectPages(
 
 export interface PageInfo {
   isAmp?: boolean
+  isHybridAmp?: boolean
   size: number
-  static?: boolean
+  totalSize: number
+  static: boolean
+  isSsg: boolean
+  ssgPageRoutes: string[] | null
   serverBundle: string
 }
 
-export function printTreeView(
-  list: string[],
+export async function printTreeView(
+  list: readonly string[],
   pageInfos: Map<string, PageInfo>,
-  serverless: boolean
+  serverless: boolean,
+  {
+    distPath,
+    buildId,
+    pagesDir,
+    pageExtensions,
+    buildManifest,
+    isModern,
+  }: {
+    distPath: string
+    buildId: string
+    pagesDir: string
+    pageExtensions: string[]
+    buildManifest: BuildManifestShape
+    isModern: boolean
+  }
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    // green for 0-100kb
-    if (_size < 100 * 1000) return chalk.green(size)
-    // yellow for 100-250kb
-    if (_size < 250 * 1000) return chalk.yellow(size)
-    // red for >= 250kb
+    // green for 0-130kb
+    if (_size < 130 * 1000) return chalk.green(size)
+    // yellow for 130-170kb
+    if (_size < 170 * 1000) return chalk.yellow(size)
+    // red for >= 170kb
     return chalk.red.bold(size)
   }
 
-  const messages: string[][] = [
-    ['Page', 'Size'].map(entry => chalk.underline(entry)),
+  const messages: [string, string, string][] = [
+    ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
+      string,
+      string,
+      string
+    ],
   ]
 
-  list
-    .sort((a, b) => a.localeCompare(b))
-    .forEach((item, i) => {
-      const symbol =
-        i === 0
-          ? list.length === 1
-            ? '─'
-            : '┌'
-          : i === list.length - 1
-          ? '└'
-          : '├'
+  const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
 
-      const pageInfo = pageInfos.get(item)
+  const pageList = list
+    .slice()
+    .filter(
+      e =>
+        !(
+          e === '/_document' ||
+          (!hasCustomApp && e === '/_app') ||
+          (!hasCustomError && e === '/_error')
+        )
+    )
+    .sort((a, b) => a.localeCompare(b))
+
+  pageList.forEach((item, i, arr) => {
+    const symbol =
+      i === 0
+        ? arr.length === 1
+          ? '─'
+          : '┌'
+        : i === arr.length - 1
+        ? '└'
+        : '├'
+
+    const pageInfo = pageInfos.get(item)
+
+    messages.push([
+      `${symbol} ${
+        item === '/_app'
+          ? ' '
+          : pageInfo?.static
+          ? '○'
+          : pageInfo?.isSsg
+          ? '●'
+          : 'λ'
+      } ${item}`,
+      pageInfo
+        ? pageInfo.isAmp
+          ? chalk.cyan('AMP')
+          : pageInfo.size >= 0
+          ? prettyBytes(pageInfo.size)
+          : ''
+        : '',
+      pageInfo
+        ? pageInfo.isAmp
+          ? chalk.cyan('AMP')
+          : pageInfo.size >= 0
+          ? getPrettySize(pageInfo.totalSize)
+          : ''
+        : '',
+    ])
+
+    if (pageInfo?.ssgPageRoutes?.length) {
+      const totalRoutes = pageInfo.ssgPageRoutes.length
+      const previewPages = totalRoutes === 4 ? 4 : 3
+      const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
+      if (totalRoutes > previewPages) {
+        const remaining = totalRoutes - previewPages
+        routes.push(`[+${remaining} more paths]`)
+      }
+
+      routes.forEach((slug, index, { length }) => {
+        const innerSymbol = index === length - 1 ? '└' : '├'
+        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', ''])
+      })
+    }
+  })
+
+  const sharedData = await getSharedSizes(
+    distPath,
+    buildManifest,
+    buildId,
+    isModern,
+    pageInfos
+  )
+
+  messages.push(['+ shared by all', getPrettySize(sharedData.total), ''])
+  Object.keys(sharedData.files)
+    .map(e => e.replace(buildId, '<buildId>'))
+    .sort()
+    .forEach((fileName, index, { length }) => {
+      const innerSymbol = index === length - 1 ? '└' : '├'
+
+      const originalName = fileName.replace('<buildId>', buildId)
+      const cleanName = fileName
+        // Trim off `static/`
+        .replace(/^static\//, '')
+        // Re-add `static/` for root files
+        .replace(/^<buildId>/, 'static')
+        // Remove file hash
+        .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
       messages.push([
-        `${symbol} ${
-          item.startsWith('/_')
-            ? ' '
-            : pageInfo && pageInfo.static
-            ? '*'
-            : serverless
-            ? 'λ'
-            : 'σ'
-        } ${item}`,
-        pageInfo
-          ? pageInfo.isAmp
-            ? chalk.cyan('AMP')
-            : pageInfo.size >= 0
-            ? getPrettySize(pageInfo.size)
-            : ''
-          : '',
+        `  ${innerSymbol} ${cleanName}`,
+        prettyBytes(sharedData.files[originalName]),
+        '',
       ])
     })
 
   console.log(
     textTable(messages, {
-      align: ['l', 'l', 'r', 'r'],
+      align: ['l', 'l', 'r'],
       stringLength: str => stripAnsi(str).length,
     })
   )
@@ -105,23 +195,26 @@ export function printTreeView(
   console.log(
     textTable(
       [
-        serverless
-          ? [
-              'λ',
-              '(Lambda)',
-              `page was emitted as a lambda (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ]
-          : [
-              'σ',
-              '(Server)',
-              `page will be server rendered (i.e. ${chalk.cyan(
-                'getInitialProps'
-              )})`,
-            ],
-        ['*', '(Static File)', 'page was prerendered as static HTML'],
-      ],
+        [
+          'λ',
+          serverless ? '(Lambda)' : '(Server)',
+          `server-side renders at runtime (uses ${chalk.cyan(
+            'getInitialProps'
+          )} or ${chalk.cyan('getServerProps')})`,
+        ],
+        [
+          '○',
+          '(Static)',
+          'automatically rendered as static HTML (uses no initial props)',
+        ],
+        [
+          '●',
+          '(SSG)',
+          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+      ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: str => stripAnsi(str).length,
@@ -160,10 +253,7 @@ export function printCustomRoutes({
               route.source,
               route.destination,
               ...(isRedirects
-                ? [
-                    ((route as Redirect).statusCode ||
-                      DEFAULT_REDIRECT_STATUS) + '',
-                  ]
+                ? [getRedirectStatus(route as Redirect) + '']
                 : []),
             ]
           }),
@@ -185,39 +275,203 @@ export function printCustomRoutes({
   }
 }
 
+type BuildManifestShape = { pages: { [k: string]: string[] } }
+type ComputeManifestShape = {
+  commonFiles: string[]
+  uniqueFiles: string[]
+  sizeCommonFile: { [file: string]: number }
+  sizeCommonFiles: number
+}
+
+let cachedBuildManifest: BuildManifestShape | undefined
+
+let lastCompute: ComputeManifestShape | undefined
+let lastComputeModern: boolean | undefined
+let lastComputePageInfo: boolean | undefined
+
+async function computeFromManifest(
+  manifest: BuildManifestShape,
+  distPath: string,
+  buildId: string,
+  isModern: boolean,
+  pageInfos?: Map<string, PageInfo>
+): Promise<ComputeManifestShape> {
+  if (
+    Object.is(cachedBuildManifest, manifest) &&
+    lastComputeModern === isModern &&
+    lastComputePageInfo === !!pageInfos
+  ) {
+    return lastCompute!
+  }
+
+  let expected = 0
+  const files = new Map<string, number>()
+  Object.keys(manifest.pages).forEach(key => {
+    if (key === '/_polyfills') {
+      return
+    }
+
+    if (pageInfos) {
+      const cleanKey = key.replace(/\/index$/, '') || '/'
+      const pageInfo = pageInfos.get(cleanKey)
+      // don't include AMP pages since they don't rely on shared bundles
+      if (pageInfo?.isHybridAmp || pageInfo?.isAmp) {
+        return
+      }
+    }
+
+    ++expected
+    manifest.pages[key].forEach(file => {
+      if (
+        // Filter out CSS
+        !file.endsWith('.js') ||
+        // Select Modern or Legacy scripts
+        file.endsWith('.module.js') !== isModern
+      ) {
+        return
+      }
+
+      if (key === '/_app') {
+        files.set(file, Infinity)
+      } else if (files.has(file)) {
+        files.set(file, files.get(file)! + 1)
+      } else {
+        files.set(file, 1)
+      }
+    })
+  })
+
+  // Add well-known shared file
+  files.set(
+    path.posix.join(
+      `static/${buildId}/pages/`,
+      `/_app${isModern ? '.module' : ''}.js`
+    ),
+    Infinity
+  )
+
+  const commonFiles = [...files.entries()]
+    .filter(([, len]) => len === expected || len === Infinity)
+    .map(([f]) => f)
+  const uniqueFiles = [...files.entries()]
+    .filter(([, len]) => len === 1)
+    .map(([f]) => f)
+
+  let stats: [string, number][]
+  try {
+    stats = await Promise.all(
+      commonFiles.map(
+        async f =>
+          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+      )
+    )
+  } catch (_) {
+    stats = []
+  }
+
+  lastCompute = {
+    commonFiles,
+    uniqueFiles,
+    sizeCommonFile: stats.reduce(
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
+      {}
+    ),
+    sizeCommonFiles: stats.reduce((size, [, stat]) => size + stat, 0),
+  }
+
+  cachedBuildManifest = manifest
+  lastComputeModern = isModern
+  lastComputePageInfo = !!pageInfos
+  return lastCompute!
+}
+
+function difference<T>(main: T[], sub: T[]): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...a].filter(x => !b.has(x))
+}
+
+function intersect<T>(main: T[], sub: T[]): T[] {
+  const a = new Set(main)
+  const b = new Set(sub)
+  return [...new Set([...a].filter(x => b.has(x)))]
+}
+
+function sum(a: number[]): number {
+  return a.reduce((size, stat) => size + stat, 0)
+}
+
+export async function getSharedSizes(
+  distPath: string,
+  buildManifest: BuildManifestShape,
+  buildId: string,
+  isModern: boolean,
+  pageInfos: Map<string, PageInfo>
+): Promise<{ total: number; files: { [page: string]: number } }> {
+  const data = await computeFromManifest(
+    buildManifest,
+    distPath,
+    buildId,
+    isModern,
+    pageInfos
+  )
+  return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
+}
+
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
   buildId: string,
-  buildManifest: { pages: { [k: string]: string[] } },
+  buildManifest: BuildManifestShape,
   isModern: boolean
-): Promise<number> {
+): Promise<[number, number]> {
+  const data = await computeFromManifest(
+    buildManifest,
+    distPath,
+    buildId,
+    isModern
+  )
+
+  const fnFilterModern = (entry: string) =>
+    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
+
+  const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
+  const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
+
+  const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
+
+  const allFilesReal = [...new Set([...pageFiles, ...appFiles])].map(
+    fnMapRealPath
+  )
+  const selfFilesReal = difference(
+    intersect(pageFiles, data.uniqueFiles),
+    data.commonFiles
+  ).map(fnMapRealPath)
+
   const clientBundle = path.join(
     distPath,
     `static/${buildId}/pages/`,
     `${page}${isModern ? '.module' : ''}.js`
   )
-
-  // With granularChunks flag enabled, each page may have additional chunks that it depends on
-  const baseDeps = page === '/_app' ? [] : buildManifest.pages['/_app']
-
-  // Get the list of chunks specific to this page
-  // With granularChunks: false, this will be []
-  const deps = (buildManifest.pages[page] || [])
-    .filter(
-      dep => !baseDeps.includes(dep) && /\.module\.js$/.test(dep) === isModern
-    )
-    .map(dep => `${distPath}/${dep}`)
-
-  // Add the main bundle for the page
-  deps.push(clientBundle)
+  const appBundle = path.join(
+    distPath,
+    `static/${buildId}/pages/`,
+    `/_app${isModern ? '.module' : ''}.js`
+  )
+  selfFilesReal.push(clientBundle)
+  allFilesReal.push(clientBundle)
+  if (clientBundle !== appBundle) {
+    allFilesReal.push(appBundle)
+  }
 
   try {
-    let depStats = await Promise.all(deps.map(fsStat))
-
-    return depStats.reduce((size, stat) => size + stat.size, 0)
+    // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
+    // function is memoized, so the second one will instantly resolve.
+    const allFilesSize = sum(await Promise.all(allFilesReal.map(fsStatGzip)))
+    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(fsStatGzip)))
+    return [selfFilesSize, allFilesSize]
   } catch (_) {}
-  return -1
+  return [-1, -1]
 }
 
 export async function isPageStatic(
@@ -253,7 +507,7 @@ export async function isPageStatic(
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
-      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -299,7 +553,7 @@ export async function isPageStatic(
                 `\n\n\treturn { params: { ${_validParamKeys
                   .map(k => `${k}: ...`)
                   .join(', ')} } }` +
-                `\n\nKeys that need moved: ${invalidKeys.join(', ')}.\n`
+                `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
             )
           }
 

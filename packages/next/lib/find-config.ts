@@ -23,12 +23,23 @@ export async function findConfig<T>(
   }
 
   // If we didn't find the configuration in `package.json`, we should look for
-  // known filenames. The /rc$/ version of this file does not support YAML
-  // like some configuration loaders.
-  const filePath = await findUp(`.${key}rc.json`, {
-    cwd: directory,
-  })
+  // known filenames.
+  const filePath = await findUp(
+    [
+      `.${key}rc.json`,
+      `${key}.config.json`,
+      `.${key}rc.js`,
+      `${key}.config.js`,
+    ],
+    {
+      cwd: directory,
+    }
+  )
   if (filePath) {
+    if (filePath.endsWith('.js')) {
+      return require(filePath)
+    }
+
     // We load JSON contents with JSON5 to allow users to comment in their
     // configuration file. This pattern was popularized by TypeScript.
     const fileContents = fs.readFileSync(filePath, 'utf8')

@@ -1,5 +1,5 @@
 {
-  "name": "custom-server-reason",
+  "name": "custom-server-reasonml",
   "version": "0.1.0",
   "scripts": {
     "clean": "bsb -clean-world",
@@ -16,7 +16,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "bs-platform": "^4.0.18"
+    "bs-platform": "^7.0.1"
   },
   "dependencies": {
     "cross-env": "^5.2.0",

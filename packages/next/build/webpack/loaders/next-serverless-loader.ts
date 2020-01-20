@@ -3,6 +3,7 @@ import { join } from 'path'
 import { parse } from 'querystring'
 import {
   BUILD_MANIFEST,
+  ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
@@ -17,9 +18,9 @@ export type ServerlessLoaderQuery = {
   absoluteErrorPath: string
   buildId: string
   assetPrefix: string
-  ampBindInitData: boolean | string
   generateEtags: string
   canonicalBase: string
+  basePath: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -30,45 +31,130 @@ const nextServerlessLoader: loader.Loader = function() {
     buildId,
     canonicalBase,
     assetPrefix,
-    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
+    basePath,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
     /\\/g,
     '/'
   )
+  const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
+
   const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+  const pageIsDynamicRoute = isDynamicRoute(page)
+
+  const dynamicRouteImports = pageIsDynamicRoute
+    ? `
+    import { getRouteMatcher } from 'next/dist/next-server/lib/router/utils/route-matcher';
+      import { getRouteRegex } from 'next/dist/next-server/lib/router/utils/route-regex';
+  `
+    : ''
+
+  const dynamicRouteMatcher = pageIsDynamicRoute
+    ? `
+    const dynamicRouteMatcher = getRouteMatcher(getRouteRegex("${page}"))
+  `
+    : ''
+
+  const rewriteImports = `
+    import { rewrites } from '${routesManifest}'
+    import pathMatch, { pathToRegexp } from 'next/dist/next-server/server/lib/path-match'
+  `
+
+  const handleRewrites = `
+    const getCustomRouteMatcher = pathMatch(true)
+
+    function handleRewrites(parsedUrl) {
+      for (const rewrite of rewrites) {
+        const matcher = getCustomRouteMatcher(rewrite.source)
+        const params = matcher(parsedUrl.pathname)
+
+        if (params) {
+          parsedUrl.query = {
+            ...parsedUrl.query,
+            ...params
+          }
+          const parsedDest = parse(rewrite.destination)
+          const destCompiler = pathToRegexp.compile(
+            \`\${parsedDest.pathname}\${parsedDest.hash || ''}\`
+          )
+          const newUrl = destCompiler(params)
+          const parsedNewUrl = parse(newUrl)
+
+          parsedUrl.pathname = parsedNewUrl.pathname
+          parsedUrl.hash = parsedNewUrl.hash
+
+          if (parsedUrl.pathname === '${page}'){
+            break
+          }
+          ${
+            pageIsDynamicRoute
+              ? `
+            const dynamicParams = dynamicRouteMatcher(parsedUrl.pathname);\
+            if (dynamicParams) {
+              parsedUrl.query = {
+                ...parsedUrl.query,
+                ...dynamicParams
+              }
+              break
+            }
+          `
+              : ''
+          }
+        }
+      }
+
+      return parsedUrl
+    }
+  `
 
   if (page.match(API_ROUTE)) {
     return `
-    ${
-      isDynamicRoute(page)
-        ? `
-      import { getRouteMatcher } from 'next/dist/next-server/lib/router/utils/route-matcher';
-      import { getRouteRegex } from 'next/dist/next-server/lib/router/utils/route-regex';
-      `
-        : ``
-    }
+      ${dynamicRouteImports}
       import { parse } from 'url'
       import { apiResolver } from 'next/dist/next-server/server/api-utils'
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
+      ${rewriteImports}
+
+      ${dynamicRouteMatcher}
+      ${handleRewrites}
 
       export default async (req, res) => {
         try {
           await initServer()
+
+          ${
+            basePath
+              ? `
+          if(req.url.startsWith('${basePath}')) {
+            req.url = req.url.replace('${basePath}', '')
+          }
+          `
+              : ''
+          }
+          const parsedUrl = parse(req.url, true)
+
           const params = ${
-            isDynamicRoute(page)
-              ? `getRouteMatcher(getRouteRegex('${page}'))(parse(req.url).pathname)`
+            pageIsDynamicRoute
+              ? `dynamicRouteMatcher(parsedUrl.pathname)`
               : `{}`
           }
+
           const resolver = require('${absolutePagePath}')
-          apiResolver(req, res, params, resolver, onError)
+          apiResolver(
+            req,
+            res,
+            Object.assign({}, parsedUrl.query, params ),
+            resolver,
+            onError
+          )
         } catch (err) {
           console.error(err)
           await onError(err)
@@ -85,29 +171,36 @@ const nextServerlessLoader: loader.Loader = function() {
     import {sendHTML} from 'next/dist/next-server/server/send-html';
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
-    ${
-      isDynamicRoute(page)
-        ? `import {getRouteMatcher, getRouteRegex} from 'next/dist/next-server/lib/router/utils';`
-        : ''
-    }
     import buildManifest from '${buildManifest}';
     import reactLoadableManifest from '${reactLoadableManifest}';
     import Document from '${absoluteDocumentPath}';
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import * as ComponentInfo from '${absolutePagePath}';
+    ${dynamicRouteImports}
+    ${rewriteImports}
+
     const Component = ComponentInfo.default
     export default Component
     export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
+    export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
+    export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
 
-    ${
-      isDynamicRoute(page)
-        ? "export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']"
-        : 'export const unstable_getStaticPaths = undefined'
-    }
+    ${dynamicRouteMatcher}
+    ${handleRewrites}
+
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport) {
+    export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+      ${
+        basePath
+          ? `
+      if(req.url.startsWith('${basePath}')) {
+        req.url = req.url.replace('${basePath}', '')
+      }
+      `
+          : ''
+      }
       const options = {
         App,
         Document,
@@ -118,23 +211,22 @@ const nextServerlessLoader: loader.Loader = function() {
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
-        ampBindInitData: ${ampBindInitData === true ||
-          ampBindInitData === 'true'},
+        ..._renderOpts
       }
-      let sprData = false
+      let _nextData = false
 
       if (req.url.match(/_next\\/data/)) {
-        sprData = true
+        _nextData = true
         req.url = req.url
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
       }
-      const parsedUrl = parse(req.url, true)
+      const parsedUrl = handleRewrites(parse(req.url, true))
+
       const renderOpts = Object.assign(
         {
           Component,
           pageConfig: config,
-          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },
         options,
@@ -142,8 +234,8 @@ const nextServerlessLoader: loader.Loader = function() {
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
-          isDynamicRoute(page)
-            ? `const params = fromExport && !unstable_getStaticProps ? {} : getRouteMatcher(getRouteRegex("${page}"))(parsedUrl.pathname) || {};`
+          pageIsDynamicRoute
+            ? `const params = fromExport && !unstable_getStaticProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -152,7 +244,7 @@ const nextServerlessLoader: loader.Loader = function() {
           // into our builder to ensure we're decoupled. However, this entails
           // removing reliance on `req.url` and using `req.query` instead
           // (which is needed for "custom routes" anyway).
-          isDynamicRoute(page)
+          pageIsDynamicRoute
             ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
@@ -179,10 +271,10 @@ const nextServerlessLoader: loader.Loader = function() {
           `
             : `const nowParams = null;`
         }
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
-        if (sprData && !fromExport) {
-          const payload = JSON.stringify(renderOpts.sprData)
+        if (_nextData && !fromExport) {
+          const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
           res.setHeader(

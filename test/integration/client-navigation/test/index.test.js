@@ -82,7 +82,7 @@ describe('Client Navigation', () => {
       await waitFor(3000)
       await browser.back()
       await waitFor(3000)
-      const text = await browser.elementsByCss('#about-link').text()
+      const text = await browser.elementByCss('#about-link').text()
       if (browser) await browser.close()
       expect(text).toMatch(/About/)
     })
@@ -96,7 +96,7 @@ describe('Client Navigation', () => {
       await waitFor(3000)
       await browser.forward()
       await waitFor(3000)
-      const text = await browser.elementsByCss('p').text()
+      const text = await browser.elementByCss('p').text()
       if (browser) await browser.close()
       expect(text).toMatch(/this is the about page/i)
     })
@@ -556,18 +556,50 @@ describe('Client Navigation', () => {
         await browser.close()
       })
     })
+  })
 
-    describe('when hash changed to a different hash', () => {
-      it('should not run getInitialProps', async () => {
-        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+  describe('with hash changes with state', () => {
+    describe('when passing state via hash change', () => {
+      it('should increment the history state counter', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          '/nav/hash-changes-with-state#'
+        )
 
-        const counter = await browser
-          .elementByCss('#via-a')
+        const historyCount = await browser
+          .elementByCss('#increment-history-count')
           .click()
-          .elementByCss('#via-link')
+          .elementByCss('#increment-history-count')
           .click()
-          .elementByCss('p')
+          .elementByCss('div#history-count')
           .text()
+
+        expect(historyCount).toBe('HISTORY COUNT: 2')
+
+        const counter = await browser.elementByCss('p').text()
+
+        expect(counter).toBe('COUNT: 2')
+
+        await browser.close()
+      })
+
+      it('should increment the shallow history state counter', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          '/nav/hash-changes-with-state#'
+        )
+
+        const historyCount = await browser
+          .elementByCss('#increment-shallow-history-count')
+          .click()
+          .elementByCss('#increment-shallow-history-count')
+          .click()
+          .elementByCss('div#shallow-history-count')
+          .text()
+
+        expect(historyCount).toBe('SHALLOW HISTORY COUNT: 2')
+
+        const counter = await browser.elementByCss('p').text()
 
         expect(counter).toBe('COUNT: 0')
 

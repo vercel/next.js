@@ -3,10 +3,10 @@ import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
-function Login() {
+const Login = () => {
   const [userData, setUserData] = useState({ username: '', error: '' })
 
-  async function handleSubmit(event) {
+  const handleSubmit = async event => {
     event.preventDefault()
     setUserData(Object.assign({}, userData, { error: '' }))
 

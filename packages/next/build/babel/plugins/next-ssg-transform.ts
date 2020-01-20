@@ -2,7 +2,7 @@ import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
 
 const pageComponentVar = '__NEXT_COMP'
-const prerenderId = '__NEXT_SPR'
+const prerenderId = '__N_SSG'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
@@ -109,7 +109,7 @@ export default function nextTransformSsg({
     state: PluginState
   ) {
     const ident = getIdentifier(path)
-    if (ident && ident.node && isIdentifierReferenced(ident)) {
+    if (ident?.node && isIdentifierReferenced(ident)) {
       state.refs.add(ident)
     }
   }
@@ -153,8 +153,7 @@ export default function nextTransformSsg({
           ) {
             const ident = getIdentifier(path)
             if (
-              ident &&
-              ident.node &&
+              ident?.node &&
               refs.has(ident) &&
               !isIdentifierReferenced(ident)
             ) {
