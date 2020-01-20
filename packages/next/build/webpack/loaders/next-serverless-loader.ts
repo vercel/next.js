@@ -213,10 +213,10 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         ..._renderOpts
       }
-      let sprData = false
+      let _nextData = false
 
       if (req.url.match(/_next\\/data/)) {
-        sprData = true
+        _nextData = true
         req.url = req.url
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
@@ -273,8 +273,8 @@ const nextServerlessLoader: loader.Loader = function() {
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
-        if (sprData && !fromExport) {
-          const payload = JSON.stringify(renderOpts.sprData)
+        if (_nextData && !fromExport) {
+          const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
           res.setHeader(

@@ -9,7 +9,7 @@ import {
   Rewrite,
   getRedirectStatus,
 } from '../lib/check-custom-routes'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
@@ -507,7 +507,7 @@ export async function isPageStatic(
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
-      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.

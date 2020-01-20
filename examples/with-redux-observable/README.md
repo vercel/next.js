@@ -1,5 +1,13 @@
 # Redux-Observable example
 
+This example is a page that renders information about Star-Wars characters. It
+fetches new character every 3 seconds having the initial character fetched on
+a server.
+
+Example also uses `redux-logger` to log every action.
+
+![demo page](demo.png)
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +18,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-redux-observable with-redux-observable-app
+npm init next-app --example with-redux-observable with-redux-observable-app
 # or
 yarn create next-app --example with-redux-observable with-redux-observable-app
 ```
@@ -43,15 +51,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
-### The idea behind the example
-
-This example is a page that renders information about Star-Wars characters. It
-fetches new character every 3 seconds having the initial character fetched on
-a server.
-
-Example also uses `redux-logger` to log every action.
-
-![demo page](demo.png)
+### Notes
 
 The main problem with integrating Redux, Redux-Observable and Next.js is
 probably making initial requests on a server. That's because, the

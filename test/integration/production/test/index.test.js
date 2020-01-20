@@ -678,13 +678,13 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should have defer on all script tags', async () => {
+  it('should have async on all script tags', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     let missing = false
 
     for (const script of $('script').toArray()) {
-      // application/json doesn't need defer
+      // application/json doesn't need async
       if (
         script.attribs.type === 'application/json' ||
         script.attribs.src.includes('polyfills')
@@ -692,7 +692,7 @@ describe('Production Usage', () => {
         continue
       }
 
-      if (script.attribs.async === '' || script.attribs.defer !== '') {
+      if (script.attribs.defer === '' || script.attribs.async !== '') {
         missing = true
       }
     }
