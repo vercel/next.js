@@ -520,12 +520,12 @@ export default class Server {
       )
     }
 
-    const catchAllRoute: Route = {
+    const catchPublicDirectoryRoute: Route = {
       match: route('/:path*'),
       type: 'route',
-      name: 'Catchall render',
+      name: 'Catch public directory route',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        const { pathname } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
@@ -535,6 +535,24 @@ export default class Server {
           return {
             finished: true,
           }
+        }
+
+        return {
+          finished: false,
+        }
+      },
+    }
+
+    routes.push(catchPublicDirectoryRoute)
+
+    const catchAllRoute: Route = {
+      match: route('/:path*'),
+      type: 'route',
+      name: 'Catchall render',
+      fn: async (req, res, params, parsedUrl) => {
+        const { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
         }
 
         if (params?.path?.[0] === 'api') {
@@ -1049,7 +1067,23 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const result = await this.findPageComponents('/_error', query)
+    let result: null | LoadComponentsReturnType = null
+
+    // use static 404 page if available and is 404 response
+    if (this.nextConfig.experimental.static404 && err === null) {
+      try {
+        result = await this.findPageComponents('/_errors/404')
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          throw err
+        }
+      }
+    }
+
+    if (!result) {
+      result = await this.findPageComponents('/_error', query)
+    }
+
     let html
     try {
       html = await this.renderToHTMLWithComponents(
