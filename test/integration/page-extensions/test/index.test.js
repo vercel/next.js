@@ -10,6 +10,19 @@ const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Page Extensions', () => {
+  it('should use the default pageExtensions if set to undefined', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { pageExtensions: undefined }`
+    )
+
+    const { stdout } = await runNextCommand(['build', appDir], { stdout: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stdout).toContain('Compiled successfully')
+  })
+
   it('should throw if pageExtensions is not an array', async () => {
     await fs.writeFile(nextConfig, `module.exports = { pageExtensions: null }`)
 

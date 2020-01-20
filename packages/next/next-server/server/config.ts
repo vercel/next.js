@@ -92,6 +92,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (key === 'pageExtensions') {
       const pageExtensions = userConfig[key]
 
+      if (pageExtensions === undefined) {
+        delete userConfig[key]
+        return
+      }
+
       if (!Array.isArray(pageExtensions)) {
         throw new Error(
           `Specified pageExtensions is not an array of strings, found "${pageExtensions}". Please update this config or remove it.`
