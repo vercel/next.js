@@ -1,4 +1,8 @@
 import { match as regexpMatch } from 'path-to-regexp'
+import {
+  PERMANENT_REDIRECT_STATUS,
+  TEMPORARY_REDIRECT_STATUS,
+} from '../next-server/lib/constants'
 
 export type Rewrite = {
   source: string
@@ -7,6 +11,7 @@ export type Rewrite = {
 
 export type Redirect = Rewrite & {
   statusCode?: number
+  permanent?: boolean
 }
 
 export type Header = {
@@ -16,6 +21,13 @@ export type Header = {
 
 const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
+export function getRedirectStatus(route: Redirect) {
+  return (
+    route.statusCode ||
+    (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
+  )
+}
+
 function checkRedirect(route: Redirect) {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
@@ -24,6 +36,10 @@ function checkRedirect(route: Redirect) {
     hadInvalidStatus = true
     invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
   }
+  if (typeof route.permanent !== 'boolean' && !route.statusCode) {
+    invalidParts.push(`\`permanent\` is not set to \`true\` or \`false\``)
+  }
+
   return {
     invalidParts,
     hadInvalidStatus,
@@ -72,7 +88,7 @@ export default function checkCustomRoutes(
     allowedKeys = new Set([
       'source',
       'destination',
-      ...(isRedirect ? ['statusCode'] : []),
+      ...(isRedirect ? ['statusCode', 'permanent'] : []),
     ])
   } else {
     allowedKeys = new Set(['source', 'headers'])
@@ -106,7 +122,7 @@ export default function checkCustomRoutes(
 
     if (type === 'redirect') {
       const result = checkRedirect(route as Redirect)
-      hadInvalidStatus = result.hadInvalidStatus
+      hadInvalidStatus = hadInvalidStatus || result.hadInvalidStatus
       invalidParts.push(...result.invalidParts)
     }
 

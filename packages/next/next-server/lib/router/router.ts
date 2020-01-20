@@ -299,7 +299,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, addBasePath(as))
+        this.changeState(method, url, addBasePath(as), options)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -450,7 +450,7 @@ export default class Router implements BaseRouter {
         }
 
         return this._getData<RouteInfo>(() =>
-          (Component as any).__NEXT_SPR
+          (Component as any).__N_SSG
             ? this._getStaticData(as)
             : this.getInitialProps(
                 Component,
@@ -608,15 +608,14 @@ export default class Router implements BaseRouter {
         }
         return
       }
-      // @ts-ignore pathname is always defined
-      const route = toRoute(pathname)
 
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') {
-        // mark it as prefetched for debugging in dev
-        this.pageLoader.prefetched[route] = true
         return
       }
+
+      // @ts-ignore pathname is always defined
+      const route = toRoute(pathname)
       this.pageLoader.prefetch(route).then(resolve, reject)
     })
   }
@@ -667,7 +666,7 @@ export default class Router implements BaseRouter {
 
   _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
     let pathname = parse(asPath).pathname
-    pathname = !pathname || pathname === '/' ? '/index' : pathname
+    pathname = toRoute(!pathname || pathname === '/' ? '/index' : pathname)
 
     return process.env.NODE_ENV === 'production' &&
       (_cachedData = this.sdc[pathname])

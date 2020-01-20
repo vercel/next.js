@@ -14,6 +14,8 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 To override the default `App`, create the file `./pages/_app.js` as shown below:
 
 ```jsx
+// import App from 'next/app'
+
 function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
 }
@@ -46,7 +48,7 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/automatic-static-optimization.md">
     <b>Automatic Static Optimization:</b>
-    <small>Learn more about how Next.js automatically optimizes your pages.</small>
+    <small>Next.js automatically optimizes your app to be static HTML whenever possible. Learn how it works here.</small>
   </a>
 </div>
 

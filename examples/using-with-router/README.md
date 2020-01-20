@@ -1,5 +1,9 @@
 # Example app utilizing `withRouter` utility for routing
 
+Sometimes, we want to use the `router` inside component of our app without using the singleton `next/router` API.
+
+You can do that by creating a React Higher Order Component with the help of the `withRouter` utility.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +14,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example using-with-router using-with-router-app
+npm init next-app --example using-with-router using-with-router-app
 # or
 yarn create next-app --example using-with-router using-with-router-app
 ```
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Sometimes, we want to use the `router` inside component of our app without using the singleton `next/router` API.
-
-You can do that by creating a React Higher Order Component with the help of the `withRouter` utility.

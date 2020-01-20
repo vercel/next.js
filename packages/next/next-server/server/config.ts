@@ -41,7 +41,7 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    css: false,
+    css: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -51,6 +51,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
+    static404: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -82,10 +83,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       experimentalWarning()
     }
 
-    if (key === 'distDir' && userConfig[key] === 'public') {
-      throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
-      )
+    if (key === 'distDir') {
+      if (typeof userConfig[key] !== 'string') {
+        userConfig[key] = defaultConfig.distDir
+      }
+      const userDistDir = userConfig[key].trim()
+
+      // don't allow public as the distDir as this is a reserved folder for
+      // public files
+      if (userDistDir === 'public') {
+        throw new Error(
+          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+        )
+      }
+      // make sure distDir isn't an empty string which can result the provided
+      // directory being deleted in development mode
+      if (userDistDir.length === 0) {
+        throw new Error(
+          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+        )
+      }
     }
 
     const maybeObject = userConfig[key]
@@ -107,7 +124,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (result.experimental) {
     if (result.experimental.css) {
       // The new CSS support requires granular chunks be enabled.
-      result.experimental.granularChunks = true
+      if (result.experimental.granularChunks !== true) {
+        throw new Error(
+          `The new CSS support requires granular chunks be enabled.`
+        )
+      }
     }
 
     if (typeof result.experimental.basePath !== 'string') {
@@ -172,7 +193,7 @@ export default function loadConfig(
   })
 
   // If config file was found
-  if (path && path.length) {
+  if (path?.length) {
     const userConfigModule = require(path)
     const userConfig = normalizeConfig(
       phase,
@@ -186,7 +207,7 @@ export default function loadConfig(
       )
     }
 
-    if (userConfig.amp && userConfig.amp.canonicalBase) {
+    if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
@@ -210,8 +231,7 @@ export default function loadConfig(
     }
 
     if (
-      userConfig.experimental &&
-      userConfig.experimental.reactMode &&
+      userConfig.experimental?.reactMode &&
       !reactModes.includes(userConfig.experimental.reactMode)
     ) {
       throw new Error(
@@ -233,7 +253,7 @@ export default function loadConfig(
       ],
       { cwd: dir }
     )
-    if (nonJsPath && nonJsPath.length) {
+    if (nonJsPath?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath

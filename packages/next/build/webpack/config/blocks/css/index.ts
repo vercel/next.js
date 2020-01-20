@@ -2,10 +2,11 @@ import curry from 'lodash.curry'
 import path from 'path'
 import webpack, { Configuration, RuleSetRule } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
-import { loader } from '../../helpers'
+import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 import {
+  getCustomDocumentError,
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
@@ -70,9 +71,10 @@ function getClientStyleLoader({
 
 export async function __overrideCssConfiguration(
   rootDirectory: string,
+  isProduction: boolean,
   config: Configuration
 ) {
-  const postCssPlugins = await getPostCssPlugins(rootDirectory)
+  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
 
   function patch(rule: RuleSetRule) {
     if (
@@ -123,11 +125,34 @@ export const css = curry(async function css(
 
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
+    ctx.isProduction,
     // TODO: In the future, we should stop supporting old CSS setups and
     // unconditionally inject ours. When that happens, we should remove this
     // function argument.
     true
   )
+
+  // CSS cannot be imported in _document. This comes before everything because
+  // global CSS nor CSS modules work in said file.
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: /\.css$/,
+          // Use a loose regex so we don't have to crawl the file system to
+          // find the real file name (if present).
+          issuer: { test: /pages[\\/]_document\./ },
+          use: {
+            loader: 'error-loader',
+            options: {
+              reason: getCustomDocumentError(),
+            },
+          },
+        },
+      ],
+    })
+  )
+
   // CSS Modules support must be enabled on the server and client so the class
   // names are availble for SSR or Prerendering.
   fns.push(
@@ -320,6 +345,27 @@ export const css = curry(async function css(
           },
         ],
       })
+    )
+  }
+
+  if (ctx.isClient && ctx.isProduction) {
+    // Extract CSS as CSS file(s) in the client-side production bundle.
+    fns.push(
+      plugin(
+        new MiniCssExtractPlugin({
+          filename: 'static/css/[contenthash].css',
+          chunkFilename: 'static/css/[contenthash].css',
+          // Next.js guarantees that CSS order doesn't matter, due to imposed
+          // restrictions:
+          // 1. Global CSS can only be defined in a single entrypoint (_app)
+          // 2. CSS Modules generate scoped class names by default and cannot
+          //    include Global CSS (:global() selector).
+          //
+          // If this warning were to trigger, it'd be unactionable by the user,
+          // but also not valid -- so we disable it.
+          ignoreOrder: true,
+        })
+      )
     )
   }
 

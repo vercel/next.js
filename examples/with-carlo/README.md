@@ -1,13 +1,15 @@
 # Carlo example
 
+This example show how you can use Next.js with [Carlo](https://github.com/GoogleChromeLabs/carlo). Here we use a [Custom server](https://github.com/zeit/next.js/blob/canary/examples/custom-server/README.md) to fit the carlo configs.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-carlo with-carlo-app
+npm init next-app --example with-carlo with-carlo-app
 # or
 yarn create next-app --example with-carlo with-carlo-app
 ```
@@ -39,7 +41,3 @@ yarn dev
 npm run build
 npm start
 ```
-
-## The idea behind the example
-
-This example show how you can use Next.js with [Carlo](https://github.com/GoogleChromeLabs/carlo). Here we use a [Custom server](https://github.com/zeit/next.js/blob/canary/examples/custom-server/README.md) to fit the carlo configs.

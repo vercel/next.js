@@ -2,6 +2,7 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
+import AbortController from 'abort-controller'
 import {
   killApp,
   findPort,
@@ -17,6 +18,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
+let stderr
 let mode
 let app
 
@@ -332,6 +334,19 @@ function runTests(dev = false) {
         )
       ).toBeTruthy()
     })
+
+    it('should show warning when the API resolves without ending the request in dev mode', async () => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort()
+      }, 2000)
+      await fetchViaHTTP(appPort, '/api/test-no-end', undefined, {
+        signal: controller.signal,
+      }).catch(() => {})
+      expect(stderr).toContain(
+        `API resolved without sending a response for /api/test-no-end, this may result in a stalled requests`
+      )
+    })
   } else {
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
@@ -360,8 +375,13 @@ function runTests(dev = false) {
 describe('API routes', () => {
   describe('dev support', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        },
+      })
     })
     afterAll(() => killApp(app))
 

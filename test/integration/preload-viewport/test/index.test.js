@@ -160,6 +160,8 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should not add an another observer for a prefetched page', async () => {
+    // info: both `/` and `/de-duped` ref the `/first` page, which we don't
+    // want to be re-fetched/re-observed.
     const browser = await webdriver(appPort, '/')
     await waitFor(2 * 1000)
     await browser.eval(`(function() {

@@ -35,7 +35,6 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
-import MiniCssExtractPlugin from './webpack/plugins/mini-css-extract-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -88,7 +87,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
     // Replace: full URL polyfill with platform-based polyfill
-    url: require.resolve('native-url'),
+    // url: require.resolve('native-url'),
   }
 }
 
@@ -203,8 +202,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript && config.typescript.ignoreDevErrors
-    : config.typescript && config.typescript.ignoreBuildErrors
+    ? config.typescript?.ignoreDevErrors
+    : config.typescript?.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -335,7 +334,14 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (module.type === `css/mini-extract`) {
+            if (
+              // mini-css-extract-plugin
+              module.type === `css/mini-extract` ||
+              // extract-css-chunks-webpack-plugin (old)
+              module.type === `css/extract-chunks` ||
+              // extract-css-chunks-webpack-plugin (new)
+              module.type === `css/extract-css-chunks`
+            ) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -433,8 +439,7 @@ export default async function getBaseWebpackConfig(
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            const start = request.charAt(0)
-            if (start === '.' || start === '/') {
+            if (request.startsWith('.') || request.startsWith('/')) {
               return callback()
             }
 
@@ -781,14 +786,6 @@ export default async function getBaseWebpackConfig(
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
-      // Extract CSS as CSS file(s) in the client-side production bundle.
-      config.experimental.css &&
-        !isServer &&
-        !dev &&
-        new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].chunk.css',
-        }),
       tracer &&
         new ProfilingPlugin({
           tracer,
@@ -865,18 +862,31 @@ export default async function getBaseWebpackConfig(
       return false
     }
 
-    const fileName = '/tmp/test.css'
+    const fileNames = [
+      '/tmp/test.css',
+      '/tmp/test.scss',
+      '/tmp/test.sass',
+      '/tmp/test.less',
+      '/tmp/test.styl',
+    ]
 
-    if (rule instanceof RegExp && rule.test(fileName)) {
+    if (rule instanceof RegExp && fileNames.some(input => rule.test(input))) {
       return true
     }
 
     if (typeof rule === 'function') {
-      try {
-        if (rule(fileName)) {
-          return true
-        }
-      } catch (_) {}
+      if (
+        fileNames.some(input => {
+          try {
+            if (rule(input)) {
+              return true
+            }
+          } catch (_) {}
+          return false
+        })
+      ) {
+        return true
+      }
     }
 
     if (Array.isArray(rule) && rule.some(canMatchCss)) {
@@ -888,10 +898,9 @@ export default async function getBaseWebpackConfig(
 
   if (config.experimental.css) {
     const hasUserCssConfig =
-      webpackConfig.module &&
-      webpackConfig.module.rules.some(
+      webpackConfig.module?.rules.some(
         rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      )
+      ) ?? false
 
     if (hasUserCssConfig) {
       if (webpackConfig.module?.rules.length) {
@@ -917,7 +926,7 @@ export default async function getBaseWebpackConfig(
         )
       }
     } else {
-      await __overrideCssConfiguration(dir, webpackConfig)
+      await __overrideCssConfiguration(dir, !dev, webpackConfig)
     }
   }
 
