@@ -28,7 +28,7 @@ const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
-  .then(emitter => {
+  .then(({ emitter, renderCtx, render }) => {
     initOnDemandEntries({ assetPrefix: prefix })
     if (process.env.__NEXT_BUILD_INDICATOR) initializeBuildWatcher()
     if (
@@ -39,7 +39,10 @@ initNext({ webpackHMR })
       initializePrerenderIndicator()
     }
 
-    displayContent()
+    // delay rendering until after styles have been applied in development
+    displayContent(() => {
+      render(renderCtx)
+    })
 
     let lastScroll
 
