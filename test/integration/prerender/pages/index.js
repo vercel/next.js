@@ -14,7 +14,7 @@ const Page = ({ world, time }) => {
     <>
       <p>hello {world}</p>
       <span>time: {time}</span>
-      <Link href="/another">
+      <Link href="/another?hello=world" as="/another/?hello=world">
         <a id="another">to another</a>
       </Link>
       <br />

@@ -1,40 +1,51 @@
 # Next.js example with [`graphql-react`](https://github.com/jaydenseric/graphql-react)
 
+[`graphql-react`](https://github.com/jaydenseric/graphql-react) is a [GraphQL](https://graphql.org) client for [React](https://reactjs.org) using modern [context](https://reactjs.org/docs/context) and [hooks](https://reactjs.org/docs/hooks-intro) APIs that is lightweight (&lt; 2.5 KB [size limited](https://github.com/ai/size-limit)) but powerful; the first [Relay](https://facebook.github.io/relay) and [Apollo](https://apollographql.com/docs/react) alternative with server side rendering.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 [![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-graphql-react)
 
-## Setup
+## How to use
 
-1. Download the example:
+### Using `create-next-app`
 
-   ```sh
-   curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-react
-   ```
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-2. Change directory to it:
+```bash
+npm init next-app --example with-graphql-react with-graphql-react-app
+# or
+yarn create next-app --example with-graphql-react with-graphql-react-app
+```
 
-   ```sh
-   cd with-graphql-react
-   ```
+### Download manually
 
-3. Install it:
+Download the example:
 
-   ```sh
-   npm install
-   ```
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-react
+cd with-graphql-react
+```
 
-4. Run it:
+Install it and run:
 
-   ```sh
-   npm run dev
-   ```
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
 
-## The idea behind the example
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
-[`graphql-react`](https://github.com/jaydenseric/graphql-react) is a [GraphQL](https://graphql.org) client for [React](https://reactjs.org) using modern [context](https://reactjs.org/docs/context) and [hooks](https://reactjs.org/docs/hooks-intro) APIs that is lightweight (&lt; 2.5 KB [size limited](https://github.com/ai/size-limit)) but powerful; the first [Relay](https://facebook.github.io/relay) and [Apollo](https://apollographql.com/docs/react) alternative with server side rendering.
+```bash
+now
+```
+
+## Notes
 
 - In `next.config.js` Next.js config is decorated using [`withGraphQLConfig`](https://github.com/jaydenseric/next-graphql-react#function-withgraphqlconfig) from [`next-graphql-react`](https://github.com/jaydenseric/next-graphql-react), to exclude specific [`graphql-react`](https://github.com/jaydenseric/graphql-react) and [`next-graphql-react`](https://github.com/jaydenseric/next-graphql-react) server only imports from the client bundle.
 - In `pages/_app.js` a [custom `App` component](https://github.com/zeit/next.js#custom-app) is decorated with the [`withGraphQLApp`](https://github.com/jaydenseric/next-graphql-react/#function-withgraphqlapp) [higher-order component](https://reactjs.org/docs/higher-order-components) from [`next-graphql-react`](https://github.com/jaydenseric/next-graphql-react), generating a `graphql` prop that populates the [`GraphQLProvider`](https://github.com/jaydenseric/graphql-react#function-graphqlprovider) component from [`graphql-react`](https://github.com/jaydenseric/graphql-react).
