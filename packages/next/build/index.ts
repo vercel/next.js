@@ -197,6 +197,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
+  const hasCustomErrorPage = mappedPages['/_error'].startsWith(
+    'private-next-pages'
+  )
 
   if (hasPublicDir) {
     try {
@@ -520,6 +523,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   staticCheckWorkers.end()
 
+  // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
+  // Only export the static 404 when there is no /_error present
+  const useStatic404 =
+    !customAppGetInitialProps &&
+    !hasCustomErrorPage &&
+    config.experimental.static404
+
   if (invalidPages.size > 0) {
     throw new Error(
       `Build optimization failed: found page${
@@ -550,7 +560,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
-  if (staticPages.size > 0 || ssgPages.size > 0) {
+  if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
     const exportApp = require('../export').default
     const exportOptions = {
@@ -586,6 +596,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
             defaultMap[route] = { page }
           })
         })
+
+        if (useStatic404) {
+          defaultMap['/_errors/404'] = { page: '/_error' }
+        }
+
         return defaultMap
       },
       exportTrailingSlash: false,
@@ -624,6 +639,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
+    }
+
+    if (useStatic404) {
+      await moveExportedPage('/_errors/404', '/_errors/404', false, 'html')
     }
 
     for (const page of combinedPages) {
