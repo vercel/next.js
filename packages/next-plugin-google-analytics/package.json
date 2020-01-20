@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-google-analytics",
-  "version": "9.2.1-canary.5",
+  "version": "9.2.1-canary.6",
   "nextjs": {
     "name": "Google Analytics",
     "required-env": [
