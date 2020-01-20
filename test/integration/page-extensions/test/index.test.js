@@ -1,23 +1,81 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import fs from 'fs-extra'
+import { runNextCommand } from 'next-test-utils'
 
-// test suits
-import hmr from './hmr'
-
-const context = {}
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
+const appDir = join(__dirname, '..')
+const nextConfig = join(appDir, 'next.config.js')
+
 describe('Page Extensions', () => {
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+  it('should use the default pageExtensions if set to undefined', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { pageExtensions: undefined }`
+    )
 
-    // pre-build all pages at the start
-    await Promise.all([renderViaHTTP(context.appPort, '/hmr/some-page')])
+    const { stdout } = await runNextCommand(['build', appDir], { stdout: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stdout).toContain('Compiled successfully')
   })
-  afterAll(() => killApp(context.server))
 
-  hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  it('should throw if pageExtensions is not an array', async () => {
+    await fs.writeFile(nextConfig, `module.exports = { pageExtensions: null }`)
+
+    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toContain(
+      'Specified pageExtensions is not an array of strings, found "null". Please update this config or remove it'
+    )
+  })
+
+  it('should throw if pageExtensions is an empty array', async () => {
+    await fs.writeFile(nextConfig, `module.exports = { pageExtensions: [] }`)
+
+    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toContain(
+      'Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it'
+    )
+  })
+
+  it('should throw if pageExtensions has invalid extensions', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { pageExtensions: ['js', 123] }`
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toContain(
+      'Specified pageExtensions is not an array of strings, found "123" of type "number". Please update this config or remove it'
+    )
+  })
+
+  it('should throw if @zeit/next-typescript is used', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `const withTypescript = require('@zeit/next-typescript')
+      module.exports = withTypescript()
+      `
+    )
+
+    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stderr).toContain(
+      '@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now'
+    )
+  })
 })
