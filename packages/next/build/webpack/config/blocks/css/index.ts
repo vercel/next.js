@@ -136,7 +136,30 @@ export const css = curry(async function css(
     cssOptions: webpack.ParserOptions,
     preProcessor: string
   ) {
-    const loaders: webpack.RuleSetUseItem[] = [
+    const loaders: webpack.RuleSetUseItem[] = []
+
+    // Add appropriate development mode or production mode style loader first
+    if (ctx.isClient) {
+      loaders.push(
+        getClientStyleLoader({
+          isDevelopment: ctx.isDevelopment,
+          assetPrefix: ctx.assetPrefix,
+        })
+      )
+    }
+
+    // Add preprocessor loader
+    if (preProcessor) {
+      loaders.push({
+        loader: preProcessor,
+        options: {
+          sourceMap: true,
+        },
+      })
+    }
+
+    // Add remaining loaders
+    loaders.push(
       // Resolve CSS `@import`s and `url()`s
       {
         loader: require.resolve('css-loader'),
@@ -151,28 +174,8 @@ export const css = curry(async function css(
           plugins: postCssPlugins,
           sourceMap: true,
         },
-      },
-    ].filter(Boolean)
-
-    // Add appropriate development mode or production mode style loader first
-    if (ctx.isClient) {
-      loaders.unshift(
-        getClientStyleLoader({
-          isDevelopment: ctx.isDevelopment,
-          assetPrefix: ctx.assetPrefix,
-        })
-      )
-    }
-
-    // Add preprocessor loader
-    if (preProcessor) {
-      loaders.push({
-        loader: require.resolve(preProcessor),
-        options: {
-          sourceMap: true,
-        },
-      })
-    }
+      }
+    )
 
     return loaders
   }
@@ -235,7 +238,7 @@ export const css = curry(async function css(
                 getLocalIdent: getCssModuleLocalIdent,
               },
             },
-            'sass-loader'
+            require.resolve('sass-loader')
           ),
         },
         // Opt-in support for SASS (using .scss or .sass extensions).
@@ -272,7 +275,7 @@ export const css = curry(async function css(
                 getLocalIdent: getCssModuleLocalIdent,
               },
             },
-            'sass-loader'
+            require.resolve('sass-loader')
           ),
         },
       ],
