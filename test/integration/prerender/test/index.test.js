@@ -134,9 +134,11 @@ const navigateTest = (dev = false) => {
 
     // go to /another
     async function goFromHomeToAnother() {
+      await browser.eval('window.beforeAnother = true')
       await browser.elementByCss('#another').click()
       await browser.waitForElementByCss('#home')
       text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeAnother')).toBe(true)
       expect(text).toMatch(/hello.*?world/)
     }
     await goFromHomeToAnother()

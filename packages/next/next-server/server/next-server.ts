@@ -17,7 +17,6 @@ import {
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  DEFAULT_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -50,6 +49,7 @@ import {
   Rewrite,
   RouteType,
   Header,
+  getRedirectStatus,
 } from '../../lib/check-custom-routes'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -380,7 +380,7 @@ export default class Server {
             req,
             res,
             pathname,
-            { _nextSprData: '1' },
+            { _nextDataReq: '1' },
             parsedUrl
           )
           return {
@@ -493,8 +493,7 @@ export default class Server {
                 })
 
                 res.setHeader('Location', updatedDestination)
-                res.statusCode =
-                  (route as Redirect).statusCode || DEFAULT_REDIRECT_STATUS
+                res.statusCode = getRedirectStatus(route as Redirect)
 
                 // Since IE11 doesn't support the 308 header add backwards
                 // compatibility using refresh header
@@ -829,10 +828,10 @@ export default class Server {
     const isLikeServerless =
       typeof result.Component === 'object' &&
       typeof result.Component.renderReqToHTML === 'function'
-    const isSpr = !!result.unstable_getStaticProps
+    const isSSG = !!result.unstable_getStaticProps
 
     // non-spr requests should render like normal
-    if (!isSpr) {
+    if (!isSSG) {
       // handle serverless
       if (isLikeServerless) {
         const curUrl = parseUrl(req.url!, true)
@@ -854,23 +853,23 @@ export default class Server {
     }
 
     // Toggle whether or not this is an SPR Data request
-    const isSprData = isSpr && query._nextSprData
-    delete query._nextSprData
+    const isDataReq = query._nextDataReq
+    delete query._nextDataReq
 
     // Compute the SPR cache key
-    const sprCacheKey = parseUrl(req.url || '').pathname!
+    const ssgCacheKey = parseUrl(req.url || '').pathname!
 
     // Complete the response with cached data if its present
-    const cachedData = await getSprCache(sprCacheKey)
+    const cachedData = await getSprCache(ssgCacheKey)
     if (cachedData) {
-      const data = isSprData
+      const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
       this.__sendPayload(
         res,
         data,
-        isSprData ? 'application/json' : 'text/html; charset=utf-8',
+        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
         cachedData.curRevalidate
       )
 
@@ -884,7 +883,7 @@ export default class Server {
 
     // Serverless requests need its URL transformed back into the original
     // request path (to emulate lambda behavior in production)
-    if (isLikeServerless && isSprData) {
+    if (isLikeServerless && isDataReq) {
       let { pathname } = parseUrl(req.url || '', true)
       pathname = !pathname || pathname === '/' ? '/index' : pathname
       req.url = `/_next/data/${this.buildId}${pathname}.json`
@@ -892,10 +891,10 @@ export default class Server {
 
     const doRender = withCoalescedInvoke(async function(): Promise<{
       html: string | null
-      sprData: any
+      pageData: any
       sprRevalidate: number | false
     }> {
-      let sprData: any
+      let pageData: any
       let html: string | null
       let sprRevalidate: number | false
 
@@ -905,7 +904,7 @@ export default class Server {
         renderResult = await result.Component.renderReqToHTML(req, res, true)
 
         html = renderResult.html
-        sprData = renderResult.renderOpts.sprData
+        pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
       } else {
         const renderOpts = {
@@ -915,21 +914,21 @@ export default class Server {
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
         html = renderResult
-        sprData = renderOpts.sprData
+        pageData = renderOpts.pageData
         sprRevalidate = renderOpts.revalidate
       }
 
-      return { html, sprData, sprRevalidate }
+      return { html, pageData, sprRevalidate }
     })
 
-    return doRender(sprCacheKey, []).then(
-      async ({ isOrigin, value: { html, sprData, sprRevalidate } }) => {
+    return doRender(ssgCacheKey, []).then(
+      async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {
         // Respond to the request if a payload wasn't sent above (from cache)
         if (!isResSent(res)) {
           this.__sendPayload(
             res,
-            isSprData ? JSON.stringify(sprData) : html,
-            isSprData ? 'application/json' : 'text/html; charset=utf-8',
+            isDataReq ? JSON.stringify(pageData) : html,
+            isDataReq ? 'application/json' : 'text/html; charset=utf-8',
             sprRevalidate
           )
         }
@@ -937,8 +936,8 @@ export default class Server {
         // Update the SPR cache if the head request
         if (isOrigin) {
           await setSprCache(
-            sprCacheKey,
-            { html: html!, pageData: sprData },
+            ssgCacheKey,
+            { html: html!, pageData },
             sprRevalidate
           )
         }
@@ -969,7 +968,7 @@ export default class Server {
             res,
             pathname,
             result.unstable_getStaticProps
-              ? { _nextSprData: query._nextSprData }
+              ? { _nextDataReq: query._nextDataReq }
               : query,
             result,
             { ...this.renderOpts, amphtml, hasAmp }
@@ -995,7 +994,7 @@ export default class Server {
                   // only add params for SPR enabled pages
                   {
                     ...(result.unstable_getStaticProps
-                      ? { _nextSprData: query._nextSprData }
+                      ? { _nextDataReq: query._nextDataReq }
                       : query),
                     ...params,
                   },
@@ -1050,7 +1049,23 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const result = await this.findPageComponents('/_error', query)
+    let result: null | LoadComponentsReturnType = null
+
+    // use static 404 page if available and is 404 response
+    if (this.nextConfig.experimental.static404 && err === null) {
+      try {
+        result = await this.findPageComponents('/_errors/404')
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          throw err
+        }
+      }
+    }
+
+    if (!result) {
+      result = await this.findPageComponents('/_error', query)
+    }
+
     let html
     try {
       html = await this.renderToHTMLWithComponents(
