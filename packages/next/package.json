@@ -109,7 +109,6 @@
     "lru-cache": "5.1.1",
     "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.1",
-    "native-url": "0.2.4",
     "node-fetch": "2.6.0",
     "object-assign": "4.1.1",
     "ora": "3.4.0",
