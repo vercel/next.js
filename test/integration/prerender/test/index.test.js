@@ -108,6 +108,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/catchall/another%2Fvalue': {
+    dataRoute: `/_next/data/${buildId}/catchall/another%2Fvalue.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/first': {
+    dataRoute: `/_next/data/${buildId}/catchall/first.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/second': {
+    dataRoute: `/_next/data/${buildId}/catchall/second.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/hello/another': {
+    dataRoute: `/_next/data/${buildId}/catchall/hello/another.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
 })
 
 const navigateTest = (dev = false) => {
@@ -119,6 +139,7 @@ const navigateTest = (dev = false) => {
       '/normal',
       '/blog/post-1',
       '/blog/post-1/comment-1',
+      '/catchall/first',
     ]
 
     await waitFor(2500)
@@ -209,6 +230,15 @@ const navigateTest = (dev = false) => {
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('p:nth-child(2)').text()
     expect(text).toMatch(/Comment:.*?comment-1/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /catchall/first
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#to-catchall')
+    await browser.elementByCss('#to-catchall').click()
+    await browser.waitForElementByCss('#catchall')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi.*?first/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
     await browser.close()
@@ -305,6 +335,18 @@ const runTests = (dev = false) => {
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
+  })
+
+  it('should support prerendered catchall route', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall/another/value')
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
+  })
+
+  it('should support lazy catchall route', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall/third')
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi.*?third/)
   })
 
   if (dev) {
@@ -412,6 +454,13 @@ const runTests = (dev = false) => {
           ),
           routeRegex: normalizeRegEx(
             `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
+          ),
+        },
+        '/catchall/[...slug]': {
+          routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
+          dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
           ),
         },
       })
