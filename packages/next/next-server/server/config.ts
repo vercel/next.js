@@ -105,6 +105,35 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
+    if (key === 'pageExtensions') {
+      const pageExtensions = userConfig[key]
+
+      if (pageExtensions === undefined) {
+        delete userConfig[key]
+        return
+      }
+
+      if (!Array.isArray(pageExtensions)) {
+        throw new Error(
+          `Specified pageExtensions is not an array of strings, found "${pageExtensions}". Please update this config or remove it.`
+        )
+      }
+
+      if (!pageExtensions.length) {
+        throw new Error(
+          `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
+        )
+      }
+
+      pageExtensions.forEach(ext => {
+        if (typeof ext !== 'string') {
+          throw new Error(
+            `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+          )
+        }
+      })
+    }
+
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
