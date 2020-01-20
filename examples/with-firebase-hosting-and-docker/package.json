@@ -26,7 +26,7 @@
     "compression": "^1.7.3",
     "cors": "^2.8.4",
     "express": "^4.16.3",
-    "firebase-admin": "6.0.0",
+    "firebase-admin": "8.9.0",
     "firebase-functions": "^2.0.5",
     "helmet": "^3.13.0",
     "next": "latest",

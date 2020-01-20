@@ -1,5 +1,7 @@
 # MobX example
 
+Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use MobX that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +12,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mobx-react-lite with-mobx-react-lite-app
+npm init next-app --example with-mobx-react-lite with-mobx-react-lite-app
 # or
 yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 ```
@@ -45,15 +47,11 @@ now
 
 ## Notes
 
-This example is a mobx-react-lite port of the [with-mobx](https://github.com/zeit/next.js/tree/master/examples/with-mobx) example. MobX support has been implemented using React Hooks:
-
-## The idea behind the example
-
-Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use MobX that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
-
 In this example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color than the client one.
 
 ![](http://i.imgur.com/JCxtWSj.gif)
+
+This example is a mobx-react-lite port of the [with-mobx](https://github.com/zeit/next.js/tree/master/examples/with-mobx) example. MobX support has been implemented using React Hooks.
 
 Our page is located at `pages/index.js` so it will map the route `/`. To get the initial data for rendering we are implementing the static method `getInitialProps`, initializing the MobX store and returning the initial timestamp to be rendered. The root component for the render method is a React context provider that allows us to send the store down to children components so they can access to the state when required.
 

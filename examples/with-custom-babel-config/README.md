@@ -1,5 +1,13 @@
 # Using a custom Babel config
 
+This example features:
+
+- An app using proposed [do expressions](https://babeljs.io/docs/plugins/transform-do-expressions/).
+- It uses babel-preset-stage-0, which allows us to use above JavaScript feature.
+- It uses '.babelrc' file in the app directory to add above preset.
+
+> Most of the time, when writing a custom `.babelrc` file, you need to add `next/babel` as a preset.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +18,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-custom-babel-config with-custom-babel-config-app
+npm init next-app --example with-custom-babel-config with-custom-babel-config-app
 # or
 yarn create next-app --example with-custom-babel-config with-custom-babel-config-app
 ```
@@ -42,13 +50,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example features:
-
-- An app using proposed [do expressions](https://babeljs.io/docs/plugins/transform-do-expressions/).
-- It uses babel-preset-stage-0, which allows us to use above JavaScript feature.
-- It uses '.babelrc' file in the app directory to add above preset.
-
-> Most of the time, when writing a custom `.babelrc` file, you need to add `next/babel` as a preset.

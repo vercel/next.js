@@ -6,9 +6,9 @@ description: Extend the default webpack config added by Next.js.
 
 Some commonly asked for features are available as plugins:
 
-- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
 - [@next/mdx](https://github.com/zeit/next.js/tree/canary/packages/next-mdx)
 - [@next/bundle-analyzer](https://github.com/zeit/next.js/tree/canary/packages/next-bundle-analyzer)

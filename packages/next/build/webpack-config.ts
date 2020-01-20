@@ -87,7 +87,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
     // Replace: full URL polyfill with platform-based polyfill
-    url: require.resolve('native-url'),
+    // url: require.resolve('native-url'),
   }
 }
 
@@ -334,7 +334,14 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (module.type === `css/mini-extract`) {
+            if (
+              // mini-css-extract-plugin
+              module.type === `css/mini-extract` ||
+              // extract-css-chunks-webpack-plugin (old)
+              module.type === `css/extract-chunks` ||
+              // extract-css-chunks-webpack-plugin (new)
+              module.type === `css/extract-css-chunks`
+            ) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
