@@ -1,5 +1,9 @@
 # Recompose example
 
+This example show how to use [Recompose](https://github.com/acdlite/recompose) to wrap page components using High Order Components and use `getInitialProps` without worries.
+
+It also configure Babel to change our recompose imports so we're going to actually import only the functions we need and reduce the bundle size.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +14,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-recompose with-recompose-app
+npm init next-app --example with-recompose with-recompose-app
 # or
 yarn create next-app --example with-recompose with-recompose-app
 ```
@@ -42,9 +46,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example show how to use [Recompose](https://github.com/acdlite/recompose) to wrap page components using High Order Components and use `getInitialProps` without worries.
-
-It also configure Babel to change our recompose imports so we're going to actually import only the functions we need and reduce the bundle size.
