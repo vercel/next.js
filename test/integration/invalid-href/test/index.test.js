@@ -20,13 +20,45 @@ const appDir = join(__dirname, '..')
 const firstErrorRegex = /Invalid href passed to router: mailto:idk@idk.com.*invalid-href-passed/
 const secondErrorRegex = /Invalid href passed to router: .*google\.com.*invalid-href-passed/
 
-const showsError = async (pathname, regex, click = false) => {
+const showsError = async (
+  pathname,
+  regex,
+  click = false,
+  isWarn = false,
+  cb
+) => {
   const browser = await webdriver(appPort, pathname)
+  if (isWarn) {
+    await browser.eval(`(function() {
+      window.warnLogs = []
+      var origWarn = window.console.warn
+      window.console.warn = function() {
+        var warnStr = ''
+        for (var i = 0; i < arguments.length; i++) {
+          if (i > 0) warnStr += ' ';
+          warnStr += arguments[i]
+        }
+        window.warnLogs.push(warnStr)
+        origWarn.apply(undefined, arguments)
+      }
+    })()`)
+  }
+
   if (click) {
     await browser.elementByCss('a').click()
   }
-  const errorContent = await getReactErrorOverlayContent(browser)
-  expect(errorContent).toMatch(regex)
+  if (isWarn) {
+    await waitFor(2000)
+    const warnLogs = await browser.eval('window.warnLogs')
+    console.log(warnLogs)
+    expect(warnLogs.some(log => log.match(regex))).toBe(true)
+  } else {
+    const errorContent = await getReactErrorOverlayContent(browser)
+    expect(errorContent).toMatch(regex)
+  }
+
+  if (cb) await cb(browser)
+
   await browser.close()
 }
 
@@ -89,6 +121,16 @@ describe('Invalid hrefs', () => {
         /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
         true
       )
+      await showsError(
+        '/dynamic-route-mismatch',
+        /Mismatching `as` and `href` failed to manually provide the params: post in the `href`'s `query`/,
+        true,
+        true
+      )
+    })
+
+    it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
+      await noError('/dynamic-route-mismatch-manual', true)
     })
   })
 
@@ -122,6 +164,26 @@ describe('Invalid hrefs', () => {
 
     it('does not show error in production when https://google.com is used as href on router.replace', async () => {
       await noError('/second?method=replace', true)
+    })
+
+    it('shows error when dynamic route mismatch is used on Link', async () => {
+      const browser = await webdriver(appPort, '/dynamic-route-mismatch')
+      await browser.eval(`(function() {
+        window.caughtErrors = []
+        window.addEventListener('unhandledrejection', (error) => {
+          window.caughtErrors.push(error.reason.message)
+        })
+      })()`)
+      await browser.elementByCss('a').click()
+      await waitFor(500)
+      const errors = await browser.eval('window.caughtErrors')
+      expect(
+        errors.find(err =>
+          err.includes(
+            'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/zeit/next.js/incompatible-href-as'
+          )
+        )
+      ).toBeTruthy()
     })
   })
 })
