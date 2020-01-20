@@ -83,10 +83,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       experimentalWarning()
     }
 
-    if (key === 'distDir' && userConfig[key] === 'public') {
-      throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
-      )
+    if (key === 'distDir') {
+      if (typeof userConfig[key] !== 'string') {
+        userConfig[key] = defaultConfig.distDir
+      }
+      const userDistDir = userConfig[key].trim()
+
+      // don't allow public as the distDir as this is a reserved folder for
+      // public files
+      if (userDistDir === 'public') {
+        throw new Error(
+          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+        )
+      }
+      // make sure distDir isn't an empty string which can result the provided
+      // directory being deleted in development mode
+      if (userDistDir.length === 0) {
+        throw new Error(
+          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+        )
+      }
     }
 
     const maybeObject = userConfig[key]
