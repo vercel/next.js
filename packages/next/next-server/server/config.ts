@@ -84,8 +84,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (key === 'distDir') {
-      const userDistDir =
-        typeof userConfig[key] === 'string' ? userConfig[key].trim() : '.next'
+      if (typeof userConfig[key] !== 'string') {
+        userConfig[key] = defaultConfig.distDir
+      }
+      const userDistDir = userConfig[key].trim()
 
       // don't allow public as the distDir as this is a reserved folder for
       // public files

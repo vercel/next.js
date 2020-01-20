@@ -53,4 +53,13 @@ describe('Production Usage', () => {
       'Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined'
     )
   })
+
+  it('should handle null/undefined distDir', async () => {
+    const origNextConfig = await fs.readFile(nextConfig, 'utf8')
+    await fs.writeFile(nextConfig, `module.exports = { distDir: null }`)
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    await fs.writeFile(nextConfig, origNextConfig)
+
+    expect(stderr.length).toBe(0)
+  })
 })
