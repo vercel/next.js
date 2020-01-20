@@ -1,6 +1,6 @@
 {
   "name": "with-relay-modern",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Example of Next.js with Relay Modern SSR",
   "scripts": {
     "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
@@ -8,24 +8,24 @@
     "build": "next build",
     "start": "next start",
     "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
-    "schema": "graphql get-schema dev"
+    "schema": "graphql get-schema -e dev"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dotenv": "^4.0.0",
-    "dotenv-webpack": "^1.5.4",
-    "graphql": "^14.1.1",
+    "dotenv": "^8.2.0",
+    "dotenv-webpack": "^1.7.0",
+    "graphql": "^14.5.8",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-relay": "^5.0.0"
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "react-relay": "^8.0.0"
   },
   "devDependencies": {
-    "babel-plugin-relay": "^2.0.0",
-    "graphcool": "^1.2.1",
-    "graphql-cli": "^1.0.0-beta.4",
-    "relay-compiler": "^2.0.0"
+    "babel-plugin-relay": "^8.0.0",
+    "graphcool": "^1.4.0",
+    "graphql-cli": "^3.0.14",
+    "relay-compiler": "^8.0.0"
   }
 }
