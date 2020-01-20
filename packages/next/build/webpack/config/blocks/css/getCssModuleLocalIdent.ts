@@ -19,8 +19,8 @@ export function getCssModuleLocalIdent(
       relativePath.endsWith('index.module.scss') ||
       relativePath.endsWith('index.module.sass')) &&
     relativePath !== 'pages/index.module.css' &&
-      relativePath !== 'pages/index.module.scss' &&
-      relativePath !== 'pages/index.module.sass'
+    relativePath !== 'pages/index.module.scss' &&
+    relativePath !== 'pages/index.module.sass'
       ? '[folder]'
       : '[name]'
 

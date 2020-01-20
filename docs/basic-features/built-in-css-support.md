@@ -157,10 +157,19 @@ export default HelloWorld
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
-## Sass, Less, and Stylus Support
+## Sass Support
 
-To support importing `.scss`, `.less` or `.styl` files you can use the following plugins:
+To enable importing global `.scss` or `.sass` within `pages/_app.js` and component-level CSS Modules with `.module.scss` or `.module.sass` install `node-sass` as a dependency to your project:
 
-- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+```bash
+npm install node-sass
+```
+
+Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
+
+## Less and Stylus Support
+
+To support importing `.less` or `.styl` files you can use the following plugins:
+
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
