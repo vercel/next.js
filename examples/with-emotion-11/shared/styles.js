@@ -1,15 +1,21 @@
-import styled, { keyframes, css, injectGlobal } from 'react-emotion'
+import { keyframes, css, Global } from '@emotion/react'
+import styled from '@emotion/styled'
 
-export const injectGlobalStyles = () => injectGlobal`
-html, body {
-  padding: 3rem 1rem;
-  margin: 0;
-  background: papayawhip;
-  min-height: 100%;
-  font-family: Helvetica, Arial, sans-serif;
-  font-size: 24px;
-}
-`
+export const globalStyles = (
+  <Global
+    styles={css`
+      html,
+      body {
+        padding: 3rem 1rem;
+        margin: 0;
+        background: papayawhip;
+        min-height: 100%;
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 24px;
+      }
+    `}
+  />
+)
 
 export const basicStyles = css`
   background-color: white;
@@ -32,12 +38,12 @@ export const hoverStyles = css`
   }
 `
 export const bounce = keyframes`
-from {
-transform: scale(1.01);
-}
-to {
-transform: scale(0.99);
-}
+  from {
+    transform: scale(1.01);
+  }
+  to {
+    transform: scale(0.99);
+  }
 `
 
 export const Basic = styled('div')`
