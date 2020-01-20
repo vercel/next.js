@@ -325,7 +325,7 @@ describe('SCSS modules', () => {
 
       const cssPreload = $('#nm-div')
       expect(cssPreload.text()).toMatchInlineSnapshot(
-        `"{\\"message\\":\\"Why hello there\\"} {\\"subClass\\":\\"example_subClass__2YUgj other_className__bt_-E\\"}"`
+        `"{\\"message\\":\\"Why hello there\\"} {\\"other2\\":\\"example_other2__1pnJV\\",\\"subClass\\":\\"example_subClass__2EbKX other_className__E6nd8\\"}"`
       )
     })
 
@@ -341,7 +341,7 @@ describe('SCSS modules', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.other2_other2__2PUfY{color:red}.example_subClass__2YUgj{background:#00f}"`
+        `".other_other3__ZPN-Y{color:violet}.other_className__E6nd8{background:red;color:#ff0}.example_other2__1pnJV{color:red}.example_subClass__2EbKX{background:#00f}"`
       )
     })
   })
