@@ -339,12 +339,14 @@ export default class Router implements BaseRouter {
           )
 
           if (missingParams.length > 0) {
-            console.warn(
-              `Mismatching \`as\` and \`href\` failed to manually provide ` +
-                `the params: ${missingParams.join(
-                  ', '
-                )} in the \`href\`'s \`query\``
-            )
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                `Mismatching \`as\` and \`href\` failed to manually provide ` +
+                  `the params: ${missingParams.join(
+                    ', '
+                  )} in the \`href\`'s \`query\``
+              )
+            }
 
             return reject(
               new Error(
