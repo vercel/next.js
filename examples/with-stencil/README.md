@@ -51,7 +51,7 @@ now
 
 Stencil is a compiler that generates Web Components (more specifically, Custom Elements). Stencil combines the best concepts of the most popular frameworks into a simple build-time tool.
 
-In this example we have three workspaces:
+In this example we have two workspaces:
 
 - **web-app**: A Next.js app
 - **test-component**: A stencil components
