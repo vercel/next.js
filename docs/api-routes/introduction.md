@@ -71,6 +71,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/basic-features/typescript.md#api-routes">
     <b>TypeScript:</b>
-    <small>Add TypeScript to your API Routes</small>
+    <small>Add TypeScript to your API Routes.</small>
   </a>
 </div>
