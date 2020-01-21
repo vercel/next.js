@@ -190,4 +190,57 @@ describe('Query String with Encoding', () => {
       }
     })
   })
+
+  describe('plus', () => {
+    it('should have correct query on SSR', async () => {
+      const browser = await webdriver(appPort, '/?test=abc%2B')
+      try {
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toBe('{"test":"abc+"}')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on Router#push', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await waitFor(2000)
+        await browser.eval(
+          `window.next.router.push({pathname:'/',query:{abc:'def+'}})`
+        )
+        await waitFor(1000)
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toBe('{"abc":"def+"}')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on simple client-side <Link>', async () => {
+      const browser = await webdriver(appPort, '/plus')
+      try {
+        await waitFor(2000)
+        await browser.elementByCss('#hello-plus').click()
+        await waitFor(1000)
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toBe('{"another":"hello+"}')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct query on complex client-side <Link>', async () => {
+      const browser = await webdriver(appPort, '/plus')
+      try {
+        await waitFor(2000)
+        await browser.elementByCss('#hello-complex').click()
+        await waitFor(1000)
+        const text = await browser.elementByCss('#query-content').text()
+        expect(text).toBe('{"complex":"yes+"}')
+      } finally {
+        await browser.close()
+      }
+    })
+  })
 })
