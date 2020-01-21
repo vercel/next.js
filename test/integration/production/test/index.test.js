@@ -1,26 +1,27 @@
 /* eslint-env jest */
 /* global jasmine, browserName */
-import webdriver from 'next-webdriver'
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import cheerio from 'cheerio'
+import { existsSync, readFileSync } from 'fs'
 import {
   nextServer,
+  renderViaHTTP,
   runNextCommand,
   startApp,
   stopApp,
-  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import {
+  BUILD_MANIFEST,
+  PAGES_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from 'next/constants'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
+import { join } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {
-  BUILD_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
-  PAGES_MANIFEST,
-} from 'next/constants'
-import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
 let appPort
@@ -172,23 +173,39 @@ describe('Production Usage', () => {
       ))
       const url = `http://localhost:${appPort}/_next/`
 
-      const resources = []
+      const resources = new Set()
 
       // test a regular page
-      resources.push(`${url}static/${buildId}/pages/index.js`)
+      resources.add(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(
+      resources.add(
         url + reactLoadableManifest['../../components/hello1'][0].publicPath
       )
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
-        resources.push(url + item)
+        resources.add(url + item)
       }
 
+      const cssStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.css$/
+      )
+      expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      const mediaStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.svg$/
+      )
+      expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      ;[...cssStaticAssets, ...mediaStaticAssets].forEach(asset => {
+        resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
+      })
+
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        [...resources].map(resource => fetch(resource))
       )
 
       responses.forEach(res => {
