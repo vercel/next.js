@@ -150,9 +150,6 @@ const navigateTest = (dev = false) => {
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
-    // hydration
-    await waitFor(2500)
-
     // go to /another
     async function goFromHomeToAnother() {
       await browser.eval('window.beforeAnother = true')
@@ -322,7 +319,6 @@ const runTests = (dev = false) => {
 
   it('should parse query values on mount correctly', async () => {
     const browser = await webdriver(appPort, '/blog/post-1?another=value')
-    await waitFor(2000)
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
     expect(text).toMatch(/post.*?post-1/)
@@ -330,7 +326,6 @@ const runTests = (dev = false) => {
 
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(500)
     await browser.eval('window.beforeClick = true')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)

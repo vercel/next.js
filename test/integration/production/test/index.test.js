@@ -608,7 +608,6 @@ describe('Production Usage', () => {
 
   it('should handle AMP correctly in IE', async () => {
     const browser = await webdriver(appPort, '/some-amp')
-    await waitFor(1000)
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('Not AMP')
   })
