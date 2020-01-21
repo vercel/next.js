@@ -330,6 +330,8 @@ export default class Server {
           if (
             params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
             params.path[0] === 'chunks' ||
+            params.path[0] === 'css' ||
+            params.path[0] === 'media' ||
             params.path[0] === this.buildId
           ) {
             this.setImmutableAssetCacheControl(res)
