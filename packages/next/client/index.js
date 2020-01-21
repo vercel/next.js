@@ -114,6 +114,14 @@ class Container extends React.Component {
         }
       )
     }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }
   }
 
   componentDidUpdate() {

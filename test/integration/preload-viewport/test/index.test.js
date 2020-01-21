@@ -36,7 +36,6 @@ describe('Prefetching Links in viewport', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      await waitFor(2 * 1000)
       const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
@@ -124,7 +123,6 @@ describe('Prefetching Links in viewport', () => {
 
   it('should not prefetch when prefetch is explicitly set to false', async () => {
     const browser = await webdriver(appPort, '/opt-out')
-    await waitFor(2 * 1000)
 
     const links = await browser.elementsByCss('link[rel=prefetch]')
     let found = false
@@ -141,7 +139,6 @@ describe('Prefetching Links in viewport', () => {
 
   it('should not duplicate prefetches', async () => {
     const browser = await webdriver(appPort, '/multi-prefetch')
-    await waitFor(2 * 1000)
 
     const links = await browser.elementsByCss('link[rel=prefetch]')
 
@@ -163,7 +160,6 @@ describe('Prefetching Links in viewport', () => {
     // info: both `/` and `/de-duped` ref the `/first` page, which we don't
     // want to be re-fetched/re-observed.
     const browser = await webdriver(appPort, '/')
-    await waitFor(2 * 1000)
     await browser.eval(`(function() {
       window.calledPrefetch = false
       window.next.router.prefetch = function() {
