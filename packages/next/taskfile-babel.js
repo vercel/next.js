@@ -25,15 +25,6 @@ const babelClientOpts = {
     // eslint-disable-next-line no-useless-concat
     '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
-    [
-      '@babel/plugin-transform-runtime',
-      {
-        corejs: 2,
-        helpers: true,
-        regenerator: false,
-        useESModules: false,
-      },
-    ],
   ],
 }
 
@@ -76,6 +67,21 @@ module.exports = function(task) {
 
     const options = {
       ...babelOpts,
+      plugins: [
+        ...babelOpts.plugins,
+        // pages dir doesn't need core-js
+        serverOrClient === 'client' && file.dir !== 'pages'
+          ? [
+              '@babel/plugin-transform-runtime',
+              {
+                corejs: 2,
+                helpers: true,
+                regenerator: false,
+                useESModules: false,
+              },
+            ]
+          : false,
+      ].filter(Boolean),
       compact: true,
       babelrc: false,
       configFile: false,
