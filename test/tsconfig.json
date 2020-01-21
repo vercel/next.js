@@ -3,7 +3,8 @@
     "module": "esnext",
     "target": "es6",
     "allowJs": true,
-    "baseUrl": "./lib"
+    "baseUrl": "./lib",
+    "noEmit": true
   },
   "include": ["./**/*"]
 }
