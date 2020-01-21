@@ -178,7 +178,6 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
   // FIXME: this is broken
   it('should update CSS color without remounting <input>', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(2000) // ensure application hydrates
 
     const desiredText = 'hello world'
     await browser.elementById('text-input').type(desiredText)
