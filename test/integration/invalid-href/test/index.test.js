@@ -64,6 +64,7 @@ const showsError = async (
 
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
+  await waitFor(2000)
   await browser.eval(`(function() {
     window.caughtErrors = []
     window.addEventListener('error', function (error) {
@@ -74,7 +75,8 @@ const noError = async (pathname, click = false) => {
     })
     window.next.router.replace('${pathname}')
   })()`)
-  await waitFor(250)
+  // wait for page to be built and navigated to
+  await waitFor(3000)
   if (click) {
     await browser.elementByCss('a').click()
   }
