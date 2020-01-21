@@ -126,18 +126,32 @@ export default function checkCustomRoutes(
       invalidParts.push(...result.invalidParts)
     }
 
-    if (typeof route.source === 'string') {
+    if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
       try {
         // Make sure we can parse the source properly
         regexpMatch(route.source)
       } catch (err) {
-        // If there is an error show our err.sh but still show original error
-        console.error(
-          `\nError parsing ${route.source} https://err.sh/zeit/next.js/invalid-route-source`,
-          err
-        )
+        // If there is an error show our err.sh but still show original error or a formatted one if we can
+        const errMatches = err.message.match(/at (\d{0,})/)
+
+        if (errMatches) {
+          const position = parseInt(errMatches[1], 10)
+          console.error(
+            `\nError parsing \`${route.source}\` ` +
+              `https://err.sh/zeit/next.js/invalid-route-source\n` +
+              `Reason: ${err.message}\n\n` +
+              `  ${route.source}\n` +
+              `  ${new Array(position).fill(' ').join('')}^\n`
+          )
+        } else {
+          console.error(
+            `\nError parsing ${route.source} https://err.sh/zeit/next.js/invalid-route-source`,
+            err
+          )
+        }
+        invalidParts.push('`source` parse failed')
       }
     }
 
