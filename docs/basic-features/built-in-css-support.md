@@ -157,10 +157,8 @@ export default HelloWorld
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
-## Sass, Less, and Stylus Support
+## Sass Support
 
-To support importing `.scss`, `.less` or `.styl` files you can use the following plugins:
+To support importing `.scss` and `.sass` files you can use the following plugin:
 
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
-- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
