@@ -64,7 +64,6 @@ const showsError = async (
 
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
-  await waitFor(2000)
   await browser.eval(`(function() {
     window.caughtErrors = []
     window.addEventListener('error', function (error) {

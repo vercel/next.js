@@ -3,13 +3,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import {
-  nextBuild,
-  nextStart,
-  findPort,
-  waitFor,
-  killApp,
-} from 'next-test-utils'
+import { nextBuild, nextStart, findPort, killApp } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = path.join(__dirname, '..')
@@ -27,7 +21,6 @@ describe('Hydration', () => {
 
   it('Hydrates correctly', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(2000)
     expect(await browser.eval('window.didHydrate')).toBe(true)
   })
 })
