@@ -74,7 +74,7 @@ module.exports = function(task) {
           ? [
               '@babel/plugin-transform-runtime',
               {
-                corejs: file.dir !== 'pages' ? 2 : false,
+                corejs: false,
                 helpers: true,
                 regenerator: false,
                 useESModules: false,
