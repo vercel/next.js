@@ -149,7 +149,7 @@ module.exports = (
           useBuiltIns: true,
         },
       ],
-      [
+      !isServer && [
         require('@babel/plugin-transform-runtime'),
         {
           corejs: 2,
