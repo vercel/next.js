@@ -185,11 +185,34 @@ export async function nextbuildstatic(task, opts) {
   notify('Compiled export files')
 }
 
-export async function pages(task, opts) {
+export async function pages_app(task) {
   await task
-    .source(opts.src || 'pages/**/*.+(js|ts|tsx)')
+    .source('pages/_app.tsx')
     .babel(babelClientOpts)
     .target('dist/pages')
+}
+
+export async function pages_error(task) {
+  await task
+    .source('pages/_error.tsx')
+    .babel(babelClientOpts)
+    .target('dist/pages')
+}
+
+export async function pages_document(task) {
+  const babelOpts = {
+    ...babelServerOpts,
+    presets: [...babelServerOpts.presets, '@babel/preset-react'],
+  }
+
+  await task
+    .source('pages/_document.tsx')
+    .babel(babelOpts)
+    .target('dist/pages')
+}
+
+export async function pages(task, opts) {
+  await task.parallel(['pages_app', 'pages_error', 'pages_document'])
 }
 
 export async function telemetry(task, opts) {

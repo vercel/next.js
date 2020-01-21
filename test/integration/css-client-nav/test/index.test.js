@@ -5,7 +5,6 @@ import { remove } from 'fs-extra'
 import {
   nextBuild,
   nextStart,
-  waitFor,
   findPort,
   killApp,
   renderViaHTTP,
@@ -80,9 +79,6 @@ describe('CSS Module client-side navigation in Production', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/blue')
-
-      await waitFor(2000) // Ensure hydration
-
       await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
 
       const redColor = await browser.eval(

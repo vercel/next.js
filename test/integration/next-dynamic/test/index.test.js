@@ -7,7 +7,6 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
   runNextCommand,
   nextServer,
   startApp,
@@ -29,7 +28,6 @@ function runTests() {
 
   it('should render dynamic server rendered values on client mount', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(5000)
     const text = await browser.elementByCss('#first-render').text()
 
     // Failure case is 'Index<!-- -->3<!-- --><!-- -->'

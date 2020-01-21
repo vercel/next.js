@@ -3,13 +3,7 @@
 import { join } from 'path'
 import express from 'express'
 import http from 'http'
-import {
-  nextBuild,
-  waitFor,
-  nextServer,
-  promiseCall,
-  stopApp,
-} from 'next-test-utils'
+import { nextBuild, nextServer, promiseCall, stopApp } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -134,7 +128,6 @@ describe('Chunking', () => {
 
     it('should hydrate with granularChunks config', async () => {
       const browser = await webdriver(appPort, '/page2')
-      await waitFor(1000)
       const text = await browser.elementByCss('#padded-str').text()
 
       expect(text).toBe('__rad__')
@@ -144,7 +137,6 @@ describe('Chunking', () => {
 
     it('should load chunks when navigating', async () => {
       const browser = await webdriver(appPort, '/page3')
-      await waitFor(1000)
       const text = await browser
         .elementByCss('#page2-link')
         .click()

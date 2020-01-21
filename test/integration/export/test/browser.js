@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { check, waitFor, getBrowserBodyText } from 'next-test-utils'
+import { check, getBrowserBodyText } from 'next-test-utils'
 
 export default function(context) {
   describe('Render via browser', () => {
@@ -191,7 +191,6 @@ export default function(context) {
 
     it('should update query after mount', async () => {
       const browser = await webdriver(context.port, '/query-update?hello=world')
-      await waitFor(2000)
       const query = await browser.elementByCss('#query').text()
       expect(JSON.parse(query)).toEqual({ hello: 'world', a: 'blue' })
       await browser.close()

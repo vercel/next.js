@@ -13,8 +13,7 @@
   },
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "^1.3.0",
-    "autoprefixer": "^9.7.4",
-    "postcss-import": "^12.0.1",
+    "postcss-preset-env": "^6.7.0",
     "tailwindcss": "^1.1.4"
   }
 }
