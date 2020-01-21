@@ -231,57 +231,55 @@ const invalidHeaderAssertions = (stderr = '') => {
   expect(stderr).not.toContain('/valid-header')
 }
 
-describe('Errors on invalid custom routes', () => {
-  afterAll(() => fs.remove(nextConfigPath))
+let getStderr
 
+const runTests = () => {
   it('should error during next build for invalid redirects', async () => {
     await writeConfig(invalidRedirects, 'redirects')
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+    const stderr = await getStderr()
     invalidRedirectAssertions(stderr)
   })
 
   it('should error during next build for invalid rewrites', async () => {
     await writeConfig(invalidRewrites, 'rewrites')
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+    const stderr = await getStderr()
     invalidRewriteAssertions(stderr)
   })
 
   it('should error during next build for invalid headers', async () => {
     await writeConfig(invalidHeaders, 'headers')
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+    const stderr = await getStderr()
     invalidHeaderAssertions(stderr)
   })
+}
 
-  it('should error during next dev for invalid redirects', async () => {
-    await writeConfig(invalidRedirects, 'redirects')
-    let stderr = ''
-    await launchApp(appDir, await findPort(), {
-      onStderr: msg => {
-        stderr += msg
-      },
+describe('Errors on invalid custom routes', () => {
+  afterAll(() => fs.remove(nextConfigPath))
+
+  describe('dev mode', () => {
+    beforeAll(() => {
+      getStderr = async () => {
+        let stderr = ''
+        await launchApp(appDir, await findPort(), {
+          onStderr: msg => {
+            stderr += msg
+          },
+        })
+        return stderr
+      }
     })
-    invalidRedirectAssertions(stderr)
+
+    runTests()
   })
 
-  it('should error during next dev for invalid rewrites', async () => {
-    await writeConfig(invalidRewrites, 'rewrites')
-    let stderr = ''
-    await launchApp(appDir, await findPort(), {
-      onStderr: msg => {
-        stderr += msg
-      },
+  describe('production mode', () => {
+    beforeAll(() => {
+      getStderr = async () => {
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        return stderr
+      }
     })
-    invalidRewriteAssertions(stderr)
-  })
 
-  it('should error during next dev for invalid headers', async () => {
-    await writeConfig(invalidHeaders, 'headers')
-    let stderr = ''
-    await launchApp(appDir, await findPort(), {
-      onStderr: msg => {
-        stderr += msg
-      },
-    })
-    invalidHeaderAssertions(stderr)
+    runTests()
   })
 })
