@@ -202,13 +202,12 @@ export async function pages_error(task) {
 export async function pages_document(task) {
   const babelOpts = {
     ...babelServerOpts,
+    presets: [...babelServerOpts.presets, '@babel/preset-react'],
   }
-
-  babelOpts.presets.push('@babel/preset-react')
 
   await task
     .source('pages/_document.tsx')
-    .babel(babelServerOpts)
+    .babel(babelOpts)
     .target('dist/pages')
 }
 
