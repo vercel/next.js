@@ -134,7 +134,7 @@ export const css = curry(async function css(
 
   function getModuleStyleLoader(
     cssOptions: webpack.ParserOptions,
-    preProcessor: string
+    preProcessor?: string
   ) {
     const loaders: webpack.RuleSetUseItem[] = []
 
@@ -221,25 +221,22 @@ export const css = curry(async function css(
             exclude: /node_modules/,
           },
 
-          use: getModuleStyleLoader(
-            {
-              importLoaders: 1,
-              sourceMap: true,
-              onlyLocals: ctx.isServer,
-              modules: {
-                // Disallow global style exports so we can code-split CSS and
-                // not worry about loading order.
-                mode: 'pure',
-                // Generate a friendly production-ready name so it's
-                // reasonably understandable. The same name is used for
-                // development.
-                // TODO: Consider making production reduce this to a single
-                // character?
-                getLocalIdent: getCssModuleLocalIdent,
-              },
+          use: getModuleStyleLoader({
+            importLoaders: 1,
+            sourceMap: true,
+            onlyLocals: ctx.isServer,
+            modules: {
+              // Disallow global style exports so we can code-split CSS and
+              // not worry about loading order.
+              mode: 'pure',
+              // Generate a friendly production-ready name so it's
+              // reasonably understandable. The same name is used for
+              // development.
+              // TODO: Consider making production reduce this to a single
+              // character?
+              getLocalIdent: getCssModuleLocalIdent,
             },
-            require.resolve('sass-loader')
-          ),
+          }),
         },
         // Opt-in support for SASS (using .scss or .sass extensions).
         // By default we support SASS Modules with the
@@ -365,7 +362,7 @@ export const css = curry(async function css(
               // Resolve CSS `@import`s and `url()`s
               {
                 loader: require.resolve('css-loader'),
-                options: { importLoaders: 1, sourceMap: true },
+                options: { importLoaders: 2, sourceMap: true },
               },
 
               // Compile CSS
@@ -374,6 +371,14 @@ export const css = curry(async function css(
                 options: {
                   ident: '__nextjs_postcss',
                   plugins: postCssPlugins,
+                  sourceMap: true,
+                },
+              },
+
+              // Preprocess Sass
+              {
+                loader: require.resolve('sass-loader'),
+                options: {
                   sourceMap: true,
                 },
               },
