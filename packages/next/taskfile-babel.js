@@ -70,11 +70,11 @@ module.exports = function(task) {
       plugins: [
         ...babelOpts.plugins,
         // pages dir doesn't need core-js
-        serverOrClient === 'client' && file.dir !== 'pages'
+        serverOrClient === 'client'
           ? [
               '@babel/plugin-transform-runtime',
               {
-                corejs: 2,
+                corejs: file.dir !== 'pages' ? 2 : false,
                 helpers: true,
                 regenerator: false,
                 useESModules: false,
