@@ -114,6 +114,14 @@ class Container extends React.Component {
         }
       )
     }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }
   }
 
   componentDidUpdate() {
@@ -200,9 +208,15 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 
   const renderCtx = { App, Component, props, err: initialErr }
-  render(renderCtx)
 
-  return emitter
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
 export async function render(props) {
