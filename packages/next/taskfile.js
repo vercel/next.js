@@ -25,7 +25,7 @@ const babelClientOpts = {
     [
       '@babel/plugin-transform-runtime',
       {
-        corejs: 2,
+        corejs: false,
         helpers: true,
         regenerator: false,
         useESModules: false,
