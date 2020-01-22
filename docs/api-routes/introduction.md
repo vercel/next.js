@@ -34,6 +34,21 @@ For an API route to work, you need to export as default a function (a.k.a **requ
 - `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some pre-built middlewares you can see [here](/docs/api-routes/api-middlewares.md)
 - `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some helper functions you can see [here](/docs/api-routes/response-helpers.md)
 
+The code that is located outside of the default export will only be run one time. It is executed the first time the api endpoint is called. In the following example, the counter will start at 0 and will increment each time the endpoint is called:
+
+```js
+let counter = 0
+
+export default (req, res) => {
+  res.statusCode = 200
+  res.setHeader('Content-Type', 'application/json')
+  res.end(JSON.stringify({ counter }))
+  counter++
+}
+
+```
+
+
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
 
 ```js
