@@ -12,7 +12,7 @@ const exec = promisify(execOrig)
 const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const timings = []
-const TIMINGS_API = 'http://next-timings.jjsweb.site/api/timings'
+const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
