@@ -1,6 +1,6 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import { Configuration } from 'webpack'
+import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -13,19 +13,52 @@ import {
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
-// RegExps for Stylesheets
-const regexCssAll = /\.css$/
+// RegExps for all Style Sheet variants
+const regexLikeCss = /\.(css|scss|sass)$/
+
+// RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
 const regexCssModules = /\.module\.css$/
 
+// RegExps for Syntactically Awesome Style Sheets
+const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
+const regexSassModules = /\.module\.(scss|sass)$/
+
 export const css = curry(async function css(
   enabled: boolean,
+  scssEnabled: boolean,
   ctx: ConfigurationContext,
   config: Configuration
 ) {
   if (!enabled) {
     return config
   }
+
+  const sassPreprocessors: webpack.RuleSetUseItem[] = [
+    // First, process files with `sass-loader`: this inlines content, and
+    // compiles away the proprietary syntax.
+    {
+      loader: require.resolve('sass-loader'),
+      options: {
+        // Source maps are required so that `resolve-url-loader` can locate
+        // files original to their source directory.
+        sourceMap: true,
+      },
+    },
+    // Then, `sass-loader` will have passed-through CSS imports as-is instead
+    // of inlining them. Because they were inlined, the paths are no longer
+    // correct.
+    // To fix this, we use `resolve-url-loader` to rewrite the CSS
+    // imports to real file paths.
+    {
+      loader: require.resolve('resolve-url-loader'),
+      options: {
+        // Source maps are not required here, but we may as well emit
+        // them.
+        sourceMap: true,
+      },
+    },
+  ]
 
   const fns: ConfigurationFn[] = [
     loader({
@@ -55,7 +88,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: regexCssAll,
+          test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
           issuer: { test: /pages[\\/]_document\./ },
@@ -94,13 +127,41 @@ export const css = curry(async function css(
       ],
     })
   )
+  if (scssEnabled) {
+    fns.push(
+      loader({
+        oneOf: [
+          // Opt-in support for Sass (using .scss or .sass extensions).
+          {
+            // Sass Modules should never have side effects. This setting will
+            // allow unused Sass to be removed from the production build.
+            // We ensure this by disallowing `:global()` Sass at the top-level
+            // via the `pure` mode in `css-loader`.
+            sideEffects: false,
+            // Sass Modules are activated via this specific extension.
+            test: regexSassModules,
+            // Sass Modules are only supported in the user's application. We're
+            // not yet allowing Sass imports _within_ `node_modules`.
+            issuer: {
+              include: [ctx.rootDirectory],
+              exclude: /node_modules/,
+            },
+            use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
+          },
+        ],
+      })
+    )
+  }
 
   // Throw an error for CSS Modules used outside their supported scope
   fns.push(
     loader({
       oneOf: [
         {
-          test: regexCssModules,
+          test: [
+            regexCssModules,
+            (scssEnabled && regexSassModules) as RegExp,
+          ].filter(Boolean),
           use: {
             loader: 'error-loader',
             options: {
@@ -116,7 +177,13 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          { test: regexCssGlobal, use: require.resolve('ignore-loader') },
+          {
+            test: [
+              regexCssGlobal,
+              (scssEnabled && regexSassGlobal) as RegExp,
+            ].filter(Boolean),
+            use: require.resolve('ignore-loader'),
+          },
         ],
       })
     )
@@ -137,6 +204,24 @@ export const css = curry(async function css(
         ],
       })
     )
+    if (scssEnabled) {
+      fns.push(
+        loader({
+          oneOf: [
+            {
+              // A global Sass import always has side effects. Webpack will tree
+              // shake the Sass without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexSassGlobal,
+              issuer: { include: ctx.customAppFile },
+              use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
+            },
+          ],
+        })
+      )
+    }
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
@@ -144,7 +229,10 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: regexCssGlobal,
+          test: [
+            regexCssGlobal,
+            (scssEnabled && regexSassGlobal) as RegExp,
+          ].filter(Boolean),
           issuer: { include: [/node_modules/] },
           use: {
             loader: 'error-loader',
@@ -162,7 +250,10 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: regexCssGlobal,
+          test: [
+            regexCssGlobal,
+            (scssEnabled && regexSassGlobal) as RegExp,
+          ].filter(Boolean),
           use: {
             loader: 'error-loader',
             options: {
@@ -185,7 +276,7 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: regexCssAll },
+            issuer: { test: regexLikeCss },
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {
