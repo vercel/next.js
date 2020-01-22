@@ -1,0 +1,6 @@
+$var: red;
+.redText {
+  ::placeholder {
+    color: $var;
+  }
+}
