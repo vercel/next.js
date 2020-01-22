@@ -86,10 +86,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (key === 'distDir') {
-      if (typeof userConfig[key] !== 'string') {
-        userConfig[key] = defaultConfig.distDir
+      if (typeof config[key] !== 'string') {
+        config[key] = defaultConfig.distDir
       }
-      const userDistDir = userConfig[key].trim()
+      const userDistDir = config[key].trim()
 
       // don't allow public as the distDir as this is a reserved folder for
       // public files
@@ -108,10 +108,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (key === 'pageExtensions') {
-      const pageExtensions = userConfig[key]
+      const pageExtensions = config[key]
 
       if (pageExtensions === undefined) {
-        delete userConfig[key]
+        delete config[key]
         return
       }
 
