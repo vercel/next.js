@@ -22,6 +22,7 @@ const regexCssGlobal = /(?<!\.module)\.css$/
 const regexCssModules = /\.module\.css$/
 
 // RegExps for Syntactically Awesome Style Sheets
+const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
 export const css = curry(async function css(
@@ -145,7 +146,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.module\.(css|scss|sass)$/,
+          test: [regexCssModules, regexSassModules],
           use: {
             loader: 'error-loader',
             options: {
@@ -231,7 +232,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.(css|scss|sass)$/,
+          test: [regexCssGlobal, regexSassGlobal],
           issuer: { include: [/node_modules/] },
           use: {
             loader: 'error-loader',
@@ -249,7 +250,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.(css|scss|sass)$/,
+          test: [regexCssGlobal, regexSassGlobal],
           use: {
             loader: 'error-loader',
             options: {
@@ -272,7 +273,7 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: /\.(css|scss|sass)$/ },
+            issuer: { test: regexLikeCss },
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {
