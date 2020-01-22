@@ -20,7 +20,7 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 // So, we need to polyfill it.
 // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
-  window.Promise = Promise
+  window.Promise = require('@babel/runtime-corejs2/core-js/promise')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
