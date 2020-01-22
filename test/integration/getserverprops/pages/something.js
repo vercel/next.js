@@ -5,11 +5,13 @@ import { useRouter } from 'next/router'
 // eslint-disable-next-line camelcase
 export async function unstable_getServerProps({ params, query }) {
   return {
-    world: 'world',
-    query: query || {},
-    params: params || {},
-    time: new Date().getTime(),
-    random: Math.random(),
+    props: {
+      world: 'world',
+      query: query || {},
+      params: params || {},
+      time: new Date().getTime(),
+      random: Math.random(),
+    },
   }
 }
 

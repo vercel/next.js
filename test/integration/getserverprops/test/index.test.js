@@ -84,6 +84,12 @@ const expectedManifestRoutes = () => ({
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
     ),
   },
+  '/invalid-keys': {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys.json$`
+    ),
+    page: '/invalid-keys',
+  },
 })
 
 const navigateTest = (dev = false) => {
@@ -306,7 +312,17 @@ const runTests = (dev = false) => {
     expect(curRandom).toBe(initialRandom + '')
   })
 
-  if (!dev) {
+  if (dev) {
+    it('should show error for extra keys returned from getServerProps', async () => {
+      const html = await renderViaHTTP(appPort, '/invalid-keys')
+      expect(html).toContain(
+        `Additional keys were returned from \`getServerProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
+      )
+      expect(html).toContain(
+        `Keys that need to be moved: world, query, params, time, random`
+      )
+    })
+  } else {
     it('should not fetch data on mount', async () => {
       const browser = await webdriver(appPort, '/blog/post-100')
       await browser.eval('window.thisShouldStay = true')

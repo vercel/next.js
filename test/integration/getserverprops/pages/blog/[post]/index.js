@@ -15,9 +15,11 @@ export async function unstable_getServerProps({ params }) {
   }
 
   return {
-    params,
-    post: params.post,
-    time: (await import('perf_hooks')).performance.now(),
+    props: {
+      params,
+      post: params.post,
+      time: (await import('perf_hooks')).performance.now(),
+    },
   }
 }
 

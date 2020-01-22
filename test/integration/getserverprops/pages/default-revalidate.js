@@ -3,8 +3,10 @@ import Link from 'next/link'
 // eslint-disable-next-line camelcase
 export async function unstable_getServerProps() {
   return {
-    world: 'world',
-    time: new Date().getTime(),
+    props: {
+      world: 'world',
+      time: new Date().getTime(),
+    },
   }
 }
 

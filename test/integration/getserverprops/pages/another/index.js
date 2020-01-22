@@ -16,8 +16,10 @@ export async function unstable_getServerProps() {
     .trim()
 
   return {
-    world: text,
-    time: new Date().getTime(),
+    props: {
+      world: text,
+      time: new Date().getTime(),
+    },
   }
 }
 

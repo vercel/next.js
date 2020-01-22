@@ -439,6 +439,14 @@ export async function renderToHTML(
     </RouterContext.Provider>
   )
 
+  const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+    throw new Error(
+      `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
+        `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+        `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+    )
+  }
+
   try {
     props = await loadGetInitialProps(App, {
       AppTree: ctx.AppTree,
@@ -457,11 +465,7 @@ export async function renderToHTML(
       )
 
       if (invalidKeys.length) {
-        throw new Error(
-          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
-            `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
-        )
+        invalidKeysMsg('getStaticProps', invalidKeys)
       }
 
       if (typeof data.revalidate === 'number') {
@@ -507,12 +511,20 @@ export async function renderToHTML(
   }
 
   if (unstable_getServerProps) {
-    props.pageProps = await unstable_getServerProps({
+    const data = await unstable_getServerProps({
       params,
       query,
       req,
       res,
     })
+
+    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+    if (invalidKeys.length) {
+      invalidKeysMsg('getServerProps', invalidKeys)
+    }
+
+    props.pageProps = data.props
     ;(renderOpts as any).pageData = props
   }
   // We only need to do this if we want to support calling

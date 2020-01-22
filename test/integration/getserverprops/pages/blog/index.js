@@ -4,8 +4,10 @@ import Link from 'next/link'
 // eslint-disable-next-line camelcase
 export async function unstable_getServerProps() {
   return {
-    slugs: ['post-1', 'post-2'],
-    time: (await import('perf_hooks')).performance.now(),
+    props: {
+      slugs: ['post-1', 'post-2'],
+      time: (await import('perf_hooks')).performance.now(),
+    },
   }
 }
 
