@@ -166,7 +166,10 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          { test: /\.(css|scss|sass)$/, use: require.resolve('ignore-loader') },
+          {
+            test: [regexCssGlobal, regexSassGlobal],
+            use: require.resolve('ignore-loader'),
+          },
         ],
       })
     )
