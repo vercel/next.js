@@ -16,7 +16,21 @@ By importing a `.gql` or `.graphql` schema into FaunaDB ([see our sample schema 
 
 You can start with this template [using `create-next-app`](#using-create-next-app) or by [downloading the repository manually](#download-manually).
 
-To use a live FaunaDB database, create one and import this example's `schema.gql` file using the FaunaDB console. Create a client secret, then paste it into `next.config.js`.
+To use a live FaunaDB database, create a database at [dashboard.fauna.com](https://dashboard.fauna.com/) and generate a server token by going to the **Security** tab on the left and then click **New Key**. Give the new key a name and select the 'Server' Role. Copy the token since the setup script will ask for it. Do not use it in the frontend, it has superpowers which you don't want to give to your users.
+
+The database can then be set up with the delivered setup by running:
+
+```
+yarn setup
+```
+
+This script will ask for the server token. Once you provide it with a valid token, this is what the script automatically does for you:
+
+- **Import the GraphQL schema**, by importing a GraphQL schema in FaunaDB, FaunaDB automatically sets up collections and indexes to support your queries. This is now done for you with this script but can also be done from the [dashboard.fauna.com](https://dashboard.fauna.com/) UI by going to the GraphQL tab
+- **Create a role suitable for the Client**, FaunaDB has a security system that allows you to define which resources can be accessed for a specific token. That's how we limit our clients powers, feel free to look at the scripts/setup.js script to see how we make roles and tokens.
+- **Create a token for that role** which is printed, this is the token to be used in the frontend.
+
+At the end, the newly generated client token will be printed and should be used to replace the '< GRAPHQL_SECRET >' placeholder in the next.config.js config.
 
 ### Using `create-next-app`
 
