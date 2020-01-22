@@ -1,12 +1,11 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import webpack, { Configuration } from 'webpack'
+import { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
-import { getGlobalCssLoader } from './loaders'
+import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
 import { getClientStyleLoader } from './loaders/client'
-import { getCssModuleLocalIdent } from './loaders/getCssModuleLocalIdent'
 import {
   getCustomDocumentError,
   getGlobalImportError,
@@ -15,10 +14,13 @@ import {
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
-// RegExps for Stylesheets
+// RegExps for Style Sheets
 // const regexCssAll = /\.css$/
 const regexCssGlobal = /(?<!\.module)\.css$/
 const regexCssModules = /\.module\.css$/
+
+// RegExps for Syntactically Awesome Style Sheets
+const regexSassModules = /\.module\.css$/
 
 export const css = curry(async function css(
   enabled: boolean,
@@ -51,55 +53,7 @@ export const css = curry(async function css(
     true
   )
 
-  function getModuleStyleLoader(
-    cssOptions: webpack.ParserOptions,
-    preProcessor?: string
-  ) {
-    const loaders: webpack.RuleSetUseItem[] = []
-
-    // Add appropriate development mode or production mode style loader first
-    if (ctx.isClient) {
-      loaders.push(
-        getClientStyleLoader({
-          isDevelopment: ctx.isDevelopment,
-          assetPrefix: ctx.assetPrefix,
-        })
-      )
-    }
-
-    // Add main loaders
-    loaders.push(
-      // Resolve CSS `@import`s and `url()`s
-      {
-        loader: require.resolve('css-loader'),
-        options: cssOptions,
-      },
-
-      // Compile CSS
-      {
-        loader: require.resolve('postcss-loader'),
-        options: {
-          ident: '__nextjs_postcss',
-          plugins: postCssPlugins,
-          sourceMap: true,
-        },
-      }
-    )
-
-    // Add preprocessor loader
-    if (preProcessor) {
-      loaders.push({
-        loader: preProcessor,
-        options: {
-          sourceMap: true,
-        },
-      })
-    }
-
-    return loaders
-  }
-
-  // CSS cannot be imported in _document. This comes before everything because
+  // CSS cannot be imported in _document. This comes before everything b ecause
   // global CSS nor CSS modules work in said file.
   fns.push(
     loader({
@@ -139,60 +93,46 @@ export const css = curry(async function css(
             include: [ctx.rootDirectory],
             exclude: /node_modules/,
           },
-
-          use: getModuleStyleLoader({
-            importLoaders: 1,
-            sourceMap: true,
-            onlyLocals: ctx.isServer,
-            modules: {
-              // Disallow global style exports so we can code-split CSS and
-              // not worry about loading order.
-              mode: 'pure',
-              // Generate a friendly production-ready name so it's
-              // reasonably understandable. The same name is used for
-              // development.
-              // TODO: Consider making production reduce this to a single
-              // character?
-              getLocalIdent: getCssModuleLocalIdent,
-            },
-          }),
+          use: getCssModuleLoader(ctx, postCssPlugins),
         },
-        // Opt-in support for SASS (using .scss or .sass extensions).
-        // By default we support SASS Modules with the
-        // extensions .module.scss or .module.sass
+
+        // Opt-in support for Sass (using .scss or .sass extensions).
         {
-          // CSS Modules should never have side effects. This setting will
-          // allow unused CSS to be removed from the production build.
-          // We ensure this by disallowing `:global()` CSS at the top-level
+          // Sass Modules should never have side effects. This setting will
+          // allow unused Sass to be removed from the production build.
+          // We ensure this by disallowing `:global()` Sass at the top-level
           // via the `pure` mode in `css-loader`.
           sideEffects: false,
-          test: /\.module\.(scss|sass)$/,
-          // CSS Modules are only supported in the user's application. We're
-          // not yet allowing CSS imports _within_ `node_modules`.
+          // Sass Modules are activated via this specific extension.
+          test: regexSassModules,
+          // Sass Modules are only supported in the user's application. We're
+          // not yet allowing Sass imports _within_ `node_modules`.
           issuer: {
             include: [ctx.rootDirectory],
             exclude: /node_modules/,
           },
-
-          use: getModuleStyleLoader(
+          use: getCssModuleLoader(ctx, postCssPlugins, [
             {
-              importLoaders: 2,
-              sourceMap: true,
-              onlyLocals: ctx.isServer,
-              modules: {
-                // Disallow global style exports so we can code-split CSS and
-                // not worry about loading order.
-                mode: 'pure',
-                // Generate a friendly production-ready name so it's
-                // reasonably understandable. The same name is used for
-                // development.
-                // TODO: Consider making production reduce this to a single
-                // character?
-                getLocalIdent: getCssModuleLocalIdent,
+              loader: require.resolve('sass-loader'),
+              options: {
+                // Source maps are required so that `resolve-url-loader` can
+                // locate files original to their source directory.
+                sourceMap: true,
               },
             },
-            require.resolve('sass-loader')
-          ),
+            // `sass-loader` will pass-through CSS imports as-is instead of
+            // inlining them. Once inlined, the paths are no longer correct.
+            // To fix this, we use `resolve-url-loader` to rewrite the CSS
+            // imports to real file paths.
+            {
+              loader: require.resolve('resolve-url-loader'),
+              options: {
+                // Source maps are not required here, but we may as well emit
+                // them.
+                sourceMap: true,
+              },
+            },
+          ]),
         },
       ],
     })
