@@ -12,7 +12,6 @@ const exec = promisify(execOrig)
 const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const timings = []
-const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -35,13 +34,50 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
 
     if (outputTimings) {
       console.log('Fetching previous timings data')
-      const res = await fetch(TIMINGS_API)
+      const metaRes = await fetch(
+        `https://circleci.com/api/v1.1/project/github/zeit/next.js/`
+      )
 
-      if (res.ok) {
-        prevTimings = await res.json()
-        console.log('Fetched previous timings data')
+      if (metaRes.ok) {
+        const buildsMeta = await metaRes.json()
+        let buildNumber
+
+        for (const build of buildsMeta) {
+          if (
+            build.status === 'success' &&
+            build.build_parameters &&
+            build.build_parameters.CIRCLE_JOB === 'test'
+          ) {
+            buildNumber = build.build_num
+            break
+          }
+        }
+
+        const timesRes = await fetch(
+          `https://circleci.com/api/v1.1/project/github/zeit/next.js/${buildNumber}/tests`
+        )
+
+        if (timesRes.ok) {
+          const { tests } = await timesRes.json()
+          prevTimings = {}
+
+          for (const test of tests) {
+            prevTimings[test.file] = test.run_time
+          }
+
+          if (Object.keys(prevTimings).length > 0) {
+            console.log('Fetched previous timings data')
+          } else {
+            prevTimings = null
+          }
+        } else {
+          console.log(
+            'Failed to fetch previous timings status:',
+            timesRes.status
+          )
+        }
       } else {
-        console.log('Failed to fetch previous timings status:', res.status)
+        console.log('Failed to fetch timings meta status:', metaRes.status)
       }
     }
   }
@@ -89,6 +125,9 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
         groups[smallestGroupIdx].push(testName)
         groupTimes[smallestGroupIdx] += prevTimings[testName] || 1
       }
+
+      console.log({ groupTimes })
+      console.log(JSON.stringify(groups, null, 2))
 
       const curGroupIdx = groupPos - 1
       testNames = groups[curGroupIdx]
@@ -174,8 +213,6 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
   )
 
   if (outputTimings) {
-    const curTimings = {}
-
     let junitData = `<testsuites name="jest tests">`
     /*
       <testsuite name="/__tests__/bar.test.js" tests="1" errors="0" failures="0" skipped="0" timestamp="2017-10-10T21:56:49" time="0.323">
@@ -186,7 +223,6 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
 
     for (const timing of timings) {
       const timeInSeconds = timing.time / 1000
-      curTimings[timing.file] = timeInSeconds
 
       junitData += `
         <testsuite name="${timing.file}" file="${
@@ -202,21 +238,5 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
     junitData += `</testsuites>`
     await fs.writeFile('test/junit.xml', junitData, 'utf8')
     console.log('output timing data to junit.xml')
-
-    if (prevTimings) {
-      const res = await fetch(TIMINGS_API, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ timings: curTimings }),
-      })
-
-      if (res.ok) {
-        console.log('Posted current timings successfully', await res.json())
-      } else {
-        console.log('Failed to post current timings status:', res.status)
-      }
-    }
   }
 })()
