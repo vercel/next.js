@@ -143,7 +143,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-webkit-input-placeholder{color:green}::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}"`
+        `".redText ::-webkit-input-placeholder{color:red}.redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::-ms-input-placeholder{color:red}.redText ::placeholder{color:red}"`
       )
 
       // Contains a source map
@@ -304,7 +304,6 @@ describe('SCSS Support', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/page1')
-        await waitFor(2000) // ensure application hydrates
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)
@@ -703,7 +702,6 @@ describe('SCSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`
@@ -729,7 +727,6 @@ describe('SCSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`

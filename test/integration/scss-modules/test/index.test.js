@@ -19,7 +19,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const fixturesDir = join(__dirname, '../../scss-fixtures')
 
 describe('SCSS modules', () => {
-  describe('Basic CSS Module Support', () => {
+  describe('Basic SCSS Module Support', () => {
     const appDir = join(fixturesDir, 'basic-module')
 
     let appPort
@@ -181,7 +181,6 @@ describe('SCSS modules', () => {
     // FIXME: this is broken
     it('should update CSS color without remounting <input>', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const desiredText = 'hello world'
       await browser.elementById('text-input').type(desiredText)

@@ -1,5 +1,6 @@
-@media (480px <= width < 768px) {
+$var: red;
+.redText {
   ::placeholder {
-    color: green;
+    color: $var;
   }
 }
