@@ -60,6 +60,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
+  const stubPromise = path.join(__dirname, 'polyfills', 'promise.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
@@ -78,6 +79,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     __next_polyfill__object_assign: require.resolve('object-assign'),
     'object-assign$': stubObjectAssign,
     '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
+    '@babel/runtime-corejs2/core-js/promise': stubPromise,
 
     // Stub Package: object.assign
     'object.assign/auto': path.join(shimAssign, 'auto.js'),
