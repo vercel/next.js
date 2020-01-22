@@ -1,10 +1,10 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import webpack, { Configuration } from 'webpack'
+import { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
-import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
+import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
 import {
   getCustomDocumentError,
   getGlobalImportError,
@@ -17,62 +17,6 @@ import { getPostCssPlugins } from './plugins'
 const regexCssAll = /\.css$/
 const regexCssGlobal = /(?<!\.module)\.css$/
 const regexCssModules = /\.module\.css$/
-
-function getClientStyleLoader({
-  isDevelopment,
-  assetPrefix,
-}: {
-  isDevelopment: boolean
-  assetPrefix: string
-}): webpack.RuleSetUseItem {
-  return isDevelopment
-    ? {
-        loader: require.resolve('style-loader'),
-        options: {
-          // By default, style-loader injects CSS into the bottom
-          // of <head>. This causes ordering problems between dev
-          // and prod. To fix this, we render a <noscript> tag as
-          // an anchor for the styles to be placed before. These
-          // styles will be applied _before_ <style jsx global>.
-          insert: function(element: Node) {
-            // These elements should always exist. If they do not,
-            // this code should fail.
-            var anchorElement = document.querySelector(
-              '#__next_css__DO_NOT_USE__'
-            )!
-            var parentNode = anchorElement.parentNode! // Normally <head>
-
-            // Each style tag should be placed right before our
-            // anchor. By inserting before and not after, we do not
-            // need to track the last inserted element.
-            parentNode.insertBefore(element, anchorElement)
-
-            // Remember: this is development only code.
-            //
-            // After styles are injected, we need to remove the
-            // <style> tags that set `body { display: none; }`.
-            //
-            // We use `requestAnimationFrame` as a way to defer
-            // this operation since there may be multiple style
-            // tags.
-            ;(self.requestAnimationFrame || setTimeout)(function() {
-              for (
-                var x = document.querySelectorAll('[data-next-hide-fouc]'),
-                  i = x.length;
-                i--;
-
-              ) {
-                x[i].parentNode!.removeChild(x[i])
-              }
-            })
-          },
-        },
-      }
-    : {
-        loader: MiniCssExtractPlugin.loader,
-        options: { publicPath: `${assetPrefix}/_next/` },
-      }
-}
 
 export const css = curry(async function css(
   enabled: boolean,
@@ -145,47 +89,7 @@ export const css = curry(async function css(
             include: [ctx.rootDirectory],
             exclude: /node_modules/,
           },
-
-          use: ([
-            // Add appropriate development more or production mode style
-            // loader
-            ctx.isClient &&
-              getClientStyleLoader({
-                isDevelopment: ctx.isDevelopment,
-                assetPrefix: ctx.assetPrefix,
-              }),
-
-            // Resolve CSS `@import`s and `url()`s
-            {
-              loader: require.resolve('css-loader'),
-              options: {
-                importLoaders: 1,
-                sourceMap: true,
-                onlyLocals: ctx.isServer,
-                modules: {
-                  // Disallow global style exports so we can code-split CSS and
-                  // not worry about loading order.
-                  mode: 'pure',
-                  // Generate a friendly production-ready name so it's
-                  // reasonably understandable. The same name is used for
-                  // development.
-                  // TODO: Consider making production reduce this to a single
-                  // character?
-                  getLocalIdent: getCssModuleLocalIdent,
-                },
-              },
-            },
-
-            // Compile CSS
-            {
-              loader: require.resolve('postcss-loader'),
-              options: {
-                ident: '__nextjs_postcss',
-                plugins: postCssPlugins,
-                sourceMap: true,
-              },
-            },
-          ] as webpack.RuleSetUseItem[]).filter(Boolean),
+          use: getCssModuleLoader(ctx, postCssPlugins),
         },
       ],
     })
@@ -228,31 +132,7 @@ export const css = curry(async function css(
             sideEffects: true,
             test: regexCssGlobal,
             issuer: { include: ctx.customAppFile },
-
-            use: [
-              // Add appropriate development more or production mode style
-              // loader
-              getClientStyleLoader({
-                isDevelopment: ctx.isDevelopment,
-                assetPrefix: ctx.assetPrefix,
-              }),
-
-              // Resolve CSS `@import`s and `url()`s
-              {
-                loader: require.resolve('css-loader'),
-                options: { importLoaders: 1, sourceMap: true },
-              },
-
-              // Compile CSS
-              {
-                loader: require.resolve('postcss-loader'),
-                options: {
-                  ident: '__nextjs_postcss',
-                  plugins: postCssPlugins,
-                  sourceMap: true,
-                },
-              },
-            ],
+            use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
       })
