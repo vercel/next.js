@@ -1,5 +1,10 @@
 # Data fetch example
 
+Next.js was conceived to make it easy to create universal apps. That's why fetching data
+on the server and the client when necessary is so easy with Next.
+
+Using `getInitialProps` fetches data on the server for SSR and then on the client when the component is re-mounted (not on the first paint).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +15,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example data-fetch data-fetch-app
+npm init next-app --example data-fetch data-fetch-app
 # or
 yarn create next-app --example data-fetch data-fetch-app
 ```
@@ -42,10 +47,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-Next.js was conceived to make it easy to create universal apps. That's why fetching data
-on the server and the client when necessary is so easy with Next.
-
-Using `getInitialProps` fetches data on the server for SSR and then on the client when the component is re-mounted (not on the first paint).

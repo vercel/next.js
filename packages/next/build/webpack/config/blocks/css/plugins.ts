@@ -193,6 +193,15 @@ export async function getPostCssPlugins(
         }
         throw new Error(genericErrorText)
       }
+    } else if (typeof plugin === 'function') {
+      console.error(
+        `${chalk.red.bold(
+          'Error'
+        )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
+          'string'
+        )}.`
+      )
+      throw new Error(genericErrorText)
     } else {
       console.error(
         `${chalk.red.bold(

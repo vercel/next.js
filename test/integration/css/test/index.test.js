@@ -205,6 +205,26 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Invalid CSS in _document', () => {
+    const appDir = join(fixturesDir, 'invalid-module-document')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should fail to build', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('styles.module.css')
+      expect(stderr).toMatch(
+        /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
+      )
+      expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+    })
+  })
+
   describe('Invalid Global CSS', () => {
     const appDir = join(fixturesDir, 'invalid-global')
 
@@ -284,7 +304,6 @@ describe('CSS Support', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/page1')
-        await waitFor(2000) // ensure application hydrates
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)
@@ -683,7 +702,6 @@ describe('CSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`
@@ -709,7 +727,6 @@ describe('CSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`

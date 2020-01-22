@@ -1,5 +1,9 @@
 # Freactal example
 
+When it comes to state management of the React webapp, Redux is the most popular solution. However it brings lots of boilerplate code and fiddling aroud multiple files when tracing even simplest state change.
+
+[Freactal](https://github.com/FormidableLabs/freactal) is a state management library that put this disadvantages away. With very little setup code your components' `props` are enhanced with two key ingredients: `state` and `effects`. Another benefit of Freactal is that you don't need to place _state_ at some special place (global store). You can even have multiple state roots and compose them together - just like your components (this is true also for `effects`).
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +14,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-freactal with-freactal-app
+npm init next-app --example with-freactal with-freactal-app
 # or
 yarn create next-app --example with-freactal with-freactal-app
 ```
@@ -42,12 +46,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-When it comes to state management of the React webapp, Redux is the most popular solution. However it brings lots of boilerplate code and fiddling aroud multiple files when tracing even simplest state change.
-
-[Freactal](https://github.com/FormidableLabs/freactal) is a state management library that put this disadvantages away. With very little setup code your components' `props` are enhanced with two key ingredients: `state` and `effects`. Another benefit of Freactal is that you don't need to place _state_ at some special place (global store). You can even have multiple state roots and compose them together - just like your components (this is true also for `effects`).
 
 ### example app
 

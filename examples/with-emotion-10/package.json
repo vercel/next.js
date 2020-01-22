@@ -1,0 +1,23 @@
+{
+  "name": "with-emotion-10",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "Thomas Greco",
+  "license": "ISC",
+  "dependencies": {
+    "@emotion/core": "10.0.27",
+    "@emotion/styled": "10.0.27",
+    "emotion": "10.0.27",
+    "emotion-server": "10.0.27",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  }
+}
