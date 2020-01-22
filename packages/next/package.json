@@ -122,6 +122,8 @@
     "raw-body": "2.4.0",
     "react-error-overlay": "5.1.6",
     "react-is": "16.8.6",
+    "resolve-url-loader": "3.1.1",
+    "sass-loader": "8.0.2",
     "send": "0.17.1",
     "source-map": "0.6.1",
     "string-hash": "1.1.3",
