@@ -20,7 +20,7 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 // So, we need to polyfill it.
 // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
-  window.Promise = Promise
+  window.Promise = require('@babel/runtime-corejs2/core-js/promise')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -114,6 +114,14 @@ class Container extends React.Component {
         }
       )
     }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }
   }
 
   componentDidUpdate() {
@@ -200,9 +208,15 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 
   const renderCtx = { App, Component, props, err: initialErr }
-  render(renderCtx)
 
-  return emitter
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
 export async function render(props) {

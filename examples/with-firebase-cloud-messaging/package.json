@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "express": "^4.14.0",
-    "firebase": "^5.5.8",
+    "firebase": "^7.6.2",
     "localforage": "^1.7.3",
     "next": "latest",
     "react": "^16.7.0",

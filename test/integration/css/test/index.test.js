@@ -304,7 +304,6 @@ describe('CSS Support', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/page1')
-        await waitFor(2000) // ensure application hydrates
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)
@@ -703,7 +702,6 @@ describe('CSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`
@@ -729,7 +727,6 @@ describe('CSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`

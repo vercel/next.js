@@ -14,7 +14,7 @@ const Page = ({ world, time }) => {
     <>
       <p>hello {world}</p>
       <span>time: {time}</span>
-      <Link href="/another">
+      <Link href="/another?hello=world" as="/another/?hello=world">
         <a id="another">to another</a>
       </Link>
       <br />
@@ -35,6 +35,9 @@ const Page = ({ world, time }) => {
       <br />
       <Link href="/blog/[post]/[comment]" as="/blog/post-1/comment-1">
         <a id="comment-1">to another dynamic</a>
+      </Link>
+      <Link href="/catchall/[...slug]" as="/catchall/first">
+        <a id="to-catchall">to catchall</a>
       </Link>
     </>
   )
