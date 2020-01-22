@@ -718,5 +718,5 @@ describe('Production Usage', () => {
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
-  security(context)
+  if (browserName !== 'safari') security(context)
 })
