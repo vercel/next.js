@@ -126,9 +126,6 @@ const timings = []
         groupTimes[smallestGroupIdx] += prevTimings[testName] || 1
       }
 
-      console.log({ groupTimes })
-      console.log(JSON.stringify(groups, null, 2))
-
       const curGroupIdx = groupPos - 1
       testNames = groups[curGroupIdx]
 
