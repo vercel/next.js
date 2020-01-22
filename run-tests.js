@@ -173,7 +173,7 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
   )
 
   if (outputTimings) {
-    const timings = {}
+    const curTimings = {}
 
     let junitData = `<testsuites name="jest tests">`
     /*
@@ -185,7 +185,7 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
 
     for (const timing of timings) {
       const timeInSeconds = timing.time / 1000
-      timings[timing.file] = timeInSeconds
+      curTimings[timing.file] = timeInSeconds
 
       junitData += `
         <testsuite name="${timing.file}" file="${
@@ -208,11 +208,11 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ timings }),
+        body: JSON.stringify({ timings: curTimings }),
       })
 
       if (res.ok) {
-        console.log('Posted current timings successfully')
+        console.log('Posted current timings successfully', await res.json())
       } else {
         console.log('Failed to post current timings status:', res.status)
       }
