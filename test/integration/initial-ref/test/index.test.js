@@ -7,7 +7,6 @@ import {
   nextStart,
   launchApp,
   findPort,
-  waitFor,
   killApp,
 } from 'next-test-utils'
 
@@ -19,12 +18,11 @@ let appPort
 const runTest = () => {
   it('Has correct initial ref values', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(2000)
     expect(await browser.elementByCss('#ref-val').text()).toContain('76px')
   })
 }
 
-describe('Hydration', () => {
+describe('Initial Refs', () => {
   describe('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)

@@ -1,6 +1,6 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import webpack, { Configuration, RuleSetRule } from 'webpack'
+import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -12,6 +12,11 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
+
+// RegExps for Stylesheets
+const regexCssAll = /\.css$/
+const regexCssGlobal = /(?<!\.module)\.css$/
+const regexCssModules = /\.module\.css$/
 
 function getClientStyleLoader({
   isDevelopment,
@@ -69,38 +74,6 @@ function getClientStyleLoader({
       }
 }
 
-export async function __overrideCssConfiguration(
-  rootDirectory: string,
-  isProduction: boolean,
-  config: Configuration
-) {
-  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
-
-  function patch(rule: RuleSetRule) {
-    if (
-      rule.options &&
-      typeof rule.options === 'object' &&
-      rule.options['ident'] === '__nextjs_postcss'
-    ) {
-      rule.options.plugins = postCssPlugins
-    } else if (Array.isArray(rule.oneOf)) {
-      rule.oneOf.forEach(patch)
-    } else if (Array.isArray(rule.use)) {
-      rule.use.forEach(u => {
-        if (typeof u === 'object') {
-          patch(u)
-        }
-      })
-    }
-  }
-
-  // TODO: remove this rule, ESLint bug
-  // eslint-disable-next-line no-unused-expressions
-  config.module?.rules?.forEach(entry => {
-    patch(entry)
-  })
-}
-
 export const css = curry(async function css(
   enabled: boolean,
   ctx: ConfigurationContext,
@@ -138,7 +111,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.css$/,
+          test: regexCssAll,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
           issuer: { test: /pages[\\/]_document\./ },
@@ -165,7 +138,7 @@ export const css = curry(async function css(
           // via the `pure` mode in `css-loader`.
           sideEffects: false,
           // CSS Modules are activated via this specific extension.
-          test: /\.module\.css$/,
+          test: regexCssModules,
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
           issuer: {
@@ -223,7 +196,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.module\.css$/,
+          test: regexCssModules,
           use: {
             loader: 'error-loader',
             options: {
@@ -238,7 +211,9 @@ export const css = curry(async function css(
   if (ctx.isServer) {
     fns.push(
       loader({
-        oneOf: [{ test: /\.css$/, use: require.resolve('ignore-loader') }],
+        oneOf: [
+          { test: regexCssGlobal, use: require.resolve('ignore-loader') },
+        ],
       })
     )
   } else if (ctx.customAppFile) {
@@ -251,7 +226,7 @@ export const css = curry(async function css(
             // no side-effects.
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
-            test: /\.css$/,
+            test: regexCssGlobal,
             issuer: { include: ctx.customAppFile },
 
             use: [
@@ -289,7 +264,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.css$/,
+          test: regexCssGlobal,
           issuer: { include: [/node_modules/] },
           use: {
             loader: 'error-loader',
@@ -307,7 +282,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.css$/,
+          test: regexCssGlobal,
           use: {
             loader: 'error-loader',
             options: {
@@ -330,7 +305,7 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: /\.css$/ },
+            issuer: { test: regexCssAll },
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {
@@ -355,11 +330,14 @@ export const css = curry(async function css(
         new MiniCssExtractPlugin({
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
-          // Next.js guarantees that CSS order doesn't matter, due to imposed
+          // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
           // 1. Global CSS can only be defined in a single entrypoint (_app)
           // 2. CSS Modules generate scoped class names by default and cannot
           //    include Global CSS (:global() selector).
+          //
+          // While not a perfect guarantee (e.g. liberal use of `:global()`
+          // selector), this assumption is required to code-split CSS.
           //
           // If this warning were to trigger, it'd be unactionable by the user,
           // but also not valid -- so we disable it.
