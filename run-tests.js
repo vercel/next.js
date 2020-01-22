@@ -156,9 +156,10 @@ const TIMINGS_API = 'https://next-timings.jjsweb.site/api/timings'
         } catch (err) {
           if (i < NUM_RETRIES) {
             try {
-              console.log('Cleaning test files for', test)
-              await exec(`git clean -fdx "${path.join(__dirname, test)}"`)
-              await exec(`git checkout "${path.join(__dirname, test)}"`)
+              const testDir = path.dirname(path.join(__dirname, test))
+              console.log('Cleaning test files at', testDir)
+              await exec(`git clean -fdx "${testDir}"`)
+              await exec(`git checkout "${testDir}"`)
             } catch (err) {}
           }
         }
