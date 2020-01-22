@@ -1,6 +1,6 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import webpack, { Configuration, RuleSetRule } from 'webpack'
+import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -67,38 +67,6 @@ function getClientStyleLoader({
         loader: MiniCssExtractPlugin.loader,
         options: { publicPath: `${assetPrefix}/_next/` },
       }
-}
-
-export async function __overrideCssConfiguration(
-  rootDirectory: string,
-  isProduction: boolean,
-  config: Configuration
-) {
-  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
-
-  function patch(rule: RuleSetRule) {
-    if (
-      rule.options &&
-      typeof rule.options === 'object' &&
-      rule.options['ident'] === '__nextjs_postcss'
-    ) {
-      rule.options.plugins = postCssPlugins
-    } else if (Array.isArray(rule.oneOf)) {
-      rule.oneOf.forEach(patch)
-    } else if (Array.isArray(rule.use)) {
-      rule.use.forEach(u => {
-        if (typeof u === 'object') {
-          patch(u)
-        }
-      })
-    }
-  }
-
-  // TODO: remove this rule, ESLint bug
-  // eslint-disable-next-line no-unused-expressions
-  config.module?.rules?.forEach(entry => {
-    patch(entry)
-  })
 }
 
 export const css = curry(async function css(
