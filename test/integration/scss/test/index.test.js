@@ -319,7 +319,7 @@ describe('SCSS Support', () => {
 
         const cssFile = new File(join(appDir, 'styles/global1.scss'))
         try {
-          cssFile.replace('color: red', 'color: purple')
+          cssFile.replace('$var: red', '$var: purple')
           await waitFor(2000) // wait for HMR
 
           const refreshedColor = await browser.eval(
