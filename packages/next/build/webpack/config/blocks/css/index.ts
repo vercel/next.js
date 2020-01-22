@@ -53,7 +53,7 @@ export const css = curry(async function css(
     true
   )
 
-  // CSS cannot be imported in _document. This comes before everything b ecause
+  // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
   fns.push(
     loader({
