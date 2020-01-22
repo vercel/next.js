@@ -426,7 +426,7 @@ describe('Telemetry CLI', () => {
     await fs.writeFile(
       nextConfig,
       `module.exports = {
-        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx', 'mdx', 'md', 'verylongextension', '', 123, null]
+        pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx', 'mdx', 'md', 'verylongextension']
       }`
     )
 
