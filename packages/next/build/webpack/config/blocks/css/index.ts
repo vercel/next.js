@@ -1,11 +1,10 @@
 import curry from 'lodash.curry'
 import path from 'path'
-import { Configuration } from 'webpack'
+import webpack, { Configuration } from 'webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
-import { getClientStyleLoader } from './loaders/client'
 import {
   getCustomDocumentError,
   getGlobalImportError,
@@ -33,6 +32,29 @@ export const css = curry(async function css(
   if (!enabled) {
     return config
   }
+
+  const sassPreprocessors: webpack.RuleSetUseItem[] = [
+    {
+      loader: require.resolve('sass-loader'),
+      options: {
+        // Source maps are required so that `resolve-url-loader` can
+        // locate files original to their source directory.
+        sourceMap: true,
+      },
+    },
+    // `sass-loader` will pass-through CSS imports as-is instead of
+    // inlining them. Once inlined, the paths are no longer correct.
+    // To fix this, we use `resolve-url-loader` to rewrite the CSS
+    // imports to real file paths.
+    {
+      loader: require.resolve('resolve-url-loader'),
+      options: {
+        // Source maps are not required here, but we may as well emit
+        // them.
+        sourceMap: true,
+      },
+    },
+  ]
 
   const fns: ConfigurationFn[] = [
     loader({
@@ -114,28 +136,7 @@ export const css = curry(async function css(
             include: [ctx.rootDirectory],
             exclude: /node_modules/,
           },
-          use: getCssModuleLoader(ctx, postCssPlugins, [
-            {
-              loader: require.resolve('sass-loader'),
-              options: {
-                // Source maps are required so that `resolve-url-loader` can
-                // locate files original to their source directory.
-                sourceMap: true,
-              },
-            },
-            // `sass-loader` will pass-through CSS imports as-is instead of
-            // inlining them. Once inlined, the paths are no longer correct.
-            // To fix this, we use `resolve-url-loader` to rewrite the CSS
-            // imports to real file paths.
-            {
-              loader: require.resolve('resolve-url-loader'),
-              options: {
-                // Source maps are not required here, but we may as well emit
-                // them.
-                sourceMap: true,
-              },
-            },
-          ]),
+          use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
         },
       ],
     })
@@ -181,46 +182,14 @@ export const css = curry(async function css(
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
           {
-            // A global CSS import always has side effects. Webpack will tree
-            // shake the CSS without this option if the issuer claims to have
+            // A global Sass import always has side effects. Webpack will tree
+            // shake the Sass without this option if the issuer claims to have
             // no side-effects.
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
-            test: /\.(scss|sass)$/,
+            test: regexSassGlobal,
             issuer: { include: ctx.customAppFile },
-
-            use: [
-              // Add appropriate development more or production mode style
-              // loader
-              getClientStyleLoader({
-                isDevelopment: ctx.isDevelopment,
-                assetPrefix: ctx.assetPrefix,
-              }),
-
-              // Resolve CSS `@import`s and `url()`s
-              {
-                loader: require.resolve('css-loader'),
-                options: { importLoaders: 2, sourceMap: true },
-              },
-
-              // Compile CSS
-              {
-                loader: require.resolve('postcss-loader'),
-                options: {
-                  ident: '__nextjs_postcss',
-                  plugins: postCssPlugins,
-                  sourceMap: true,
-                },
-              },
-
-              // Preprocess Sass
-              {
-                loader: require.resolve('sass-loader'),
-                options: {
-                  sourceMap: true,
-                },
-              },
-            ],
+            use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
           },
         ],
       })
