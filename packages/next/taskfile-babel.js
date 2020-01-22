@@ -15,10 +15,15 @@ const babelClientOpts = {
           esmodules: true,
         },
         loose: true,
-        exclude: ['transform-typeof-symbol'],
+        // This is handled by the Next.js webpack config that will run next/babel over the same code.
+        exclude: [
+          'transform-typeof-symbol',
+          'transform-async-to-generator',
+          'transform-spread',
+        ],
       },
     ],
-    '@babel/preset-react',
+    ['@babel/preset-react', { useBuiltIns: true }],
   ],
   plugins: [
     // workaround for @taskr/esnext bug replacing `-import` with `-require(`
@@ -31,7 +36,7 @@ const babelClientOpts = {
 const babelServerOpts = {
   presets: [
     '@babel/preset-typescript',
-    '@babel/preset-react',
+    ['@babel/preset-react', { useBuiltIns: true }],
     [
       '@babel/preset-env',
       {
