@@ -159,10 +159,13 @@ Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) fo
 
 ## Sass Support
 
-To enable importing global `.scss` or `.sass` within `pages/_app.js` and component-level CSS Modules with `.module.scss` or `.module.sass` install `node-sass` as a dependency to your project:
+Next.js allows you to import Sass using both the `.scss` and `.sass` extensions.
+You can use component-level Sass via CSS Modules and the `.module.scss` or `.module.sass` extension.
+
+Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
 
 ```bash
-npm install node-sass
+npm install sass
 ```
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
