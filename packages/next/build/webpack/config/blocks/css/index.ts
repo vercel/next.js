@@ -34,16 +34,19 @@ export const css = curry(async function css(
   }
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
+    // First, process files with `sass-loader`: this inlines content, and
+    // compiles away the proprietary syntax.
     {
       loader: require.resolve('sass-loader'),
       options: {
-        // Source maps are required so that `resolve-url-loader` can
-        // locate files original to their source directory.
+        // Source maps are required so that `resolve-url-loader` can locate
+        // files original to their source directory.
         sourceMap: true,
       },
     },
-    // `sass-loader` will pass-through CSS imports as-is instead of
-    // inlining them. Once inlined, the paths are no longer correct.
+    // Then, `sass-loader` will have passed-through CSS imports as-is instead
+    // of inlining them. Because they were inlined, the paths are no longer
+    // correct.
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
