@@ -24,264 +24,290 @@ const writeConfig = async (routes = [], type = 'redirects') => {
   )
 }
 
-const invalidRedirects = [
-  {
-    // missing destination
-    source: '/hello',
-    permanent: false,
-  },
-  {
-    // invalid source
-    source: 123,
-    destination: '/another',
-    permanent: false,
-  },
-  {
-    // invalid statusCode type
-    source: '/hello',
-    destination: '/another',
-    statusCode: '301',
-  },
-  {
-    // invalid statusCode
-    source: '/hello',
-    destination: '/another',
-    statusCode: 404,
-  },
-  {
-    // invalid permanent value
-    source: '/hello',
-    destination: '/another',
-    permanent: 'yes',
-  },
-]
+let getStderr
 
-const invalidRedirectAssertions = (stderr = '') => {
-  expect(stderr).toContain(
-    `\`destination\` is missing for route {"source":"/hello","permanent":false}`
-  )
+const runTests = () => {
+  it('should error during next build for invalid redirects', async () => {
+    await writeConfig(
+      [
+        {
+          // missing destination
+          source: '/hello',
+          permanent: false,
+        },
+        {
+          // invalid source
+          source: 123,
+          destination: '/another',
+          permanent: false,
+        },
+        {
+          // invalid statusCode type
+          source: '/hello',
+          destination: '/another',
+          statusCode: '301',
+        },
+        {
+          // invalid statusCode
+          source: '/hello',
+          destination: '/another',
+          statusCode: 404,
+        },
+        {
+          // invalid permanent value
+          source: '/hello',
+          destination: '/another',
+          permanent: 'yes',
+        },
+      ],
+      'redirects'
+    )
+    const stderr = await getStderr()
 
-  expect(stderr).toContain(
-    `\`source\` is not a string for route {"source":123,"destination":"/another","permanent":false}`
-  )
+    expect(stderr).toContain(
+      `\`destination\` is missing for route {"source":"/hello","permanent":false}`
+    )
 
-  expect(stderr).toContain(
-    `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":"301"}`
-  )
+    expect(stderr).toContain(
+      `\`source\` is not a string for route {"source":123,"destination":"/another","permanent":false}`
+    )
 
-  expect(stderr).toContain(
-    `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
-  )
+    expect(stderr).toContain(
+      `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":"301"}`
+    )
 
-  expect(stderr).toContain(
-    `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
-  )
+    expect(stderr).toContain(
+      `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
+    )
 
-  expect(stderr).toContain(
-    'Valid redirect statusCode values are 301, 302, 303, 307, 308'
-  )
-  expect(stderr).toContain('Invalid redirects found')
-}
+    expect(stderr).toContain(
+      `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
+    )
 
-const invalidRewrites = [
-  {
-    // missing destination
-    source: '/hello',
-  },
-  {
-    // invalid source
-    source: 123,
-    destination: '/another',
-  },
-  {
-    // extra field
-    source: '/hello',
-    destination: '/another',
-    headers: 'not-allowed',
-  },
-  {
-    // missing forward slash in source
-    source: 'hello',
-    destination: '/another',
-  },
-  {
-    // missing forward slash in destination
-    source: '/hello',
-    destination: 'another',
-  },
-  {
-    source: '/feedback/(?!general)',
-    destination: '/feedback/general',
-  },
-]
+    expect(stderr).toContain(
+      'Valid redirect statusCode values are 301, 302, 303, 307, 308'
+    )
+    expect(stderr).toContain('Invalid redirects found')
+  })
 
-const invalidRewriteAssertions = (stderr = '') => {
-  expect(stderr).toContain(
-    `\`destination\` is missing for route {"source":"/hello"}`
-  )
+  it('should error during next build for invalid rewrites', async () => {
+    await writeConfig(
+      [
+        {
+          // missing destination
+          source: '/hello',
+        },
+        {
+          // invalid source
+          source: 123,
+          destination: '/another',
+        },
+        {
+          // extra field
+          source: '/hello',
+          destination: '/another',
+          headers: 'not-allowed',
+        },
+        {
+          // missing forward slash in source
+          source: 'hello',
+          destination: '/another',
+        },
+        {
+          // missing forward slash in destination
+          source: '/hello',
+          destination: 'another',
+        },
+        {
+          source: '/feedback/(?!general)',
+          destination: '/feedback/general',
+        },
+      ],
+      'rewrites'
+    )
+    const stderr = await getStderr()
 
-  expect(stderr).toContain(
-    `\`source\` is not a string for route {"source":123,"destination":"/another"}`
-  )
+    expect(stderr).toContain(
+      `\`destination\` is missing for route {"source":"/hello"}`
+    )
 
-  expect(stderr).toContain(
-    `invalid field: headers for route {"source":"/hello","destination":"/another","headers":"not-allowed"}`
-  )
+    expect(stderr).toContain(
+      `\`source\` is not a string for route {"source":123,"destination":"/another"}`
+    )
 
-  expect(stderr).toContain(
-    `\`source\` does not start with / for route {"source":"hello","destination":"/another"}`
-  )
+    expect(stderr).toContain(
+      `invalid field: headers for route {"source":"/hello","destination":"/another","headers":"not-allowed"}`
+    )
 
-  expect(stderr).toContain(
-    `\`destination\` does not start with / for route {"source":"/hello","destination":"another"}`
-  )
+    expect(stderr).toContain(
+      `\`source\` does not start with / for route {"source":"hello","destination":"/another"}`
+    )
 
-  expect(stderr).toContain(
-    `Error parsing /feedback/(?!general) https://err.sh/zeit/next.js/invalid-route-source TypeError: Pattern cannot start with "?"`
-  )
+    expect(stderr).toContain(
+      `\`destination\` does not start with / for route {"source":"/hello","destination":"another"}`
+    )
 
-  expect(stderr).not.toContain(
-    'Valid redirect statusCode values are 301, 302, 303, 307, 308'
-  )
-  expect(stderr).toContain('Invalid rewrites found')
-}
+    expect(stderr).toContain(
+      `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+    )
+    expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
+    expect(stderr).toContain(`/feedback/(?!general)`)
 
-const invalidHeaders = [
-  {
-    // missing source
-    headers: [
-      {
-        'x-first': 'first',
-      },
-    ],
-  },
-  {
-    // invalid headers value
-    source: '/hello',
-    headers: {
-      'x-first': 'first',
-    },
-  },
-  {
-    source: '/again',
-    headers: [
-      {
-        // missing key
-        value: 'idk',
-      },
-    ],
-  },
-  {
-    source: '/again',
-    headers: [
-      {
-        // missing value
-        key: 'idk',
-      },
-    ],
-  },
-  {
-    // non-allowed destination
-    source: '/again',
-    destination: '/another',
-    headers: [
-      {
-        key: 'x-first',
-        value: 'idk',
-      },
-    ],
-  },
-  {
-    // valid one
-    source: '/valid-header',
-    headers: [
-      {
-        key: 'x-first',
-        value: 'first',
-      },
-      {
-        key: 'x-another',
-        value: 'again',
-      },
-    ],
-  },
-]
+    expect(stderr).not.toContain(
+      'Valid redirect statusCode values are 301, 302, 303, 307, 308'
+    )
+    expect(stderr).toContain('Invalid rewrites found')
+  })
 
-const invalidHeaderAssertions = (stderr = '') => {
-  expect(stderr).toContain(
-    '`source` is missing, `key` in header item must be string for route {"headers":[{"x-first":"first"}]}'
-  )
+  it('should error during next build for invalid headers', async () => {
+    await writeConfig(
+      [
+        {
+          // missing source
+          headers: [
+            {
+              'x-first': 'first',
+            },
+          ],
+        },
+        {
+          // invalid headers value
+          source: '/hello',
+          headers: {
+            'x-first': 'first',
+          },
+        },
+        {
+          source: '/again',
+          headers: [
+            {
+              // missing key
+              value: 'idk',
+            },
+          ],
+        },
+        {
+          source: '/again',
+          headers: [
+            {
+              // missing value
+              key: 'idk',
+            },
+          ],
+        },
+        {
+          // non-allowed destination
+          source: '/again',
+          destination: '/another',
+          headers: [
+            {
+              key: 'x-first',
+              value: 'idk',
+            },
+          ],
+        },
+        {
+          // valid one
+          source: '/valid-header',
+          headers: [
+            {
+              key: 'x-first',
+              value: 'first',
+            },
+            {
+              key: 'x-another',
+              value: 'again',
+            },
+          ],
+        },
+      ],
+      'headers'
+    )
+    const stderr = await getStderr()
 
-  expect(stderr).toContain(
-    '`headers` field must be an array for route {"source":"/hello","headers":{"x-first":"first"}}'
-  )
+    expect(stderr).toContain(
+      '`source` is missing, `key` in header item must be string for route {"headers":[{"x-first":"first"}]}'
+    )
 
-  expect(stderr).toContain(
-    '`key` in header item must be string for route {"source":"/again","headers":[{"value":"idk"}]}'
-  )
+    expect(stderr).toContain(
+      '`headers` field must be an array for route {"source":"/hello","headers":{"x-first":"first"}}'
+    )
 
-  expect(stderr).toContain(
-    '`value` in header item must be string for route {"source":"/again","headers":[{"key":"idk"}]}'
-  )
+    expect(stderr).toContain(
+      '`key` in header item must be string for route {"source":"/again","headers":[{"value":"idk"}]}'
+    )
 
-  expect(stderr).toContain(
-    'invalid field: destination for route {"source":"/again","destination":"/another","headers":[{"key":"x-first","value":"idk"}]}'
-  )
+    expect(stderr).toContain(
+      '`value` in header item must be string for route {"source":"/again","headers":[{"key":"idk"}]}'
+    )
 
-  expect(stderr).not.toContain('/valid-header')
+    expect(stderr).toContain(
+      'invalid field: destination for route {"source":"/again","destination":"/another","headers":[{"key":"x-first","value":"idk"}]}'
+    )
+
+    expect(stderr).not.toContain('/valid-header')
+  })
+
+  it('should show formatted error for redirect source parse fail', async () => {
+    await writeConfig(
+      [
+        {
+          source: '/feedback/(?!general)',
+          destination: '/feedback/general',
+          permanent: false,
+        },
+        {
+          source: '/learning/?',
+          destination: '/learning',
+          permanent: true,
+        },
+      ],
+      'redirects'
+    )
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+    )
+    expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
+    expect(stderr).toContain(`/feedback/(?!general)`)
+
+    expect(stderr).toContain(
+      `Error parsing \`/learning/?\` https://err.sh/zeit/next.js/invalid-route-source`
+    )
+    expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
+    expect(stderr).toContain(`/learning/?`)
+  })
 }
 
 describe('Errors on invalid custom routes', () => {
   afterAll(() => fs.remove(nextConfigPath))
 
-  it('should error during next build for invalid redirects', async () => {
-    await writeConfig(invalidRedirects, 'redirects')
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    invalidRedirectAssertions(stderr)
-  })
-
-  it('should error during next build for invalid rewrites', async () => {
-    await writeConfig(invalidRewrites, 'rewrites')
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    invalidRewriteAssertions(stderr)
-  })
-
-  it('should error during next build for invalid headers', async () => {
-    await writeConfig(invalidHeaders, 'headers')
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    invalidHeaderAssertions(stderr)
-  })
-
-  it('should error during next dev for invalid redirects', async () => {
-    await writeConfig(invalidRedirects, 'redirects')
-    let stderr = ''
-    await launchApp(appDir, await findPort(), {
-      onStderr: msg => {
-        stderr += msg
-      },
+  describe('dev mode', () => {
+    beforeAll(() => {
+      getStderr = async () => {
+        let stderr = ''
+        await launchApp(appDir, await findPort(), {
+          onStderr: msg => {
+            stderr += msg
+          },
+        })
+        return stderr
+      }
     })
-    invalidRedirectAssertions(stderr)
+
+    runTests()
   })
 
-  it('should error during next dev for invalid rewrites', async () => {
-    await writeConfig(invalidRewrites, 'rewrites')
-    let stderr = ''
-    await launchApp(appDir, await findPort(), {
-      onStderr: msg => {
-        stderr += msg
-      },
+  describe('production mode', () => {
+    beforeAll(() => {
+      getStderr = async () => {
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        return stderr
+      }
     })
-    invalidRewriteAssertions(stderr)
-  })
 
-  it('should error during next dev for invalid headers', async () => {
-    await writeConfig(invalidHeaders, 'headers')
-    let stderr = ''
-    await launchApp(appDir, await findPort(), {
-      onStderr: msg => {
-        stderr += msg
-      },
-    })
-    invalidHeaderAssertions(stderr)
+    runTests()
   })
 })
