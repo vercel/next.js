@@ -1,4 +1,5 @@
+$var: red;
 .red-text {
-  color: red;
+  color: $var;
   background-image: url('./dark.svg') url(dark2.svg);
 }

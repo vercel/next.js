@@ -1,5 +1,6 @@
+$var: orange;
 .blue-text {
-  color: orange;
+  color: $var;
   font-weight: bolder;
   background-image: url(../assets/light.svg);
 }

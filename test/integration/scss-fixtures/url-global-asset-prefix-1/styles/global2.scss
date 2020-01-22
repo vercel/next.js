@@ -1,5 +1,6 @@
 @import './global2b.scss';
 
+$var: blue;
 .blue-text {
-  color: blue;
+  color: $var;
 }

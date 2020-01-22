@@ -1,5 +1,6 @@
+$var: red;
 .className {
-  background: red;
+  background: $var;
   color: yellow;
 }
 

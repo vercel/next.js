@@ -1,3 +1,4 @@
+$var: red;
 .my-text {
-  color: red;
+  color: $var;
 }

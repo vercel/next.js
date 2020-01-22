@@ -1,4 +1,5 @@
+$var: purple;
 .red-text {
-  color: purple;
+  color: $var;
   font-weight: bolder;
 }
