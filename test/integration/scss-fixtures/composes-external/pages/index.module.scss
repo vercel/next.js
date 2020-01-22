@@ -1,0 +1,5 @@
+$var: blue;
+.subClass {
+  composes: className from './other.scss';
+  background: $var;
+}

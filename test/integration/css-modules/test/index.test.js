@@ -286,7 +286,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".example_redText__1rb5g{color:\\"red\\"}"`
+      `".example_redText__1rb5g{color:red}"`
     )
   })
 })
