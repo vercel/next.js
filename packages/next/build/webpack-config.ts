@@ -28,7 +28,7 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
-import { __overrideCssConfiguration } from './webpack/config/blocks/css'
+import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
