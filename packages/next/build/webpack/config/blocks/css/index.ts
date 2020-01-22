@@ -14,13 +14,15 @@ import {
 } from './messages'
 import { getPostCssPlugins } from './plugins'
 
+// RegExps for all Style Sheet variants
+const regexLikeCss = /\.(css|scss|sass)$/
+
 // RegExps for Style Sheets
-// const regexCssAll = /\.css$/
 const regexCssGlobal = /(?<!\.module)\.css$/
 const regexCssModules = /\.module\.css$/
 
 // RegExps for Syntactically Awesome Style Sheets
-const regexSassModules = /\.module\.css$/
+const regexSassModules = /\.module\.(scss|sass)$/
 
 export const css = curry(async function css(
   enabled: boolean,
@@ -59,7 +61,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: /\.(css|scss|sass)$/,
+          test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
           issuer: { test: /pages[\\/]_document\./ },
