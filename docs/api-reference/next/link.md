@@ -49,6 +49,8 @@ export default Home
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
 - [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
 
+External URLs, and any links that don't require a route navigation using `/pages`, don't need to be handled with `Link`; use the anchor tag for such cases instead.
+
 ## Dynamic routes
 
 A `Link` to a dynamic route is a combination of the `href` and `as` props. A link to the page `pages/post/[pid].js` will look like this:
