@@ -1,6 +1,6 @@
 # Catch All Routes Example
 
-This example shows how to use [Catch all routes](https://nextjs.org/docs/routing/dynamic-routes#catch-all-routes), which allows a dynamic route to catch all paths.
+This example shows how to use [Catch all routes](https://nextjs.org/docs/routing/dynamic-routes#catch-all-routes) in Next.js, which allows a dynamic route to catch all paths.
 
 The catch all page is in `pages/post/[...slug]`, it matches any path after `/post`, like the following:
 
