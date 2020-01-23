@@ -694,12 +694,11 @@ describe('SCSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
-        stderr: true,
+    it('should compile successfully', async () => {
+      const { stdout } = await nextBuild(appDir, [], {
+        stdout: true,
       })
-      expect(stderr).not.toContain('resolve-url-loader: CSS error')
-      expect(stderr).not.toContain('Unknown word')
+      expect(stdout).toMatch(/Compiled successfully/)
     })
   })
 
