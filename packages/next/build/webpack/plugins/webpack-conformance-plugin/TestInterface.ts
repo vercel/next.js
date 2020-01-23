@@ -5,7 +5,7 @@ export interface IConformanceAnomaly {
   stack_trace?: string
 }
 
-export const enum IConformanceTestStatus {
+export enum IConformanceTestStatus {
   SUCCESS,
   FAILED,
 }
