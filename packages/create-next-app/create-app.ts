@@ -47,9 +47,9 @@ export async function createApp({
     if (repoUrl) {
       if (repoUrl.origin !== 'https://github.com') {
         console.error(
-          `Only GitHub repositories are supported when using an URL ${chalk.red(
+          `Invalid URL: ${chalk.red(
             `"${example}"`
-          )}. Please use a GitHub URL and try again.`
+          )}. Only GitHub repositories are supported. Please use a GitHub URL and try again.`
         )
         process.exit(1)
       }
