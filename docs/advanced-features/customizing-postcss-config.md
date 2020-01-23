@@ -54,7 +54,8 @@ You can learn more about [Next.js' CSS Module support here](/docs/basic-features
 
 ## Customizing Plugins
 
-When you define a custom PostCSS configuration file, Next.js **completely disables** the defaults listed above.
+> **Warning**: When you define a custom PostCSS configuration file, Next.js **completely disables** the defaults listed above.
+> Be sure to manually configure all features you need compiled, including [Autoprefixer](https://github.com/postcss/autoprefixer).
 
 To customize the PostCSS configuration, create a `postcss.config.json` file in the root of your project.
 
