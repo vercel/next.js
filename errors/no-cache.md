@@ -77,7 +77,7 @@ cache:
 
 **GitHub Actions**
 
-Use GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
+Using GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
 
 ```yaml
 uses: actions/cache@v1
