@@ -16,7 +16,6 @@ export default function Field(props) {
         required={props.required}
         type={props.type}
       />
-      {props.status ? <p>{props.status.message}</p> : undefined}
     </div>
   )
 }

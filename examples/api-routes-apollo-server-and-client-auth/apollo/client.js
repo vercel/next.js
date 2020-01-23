@@ -4,7 +4,7 @@ import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient } from 'apollo-client'
 import { InMemoryCache } from 'apollo-cache-inmemory'
 
-let apolloClient = null
+let globalApolloClient = null
 
 /**
  * Creates and provides the apolloContext
@@ -113,11 +113,11 @@ function initApolloClient(ctx, initialState) {
   }
 
   // Reuse client on the client-side
-  if (!apolloClient) {
-    apolloClient = createApolloClient(ctx, initialState)
+  if (!globalApolloClient) {
+    globalApolloClient = createApolloClient(ctx, initialState)
   }
 
-  return apolloClient
+  return globalApolloClient
 }
 
 /**
