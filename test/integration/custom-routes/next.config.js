@@ -55,6 +55,18 @@ module.exports = {
           source: '/hidden/_next/:path*',
           destination: '/_next/:path*',
         },
+        {
+          source: '/api-hello',
+          destination: '/api/hello',
+        },
+        {
+          source: '/api-hello-regex/(.*)',
+          destination: '/api/hello?name=:1',
+        },
+        {
+          source: '/api-hello-param/:name',
+          destination: '/api/hello?name=:name',
+        },
       ]
     },
     async redirects() {
