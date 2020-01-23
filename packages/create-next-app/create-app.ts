@@ -23,10 +23,12 @@ export async function createApp({
   appPath,
   useNpm,
   example,
+  examplePath,
 }: {
   appPath: string
   useNpm: boolean
   example?: string
+  examplePath?: string
 }) {
   let repoInfo: RepoInfo | undefined
 
@@ -52,7 +54,7 @@ export async function createApp({
         process.exit(1)
       }
 
-      repoInfo = getRepoInfo(repoUrl)
+      repoInfo = getRepoInfo(repoUrl, examplePath)
 
       if (!repoInfo) {
         console.error(

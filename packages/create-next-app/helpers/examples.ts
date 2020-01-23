@@ -14,9 +14,14 @@ export async function isUrlOk(url: string) {
   return res.statusCode === 200
 }
 
-export function getRepoInfo(url: URL): RepoInfo | undefined {
-  const [, username, name, tree, branch, ...path] = url.pathname.split('/')
-  const filePath = path.join('/')
+export function getRepoInfo(
+  url: URL,
+  examplePath?: string
+): RepoInfo | undefined {
+  const [, username, name, tree, _branch, ...path] = url.pathname.split('/')
+  const filePath = examplePath || path.join('/')
+  // If examplePath is available, the branch name takes the entire path
+  const branch = examplePath ? _branch + path.join('/') : _branch
 
   if (username && name && branch && tree === 'tree') {
     return { username, name, branch, filePath }
@@ -46,9 +51,10 @@ export function downloadAndExtractRepo(
     got.stream(
       `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
     ),
-    tar.extract({ cwd: root, strip: 1 + filePath.split('/').length }, [
-      `${name}-${branch}${filePath ? `/${filePath}` : ''}`,
-    ])
+    tar.extract(
+      { cwd: root, strip: 1 + (filePath ? filePath.split('/').length : 0) },
+      [`${name}-${branch}${filePath ? `/${filePath}` : ''}`]
+    )
   )
 }
 
