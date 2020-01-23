@@ -16,8 +16,12 @@ describe('CSS Customization', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    await nextBuild(appDir)
+  it('should compile successfully', async () => {
+    const { code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -78,8 +82,12 @@ describe('Legacy Next-CSS Customization', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    await nextBuild(appDir)
+  it('should compile successfully', async () => {
+    const { code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -103,8 +111,12 @@ describe('CSS Customization Array', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    await nextBuild(appDir)
+  it('should compile successfully', async () => {
+    const { code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -168,9 +180,12 @@ describe('Bad CSS Customization', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-
+  it('should compile successfully', async () => {
+    const { stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
     expect(stderr).toMatch(/field which is not supported.*?sourceMap/)
     ;[
       'postcss-modules-values',
