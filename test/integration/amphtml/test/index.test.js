@@ -7,48 +7,38 @@ import { validateAMP } from 'amp-test-utils'
 import { accessSync, readFileSync, writeFileSync } from 'fs'
 import {
   waitFor,
-  nextServer,
   nextBuild,
-  startApp,
-  stopApp,
   renderViaHTTP,
   check,
   getBrowserBodyText,
   findPort,
   launchApp,
   killApp,
+  nextStart,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const context = {}
 
-describe('AMP Usage', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
+describe('AMP support', () => {
+  describe('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+      context.appPort = appPort
     })
+    afterAll(() => killApp(app))
 
-    server = await startApp(app)
-    context.appPort = appPort = server.address().port
-  })
-  afterAll(() => stopApp(server))
-
-  describe('With basic usage', () => {
     it('should render the page', async () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
-  })
 
-  describe('With basic AMP usage', () => {
     it('should render the page as valid AMP', async () => {
       const html = await renderViaHTTP(appPort, '/?amp=1')
       await validateAMP(html)
@@ -112,9 +102,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/only-amp')
       await validateAMP(html)
     })
-  })
 
-  describe('With AMP context', () => {
     it('should render the normal page that uses the AMP hook', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook')
       expect(html).toMatch(/Hello others/)
@@ -138,9 +126,7 @@ describe('AMP Usage', () => {
       await validateAMP(html)
       expect(html).toMatch(/Hello AMP/)
     })
-  })
 
-  describe('canonical amphtml', () => {
     it('should render link rel amphtml', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook')
       const $ = cheerio.load(html)
@@ -213,9 +199,7 @@ describe('AMP Usage', () => {
       expect($('link[rel=amphtml]').attr('href')).toBe('/my-custom-amphtml')
       expect($('link[rel=amphtml]')).toHaveLength(1)
     })
-  })
 
-  describe('combined styles', () => {
     it('should combine style tags', async () => {
       const html = await renderViaHTTP(appPort, '/styled?amp=1')
       const $ = cheerio.load(html)
@@ -240,37 +224,26 @@ describe('AMP Usage', () => {
     })
   })
 
-  describe('AMP dev no-warn', () => {
+  describe('dev mode', () => {
+    let inspectPayload = ''
     let dynamicAppPort
     let ampDynamic
 
-    it('should not warn on valid amp', async () => {
-      let inspectPayload = ''
+    beforeAll(async () => {
       dynamicAppPort = await findPort()
       ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
         onStdout(msg) {
           inspectPayload += msg
         },
       })
-
-      await renderViaHTTP(dynamicAppPort, '/only-amp')
-
-      await killApp(ampDynamic)
-
-      expect(inspectPayload).not.toContain('warn')
-    })
-  })
-
-  describe('AMP dev mode', () => {
-    let dynamicAppPort
-    let ampDynamic
-
-    beforeAll(async () => {
-      dynamicAppPort = await findPort()
-      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
     })
 
     afterAll(() => killApp(ampDynamic))
+
+    it('should not warn on valid amp', async () => {
+      await renderViaHTTP(dynamicAppPort, '/only-amp')
+      expect(inspectPayload).not.toContain('warn')
+    })
 
     it('should navigate from non-AMP to AMP without error', async () => {
       const browser = await webdriver(dynamicAppPort, '/normal')
