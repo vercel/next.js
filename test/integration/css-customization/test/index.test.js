@@ -17,9 +17,10 @@ describe('CSS Customization', () => {
   })
 
   it('should compile successfully', async () => {
-    const { stdout } = await nextBuild(appDir, [], {
+    const { code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     })
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -82,9 +83,10 @@ describe('Legacy Next-CSS Customization', () => {
   })
 
   it('should compile successfully', async () => {
-    const { stdout } = await nextBuild(appDir, [], {
+    const { code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     })
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -110,9 +112,10 @@ describe('CSS Customization Array', () => {
   })
 
   it('should compile successfully', async () => {
-    const { stdout } = await nextBuild(appDir, [], {
+    const { code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     })
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
