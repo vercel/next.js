@@ -28,7 +28,7 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
-import { __overrideCssConfiguration } from './webpack/config/blocks/css'
+import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -90,7 +90,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
     // Replace: full URL polyfill with platform-based polyfill
-    url: require.resolve('native-url'),
+    // url: require.resolve('native-url'),
   }
 }
 
@@ -337,7 +337,14 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (module.type === `css/mini-extract`) {
+            if (
+              // mini-css-extract-plugin
+              module.type === `css/mini-extract` ||
+              // extract-css-chunks-webpack-plugin (old)
+              module.type === `css/extract-chunks` ||
+              // extract-css-chunks-webpack-plugin (new)
+              module.type === `css/extract-css-chunks`
+            ) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -835,6 +842,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
+    hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
   })
 

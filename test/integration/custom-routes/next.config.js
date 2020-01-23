@@ -55,6 +55,18 @@ module.exports = {
           source: '/hidden/_next/:path*',
           destination: '/_next/:path*',
         },
+        {
+          source: '/api-hello',
+          destination: '/api/hello',
+        },
+        {
+          source: '/api-hello-regex/(.*)',
+          destination: '/api/hello?name=:1',
+        },
+        {
+          source: '/api-hello-param/:name',
+          destination: '/api/hello?name=:name',
+        },
       ]
     },
     async redirects() {
@@ -122,6 +134,16 @@ module.exports = {
         {
           source: '/query-redirect/:section/:name',
           destination: '/with-params?first=:section&second=:name',
+          permanent: false,
+        },
+        {
+          source: '/unnamed/(first|second)/(.*)',
+          destination: '/:1/:2',
+          permanent: false,
+        },
+        {
+          source: '/named-like-unnamed/:0',
+          destination: '/:0',
           permanent: false,
         },
       ]

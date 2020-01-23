@@ -20,7 +20,7 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 // So, we need to polyfill it.
 // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
-  window.Promise = Promise
+  window.Promise = require('@babel/runtime-corejs2/core-js/promise')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -94,7 +94,7 @@ class Container extends React.Component {
     if (
       (data.nextExport &&
         (isDynamicRoute(router.pathname) || location.search)) ||
-      (Component.__NEXT_SPR && location.search)
+      (Component && Component.__N_SSG && location.search)
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -113,6 +113,14 @@ class Container extends React.Component {
           shallow: true,
         }
       )
+    }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
     }
   }
 
@@ -200,9 +208,15 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 
   const renderCtx = { App, Component, props, err: initialErr }
-  render(renderCtx)
 
-  return emitter
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
 export async function render(props) {
@@ -267,23 +281,21 @@ export async function renderError(props) {
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
 function renderReactElement(reactEl, domEl) {
-  // mark start of hydrate/render
-  if (ST) {
-    performance.mark('beforeRender')
-  }
-
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    let callback = markRenderComplete
     if (!reactRoot) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
           ? ReactDOM.createRoot(domEl, opts)
           : ReactDOM.createBlockingRoot(domEl, opts)
-      callback = markHydrateComplete
     }
-    reactRoot.render(reactEl, callback)
+    reactRoot.render(reactEl)
   } else {
+    // mark start of hydrate/render
+    if (ST) {
+      performance.mark('beforeRender')
+    }
+
     // The check for `.hydrate` is there to support React alternatives like preact
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
@@ -294,19 +306,19 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!('PerformanceObserver' in window)) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
-    } else {
-      performance.getEntriesByType('paint').forEach(onPerfEntry)
-
-      // Start an observer to catch any paint metrics which may fire _after_
-      // the load event is fired on the window
+    try {
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(onPerfEntry)
       })
-      observer.observe({ entryTypes: ['paint'] })
+      // Start observing paint entry types.
+      observer.observe({
+        type: 'paint',
+        buffered: true,
+      })
+    } catch (e) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
     }
   }
 }
