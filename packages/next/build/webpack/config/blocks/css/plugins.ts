@@ -119,7 +119,8 @@ export async function getPostCssPlugins(
 
   if (typeof config === 'function') {
     throw new Error(
-      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.`
+      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.\n` +
+        'Read more: https://err.sh/next.js/postcss-function'
     )
   }
 
