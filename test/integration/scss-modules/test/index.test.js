@@ -24,9 +24,10 @@ describe('Basic SCSS Module Support', () => {
   let appPort
   let app
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
@@ -37,6 +38,7 @@ describe('Basic SCSS Module Support', () => {
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -78,9 +80,10 @@ describe('3rd Party CSS Module Support', () => {
   let appPort
   let app
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
@@ -91,6 +94,7 @@ describe('3rd Party CSS Module Support', () => {
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -156,9 +160,10 @@ describe('Has CSS Module in computed styles in Production', () => {
   let appPort
   let app
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
@@ -169,6 +174,7 @@ describe('Has CSS Module in computed styles in Production', () => {
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -237,9 +243,10 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('node_modules/example/index.module.scss')
     expect(stderr).toMatch(
@@ -257,9 +264,10 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('node_modules/example/index.scss')
     expect(stderr).toMatch(
@@ -279,9 +287,10 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   let appPort
   let app
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
@@ -292,6 +301,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -330,9 +340,10 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
   let appPort
   let app
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
     appPort = await findPort()
@@ -343,6 +354,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -376,14 +388,16 @@ describe('CSS Module Composes Usage (Basic)', () => {
   const appDir = join(fixturesDir, 'composes-basic')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -407,14 +421,16 @@ describe('CSS Module Composes Usage (External)', () => {
   const appDir = join(fixturesDir, 'composes-external')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 

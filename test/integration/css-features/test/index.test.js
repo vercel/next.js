@@ -12,14 +12,16 @@ describe('Browserslist: Old', () => {
   const appDir = join(fixturesDir, 'browsers-old')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -42,14 +44,16 @@ describe('Browserslist: New', () => {
   const appDir = join(fixturesDir, 'browsers-new')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -72,14 +76,16 @@ describe('Custom Properties: Pass-Through IE11', () => {
   const appDir = join(fixturesDir, 'cp-ie-11')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -102,14 +108,16 @@ describe('Custom Properties: Pass-Through Modern', () => {
   const appDir = join(fixturesDir, 'cp-modern')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -136,9 +144,10 @@ describe('Custom Properties: Fail for :root {} in CSS Modules', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
     expect(stderr).toContain('CssSyntax error: Selector ":root" is not pure')
@@ -153,9 +162,10 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
     expect(stderr).toContain('CssSyntax error: Selector "h1" is not pure')
@@ -166,14 +176,16 @@ describe('CSS Modules: Import Global CSS', () => {
   const appDir = join(fixturesDir, 'module-import-global')
 
   let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    ;({ stdout } = await nextBuild(appDir, [], {
+    ;({ code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     }))
   })
 
   it('should have compiled successfully', () => {
+    expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -200,9 +212,10 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('pages/styles.module.css')
     expect(stderr).toContain('CssSyntax error: Selector "a" is not pure')
