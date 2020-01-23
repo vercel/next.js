@@ -38,7 +38,7 @@ export default class WebpackConformancePlugin {
 
   private gatherResults(results: Array<IConformanceTestResult>): void {
     results.forEach(result => {
-      if (result.result === 'FAILED') {
+      if (result.result === IConformanceTestStatus.FAILED) {
         result.errors && this.errors.push(...result.errors)
         result.warnings && this.warnings.push(...result.warnings)
       }
