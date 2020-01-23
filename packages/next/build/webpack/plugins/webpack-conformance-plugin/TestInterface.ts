@@ -5,8 +5,12 @@ export interface IConformanceAnomaly {
   stack_trace?: string
 }
 
+export enum IConformanceTestStatus {
+  SUCCESS,
+  FAILED,
+}
 export interface IConformanceTestResult {
-  result: 'SUCCESS' | 'FAILED'
+  result: IConformanceTestStatus
   warnings?: Array<IConformanceAnomaly>
   errors?: Array<IConformanceAnomaly>
 }

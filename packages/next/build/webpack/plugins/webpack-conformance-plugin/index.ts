@@ -5,6 +5,7 @@ import {
   IConformanceAnomaly,
   IGetAstNodeResult,
   NodeInspector,
+  IConformanceTestStatus,
 } from './TestInterface'
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'recast'
@@ -54,17 +55,12 @@ export default class WebpackConformancePlugin {
           return test.buildStared(this.compiler.options)
         }
         return {
-          result: 'SUCCESS',
+          result: IConformanceTestStatus.SUCCESS,
         } as IConformanceTestResult
       }
     )
 
-    Promise.all(buildStartedResults).then(
-      (results: Array<IConformanceTestResult>) => {
-        this.gatherResults(results)
-      }
-    )
-
+    this.gatherResults(buildStartedResults)
     callback()
   }
 
@@ -78,7 +74,7 @@ export default class WebpackConformancePlugin {
           return test.buildCompleted(compilation.assets)
         }
         return {
-          result: 'SUCCESS',
+          result: IConformanceTestStatus.SUCCESS,
         } as IConformanceTestResult
       }
     )

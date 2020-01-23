@@ -1,6 +1,7 @@
 import {
   IWebpackConformanceTest,
   IConformanceTestResult,
+  IConformanceTestStatus,
 } from '../TestInterface'
 import { CONFORMANCE_ERROR_PREFIX } from '../constants'
 
@@ -10,7 +11,7 @@ export class MinificationConformanceCheck implements IWebpackConformanceTest {
 
     if (options.optimization.minimize === false) {
       return {
-        result: 'FAILED',
+        result: IConformanceTestStatus.FAILED,
         errors: [
           {
             message: `${CONFORMANCE_ERROR_PREFIX}: Minification is disabled for this build.\nDisabling minification can result in serious performance degradation.`,
@@ -19,7 +20,7 @@ export class MinificationConformanceCheck implements IWebpackConformanceTest {
       }
     } else {
       return {
-        result: 'SUCCESS',
+        result: IConformanceTestStatus.SUCCESS,
       }
     }
   }
