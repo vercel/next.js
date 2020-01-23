@@ -29,9 +29,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -56,9 +57,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -83,9 +85,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -111,9 +114,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -141,9 +145,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -203,9 +208,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -231,9 +237,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles.module.css')
       expect(stderr).toMatch(
@@ -251,9 +258,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
@@ -271,9 +279,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
@@ -291,9 +300,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toContain('Please move all global CSS imports')
@@ -467,9 +477,10 @@ describe('CSS Support', () => {
     let appPort
     let app
     let stdout
+    let code
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
-      ;({ stdout } = await nextBuild(appDir, [], {
+      ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
       appPort = await findPort()
@@ -480,6 +491,7 @@ describe('CSS Support', () => {
     })
 
     it('should have compiled successfully', () => {
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -521,9 +533,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -569,9 +582,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -617,9 +631,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -665,9 +680,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -691,9 +707,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -719,8 +736,9 @@ describe('CSS Support', () => {
     })
 
     it('should fail the build', async () => {
-      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
+      expect(code).not.toBe(0)
       expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
       expect(stderr).toMatch(/Build error occurred/)
     })
@@ -756,9 +774,10 @@ describe('CSS Support', () => {
     let appPort
     let app
     let stdout
+    let code
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
-      ;({ stdout } = await nextBuild(appDir, [], {
+      ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
       appPort = await findPort()
@@ -769,6 +788,7 @@ describe('CSS Support', () => {
     })
 
     it('should have compiled successfully', () => {
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -790,9 +810,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
@@ -830,9 +851,10 @@ describe('CSS Support', () => {
     })
 
     it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
+      const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })
+      expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
     })
 
