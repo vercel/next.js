@@ -13,7 +13,10 @@ describe('Browserslist: Old', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    const { stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
