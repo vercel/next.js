@@ -10,8 +10,8 @@ import {
   writeFileSync,
   existsSync,
   unlinkSync,
-  rmdir,
-} from 'fs-extra'
+  rmdirSync,
+} from 'fs'
 import treeKill from 'tree-kill'
 
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -103,7 +103,6 @@ export function runNextCommand(argv, options = {}) {
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    if (options.dir) instance.dir = options.dir
 
     if (typeof options.instance === 'function') {
       options.instance(instance)
@@ -150,14 +149,13 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
-    if (opts.dir) instance.dir = opts.dir
+    instance.dir = argv.find(arg => arg !== 'dev')
     let didResolve = false
 
     function handleStdout(data) {
       const message = data.toString()
       if (/ready on/i.test(message)) {
         if (!didResolve) {
-          didResolve = true
           if (stdOut) {
             resolve(
               killApp(instance)
@@ -167,6 +165,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
           } else {
             resolve(instance)
           }
+          didResolve = true
         }
       }
       if (typeof opts.onStdout === 'function') {
@@ -203,11 +202,11 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
-  return runNextCommandDev([dir, '-p', port], undefined, { ...opts, dir })
+  return runNextCommandDev([dir, '-p', port], undefined, opts)
 }
 
 export function nextBuild(dir, args = [], opts = {}) {
-  return runNextCommand(['build', dir, ...args], { ...opts, dir })
+  return runNextCommand(['build', dir, ...args], opts)
 }
 
 export function nextExport(dir, { outdir }, opts = {}) {
@@ -252,18 +251,16 @@ export function buildTS(args = [], cwd, env = {}) {
 
 // Kill a launched app
 export async function killApp(instance) {
-  // try killing nicely first to allow lockfile clean-up
-  try {
-    process.kill(instance.pid, 1)
-
-    if (instance.dir) {
-      await rmdir(path.join(instance.dir, '.next.lock')).catch(() => {})
-    }
-  } catch (_) {}
-
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, err => {
       if (err) {
+        if (instance.dir) {
+          // since we force kill the dev processes we need to clean up the lock
+          // file so it doesn't break following tests
+          try {
+            rmdirSync(path.join(instance.dir, '.next.lock'))
+          } catch (_) {}
+        }
         if (
           process.platform === 'win32' &&
           typeof err.message === 'string' &&
