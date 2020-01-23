@@ -39,7 +39,14 @@ npm run dev
 
 You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!.
 
-> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
+> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to). For instance, if a node package gets installed via `npm install my-package` but doesn't offer TypeScript support, you can declare its types in this file:
+
+```js
+declare module 'my-package' {
+  const myDefaultFunction: any;
+  export default myDefaultFunction;
+}
+```
 
 > Next.js `strict` mode is disabled by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
 
