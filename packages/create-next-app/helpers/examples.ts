@@ -18,12 +18,14 @@ export function getRepoInfo(
   url: URL,
   examplePath?: string
 ): RepoInfo | undefined {
-  const [, username, name, tree, _branch, ...path] = url.pathname.split('/')
-  const filePath = examplePath || path.join('/')
+  const [, username, name, t, _branch, ...file] = url.pathname.split('/')
+  const filePath = examplePath ? examplePath.replace(/^\//, '') : file.join('/')
   // If examplePath is available, the branch name takes the entire path
-  const branch = examplePath ? _branch + path.join('/') : _branch
+  const branch = examplePath
+    ? `${_branch}/${file.join('/')}`.replace(new RegExp(`/${filePath}$`), '')
+    : _branch
 
-  if (username && name && branch && tree === 'tree') {
+  if (username && name && branch && t === 'tree') {
     return { username, name, branch, filePath }
   }
 }
