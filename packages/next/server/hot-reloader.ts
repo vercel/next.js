@@ -15,7 +15,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
-  NEXT_LOCK_FILE,
 } from '../next-server/lib/constants'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
@@ -231,10 +230,7 @@ export default class HotReloader {
   }
 
   async clean() {
-    return recursiveDelete(
-      join(this.dir, this.config.distDir),
-      new RegExp(`^(cache|${NEXT_LOCK_FILE})`)
-    )
+    return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
   async getWebpackConfig() {
