@@ -304,7 +304,6 @@ function runTests(dev) {
     expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
-    await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
@@ -316,14 +315,12 @@ function runTests(dev) {
 
   it('should update with a hash in the URL', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#abc')
-    await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
 
   it('should scroll to a hash on mount', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
-    await waitFor(1000)
 
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
@@ -334,7 +331,6 @@ function runTests(dev) {
 
   it('should scroll to a hash on client-side navigation', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(1000)
     await browser.elementByCss('#view-dynamic-with-hash').click()
     await browser.waitForElementByCss('p')
 

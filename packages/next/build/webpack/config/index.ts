@@ -11,6 +11,7 @@ export async function build(
     isDevelopment,
     isServer,
     hasSupportCss,
+    hasSupportScss,
     assetPrefix,
   }: {
     rootDirectory: string
@@ -18,6 +19,7 @@ export async function build(
     isDevelopment: boolean
     isServer: boolean
     hasSupportCss: boolean
+    hasSupportScss: boolean
     assetPrefix: string
   }
 ): Promise<webpack.Configuration> {
@@ -35,6 +37,6 @@ export async function build(
       : '',
   }
 
-  const fn = pipe(base(ctx), css(hasSupportCss, ctx))
+  const fn = pipe(base(ctx), css(hasSupportCss, hasSupportScss, ctx))
   return fn(config)
 }

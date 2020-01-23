@@ -9,7 +9,7 @@ import {
   Rewrite,
   getRedirectStatus,
 } from '../lib/check-custom-routes'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
@@ -507,7 +507,7 @@ export async function isPageStatic(
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
-      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -521,7 +521,8 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths) {
       prerenderPaths = [] as string[]
 
-      const _routeMatcher = getRouteMatcher(getRouteRegex(page))
+      const _routeRegex = getRouteRegex(page)
+      const _routeMatcher = getRouteMatcher(_routeRegex)
 
       // Get the default list of allowed params.
       const _validParamKeys = Object.keys(_routeMatcher(page))
@@ -560,15 +561,28 @@ export async function isPageStatic(
           const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
-            if (typeof params[validParamKey] !== 'string') {
+            const { repeat } = _routeRegex.groups[validParamKey]
+            const paramValue: string | string[] = params[validParamKey] as
+              | string
+              | string[]
+            if (
+              (repeat && !Array.isArray(paramValue)) ||
+              (!repeat && typeof paramValue !== 'string')
+            ) {
               throw new Error(
-                `A required parameter (${validParamKey}) was not provided as a string.`
+                `A required parameter (${validParamKey}) was not provided as ${
+                  repeat ? 'an array' : 'a string'
+                }.`
               )
             }
 
             builtPage = builtPage.replace(
-              `[${validParamKey}]`,
-              encodeURIComponent(params[validParamKey])
+              `[${repeat ? '...' : ''}${validParamKey}]`,
+              encodeURIComponent(
+                repeat
+                  ? (paramValue as string[]).join('/')
+                  : (paramValue as string)
+              )
             )
           })
 

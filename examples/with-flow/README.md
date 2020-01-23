@@ -1,5 +1,7 @@
 # Example app with [Flow](https://flowtype.org/)
 
+This example shows how you can use Flow, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +12,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-flow with-flow-app
+npm init next-app --example with-flow with-flow-app
 # or
 yarn create next-app --example with-flow with-flow-app
 ```
@@ -42,9 +44,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how you can use Flow, with the transform-flow-strip-types babel plugin stripping flow type annotations from your output code.
-
-![with-flow](with-flow.gif)

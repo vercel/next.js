@@ -42,6 +42,7 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     css: true,
+    scss: false,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -51,6 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
+    static404: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -82,10 +84,55 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       experimentalWarning()
     }
 
-    if (key === 'distDir' && userConfig[key] === 'public') {
-      throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
-      )
+    if (key === 'distDir') {
+      if (typeof userConfig[key] !== 'string') {
+        userConfig[key] = defaultConfig.distDir
+      }
+      const userDistDir = userConfig[key].trim()
+
+      // don't allow public as the distDir as this is a reserved folder for
+      // public files
+      if (userDistDir === 'public') {
+        throw new Error(
+          `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
+        )
+      }
+      // make sure distDir isn't an empty string which can result the provided
+      // directory being deleted in development mode
+      if (userDistDir.length === 0) {
+        throw new Error(
+          `Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined`
+        )
+      }
+    }
+
+    if (key === 'pageExtensions') {
+      const pageExtensions = userConfig[key]
+
+      if (pageExtensions === undefined) {
+        delete userConfig[key]
+        return
+      }
+
+      if (!Array.isArray(pageExtensions)) {
+        throw new Error(
+          `Specified pageExtensions is not an array of strings, found "${pageExtensions}". Please update this config or remove it.`
+        )
+      }
+
+      if (!pageExtensions.length) {
+        throw new Error(
+          `Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.`
+        )
+      }
+
+      pageExtensions.forEach(ext => {
+        if (typeof ext !== 'string') {
+          throw new Error(
+            `Specified pageExtensions is not an array of strings, found "${ext}" of type "${typeof ext}". Please update this config or remove it.`
+          )
+        }
+      })
     }
 
     const maybeObject = userConfig[key]

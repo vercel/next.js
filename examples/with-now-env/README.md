@@ -1,13 +1,15 @@
 # Now-env example
 
+This example shows the usage of [Now Secrets](https://zeit.co/docs/v2/deployments/environment-variables-and-secrets/?query=secret#securing-environment-variables-using-secrets) and [now dev](https://zeit.co/docs/v2/development/basics), it shows how to add environment variables in development that can be replaced in production by the secrets defined with [Now](https://zeit.co/now).
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example::
 
 ```bash
-npx create-next-app --example with-now-env with-now-env-app
+npm init next-app --example with-now-env with-now-env-app
 # or
 yarn create next-app --example with-now-env with-now-env-app
 ```
@@ -42,7 +44,3 @@ now
 ```
 
 keep in mind that in order to deploy the app to `now` the env [secrets](https://zeit.co/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
-
-## The idea behind the example
-
-This example shows the usage of [Now Secrets](https://zeit.co/docs/v2/deployments/environment-variables-and-secrets/?query=secret#securing-environment-variables-using-secrets) and [now dev](https://zeit.co/docs/v2/development/basics), it shows how to add environment variables in development that can be replaced in production by the secrets defined with [Now](https://zeit.co/now).

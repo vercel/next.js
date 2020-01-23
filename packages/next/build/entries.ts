@@ -115,10 +115,19 @@ export function createEntrypoints(
     }
 
     if (!isApiRoute) {
-      client[bundlePath] = `next-client-pages-loader?${stringify({
+      const pageLoader = `next-client-pages-loader?${stringify({
         page,
         absolutePagePath,
       })}!`
+
+      // Make sure next/router is a dependency of _app or else granularChunks
+      // might cause the router to not be able to load causing hydration
+      // to fail
+
+      client[bundlePath] =
+        page === '/_app'
+          ? [pageLoader, require.resolve('../client/router')]
+          : pageLoader
     }
   })
 
