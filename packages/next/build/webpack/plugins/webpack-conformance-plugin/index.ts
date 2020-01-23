@@ -1,8 +1,8 @@
 import { Compiler, compilation } from 'webpack'
 import {
   IConformanceTestResult,
-  IWebpackConformanctTest,
-  IConformanceAnamoly,
+  IWebpackConformanceTest,
+  IConformanceAnomaly,
   IGetAstNodeResult,
   NodeInspector,
 } from './TestInterface'
@@ -13,7 +13,7 @@ export { MinificationConformanceCheck } from './checks/minification-conformance-
 // export { ReactSyncScriptsConformanceTest } from './tests/react-sync-scripts-conformance';
 
 export interface IWebpackConformancePluginOptions {
-  tests: IWebpackConformanctTest[]
+  tests: IWebpackConformanceTest[]
 }
 
 interface VisitorMap {
@@ -21,9 +21,9 @@ interface VisitorMap {
 }
 
 export default class WebpackConformancePlugin {
-  private tests: IWebpackConformanctTest[]
-  private errors: Array<IConformanceAnamoly>
-  private warnings: Array<IConformanceAnamoly>
+  private tests: IWebpackConformanceTest[]
+  private errors: Array<IConformanceAnomaly>
+  private warnings: Array<IConformanceAnomaly>
   private compiler?: Compiler
 
   constructor(options: IWebpackConformancePluginOptions) {

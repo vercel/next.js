@@ -1,10 +1,10 @@
 import {
-  IWebpackConformanctTest,
+  IWebpackConformanceTest,
   IConformanceTestResult,
 } from '../TestInterface'
 import { CONFORMANCE_ERROR_PREFIX } from '../constants'
 
-export class MinificationConformanceCheck implements IWebpackConformanctTest {
+export class MinificationConformanceCheck implements IWebpackConformanceTest {
   public buildStared(options: any): IConformanceTestResult {
     // TODO(prateekbh@): Implement warning for using Terser maybe?
 

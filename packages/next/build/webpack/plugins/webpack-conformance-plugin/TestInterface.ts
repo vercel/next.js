@@ -1,14 +1,14 @@
 import { NodePath } from 'ast-types/lib/node-path'
 
-export interface IConformanceAnamoly {
+export interface IConformanceAnomaly {
   message: string
   stack_trace?: string
 }
 
 export interface IConformanceTestResult {
   result: 'SUCCESS' | 'FAILED'
-  warnings?: Array<IConformanceAnamoly>
-  errors?: Array<IConformanceAnamoly>
+  warnings?: Array<IConformanceAnomaly>
+  errors?: Array<IConformanceAnomaly>
 }
 
 export interface IParsedModuleDetails {
@@ -25,7 +25,7 @@ export interface IGetAstNodeResult {
   inspectNode: NodeInspector
 }
 
-export interface IWebpackConformanctTest {
+export interface IWebpackConformanceTest {
   buildStared?: (options: any) => IConformanceTestResult
   getAstNode?: () => IGetAstNodeResult[]
   buildCompleted?: (assets: any) => IConformanceTestResult
