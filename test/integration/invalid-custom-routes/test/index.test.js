@@ -59,10 +59,17 @@ const runTests = () => {
           destination: '/another',
           permanent: 'yes',
         },
+        // invalid objects
+        null,
+        'string',
       ],
       'redirects'
     )
     const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      `\`destination\` is missing for route {"source":"/hello","permanent":false}`
+    )
 
     expect(stderr).toContain(
       `\`destination\` is missing for route {"source":"/hello","permanent":false}`
@@ -85,8 +92,21 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      'Valid redirect statusCode values are 301, 302, 303, 307, 308'
+      `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
     )
+
+    expect(stderr).toContain(
+      `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
+    )
+
+    expect(stderr).toContain(
+      `The route null is not a valid object with \`source\` and \`destination\``
+    )
+
+    expect(stderr).toContain(
+      `The route "string" is not a valid object with \`source\` and \`destination\``
+    )
+
     expect(stderr).toContain('Invalid redirects found')
   })
 
@@ -122,6 +142,9 @@ const runTests = () => {
           source: '/feedback/(?!general)',
           destination: '/feedback/general',
         },
+        // invalid objects
+        null,
+        'string',
       ],
       'rewrites'
     )
@@ -150,6 +173,15 @@ const runTests = () => {
     expect(stderr).toContain(
       `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
     )
+
+    expect(stderr).toContain(
+      `The route null is not a valid object with \`source\` and \`destination\``
+    )
+
+    expect(stderr).toContain(
+      `The route "string" is not a valid object with \`source\` and \`destination\``
+    )
+
     expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
     expect(stderr).toContain(`/feedback/(?!general)`)
 
@@ -220,6 +252,9 @@ const runTests = () => {
             },
           ],
         },
+        // invalid objects
+        null,
+        'string',
       ],
       'headers'
     )
@@ -243,6 +278,14 @@ const runTests = () => {
 
     expect(stderr).toContain(
       'invalid field: destination for route {"source":"/again","destination":"/another","headers":[{"key":"x-first","value":"idk"}]}'
+    )
+
+    expect(stderr).toContain(
+      `The route null is not a valid object with \`source\` and \`headers\``
+    )
+
+    expect(stderr).toContain(
+      `The route "string" is not a valid object with \`source\` and \`headers\``
     )
 
     expect(stderr).not.toContain('/valid-header')
