@@ -687,6 +687,22 @@ describe('SCSS Support', () => {
     })
   })
 
+  describe('Preprocessor loader order', () => {
+    const appDir = join(fixturesDir, 'loader-order')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should build successfully', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(stderr).not.toContain('resolve-url-loader: CSS error')
+      expect(stderr).not.toContain('Unknown word')
+    })
+  })
+
   describe('Ordering with styled-jsx (dev)', () => {
     const appDir = join(fixturesDir, 'with-styled-jsx')
 
