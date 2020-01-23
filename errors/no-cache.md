@@ -74,3 +74,23 @@ cache:
     - 'node_modules/**/*' # Cache `node_modules` for faster `yarn` or `npm i`
     - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
 ```
+
+**Bitbucket Pipelines**
+
+Add or merge the following into your `bitbucket-pipelines.yml` at the top level (same level as `pipelines`):
+
+```yaml
+definitions:
+  caches:
+    nextcache: .next/cache
+```
+
+Then reference it in the `caches` section of your pipeline's `step`: 
+
+```yaml 
+- step:
+    name: your_step_name
+    caches:
+      - node
+      - nextcache
+```
