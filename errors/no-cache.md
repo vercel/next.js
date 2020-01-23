@@ -79,7 +79,7 @@ cache:
 
 Use GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
 
-```
+```yaml
 uses: actions/cache@v1
 with:
   path: ${{ github.workspace }}/.next/cache
