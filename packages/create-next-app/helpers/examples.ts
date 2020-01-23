@@ -6,6 +6,7 @@ export type RepoInfo = {
   username: string
   name: string
   branch: string
+  filePath: string
 }
 
 export async function isUrlOk(url: string) {
@@ -14,18 +15,19 @@ export async function isUrlOk(url: string) {
 }
 
 export function getRepoInfo(url: URL): RepoInfo | undefined {
-  const [, username, name, tree, ..._branch] = url.pathname.split('/')
-  const branch = _branch.join('/')
+  const [, username, name, tree, branch, ...path] = url.pathname.split('/')
+  const filePath = path.join('/')
 
   if (username && name && branch && tree === 'tree') {
-    return { username, name, branch }
+    return { username, name, branch, filePath }
   }
 }
 
-export function hasRepo({ username, name, branch }: RepoInfo) {
-  return isUrlOk(
-    `https://api.github.com/repos/${username}/${name}/contents/package.json?ref=${branch}`
-  )
+export function hasRepo({ username, name, branch, filePath }: RepoInfo) {
+  const contentsUrl = `https://api.github.com/repos/${username}/${name}/contents`
+  const packagePath = `${filePath ? `/${filePath}` : ''}/package.json?`
+
+  return isUrlOk(contentsUrl + packagePath + `?ref=${branch}`)
 }
 
 export function hasExample(name: string): Promise<boolean> {
@@ -38,13 +40,15 @@ export function hasExample(name: string): Promise<boolean> {
 
 export function downloadAndExtractRepo(
   root: string,
-  { username, name, branch }: RepoInfo
+  { username, name, branch, filePath }: RepoInfo
 ): Promise<void> {
   return promisePipe(
     got.stream(
       `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
     ),
-    tar.extract({ cwd: root, strip: 1 }, [`${name}-${branch}`])
+    tar.extract({ cwd: root, strip: 1 + filePath.split('/').length }, [
+      `${name}-${branch}${filePath ? `/${filePath}` : ''}`,
+    ])
   )
 }
 
