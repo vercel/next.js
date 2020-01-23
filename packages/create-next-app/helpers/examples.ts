@@ -30,7 +30,7 @@ export function getRepoInfo(
 
 export function hasRepo({ username, name, branch, filePath }: RepoInfo) {
   const contentsUrl = `https://api.github.com/repos/${username}/${name}/contents`
-  const packagePath = `${filePath ? `/${filePath}` : ''}/package.json?`
+  const packagePath = `${filePath ? `/${filePath}` : ''}/package.json`
 
   return isUrlOk(contentsUrl + packagePath + `?ref=${branch}`)
 }
@@ -52,7 +52,7 @@ export function downloadAndExtractRepo(
       `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
     ),
     tar.extract(
-      { cwd: root, strip: 1 + (filePath ? filePath.split('/').length : 0) },
+      { cwd: root, strip: filePath ? filePath.split('/').length + 1 : 1 },
       [`${name}-${branch}${filePath ? `/${filePath}` : ''}`]
     )
   )
