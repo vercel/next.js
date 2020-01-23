@@ -85,7 +85,7 @@ definitions:
     nextcache: .next/cache
 ```
 
-Then reference it in the `step` section of your pipeline: 
+Then reference it in the `caches` section of your pipeline's `step`: 
 
 ```yaml 
 - step:
