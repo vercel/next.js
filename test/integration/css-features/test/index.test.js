@@ -39,7 +39,10 @@ describe('Browserslist: New', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    const { stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -62,7 +65,10 @@ describe('Custom Properties: Pass-Through IE11', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    const { stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -85,7 +91,10 @@ describe('Custom Properties: Pass-Through Modern', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    const { stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -142,7 +151,10 @@ describe('CSS Modules: Import Global CSS', () => {
 
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    const { stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
