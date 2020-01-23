@@ -834,6 +834,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
+    hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
   })
 
