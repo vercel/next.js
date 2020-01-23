@@ -62,7 +62,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import checkPidFile from '../lib/check-pid-file'
+import checkLockFile from '../lib/check-lock-file'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -109,7 +109,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const redirects: Redirect[] = []
   const headers: Header[] = []
 
-  checkPidFile(distDir)
+  checkLockFile(distDir)
 
   if (typeof config.experimental.redirects === 'function') {
     redirects.push(...(await config.experimental.redirects()))

@@ -11,10 +11,11 @@ import treeKill from 'tree-kill'
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
+import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
+export const nextServer = server
 export const pkg = _pkg
-export const nextServer = ({ dir }) => ({ dir })
 
 export function initNextServerScript(
   scriptPath,
@@ -236,6 +237,11 @@ export function buildTS(args = [], cwd, env = {}) {
 // Kill a launched app
 export async function killApp(instance) {
   await new Promise((resolve, reject) => {
+    // try killing nicely first to allow lockfile clean-up
+    try {
+      process.kill(instance.pid, 1)
+    } catch (_) {}
+
     treeKill(instance.pid, err => {
       if (err) {
         if (
@@ -259,11 +265,13 @@ export async function killApp(instance) {
   })
 }
 
-// TODO: migrate away from this helper and use `nextStart` directly
 export async function startApp(app) {
-  const appPort = await findPort()
-  const server = await nextStart(app.dir, appPort)
-  server.address = () => ({ port: appPort })
+  await app.prepare()
+  const handler = app.getRequestHandler()
+  const server = http.createServer(handler)
+  server.__app = app
+
+  await promiseCall(server, 'listen')
   return server
 }
 
@@ -271,12 +279,7 @@ export async function stopApp(server) {
   if (server.__app) {
     await server.__app.close()
   }
-  if (server.close) {
-    await promiseCall(server, 'close')
-  }
-  if (server.pid) {
-    await killApp(server)
-  }
+  await promiseCall(server, 'close')
 }
 
 export function promiseCall(obj, method, ...args) {

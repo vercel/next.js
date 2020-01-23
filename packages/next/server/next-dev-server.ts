@@ -28,6 +28,7 @@ import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import checkCustomRoutes from '../lib/check-custom-routes'
+import checkLockFile from '../lib/check-lock-file'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -46,6 +47,8 @@ export default class DevServer extends Server {
 
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
+    checkLockFile(this.distDir)
+
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
