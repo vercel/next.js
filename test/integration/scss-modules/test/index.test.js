@@ -23,17 +23,21 @@ describe('Basic SCSS Module Support', () => {
 
   let appPort
   let app
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
-    expect(stdout).toMatch(/Compiled successfully/)
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -73,17 +77,21 @@ describe('3rd Party CSS Module Support', () => {
 
   let appPort
   let app
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
-    expect(stdout).toMatch(/Compiled successfully/)
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -147,17 +155,21 @@ describe('Has CSS Module in computed styles in Production', () => {
 
   let appPort
   let app
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
-    expect(stdout).toMatch(/Compiled successfully/)
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it('should have CSS for page', async () => {
@@ -266,16 +278,21 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
   let appPort
   let app
+  let stdout
   beforeAll(async () => {
-    const { stdout } = await nextBuild(appDir, [], {
+    await remove(join(appDir, '.next'))
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
-    expect(stdout).toMatch(/Compiled successfully/)
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -312,16 +329,21 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
   let appPort
   let app
+  let stdout
   beforeAll(async () => {
-    const { stdout } = await nextBuild(appDir, [], {
+    await remove(join(appDir, '.next'))
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
-    expect(stdout).toMatch(/Compiled successfully/)
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -353,11 +375,15 @@ describe('CSS Module Composes Usage (Basic)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-basic')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -380,11 +406,15 @@ describe('CSS Module Composes Usage (External)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-external')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 

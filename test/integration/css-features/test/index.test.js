@@ -11,11 +11,15 @@ const fixturesDir = join(__dirname, '../fixtures')
 describe('Browserslist: Old', () => {
   const appDir = join(fixturesDir, 'browsers-old')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -37,11 +41,15 @@ describe('Browserslist: Old', () => {
 describe('Browserslist: New', () => {
   const appDir = join(fixturesDir, 'browsers-new')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -63,11 +71,15 @@ describe('Browserslist: New', () => {
 describe('Custom Properties: Pass-Through IE11', () => {
   const appDir = join(fixturesDir, 'cp-ie-11')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -89,11 +101,15 @@ describe('Custom Properties: Pass-Through IE11', () => {
 describe('Custom Properties: Pass-Through Modern', () => {
   const appDir = join(fixturesDir, 'cp-modern')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 
@@ -149,11 +165,15 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
 describe('CSS Modules: Import Global CSS', () => {
   const appDir = join(fixturesDir, 'module-import-global')
 
+  let stdout
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    const { stdout } = await nextBuild(appDir, [], {
+    ;({ stdout } = await nextBuild(appDir, [], {
       stdout: true,
-    })
+    }))
+  })
+
+  it('should have compiled successfully', () => {
     expect(stdout).toMatch(/Compiled successfully/)
   })
 

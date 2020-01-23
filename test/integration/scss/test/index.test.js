@@ -467,17 +467,21 @@ describe('SCSS Support', () => {
 
     let appPort
     let app
+    let stdout
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
-      const { stdout } = await nextBuild(appDir, [], {
+      ;({ stdout } = await nextBuild(appDir, [], {
         stdout: true,
-      })
-      expect(stdout).toMatch(/Compiled successfully/)
+      }))
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it('should have CSS for page', async () => {
@@ -752,17 +756,21 @@ describe('SCSS Support', () => {
 
     let appPort
     let app
+    let stdout
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
-      const { stdout } = await nextBuild(appDir, [], {
+      ;({ stdout } = await nextBuild(appDir, [], {
         stdout: true,
-      })
-      expect(stdout).toMatch(/Compiled successfully/)
+      }))
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it('should have the correct color (css ordering)', async () => {
