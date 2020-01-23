@@ -29,7 +29,7 @@ export default function checkPidFile(distDir: string) {
     }
   }
 
-  // write current pid to lock file removing it before exit
+  // write current pid to lock file
   try {
     mkdirSync(distDir)
   } catch (err) {
