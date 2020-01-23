@@ -108,19 +108,4 @@ describe('config', () => {
     )
     expect(config.__test__ext).toBe('js')
   })
-
-  it('Should log a warning when no exported configuration found', () => {
-    const spy = jest.spyOn(console, 'warn')
-
-    loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      join(__dirname, '_resolvedata', 'no-export')
-    )
-
-    expect(spy.mock.calls[0][0]).toMatch(
-      'Detected next.config.js, no exported configuration found'
-    )
-
-    spy.mockRestore()
-  })
 })
