@@ -74,3 +74,14 @@ cache:
     - 'node_modules/**/*' # Cache `node_modules` for faster `yarn` or `npm i`
     - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
 ```
+
+**GitHub Actions**
+
+Use GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
+
+```
+uses: actions/cache@v1
+with:
+  path: ${{ github.workspace }}/.next/cache
+  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+```
