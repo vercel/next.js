@@ -184,13 +184,15 @@ export async function getPostCssPlugins(
               'Error'
             )}: A PostCSS Plugin must be provided as a ${chalk.bold(
               'string'
-            )}. Instead, we got: '${pluginName}'.`
+            )}. Instead, we got: '${pluginName}'.\n` +
+              'Read more: https://err.sh/next.js/postcss-shape'
           )
         } else {
           console.error(
             `${chalk.red.bold(
               'Error'
-            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').`
+            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').\n` +
+              'Read more: https://err.sh/next.js/postcss-shape'
           )
         }
         throw new Error(genericErrorText)
@@ -201,14 +203,15 @@ export async function getPostCssPlugins(
           'Error'
         )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
           'string'
-        )}.`
+        )}.\nRead more: https://err.sh/next.js/postcss-shape`
       )
       throw new Error(genericErrorText)
     } else {
       console.error(
         `${chalk.red.bold(
           'Error'
-        )}: An unknown PostCSS plugin was provided (${plugin}).`
+        )}: An unknown PostCSS plugin was provided (${plugin}).\n` +
+          'Read more: https://err.sh/next.js/postcss-shape'
       )
       throw new Error(genericErrorText)
     }
