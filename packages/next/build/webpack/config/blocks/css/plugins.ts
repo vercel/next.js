@@ -37,7 +37,8 @@ function isIgnoredPlugin(pluginPath: string): boolean {
     `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
       plugin
     )} plugin from your PostCSS configuration. ` +
-      `This plugin is automatically configured by Next.js.`
+      `This plugin is automatically configured by Next.js.\n` +
+      'Read more: https://err.sh/next.js/postcss-ignored-plugin'
   )
   return true
 }
@@ -118,7 +119,8 @@ export async function getPostCssPlugins(
 
   if (typeof config === 'function') {
     throw new Error(
-      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.`
+      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.\n` +
+        'Read more: https://err.sh/next.js/postcss-function'
     )
   }
 
