@@ -74,12 +74,38 @@ const pids = ['id1', 'id2', 'id3']
 }
 ```
 
-## Example with `React.forwardRef`
+## If the child is a custom component that wraps an `<a>` tag
 
-If the child component in `Link` is a function component, you'll need to wrap it in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref) like in the following example:
+If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which might hurt your site’s SEO.
 
 ```jsx
-import React from 'react'
+import Link from 'next/link'
+import styled from 'styled-components'
+
+// This creates a custom component that wraps an <a> tag
+const RedLink = styled.a`
+  color: red;
+`
+
+function NavLink({ href, name }) {
+  // Must add passHref to Link
+  return (
+    <Link href={href} passHref>
+      <RedLink>{name}</RedLink>
+    </Link>
+  )
+}
+
+export default NavLink
+```
+
+> **Note:** If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
+
+## If the child is a function component
+
+If the child of `Link` is a function component, in addition to using `passHref`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
+
+```jsx
 import Link from 'next/link'
 
 // `onClick`, `href`, and `ref` need to be passed to the DOM element
@@ -94,7 +120,7 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => {
 
 function Home() {
   return (
-    <Link href="/about">
+    <Link href="/about" passHref>
       <MyButton />
     </Link>
   )
@@ -146,29 +172,6 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 ```
 
 The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` property to `<img>` but won't pass the `href` property.
-
-## Forcing `Link` to expose `href` to its child
-
-If the child is an `<a>` tag and doesn't have a `href` attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and `Link` won’t recognize it as a _hyperlink_, and, consequently, won’t transfer its `href` to the child.
-
-In cases like that, you can add the `passHref` property to `Link`, forcing it to expose its `href` property to the child. Take a look at the following example:
-
-```jsx
-import Link from 'next/link'
-import Unexpected_A from 'third-library'
-
-function NavLink({ href, name }) {
-  return (
-    <Link href={href} passHref>
-      <Unexpected_A>{name}</Unexpected_A>
-    </Link>
-  )
-}
-
-export default NavLink
-```
-
-> **Please note**: using a tag other than `<a>` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
 
 ## Disable scrolling to the top of the page
 
