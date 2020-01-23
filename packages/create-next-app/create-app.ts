@@ -5,7 +5,14 @@ import makeDir from 'make-dir'
 import os from 'os'
 import path from 'path'
 
-import { downloadAndExtractExample, hasExample } from './helpers/examples'
+import {
+  hasExample,
+  hasRepo,
+  getRepoInfo,
+  downloadAndExtractExample,
+  downloadAndExtractRepo,
+  RepoInfo,
+} from './helpers/examples'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
@@ -21,15 +28,62 @@ export async function createApp({
   useNpm: boolean
   example?: string
 }) {
+  let repoInfo: RepoInfo | undefined
+
   if (example) {
-    const found = await hasExample(example)
-    if (!found) {
-      console.error(
-        `Could not locate an example named ${chalk.red(
-          `"${example}"`
-        )}. Please check your spelling and try again.`
-      )
-      process.exit(1)
+    let repoUrl: URL | undefined
+
+    try {
+      repoUrl = new URL(example)
+    } catch (error) {
+      if (error.code !== 'ERR_INVALID_URL') {
+        console.error(error)
+        process.exit(1)
+      }
+    }
+
+    if (repoUrl) {
+      if (repoUrl.origin !== 'https://github.com') {
+        console.error(
+          `Only GitHub repositories are supported when using an URL ${chalk.red(
+            `"${example}"`
+          )}. Please use a GitHub URL and try again.`
+        )
+        process.exit(1)
+      }
+
+      repoInfo = getRepoInfo(repoUrl)
+
+      if (!repoInfo) {
+        console.error(
+          `Found invalid GitHub URL: ${chalk.red(
+            `"${example}"`
+          )}. Please fix the URL and try again.`
+        )
+        process.exit(1)
+      }
+
+      const found = await hasRepo(repoInfo)
+
+      if (!found) {
+        console.error(
+          `Could not locate the repository for ${chalk.red(
+            `"${example}"`
+          )}. Please check that the repository exists and try again.`
+        )
+        process.exit(1)
+      }
+    } else {
+      const found = await hasExample(example)
+
+      if (!found) {
+        console.error(
+          `Could not locate an example named ${chalk.red(
+            `"${example}"`
+          )}. Please check your spelling and try again.`
+        )
+        process.exit(1)
+      }
     }
   }
 
@@ -53,28 +107,38 @@ export async function createApp({
   process.chdir(root)
 
   if (example) {
-    console.log(
-      `Downloading files for example ${chalk.cyan(
-        example
-      )}. This might take a moment.`
-    )
-    console.log()
-    await downloadAndExtractExample(root, example)
-
-    // Copy our default `.gitignore` if the application did not provide one
-    const ignorePath = path.join(root, '.gitignore')
-    if (!fs.existsSync(ignorePath)) {
-      fs.copyFileSync(
-        path.join(__dirname, 'templates', 'default', 'gitignore'),
-        ignorePath
+    if (repoInfo) {
+      console.log(
+        `Downloading files from repo ${chalk.cyan(
+          example
+        )}. This might take a moment.`
       )
+      console.log()
+      await downloadAndExtractRepo(root, repoInfo)
+    } else {
+      console.log(
+        `Downloading files for example ${chalk.cyan(
+          example
+        )}. This might take a moment.`
+      )
+      console.log()
+      await downloadAndExtractExample(root, example)
+
+      // Copy our default `.gitignore` if the application did not provide one
+      const ignorePath = path.join(root, '.gitignore')
+      if (!fs.existsSync(ignorePath)) {
+        fs.copyFileSync(
+          path.join(__dirname, 'templates', 'default', 'gitignore'),
+          ignorePath
+        )
+      }
+
+      console.log('Installing packages. This might take a couple of minutes.')
+      console.log()
+
+      await install(root, null, { useYarn, isOnline })
+      console.log()
     }
-
-    console.log('Installing packages. This might take a couple of minutes.')
-    console.log()
-
-    await install(root, null, { useYarn, isOnline })
-    console.log()
   } else {
     const packageJson = {
       name: appName,
