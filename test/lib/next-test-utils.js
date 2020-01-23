@@ -10,7 +10,7 @@ import {
   writeFileSync,
   existsSync,
   unlinkSync,
-  remove,
+  rmdir,
 } from 'fs-extra'
 import treeKill from 'tree-kill'
 
@@ -159,7 +159,11 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
         if (!didResolve) {
           didResolve = true
           if (stdOut) {
-            resolve(killApp(instance).then(() => message))
+            resolve(
+              killApp(instance)
+                .catch(() => {})
+                .then(() => message)
+            )
           } else {
             resolve(instance)
           }
@@ -253,7 +257,7 @@ export async function killApp(instance) {
     process.kill(instance.pid, 1)
 
     if (instance.dir) {
-      await remove(path.join(instance.dir, '.next.lock')).catch(() => {})
+      await rmdir(path.join(instance.dir, '.next.lock')).catch(() => {})
     }
   } catch (_) {}
 
