@@ -51,6 +51,7 @@ import {
   Header,
   getRedirectStatus,
 } from '../../lib/check-custom-routes'
+import checkPidFile from '../../lib/check-pid-file'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -126,6 +127,8 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
+
+    checkPidFile(this.distDir)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
