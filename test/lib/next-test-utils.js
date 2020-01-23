@@ -150,7 +150,11 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       if (/ready on/i.test(message)) {
         if (!didResolve) {
           didResolve = true
-          resolve(stdOut ? message : instance)
+          if (stdOut) {
+            resolve(killApp(instance).then(() => message))
+          } else {
+            resolve(instance)
+          }
         }
       }
       if (typeof opts.onStdout === 'function') {
