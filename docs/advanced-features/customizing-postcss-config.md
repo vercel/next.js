@@ -110,6 +110,8 @@ module.exports = {
 }
 ```
 
+Do **not use `require()`** to import the PostCSS Plugins. Plugins must be provided as strings.
+
 > **Note**: Next.js also allows the file to be named `.postcssrc.js`.
 
 > **Note**: If your `postcss.config.js` needs to support other non-Next.js tools in the same project, you must use the interoperable object-based format instead:
