@@ -85,3 +85,23 @@ with:
   path: ${{ github.workspace }}/.next/cache
   key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
 ```
+
+**Bitbucket Pipelines**
+
+Add or merge the following into your `bitbucket-pipelines.yml` at the top level (same level as `pipelines`):
+
+```yaml
+definitions:
+  caches:
+    nextcache: .next/cache
+```
+
+Then reference it in the `caches` section of your pipeline's `step`:
+
+```yaml
+- step:
+    name: your_step_name
+    caches:
+      - node
+      - nextcache
+```

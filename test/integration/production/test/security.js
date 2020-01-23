@@ -6,10 +6,10 @@ import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
-// Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
+// Does the same evaluation checking for INJECTED for 5 seconds after hydration, triggering every 500ms
 async function checkInjected(browser) {
   const start = Date.now()
-  while (Date.now() - start < 15000) {
+  while (Date.now() - start < 5000) {
     const bodyText = await getBrowserBodyText(browser)
     if (/INJECTED/.test(bodyText)) {
       throw new Error('Vulnerable to XSS attacks')

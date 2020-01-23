@@ -330,6 +330,8 @@ export default class Server {
           if (
             params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
             params.path[0] === 'chunks' ||
+            params.path[0] === 'css' ||
+            params.path[0] === 'media' ||
             params.path[0] === this.buildId
           ) {
             this.setImmutableAssetCacheControl(res)
@@ -520,12 +522,12 @@ export default class Server {
       )
     }
 
-    const catchAllRoute: Route = {
+    const catchPublicDirectoryRoute: Route = {
       match: route('/:path*'),
       type: 'route',
-      name: 'Catchall render',
+      name: 'Catch public directory route',
       fn: async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        const { pathname } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
@@ -537,11 +539,30 @@ export default class Server {
           }
         }
 
+        return {
+          finished: false,
+        }
+      },
+    }
+
+    routes.push(catchPublicDirectoryRoute)
+
+    const catchAllRoute: Route = {
+      match: route('/:path*'),
+      type: 'route',
+      name: 'Catchall render',
+      fn: async (req, res, params, parsedUrl) => {
+        const { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
-            pathname!
+            pathname!,
+            query
           )
           if (handled) {
             return { finished: true }
@@ -613,7 +634,8 @@ export default class Server {
   private async handleApiRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    pathname: string
+    pathname: string,
+    query: ParsedUrlQuery
   ) {
     let page = pathname
     let params: Params | boolean = false
@@ -639,15 +661,17 @@ export default class Server {
 
     const builtPagePath = await this.getPagePath(page)
     const pageModule = require(builtPagePath)
+    query = { ...query, ...params }
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
+        this.prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
         return true
       }
     }
 
-    await apiResolver(req, res, params, pageModule, this.onErrorMiddleware)
+    await apiResolver(req, res, query, pageModule, this.onErrorMiddleware)
     return true
   }
 
@@ -811,6 +835,18 @@ export default class Server {
     res.end(payload)
   }
 
+  private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
+    const curUrl = parseUrl(req.url!, true)
+    req.url = formatUrl({
+      ...curUrl,
+      search: undefined,
+      query: {
+        ...curUrl.query,
+        ...query,
+      },
+    })
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -834,15 +870,7 @@ export default class Server {
     if (!isSSG) {
       // handle serverless
       if (isLikeServerless) {
-        const curUrl = parseUrl(req.url!, true)
-        req.url = formatUrl({
-          ...curUrl,
-          search: undefined,
-          query: {
-            ...curUrl.query,
-            ...query,
-          },
-        })
+        this.prepareServerlessUrl(req, query)
         return result.Component.renderReqToHTML(req, res)
       }
 
@@ -1049,7 +1077,23 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const result = await this.findPageComponents('/_error', query)
+    let result: null | LoadComponentsReturnType = null
+
+    // use static 404 page if available and is 404 response
+    if (this.nextConfig.experimental.static404 && err === null) {
+      try {
+        result = await this.findPageComponents('/_errors/404')
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          throw err
+        }
+      }
+    }
+
+    if (!result) {
+      result = await this.findPageComponents('/_error', query)
+    }
+
     let html
     try {
       html = await this.renderToHTMLWithComponents(

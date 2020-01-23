@@ -106,13 +106,13 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/routing/introduction.md">
     <b>Routing:</b>
-    <small>Learn more about routing in Next.js</small>
+    <small>Learn more about routing in Next.js.</small>
   </a>
 </div>
 
 <div class="card">
   <a href="/docs/basic-features/typescript.md#pages">
     <b>TypeScript:</b>
-    <small>Add TypeScript to your pages</small>
+    <small>Add TypeScript to your pages.</small>
   </a>
 </div>

@@ -1,5 +1,11 @@
 # Relay Modern Example
 
+[Relay Modern](https://relay.dev/) is a new version of Relay designed from the ground up to be easier to use, more extensible and, most of all, able to improve performance on mobile devices. Relay Modern accomplishes this with static queries and ahead-of-time code generation.
+
+In this simple example, we integrate Relay Modern seamlessly with Next by wrapping our _pages_ inside a [higher-order component (HOC)](https://facebook.github.io/react/docs/higher-order-components.html). Using the HOC pattern we're able to pass down a query result data created by Relay into our React component hierarchy defined inside each page of our Next application. The HOC takes `options` argument that allows to specify a `query` that will be executed on the server when a page is being loaded.
+
+This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +16,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-relay-modern with-relay-modern-app
+npm init next-app --example with-relay-modern with-relay-modern-app
 # or
 yarn create next-app --example with-relay-modern with-relay-modern-app
 ```
@@ -64,11 +70,3 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind the example
-
-[Relay Modern](https://relay.dev/) is a new version of Relay designed from the ground up to be easier to use, more extensible and, most of all, able to improve performance on mobile devices. Relay Modern accomplishes this with static queries and ahead-of-time code generation.
-
-In this simple example, we integrate Relay Modern seamlessly with Next by wrapping our _pages_ inside a [higher-order component (HOC)](https://facebook.github.io/react/docs/higher-order-components.html). Using the HOC pattern we're able to pass down a query result data created by Relay into our React component hierarchy defined inside each page of our Next application. The HOC takes `options` argument that allows to specify a `query` that will be executed on the server when a page is being loaded.
-
-This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.

@@ -37,7 +37,8 @@ function isIgnoredPlugin(pluginPath: string): boolean {
     `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
       plugin
     )} plugin from your PostCSS configuration. ` +
-      `This plugin is automatically configured by Next.js.`
+      `This plugin is automatically configured by Next.js.\n` +
+      'Read more: https://err.sh/next.js/postcss-ignored-plugin'
   )
   return true
 }
@@ -193,6 +194,15 @@ export async function getPostCssPlugins(
         }
         throw new Error(genericErrorText)
       }
+    } else if (typeof plugin === 'function') {
+      console.error(
+        `${chalk.red.bold(
+          'Error'
+        )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
+          'string'
+        )}.`
+      )
+      throw new Error(genericErrorText)
     } else {
       console.error(
         `${chalk.red.bold(

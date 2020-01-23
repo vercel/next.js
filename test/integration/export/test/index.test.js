@@ -27,6 +27,8 @@ const writeFile = promisify(fs.writeFile)
 const mkdir = promisify(fs.mkdir)
 const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
+const outdir = join(appDir, 'out')
+const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
 const context = {}
 context.appDir = appDir
 const devContext = {}
@@ -34,7 +36,6 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 
 describe('Static Export', () => {
   it('should delete existing exported files', async () => {
-    const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
 
     await mkdir(outdir).catch(e => {
@@ -52,9 +53,6 @@ describe('Static Export', () => {
     expect(doesNotExist).toBe(true)
   })
   beforeAll(async () => {
-    const outdir = join(appDir, 'out')
-    const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
-
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
@@ -91,6 +89,35 @@ describe('Static Export', () => {
       killApp(devContext.server),
       stopApp(context.serverNoTrailSlash),
     ])
+  })
+
+  it('should honor exportTrailingSlash for 404 page', async () => {
+    expect(
+      await access(join(outdir, '404/index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+
+    // we still output 404.html for backwards compat
+    expect(
+      await access(join(outdir, '404.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
+  })
+
+  it('should only output 404.html without exportTrailingSlash', async () => {
+    expect(
+      await access(join(outNoTrailSlash, '404/index.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(false)
+
+    expect(
+      await access(join(outNoTrailSlash, '404.html'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(true)
   })
 
   ssr(context)

@@ -299,7 +299,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, addBasePath(as))
+        this.changeState(method, url, addBasePath(as), options)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -331,22 +331,34 @@ export default class Router implements BaseRouter {
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
-        const routeMatch = getRouteMatcher(getRouteRegex(route))(asPathname)
+        const routeRegex = getRouteRegex(route)
+        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
-          const error =
-            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-            `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+          const missingParams = Object.keys(routeRegex.groups).filter(
+            param => !query[param]
+          )
 
-          if (process.env.NODE_ENV !== 'production') {
-            throw new Error(error)
-          } else {
-            console.error(error)
+          if (missingParams.length > 0) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                `Mismatching \`as\` and \`href\` failed to manually provide ` +
+                  `the params: ${missingParams.join(
+                    ', '
+                  )} in the \`href\`'s \`query\``
+              )
+            }
+
+            return reject(
+              new Error(
+                `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+              )
+            )
           }
-          return resolve(false)
+        } else {
+          // Merge params into `query`, overwriting any specified in search
+          Object.assign(query, routeMatch)
         }
-
-        // Merge params into `query`, overwriting any specified in search
-        Object.assign(query, routeMatch)
       }
 
       Router.events.emit('routeChangeStart', as)
@@ -666,7 +678,7 @@ export default class Router implements BaseRouter {
 
   _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
     let pathname = parse(asPath).pathname
-    pathname = !pathname || pathname === '/' ? '/index' : pathname
+    pathname = toRoute(!pathname || pathname === '/' ? '/index' : pathname)
 
     return process.env.NODE_ENV === 'production' &&
       (_cachedData = this.sdc[pathname])
