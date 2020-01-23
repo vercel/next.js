@@ -83,7 +83,7 @@ This is the default configuration used by Next.js:
 
 > **Note**: Next.js also allows the file to be named `.postcssrc.json`, or, to be read from the `postcss` key in `package.json`.
 
-It is also possible to configure PostCSS with a `postcss.config.js` file:
+It is also possible to configure PostCSS with a `postcss.config.js` file, which is useful when you want to conditionally include plugins based on environment:
 
 ```js
 module.exports = {
