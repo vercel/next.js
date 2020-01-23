@@ -253,14 +253,14 @@ export function buildTS(args = [], cwd, env = {}) {
 export async function killApp(instance) {
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, err => {
+      if (instance.dir) {
+        // since we force kill the dev processes we need to clean up the lock
+        // file so it doesn't break following tests
+        try {
+          rmdirSync(path.join(instance.dir, '.next.lock'))
+        } catch (_) {}
+      }
       if (err) {
-        if (instance.dir) {
-          // since we force kill the dev processes we need to clean up the lock
-          // file so it doesn't break following tests
-          try {
-            rmdirSync(path.join(instance.dir, '.next.lock'))
-          } catch (_) {}
-        }
         if (
           process.platform === 'win32' &&
           typeof err.message === 'string' &&
