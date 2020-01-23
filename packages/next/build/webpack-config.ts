@@ -44,6 +44,9 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import WebpackConformancePlugin, {
+  MinificationConformanceCheck,
+} from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -824,6 +827,11 @@ export default async function getBaseWebpackConfig(
           },
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
+        }),
+      config.experimental.conformance &&
+        !dev &&
+        new WebpackConformancePlugin({
+          tests: [new MinificationConformanceCheck()],
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
