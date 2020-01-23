@@ -125,22 +125,22 @@ export async function createApp({
       )
       console.log()
       await downloadAndExtractExample(root, example)
-
-      // Copy our default `.gitignore` if the application did not provide one
-      const ignorePath = path.join(root, '.gitignore')
-      if (!fs.existsSync(ignorePath)) {
-        fs.copyFileSync(
-          path.join(__dirname, 'templates', 'default', 'gitignore'),
-          ignorePath
-        )
-      }
-
-      console.log('Installing packages. This might take a couple of minutes.')
-      console.log()
-
-      await install(root, null, { useYarn, isOnline })
-      console.log()
     }
+
+    // Copy our default `.gitignore` if the application did not provide one
+    const ignorePath = path.join(root, '.gitignore')
+    if (!fs.existsSync(ignorePath)) {
+      fs.copyFileSync(
+        path.join(__dirname, 'templates', 'default', 'gitignore'),
+        ignorePath
+      )
+    }
+
+    console.log('Installing packages. This might take a couple of minutes.')
+    console.log()
+
+    await install(root, null, { useYarn, isOnline })
+    console.log()
   } else {
     const packageJson = {
       name: appName,
