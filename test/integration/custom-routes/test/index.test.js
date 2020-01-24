@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   launchApp,
   killApp,
@@ -28,8 +29,6 @@ let buildId
 let stdout = ''
 let appPort
 let app
-
-const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
