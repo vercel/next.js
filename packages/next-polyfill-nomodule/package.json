@@ -5,7 +5,6 @@
   "main": "dist/polyfill-nomodule.js",
   "module": "dist/polyfill-nomodule.mjs",
   "license": "MIT",
-  "private": true,
   "scripts": {
     "prepublish": "microbundle src/index.js -f cjs,es --no-sourcemap --external none",
     "build": "microbundle watch src/index.js -f cjs,es --no-sourcemap --external none"
