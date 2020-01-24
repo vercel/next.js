@@ -262,6 +262,14 @@ function renderDocument(
   )
 }
 
+const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+  return (
+    `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
+    `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+  )
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -439,14 +447,6 @@ export async function renderToHTML(
     </RouterContext.Provider>
   )
 
-  const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
-    throw new Error(
-      `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
-        `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-        `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
-    )
-  }
-
   try {
     props = await loadGetInitialProps(App, {
       AppTree: ctx.AppTree,
@@ -465,7 +465,7 @@ export async function renderToHTML(
       )
 
       if (invalidKeys.length) {
-        invalidKeysMsg('getStaticProps', invalidKeys)
+        throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
       if (typeof data.revalidate === 'number') {
@@ -521,7 +521,7 @@ export async function renderToHTML(
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
     if (invalidKeys.length) {
-      invalidKeysMsg('getServerProps', invalidKeys)
+      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
     }
 
     props.pageProps = data.props
