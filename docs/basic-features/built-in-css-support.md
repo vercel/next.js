@@ -15,7 +15,7 @@ For example, consider the following stylesheet named `styles.css`:
 
 ```css
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', system-ui;
+  font-family: sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
@@ -165,7 +165,7 @@ You can use component-level Sass via CSS Modules and the `.module.scss` or `.mod
 Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
 
 ```bash
-npm install sass
+npm install --save sass
 ```
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
