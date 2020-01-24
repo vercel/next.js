@@ -3,11 +3,10 @@
   "version": "0.0.0",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
-  "module": "dist/polyfill-nomodule.mjs",
   "license": "MIT",
   "scripts": {
-    "prepublish": "microbundle src/index.js -f cjs,es --no-sourcemap --external none",
-    "build": "microbundle watch src/index.js -f cjs,es --no-sourcemap --external none"
+    "prepublish": "microbundle src/index.js -f iife --no-sourcemap --external none",
+    "build": "microbundle watch src/index.js -f iife --no-sourcemap --external none"
   },
   "devDependencies": {
     "core-js": "3.6.4",
