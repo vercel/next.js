@@ -8,6 +8,7 @@ import {
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { API_ROUTE } from '../../../lib/constants'
+import escapeRegexp from 'escape-string-regexp'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -46,7 +47,7 @@ const nextServerlessLoader: loader.Loader = function() {
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
 
-  const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+  const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
 
   const dynamicRouteImports = pageIsDynamicRoute

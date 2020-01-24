@@ -92,6 +92,7 @@
     "css-loader": "3.3.0",
     "cssnano-simple": "1.0.0",
     "devalue": "2.0.1",
+    "escape-string-regexp": "2.0.0",
     "etag": "1.8.1",
     "file-loader": "4.2.0",
     "find-up": "4.0.0",
