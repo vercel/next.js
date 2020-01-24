@@ -285,14 +285,12 @@ const nextServerlessLoader: loader.Loader = function() {
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
 
-          if (renderOpts.revalidate) {
-            res.setHeader(
-              'Cache-Control',
-              renderOpts.revalidate < 0
-                ? \`no-cache, no-store, must-revalidate\`
-                : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
-            )
-          }
+          res.setHeader(
+            'Cache-Control',
+            unstable_getServerProps
+              ? \`no-cache, no-store, must-revalidate\`
+              : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
+          )
           res.end(payload)
           return null
         }
