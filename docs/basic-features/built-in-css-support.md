@@ -165,7 +165,7 @@ You can use component-level Sass via CSS Modules and the `.module.scss` or `.mod
 Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
 
 ```bash
-npm install --save sass
+npm install sass
 ```
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
