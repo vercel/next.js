@@ -286,7 +286,9 @@ const nextServerlessLoader: loader.Loader = function() {
           if (renderOpts.revalidate) {
             res.setHeader(
               'Cache-Control',
-              \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
+              renderOpts.revalidate < 0
+                ? \`no-cache, no-store, must-revalidate\`
+                : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
             )
           }
           res.end(payload)
