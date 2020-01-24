@@ -71,7 +71,7 @@
     "@babel/preset-react": "7.7.0",
     "@babel/preset-typescript": "7.7.2",
     "@babel/runtime": "7.7.2",
-    "next-polyfill-nomodule": "0.0.0",
+    "@next/polyfill-nomodule": "0.0.0",
     "amphtml-validator": "1.0.23",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
