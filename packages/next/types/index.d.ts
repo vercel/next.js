@@ -3,7 +3,6 @@
 /// <reference types="react-dom" />
 
 import React from 'react'
-import { ParsedUrlQuery } from 'querystring'
 
 import {
   NextPageContext,
@@ -55,16 +54,5 @@ export type PageConfig = {
 }
 
 export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
-
-export type Unstable_getStaticProps = (params: {
-  params: ParsedUrlQuery | undefined
-}) => Promise<{
-  props: { [key: string]: any }
-  revalidate?: number | boolean
-}>
-
-export type Unstable_getStaticPaths = () => Promise<
-  Array<string | { [key: string]: string | string[] }>
->
 
 export default next

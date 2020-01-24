@@ -6,14 +6,10 @@ import {
 } from '../lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
+import { ParsedUrlQuery } from 'querystring'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
-import {
-  PageConfig,
-  Unstable_getStaticPaths,
-  Unstable_getStaticProps,
-  NextPageContext,
-} from 'next/types'
+import { PageConfig, NextPageContext } from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
@@ -27,6 +23,15 @@ export type ManifestItem = {
 }
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+
+type Unstable_getStaticProps = (params: {
+  params: ParsedUrlQuery | undefined
+}) => Promise<{
+  props: { [key: string]: any }
+  revalidate?: number | boolean
+}>
+
+type Unstable_getStaticPaths = () => Promise<Array<string | ParsedUrlQuery>>
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
