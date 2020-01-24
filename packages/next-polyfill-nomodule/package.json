@@ -1,5 +1,5 @@
 {
-  "name": "@next/polyfill-nomodule",
+  "name": "next-polyfill-nomodule",
   "version": "0.0.0",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
