@@ -1,5 +1,3 @@
-import escapeRegexp from 'escape-string-regexp'
-
 export function getRouteRegex(
   normalizedRoute: string
 ): {
@@ -7,7 +5,10 @@ export function getRouteRegex(
   groups: { [groupName: string]: { pos: number; repeat: boolean } }
 } {
   // Escape all characters that could be considered RegEx
-  const escapedRoute = escapeRegexp(normalizedRoute.replace(/\/$/, '') || '/')
+  const escapedRoute = (normalizedRoute.replace(/\/$/, '') || '/').replace(
+    /[|\\{}()[\]^$+*?.-]/g,
+    '\\$&'
+  )
 
   const groups: { [groupName: string]: { pos: number; repeat: boolean } } = {}
   let groupIndex = 1
