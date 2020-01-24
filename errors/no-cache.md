@@ -75,6 +75,17 @@ cache:
     - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
 ```
 
+**GitHub Actions**
+
+Using GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
+
+```yaml
+uses: actions/cache@v1
+with:
+  path: ${{ github.workspace }}/.next/cache
+  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+```
+
 **Bitbucket Pipelines**
 
 Add or merge the following into your `bitbucket-pipelines.yml` at the top level (same level as `pipelines`):
@@ -85,9 +96,9 @@ definitions:
     nextcache: .next/cache
 ```
 
-Then reference it in the `caches` section of your pipeline's `step`: 
+Then reference it in the `caches` section of your pipeline's `step`:
 
-```yaml 
+```yaml
 - step:
     name: your_step_name
     caches:
