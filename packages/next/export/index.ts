@@ -110,7 +110,7 @@ export default async function(
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
         isCustomServer: null,
-        hasTypescript: false,
+        hasTypeScript: false,
         hasRewrites: false,
         hasRedirects: false,
       })

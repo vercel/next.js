@@ -206,7 +206,7 @@ export default class DevServer extends Server {
   }
 
   async prepare() {
-    const hasTypescript = await verifyTypeScriptSetup(this.dir, this.pagesDir!)
+    const hasTypeScript = await verifyTypeScriptSetup(this.dir, this.pagesDir!)
 
     await this.loadCustomRoutes()
 
@@ -236,7 +236,7 @@ export default class DevServer extends Server {
         isCustomServer: this.isCustomServer,
         hasRewrites: !!rewrites?.length,
         hasRedirects: !!redirects?.length,
-        hasTypescript,
+        hasTypeScript,
       })
     )
   }

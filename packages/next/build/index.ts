@@ -160,7 +160,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
       isCustomServer: null,
-      hasTypescript: await hasTypeScript(pagesDir),
+      hasTypeScript: await hasTypeScript(pagesDir),
       hasRewrites: rewrites.length > 0,
       hasRedirects: redirects.length > 0,
     })

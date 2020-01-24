@@ -11,7 +11,7 @@ type SessionStarted = {
   isSrcDir: boolean | null
   hasNowJson: boolean
   isCustomServer: boolean | null
-  hasTypescript: boolean
+  hasTypeScript: boolean
 }
 
 type SessionStartedNextConfig = {
