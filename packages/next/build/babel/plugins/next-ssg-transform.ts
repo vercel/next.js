@@ -60,17 +60,17 @@ function decorateSsgExport(
   })
 }
 
-const mixedSsgServerPropsError = () => {
-  throw new Error(SERVER_PROPS_SSG_CONFLICT)
-}
-
 const checkIsSSG = (name: string, state: PluginState, toRemove: any) => {
   if (ssgExports.has(name)) {
     if (name === EXPORT_NAME_GET_SERVER_PROPS) {
-      if (state.isPrerender) mixedSsgServerPropsError()
+      if (state.isPrerender) {
+        throw new Error(SERVER_PROPS_SSG_CONFLICT)
+      }
       state.isServerProps = true
     } else {
-      if (state.isServerProps) mixedSsgServerPropsError()
+      if (state.isServerProps) {
+        throw new Error(SERVER_PROPS_SSG_CONFLICT)
+      }
       state.isPrerender = true
     }
     toRemove.remove()
