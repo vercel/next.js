@@ -1,5 +1,6 @@
 import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
+import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 
 const pageComponentVar = '__NEXT_COMP'
 const prerenderId = '__N_SSG'
@@ -48,7 +49,7 @@ function decorateSsgExport(
           '=',
           t.memberExpression(
             t.identifier(pageComponentVar),
-            t.identifier(state.isServerProps ? serverPropsId : prerenderId)
+            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
           ),
           t.booleanLiteral(true)
         ),
@@ -59,12 +60,18 @@ function decorateSsgExport(
   })
 }
 
+const mixedSsgServerPropsError = () => {
+  throw new Error(SERVER_PROPS_SSG_CONFLICT)
+}
+
 const checkIsSSG = (name: string, state: PluginState, toRemove: any) => {
   if (ssgExports.has(name)) {
-    state.isPrerender = true
-
     if (name === EXPORT_NAME_GET_SERVER_PROPS) {
+      if (state.isPrerender) mixedSsgServerPropsError()
       state.isServerProps = true
+    } else {
+      if (state.isServerProps) mixedSsgServerPropsError()
+      state.isPrerender = true
     }
     toRemove.remove()
   }
@@ -153,7 +160,7 @@ export default function nextTransformSsg({
           state.done = false
         },
         exit(path, state) {
-          if (!state.isPrerender) {
+          if (!state.isPrerender && !state.isServerProps) {
             return
           }
 
