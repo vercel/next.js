@@ -2,8 +2,9 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -410,7 +411,7 @@ const runTests = (dev = false) => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
-      const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+      const escapedBuildId = escapeRegex(buildId)
 
       Object.keys(manifest.dynamicRoutes).forEach(key => {
         const item = manifest.dynamicRoutes[key]
