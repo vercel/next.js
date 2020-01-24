@@ -67,7 +67,6 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
     // Polyfill: Window#fetch
-    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
     'whatwg-fetch$': path.join(
@@ -78,9 +77,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     ),
 
     // Polyfill: Object.assign
-    __next_polyfill__object_assign: require.resolve('object-assign'),
     'object-assign$': stubObjectAssign,
-    '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
 
     // Stub Package: object.assign
     'object.assign/auto': path.join(shimAssign, 'auto.js'),
@@ -485,8 +482,7 @@ export default async function getBaseWebpackConfig(
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
               (res.match(/[/\\]next[/\\]dist[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
             ) {
               return callback()
             }
