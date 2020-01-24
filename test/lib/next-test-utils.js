@@ -31,6 +31,7 @@ export function initNextServerScript(
 ) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
+    instance.dir = path.dirname(scriptPath)
 
     function handleStdout(data) {
       const message = data.toString()
