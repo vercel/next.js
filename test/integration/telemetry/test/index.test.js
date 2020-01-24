@@ -146,7 +146,7 @@ describe('Telemetry CLI', () => {
     await killApp(app)
 
     expect(stderr).toMatch(/target.*?null/)
-    expect(stderr).toMatch(/hasTypescript.*?false/)
+    expect(stderr).toMatch(/hasTypeScript.*?false/)
     expect(stderr).toMatch(/hasCustomWebpack.*?false/)
     expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
     expect(stderr).toMatch(/hasAssetPrefix.*?false/)
@@ -236,7 +236,7 @@ describe('Telemetry CLI', () => {
     await fs.remove(file)
     await fs.remove(path.join(appDir, 'tsconfig.json'))
 
-    expect(stderr).toMatch(/hasTypescript.*?true/)
+    expect(stderr).toMatch(/hasTypeScript.*?true/)
   })
 
   it('detects test files correctly for `next build`', async () => {
@@ -320,7 +320,7 @@ describe('Telemetry CLI', () => {
     await fs.remove(file)
     await fs.remove(path.join(appDir, 'tsconfig.json'))
 
-    expect(stderr).toMatch(/hasTypescript.*?true/)
+    expect(stderr).toMatch(/hasTypeScript.*?true/)
   })
 
   it('detects unused configs for `next build`', async () => {
