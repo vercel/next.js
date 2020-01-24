@@ -5,28 +5,39 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-import { PageConfig } from '../../types'
 import { requirePage } from './require'
+import { BuildManifest } from './get-page-files'
+import { AppType, DocumentType } from '../lib/utils'
+import {
+  PageConfig,
+  Unstable_getStaticPaths,
+  Unstable_getStaticProps,
+  NextPageContext,
+} from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
 }
 
+export type ManifestItem = {
+  id: number | string
+  name: string
+  file: string
+  publicPath: string
+}
+
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+
 export type LoadComponentsReturnType = {
-  Component: any
-  pageConfig: PageConfig
-  unstable_getStaticProps?: (params: {
-    params: any
-  }) => {
-    props: any
-    revalidate?: number | boolean
-  }
-  unstable_getStaticPaths?: () => void
-  buildManifest?: any
-  reactLoadableManifest?: any
-  Document?: any
-  DocumentMiddleware?: any
-  App?: any
+  Component: React.ComponentType
+  pageConfig?: PageConfig
+  buildManifest: BuildManifest
+  reactLoadableManifest: ReactLoadableManifest
+  Document: DocumentType
+  DocumentMiddleware?: (ctx: NextPageContext) => void
+  App: AppType
+  unstable_getStaticProps?: Unstable_getStaticProps
+  unstable_getStaticPaths?: Unstable_getStaticPaths
 }
 
 export async function loadComponents(
@@ -42,7 +53,7 @@ export async function loadComponents(
       pageConfig: Component.config || {},
       unstable_getStaticProps: Component.unstable_getStaticProps,
       unstable_getStaticPaths: Component.unstable_getStaticPaths,
-    }
+    } as LoadComponentsReturnType
   }
   const documentPath = join(
     distDir,

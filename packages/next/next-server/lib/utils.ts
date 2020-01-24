@@ -3,7 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { format, URLFormatOptions, UrlObject } from 'url'
 
-import { ManifestItem } from '../server/render'
+import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 
 /**

@@ -4,7 +4,7 @@ import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { parse } from 'content-type'
 import { Params } from './router'
-import { PageConfig } from '../../types'
+import { PageConfig } from 'next/types'
 import { interopDefault } from './load-components'
 import { isResSent } from '../lib/utils'
 
