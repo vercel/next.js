@@ -8,7 +8,6 @@ import {
   startApp,
   stopApp,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -34,7 +33,6 @@ describe('future.excludeDefaultMomentLocales', () => {
 
   it('should load momentjs', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(5000)
     expect(await browser.elementByCss('h1').text()).toMatch(/current time/i)
     const locales = await browser.eval('moment.locales()')
     expect(locales).toEqual(['en'])

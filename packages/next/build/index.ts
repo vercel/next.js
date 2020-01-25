@@ -53,6 +53,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
+  isPageStatic,
   collectPages,
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
@@ -197,6 +198,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
+  const hasCustomErrorPage = mappedPages['/_error'].startsWith(
+    'private-next-pages'
+  )
 
   if (hasPublicDir) {
     try {
@@ -413,7 +417,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
     enableWorkerThreads: config.experimental.workerThreads,
-  })
+  }) as Worker & { isPageStatic: typeof isPageStatic }
+
   staticCheckWorkers.getStdout().pipe(process.stdout)
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
@@ -478,7 +483,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          let result: any = await (staticCheckWorkers as any).isPageStatic(
+          let result = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
             runtimeEnvConfig
@@ -489,7 +494,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             hybridAmpPages.add(page)
           }
 
-          if (result.prerender) {
+          if (result.hasStaticProps) {
             ssgPages.add(page)
             isSsg = true
 
@@ -497,7 +502,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
-          } else if (result.static && customAppGetInitialProps === false) {
+          } else if (result.isStatic && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
           }
@@ -519,6 +524,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
     })
   )
   staticCheckWorkers.end()
+
+  // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
+  // Only export the static 404 when there is no /_error present
+  const useStatic404 =
+    !customAppGetInitialProps &&
+    !hasCustomErrorPage &&
+    config.experimental.static404
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -550,7 +562,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
-  if (staticPages.size > 0 || ssgPages.size > 0) {
+  if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
     const exportApp = require('../export').default
     const exportOptions = {
@@ -586,6 +598,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
             defaultMap[route] = { page }
           })
         })
+
+        if (useStatic404) {
+          defaultMap['/_errors/404'] = { page: '/_error' }
+        }
+
         return defaultMap
       },
       exportTrailingSlash: false,
@@ -624,6 +641,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
+    }
+
+    if (useStatic404) {
+      await moveExportedPage('/_errors/404', '/_errors/404', false, 'html')
     }
 
     for (const page of combinedPages) {

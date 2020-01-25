@@ -9,7 +9,6 @@ import {
   startCleanStaticServer,
   stopApp,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
@@ -41,7 +40,6 @@ describe('Export Dyanmic Pages', () => {
     expect.assertions(1)
     const browser = await webdriver(port, '/regression/jeff-is-cool')
     try {
-      await waitFor(3000)
       expect(await browser.eval(`window.__AS_PATHS`)).toEqual([
         '/regression/jeff-is-cool',
       ])

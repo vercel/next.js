@@ -2,8 +2,9 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -108,6 +109,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/catchall/another%2Fvalue': {
+    dataRoute: `/_next/data/${buildId}/catchall/another%2Fvalue.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/first': {
+    dataRoute: `/_next/data/${buildId}/catchall/first.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/second': {
+    dataRoute: `/_next/data/${buildId}/catchall/second.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/hello/another': {
+    dataRoute: `/_next/data/${buildId}/catchall/hello/another.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
 })
 
 const navigateTest = (dev = false) => {
@@ -119,6 +140,7 @@ const navigateTest = (dev = false) => {
       '/normal',
       '/blog/post-1',
       '/blog/post-1/comment-1',
+      '/catchall/first',
     ]
 
     await waitFor(2500)
@@ -129,14 +151,13 @@ const navigateTest = (dev = false) => {
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
-    // hydration
-    await waitFor(2500)
-
     // go to /another
     async function goFromHomeToAnother() {
+      await browser.eval('window.beforeAnother = true')
       await browser.elementByCss('#another').click()
       await browser.waitForElementByCss('#home')
       text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeAnother')).toBe(true)
       expect(text).toMatch(/hello.*?world/)
     }
     await goFromHomeToAnother()
@@ -209,6 +230,15 @@ const navigateTest = (dev = false) => {
     expect(text).toMatch(/Comment:.*?comment-1/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
+    // go to /catchall/first
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#to-catchall')
+    await browser.elementByCss('#to-catchall').click()
+    await browser.waitForElementByCss('#catchall')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi.*?first/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
     await browser.close()
   })
 }
@@ -233,6 +263,16 @@ const runTests = (dev = false) => {
     expect(JSON.parse(query)).toEqual({})
     const params = $('#params').text()
     expect(JSON.parse(params)).toEqual({})
+  })
+
+  it('should not supply query values to params in /_next/data request', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/something.json?hello=world`
+      )
+    )
+    expect(data.pageProps.params).toEqual({})
   })
 
   it('should not supply query values to params or useRouter dynamic page SSR', async () => {
@@ -290,7 +330,6 @@ const runTests = (dev = false) => {
 
   it('should parse query values on mount correctly', async () => {
     const browser = await webdriver(appPort, '/blog/post-1?another=value')
-    await waitFor(2000)
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
     expect(text).toMatch(/post.*?post-1/)
@@ -298,11 +337,22 @@ const runTests = (dev = false) => {
 
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(500)
     await browser.eval('window.beforeClick = true')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
+  })
+
+  it('should support prerendered catchall route', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall/another/value')
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
+  })
+
+  it('should support lazy catchall route', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall/third')
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toMatch(/Hi.*?third/)
   })
 
   if (dev) {
@@ -371,7 +421,7 @@ const runTests = (dev = false) => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
-      const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+      const escapedBuildId = escapeRegex(buildId)
 
       Object.keys(manifest.dynamicRoutes).forEach(key => {
         const item = manifest.dynamicRoutes[key]
@@ -410,6 +460,13 @@ const runTests = (dev = false) => {
           ),
           routeRegex: normalizeRegEx(
             `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
+          ),
+        },
+        '/catchall/[...slug]': {
+          routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
+          dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
           ),
         },
       })
@@ -533,7 +590,7 @@ describe('SPR Prerender', () => {
       await nextBuild(appDir)
       stderr = ''
       appPort = await findPort()
-      app = nextStart(appDir, appPort, {
+      app = await nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
         },

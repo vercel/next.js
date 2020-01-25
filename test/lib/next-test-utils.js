@@ -82,7 +82,12 @@ export function runNextCommand(argv, options = {}) {
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = { ...process.env, ...options.env, NODE_ENV: '' }
+  const env = {
+    ...process.env,
+    ...options.env,
+    NODE_ENV: '',
+    __NEXT_TEST_MODE: 'true',
+  }
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)

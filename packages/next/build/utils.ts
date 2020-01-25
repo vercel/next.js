@@ -479,9 +479,9 @@ export async function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
 ): Promise<{
-  static?: boolean
-  prerender?: boolean
+  isStatic?: boolean
   isHybridAmp?: boolean
+  hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
   try {
@@ -521,7 +521,8 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths) {
       prerenderPaths = [] as string[]
 
-      const _routeMatcher = getRouteMatcher(getRouteRegex(page))
+      const _routeRegex = getRouteRegex(page)
+      const _routeMatcher = getRouteMatcher(_routeRegex)
 
       // Get the default list of allowed params.
       const _validParamKeys = Object.keys(_routeMatcher(page))
@@ -560,15 +561,28 @@ export async function isPageStatic(
           const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
-            if (typeof params[validParamKey] !== 'string') {
+            const { repeat } = _routeRegex.groups[validParamKey]
+            const paramValue: string | string[] = params[validParamKey] as
+              | string
+              | string[]
+            if (
+              (repeat && !Array.isArray(paramValue)) ||
+              (!repeat && typeof paramValue !== 'string')
+            ) {
               throw new Error(
-                `A required parameter (${validParamKey}) was not provided as a string.`
+                `A required parameter (${validParamKey}) was not provided as ${
+                  repeat ? 'an array' : 'a string'
+                }.`
               )
             }
 
             builtPage = builtPage.replace(
-              `[${validParamKey}]`,
-              encodeURIComponent(params[validParamKey])
+              `[${repeat ? '...' : ''}${validParamKey}]`,
+              encodeURIComponent(
+                repeat
+                  ? (paramValue as string[]).join('/')
+                  : (paramValue as string)
+              )
             )
           })
 
@@ -579,10 +593,10 @@ export async function isPageStatic(
 
     const config = mod.config || {}
     return {
-      static: !hasStaticProps && !hasGetInitialProps,
+      isStatic: !hasStaticProps && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes: prerenderPaths,
-      prerender: hasStaticProps,
+      hasStaticProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

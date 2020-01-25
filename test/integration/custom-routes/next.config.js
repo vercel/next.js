@@ -59,6 +59,18 @@ module.exports = {
           source: '/proxy-me/:path*',
           destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
         },
+        {
+          source: '/api-hello',
+          destination: '/api/hello',
+        },
+        {
+          source: '/api-hello-regex/(.*)',
+          destination: '/api/hello?name=:1',
+        },
+        {
+          source: '/api-hello-param/:name',
+          destination: '/api/hello?name=:name',
+        },
       ]
     },
     async redirects() {
