@@ -22,7 +22,7 @@ export function getRepoInfo(
   const filePath = examplePath ? examplePath.replace(/^\//, '') : file.join('/')
   // If examplePath is available, the branch name takes the entire path
   const branch = examplePath
-    ? `${_branch}/${file.join('/')}`.replace(new RegExp(`/${filePath}$`), '')
+    ? `${_branch}/${file.join('/')}`.replace(new RegExp(`/${filePath}|/$`), '')
     : _branch
 
   if (username && name && branch && t === 'tree') {
