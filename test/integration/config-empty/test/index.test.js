@@ -6,12 +6,15 @@ import { nextBuild } from 'next-test-utils'
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('Empty configuration', () => {
-  it('should show relevant warning when configuration is not found', async () => {
-    const { stdout } = await nextBuild(join(__dirname, '..'), [], {
+  it('should show relevant warning and compile successfully', async () => {
+    const { stderr, stdout } = await nextBuild(join(__dirname, '..'), [], {
+      stderr: true,
       stdout: true,
     })
-    expect(stdout).not.toMatch(
+
+    expect(stderr).toMatch(
       /Warning: Detected next.config.js, no exported configuration found./
     )
+    expect(stdout).toMatch(/Compiled successfully./)
   })
 })
