@@ -7,36 +7,51 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-import { PageConfig } from '../../types'
 import { requirePage } from './require'
+import { BuildManifest } from './get-page-files'
+import { AppType, DocumentType } from '../lib/utils'
+import { PageConfig, NextPageContext } from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
 }
 
+export type ManifestItem = {
+  id: number | string
+  name: string
+  file: string
+  publicPath: string
+}
+
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+
+type Unstable_getStaticProps = (params: {
+  params: ParsedUrlQuery | undefined
+}) => Promise<{
+  props: { [key: string]: any }
+  revalidate?: number | boolean
+}>
+
+type Unstable_getStaticPaths = () => Promise<Array<string | ParsedUrlQuery>>
+
+type Unstable_getServerProps = (context: {
+  params: ParsedUrlQuery | undefined
+  req: IncomingMessage
+  res: ServerResponse
+  query: ParsedUrlQuery
+}) => Promise<{ [key: string]: any }>
+
 export type LoadComponentsReturnType = {
-  Component: any
-  pageConfig: PageConfig
-  unstable_getStaticProps?: (params: {
-    params: { [key: string]: string | string[] }
-  }) => {
-    props: any
-    revalidate?: number | boolean
-  }
-  unstable_getStaticPaths?: () => Promise<
-    Array<string | { [key: string]: string | string[] }>
-  >
-  unstable_getServerProps?: (context: {
-    params: { [key: string]: string | string[] }
-    req: IncomingMessage
-    res: ServerResponse
-    query: ParsedUrlQuery
-  }) => Promise<{ [key: string]: any }>
-  buildManifest?: any
-  reactLoadableManifest?: any
-  Document?: any
-  DocumentMiddleware?: any
-  App?: any
+  Component: React.ComponentType
+  pageConfig?: PageConfig
+  buildManifest: BuildManifest
+  reactLoadableManifest: ReactLoadableManifest
+  Document: DocumentType
+  DocumentMiddleware?: (ctx: NextPageContext) => void
+  App: AppType
+  unstable_getStaticProps?: Unstable_getStaticProps
+  unstable_getStaticPaths?: Unstable_getStaticPaths
+  unstable_getServerProps?: Unstable_getServerProps
 }
 
 export async function loadComponents(
@@ -52,7 +67,7 @@ export async function loadComponents(
       pageConfig: Component.config || {},
       unstable_getStaticProps: Component.unstable_getStaticProps,
       unstable_getStaticPaths: Component.unstable_getStaticPaths,
-    }
+    } as LoadComponentsReturnType
   }
   const documentPath = join(
     distDir,

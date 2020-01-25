@@ -14,19 +14,15 @@ import {
   NextComponentType,
   DocumentType,
   AppType,
-  NextPageContext,
 } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
-// @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { getPageFiles, BuildManifest } from './get-page-files'
+import { getPageFiles } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-// Uses a module path because of the compiled output directory location
-import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -34,15 +30,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
-
-export type ManifestItem = {
-  id: number | string
-  name: string
-  file: string
-  publicPath: string
-}
-
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+import { LoadComponentsReturnType, ManifestItem } from './load-components'
 
 function noRouter() {
   const message =
@@ -126,8 +114,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = {
-  documentMiddlewareEnabled: boolean
+type RenderOpts = LoadComponentsReturnType & {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
@@ -143,32 +130,11 @@ type RenderOpts = {
   ampPath?: string
   inAmpMode?: boolean
   hybridAmp?: boolean
-  buildManifest: BuildManifest
-  reactLoadableManifest: ReactLoadableManifest
-  pageConfig: PageConfig
-  Component: React.ComponentType
-  Document: DocumentType
-  DocumentMiddleware: (ctx: NextPageContext) => void
-  App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  isDataReq: boolean
-  params: { [key: string]: string }
-  unstable_getStaticProps?: (params: {
-    params: { [key: string]: string | string[] }
-  }) => {
-    props: any
-    revalidate?: number | boolean
-  }
-  unstable_getStaticPaths?: () => Promise<
-    Array<string | { [key: string]: string | string[] }>
-  >
-  unstable_getServerProps?: (context: {
-    params: { [key: string]: string | string[] }
-    req: IncomingMessage
-    res: ServerResponse
-    query: ParsedUrlQuery
-  }) => Promise<{ [key: string]: any }>
+  documentMiddlewareEnabled?: boolean
+  isDataReq?: boolean
+  params?: ParsedUrlQuery
 }
 
 function renderDocument(
