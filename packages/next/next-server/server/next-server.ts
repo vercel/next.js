@@ -863,7 +863,7 @@ export default class Server {
     // check request state
     const isLikeServerless =
       typeof result.Component === 'object' &&
-      typeof result.Component.renderReqToHTML === 'function'
+      typeof (result.Component as any).renderReqToHTML === 'function'
     const isSSG = !!result.unstable_getStaticProps
 
     // non-spr requests should render like normal
@@ -871,7 +871,7 @@ export default class Server {
       // handle serverless
       if (isLikeServerless) {
         this.prepareServerlessUrl(req, query)
-        return result.Component.renderReqToHTML(req, res)
+        return (result.Component as any).renderReqToHTML(req, res)
       }
 
       return renderToHTML(req, res, pathname, query, {
@@ -929,7 +929,11 @@ export default class Server {
       let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await result.Component.renderReqToHTML(req, res, true)
+        renderResult = await (result.Component as any).renderReqToHTML(
+          req,
+          res,
+          true
+        )
 
         html = renderResult.html
         pageData = renderResult.renderOpts.pageData
