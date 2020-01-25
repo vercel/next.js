@@ -216,13 +216,14 @@ const nextServerlessLoader: loader.Loader = function() {
       }
       let _nextData = false
 
-      if (req.url.match(/_next\\/data/)) {
+      const parsedUrl = handleRewrites(parse(req.url, true))
+
+      if (parsedUrl.pathname.match(/_next\\/data/)) {
         _nextData = true
-        req.url = req.url
+        parsedUrl.pathname = parsedUrl.pathname
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
       }
-      const parsedUrl = handleRewrites(parse(req.url, true))
 
       const renderOpts = Object.assign(
         {
