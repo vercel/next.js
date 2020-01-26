@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-name: Build, Test, and maybe Deploy
+name: Build, test, and maybe deploy
 
 jobs:
   build:
