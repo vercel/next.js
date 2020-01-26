@@ -26,7 +26,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    requires: build
+    needs: build
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -38,7 +38,7 @@ jobs:
 
   testAll:
     runs-on: ubuntu-latest
-    requires: build
+    needs: build
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -53,7 +53,7 @@ jobs:
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
-    requires: build
+    needs: build
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -68,7 +68,7 @@ jobs:
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
-    requires: build
+    needs: build
     if: ${{ github.ref == 'canary' }}
     steps:
       - uses: actions/cache@v1
