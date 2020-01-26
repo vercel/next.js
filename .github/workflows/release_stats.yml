@@ -1,5 +1,7 @@
-on: pull_request
-name: Generate pull request stats
+on: release
+
+name: Generate Release Stats
+
 jobs:
   prStats:
     name: PR Stats
@@ -8,4 +10,4 @@ jobs:
       - name: PR Stats
         uses: zeit/next-stats-action@master
         env:
-          COMMENT_ENDPOINT: https://next-stats.jjsweb.site/api/comment
+          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
