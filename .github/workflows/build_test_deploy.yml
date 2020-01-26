@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        group: [1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -84,6 +84,23 @@ jobs:
           path: repo
           key: ${{ github.sha }}
 
-      - run: cd repo && yarn testfirefox --forceExit test/integration/production/
+      - run: cd repo && yarn testsafari --forceExit test/integration/production/
         env:
           NEXT_TELEMETRY_DISABLED: 1
+          BROWSERSTACK: true
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+  saveNpmToken:
+    name: Potentially save npm token
+    if: secrets.NPM_TOKEN && github.ref == 'canary'
+    needs: [build, testAll]
+    steps:
+      - run: ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
+
+  publishRelease:
+    name: Potentially publish release
+    if: secrets.NPM_TOKEN && github.ref == 'canary'
+    needs: saveNpmToken
+    steps:
+      - run: cd repo && ./publish-release.sh
