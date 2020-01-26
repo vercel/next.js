@@ -116,15 +116,6 @@ export function runNextCommand(argv, options = {}) {
       })
     }
 
-    // handle EPIPE errors
-    const handleEPIPE = err => {
-      if (err.code !== 'EPIPE') {
-        throw err
-      }
-    }
-    instance.stdout.on('error', handleEPIPE)
-    instance.stderr.on('error', handleEPIPE)
-
     instance.on('close', code => {
       resolve({
         code,
@@ -178,15 +169,6 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
     instance.stdout.on('data', handleStdout)
     instance.stderr.on('data', handleStderr)
-
-    // handle EPIPE errors
-    const handleEPIPE = err => {
-      if (err.code !== 'EPIPE') {
-        throw err
-      }
-    }
-    instance.stdout.on('error', handleEPIPE)
-    instance.stderr.on('error', handleEPIPE)
 
     instance.on('close', () => {
       instance.stdout.removeListener('data', handleStdout)
