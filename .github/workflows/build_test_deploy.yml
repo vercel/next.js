@@ -37,10 +37,11 @@ jobs:
       - run: cd repo && yarn lint
 
   testAll:
-    name: Test All 1/6
+    name: Test All
     runs-on: ubuntu-latest
     needs: build
     strategy:
+      fail-fast: false
       matrix:
         group: [1, 2, 3, 4, 5, 6]
     steps:
