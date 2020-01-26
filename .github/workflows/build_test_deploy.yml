@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7]
+        group: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -48,7 +48,7 @@ jobs:
           path: '.'
           key: ${{ github.sha }}
 
-      - run: node run-tests.js --timings -g ${{ matrix.group }}/7 -c 3
+      - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
         env:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
