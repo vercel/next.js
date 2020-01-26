@@ -8,54 +8,45 @@ name: Build, test, and maybe deploy
 
 jobs:
   build:
-    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           path: 'repo'
 
-      - name: Install dependencies and build repo
-        runs: cd repo && yarn install --frozen-lockfile --check-files
+      - run: cd repo && yarn install --frozen-lockfile --check-files
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Cache build
+      - uses: actions/cache@v1
         id: cache-build
-        uses: actions/cache@v1
         with:
           path: repo
           key: ${{ github.sha }}
 
   lint:
-    name: Lint
     runs-on: ubuntu-latest
     requires: build
     steps:
-      - name: Restore build
+      - uses: actions/cache@v1
         id: restore-build
-        uses: actions/cache@v1
         with:
           path: repo
           key: ${{ github.sha }}
 
-      - name: Lint
-        runs: cd repo && yarn lint
+      - run: cd repo && yarn lint
 
-  testAll1:
-    name: Test All (1/6)
+  testAll:
     runs-on: ubuntu-latest
     requires: build
     steps:
-      - name: Restore build
+      - uses: actions/cache@v1
         id: restore-build
-        uses: actions/cache@v1
         with:
           path: repo
           key: ${{ github.sha }}
 
-      - name: Run Tests
-        runs: node repo/run-tests.js --timings -g 1/6 -c 3
+      - run: node repo/run-tests.js --timings -g 1/6 -c 3
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
@@ -64,15 +55,13 @@ jobs:
     runs-on: ubuntu-latest
     requires: build
     steps:
-      - name: Restore build
+      - uses: actions/cache@v1
         id: restore-build
-        uses: actions/cache@v1
         with:
           path: repo
           key: ${{ github.sha }}
 
-      - name: Run Tests
-        runs: cd repo && yarn testfirefox --forceExit test/integration/production/
+      - run: cd repo && yarn testfirefox --forceExit test/integration/production/
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
@@ -82,14 +71,12 @@ jobs:
     requires: build
     if: ${{ github.ref == 'canary' }}
     steps:
-      - name: Restore build
+      - uses: actions/cache@v1
         id: restore-build
-        uses: actions/cache@v1
         with:
           path: repo
           key: ${{ github.sha }}
 
-      - name: Run Tests
-        runs: cd repo && yarn testfirefox --forceExit test/integration/production/
+      - run: cd repo && yarn testfirefox --forceExit test/integration/production/
         env:
           NEXT_TELEMETRY_DISABLED: 1
