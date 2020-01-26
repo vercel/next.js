@@ -51,7 +51,7 @@ jobs:
           path: repo
           key: ${{ github.sha }}
 
-      - run: cd repo && node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: cd repo && node run-tests.js --timings -g ${{ matrix.group }}/7 -c 3
         env:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
