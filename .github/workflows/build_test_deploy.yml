@@ -37,6 +37,7 @@ jobs:
       - run: cd repo && yarn lint
 
   testAll:
+    name: Test All
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -46,7 +47,7 @@ jobs:
           path: repo
           key: ${{ github.sha }}
 
-      - run: node repo/run-tests.js --timings -g 1/6 -c 3
+      - run: cd repo && node run-tests.js --timings -g 1/6 -c 3
         env:
           NEXT_TELEMETRY_DISABLED: 1
 

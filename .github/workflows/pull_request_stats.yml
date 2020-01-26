@@ -5,7 +5,8 @@ on:
 name: Generate Pull Request Stats
 
 jobs:
-  prStats:
+  stats:
+    name: PR Stats
     runs-on: ubuntu-latest
     steps:
       - uses: zeit/next-stats-action@master
