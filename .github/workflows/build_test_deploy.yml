@@ -94,7 +94,7 @@ jobs:
   saveNpmToken:
     name: Potentially save npm token
     runs-on: ubuntu-latest
-    if: secrets.NPM_TOKEN && github.ref == 'canary'
+    if: github.ref == 'canary'
     needs: [build, testAll]
     steps:
       - run: ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
@@ -103,6 +103,5 @@ jobs:
     name: Potentially publish release
     runs-on: ubuntu-latest
     needs: saveNpmToken
-    if: secrets.NPM_TOKEN && github.ref == 'canary'
     steps:
       - run: cd repo && ./publish-release.sh
