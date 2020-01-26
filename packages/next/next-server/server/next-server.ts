@@ -51,10 +51,9 @@ import {
   Header,
   getRedirectStatus,
 } from '../../lib/check-custom-routes'
+import { NextConfig } from './next-config';
 
 const getCustomRouteMatcher = pathMatch(true)
-
-type NextConfig = any
 
 type Middleware = (
   req: IncomingMessage,
@@ -116,7 +115,7 @@ export default class Server {
     dir = '.',
     staticMarkup = false,
     quiet = false,
-    conf = null,
+    conf = null as any,
     dev = false,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)

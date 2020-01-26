@@ -27,7 +27,7 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import checkCustomRoutes from '../lib/check-custom-routes'
+import checkCustomRoutes, { Rewrite, Header } from '../lib/check-custom-routes'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -313,9 +313,9 @@ export default class DevServer extends Server {
 
   private async loadCustomRoutes() {
     const result = {
-      redirects: [],
-      rewrites: [],
-      headers: [],
+      redirects: [] as Rewrite[],
+      rewrites: [] as Rewrite[],
+      headers: [] as Header[],
     }
     const { redirects, rewrites, headers } = this.nextConfig.experimental
 

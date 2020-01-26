@@ -22,6 +22,7 @@ import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import { NextHandleFunction } from 'connect'
 import { UrlObject } from 'url'
+import { NextConfig } from '../next-server/server/next-config';
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -124,7 +125,7 @@ export default class HotReloader {
     | (NextHandleFunction & WebpackHotMiddleware.EventStream)
     | null
   private initialized: boolean
-  private config: any
+  private config: NextConfig
   private stats: any
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
@@ -136,7 +137,7 @@ export default class HotReloader {
       config,
       pagesDir,
       buildId,
-    }: { config: object; pagesDir: string; buildId: string }
+    }: { config: NextConfig; pagesDir: string; buildId: string }
   ) {
     this.buildId = buildId
     this.dir = dir

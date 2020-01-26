@@ -6,6 +6,7 @@ import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { isTargetLikeServerless } from '../next-server/server/config'
 import { warn } from './output/log'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { NextConfigServerTarget } from '../next-server/server/next-config';
 
 type PagesMapping = {
   [page: string]: string
@@ -60,7 +61,7 @@ type Entrypoints = {
 
 export function createEntrypoints(
   pages: PagesMapping,
-  target: 'server' | 'serverless' | 'experimental-serverless-trace',
+  target: NextConfigServerTarget,
   buildId: string,
   config: any
 ): Entrypoints {

@@ -5,12 +5,19 @@ import { basename, extname } from 'path'
 
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
+import {
+  NextConfig,
+  IDeepPartial,
+  NextConfigServerTarget,
+  NextConfigUserInput,
+  NextConfigUserInputModule,
+} from './next-config';
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
-const defaultConfig: { [key: string]: any } = {
-  env: [],
+const defaultConfig: IDeepPartial<NextConfig> = {
+  env: {},
   webpack: null,
   webpackDevMiddleware: null,
   distDir: '.next',
@@ -138,6 +145,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     const maybeObject = userConfig[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
       userConfig[key] = {
+        // @ts-ignore
         ...(defaultConfig[key] || {}),
         ...userConfig[key],
       }
@@ -197,7 +205,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-function normalizeConfig(phase: string, config: any) {
+function normalizeConfig(phase: string, config: NextConfigUserInput) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 
@@ -214,9 +222,9 @@ export default function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
-) {
+): NextConfig {
   if (customConfig) {
-    return assignDefaults({ configOrigin: 'server', ...customConfig })
+    return assignDefaults({ configOrigin: 'server', ...customConfig }) as any
   }
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir,
@@ -224,11 +232,11 @@ export default function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    const userConfigModule = require(path) as NextConfigUserInputModule
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
-    )
+    ) as NextConfig
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(
         `Specified target is invalid. Provided: "${
@@ -271,7 +279,7 @@ export default function loadConfig(
       )
     }
 
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
+    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig }) as any
   } else {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
@@ -292,10 +300,10 @@ export default function loadConfig(
     }
   }
 
-  return defaultConfig
+  return defaultConfig as any
 }
 
-export function isTargetLikeServerless(target: string) {
+export function isTargetLikeServerless(target: NextConfigServerTarget) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace

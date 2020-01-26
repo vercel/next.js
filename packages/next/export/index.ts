@@ -33,6 +33,7 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { NextConfig, ExportPathMap } from '../next-server/server/next-config';
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -79,10 +80,6 @@ const createProgress = (total: number, label = 'Exporting') => {
   }
 }
 
-type ExportPathMap = {
-  [page: string]: { page: string; query?: { [key: string]: string } }
-}
-
 export default async function(
   dir: string,
   options: any,
@@ -96,7 +93,7 @@ export default async function(
   }
 
   dir = resolve(dir)
-  const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
+  const nextConfig: NextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
 

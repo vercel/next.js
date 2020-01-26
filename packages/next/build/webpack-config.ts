@@ -47,6 +47,7 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
+import { NextConfig } from '../next-server/server/next-config';
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -107,7 +108,7 @@ export default async function getBaseWebpackConfig(
     entrypoints,
   }: {
     buildId: string
-    config: any
+    config: NextConfig
     dev?: boolean
     isServer?: boolean
     pagesDir: string
