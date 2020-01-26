@@ -11,17 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          path: 'repo'
-
-      - run: cd repo && yarn install --frozen-lockfile --check-files
+      - run: yarn install --frozen-lockfile --check-files
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
       - uses: actions/cache@v1
         id: cache-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
   lint:
@@ -31,10 +28,10 @@ jobs:
       - uses: actions/cache@v1
         id: restore-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
-      - run: cd repo && yarn lint
+      - run: yarn lint
 
   testAll:
     name: Test All
@@ -48,10 +45,10 @@ jobs:
       - uses: actions/cache@v1
         id: restore-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
-      - run: cd repo && node run-tests.js --timings -g ${{ matrix.group }}/7 -c 3
+      - run: node run-tests.js --timings -g ${{ matrix.group }}/7 -c 3
         env:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
@@ -64,10 +61,10 @@ jobs:
       - uses: actions/cache@v1
         id: restore-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
-      - run: cd repo && yarn testfirefox --forceExit test/integration/production/
+      - run: yarn testfirefox --forceExit test/integration/production/
         env:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
@@ -81,10 +78,10 @@ jobs:
       - uses: actions/cache@v1
         id: restore-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
-      - run: cd repo && yarn testsafari --forceExit test/integration/production/
+      - run: yarn testsafari --forceExit test/integration/production/
         env:
           NEXT_TELEMETRY_DISABLED: 1
           BROWSERSTACK: true
@@ -104,4 +101,4 @@ jobs:
     runs-on: ubuntu-latest
     needs: saveNpmToken
     steps:
-      - run: cd repo && ./publish-release.sh
+      - run: ./publish-release.sh

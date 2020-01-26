@@ -10,8 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          path: 'repo'
 
       - run: cd repo && yarn install --frozen-lockfile --check-files
         env:
@@ -22,7 +20,7 @@ jobs:
       - uses: actions/cache@v1
         id: cache-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
   testAll:
@@ -37,7 +35,7 @@ jobs:
       - uses: actions/cache@v1
         id: restore-build
         with:
-          path: repo
+          path: '.'
           key: ${{ github.sha }}
 
       - run: cd repo && node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
