@@ -173,7 +173,12 @@ workflows:
   version: 2
   build-test-and-deploy:
     jobs:
-      - build
+      - build:
+        filters:
+          branches:
+            only:
+              - master
+              - canary
       - test-firefox:
           requires:
             - build
