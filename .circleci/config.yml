@@ -171,39 +171,7 @@ jobs:
 
 workflows:
   version: 2
-  build-test-and-deploy:
-    jobs:
-      - build:
-        filters:
-          branches:
-            only:
-              - master
-              - canary
-      - test-firefox:
-          requires:
-            - build
-      - test:
-          requires:
-            - build
-      - test-safari:
-          requires:
-            - build
-          filters:
-            branches:
-              only:
-                - master
-                - canary
-      - lint:
-          requires:
-            - build
-      - deploy:
-          requires:
-            - test
-          filters:
-            branches:
-              only:
-                - master
-                - canary
+
   q12h-react-canary:
     triggers:
       - schedule:
