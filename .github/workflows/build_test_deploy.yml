@@ -69,7 +69,7 @@ jobs:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ github.ref == 'canary' }}
+    if: github.ref == 'canary'
     steps:
       - uses: actions/cache@v1
         id: restore-build

@@ -2,7 +2,7 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-name: Generate pull request stats
+name: Generate Pull Request Stats
 
 jobs:
   prStats:
