@@ -157,22 +157,10 @@ export default HelloWorld
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
-## Sass Support
+## Sass, Less and Stylus Support
 
-Next.js allows you to import Sass using both the `.scss` and `.sass` extensions.
-You can use component-level Sass via CSS Modules and the `.module.scss` or `.module.sass` extension.
+To support importing `.scss`, `.sass`, `.less`, or `.styl` files you can use the following plugins:
 
-Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
-
-```bash
-npm install sass
-```
-
-Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
-
-## Less and Stylus Support
-
-To support importing `.less` or `.styl` files you can use the following plugins:
-
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)

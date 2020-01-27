@@ -95,6 +95,18 @@ export default function checkCustomRoutes(
   }
 
   for (const route of routes) {
+    if (!route || typeof route !== 'object') {
+      console.error(
+        `The route ${JSON.stringify(
+          route
+        )} is not a valid object with \`source\` and \`${
+          type === 'header' ? 'headers' : 'destination'
+        }\``
+      )
+      numInvalidRoutes++
+      continue
+    }
+
     const keys = Object.keys(route)
     const invalidKeys = keys.filter(key => !allowedKeys.has(key))
     const invalidParts: string[] = []

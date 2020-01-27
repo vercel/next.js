@@ -20,7 +20,7 @@ const run = (...args) => execa('node', [cli, ...args], { cwd })
 
 describe('create next app', () => {
   beforeAll(async () => {
-    jest.setTimeout(1000 * 30)
+    jest.setTimeout(1000 * 60)
     await mkdirp(cwd)
   })
 
