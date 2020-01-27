@@ -46,6 +46,7 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
+  ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -831,7 +832,10 @@ export default async function getBaseWebpackConfig(
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
-          tests: [new MinificationConformanceCheck()],
+          tests: [
+            new MinificationConformanceCheck(),
+            new ReactSyncScriptsConformanceCheck(),
+          ],
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
