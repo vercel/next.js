@@ -491,8 +491,8 @@ export default class Router implements BaseRouter {
           }
         }
 
-        return this._getData<RouteInfo>(() => {
-          return (Component as any).__N_SSG
+        return this._getData<RouteInfo>(() =>
+          (Component as any).__N_SSG
             ? this._getStaticData(as)
             : (Component as any).__N_SSP
             ? this._getServerData(as)
@@ -505,7 +505,7 @@ export default class Router implements BaseRouter {
                   asPath: as,
                 } as any
               )
-        }).then(props => {
+        ).then(props => {
           routeInfo.props = props
           this.components[route] = routeInfo
           return routeInfo
