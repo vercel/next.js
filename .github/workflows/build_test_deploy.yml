@@ -80,8 +80,9 @@ jobs:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: build
-    if: secrets.BROWSERSTACK_ACCESS_KEY
     steps:
+      - run: if [ -z "${{ secrets.BROWSERSTACK_ACCESS_KEY }}" ];then exit 0;fi
+
       - uses: actions/cache@v1
         id: restore-build
         with:
@@ -98,7 +99,6 @@ jobs:
   saveNpmToken:
     name: Potentially save npm token
     runs-on: ubuntu-latest
-    if: secrets.NPM_TOKEN
     needs: [build, testAll]
     steps:
       - run: ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
@@ -108,5 +108,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: saveNpmToken
     steps:
+      - run: if [ -z "${{ secrets.NPM_TOKEN }}" ];then exit 0;fi
       # - run: ./publish-release.sh
       - run: echo 'publishing release'
