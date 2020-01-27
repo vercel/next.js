@@ -156,7 +156,6 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          version: require('@babel/runtime-corejs2/package.json').version,
           absoluteRuntime: (process.versions as any).pnp
             ? __dirname
             : undefined,
@@ -178,6 +177,7 @@ module.exports = (
       ],
       require('@babel/plugin-proposal-optional-chaining'),
       require('@babel/plugin-proposal-nullish-coalescing-operator'),
+      isServer && require('@babel/plugin-syntax-bigint'),
     ].filter(Boolean),
   }
 }

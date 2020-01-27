@@ -1,6 +1,6 @@
 # Form Handler
 
-Sometimes handle multiple forms can be tricky, the idea is to have a global reducer with the name of each form and the inputs of it; making accessible everywhere.
+Sometimes handling multiple forms can be tricky. The idea in this example is to have a global reducer with the name of each form and the inputs of it; making accessible everywhere.
 
 ## How to use
 
