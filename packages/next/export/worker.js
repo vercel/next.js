@@ -191,7 +191,7 @@ export default async function({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
-        curRenderOpts = { ...components, ...renderOpts, ampPath }
+        curRenderOpts = { ...components, ...renderOpts, ampPath, params }
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
