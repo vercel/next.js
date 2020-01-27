@@ -454,9 +454,19 @@ export default class Server {
             fn: async (_req, res, params, _parsedUrl) => {
               const parsedDestination = parseUrl(route.destination, true)
               const destQuery = parsedDestination.query
-              let destinationCompiler = compilePathToRegex(
-                `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
-              )
+              let destToCompile = `${parsedDestination.pathname!}${parsedDestination.hash ||
+                ''}`
+
+              for (const key of (route.matcher as any).keys || []) {
+                const { name, pattern } = key
+                if (typeof name === 'number') {
+                  destToCompile = destToCompile.replace(
+                    new RegExp(`(\\:${name}(?![0-9]))`, 'g'),
+                    `(${pattern})`
+                  )
+                }
+              }
+              let destinationCompiler = compilePathToRegex(destToCompile)
               let newUrl
 
               Object.keys(destQuery).forEach(key => {

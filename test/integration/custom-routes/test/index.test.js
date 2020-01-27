@@ -267,13 +267,27 @@ const runTests = (isDev = false) => {
   it('should handle api rewrite with un-named param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-regex/hello/world')
     expect(JSON.parse(data)).toEqual({
-      query: { '1': 'hello/world', name: 'hello/world' },
+      query: { '0': 'hello/world', name: 'hello/world' },
     })
   })
 
   it('should handle api rewrite with param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-param/hello')
     expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
+  })
+
+  it('should handle unnamed parameters with multi-match successfully', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/unnamed-params/nested/first/second/hello/world',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/another/first/second/hello/world')
   })
 
   if (!isDev) {
@@ -376,7 +390,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
           },
           {
-            destination: '/:1/:2',
+            destination: '/:0/:1',
             regex: normalizeRegEx(
               '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
             ),
@@ -387,6 +401,14 @@ const runTests = (isDev = false) => {
             destination: '/:0',
             regex: normalizeRegEx('^\\/named-like-unnamed(?:\\/([^\\/]+?))$'),
             source: '/named-like-unnamed/:0',
+            statusCode: 307,
+          },
+          {
+            destination: '/another/:0/:test/:1',
+            regex: normalizeRegEx(
+              '^\\/unnamed-params\\/nested(?:\\/(.*?))(?:\\/([^\\/]+?))(?:\\/(.*))$'
+            ),
+            source: '/unnamed-params/nested/(.*?)/:test/(.*)',
             statusCode: 307,
           },
         ],
@@ -498,7 +520,7 @@ const runTests = (isDev = false) => {
             source: '/api-hello',
           },
           {
-            destination: '/api/hello?name=:1',
+            destination: '/api/hello?name=:0',
             regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
             source: '/api-hello-regex/(.*)',
           },

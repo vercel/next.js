@@ -61,7 +61,7 @@ module.exports = {
         },
         {
           source: '/api-hello-regex/(.*)',
-          destination: '/api/hello?name=:1',
+          destination: '/api/hello?name=:0',
         },
         {
           source: '/api-hello-param/:name',
@@ -138,12 +138,17 @@ module.exports = {
         },
         {
           source: '/unnamed/(first|second)/(.*)',
-          destination: '/:1/:2',
+          destination: '/:0/:1',
           permanent: false,
         },
         {
           source: '/named-like-unnamed/:0',
           destination: '/:0',
+          permanent: false,
+        },
+        {
+          source: '/unnamed-params/nested/(.*?)/:test/(.*)',
+          destination: '/another/:0/:test/:1',
           permanent: false,
         },
       ]
