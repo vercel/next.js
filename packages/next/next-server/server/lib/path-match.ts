@@ -29,7 +29,6 @@ export default (customRoute = false) => {
 
       return { ...params, ...res.params }
     }
-    ;(wrappedMatcher as any).keys = keys as any
     return wrappedMatcher
   }
 }

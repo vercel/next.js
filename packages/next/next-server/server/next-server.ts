@@ -457,16 +457,9 @@ export default class Server {
               let destToCompile = `${parsedDestination.pathname!}${parsedDestination.hash ||
                 ''}`
 
-              for (const key of (route.matcher as any).keys || []) {
-                const { name, pattern } = key
-                if (typeof name === 'number') {
-                  destToCompile = destToCompile.replace(
-                    new RegExp(`(\\:${name}(?![0-9]))`, 'g'),
-                    `(${pattern})`
-                  )
-                }
-              }
-              let destinationCompiler = compilePathToRegex(destToCompile)
+              let destinationCompiler = compilePathToRegex(destToCompile, {
+                validate: false,
+              })
               let newUrl
 
               Object.keys(destQuery).forEach(key => {
