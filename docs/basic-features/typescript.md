@@ -101,7 +101,7 @@ The following is an example of how to use the built-in types for API routes:
 import { NextApiRequest, NextApiResponse } from 'next'
 
 export default (req: NextApiRequest, res: NextApiResponse) => {
-  res.status(200).json({ name: 'Jhon Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }
 ```
 
@@ -115,6 +115,6 @@ type Data = {
 }
 
 export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
-  res.status(200).json({ name: 'Jhon Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }
 ```
