@@ -224,4 +224,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
       }
     }
   }
+  // Make sure to exit cleanly since all tests should have passed
+  // by this point and Azure seems to hang here
+  process.exit(0)
 })()
