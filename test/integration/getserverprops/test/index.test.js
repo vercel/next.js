@@ -4,6 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
+import escapeRegex from 'escape-string-regexp'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -22,8 +23,6 @@ const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 let buildId
-
-const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const expectedManifestRoutes = () => ({
   '/something': {
