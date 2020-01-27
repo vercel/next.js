@@ -27,7 +27,7 @@ type SessionStartedNextConfig = {
   hasRedirects: boolean
   hasTrailingSlash: boolean
   hasExportPathMap: boolean
-  pageExtensions: string[] | null
+  pageExtensions: string | null
 }
 
 type EventCliSessionStarted = SessionStartedVersions &
@@ -76,7 +76,9 @@ export function eventVersion(
         hasReactStrictMode: !!userConfig.reactStrictMode,
         hasTrailingSlash: !!userConfig.exportTrailingSlash,
         hasExportPathMap: typeof userConfig.exportPathMap === 'function',
-        pageExtensions: customExtensions.length ? customExtensions : null,
+        pageExtensions: customExtensions.length
+          ? customExtensions.join(', ')
+          : null,
       },
     },
   ]

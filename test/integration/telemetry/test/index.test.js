@@ -439,7 +439,7 @@ describe('Telemetry CLI', () => {
 
     await fs.remove(nextConfig)
 
-    expect(stderr).toMatch(/pageExtensions.*?\[\s*"mdx",\s*"md"\s*]/)
+    expect(stderr).toMatch(/pageExtensions.*?mdx,\smd/)
   })
 
   it('detects unused configs for `next export`', async () => {
