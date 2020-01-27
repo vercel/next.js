@@ -44,6 +44,9 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import WebpackConformancePlugin, {
+  MinificationConformanceCheck,
+} from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -65,7 +68,6 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
     // Polyfill: Window#fetch
-    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
     'whatwg-fetch$': path.join(
@@ -76,7 +78,6 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     ),
 
     // Polyfill: Object.assign
-    __next_polyfill__object_assign: require.resolve('object-assign'),
     'object-assign$': stubObjectAssign,
     '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
     '@babel/runtime-corejs2/core-js/promise': stubPromise,
@@ -484,8 +485,7 @@ export default async function getBaseWebpackConfig(
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
               (res.match(/[/\\]next[/\\]dist[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
             ) {
               return callback()
             }
@@ -827,6 +827,11 @@ export default async function getBaseWebpackConfig(
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
         }),
+      config.experimental.conformance &&
+        !dev &&
+        new WebpackConformancePlugin({
+          tests: [new MinificationConformanceCheck()],
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -836,6 +841,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
+    hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
   })
 

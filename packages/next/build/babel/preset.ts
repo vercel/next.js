@@ -152,11 +152,10 @@ module.exports = (
       !isServer && [
         require('@babel/plugin-transform-runtime'),
         {
-          corejs: 2,
-          helpers: true,
+          corejs: false,
+          helpers: false,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          version: require('@babel/runtime-corejs2/package.json').version,
           absoluteRuntime: (process.versions as any).pnp
             ? __dirname
             : undefined,

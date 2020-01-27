@@ -2,6 +2,8 @@ import loaderUtils from 'loader-utils'
 import path from 'path'
 import webpack from 'webpack'
 
+const regexLikeIndexModule = /(?<!pages[\\/])index\.module\.(scss|sass|css)$/
+
 export function getCssModuleLocalIdent(
   context: webpack.loader.LoaderContext,
   _: any,
@@ -14,11 +16,9 @@ export function getCssModuleLocalIdent(
 
   // Generate a more meaningful name (parent folder) when the user names the
   // file `index.module.css`.
-  const fileNameOrFolder =
-    relativePath.endsWith('index.module.css') &&
-    relativePath !== 'pages/index.module.css'
-      ? '[folder]'
-      : '[name]'
+  const fileNameOrFolder = regexLikeIndexModule.test(relativePath)
+    ? '[folder]'
+    : '[name]'
 
   // Generate a hash to make the class name unique.
   const hash = loaderUtils.getHashDigest(

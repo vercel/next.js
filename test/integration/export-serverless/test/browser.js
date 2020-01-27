@@ -133,12 +133,12 @@ export default function(context) {
     it('should render dynamic import components in the client', async () => {
       const browser = await webdriver(context.port, '/')
       await browser
-        .elementByCss('#dynamic-imports-page')
+        .elementByCss('#dynamic-imports-link')
         .click()
         .waitForElementByCss('#dynamic-imports-page')
 
       await check(
-        () => browser.elementByCss('#dynamic-imports-page p').text(),
+        () => getBrowserBodyText(browser),
         /Welcome to dynamic imports/
       )
 
