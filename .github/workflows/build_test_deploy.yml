@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [canary]
+    branches: [canary, test-actions]
   pull_request:
     types: [opened, synchronize]
 
@@ -108,4 +108,5 @@ jobs:
     runs-on: ubuntu-latest
     needs: saveNpmToken
     steps:
-      - run: ./publish-release.sh
+      # - run: ./publish-release.sh
+      - run: echo 'publishing release'
