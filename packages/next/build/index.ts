@@ -53,6 +53,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
+  isPageStatic,
   collectPages,
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
@@ -413,7 +414,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
     enableWorkerThreads: config.experimental.workerThreads,
-  })
+  }) as Worker & { isPageStatic: typeof isPageStatic }
+
   staticCheckWorkers.getStdout().pipe(process.stdout)
   staticCheckWorkers.getStderr().pipe(process.stderr)
 
@@ -478,7 +480,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
       if (nonReservedPage) {
         try {
-          let result: any = await (staticCheckWorkers as any).isPageStatic(
+          let result = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
             runtimeEnvConfig
@@ -489,7 +491,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             hybridAmpPages.add(page)
           }
 
-          if (result.prerender) {
+          if (result.hasStaticProps) {
             ssgPages.add(page)
             isSsg = true
 
@@ -497,7 +499,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
-          } else if (result.static && customAppGetInitialProps === false) {
+          } else if (result.isStatic && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
           }
