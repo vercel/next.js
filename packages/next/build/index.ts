@@ -63,6 +63,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import escapeStringRegexp from 'escape-string-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -258,22 +259,23 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
+  const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+  const routesManifest: any = {
+    version: 1,
+    basePath: config.experimental.basePath,
+    redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
+    rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
+    headers: headers.map(r => buildCustomRoute(r, 'header')),
+    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+      page,
+      regex: getRouteRegex(page).re.source,
+    })),
+  }
+
   await mkdirp(distDir)
-  await fsWriteFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify({
-      version: 1,
-      basePath: config.experimental.basePath,
-      redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
-      headers: headers.map(r => buildCustomRoute(r, 'header')),
-      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-        page,
-        regex: getRouteRegex(page).re.source,
-      })),
-    }),
-    'utf8'
-  )
+  // We need to write the manifest with rewrites before build
+  // so serverless can import the manifest
+  await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -405,6 +407,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
+  const serverPropsPages = new Set<string>()
   const additionalSsgPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
@@ -502,6 +505,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
+          } else if (result.hasServerProps) {
+            serverPropsPages.add(page)
           } else if (result.isStatic && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
@@ -525,6 +530,41 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   staticCheckWorkers.end()
 
+  if (serverPropsPages.size > 0) {
+    // We update the routes manifest after the build with the
+    // serverProps routes since we can't determine this until after build
+    routesManifest.serverPropsRoutes = {}
+
+    for (const page of serverPropsPages) {
+      const dataRoute = path.posix.join(
+        '/_next/data',
+        buildId,
+        `${page === '/' ? '/index' : page}.json`
+      )
+
+      routesManifest.serverPropsRoutes[page] = {
+        page,
+        dataRouteRegex: isDynamicRoute(page)
+          ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
+              /\(\?:\\\/\)\?\$$/,
+              '\\.json$'
+            )
+          : new RegExp(
+              `^${path.posix.join(
+                '/_next/data',
+                escapeStringRegexp(buildId),
+                `${page === '/' ? '/index' : page}.json`
+              )}$`
+            ).source,
+      }
+    }
+
+    await fsWriteFile(
+      routesManifestPath,
+      JSON.stringify(routesManifest),
+      'utf8'
+    )
+  }
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =

@@ -1,3 +1,5 @@
+import { IncomingMessage, ServerResponse } from 'http'
+import { ParsedUrlQuery } from 'querystring'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -6,7 +8,6 @@ import {
 } from '../lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
-import { ParsedUrlQuery } from 'querystring'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
 import { PageConfig, NextPageContext } from 'next/types'
@@ -33,6 +34,13 @@ type Unstable_getStaticProps = (params: {
 
 type Unstable_getStaticPaths = () => Promise<Array<string | ParsedUrlQuery>>
 
+type Unstable_getServerProps = (context: {
+  params: ParsedUrlQuery | undefined
+  req: IncomingMessage
+  res: ServerResponse
+  query: ParsedUrlQuery
+}) => Promise<{ [key: string]: any }>
+
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
   pageConfig?: PageConfig
@@ -43,6 +51,7 @@ export type LoadComponentsReturnType = {
   App: AppType
   unstable_getStaticProps?: Unstable_getStaticProps
   unstable_getStaticPaths?: Unstable_getStaticPaths
+  unstable_getServerProps?: Unstable_getServerProps
 }
 
 export async function loadComponents(
@@ -106,6 +115,7 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
+    unstable_getServerProps: ComponentMod.unstable_getServerProps,
     unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
     unstable_getStaticPaths: ComponentMod.unstable_getStaticPaths,
   }
