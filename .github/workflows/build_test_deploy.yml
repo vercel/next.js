@@ -102,12 +102,14 @@ jobs:
     # needs: [build, testAll]
     steps:
       - run: ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publishRelease:
     name: Potentially publish release
     runs-on: ubuntu-latest
     needs: saveNpmToken
     steps:
-      - run: if [ -z "${{ secrets.NPM_TOKEN }}" ];then exit 0;fi
+      - run: if [ -z "" ];then exit 0;fi
       # - run: ./publish-release.sh
       - run: echo 'publishing release'
