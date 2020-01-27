@@ -492,20 +492,19 @@ export default class Router implements BaseRouter {
         }
 
         return this._getData<RouteInfo>(() => {
-          if ((Component as any).__N_SSG) {
-            return this._getStaticData(as)
-          } else if ((Component as any).__N_SSP) {
-            return this._getServerData(as)
-          }
-          return this.getInitialProps(
-            Component,
-            // we provide AppTree later so this needs to be `any`
-            {
-              pathname,
-              query,
-              asPath: as,
-            } as any
-          )
+          return (Component as any).__N_SSG
+            ? this._getStaticData(as)
+            : (Component as any).__N_SSP
+            ? this._getServerData(as)
+            : this.getInitialProps(
+                Component,
+                // we provide AppTree later so this needs to be `any`
+                {
+                  pathname,
+                  query,
+                  asPath: as,
+                } as any
+              )
         }).then(props => {
           routeInfo.props = props
           this.components[route] = routeInfo
