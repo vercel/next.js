@@ -20,7 +20,7 @@ The interactive course with quizzes will guide you through everything you need t
 Install `next`, `react` and `react-dom` in your project:
 
 ```bash
-npm install --save next react react-dom
+npm install next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
