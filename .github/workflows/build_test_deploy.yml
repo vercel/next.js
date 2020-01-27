@@ -76,6 +76,12 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
 
+  testRef:
+    name: Test Ref
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ${{ github.ref }}
+
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
