@@ -53,6 +53,12 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
 
+  testsPass:
+    name: Tests pass
+    needs: [lint, testAll]
+    steps:
+      - run: exit 0
+
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
