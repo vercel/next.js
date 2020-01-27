@@ -60,7 +60,7 @@ function decorateSsgExport(
   })
 }
 
-const checkIsSSG = (name: string, state: PluginState, toRemove: any) => {
+const isDataIdentifier = (name: string, state: PluginState): boolean => {
   if (ssgExports.has(name)) {
     if (name === EXPORT_NAME_GET_SERVER_PROPS) {
       if (state.isPrerender) {
@@ -73,8 +73,9 @@ const checkIsSSG = (name: string, state: PluginState, toRemove: any) => {
       }
       state.isPrerender = true
     }
-    toRemove.remove()
+    return true
   }
+  return false
 }
 
 export default function nextTransformSsg({
@@ -262,7 +263,9 @@ export default function nextTransformSsg({
         const specifiers = path.get('specifiers')
         if (specifiers.length) {
           specifiers.forEach(s => {
-            checkIsSSG(s.node.exported.name, state, s)
+            if (isDataIdentifier(s.node.exported.name, state)) {
+              s.remove()
+            }
           })
 
           if (path.node.specifiers.length < 1) {
@@ -279,7 +282,9 @@ export default function nextTransformSsg({
         switch (decl.node.type) {
           case 'FunctionDeclaration': {
             const name = decl.node.id!.name
-            checkIsSSG(name, state, path)
+            if (isDataIdentifier(name, state)) {
+              path.remove()
+            }
             break
           }
           case 'VariableDeclaration': {
@@ -291,7 +296,9 @@ export default function nextTransformSsg({
                 return
               }
               const name = d.node.id.name
-              checkIsSSG(name, state, d)
+              if (isDataIdentifier(name, state)) {
+                d.remove()
+              }
             })
             break
           }
