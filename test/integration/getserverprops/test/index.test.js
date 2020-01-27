@@ -249,6 +249,16 @@ const runTests = (dev = false) => {
     expect(text).toMatch(/a normal page/)
   })
 
+  it('should provide correct query value for dynamic page', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/blog/post-1?post=something-else'
+    )
+    const $ = cheerio.load(html)
+    const query = JSON.parse($('#query').text())
+    expect(query.post).toBe('post-1')
+  })
+
   it('should parse query values on mount correctly', async () => {
     const browser = await webdriver(appPort, '/blog/post-1?another=value')
     await waitFor(2000)
