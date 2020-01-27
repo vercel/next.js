@@ -55,6 +55,7 @@ jobs:
 
   testsPass:
     name: Tests pass
+    runs-on: ubuntu-latest
     needs: [lint, testAll]
     steps:
       - run: exit 0
