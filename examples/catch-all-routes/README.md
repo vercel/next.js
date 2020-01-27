@@ -7,7 +7,7 @@ The catch all page is in `pages/post/[...slug]`, it matches any path after `/pos
 - `/post/first-post`,
 - `/post/2020/first-post`
 - `/post/2020/first-post/with/catch/all/routes`
-- Anything that matches the glob `/post/*`
+- Anything that matches the glob `/post/**`
 
 You can use `next/link` as displayed in this example to route to these pages client side.
 
