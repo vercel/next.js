@@ -58,9 +58,16 @@ Client-side navigations to a dynamic route can be handled with [`next/link`](/do
 
 ### Catch all routes
 
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/catch-all-routes">Catch All Routes</a></li>
+  </ul>
+</details>
+
 Dynamic routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
 
-- `pages/post/[...slug]` matches `/post/a`, but also `post/a/b`, `post/a/b/c` and so on.
+- `pages/post/[...slug].js` matches `/post/a`, but also `post/a/b`, `post/a/b/c` and so on.
 
 Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/post/a` will have the following `query` object:
 
