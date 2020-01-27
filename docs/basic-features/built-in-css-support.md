@@ -15,7 +15,8 @@ For example, consider the following stylesheet named `styles.css`:
 
 ```css
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', system-ui;
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
