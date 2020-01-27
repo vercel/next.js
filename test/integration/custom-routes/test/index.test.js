@@ -290,6 +290,20 @@ const runTests = (isDev = false) => {
     expect(pathname).toBe('/another/first/second/hello/world')
   })
 
+  it('should handle named regex parameters with multi-match successfully', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/docs/integrations/v2-some/thing',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/integrations/-some/thing')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -409,6 +423,14 @@ const runTests = (isDev = false) => {
               '^\\/unnamed-params\\/nested(?:\\/(.*?))(?:\\/([^\\/]+?))(?:\\/(.*))$'
             ),
             source: '/unnamed-params/nested/(.*?)/:test/(.*)',
+            statusCode: 307,
+          },
+          {
+            destination: '/:first*/:second*',
+            regex: normalizeRegEx(
+              '^\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)$'
+            ),
+            source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
             statusCode: 307,
           },
         ],

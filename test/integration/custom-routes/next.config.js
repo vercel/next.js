@@ -151,6 +151,11 @@ module.exports = {
           destination: '/another/:0/:test/:1',
           permanent: false,
         },
+        {
+          source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
+          destination: '/:first*/:second*',
+          permanent: false,
+        },
       ]
     },
 
