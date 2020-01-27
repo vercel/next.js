@@ -63,6 +63,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import escapeStringRegexp from 'escape-string-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -535,11 +536,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     routesManifest.serverPropsRoutes = {}
 
     for (const page of serverPropsPages) {
-      const cleanDataRoute = path.posix.join(
-        '/_next/data',
-        buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&'),
-        `${page === '/' ? '/index' : page}.json`
-      )
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
@@ -553,7 +549,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
               /\(\?:\\\/\)\?\$$/,
               '\\.json$'
             )
-          : new RegExp(`^${cleanDataRoute}$`).source,
+          : new RegExp(
+              `^${path.posix.join(
+                '/_next/data',
+                escapeStringRegexp(buildId),
+                `${page === '/' ? '/index' : page}.json`
+              )}$`
+            ).source,
       }
     }
 
