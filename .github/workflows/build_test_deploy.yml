@@ -54,7 +54,7 @@ jobs:
           HEADLESS: true
 
   testsPass:
-    name: Tests pass
+    name: Mission Accomplished
     runs-on: ubuntu-latest
     needs: [lint, testAll]
     steps:
