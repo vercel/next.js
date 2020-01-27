@@ -118,16 +118,30 @@ function runTests(dev = false) {
   })
 
   it('should return error exceeded body limit', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: JSON.stringify(json),
-    })
+    let res
+    let error
 
-    expect(data.status).toEqual(413)
-    expect(data.statusText).toEqual('Body exceeded 1mb limit')
+    try {
+      res = await fetchViaHTTP(appPort, '/api/parse', null, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+        body: JSON.stringify(json),
+      })
+    } catch (err) {
+      error = err
+    }
+
+    if (error) {
+      // This is a temporary workaround for testing since node doesn't handle
+      // closed connections when POSTing data to an endpoint correctly
+      // https://github.com/nodejs/node/issues/12339
+      expect(error.code).toBe('EPIPE')
+    } else {
+      expect(res.status).toEqual(413)
+      expect(res.statusText).toEqual('Body exceeded 1mb limit')
+    }
   })
 
   it('should parse bigger body then 1mb', async () => {
