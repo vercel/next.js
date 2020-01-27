@@ -59,7 +59,7 @@ export async function apiResolver(
 
     if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
       console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in a stalled requests.`
+        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
       )
     }
   } catch (err) {
