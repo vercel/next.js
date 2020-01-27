@@ -426,7 +426,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
           },
           {
-            destination: '/:first*/:second*',
+            destination: '/:first/:second',
             regex: normalizeRegEx(
               '^\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)$'
             ),

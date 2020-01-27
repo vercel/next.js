@@ -153,7 +153,7 @@ module.exports = {
         },
         {
           source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
-          destination: '/:first*/:second*',
+          destination: '/:first/:second',
           permanent: false,
         },
       ]
