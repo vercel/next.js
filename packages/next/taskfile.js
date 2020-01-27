@@ -1,62 +1,6 @@
 const notifier = require('node-notifier')
 const relative = require('path').relative
 
-const babelClientOpts = {
-  presets: [
-    '@babel/preset-typescript',
-    [
-      '@babel/preset-env',
-      {
-        modules: 'commonjs',
-        targets: {
-          esmodules: true,
-        },
-        loose: true,
-        exclude: ['transform-typeof-symbol'],
-      },
-    ],
-    '@babel/preset-react',
-  ],
-  plugins: [
-    // workaround for @taskr/esnext bug replacing `-import` with `-require(`
-    // eslint-disable-next-line no-useless-concat
-    '@babel/plugin-syntax-dynamic-impor' + 't',
-    ['@babel/plugin-proposal-class-properties', { loose: true }],
-    [
-      '@babel/plugin-transform-runtime',
-      {
-        corejs: 2,
-        helpers: true,
-        regenerator: false,
-        useESModules: false,
-      },
-    ],
-  ],
-}
-
-const babelServerOpts = {
-  presets: [
-    '@babel/preset-typescript',
-    [
-      '@babel/preset-env',
-      {
-        modules: 'commonjs',
-        targets: {
-          node: '8.3',
-        },
-        loose: true,
-        exclude: ['transform-typeof-symbol'],
-      },
-    ],
-  ],
-  plugins: [
-    '@babel/plugin-proposal-optional-chaining',
-    '@babel/plugin-proposal-nullish-coalescing-operator',
-    'babel-plugin-dynamic-import-node',
-    ['@babel/plugin-proposal-class-properties', { loose: true }],
-  ],
-}
-
 // eslint-disable-next-line camelcase
 export async function ncc_arg(task, opts) {
   await task
@@ -126,7 +70,7 @@ export async function compile(task) {
 export async function bin(task, opts) {
   await task
     .source(opts.src || 'bin/*')
-    .babel(babelServerOpts, { stripExtension: true })
+    .babel('server', { stripExtension: true })
     .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
@@ -134,7 +78,7 @@ export async function bin(task, opts) {
 export async function cli(task, opts) {
   await task
     .source(opts.src || 'cli/**/*.+(js|ts|tsx)')
-    .babel(babelServerOpts)
+    .babel('server')
     .target('dist/cli')
   notify('Compiled cli files')
 }
@@ -142,20 +86,15 @@ export async function cli(task, opts) {
 export async function lib(task, opts) {
   await task
     .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
-    .babel(babelServerOpts)
+    .babel('server')
     .target('dist/lib')
   notify('Compiled lib files')
 }
 
 export async function server(task, opts) {
-  const babelOpts = {
-    ...babelServerOpts,
-    // the /server files may use React
-    presets: [...babelServerOpts.presets, '@babel/preset-react'],
-  }
   await task
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
-    .babel(babelOpts)
+    .babel('server')
     .target('dist/server')
   notify('Compiled server files')
 }
@@ -163,7 +102,7 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)')
-    .babel(babelServerOpts)
+    .babel('server')
     .target('dist/build')
   notify('Compiled build files')
 }
@@ -171,7 +110,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .babel(babelClientOpts)
+    .babel('client')
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -180,7 +119,7 @@ export async function client(task, opts) {
 export async function nextbuildstatic(task, opts) {
   await task
     .source(opts.src || 'export/**/*.+(js|ts|tsx)')
-    .babel(babelServerOpts)
+    .babel('server')
     .target('dist/export')
   notify('Compiled export files')
 }
@@ -188,26 +127,21 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task) {
   await task
     .source('pages/_app.tsx')
-    .babel(babelClientOpts)
+    .babel('client')
     .target('dist/pages')
 }
 
 export async function pages_error(task) {
   await task
     .source('pages/_error.tsx')
-    .babel(babelClientOpts)
+    .babel('client')
     .target('dist/pages')
 }
 
 export async function pages_document(task) {
-  const babelOpts = {
-    ...babelServerOpts,
-    presets: [...babelServerOpts.presets, '@babel/preset-react'],
-  }
-
   await task
     .source('pages/_document.tsx')
-    .babel(babelOpts)
+    .babel('server')
     .target('dist/pages')
 }
 
@@ -218,7 +152,7 @@ export async function pages(task, opts) {
 export async function telemetry(task, opts) {
   await task
     .source(opts.src || 'telemetry/**/*.+(js|ts|tsx)')
-    .babel(babelServerOpts)
+    .babel('server')
     .target('dist/telemetry')
   notify('Compiled telemetry files')
 }

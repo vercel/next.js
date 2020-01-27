@@ -564,7 +564,8 @@ export default class Server {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
-            pathname!
+            pathname!,
+            query
           )
           if (handled) {
             return { finished: true }
@@ -636,7 +637,8 @@ export default class Server {
   private async handleApiRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    pathname: string
+    pathname: string,
+    query: ParsedUrlQuery
   ) {
     let page = pathname
     let params: Params | boolean = false
@@ -662,15 +664,17 @@ export default class Server {
 
     const builtPagePath = await this.getPagePath(page)
     const pageModule = require(builtPagePath)
+    query = { ...query, ...params }
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
+        this.prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
         return true
       }
     }
 
-    await apiResolver(req, res, params, pageModule, this.onErrorMiddleware)
+    await apiResolver(req, res, query, pageModule, this.onErrorMiddleware)
     return true
   }
 
@@ -834,6 +838,18 @@ export default class Server {
     res.end(payload)
   }
 
+  private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
+    const curUrl = parseUrl(req.url!, true)
+    req.url = formatUrl({
+      ...curUrl,
+      search: undefined,
+      query: {
+        ...curUrl.query,
+        ...query,
+      },
+    })
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -850,23 +866,15 @@ export default class Server {
     // check request state
     const isLikeServerless =
       typeof result.Component === 'object' &&
-      typeof result.Component.renderReqToHTML === 'function'
+      typeof (result.Component as any).renderReqToHTML === 'function'
     const isSSG = !!result.unstable_getStaticProps
 
     // non-spr requests should render like normal
     if (!isSSG) {
       // handle serverless
       if (isLikeServerless) {
-        const curUrl = parseUrl(req.url!, true)
-        req.url = formatUrl({
-          ...curUrl,
-          search: undefined,
-          query: {
-            ...curUrl.query,
-            ...query,
-          },
-        })
-        return result.Component.renderReqToHTML(req, res)
+        this.prepareServerlessUrl(req, query)
+        return (result.Component as any).renderReqToHTML(req, res)
       }
 
       return renderToHTML(req, res, pathname, query, {
@@ -924,7 +932,11 @@ export default class Server {
       let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await result.Component.renderReqToHTML(req, res, true)
+        renderResult = await (result.Component as any).renderReqToHTML(
+          req,
+          res,
+          true
+        )
 
         html = renderResult.html
         pageData = renderResult.renderOpts.pageData

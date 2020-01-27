@@ -61,6 +61,15 @@
             "ignoreRestSiblings": true
           }
         ],
+        "no-unused-expressions": "off",
+        "@typescript-eslint/no-unused-expressions": [
+          "error",
+          {
+            "allowShortCircuit": true,
+            "allowTernary": true,
+            "allowTaggedTemplates": true
+          }
+        ],
         "no-useless-constructor": "off",
         "@typescript-eslint/no-useless-constructor": "warn"
       }

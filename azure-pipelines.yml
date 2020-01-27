@@ -62,5 +62,5 @@ jobs:
         displayName: 'Install dependencies'
 
       - script: |
-          node run-tests.js -g $(group)
+          node run-tests.js -g $(group) --timings
         displayName: 'Run tests'

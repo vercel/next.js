@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   launchApp,
   killApp,
@@ -28,8 +29,6 @@ let buildId
 let stdout = ''
 let appPort
 let app
-
-const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
@@ -260,6 +259,23 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('refresh')).toBe(`0;url=/`)
   })
 
+  it('should handle basic api rewrite successfully', async () => {
+    const data = await renderViaHTTP(appPort, '/api-hello')
+    expect(JSON.parse(data)).toEqual({ query: {} })
+  })
+
+  it('should handle api rewrite with un-named param successfully', async () => {
+    const data = await renderViaHTTP(appPort, '/api-hello-regex/hello/world')
+    expect(JSON.parse(data)).toEqual({
+      query: { '1': 'hello/world', name: 'hello/world' },
+    })
+  })
+
+  it('should handle api rewrite with param successfully', async () => {
+    const data = await renderViaHTTP(appPort, '/api-hello-param/hello')
+    expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -475,6 +491,21 @@ const runTests = (isDev = false) => {
               '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/hidden/_next/:path*',
+          },
+          {
+            destination: '/api/hello',
+            regex: normalizeRegEx('^\\/api-hello$'),
+            source: '/api-hello',
+          },
+          {
+            destination: '/api/hello?name=:1',
+            regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
+            source: '/api-hello-regex/(.*)',
+          },
+          {
+            destination: '/api/hello?name=:name',
+            regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
+            source: '/api-hello-param/:name',
           },
         ],
         dynamicRoutes: [

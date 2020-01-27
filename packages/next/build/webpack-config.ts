@@ -28,7 +28,7 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
-import { __overrideCssConfiguration } from './webpack/config/blocks/css'
+import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -44,6 +44,9 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import WebpackConformancePlugin, {
+  MinificationConformanceCheck,
+} from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -825,6 +828,11 @@ export default async function getBaseWebpackConfig(
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
         }),
+      config.experimental.conformance &&
+        !dev &&
+        new WebpackConformancePlugin({
+          tests: [new MinificationConformanceCheck()],
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -834,6 +842,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
+    hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
   })
 
