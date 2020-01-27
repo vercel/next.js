@@ -137,6 +137,8 @@ function runTests(dev = false) {
       // This is a temporary workaround for testing since node doesn't handle
       // closed connections when POSTing data to an endpoint correctly
       // https://github.com/nodejs/node/issues/12339
+      // TODO: investigate re-enabling this after above issue has been
+      // addressed in node or `node-fetch`
       expect(error.code).toBe('EPIPE')
     } else {
       expect(res.status).toEqual(413)
