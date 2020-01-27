@@ -344,7 +344,7 @@ function runTests(dev = false) {
         signal: controller.signal,
       }).catch(() => {})
       expect(stderr).toContain(
-        `API resolved without sending a response for /api/test-no-end, this may result in a stalled requests`
+        `API resolved without sending a response for /api/test-no-end, this may result in stalled requests.`
       )
     })
   } else {
