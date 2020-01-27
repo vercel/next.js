@@ -479,9 +479,9 @@ export async function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
 ): Promise<{
-  static?: boolean
-  prerender?: boolean
+  isStatic?: boolean
   isHybridAmp?: boolean
+  hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
   try {
@@ -593,10 +593,10 @@ export async function isPageStatic(
 
     const config = mod.config || {}
     return {
-      static: !hasStaticProps && !hasGetInitialProps,
+      isStatic: !hasStaticProps && !hasGetInitialProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes: prerenderPaths,
-      prerender: hasStaticProps,
+      hasStaticProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
