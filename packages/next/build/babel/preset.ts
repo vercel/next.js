@@ -177,6 +177,7 @@ module.exports = (
       ],
       require('@babel/plugin-proposal-optional-chaining'),
       require('@babel/plugin-proposal-nullish-coalescing-operator'),
+      isServer && require('@babel/plugin-syntax-bigint'),
     ].filter(Boolean),
   }
 }
