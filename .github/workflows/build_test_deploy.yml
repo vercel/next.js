@@ -80,7 +80,7 @@ jobs:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'canary'
+    if: secrets.BROWSERSTACK_ACCESS_KEY
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -98,7 +98,7 @@ jobs:
   saveNpmToken:
     name: Potentially save npm token
     runs-on: ubuntu-latest
-    if: github.ref == 'canary'
+    if: secrets.NPM_TOKEN
     needs: [build, testAll]
     steps:
       - run: ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
