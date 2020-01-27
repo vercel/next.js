@@ -1,6 +1,5 @@
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs-extra')
 const fetch = require('node-fetch')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
@@ -12,6 +11,7 @@ const exec = promisify(execOrig)
 const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const timings = []
+const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -32,52 +32,18 @@ const timings = []
       cwd: path.join(__dirname, 'test'),
     })
 
-    if (outputTimings) {
+    if (outputTimings && groupArg) {
       console.log('Fetching previous timings data')
-      const metaRes = await fetch(
-        `https://circleci.com/api/v1.1/project/github/zeit/next.js/`
-      )
+      try {
+        const timingsRes = await fetch(TIMINGS_API)
 
-      if (metaRes.ok) {
-        const buildsMeta = await metaRes.json()
-        let buildNumber
-
-        for (const build of buildsMeta) {
-          if (
-            build.status === 'success' &&
-            build.build_parameters &&
-            build.build_parameters.CIRCLE_JOB === 'test'
-          ) {
-            buildNumber = build.build_num
-            break
-          }
+        if (!timingsRes.ok) {
+          throw new Error(`request status: ${timingsRes.status}`)
         }
-
-        const timesRes = await fetch(
-          `https://circleci.com/api/v1.1/project/github/zeit/next.js/${buildNumber}/tests`
-        )
-
-        if (timesRes.ok) {
-          const { tests } = await timesRes.json()
-          prevTimings = {}
-
-          for (const test of tests) {
-            prevTimings[test.file] = test.run_time
-          }
-
-          if (Object.keys(prevTimings).length > 0) {
-            console.log('Fetched previous timings data')
-          } else {
-            prevTimings = null
-          }
-        } else {
-          console.log(
-            'Failed to fetch previous timings status:',
-            timesRes.status
-          )
-        }
-      } else {
-        console.log('Failed to fetch timings meta status:', metaRes.status)
+        prevTimings = await timingsRes.json()
+        console.log('Fetched previous timings data successfully')
+      } catch (err) {
+        console.log(`Failed to fetch timings data`, err)
       }
     }
   }
@@ -210,7 +176,8 @@ const timings = []
   )
 
   if (outputTimings) {
-    let junitData = `<testsuites name="jest tests">`
+    const curTimings = {}
+    // let junitData = `<testsuites name="jest tests">`
     /*
       <testsuite name="/__tests__/bar.test.js" tests="1" errors="0" failures="0" skipped="0" timestamp="2017-10-10T21:56:49" time="0.323">
         <testcase classname="bar-should be bar" name="bar-should be bar" time="0.004">
@@ -220,20 +187,41 @@ const timings = []
 
     for (const timing of timings) {
       const timeInSeconds = timing.time / 1000
+      curTimings[timing.file] = timeInSeconds
 
-      junitData += `
-        <testsuite name="${timing.file}" file="${
-        timing.file
-      }" tests="1" errors="0" failures="0" skipped="0" timestamp="${new Date().toJSON()}" time="${timeInSeconds}">
-          <testcase classname="tests suite should pass" name="${
-            timing.file
-          }" time="${timeInSeconds}"></testcase>
-        </testsuite>
-      `
+      // junitData += `
+      //   <testsuite name="${timing.file}" file="${
+      //   timing.file
+      // }" tests="1" errors="0" failures="0" skipped="0" timestamp="${new Date().toJSON()}" time="${timeInSeconds}">
+      //     <testcase classname="tests suite should pass" name="${
+      //       timing.file
+      //     }" time="${timeInSeconds}"></testcase>
+      //   </testsuite>
+      // `
     }
+    // junitData += `</testsuites>`
+    // console.log('output timing data to junit.xml')
 
-    junitData += `</testsuites>`
-    await fs.writeFile('test/junit.xml', junitData, 'utf8')
-    console.log('output timing data to junit.xml')
+    if (prevTimings) {
+      try {
+        const timingsRes = await fetch(TIMINGS_API, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ timings: curTimings }),
+        })
+
+        if (!timingsRes.ok) {
+          throw new Error(`request status: ${timingsRes.status}`)
+        }
+        console.log(
+          'Sent updated timings successfully',
+          await timingsRes.json()
+        )
+      } catch (err) {
+        console.log('Failed to update timings data', err)
+      }
+    }
   }
 })()
