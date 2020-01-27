@@ -37,7 +37,8 @@ function isIgnoredPlugin(pluginPath: string): boolean {
     `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
       plugin
     )} plugin from your PostCSS configuration. ` +
-      `This plugin is automatically configured by Next.js.`
+      `This plugin is automatically configured by Next.js.\n` +
+      'Read more: https://err.sh/next.js/postcss-ignored-plugin'
   )
   return true
 }
@@ -118,7 +119,8 @@ export async function getPostCssPlugins(
 
   if (typeof config === 'function') {
     throw new Error(
-      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.`
+      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.\n` +
+        'Read more: https://err.sh/next.js/postcss-function'
     )
   }
 
@@ -182,13 +184,15 @@ export async function getPostCssPlugins(
               'Error'
             )}: A PostCSS Plugin must be provided as a ${chalk.bold(
               'string'
-            )}. Instead, we got: '${pluginName}'.`
+            )}. Instead, we got: '${pluginName}'.\n` +
+              'Read more: https://err.sh/next.js/postcss-shape'
           )
         } else {
           console.error(
             `${chalk.red.bold(
               'Error'
-            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').`
+            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').\n` +
+              'Read more: https://err.sh/next.js/postcss-shape'
           )
         }
         throw new Error(genericErrorText)
@@ -199,14 +203,15 @@ export async function getPostCssPlugins(
           'Error'
         )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
           'string'
-        )}.`
+        )}.\nRead more: https://err.sh/next.js/postcss-shape`
       )
       throw new Error(genericErrorText)
     } else {
       console.error(
         `${chalk.red.bold(
           'Error'
-        )}: An unknown PostCSS plugin was provided (${plugin}).`
+        )}: An unknown PostCSS plugin was provided (${plugin}).\n` +
+          'Read more: https://err.sh/next.js/postcss-shape'
       )
       throw new Error(genericErrorText)
     }

@@ -15,7 +15,8 @@ For example, consider the following stylesheet named `styles.css`:
 
 ```css
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', system-ui;
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
@@ -157,9 +158,9 @@ export default HelloWorld
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
-## Sass, Less, and Stylus Support
+## Sass, Less and Stylus Support
 
-To support importing `.scss`, `.less` or `.styl` files you can use the following plugins:
+To support importing `.scss`, `.sass`, `.less`, or `.styl` files you can use the following plugins:
 
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)

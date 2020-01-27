@@ -5,7 +5,8 @@ import { getClientStyleLoader } from './client'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: postcss.AcceptedPlugin[]
+  postCssPlugins: postcss.AcceptedPlugin[],
+  preProcessors: webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
 
@@ -23,7 +24,7 @@ export function getGlobalCssLoader(
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
     loader: require.resolve('css-loader'),
-    options: { importLoaders: 1, sourceMap: true },
+    options: { importLoaders: 1 + preProcessors.length, sourceMap: true },
   })
 
   // Compile CSS
@@ -35,6 +36,12 @@ export function getGlobalCssLoader(
       sourceMap: true,
     },
   })
+
+  loaders.push(
+    // Webpack loaders run like a stack, so we need to reverse the natural
+    // order of preprocessors.
+    ...preProcessors.reverse()
+  )
 
   return loaders
 }
