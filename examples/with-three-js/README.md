@@ -2,11 +2,8 @@
 
 This example uses:
 
-
 `threejs`: A lightweight, 3D library with a default WebGL renderer. The library also provides Canvas 2D, SVG and CSS3D renderers in the examples.
 `react-three-fiber`: A React renderer for Threejs on the web and react-native.
-
-
 
 ## Deploy your own
 
