@@ -232,7 +232,7 @@ export default function loadConfig(
     if (Object.keys(userConfig).length === 0) {
       console.warn(
         chalk.yellow.bold('Warning: ') +
-          'Detected next.config.js, no exported configuration found.'
+          'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
       )
     }
 
