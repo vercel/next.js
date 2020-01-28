@@ -145,7 +145,7 @@ describe('Telemetry CLI', () => {
     await waitFor(1000)
     await killApp(app)
 
-    expect(stderr).toMatch(/target.*?null/)
+    expect(stderr).toMatch(/target.*?default/)
     expect(stderr).toMatch(/hasTypeScript.*?false/)
     expect(stderr).toMatch(/hasCustomWebpack.*?false/)
     expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
@@ -158,7 +158,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasRedirects.*?false/)
     expect(stderr).toMatch(/hasTrailingSlash.*?false/)
     expect(stderr).toMatch(/hasExportPathMap.*?false/)
-    expect(stderr).toMatch(/pageExtensions.*?null/)
+    expect(stderr).toMatch(/pageExtensions.*?default/)
   })
 
   it('detects custom configs in next.config.js for `next dev`', async () => {
@@ -331,7 +331,7 @@ describe('Telemetry CLI', () => {
       },
     })
 
-    expect(stderr).toMatch(/target.*?null/)
+    expect(stderr).toMatch(/target.*?default/)
     expect(stderr).toMatch(/hasCustomWebpack.*?false/)
     expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
     expect(stderr).toMatch(/hasAssetPrefix.*?false/)
@@ -341,7 +341,7 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/hasReactStrictMode.*?false/)
     expect(stderr).toMatch(/hasRewrites.*?false/)
     expect(stderr).toMatch(/hasRedirects.*?false/)
-    expect(stderr).toMatch(/pageExtensions.*?null/)
+    expect(stderr).toMatch(/pageExtensions.*?default/)
   })
 
   it('detects custom configs in next.config.js for `next build`', async () => {
@@ -456,7 +456,7 @@ describe('Telemetry CLI', () => {
       },
     })
 
-    expect(stderr).toMatch(/target.*?null/)
+    expect(stderr).toMatch(/target.*?default/)
     expect(stderr).toMatch(/hasAssetPrefix.*?false/)
     expect(stderr).toMatch(/hasDistDir.*?false/)
     expect(stderr).toMatch(/hasRuntimeConfig.*?false/)

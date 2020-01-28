@@ -15,7 +15,7 @@ type SessionStarted = {
 }
 
 type SessionStartedNextConfig = {
-  target: string | null
+  target: string
   hasCustomWebpack: boolean
   hasCustomWebpackDev: boolean
   hasAssetPrefix: boolean
@@ -27,7 +27,7 @@ type SessionStartedNextConfig = {
   hasRedirects: boolean
   hasTrailingSlash: boolean
   hasExportPathMap: boolean
-  pageExtensions: string | null
+  pageExtensions: string
 }
 
 type EventCliSessionStarted = SessionStartedVersions &
@@ -63,7 +63,7 @@ export function eventVersion(
         ...event,
         nextVersion: process.env.__NEXT_VERSION,
         nodeVersion: process.version,
-        target: userConfig.target || null,
+        target: userConfig.target || 'default',
         hasCustomWebpack: typeof userConfig.webpack === 'function',
         hasCustomWebpackDev:
           typeof userConfig.webpackDevMiddleware === 'function',
@@ -78,7 +78,7 @@ export function eventVersion(
         hasExportPathMap: typeof userConfig.exportPathMap === 'function',
         pageExtensions: customExtensions.length
           ? customExtensions.join(', ')
-          : null,
+          : 'default',
       },
     },
   ]
