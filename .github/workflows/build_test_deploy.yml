@@ -63,6 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     env:
+      SKIP_LOCAL_SELENIUM_SERVER: true
       NEXT_TELEMETRY_DISABLED: 1
       HEADLESS: true
     steps:
@@ -80,6 +81,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       BROWSERSTACK: true
+      SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
