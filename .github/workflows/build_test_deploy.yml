@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - run: if [ -z $BROWSERSTACK_ACCESS_KEY ];then exit 0;fi
+      - run: if [ -z $BROWSERSTACK_ACCESS_KEY ];then exit 0;else echo 'not empty';fi
 
       - uses: actions/cache@v1
         id: restore-build
@@ -111,6 +111,7 @@ jobs:
     needs: saveNpmToken
     steps:
       - run: if [ -z $NPM_TOKEN ];then exit 0;fi
-      - run: ./publish-release.sh
+      - run: echo 'running publish'
+      # - run: ./publish-release.sh
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
