@@ -1,20 +1,25 @@
 import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
+import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 
 const pageComponentVar = '__NEXT_COMP'
 const prerenderId = '__N_SSG'
+const serverPropsId = '__N_SSP'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
+export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerProps'
 
 const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
+  EXPORT_NAME_GET_SERVER_PROPS,
 ])
 
 type PluginState = {
   refs: Set<NodePath<BabelTypes.Identifier>>
   isPrerender: boolean
+  isServerProps: boolean
   done: boolean
 }
 
@@ -44,7 +49,7 @@ function decorateSsgExport(
           '=',
           t.memberExpression(
             t.identifier(pageComponentVar),
-            t.identifier(prerenderId)
+            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
           ),
           t.booleanLiteral(true)
         ),
@@ -53,6 +58,24 @@ function decorateSsgExport(
       path.scope.registerDeclaration(pageCompPath)
     },
   })
+}
+
+const isDataIdentifier = (name: string, state: PluginState): boolean => {
+  if (ssgExports.has(name)) {
+    if (name === EXPORT_NAME_GET_SERVER_PROPS) {
+      if (state.isPrerender) {
+        throw new Error(SERVER_PROPS_SSG_CONFLICT)
+      }
+      state.isServerProps = true
+    } else {
+      if (state.isServerProps) {
+        throw new Error(SERVER_PROPS_SSG_CONFLICT)
+      }
+      state.isPrerender = true
+    }
+    return true
+  }
+  return false
 }
 
 export default function nextTransformSsg({
@@ -134,10 +157,11 @@ export default function nextTransformSsg({
         enter(_, state) {
           state.refs = new Set<NodePath<BabelTypes.Identifier>>()
           state.isPrerender = false
+          state.isServerProps = false
           state.done = false
         },
         exit(path, state) {
-          if (!state.isPrerender) {
+          if (!state.isPrerender && !state.isServerProps) {
             return
           }
 
@@ -239,8 +263,7 @@ export default function nextTransformSsg({
         const specifiers = path.get('specifiers')
         if (specifiers.length) {
           specifiers.forEach(s => {
-            if (ssgExports.has(s.node.exported.name)) {
-              state.isPrerender = true
+            if (isDataIdentifier(s.node.exported.name, state)) {
               s.remove()
             }
           })
@@ -259,8 +282,7 @@ export default function nextTransformSsg({
         switch (decl.node.type) {
           case 'FunctionDeclaration': {
             const name = decl.node.id!.name
-            if (ssgExports.has(name)) {
-              state.isPrerender = true
+            if (isDataIdentifier(name, state)) {
               path.remove()
             }
             break
@@ -274,8 +296,7 @@ export default function nextTransformSsg({
                 return
               }
               const name = d.node.id.name
-              if (ssgExports.has(name)) {
-                state.isPrerender = true
+              if (isDataIdentifier(name, state)) {
                 d.remove()
               }
             })
