@@ -481,6 +481,7 @@ export default async function getBaseWebpackConfig(
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
               (res.match(/[/\\]next[/\\]dist[/\\]/) ||
+                // This is the @babel/plugin-transform-runtime "helpers: true" option
                 res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
             ) {
               return callback()
