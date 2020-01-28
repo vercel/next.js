@@ -4,7 +4,7 @@ import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { parse } from 'content-type'
 import { Params } from './router'
-import { PageConfig } from '../../types'
+import { PageConfig } from 'next/types'
 import { interopDefault } from './load-components'
 import { isResSent } from '../lib/utils'
 
@@ -59,7 +59,7 @@ export async function apiResolver(
 
     if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
       console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in a stalled requests.`
+        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
       )
     }
   } catch (err) {

@@ -1,5 +1,7 @@
 on: release
-name: Generate release stats
+
+name: Generate Release Stats
+
 jobs:
   prStats:
     name: PR Stats
