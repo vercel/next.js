@@ -18,6 +18,9 @@ describe('Conformance system', () => {
   afterAll(() => killApp(server))
 
   it('Should warn about sync external sync scripts', async () => {
-    console.log(build)
+    const { stderr } = build
+    expect(stderr).toContain(
+      '[BUILD CONFORMANCE WARNING]: A sync script was found in a react module.'
+    )
   })
 })
