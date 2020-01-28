@@ -1,0 +1,16 @@
+{
+  "name": "create-next-example-app",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@apollo/federation": "^0.11.3",
+    "@apollo/gateway": "^0.11.7",
+    "apollo-server-micro": "^2.9.16",
+    "next": "^9.2.1",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0"
+  }
+}
