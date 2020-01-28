@@ -42,7 +42,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
       console.error(`Could not import schema, closing`)
     })
     .then(res => {
-      // The GraphQL schema is important, this means that we now have a GuestbookEntry Colleciton and an entries index.
+      // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
       var client = new faunadb.Client({ secret: adminKey })
       return client
@@ -79,7 +79,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
       console.error(`Failed to create role, closing`)
     })
     .then(res => {
-      // The GraphQL schema is important, this means that we now have a GuestbookEntry Colleciton and an entries index.
+      // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
       var client = new faunadb.Client({ secret: adminKey })
       return client
