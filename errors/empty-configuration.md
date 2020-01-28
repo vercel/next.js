@@ -6,7 +6,7 @@ There is no object exported from next.config.js or the object is empty.
 
 #### Possible Ways to Fix It
 
-Check if you export correctly configuration in next.config.js file:
+Check if you correctly export configuration in `next.config.js` file:
 
 ```
 module.exports = {
