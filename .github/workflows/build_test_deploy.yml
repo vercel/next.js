@@ -83,7 +83,7 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
-      - run: if [[ ${#BROWSERSTACK_ACCESS_KEY} < 5 ]];then exit 0;fi
+      - run: if [[ -z "$BROWSERSTACK_ACCESS_KEY" ]];then exit 0;fi
       - run: echo "val length ${#BROWSERSTACK_ACCESS_KEY}"
       - uses: actions/cache@v1
         id: restore-build
@@ -99,7 +99,7 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - run: if [[ ${#NPM_TOKEN} < 5 ]];then exit 0;fi
+      - run: if [[ -z "$NPM_TOKEN" ]];then exit 0;fi
       - uses: actions/cache@v1
         id: restore-build
         with:
