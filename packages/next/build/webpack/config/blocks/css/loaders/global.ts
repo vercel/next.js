@@ -37,7 +37,11 @@ export function getGlobalCssLoader(
     },
   })
 
-  loaders.push(...preProcessors)
+  loaders.push(
+    // Webpack loaders run like a stack, so we need to reverse the natural
+    // order of preprocessors.
+    ...preProcessors.reverse()
+  )
 
   return loaders
 }
