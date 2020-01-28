@@ -83,7 +83,7 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
-      - run: if [ -z $BROWSERSTACK_ACCESS_KEY ];then exit 0;fi
+      - run: if [[ ${#BROWSERSTACK_ACCESS_KEY} == 0 ]];then exit 0;fi
       - uses: actions/cache@v1
         id: restore-build
         with:
@@ -98,7 +98,7 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - run: if [ -z $NPM_TOKEN ];then exit 0;fi
+      - run: if [[ ${#NPM_TOKEN} == 0 ]];then exit 0;fi
       - uses: actions/cache@v1
         id: restore-build
         with:
