@@ -52,7 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    static404: false,
+    static404: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
