@@ -83,14 +83,12 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
-      - run: if [[ -z "$BROWSERSTACK_ACCESS_KEY" ]];then exit 0;fi
-      - run: echo "val length ${#BROWSERSTACK_ACCESS_KEY}"
       - uses: actions/cache@v1
         id: restore-build
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: yarn testsafari --forceExit test/integration/production/
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production/'
 
   publishRelease:
     name: Potentially publish release
@@ -106,5 +104,4 @@ jobs:
           path: '.'
           key: ${{ github.sha }}
 
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./publish-release.sh
