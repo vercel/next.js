@@ -66,6 +66,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
+    // Polyfill: Window#fetch
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
     'whatwg-fetch$': path.join(
