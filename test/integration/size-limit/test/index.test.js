@@ -81,7 +81,7 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    const delta = responseSizeKilobytes - 235
+    const delta = responseSizeKilobytes - 275
     expect(delta).toBeLessThanOrEqual(0) // don't increase size
     expect(delta).toBeGreaterThanOrEqual(-1) // don't decrease size without updating target
   })
