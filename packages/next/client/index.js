@@ -14,10 +14,9 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 /// <reference types="react-dom/experimental" />
 
-// Polyfill finally only as Promise is polyfilled in the polyfills chunk
-// Finally is not supported in all module browsers
-if (!window.Promise.prototype.finally) {
-  window.Promise.prototype.finally = require('finally-polyfill')
+// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
+if (!window.Promise) {
+  window.Promise = require('@babel/runtime-corejs2/core-js/promise')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
