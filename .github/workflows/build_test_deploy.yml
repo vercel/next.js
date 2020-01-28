@@ -63,7 +63,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     env:
-      SKIP_LOCAL_SELENIUM_SERVER: true
       NEXT_TELEMETRY_DISABLED: 1
       HEADLESS: true
     steps:
