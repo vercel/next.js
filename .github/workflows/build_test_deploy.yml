@@ -9,12 +9,12 @@ name: Build, test, and deploy
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v2
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
-
       - uses: actions/cache@v1
         id: cache-build
         with:
@@ -30,13 +30,15 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-
       - run: yarn lint
 
   testAll:
     name: Test All
     runs-on: ubuntu-latest
     needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      HEADLESS: true
     strategy:
       fail-fast: false
       matrix:
@@ -47,11 +49,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-
       - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
-          HEADLESS: true
 
   testsPass:
     name: thank you, next
@@ -64,23 +62,40 @@ jobs:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
     needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      HEADLESS: true
     steps:
       - uses: actions/cache@v1
         id: restore-build
         with:
           path: '.'
           key: ${{ github.sha }}
-
       - run: yarn testfirefox --forceExit test/integration/production/
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
-          HEADLESS: true
 
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'canary'
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      BROWSERSTACK: true
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+    steps:
+      - uses: actions/cache@v1
+        id: restore-build
+        with:
+          path: '.'
+          key: ${{ github.sha }}
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production/'
+
+  publishRelease:
+    name: Potentially publish release
+    runs-on: ubuntu-latest
+    needs: [testsPass]
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/cache@v1
         id: restore-build
@@ -88,24 +103,4 @@ jobs:
           path: '.'
           key: ${{ github.sha }}
 
-      - run: yarn testsafari --forceExit test/integration/production/
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
-          BROWSERSTACK: true
-          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-
-  saveNpmToken:
-    name: Potentially save npm token
-    runs-on: ubuntu-latest
-    if: github.ref == 'canary'
-    needs: [build, testAll]
-    steps:
-      - run: ([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"
-
-  publishRelease:
-    name: Potentially publish release
-    runs-on: ubuntu-latest
-    needs: saveNpmToken
-    steps:
       - run: ./publish-release.sh
