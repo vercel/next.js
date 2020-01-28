@@ -142,6 +142,7 @@ export default async function getBaseWebpackConfig(
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
+        polyfillsOptimization: !!config.experimental.polyfillsOptimization,
       },
     },
     // Backwards compat
@@ -188,7 +189,9 @@ export default async function getBaseWebpackConfig(
           ),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
-          'polyfills.js'
+          config.experimental.polyfillsOptimization
+            ? 'polyfills-nomodule.js'
+            : 'polyfills.js'
         ),
       }
     : undefined
@@ -239,6 +242,15 @@ export default async function getBaseWebpackConfig(
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
+      // Temporary to allow runtime-corejs2 to be stubbed in experimental polyfillsOptimization
+      ...(() => {
+        if (config.experimental.polyfillsOptimization) {
+          return {
+            '@babel/runtime-corejs2': '@babel/runtime',
+          }
+        }
+        return {}
+      })(),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
