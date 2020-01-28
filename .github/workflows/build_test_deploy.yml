@@ -97,7 +97,6 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
-      - run: if [[ -z "$NPM_TOKEN" ]];then exit 0;fi
       - uses: actions/cache@v1
         id: restore-build
         with:
