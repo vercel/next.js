@@ -9,7 +9,11 @@ import {
   Rewrite,
   getRedirectStatus,
 } from '../lib/check-custom-routes'
-import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import {
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+} from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
@@ -481,6 +485,7 @@ export async function isPageStatic(
 ): Promise<{
   isStatic?: boolean
   isHybridAmp?: boolean
+  hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
@@ -496,6 +501,7 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasServerProps = !!mod.unstable_getServerProps
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
@@ -508,6 +514,14 @@ export async function isPageStatic(
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
       throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
+    }
+
+    if (hasGetInitialProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+    }
+
+    if (hasStaticProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -593,10 +607,11 @@ export async function isPageStatic(
 
     const config = mod.config || {}
     return {
-      isStatic: !hasStaticProps && !hasGetInitialProps,
+      isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes: prerenderPaths,
       hasStaticProps,
+      hasServerProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
