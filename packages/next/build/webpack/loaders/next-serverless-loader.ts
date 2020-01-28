@@ -186,6 +186,7 @@ const nextServerlessLoader: loader.Loader = function() {
     export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
+    export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
     ${handleRewrites}
@@ -207,6 +208,7 @@ const nextServerlessLoader: loader.Loader = function() {
         Document,
         buildManifest,
         unstable_getStaticProps,
+        unstable_getServerProps,
         unstable_getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
@@ -237,7 +239,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !unstable_getStaticProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps && !unstable_getServerProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -273,15 +275,22 @@ const nextServerlessLoader: loader.Loader = function() {
           `
             : `const nowParams = null;`
         }
+        // make sure to set renderOpts to the correct params e.g. _params
+        // if provided from worker or params if we're parsing them here
+        renderOpts.params = _params || params
+
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
 
         if (_nextData && !fromExport) {
           const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
+
           res.setHeader(
             'Cache-Control',
-            \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
+            unstable_getServerProps
+              ? \`no-cache, no-store, must-revalidate\`
+              : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )
           res.end(payload)
           return null
@@ -295,6 +304,7 @@ const nextServerlessLoader: loader.Loader = function() {
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
+            unstable_getServerProps: undefined,
             Component: Error
           }))
           return result
@@ -304,6 +314,7 @@ const nextServerlessLoader: loader.Loader = function() {
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
+            unstable_getServerProps: undefined,
             Component: Error,
             err
           }))
