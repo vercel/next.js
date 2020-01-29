@@ -14,31 +14,23 @@ import {
   NextComponentType,
   DocumentType,
   AppType,
-  NextPageContext,
 } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
-// @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { getPageFiles, BuildManifest } from './get-page-files'
+import { getPageFiles } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-// Uses a module path because of the compiled output directory location
-import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
-import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
+import {
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+} from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
-
-export type ManifestItem = {
-  id: number | string
-  name: string
-  file: string
-  publicPath: string
-}
-
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+import { LoadComponentsReturnType, ManifestItem } from './load-components'
 
 function noRouter() {
   const message =
@@ -122,8 +114,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = {
-  documentMiddlewareEnabled: boolean
+type RenderOpts = LoadComponentsReturnType & {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
@@ -139,22 +130,11 @@ type RenderOpts = {
   ampPath?: string
   inAmpMode?: boolean
   hybridAmp?: boolean
-  buildManifest: BuildManifest
-  reactLoadableManifest: ReactLoadableManifest
-  pageConfig: PageConfig
-  Component: React.ComponentType
-  Document: DocumentType
-  DocumentMiddleware: (ctx: NextPageContext) => void
-  App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  unstable_getStaticProps?: (params: {
-    params: any | undefined
-  }) => {
-    props: any
-    revalidate?: number | boolean
-  }
-  unstable_getStaticPaths?: () => void
+  documentMiddlewareEnabled?: boolean
+  isDataReq?: boolean
+  params?: ParsedUrlQuery
 }
 
 function renderDocument(
@@ -248,6 +228,14 @@ function renderDocument(
   )
 }
 
+const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+  return (
+    `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
+    `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+  )
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -272,6 +260,9 @@ export async function renderToHTML(
     ErrorDebug,
     unstable_getStaticProps,
     unstable_getStaticPaths,
+    unstable_getServerProps,
+    isDataReq,
+    params,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -307,7 +298,10 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const isAutoExport =
-    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
+    !hasPageGetInitialProps &&
+    defaultAppGetInitialProps &&
+    !isSpr &&
+    !unstable_getServerProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -325,6 +319,14 @@ export async function renderToHTML(
 
   if (hasPageGetInitialProps && isSpr) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (hasPageGetInitialProps && unstable_getServerProps) {
+    throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (unstable_getServerProps && isSpr) {
+    throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
   if (!!unstable_getStaticPaths && !isSpr) {
@@ -421,7 +423,7 @@ export async function renderToHTML(
 
     if (isSpr) {
       const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? query : undefined,
+        params: isDynamicRoute(pathname) ? (query as any) : undefined,
       })
 
       const invalidKeys = Object.keys(data).filter(
@@ -429,11 +431,7 @@ export async function renderToHTML(
       )
 
       if (invalidKeys.length) {
-        throw new Error(
-          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
-            `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
-        )
+        throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
       if (typeof data.revalidate === 'number') {
@@ -477,6 +475,27 @@ export async function renderToHTML(
     ctx.err = err
     renderOpts.err = err
   }
+
+  if (unstable_getServerProps) {
+    const data = await unstable_getServerProps({
+      params,
+      query,
+      req,
+      res,
+    })
+
+    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
+    }
+
+    props.pageProps = data.props
+    ;(renderOpts as any).pageData = props
+  }
+  // We only need to do this if we want to support calling
+  // _app's getInitialProps for getServerProps if not this can be removed
+  if (isDataReq) return props
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
@@ -530,7 +549,10 @@ export async function renderToHTML(
     )
   }
   const documentCtx = { ...ctx, renderPage }
-  const docProps = await loadGetInitialProps(Document, documentCtx)
+  const docProps: DocumentInitialProps = await loadGetInitialProps(
+    Document,
+    documentCtx
+  )
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
@@ -545,7 +567,7 @@ export async function renderToHTML(
   const dynamicImports: ManifestItem[] = []
 
   for (const mod of reactLoadableModules) {
-    const manifestItem = reactLoadableManifest[mod]
+    const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
       manifestItem.forEach(item => {

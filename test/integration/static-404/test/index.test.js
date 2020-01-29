@@ -20,7 +20,6 @@ const static404 = join(
 const appPage = join(appDir, 'pages/_app.js')
 const errorPage = join(appDir, 'pages/_error.js')
 const buildId = `generateBuildId: () => 'test-id'`
-const experimentalConfig = `experimental: { static404: true }`
 let app
 let appPort
 
@@ -34,7 +33,10 @@ describe('Static 404 page', () => {
 
   describe('With config disabled', () => {
     it('should not have exported static 404 page', async () => {
-      await fs.writeFile(nextConfig, `module.exports = { ${buildId} }`)
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { ${buildId}, experimental: { static404: false } }`
+      )
       await nextBuild(appDir)
       expect(await fs.exists(static404)).toBe(false)
     })
@@ -42,10 +44,7 @@ describe('Static 404 page', () => {
 
   describe('With config enabled', () => {
     beforeEach(() =>
-      fs.writeFile(
-        nextConfig,
-        `module.exports = { ${buildId}, ${experimentalConfig} }`
-      )
+      fs.writeFile(nextConfig, `module.exports = { ${buildId} }`)
     )
 
     it('should export 404 page without custom _error', async () => {
