@@ -16,7 +16,7 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const appDir = join(__dirname, '../')
-const page404 = join(appDir, 'pages/404.js')
+const pages404 = join(appDir, 'pages/404.js')
 const appPage = join(appDir, 'pages/_app.js')
 const nextConfig = join(appDir, 'next.config.js')
 
@@ -119,12 +119,12 @@ describe('404 Page Support', () => {
   })
 
   it('falls back to _error correctly without pages/404', async () => {
-    await fs.move(page404, `${page404}.bak`)
+    await fs.move(pages404, `${pages404}.bak`)
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
     const res = await fetchViaHTTP(appPort, '/abc')
 
-    await fs.move(`${page404}.bak`, page404)
+    await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
 
     expect(res.status).toBe(404)
@@ -132,9 +132,9 @@ describe('404 Page Support', () => {
   })
 
   it('shows error with getInitialProps in pages/404 build', async () => {
-    await fs.move(page404, `${page404}.bak`)
+    await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
-      page404,
+      pages404,
       `
       const page = () => 'custom 404 page'
       page.getInitialProps = () => ({ a: 'b' })
@@ -142,8 +142,8 @@ describe('404 Page Support', () => {
     `
     )
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-    await fs.remove(page404)
-    await fs.move(`${page404}.bak`, page404)
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
 
     expect(stderr).toContain(
       `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
@@ -152,9 +152,9 @@ describe('404 Page Support', () => {
   })
 
   it('shows error with getInitialProps in pages/404 dev', async () => {
-    await fs.move(page404, `${page404}.bak`)
+    await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
-      page404,
+      pages404,
       `
       const page = () => 'custom 404 page'
       page.getInitialProps = () => ({ a: 'b' })
@@ -174,8 +174,8 @@ describe('404 Page Support', () => {
 
     await killApp(app)
 
-    await fs.remove(page404)
-    await fs.move(`${page404}.bak`, page404)
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
 
     const error = `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
 
@@ -215,7 +215,7 @@ describe('404 Page Support', () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
-      expect(manifest.page404).toBe(true)
+      expect(manifest.pages404).toBe(true)
     })
 
     it('should still use 404 page', async () => {
