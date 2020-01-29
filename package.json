@@ -1,5 +1,8 @@
 {
-  "name": "nextjs-project",
+  "name": "@italist/next",
+  "version": "9.2.1",
+  "bugs": "https://github.com/italistdev/next.js/issues",
+  "homepage": "https://github.com/italistdev/next.js",
   "private": true,
   "workspaces": [
     "packages/*"
