@@ -229,6 +229,14 @@ export default function loadConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
+
+    if (Object.keys(userConfig).length === 0) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
+      )
+    }
+
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(
         `Specified target is invalid. Provided: "${
