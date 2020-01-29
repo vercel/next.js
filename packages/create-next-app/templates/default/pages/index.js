@@ -36,10 +36,7 @@ const Home = () => (
           <p>Discover and deploy boilerplate example Next.js projects.</p>
         </a>
 
-        <a
-          href="https://github.com/zeit/next.js/tree/master/examples"
-          className="card"
-        >
+        <a href="https://zeit.co/new/nextjs" className="card">
           <h3>Deploy &rarr;</h3>
           <p>
             Instantly deploy your Next.js site to a public URL with ZEIT Now.
