@@ -2,7 +2,7 @@
 
 ## Preamble
 
-#### Production Deployment on ZEIT Now v2asdasasddas
+#### Production Deployment on ZEIT Now v2
 
 If you previously configured `routes` in your `now.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://github.com/zeit/next.js#dynamic-routing).
 
