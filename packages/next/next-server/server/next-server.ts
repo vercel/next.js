@@ -431,7 +431,7 @@ export default class Server {
             fn: async (_req, res, params, _parsedUrl) => {
               for (const header of (route as Header).headers) {
                 let { key, value } = header
-                // TODO: update compiling based on
+                // TODO: update compiling based on https://github.com/zeit/next.js/pull/10291
                 if (key.includes(':')) {
                   key = compilePathToRegex(key)(params)
                 }
