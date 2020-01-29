@@ -228,6 +228,12 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should apply params for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/my-other-header/first')
+    expect(res.headers.get('x-path')).toBe('first')
+    expect(res.headers.get('somefirst')).toBe('hi')
+  })
+
   it('should support unnamed parameters correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/unnamed/first/final', undefined, {
       redirect: 'manual',
@@ -418,6 +424,20 @@ const runTests = (isDev = false) => {
             ],
             regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
             source: '/my-headers/(.*)',
+          },
+          {
+            headers: [
+              {
+                key: 'x-path',
+                value: ':path',
+              },
+              {
+                key: 'some:path',
+                value: 'hi',
+              },
+            ],
+            regex: normalizeRegEx('^\\/my-other-header(?:\\/([^\\/]+?))$'),
+            source: '/my-other-header/:path',
           },
         ],
         rewrites: [

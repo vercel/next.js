@@ -177,6 +177,19 @@ module.exports = {
             },
           ],
         },
+        {
+          source: '/my-other-header/:path',
+          headers: [
+            {
+              key: 'x-path',
+              value: ':path',
+            },
+            {
+              key: 'some:path',
+              value: 'hi',
+            },
+          ],
+        },
       ]
     },
   },

@@ -428,9 +428,17 @@ export default class Server {
             match: route.matcher,
             type: route.type,
             name: `${route.type} ${route.source} header route`,
-            fn: async (_req, res, _params, _parsedUrl) => {
+            fn: async (_req, res, params, _parsedUrl) => {
               for (const header of (route as Header).headers) {
-                res.setHeader(header.key, header.value)
+                let { key, value } = header
+                // TODO: update compiling based on
+                if (key.includes(':')) {
+                  key = compilePathToRegex(key)(params)
+                }
+                if (value.includes(':')) {
+                  value = compilePathToRegex(value)(params)
+                }
+                res.setHeader(key, value)
               }
               return { finished: false }
             },
