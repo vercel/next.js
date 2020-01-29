@@ -1,5 +1,5 @@
-const { ApolloServer, gql } = require('apollo-server-micro');
-const { buildFederatedSchema } = require('@apollo/federation');
+const { ApolloServer, gql } = require('apollo-server-micro')
+const { buildFederatedSchema } = require('@apollo/federation')
 
 const typeDefs = gql`
   extend type Query {
@@ -12,20 +12,20 @@ const typeDefs = gql`
     price: Int
     weight: Int
   }
-`;
+`
 
 const resolvers = {
   Product: {
     __resolveReference(object) {
-      return products.find(product => product.upc === object.upc);
+      return products.find(product => product.upc === object.upc)
     },
   },
   Query: {
     topProducts(_, args) {
-      return products.slice(0, args.first);
+      return products.slice(0, args.first)
     },
   },
-};
+}
 
 const server = new ApolloServer({
   schema: buildFederatedSchema([
@@ -36,15 +36,15 @@ const server = new ApolloServer({
   ]),
   introspection: true,
   playground: true,
-});
+})
 
-export default server.createHandler({ path: '/api/products' });
+export default server.createHandler({ path: '/api/products' })
 
 export const config = {
   api: {
     bodyParser: false,
   },
-};
+}
 
 const products = [
   {
@@ -65,4 +65,4 @@ const products = [
     price: 54,
     weight: 50,
   },
-];
+]

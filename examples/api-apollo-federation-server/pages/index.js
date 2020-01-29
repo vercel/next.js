@@ -1,5 +1,5 @@
-import React from 'react';
-import Link from 'next/link';
+import React from 'react'
+import Link from 'next/link'
 
 const Home = () => (
   <>
@@ -22,6 +22,6 @@ const Home = () => (
       </Link>
     </p>
   </>
-);
+)
 
-export default Home;
+export default Home

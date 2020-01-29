@@ -1,6 +1,6 @@
-const { ApolloServer } = require('apollo-server-micro');
-const { ApolloGateway } = require('@apollo/gateway');
-const api = process.env.BACKEND_API;
+const { ApolloServer } = require('apollo-server-micro')
+const { ApolloGateway } = require('@apollo/gateway')
+const api = process.env.BACKEND_API
 
 const gateway = new ApolloGateway({
   serviceList: [
@@ -22,19 +22,19 @@ const gateway = new ApolloGateway({
     },
   ],
   debug: true,
-});
+})
 
 const server = new ApolloServer({
   gateway,
   subscriptions: false,
   introspection: true,
   playground: true,
-});
+})
 
-export default server.createHandler({ path: '/api/graphql' });
+export default server.createHandler({ path: '/api/graphql' })
 
 export const config = {
   api: {
     bodyParser: false,
   },
-};
+}
