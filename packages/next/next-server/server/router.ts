@@ -76,6 +76,7 @@ export default class Router {
   catchAllRoute: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
+  useFileSystemPublicRoutes: boolean
 
   constructor({
     headers = [],
@@ -85,6 +86,7 @@ export default class Router {
     catchAllRoute,
     dynamicRoutes = [],
     pageChecker,
+    useFileSystemPublicRoutes,
   }: {
     headers: Route[]
     fsRoutes: Route[]
@@ -93,6 +95,7 @@ export default class Router {
     catchAllRoute: Route
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
   }) {
     this.headers = headers
     this.fsRoutes = fsRoutes
@@ -101,6 +104,7 @@ export default class Router {
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
     this.dynamicRoutes = dynamicRoutes
+    this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
@@ -141,24 +145,32 @@ export default class Router {
       ...this.headers,
       ...this.redirects,
       ...this.fsRoutes,
-      {
-        type: 'route',
-        name: 'Page checker',
-        match: route('/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
-          const { pathname } = parsedUrl
+      // We only check the catch-all route if public page routes hasn't been
+      // disabled
+      ...(this.useFileSystemPublicRoutes
+        ? [
+            {
+              type: 'route',
+              name: 'Page checker',
+              match: route('/:path*'),
+              fn: async (req, res, params, parsedUrl) => {
+                const { pathname } = parsedUrl
 
-          if (!pathname) {
-            return { finished: false }
-          }
-          if (await this.pageChecker(pathname)) {
-            return this.catchAllRoute.fn(req, res, params, parsedUrl)
-          }
-          return { finished: false }
-        },
-      } as Route,
+                if (!pathname) {
+                  return { finished: false }
+                }
+                if (await this.pageChecker(pathname)) {
+                  return this.catchAllRoute.fn(req, res, params, parsedUrl)
+                }
+                return { finished: false }
+              },
+            } as Route,
+          ]
+        : []),
       ...this.rewrites,
-      this.catchAllRoute,
+      // We only check the catch-all route if public page routes hasn't been
+      // disabled
+      ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
     ]
 
     for (const route of routes) {

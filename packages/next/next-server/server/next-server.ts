@@ -283,6 +283,7 @@ export default class Server {
     redirects: Route[]
     catchAllRoute: Route
     pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
     this.customRoutes = this.getCustomRoutes()
@@ -533,7 +534,9 @@ export default class Server {
       },
     }
 
-    if (this.nextConfig.useFileSystemPublicRoutes) {
+    const { useFileSystemPublicRoutes } = this.nextConfig
+
+    if (useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
     }
 
@@ -543,6 +546,7 @@ export default class Server {
       rewrites,
       redirects,
       catchAllRoute,
+      useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       pageChecker: this.hasPage.bind(this),
     }
