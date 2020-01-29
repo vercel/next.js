@@ -42,6 +42,7 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     css: true,
+    scss: false,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -51,7 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    static404: false,
+    static404: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -96,7 +97,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           `The 'public' directory is reserved in Next.js and can not be set as the 'distDir'. https://err.sh/zeit/next.js/can-not-output-to-public`
         )
       }
-      // make sure distDir isn't an empty string which can result the provided
+      // make sure distDir isn't an empty string as it can result in the provided
       // directory being deleted in development mode
       if (userDistDir.length === 0) {
         throw new Error(

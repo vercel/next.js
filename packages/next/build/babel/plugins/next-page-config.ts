@@ -1,6 +1,6 @@
 import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
-import { PageConfig } from '../../../types'
+import { PageConfig } from 'next/types'
 
 const configKeys = new Set(['amp'])
 const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'

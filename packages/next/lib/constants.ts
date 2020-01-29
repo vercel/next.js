@@ -25,3 +25,7 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://err.sh/zeit/next.js/public-next-folder-conflict`
 
 export const SSG_GET_INITIAL_PROPS_CONFLICT = `You can not use getInitialProps with unstable_getStaticProps. To use SSG, please remove your getInitialProps`
+
+export const SERVER_PROPS_GET_INIT_PROPS_CONFLICT = `You can not use getInitialProps with unstable_getServerProps. Please remove one or the other`
+
+export const SERVER_PROPS_SSG_CONFLICT = `You can not use unstable_getStaticProps with unstable_getServerProps. To use SSG, please remove your unstable_getServerProps`
