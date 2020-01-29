@@ -16,7 +16,10 @@ import checkCustomRoutes, {
   Rewrite,
   Header,
 } from '../lib/check-custom-routes'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import {
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+} from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -519,9 +522,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
           if (hasPage404 && page === '/404') {
             if (!result.isStatic) {
-              throw new Error(
-                `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
-              )
+              throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps

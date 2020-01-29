@@ -10,6 +10,7 @@ import {
   nextBuild,
   renderViaHTTP,
   fetchViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -130,7 +131,7 @@ describe('404 Page Support', () => {
     expect(await res.text()).toContain('This page could not be found')
   })
 
-  it('shows error with getInitialProps in pages/404', async () => {
+  it('shows error with getInitialProps in pages/404 build', async () => {
     await fs.move(page404, `${page404}.bak`)
     await fs.writeFile(
       page404,
@@ -148,6 +149,37 @@ describe('404 Page Support', () => {
       `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
     )
     expect(code).toBe(1)
+  })
+
+  it('shows error with getInitialProps in pages/404 dev', async () => {
+    await fs.move(page404, `${page404}.bak`)
+    await fs.writeFile(
+      page404,
+      `
+      const page = () => 'custom 404 page'
+      page.getInitialProps = () => ({ a: 'b' })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/abc')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(page404)
+    await fs.move(`${page404}.bak`, page404)
+
+    const error = `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
+
+    expect(stderr).toContain(error)
   })
 
   describe('_app with getInitialProps', () => {
