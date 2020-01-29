@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     static404: true,
+    pages404: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
