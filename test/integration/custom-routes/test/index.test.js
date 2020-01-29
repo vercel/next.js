@@ -155,6 +155,22 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/second/)
   })
 
+  // current routes order do not allow rewrites to override page
+  // but allow redirects to
+  it('should not allow rewrite to override page file', async () => {
+    const html = await renderViaHTTP(appPort, '/nav')
+    expect(html).toContain('to-hello')
+  })
+
+  it('show allow redirect to override the page', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect-override', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/thank-you-next')
+  })
+
   it('should work successfully on the client', async () => {
     const browser = await webdriver(appPort, '/nav')
     await browser.elementByCss('#to-hello').click()
@@ -389,6 +405,12 @@ const runTests = (isDev = false) => {
             source: '/named-like-unnamed/:0',
             statusCode: 307,
           },
+          {
+            destination: '/thank-you-next',
+            regex: normalizeRegEx('^\\/redirect-override$'),
+            source: '/redirect-override',
+            statusCode: 307,
+          },
         ],
         headers: [
           {
@@ -425,6 +447,11 @@ const runTests = (isDev = false) => {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
             source: '/to-another',
+          },
+          {
+            destination: '/404',
+            regex: '^\\/nav$',
+            source: '/nav',
           },
           {
             source: '/hello-world',

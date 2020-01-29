@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { UrlWithParsedQuery } from 'url'
+import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { compile as compilePathToRegex } from 'path-to-regexp'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
@@ -32,28 +33,71 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 
+export const prepareDestination = (destination: string, params: Params) => {
+  const parsedDestination = parseUrl(destination, true)
+  const destQuery = parsedDestination.query
+  let destinationCompiler = compilePathToRegex(
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+  )
+  let newUrl
+
+  Object.keys(destQuery).forEach(key => {
+    const val = destQuery[key]
+    if (
+      typeof val === 'string' &&
+      val.startsWith(':') &&
+      params[val.substr(1)]
+    ) {
+      destQuery[key] = params[val.substr(1)]
+    }
+  })
+
+  try {
+    newUrl = destinationCompiler(params)
+  } catch (err) {
+    if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
+      throw new Error(
+        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`
+      )
+    }
+    throw err
+  }
+  return {
+    newUrl,
+    parsedDestination,
+  }
+}
+
 export default class Router {
-  routes: Route[]
+  headers: Route[]
   fsRoutes: Route[]
+  rewrites: Route[]
+  redirects: Route[]
   catchAllRoute: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
 
   constructor({
-    routes = [],
+    headers = [],
     fsRoutes = [],
+    rewrites = [],
+    redirects = [],
     catchAllRoute,
     dynamicRoutes = [],
     pageChecker,
   }: {
-    routes: Route[]
+    headers: Route[]
     fsRoutes: Route[]
+    rewrites: Route[]
+    redirects: Route[]
     catchAllRoute: Route
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
   }) {
-    this.routes = routes
+    this.headers = headers
     this.fsRoutes = fsRoutes
+    this.rewrites = rewrites
+    this.redirects = redirects
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
     this.dynamicRoutes = dynamicRoutes
@@ -63,8 +107,8 @@ export default class Router {
     this.dynamicRoutes = routes
   }
 
-  add(route: Route) {
-    this.routes.unshift(route)
+  addFsRoute(route: Route) {
+    this.fsRoutes.unshift(route)
   }
 
   async execute(
@@ -85,7 +129,39 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
-    for (const route of [...this.fsRoutes, ...this.routes]) {
+    /*
+      Desired routes order
+      - headers
+      - redirects
+      - Check filesystem (including pages), if nothing found continue
+      - User rewrites (checking filesystem and pages each match)
+    */
+
+    const routes = [
+      ...this.headers,
+      ...this.redirects,
+      ...this.fsRoutes,
+      {
+        type: 'route',
+        name: 'Page checker',
+        match: route('/:path*'),
+        fn: async (req, res, params, parsedUrl) => {
+          const { pathname } = parsedUrl
+
+          if (!pathname) {
+            return { finished: false }
+          }
+          if (await this.pageChecker(pathname)) {
+            return this.catchAllRoute.fn(req, res, params, parsedUrl)
+          }
+          return { finished: false }
+        },
+      } as Route,
+      ...this.rewrites,
+      this.catchAllRoute,
+    ]
+
+    for (const route of routes) {
       const newParams = route.match(parsedUrlUpdated.pathname)
 
       // Check if the match function matched

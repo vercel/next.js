@@ -8,6 +8,10 @@ module.exports = {
           destination: '/another/one',
         },
         {
+          source: '/nav',
+          destination: '/404',
+        },
+        {
           source: '/hello-world',
           destination: '/static/hello.txt',
         },
@@ -144,6 +148,11 @@ module.exports = {
         {
           source: '/named-like-unnamed/:0',
           destination: '/:0',
+          permanent: false,
+        },
+        {
+          source: '/redirect-override',
+          destination: '/thank-you-next',
           permanent: false,
         },
       ]
