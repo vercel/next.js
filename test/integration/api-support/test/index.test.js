@@ -363,6 +363,14 @@ function runTests(dev = false) {
         `API resolved without sending a response for /api/test-no-end, this may result in stalled requests.`
       )
     })
+
+    it('should not show warning when the API resolves and the response is piped', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      await fetchViaHTTP(appPort, `/api/test-res-pipe`, { port: appPort })
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for /api/test-res-pipe`
+      )
+    })
   } else {
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
