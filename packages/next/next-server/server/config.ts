@@ -52,7 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    static404: false,
+    static404: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -229,6 +229,14 @@ export default function loadConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
+
+    if (Object.keys(userConfig).length === 0) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
+      )
+    }
+
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(
         `Specified target is invalid. Provided: "${

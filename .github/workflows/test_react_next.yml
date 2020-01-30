@@ -11,11 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: cd repo && yarn install --frozen-lockfile --check-files
+      - run: yarn install --frozen-lockfile --check-files
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
-      - run: cd repo && yarn upgrade react@next react-dom@next -W --dev
+      - run: yarn upgrade react@next react-dom@next -W --dev
 
       - uses: actions/cache@v1
         id: cache-build
@@ -38,7 +38,7 @@ jobs:
           path: '.'
           key: ${{ github.sha }}
 
-      - run: cd repo && node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
         env:
           NEXT_TELEMETRY_DISABLED: 1
           HEADLESS: true
