@@ -28,7 +28,7 @@ jobs:
   testAll:
     name: Test All
     runs-on: ubuntu-latest
-    needs: build
+    # needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
       HEADLESS: true
