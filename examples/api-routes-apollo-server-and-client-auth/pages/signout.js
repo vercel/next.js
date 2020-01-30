@@ -22,7 +22,7 @@ function SignOut() {
         router.push('/signin')
       })
     }
-  }, [signOut, router])
+  }, [signOut, router, client])
 
   return <p>Signing out...</p>
 }
