@@ -118,3 +118,17 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
   res.status(200).json({ name: 'John Doe' })
 }
 ```
+
+## Custom `App` using `_app.tsx`
+
+If you’d like to [customize the `App` component](https://nextjs.org/docs/advanced-features/custom-app) in TypeScript, create `pages/_app.tsx`:
+
+```ts
+import { AppProps } from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export default MyApp
+```
