@@ -110,6 +110,7 @@ module.exports = babelLoader.custom(babel => {
           pagesDir,
           babelPresetPlugins,
           development,
+          polyfillsOptimization,
         },
       }
     ) {
@@ -133,6 +134,7 @@ module.exports = babelLoader.custom(babel => {
 
       options.caller.isServer = isServer
       options.caller.isModern = isModern
+      options.caller.polyfillsOptimization = polyfillsOptimization
       options.caller.isDev = development
 
       options.plugins = options.plugins || []
