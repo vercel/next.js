@@ -28,6 +28,7 @@ import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import checkCustomRoutes from '../lib/check-custom-routes'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -157,9 +158,18 @@ export default class DevServer extends Server {
       let wp = (this.webpackWatcher = new Watchpack())
       wp.watch([], [pagesDir!], 0)
 
-      wp.on('aggregated', () => {
+      wp.on('aggregated', async () => {
         const dynamicRoutedPages = []
         const knownFiles = wp.getTimeInfoEntries()
+        const pageExtensionsRegex = new RegExp(
+          `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+        )
+        const curPageFiles = new Set(
+          (await recursiveReadDir(this.pagesDir!, /.*/)).map(f =>
+            f.replace(/\\/g, '/').replace(pageExtensionsRegex, '')
+          )
+        )
+
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined) {
             continue
@@ -168,12 +178,15 @@ export default class DevServer extends Server {
           let pageName =
             '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
 
-          pageName = pageName.replace(
-            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
+          pageName =
+            pageName.replace(pageExtensionsRegex, '').replace(/\/index$/, '') ||
+            '/'
 
-          pageName = pageName.replace(/\/index$/, '') || '/'
+          // webpack may report old casing for the files which will
+          // cause a duplicate entry of the page to be added
+          if (!curPageFiles.has(pageName)) {
+            continue
+          }
 
           if (!isDynamicRoute(pageName)) {
             continue
