@@ -85,9 +85,10 @@ And in the case of `/api/post/a/b`, and any other matching path, new parameters 
 
 ## Caveats
 
-- Predefined routes take precedence over dynamic routes. Take a look at the following examples:
+- Predefined routes take precedence over dynamic routes, and dynamic routes over catch all routes. Take a look at the following examples:
   - `pages/post/create.js` - Will match `/post/create`
-  - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. but not `/post/create`
+  - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
+  - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.

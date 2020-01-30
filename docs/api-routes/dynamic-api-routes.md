@@ -20,7 +20,7 @@ export default (req, res) => {
 
 Now, a request to `/api/post/abc` will respond with the text: `Post: abc`.
 
-### Catch all routes
+### Catch all API routes
 
 API Routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
 
@@ -54,6 +54,7 @@ Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
 
 ## Caveats
 
-- Predefined API routes take precedence over dynamic API routes. Take a look at the following examples:
+- Predefined API routes take precedence over dynamic API routes, and dynamic API routes over catch all API routes. Take a look at the following examples:
   - `pages/api/post/create.js` - Will match `/api/post/create`
-  - `pages/api/post/[pid].js` - Will match `/api/post/1`, `/api/post/abc`, etc. but not `/api/post/create`
+  - `pages/api/post/[pid].js` - Will match `/api/post/1`, `/api/post/abc`, etc. But not `/api/post/create`
+  - `pages/api/post/[...slug].js` - Will match `/api/post/1/2`, `/api/post/a/b/c`, etc. But not `/api/post/create`, `/api/post/abc`
