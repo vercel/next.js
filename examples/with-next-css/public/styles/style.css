@@ -1,0 +1,40 @@
+:root {
+  --some-color: red;
+}
+
+body {
+  color: var(--some-color);
+}
+
+.indexPageDiv {
+  text-align: center;
+  font-size: 3em;
+  position: absolute;
+  top: 15%;
+  left: 25%;
+  transform: translate(-15%, -35%);
+}
+
+.hello {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -25%);
+}
+
+.hello-world-heading {
+  text-align: center;
+  font-size: 3.5em;
+  color: orange;
+}
+
+.howToCSS {
+  font-size: 1.5em;
+  text-align: center;
+}
+
+.codeSection {
+  font-size: 2em;
+  font-weight: bold;
+  color: #000000;
+}
