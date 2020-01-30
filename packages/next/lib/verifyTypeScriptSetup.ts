@@ -18,7 +18,7 @@ function writeJson(fileName: string, object: object): Promise<void> {
   )
 }
 
-export async function hasTypeScript(dir: string): Promise<boolean> {
+async function hasTypeScript(dir: string): Promise<boolean> {
   const typescriptFiles = await recursiveReadDir(
     dir,
     /.*\.(ts|tsx)$/,
