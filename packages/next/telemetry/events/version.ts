@@ -1,5 +1,6 @@
+import { pageExtensions } from '../../next-server/server/config'
+
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
-const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
 
 type SessionStartedVersions = {
   nextVersion: string
@@ -63,7 +64,7 @@ export function eventVersion(
         ...event,
         nextVersion: process.env.__NEXT_VERSION,
         nodeVersion: process.version,
-        target: userConfig.target || 'default',
+        target: userConfig.target || 'default:server',
         hasCustomWebpack: typeof userConfig.webpack === 'function',
         hasCustomWebpackDev:
           typeof userConfig.webpackDevMiddleware === 'function',

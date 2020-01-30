@@ -145,7 +145,7 @@ describe('Telemetry CLI', () => {
     await waitFor(1000)
     await killApp(app)
 
-    expect(stderr).toMatch(/target.*?default/)
+    expect(stderr).toMatch(/target.*?default:server/)
     expect(stderr).toMatch(/hasTypeScript.*?false/)
     expect(stderr).toMatch(/hasCustomWebpack.*?false/)
     expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
@@ -331,7 +331,7 @@ describe('Telemetry CLI', () => {
       },
     })
 
-    expect(stderr).toMatch(/target.*?default/)
+    expect(stderr).toMatch(/target.*?default:server/)
     expect(stderr).toMatch(/hasCustomWebpack.*?false/)
     expect(stderr).toMatch(/hasCustomWebpackDev.*?false/)
     expect(stderr).toMatch(/hasAssetPrefix.*?false/)
@@ -456,7 +456,7 @@ describe('Telemetry CLI', () => {
       },
     })
 
-    expect(stderr).toMatch(/target.*?default/)
+    expect(stderr).toMatch(/target.*?default:server/)
     expect(stderr).toMatch(/hasAssetPrefix.*?false/)
     expect(stderr).toMatch(/hasDistDir.*?false/)
     expect(stderr).toMatch(/hasRuntimeConfig.*?false/)

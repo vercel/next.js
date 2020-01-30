@@ -9,6 +9,8 @@ import { execOnce } from '../lib/utils'
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
+export const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+
 const defaultConfig: { [key: string]: any } = {
   env: [],
   webpack: null,
@@ -19,7 +21,7 @@ const defaultConfig: { [key: string]: any } = {
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
   generateEtags: true,
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  pageExtensions,
   target: 'server',
   poweredByHeader: true,
   compress: true,
