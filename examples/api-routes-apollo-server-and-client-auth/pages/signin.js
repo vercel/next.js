@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { withApollo } from '../apollo/client'
 import gql from 'graphql-tag'
-import { useMutation } from '@apollo/react-hooks'
+import { useMutation, useApolloClient } from '@apollo/react-hooks'
 import Field from '../components/field'
 import { getErrorMessage } from '../lib/form'
 import { useRouter } from 'next/router'
@@ -19,6 +19,7 @@ const SignInMutation = gql`
 `
 
 function SignIn() {
+  const client = useApolloClient()
   const [signIn] = useMutation(SignInMutation)
   const [errorMsg, setErrorMsg] = React.useState()
   const router = useRouter()
@@ -36,6 +37,7 @@ function SignIn() {
           password: passwordElement.value,
         },
       })
+      client.resetStore()
       if (data.signIn.user) {
         router.push('/')
       }
