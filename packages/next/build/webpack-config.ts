@@ -718,6 +718,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
+        'process.env.__NEXT_POLYFILLS_OPTIMIZATION': JSON.stringify(
+          !!config.experimental.polyfillsOptimization
+        ),
         'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
           config.experimental.granularChunks && !dev
         ),
