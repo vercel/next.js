@@ -43,6 +43,8 @@ jobs:
       #     path: '.'
       #     key: ${{ github.sha }}
 
+      - uses: actions/checkout@v2
+
       - run: yarn install --frozen-lockfile --check-files
 
       - run: yarn upgrade react@next react-dom@next -W --dev
