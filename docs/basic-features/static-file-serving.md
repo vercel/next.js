@@ -18,4 +18,4 @@ export default MyImage
 
 > Don't name the `public` directory anything else. The name can't be changed and is the only directory that **Next.js** uses to serve static assets.
 
-> Make sure you don’t have static assets in conflict with files in the `pages` directory, as this will result in an error.
+> Be sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error.
