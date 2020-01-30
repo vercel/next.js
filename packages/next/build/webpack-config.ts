@@ -267,7 +267,7 @@ export default async function getBaseWebpackConfig(
       ),
 
       // Temporary to allow runtime-corejs2 to be stubbed in experimental polyfillsOptimization
-      ...(!!config.experimental.polyfillsOptimization
+      ...(config.experimental.polyfillsOptimization
         ? {
             '@babel/runtime-corejs2': '@babel/runtime',
           }
