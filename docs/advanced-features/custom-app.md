@@ -10,7 +10,7 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 - Keeping state when navigating pages
 - Custom error handling using `componentDidCatch`
 - Inject additional data into pages
-- [Add global CSS](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
+- [Add global CSS](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
 
 To override the default `App`, create the file `./pages/_app.js` as shown below:
 
