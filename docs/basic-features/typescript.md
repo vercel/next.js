@@ -119,7 +119,7 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 }
 ```
 
-## Custom `App` using `_app.tsx`
+## Custom `App`
 
 If you’d like to [customize the `App` component](/docs/advanced-features/custom-app) in TypeScript, create `pages/_app.tsx`:
 
