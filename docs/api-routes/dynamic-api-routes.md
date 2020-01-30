@@ -26,6 +26,8 @@ API Routes can be extended to catch all paths by adding three dots (`...`) insid
 
 - `pages/api/post/[...slug].js` matches `/api/post/a`, but also `/api/post/a/b`, `/api/post/a/b/c` and so on.
 
+> **Note**: `slug` is only a name, it can be anything, a catch all API route is formed by having the brackets used by dynamic API routes, the three dots and the name (`[...param]`).
+
 Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/api/post/a` will have the following `query` object:
 
 ```json

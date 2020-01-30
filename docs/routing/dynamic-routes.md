@@ -69,6 +69,8 @@ Dynamic routes can be extended to catch all paths by adding three dots (`...`) i
 
 - `pages/post/[...slug].js` matches `/post/a`, but also `/post/a/b`, `/post/a/b/c` and so on.
 
+> **Note**: `slug` is only a name, it can be anything, a catch all route is formed by having the brackets used by dynamic routes, and the three dots, and the page name (`[...param]`).
+
 Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/post/a` will have the following `query` object:
 
 ```json
