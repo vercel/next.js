@@ -56,7 +56,10 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
-function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
+function getOptimizedAliases(
+  isServer: boolean,
+  polyfillsOptimization: boolean
+): { [pkg: string]: string } {
   if (isServer) {
     return {}
   }
@@ -65,33 +68,48 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
-  return {
+  return Object.assign(
+    {},
     // Polyfill: Window#fetch
-    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
-    unfetch$: stubWindowFetch,
-    'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': path.join(
-      __dirname,
-      'polyfills',
-      'fetch',
-      'whatwg-fetch.js'
-    ),
+    polyfillsOptimization
+      ? undefined
+      : {
+          __next_polyfill__fetch: require.resolve('whatwg-fetch'),
+        },
+    {
+      unfetch$: stubWindowFetch,
+      'isomorphic-unfetch$': stubWindowFetch,
+      'whatwg-fetch$': path.join(
+        __dirname,
+        'polyfills',
+        'fetch',
+        'whatwg-fetch.js'
+      ),
+    },
+    polyfillsOptimization
+      ? undefined
+      : {
+          // Polyfill: Object.assign
+          __next_polyfill__object_assign: require.resolve('object-assign'),
+          '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
+        },
+    {
+      'object-assign$': stubObjectAssign,
 
-    // Polyfill: Object.assign
-    __next_polyfill__object_assign: require.resolve('object-assign'),
-    'object-assign$': stubObjectAssign,
-    '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
+      // Stub Package: object.assign
+      'object.assign/auto': path.join(shimAssign, 'auto.js'),
+      'object.assign/implementation': path.join(
+        shimAssign,
+        'implementation.js'
+      ),
+      'object.assign$': path.join(shimAssign, 'index.js'),
+      'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
+      'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-    // Stub Package: object.assign
-    'object.assign/auto': path.join(shimAssign, 'auto.js'),
-    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
-    'object.assign$': path.join(shimAssign, 'index.js'),
-    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-    'object.assign/shim': path.join(shimAssign, 'shim.js'),
-
-    // Replace: full URL polyfill with platform-based polyfill
-    // url: require.resolve('native-url'),
-  }
+      // Replace: full URL polyfill with platform-based polyfill
+      // url: require.resolve('native-url'),
+    }
+  )
 }
 
 export default async function getBaseWebpackConfig(
@@ -145,6 +163,7 @@ export default async function getBaseWebpackConfig(
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
+        polyfillsOptimization: !!config.experimental.polyfillsOptimization,
       },
     },
     // Backwards compat
@@ -191,7 +210,9 @@ export default async function getBaseWebpackConfig(
           ),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
-          'polyfills.js'
+          config.experimental.polyfillsOptimization
+            ? 'polyfills-nomodule.js'
+            : 'polyfills.js'
         ),
       }
     : undefined
@@ -241,7 +262,17 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...getOptimizedAliases(isServer),
+      ...getOptimizedAliases(
+        isServer,
+        !!config.experimental.polyfillsOptimization
+      ),
+
+      // Temporary to allow runtime-corejs2 to be stubbed in experimental polyfillsOptimization
+      ...(config.experimental.polyfillsOptimization
+        ? {
+            '@babel/runtime-corejs2': '@babel/runtime',
+          }
+        : undefined),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
@@ -485,8 +516,12 @@ export default async function getBaseWebpackConfig(
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
               (res.match(/[/\\]next[/\\]dist[/\\]/) ||
+                // This is the @babel/plugin-transform-runtime "helpers: true" option
                 res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+                (!config.experimental.polyfillsOptimization &&
+                  res.match(
+                    /node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/
+                  )))
             ) {
               return callback()
             }
@@ -683,6 +718,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
+        ),
+        'process.env.__NEXT_POLYFILLS_OPTIMIZATION': JSON.stringify(
+          !!config.experimental.polyfillsOptimization
         ),
         'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
           config.experimental.granularChunks && !dev
