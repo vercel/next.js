@@ -8,7 +8,7 @@ Next.js supports various build targets, each changing the way your application i
 
 ## `server` target
 
-> This is the default target, however, we highly recommend the [`serverless` target](#serverless-target). The `serverless` target enforces additional constraints to keep you in the [Pit of Success](https://blog.codinghorror.com/falling-into-the-pit-of-success/).
+> This is the default target, however, we highly recommend the [`serverless` target](#serverless-target). The `serverless` target enforces [additional constraints](https://rauchg.com/2020/2019-in-review#serverless-upgrades-itself) to keep you in the [Pit of Success](https://blog.codinghorror.com/falling-into-the-pit-of-success/).
 
 This target is compatible with both `next start` and [custom server](/docs/advanced-features/custom-server.md) setups (it's mandatory for a custom server).
 
