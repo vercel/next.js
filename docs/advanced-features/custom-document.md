@@ -35,7 +35,11 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
+`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered. Custom attributes are allowed as props, like `lang`:
+
+```jsx
+<Html lang="en">
+```
 
 The `ctx` object is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md#context-object), with one addition:
 
