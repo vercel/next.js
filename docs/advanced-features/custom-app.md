@@ -10,6 +10,7 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 - Keeping state when navigating pages
 - Custom error handling using `componentDidCatch`
 - Inject additional data into pages
+- [Add global CSS](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
 
 To override the default `App`, create the file `./pages/_app.js` as shown below:
 
@@ -40,6 +41,10 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 `pageProps` is an object with the initial props that were preloaded for your page, it's an empty object if the page is not using [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md).
 
 > Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+
+### TypeScript
+
+If you’re using TypeScript, take a look at [our TypeScript documentation](/docs/basic-features/typescript#custom-app).
 
 ## Related
 
