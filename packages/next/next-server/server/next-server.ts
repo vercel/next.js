@@ -1123,28 +1123,31 @@ export default class Server {
     let result: null | LoadComponentsReturnType = null
 
     const { static404, pages404 } = this.nextConfig.experimental
+    const is404 = res.statusCode === 404
     let using404Page = false
 
     // use static 404 page if available and is 404 response
-    if (static404 && res.statusCode === 404) {
-      try {
-        result = await this.findPageComponents('/_errors/404')
-      } catch (err) {
-        if (err.code !== 'ENOENT') {
-          throw err
+    if (is404) {
+      if (static404) {
+        try {
+          result = await this.findPageComponents('/_errors/404')
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            throw err
+          }
         }
       }
-    }
 
-    // use 404 if /_errors/404 isn't available which occurs
-    // during development and when _app has getInitialProps
-    if (!result && pages404) {
-      try {
-        result = await this.findPageComponents('/404')
-        using404Page = true
-      } catch (err) {
-        if (err.code !== 'ENOENT') {
-          throw err
+      // use 404 if /_errors/404 isn't available which occurs
+      // during development and when _app has getInitialProps
+      if (!result && pages404) {
+        try {
+          result = await this.findPageComponents('/404')
+          using404Page = true
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            throw err
+          }
         }
       }
     }

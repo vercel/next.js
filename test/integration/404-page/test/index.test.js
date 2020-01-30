@@ -42,6 +42,12 @@ const runTests = (mode = 'server') => {
     expect(await res.text()).toContain('custom 404 page')
   })
 
+  it('should render _error for a 500 error still', async () => {
+    const html = await renderViaHTTP(appPort, '/err')
+    expect(html).not.toContain('custom 404 page')
+    expect(html).toContain(mode === 'dev' ? 'oops' : 'Internal Server Error')
+  })
+
   if (mode !== 'dev') {
     it('should output _errors/404.html during build', async () => {
       expect(
