@@ -165,8 +165,12 @@ export default class DevServer extends Server {
           `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
         )
         const curPageFiles = new Set(
-          (await recursiveReadDir(this.pagesDir!, /.*/)).map(f =>
-            f.replace(/\\/g, '/').replace(pageExtensionsRegex, '')
+          (await recursiveReadDir(this.pagesDir!, pageExtensionsRegex)).map(
+            f =>
+              f
+                .replace(/\\/g, '/')
+                .replace(pageExtensionsRegex, '')
+                .replace(/\/index$/, '') || '/'
           )
         )
 
