@@ -1,4 +1,4 @@
-# next-css example
+# next-simple-css example
 
 This example demonstrates how to use Next.js' built-in CSS imports and CSS modules support.
 
@@ -6,7 +6,7 @@ This example demonstrates how to use Next.js' built-in CSS imports and CSS modul
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-next-css)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-next-simple-css)
 
 ## How to use
 
@@ -15,9 +15,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-next-css with-next-css-app
+npm init next-app --example with-next-simple-css with-next-css-app
 # or
-yarn create next-app --example with-next-css with-next-css-app
+yarn create next-app --example with-next-simple-css with-next-simple-css-app
 ```
 
 ### Download manually
