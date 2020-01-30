@@ -23,7 +23,7 @@ type EventBuildOptimized = {
 }
 
 const INVALID_PAGES = /^[\\/]__(tests|generated)__[\\/]/
-const TEST_FILE = /\.test\.[jt]sx?$/
+const TEST_FILE = /\.(spec|test)\.[jt]sx?$/
 
 export function eventBuildOptimize(
   pagePaths: string[],

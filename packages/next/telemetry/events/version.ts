@@ -12,7 +12,7 @@ type SessionStarted = {
   isSrcDir: boolean | null
   hasNowJson: boolean
   isCustomServer: boolean | null
-  hasTypeScript: boolean
+  hasTypeScript?: boolean
 }
 
 type SessionStartedNextConfig = {
@@ -24,8 +24,8 @@ type SessionStartedNextConfig = {
   hasDistDir: boolean
   hasRuntimeConfig: boolean
   hasReactStrictMode: boolean
-  hasRewrites: boolean
-  hasRedirects: boolean
+  hasRewrites?: boolean
+  hasRedirects?: boolean
   hasTrailingSlash: boolean
   hasExportPathMap: boolean
   pageExtensions: string
