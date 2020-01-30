@@ -1,4 +1,3 @@
-
 export default () => (
   <div className='hello'>
     <h1 className='hello-world-heading'>Hello World, I am being styled using CSS Modules!</h1>
