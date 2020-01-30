@@ -69,6 +69,7 @@ function getOptimizedAliases(
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return Object.assign(
+    {},
     // Polyfill: Window#fetch
     polyfillsOptimization
       ? undefined
