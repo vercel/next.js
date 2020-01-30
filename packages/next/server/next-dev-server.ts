@@ -160,7 +160,6 @@ export default class DevServer extends Server {
 
       wp.on('aggregated', async () => {
         const dynamicRoutedPages = []
-        const knownFiles = wp.getTimeInfoEntries()
         const pageExtensionsRegex = new RegExp(
           `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
         )
@@ -174,24 +173,7 @@ export default class DevServer extends Server {
           )
         )
 
-        for (const [fileName, { accuracy }] of knownFiles) {
-          if (accuracy === undefined) {
-            continue
-          }
-
-          let pageName =
-            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-
-          pageName =
-            pageName.replace(pageExtensionsRegex, '').replace(/\/index$/, '') ||
-            '/'
-
-          // webpack may report old casing for the files which will
-          // cause a duplicate entry of the page to be added
-          if (!curPageFiles.has(pageName)) {
-            continue
-          }
-
+        for (const pageName of curPageFiles) {
           if (!isDynamicRoute(pageName)) {
             continue
           }
