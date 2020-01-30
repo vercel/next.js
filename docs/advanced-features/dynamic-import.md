@@ -17,7 +17,7 @@ You can think of dynamic imports as another way to split your code into manageab
 
 ## Basic usage
 
-In the following example, `DynamicComponent` will be dynamically loaded by the page:
+In the following example, the module `../components/hello` will be dynamically loaded by the page:
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -37,7 +37,7 @@ function Home() {
 export default Home
 ```
 
-`DynamicComponent` still works like any other React Component, and any props you send will be received by it.
+`DynamicComponent` will be the default component returned by `../components/hello`, it still works like any other React Component, and any props you add will be received by it.
 
 ## With named exports
 
@@ -49,7 +49,7 @@ export function Hello() {
 }
 ```
 
-To dynamically import the `Hello` component, you can return it from the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) returned by `import()`, like so:
+To dynamically import the `Hello` component, you can return it from the [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) returned by [`import()`](https://github.com/tc39/proposal-dynamic-import#example), like so:
 
 ```jsx
 import dynamic from 'next/dynamic'
