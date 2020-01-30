@@ -72,6 +72,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
+                (opts.polyfillsOptimization ? '-new-polyfills' : '') +
                 (opts.development ? '-development' : '-production') +
                 JSON.stringify(
                   babel.loadPartialConfig({
