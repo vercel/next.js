@@ -94,6 +94,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.hasModern
       delete loader.pagesDir
       delete loader.babelPresetPlugins
+      delete loader.polyfillsOptimization
       delete loader.development
       return { loader, custom }
     },
