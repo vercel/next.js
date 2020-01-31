@@ -9,7 +9,11 @@ import {
   Rewrite,
   getRedirectStatus,
 } from '../lib/check-custom-routes'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import {
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+} from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
@@ -479,9 +483,10 @@ export async function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
 ): Promise<{
-  static?: boolean
-  prerender?: boolean
+  isStatic?: boolean
   isHybridAmp?: boolean
+  hasServerProps?: boolean
+  hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
   try {
@@ -496,6 +501,7 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasServerProps = !!mod.unstable_getServerProps
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
@@ -507,7 +513,15 @@ export async function isPageStatic(
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
-      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
+    }
+
+    if (hasGetInitialProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+    }
+
+    if (hasStaticProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -521,7 +535,8 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths) {
       prerenderPaths = [] as string[]
 
-      const _routeMatcher = getRouteMatcher(getRouteRegex(page))
+      const _routeRegex = getRouteRegex(page)
+      const _routeMatcher = getRouteMatcher(_routeRegex)
 
       // Get the default list of allowed params.
       const _validParamKeys = Object.keys(_routeMatcher(page))
@@ -560,15 +575,28 @@ export async function isPageStatic(
           const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
-            if (typeof params[validParamKey] !== 'string') {
+            const { repeat } = _routeRegex.groups[validParamKey]
+            const paramValue: string | string[] = params[validParamKey] as
+              | string
+              | string[]
+            if (
+              (repeat && !Array.isArray(paramValue)) ||
+              (!repeat && typeof paramValue !== 'string')
+            ) {
               throw new Error(
-                `A required parameter (${validParamKey}) was not provided as a string.`
+                `A required parameter (${validParamKey}) was not provided as ${
+                  repeat ? 'an array' : 'a string'
+                }.`
               )
             }
 
             builtPage = builtPage.replace(
-              `[${validParamKey}]`,
-              encodeURIComponent(params[validParamKey])
+              `[${repeat ? '...' : ''}${validParamKey}]`,
+              encodeURIComponent(
+                repeat
+                  ? (paramValue as string[]).join('/')
+                  : (paramValue as string)
+              )
             )
           })
 
@@ -579,10 +607,11 @@ export async function isPageStatic(
 
     const config = mod.config || {}
     return {
-      static: !hasStaticProps && !hasGetInitialProps,
+      isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes: prerenderPaths,
-      prerender: hasStaticProps,
+      hasStaticProps,
+      hasServerProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

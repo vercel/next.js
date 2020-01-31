@@ -5,11 +5,17 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "setup": "node ./scripts/setup.js"
   },
   "dependencies": {
     "next": "latest",
     "react": "^16.10.2",
     "react-dom": "^16.10.2"
+  },
+  "devDependencies": {
+    "faunadb": "2.11.1",
+    "request": "2.88.0",
+    "stream-to-promise": "2.2.0"
   }
 }

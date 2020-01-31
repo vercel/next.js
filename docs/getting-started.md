@@ -20,7 +20,7 @@ The interactive course with quizzes will guide you through everything you need t
 Install `next`, `react` and `react-dom` in your project:
 
 ```bash
-npm install --save next react react-dom
+npm install next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
@@ -39,7 +39,7 @@ These scripts refer to the different stages of developing an application:
 - `build` - Runs `next build` which builds the application for production usage
 - `start` - Runs `next start` which starts a Next.js production server
 
-Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.ts`, or `.tsx` file in the `pages` directory.
+Next.js is built around the concept of pages. A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
 
 Pages are associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`. You can even add dynamic route parameters with the filename.
 
@@ -73,13 +73,13 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/basic-features/pages.md">
     <b>Pages:</b>
-    <small>Learn more about what pages are in Next.js</small>
+    <small>Learn more about what pages are in Next.js.</small>
   </a>
 </div>
 
 <div class="card">
   <a href="/docs/basic-features/built-in-css-support.md">
     <b>CSS Support:</b>
-    <small>Use the built-in CSS support to add custom styles to your app</small>
+    <small>Use the built-in CSS support to add custom styles to your app.</small>
   </a>
 </div>

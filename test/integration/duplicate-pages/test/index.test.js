@@ -8,7 +8,6 @@ import {
   launchApp,
   renderViaHTTP,
   killApp,
-  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -34,7 +33,6 @@ describe('Handles Duplicate Pages', () => {
         onStderr: handleOutput,
       })
       await renderViaHTTP(appPort, '/hello')
-      await waitFor(3000)
       await killApp(app)
       expect(output).toMatch(/Duplicate page detected/)
     })

@@ -14,13 +14,20 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 /// <reference types="react-dom/experimental" />
 
-// Polyfill Promise globally
-// This is needed because Webpack's dynamic loading(common chunks) code
-// depends on Promise.
-// So, we need to polyfill it.
-// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-if (!window.Promise) {
-  window.Promise = Promise
+if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
+  if (!('finally' in Promise.prototype)) {
+    // eslint-disable-next-line no-extend-native
+    Promise.prototype.finally = require('finally-polyfill')
+  }
+} else {
+  // Polyfill Promise globally
+  // This is needed because Webpack's dynamic loading(common chunks) code
+  // depends on Promise.
+  // So, we need to polyfill it.
+  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
+  if (!self.Promise) {
+    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
+  }
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -114,6 +121,14 @@ class Container extends React.Component {
         }
       )
     }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }
   }
 
   componentDidUpdate() {
@@ -200,9 +215,15 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 
   const renderCtx = { App, Component, props, err: initialErr }
-  render(renderCtx)
 
-  return emitter
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
 export async function render(props) {
@@ -292,19 +313,19 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!('PerformanceObserver' in window)) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
-    } else {
-      performance.getEntriesByType('paint').forEach(onPerfEntry)
-
-      // Start an observer to catch any paint metrics which may fire _after_
-      // the load event is fired on the window
+    try {
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(onPerfEntry)
       })
-      observer.observe({ entryTypes: ['paint'] })
+      // Start observing paint entry types.
+      observer.observe({
+        type: 'paint',
+        buffered: true,
+      })
+    } catch (e) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
     }
   }
 }

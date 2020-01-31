@@ -27,6 +27,9 @@ function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
+const prepareRoute = (path: string) =>
+  toRoute(!path || path === '/' ? '/index' : path)
+
 type Url = UrlObject | string
 
 export type BaseRouter = {
@@ -60,6 +63,33 @@ type Subscription = (data: RouteInfo, App?: ComponentType) => void
 type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
+
+const fetchNextData = (
+  pathname: string,
+  query: ParsedUrlQuery | null,
+  cb?: (...args: any) => any
+) => {
+  return fetch(
+    formatWithValidation({
+      // @ts-ignore __NEXT_DATA__
+      pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+      query,
+    })
+  )
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Failed to load static props`)
+      }
+      return res.json()
+    })
+    .then(data => {
+      return cb ? cb(data) : data
+    })
+    .catch((err: Error) => {
+      ;(err as any).code = 'PAGE_LOAD_ERROR'
+      throw err
+    })
+}
 
 export default class Router implements BaseRouter {
   route: string
@@ -299,7 +329,7 @@ export default class Router implements BaseRouter {
       if (!options._h && this.onlyAHashChange(as)) {
         this.asPath = as
         Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, addBasePath(as))
+        this.changeState(method, url, addBasePath(as), options)
         this.scrollToHash(as)
         Router.events.emit('hashChangeComplete', as)
         return resolve(true)
@@ -331,22 +361,34 @@ export default class Router implements BaseRouter {
 
       if (isDynamicRoute(route)) {
         const { pathname: asPathname } = parse(as)
-        const routeMatch = getRouteMatcher(getRouteRegex(route))(asPathname)
+        const routeRegex = getRouteRegex(route)
+        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
         if (!routeMatch) {
-          const error =
-            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-            `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+          const missingParams = Object.keys(routeRegex.groups).filter(
+            param => !query[param]
+          )
 
-          if (process.env.NODE_ENV !== 'production') {
-            throw new Error(error)
-          } else {
-            console.error(error)
+          if (missingParams.length > 0) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                `Mismatching \`as\` and \`href\` failed to manually provide ` +
+                  `the params: ${missingParams.join(
+                    ', '
+                  )} in the \`href\`'s \`query\``
+              )
+            }
+
+            return reject(
+              new Error(
+                `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+                  `Read more: https://err.sh/zeit/next.js/incompatible-href-as`
+              )
+            )
           }
-          return resolve(false)
+        } else {
+          // Merge params into `query`, overwriting any specified in search
+          Object.assign(query, routeMatch)
         }
-
-        // Merge params into `query`, overwriting any specified in search
-        Object.assign(query, routeMatch)
       }
 
       Router.events.emit('routeChangeStart', as)
@@ -452,6 +494,8 @@ export default class Router implements BaseRouter {
         return this._getData<RouteInfo>(() =>
           (Component as any).__N_SSG
             ? this._getStaticData(as)
+            : (Component as any).__N_SSP
+            ? this._getServerData(as)
             : this.getInitialProps(
                 Component,
                 // we provide AppTree later so this needs to be `any`
@@ -664,31 +708,18 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string, _cachedData?: object): Promise<object> => {
-    let pathname = parse(asPath).pathname
-    pathname = !pathname || pathname === '/' ? '/index' : pathname
+  _getStaticData = (asPath: string): Promise<object> => {
+    const pathname = prepareRoute(parse(asPath).pathname!)
 
-    return process.env.NODE_ENV === 'production' &&
-      (_cachedData = this.sdc[pathname])
-      ? Promise.resolve(_cachedData)
-      : fetch(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`
-        )
-          .then(res => {
-            if (!res.ok) {
-              throw new Error(`Failed to load static props`)
-            }
-            return res.json()
-          })
-          .then(data => {
-            this.sdc[pathname!] = data
-            return data
-          })
-          .catch((err: Error) => {
-            ;(err as any).code = 'PAGE_LOAD_ERROR'
-            throw err
-          })
+    return process.env.NODE_ENV === 'production' && this.sdc[pathname]
+      ? Promise.resolve(this.sdc[pathname])
+      : fetchNextData(pathname, null, data => (this.sdc[pathname] = data))
+  }
+
+  _getServerData = (asPath: string): Promise<object> => {
+    let { pathname, query } = parse(asPath, true)
+    pathname = prepareRoute(pathname!)
+    return fetchNextData(pathname, query)
   }
 
   getInitialProps(

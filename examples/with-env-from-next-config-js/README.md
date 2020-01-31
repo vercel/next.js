@@ -1,5 +1,15 @@
 # With env From next.config.js
 
+This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
+More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.js.config` and then
+returned to your react components (including `getInitialProps`) when the program is built with `next build`.
+
+As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
+`phase` can have the values `PHASE_DEVELOPMENT_SERVER` or `PHASE_PRODUCTION_BUILD` (as defined in `next\constants`). Based on the variable
+`phase`, different environmental variables can be set for use in your react app. That is, if you reference `process.env.RESTURL_SPEAKERS`
+in your react app, whatever is returned by `next.config.js` as the variable `env`, (or `env.RESTURL_SPEAKERS`) will be accessible in your
+app as `process.env.RESTURL_SPEAKERS`.
+
 ## Deploy your own
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
@@ -10,10 +20,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-env-from-next-config-js
+npm init next-app --example with-env-from-next-config-js
 # or
 yarn create next-app --example with-env-from-next-config-js
 ```
@@ -42,18 +52,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
-
-## The idea behind this example
-
-This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
-More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.js.config` and then
-returned to your react components (including `getInitialProps`) when the program is built with `next build`.
-
-As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
-`phase` can have the values `PHASE_DEVELOPMENT_SERVER` or `PHASE_PRODUCTION_BUILD` (as defined in `next\constants`). Based on the variable
-`phase`, different environmental variables can be set for use in your react app. That is, if you reference `process.env.RESTURL_SPEAKERS`
-in your react app, whatever is returned by `next.config.js` as the variable `env`, (or `env.RESTURL_SPEAKERS`) will be accessible in your
-app as `process.env.RESTURL_SPEAKERS`.
 
 > ## Special note
 >

@@ -122,6 +122,10 @@
               "path": "/docs/advanced-features/customizing-babel-config.md"
             },
             {
+              "title": "Customizing PostCSS Config",
+              "path": "/docs/advanced-features/customizing-postcss-config.md"
+            },
+            {
               "title": "Custom Server",
               "path": "/docs/advanced-features/custom-server.md"
             },
