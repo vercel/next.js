@@ -22,6 +22,7 @@ export type ServerlessLoaderQuery = {
   generateEtags: string
   canonicalBase: string
   basePath: string
+  runtimeConfig: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -37,6 +38,7 @@ const nextServerlessLoader: loader.Loader = function() {
     absoluteErrorPath,
     generateEtags,
     basePath,
+    runtimeConfig,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -49,6 +51,19 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
+
+  const runtimeConfigImports = runtimeConfig
+    ? `
+      import { setConfig } from 'next/dist/next-server/lib/runtime-config'
+    `
+    : ''
+
+  const runtimeConfigSetter = runtimeConfig
+    ? `
+      const runtimeConfig = ${runtimeConfig}
+      setConfig(runtimeConfig)
+    `
+    : 'const runtimeConfig = {}'
 
   const dynamicRouteImports = pageIsDynamicRoute
     ? `
@@ -123,9 +138,14 @@ const nextServerlessLoader: loader.Loader = function() {
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
       ${rewriteImports}
+      ${runtimeConfigImports}
 
       ${dynamicRouteMatcher}
       ${handleRewrites}
+      ${
+        /* this needs to be called before importing the API method */
+        runtimeConfigSetter
+      }
 
       export default async (req, res) => {
         try {
@@ -177,9 +197,16 @@ const nextServerlessLoader: loader.Loader = function() {
     import Document from '${absoluteDocumentPath}';
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
-    import * as ComponentInfo from '${absolutePagePath}';
     ${dynamicRouteImports}
     ${rewriteImports}
+    ${runtimeConfigImports}
+
+    ${
+      /* this needs to be called before importing the component */
+      runtimeConfigSetter
+    }
+
+    const ComponentInfo = require('${absolutePagePath}')
 
     const Component = ComponentInfo.default
     export default Component
@@ -214,6 +241,7 @@ const nextServerlessLoader: loader.Loader = function() {
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
+        runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         ..._renderOpts
       }
       let _nextData = false
