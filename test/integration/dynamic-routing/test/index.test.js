@@ -463,6 +463,12 @@ function runTests(dev) {
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
           },
           {
+            page: '/[name]/on-mount-redir',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
+            ),
+          },
+          {
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
           },
