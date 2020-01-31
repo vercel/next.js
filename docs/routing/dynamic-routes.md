@@ -77,7 +77,7 @@ Matched parameters will be sent as a query parameter (`slug` in the example) to 
 { "slug": ["a"] }
 ```
 
-And in the case of `/api/post/a/b`, and any other matching path, new parameters will be added to the array, like so:
+And in the case of `/post/a/b`, and any other matching path, new parameters will be added to the array, like so:
 
 ```json
 { "slug": ["a", "b"] }
