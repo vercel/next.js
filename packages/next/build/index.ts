@@ -16,7 +16,10 @@ import checkCustomRoutes, {
   Rewrite,
   Header,
 } from '../lib/check-custom-routes'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import {
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+} from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -202,6 +205,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
   )
+  const hasPages404 =
+    config.experimental.pages404 &&
+    mappedPages['/404'] &&
+    mappedPages['/404'].startsWith('private-next-pages')
 
   if (hasPublicDir) {
     try {
@@ -262,6 +269,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 1,
+    pages404: !!hasPages404,
     basePath: config.experimental.basePath,
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
@@ -511,6 +519,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
             staticPages.add(page)
             isStatic = true
           }
+
+          if (hasPages404 && page === '/404') {
+            if (!result.isStatic) {
+              throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+            }
+            // we need to ensure the 404 lambda is present since we use
+            // it when _app has getInitialProps
+            if (customAppGetInitialProps) {
+              staticPages.delete(page)
+            }
+          }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
@@ -569,8 +588,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
     !customAppGetInitialProps &&
-    !hasCustomErrorPage &&
-    config.experimental.static404
+    ((!hasCustomErrorPage && config.experimental.static404) || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -640,7 +658,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         })
 
         if (useStatic404) {
-          defaultMap['/_errors/404'] = { page: '/_error' }
+          defaultMap['/_errors/404'] = {
+            page: hasPages404 ? '/404' : '/_error',
+          }
         }
 
         return defaultMap
