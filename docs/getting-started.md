@@ -15,7 +15,7 @@ The interactive course with quizzes will guide you through everything you need t
 - [Node.js 10](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
-## Guided Setup
+## Setup
 
 Create a new Next.js app using `create-next-app`:
 
