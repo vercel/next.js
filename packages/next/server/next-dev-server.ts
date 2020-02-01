@@ -432,6 +432,16 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
+        if (this.nextConfig.experimental.pages404) {
+          try {
+            await this.hotReloader!.ensurePage('/404')
+          } catch (err) {
+            if (err.code !== 'ENOENT') {
+              throw err
+            }
+          }
+        }
+
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       }
