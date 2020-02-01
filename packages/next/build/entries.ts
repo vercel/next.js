@@ -67,6 +67,10 @@ export function createEntrypoints(
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
 
+  const hasRuntimeConfig =
+    Object.keys(config.publicRuntimeConfig).length > 0 ||
+    Object.keys(config.serverRuntimeConfig).length > 0
+
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
     absoluteDocumentPath: pages['/_document'],
@@ -77,6 +81,12 @@ export function createEntrypoints(
     generateEtags: config.generateEtags,
     canonicalBase: config.canonicalBase,
     basePath: config.experimental.basePath,
+    runtimeConfig: hasRuntimeConfig
+      ? JSON.stringify({
+          publicRuntimeConfig: config.publicRuntimeConfig,
+          serverRuntimeConfig: config.serverRuntimeConfig,
+        })
+      : '',
   }
 
   Object.keys(pages).forEach(page => {
