@@ -31,15 +31,15 @@ function SignIn() {
     const passwordElement = event.currentTarget.elements.password
 
     try {
+      await client.resetStore()
       const { data } = await signIn({
         variables: {
           email: emailElement.value,
           password: passwordElement.value,
         },
       })
-      client.resetStore()
       if (data.signIn.user) {
-        router.push('/')
+        await router.push('/')
       }
     } catch (error) {
       setErrorMsg(getErrorMessage(error))

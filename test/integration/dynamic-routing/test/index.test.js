@@ -83,6 +83,12 @@ function runTests(dev) {
     }
   })
 
+  it('should allow calling Router.push on mount successfully', async () => {
+    const browser = await webdriver(appPort, '/post-1/on-mount-redir')
+    waitFor(2000)
+    expect(await browser.elementByCss('h3').text()).toBe('My blog')
+  })
+
   // it('should navigate optional dynamic page', async () => {
   //   let browser
   //   try {
@@ -458,6 +464,12 @@ function runTests(dev) {
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
           },
           {
+            page: '/[name]/on-mount-redir',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
+            ),
+          },
+          {
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
           },
@@ -508,7 +520,10 @@ describe('Dynamic Routing', () => {
   })
 
   describe('serverless mode', () => {
+    let origNextConfig
+
     beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
@@ -527,7 +542,10 @@ describe('Dynamic Routing', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
     runTests()
   })
 })
