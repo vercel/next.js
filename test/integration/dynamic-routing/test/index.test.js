@@ -431,6 +431,7 @@ function runTests(dev) {
 
       expect(manifest).toEqual({
         version: 1,
+        pages404: false,
         basePath: '',
         headers: [],
         rewrites: [],
