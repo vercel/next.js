@@ -35,7 +35,9 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered. Custom attributes are allowed as props, like `lang`:
+`<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
+
+Custom attributes are allowed as props, like `lang`:
 
 ```jsx
 <Html lang="en">

@@ -17,7 +17,7 @@ The interactive course with quizzes will guide you through everything you need t
 
 ## Guided Setup
 
-Start a new Next.js app using `create-next-app`:
+Create a new Next.js app using `create-next-app`:
 
 ```bash
 npm init next-app
