@@ -644,7 +644,7 @@ export default class Server {
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname)
-        if (params) {
+        if (dynamicRoute.page.startsWith('/api') && params) {
           page = dynamicRoute.page
           pageFound = true
           break

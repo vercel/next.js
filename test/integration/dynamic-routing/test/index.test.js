@@ -61,6 +61,12 @@ function runTests(dev) {
     expect(html).toMatch(/blog post.*321.*comment.*123/i)
   })
 
+  it('should not error when requesting dynamic page with /api', async () => {
+    const res = await fetchViaHTTP(appPort, '/api')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toMatch(/this is.*?api/i)
+  })
+
   it('should render dynamic route with query', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-post-1-with-query').click()
