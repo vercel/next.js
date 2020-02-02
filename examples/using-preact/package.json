@@ -9,8 +9,8 @@
   "dependencies": {
     "module-alias": "2.2.2",
     "next": "latest",
-    "preact": "10.0.0",
-    "preact-render-to-string": "5.0.7"
+    "preact": "10.2.1",
+    "preact-render-to-string": "5.1.4"
   },
   "license": "ISC",
   "devDependencies": {
