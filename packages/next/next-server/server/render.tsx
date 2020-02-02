@@ -28,6 +28,7 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
@@ -135,6 +136,7 @@ type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
+  pages404?: boolean
 }
 
 function renderDocument(
@@ -263,6 +265,7 @@ export async function renderToHTML(
     unstable_getServerProps,
     isDataReq,
     params,
+    pages404,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -362,6 +365,10 @@ export async function renderToHTML(
       }
       req.url = pathname
       renderOpts.nextExport = true
+    }
+
+    if (pages404 && pathname === '/404' && !isAutoExport) {
+      throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
