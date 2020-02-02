@@ -1,6 +1,6 @@
 # Preact example
 
-This example uses [Preact](https://github.com/developit/preact) instead of React. It's a React like UI framework which is fast and small. Here we've customized Next.js to use Preact instead of React.
+This example uses [Preact](https://github.com/preactjs/preact) instead of React. It's a React like UI framework which is fast and small. Here we've customized Next.js to use Preact instead of React.
 
 Here's how we did it:
 
