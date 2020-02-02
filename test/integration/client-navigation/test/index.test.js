@@ -1097,6 +1097,15 @@ describe('Client Navigation', () => {
     await browser.close()
   })
 
+  it('should handle undefined prop in head client-side', async () => {
+    const browser = await webdriver(context.appPort, '/head')
+    const value = await browser
+      .elementByCss('meta[name="empty-content"]')
+      .getAttribute('content')
+
+    expect(value).toBe('')
+  })
+
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
     (p, q) => fetchViaHTTP(context.appPort, p, q)

@@ -139,9 +139,21 @@ function reduceComponents(
     .concat(defaultHead(props.inAmpMode))
     .filter(unique())
     .reverse()
-    .map((c: React.ReactElement<any>, i: number) =>
-      React.cloneElement(c, { key: c.key || i, ...c.props })
-    )
+    .map((c: React.ReactElement<any>, i: number) => {
+      const cleanProps: { [key: string]: string } = {}
+
+      Object.keys(c.props).forEach(key => {
+        let val = c.props[key]
+
+        // TODO: do we want to normalize null/true/false here also?
+        if (val === undefined) {
+          val = ''
+        }
+        cleanProps[key] = val
+      })
+
+      return React.cloneElement(c, { key: c.key || i, ...cleanProps })
+    })
 }
 
 const Effect = withSideEffect()

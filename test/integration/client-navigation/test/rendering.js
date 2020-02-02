@@ -17,6 +17,14 @@ export default function(render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    it('should handle undefined prop in head server-side', async () => {
+      const html = await render('/head')
+      const $ = cheerio.load(html)
+      const value = $('meta[name="empty-content"]').attr('content')
+
+      expect(value).toBe('')
+    })
+
     test('renders with fragment syntax', async () => {
       const html = await render('/fragment-syntax')
       expect(html.includes('My component!')).toBeTruthy()
