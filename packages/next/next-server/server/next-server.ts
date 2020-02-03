@@ -163,12 +163,10 @@ export default class Server {
     }
 
     // Initialize next/config with the environment configuration
-    if (this.nextConfig.target === 'server') {
-      envConfig.setConfig({
-        serverRuntimeConfig,
-        publicRuntimeConfig,
-      })
-    }
+    envConfig.setConfig({
+      serverRuntimeConfig,
+      publicRuntimeConfig,
+    })
 
     this.serverBuildDir = join(
       this.distDir,

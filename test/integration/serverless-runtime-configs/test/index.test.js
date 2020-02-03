@@ -6,6 +6,7 @@ import {
   nextBuild,
   findPort,
   killApp,
+  launchApp,
   renderViaHTTP,
   initNextServerScript,
 } from 'next-test-utils'
@@ -74,24 +75,7 @@ describe('Serverless runtime configs', () => {
     )
   })
 
-  it('should support runtime configs in serverless mode', async () => {
-    await fs.writeFile(
-      nextConfigPath,
-      `module.exports = {
-        target: 'serverless',
-        serverRuntimeConfig: {
-          hello: 'world'
-        },
-        publicRuntimeConfig: {
-          another: 'thing'
-        }
-      }`
-    )
-
-    await nextBuild(appDir, [], { stderr: true, stdout: true })
-    const appPort = await findPort()
-    const app = await nextStart(appDir, appPort)
-
+  const testRuntimeConfig = async (app, appPort) => {
     const browser = await webdriver(appPort, '/config')
 
     const clientHTML = await browser.eval(`document.documentElement.innerHTML`)
@@ -140,5 +124,44 @@ describe('Serverless runtime configs', () => {
     expect(JSON.parse(docClientConfig)).toEqual(expectedSsrConfig)
 
     expect(JSON.parse(apiJson)).toEqual(expectedSsrConfig)
+  }
+
+  it('should support runtime configs in serverless mode (production)', async () => {
+    await fs.writeFile(
+      nextConfigPath,
+      `module.exports = {
+        target: 'serverless',
+        serverRuntimeConfig: {
+          hello: 'world'
+        },
+        publicRuntimeConfig: {
+          another: 'thing'
+        }
+      }`
+    )
+
+    await nextBuild(appDir, [], { stderr: true, stdout: true })
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort)
+    await testRuntimeConfig(app, appPort)
+  })
+
+  it('should support runtime configs in serverless mode (dev)', async () => {
+    await fs.writeFile(
+      nextConfigPath,
+      `module.exports = {
+        target: 'serverless',
+        serverRuntimeConfig: {
+          hello: 'world'
+        },
+        publicRuntimeConfig: {
+          another: 'thing'
+        }
+      }`
+    )
+
+    const appPort = await findPort()
+    const app = await launchApp(appDir, appPort)
+    await testRuntimeConfig(app, appPort)
   })
 })
