@@ -16,7 +16,7 @@ export default () => (
 
       <meta content="my meta" />
 
-      {/* this will not render */}
+      {/* this will not render the content prop */}
       <meta name="empty-content" content={undefined} />
 
       {/* allow duplicates for specific tags */}
