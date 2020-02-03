@@ -579,7 +579,6 @@ export default async function getBaseWebpackConfig(
           }),
       ].filter(Boolean),
     },
-    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
