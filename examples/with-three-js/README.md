@@ -1,4 +1,4 @@
-# Example Name
+# With Three js
 
 This example uses:
 

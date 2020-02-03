@@ -14,7 +14,5 @@
     "react-three-fiber": "4.0.12",
     "three": "0.112.1"
   },
-  "devDependencies": {
-    "@zeit/next-css": "1.0.1"
-  }
+  "devDependencies": {}
 }
