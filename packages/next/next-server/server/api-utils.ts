@@ -55,9 +55,17 @@ export async function apiResolver(
     apiRes.json = data => sendJson(apiRes, data)
 
     const resolver = interopDefault(resolverModule)
+    let wasPiped = false
+
+    if (process.env.NODE_ENV !== 'production') {
+      // listen for pipe event and don't show resolve warning
+      res.once('pipe', () => (wasPiped = true))
+    }
+
+    // Call API route method
     await resolver(req, res)
 
-    if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
+    if (process.env.NODE_ENV !== 'production' && !isResSent(res) && !wasPiped) {
       console.warn(
         `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
       )
