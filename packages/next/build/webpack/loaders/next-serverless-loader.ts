@@ -54,7 +54,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const runtimeConfigImports = runtimeConfig
     ? `
-      import { setConfig } from 'next/dist/next-server/lib/runtime-config'
+      const { setConfig } = require('next/dist/next-server/lib/runtime-config')
     `
     : ''
 
@@ -67,8 +67,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const dynamicRouteImports = pageIsDynamicRoute
     ? `
-    import { getRouteMatcher } from 'next/dist/next-server/lib/router/utils/route-matcher';
-      import { getRouteRegex } from 'next/dist/next-server/lib/router/utils/route-regex';
+    const { getRouteMatcher } = require('next/dist/next-server/lib/router/utils/route-matcher');
+      const { getRouteRegex } = require('next/dist/next-server/lib/router/utils/route-regex');
   `
     : ''
 
@@ -79,8 +79,8 @@ const nextServerlessLoader: loader.Loader = function() {
     : ''
 
   const rewriteImports = `
-    import { rewrites } from '${routesManifest}'
-    import pathMatch, { pathToRegexp } from 'next/dist/next-server/server/lib/path-match'
+    const { rewrites } = require('${routesManifest}')
+    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/server/lib/path-match')
   `
 
   const handleRewrites = `
@@ -132,20 +132,22 @@ const nextServerlessLoader: loader.Loader = function() {
 
   if (page.match(API_ROUTE)) {
     return `
-      ${dynamicRouteImports}
-      import { parse } from 'url'
-      import { apiResolver } from 'next/dist/next-server/server/api-utils'
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
-      ${rewriteImports}
       ${runtimeConfigImports}
+      ${
+        /*
+          this needs to be called first so its available for any other imports
+        */
+        runtimeConfigSetter
+      }
+      ${dynamicRouteImports}
+      const { parse } = require('url')
+      const { apiResolver } = require('next/dist/next-server/server/api-utils')
+      ${rewriteImports}
 
       ${dynamicRouteMatcher}
       ${handleRewrites}
-      ${
-        /* this needs to be called before importing the API method */
-        runtimeConfigSetter
-      }
 
       export default async (req, res) => {
         try {
@@ -186,25 +188,24 @@ const nextServerlessLoader: loader.Loader = function() {
     `
   } else {
     return `
-    import {parse} from 'url'
-    import {parse as parseQs} from 'querystring'
-    import {renderToHTML} from 'next/dist/next-server/server/render';
-    import {sendHTML} from 'next/dist/next-server/server/send-html';
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
-    import buildManifest from '${buildManifest}';
-    import reactLoadableManifest from '${reactLoadableManifest}';
-    import Document from '${absoluteDocumentPath}';
-    import Error from '${absoluteErrorPath}';
-    import App from '${absoluteAppPath}';
-    ${dynamicRouteImports}
-    ${rewriteImports}
     ${runtimeConfigImports}
-
     ${
-      /* this needs to be called before importing the component */
+      // this needs to be called first so its available for any other imports
       runtimeConfigSetter
     }
+    const {parse} = require('url')
+    const {parse: parseQs} = require('querystring')
+    const {renderToHTML} =require('next/dist/next-server/server/render');
+    const {sendHTML} = require('next/dist/next-server/server/send-html');
+    const buildManifest = require('${buildManifest}');
+    const reactLoadableManifest = require('${reactLoadableManifest}');
+    const Document = require('${absoluteDocumentPath}').default;
+    const Error = require('${absoluteErrorPath}').default;
+    const App = require('${absoluteAppPath}').default;
+    ${dynamicRouteImports}
+    ${rewriteImports}
 
     const ComponentInfo = require('${absolutePagePath}')
 
