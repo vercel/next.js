@@ -54,7 +54,8 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    static404: false,
+    static404: true,
+    pages404: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -252,6 +253,14 @@ function loadUserConfig(
     phase,
     userConfigModule.default || userConfigModule
   )
+
+  if (Object.keys(userConfig).length === 0) {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
+    )
+  }
+
   if (userConfig.target && !targets.includes(userConfig.target)) {
     throw new Error(
       `Specified target is invalid. Provided: "${
@@ -267,20 +276,6 @@ function loadUserConfig(
       (canonicalBase.endsWith('/')
         ? canonicalBase.slice(0, -1)
         : canonicalBase) || ''
-  }
-
-  if (
-    userConfig.target &&
-    userConfig.target !== 'server' &&
-    ((userConfig.publicRuntimeConfig &&
-      Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
-      (userConfig.serverRuntimeConfig &&
-        Object.keys(userConfig.serverRuntimeConfig).length !== 0))
-  ) {
-    // TODO: change error message tone to "Only compatible with [fat] server mode"
-    throw new Error(
-      'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
-    )
   }
 
   if (

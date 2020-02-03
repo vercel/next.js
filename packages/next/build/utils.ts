@@ -592,11 +592,9 @@ export async function isPageStatic(
 
             builtPage = builtPage.replace(
               `[${repeat ? '...' : ''}${validParamKey}]`,
-              encodeURIComponent(
-                repeat
-                  ? (paramValue as string[]).join('/')
-                  : (paramValue as string)
-              )
+              repeat
+                ? (paramValue as string[]).map(encodeURIComponent).join('/')
+                : encodeURIComponent(paramValue as string)
             )
           })
 
