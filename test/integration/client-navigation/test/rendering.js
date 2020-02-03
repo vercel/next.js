@@ -20,9 +20,9 @@ export default function(render, fetch) {
     it('should handle undefined prop in head server-side', async () => {
       const html = await render('/head')
       const $ = cheerio.load(html)
-      const value = $('meta[name="empty-content"]').attr('content')
+      const value = 'content' in $('meta[name="empty-content"]').attr()
 
-      expect(value).toBe('')
+      expect(value).toBe(false)
     })
 
     test('renders with fragment syntax', async () => {
