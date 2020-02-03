@@ -59,11 +59,7 @@ export async function apiResolver(
 
     if (process.env.NODE_ENV !== 'production') {
       // listen for pipe event and don't show resolve warning
-      const handlePipe = () => {
-        wasPiped = true
-        res.removeListener('pipe', handlePipe)
-      }
-      res.addListener('pipe', handlePipe)
+      res.once('pipe', () => (wasPiped = true))
     }
 
     // Call API route method
