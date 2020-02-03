@@ -96,7 +96,8 @@ export default async function(
   }
 
   dir = resolve(dir)
-  const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
+  const { userConfig, config: nextConfig } =
+    configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
 
@@ -104,7 +105,7 @@ export default async function(
 
   if (telemetry) {
     telemetry.record(
-      eventVersion({
+      eventVersion(userConfig, {
         cliCommand: 'export',
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -339,7 +340,7 @@ export default async function(
         options.buildExport &&
         typeof result.fromBuildExportRevalidate !== 'undefined'
       ) {
-        configuration.initialPageRevalidationMap[path] =
+        nextConfig.initialPageRevalidationMap[path] =
           result.fromBuildExportRevalidate
       }
       if (progress) progress()

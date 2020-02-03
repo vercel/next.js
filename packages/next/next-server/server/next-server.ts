@@ -82,6 +82,7 @@ export type ServerConstructor = {
 export default class Server {
   dir: string
   quiet: boolean
+  userConfig: NextConfig
   nextConfig: NextConfig
   distDir: string
   pagesDir?: string
@@ -123,7 +124,9 @@ export default class Server {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
-    this.nextConfig = loadConfig(phase, this.dir, conf)
+    const { userConfig, config } = loadConfig(phase, this.dir, conf)
+    this.userConfig = userConfig
+    this.nextConfig = config
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))

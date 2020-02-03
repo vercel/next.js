@@ -105,7 +105,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const { userConfig, config } = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
@@ -156,18 +156,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let publicFiles: string[] = []
   let hasPublicDir = false
 
+  const hasTypeScript = await verifyTypeScriptSetup(dir, pagesDir)
+
   telemetry.record(
-    eventVersion({
+    eventVersion(userConfig || {}, {
       cliCommand: 'build',
       isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
       isCustomServer: null,
+      hasTypeScript: hasTypeScript,
+      hasRewrites: rewrites.length > 0,
+      hasRedirects: redirects.length > 0,
     })
   )
 
   eventNextPlugins(path.resolve(dir)).then(events => telemetry.record(events))
-
-  await verifyTypeScriptSetup(dir, pagesDir)
 
   try {
     await fsStat(publicDir)
@@ -667,7 +670,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       },
       exportTrailingSlash: false,
     }
-    await exportApp(dir, exportOptions, exportConfig)
+    await exportApp(dir, exportOptions, { userConfig, config: exportConfig })
 
     // remove server bundles that were exported
     for (const page of staticPages) {

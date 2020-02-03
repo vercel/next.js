@@ -9,6 +9,8 @@ import { execOnce } from '../lib/utils'
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
+export const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+
 const defaultConfig: { [key: string]: any } = {
   env: [],
   webpack: null,
@@ -19,7 +21,7 @@ const defaultConfig: { [key: string]: any } = {
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
   generateEtags: true,
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  pageExtensions,
   target: 'server',
   poweredByHeader: true,
   compress: true,
@@ -76,20 +78,22 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
-  Object.keys(userConfig).forEach((key: string) => {
+  const config = { ...userConfig }
+
+  Object.keys(config).forEach((key: string) => {
     if (
       key === 'experimental' &&
-      userConfig[key] &&
-      userConfig[key] !== defaultConfig[key]
+      config[key] &&
+      config[key] !== defaultConfig[key]
     ) {
       experimentalWarning()
     }
 
     if (key === 'distDir') {
-      if (typeof userConfig[key] !== 'string') {
-        userConfig[key] = defaultConfig.distDir
+      if (typeof config[key] !== 'string') {
+        config[key] = defaultConfig.distDir
       }
-      const userDistDir = userConfig[key].trim()
+      const userDistDir = config[key].trim()
 
       // don't allow public as the distDir as this is a reserved folder for
       // public files
@@ -108,10 +112,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (key === 'pageExtensions') {
-      const pageExtensions = userConfig[key]
+      const pageExtensions = config[key]
 
       if (pageExtensions === undefined) {
-        delete userConfig[key]
+        delete config[key]
         return
       }
 
@@ -136,16 +140,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       })
     }
 
-    const maybeObject = userConfig[key]
+    const maybeObject = config[key]
     if (!!maybeObject && maybeObject.constructor === Object) {
-      userConfig[key] = {
+      config[key] = {
         ...(defaultConfig[key] || {}),
-        ...userConfig[key],
+        ...config[key],
       }
     }
   })
 
-  const result = { ...defaultConfig, ...userConfig }
+  const result = { ...defaultConfig, ...config }
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
@@ -211,63 +215,19 @@ function normalizeConfig(phase: string, config: any) {
   return config
 }
 
-export default function loadConfig(
+function loadUserConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
-) {
+): { [key: string]: any } | undefined {
   if (customConfig) {
-    return assignDefaults({ configOrigin: 'server', ...customConfig })
+    return { configOrigin: 'server', ...customConfig }
   }
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir,
   })
 
-  // If config file was found
-  if (path?.length) {
-    const userConfigModule = require(path)
-    const userConfig = normalizeConfig(
-      phase,
-      userConfigModule.default || userConfigModule
-    )
-
-    if (Object.keys(userConfig).length === 0) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
-      )
-    }
-
-    if (userConfig.target && !targets.includes(userConfig.target)) {
-      throw new Error(
-        `Specified target is invalid. Provided: "${
-          userConfig.target
-        }" should be one of ${targets.join(', ')}`
-      )
-    }
-
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
-    }
-
-    if (
-      userConfig.experimental?.reactMode &&
-      !reactModes.includes(userConfig.experimental.reactMode)
-    ) {
-      throw new Error(
-        `Specified React Mode is invalid. Provided: ${
-          userConfig.experimental.reactMode
-        } should be one of ${reactModes.join(', ')}`
-      )
-    }
-
-    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
-  } else {
+  if (!path?.length) {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
       [
@@ -285,9 +245,63 @@ export default function loadConfig(
         )}' is not supported. Please replace the file with 'next.config.js'.`
       )
     }
+    return
   }
 
-  return defaultConfig
+  const userConfigModule = require(path)
+  const userConfig = normalizeConfig(
+    phase,
+    userConfigModule.default || userConfigModule
+  )
+
+  if (Object.keys(userConfig).length === 0) {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'Detected next.config.js, no exported configuration found. https://err.sh/zeit/next.js/empty-configuration'
+    )
+  }
+
+  if (userConfig.target && !targets.includes(userConfig.target)) {
+    throw new Error(
+      `Specified target is invalid. Provided: "${
+        userConfig.target
+      }" should be one of ${targets.join(', ')}`
+    )
+  }
+
+  if (userConfig.amp?.canonicalBase) {
+    const { canonicalBase } = userConfig.amp || ({} as any)
+    userConfig.amp = userConfig.amp || {}
+    userConfig.amp.canonicalBase =
+      (canonicalBase.endsWith('/')
+        ? canonicalBase.slice(0, -1)
+        : canonicalBase) || ''
+  }
+
+  if (
+    userConfig.experimental?.reactMode &&
+    !reactModes.includes(userConfig.experimental.reactMode)
+  ) {
+    throw new Error(
+      `Specified React Mode is invalid. Provided: ${
+        userConfig.experimental.reactMode
+      } should be one of ${reactModes.join(', ')}`
+    )
+  }
+
+  return { configOrigin: CONFIG_FILE, ...userConfig }
+}
+
+export default function loadConfig(
+  phase: string,
+  dir: string,
+  customConfig?: object | null
+) {
+  const userConfig = loadUserConfig(phase, dir, customConfig)
+  return {
+    userConfig,
+    config: userConfig ? assignDefaults(userConfig) : defaultConfig,
+  }
 }
 
 export function isTargetLikeServerless(target: string) {

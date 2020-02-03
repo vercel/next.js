@@ -100,7 +100,7 @@ async function checkDependencies({
 export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string
-): Promise<void> {
+): Promise<boolean> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
@@ -118,7 +118,7 @@ export async function verifyTypeScriptSetup(
     if (hasTypeScriptFiles) {
       firstTimeSetup = true
     } else {
-      return
+      return false
     }
   }
 
@@ -238,7 +238,7 @@ export async function verifyTypeScriptSetup(
 
     console.info(e?.message ? `${e.message}` : '')
     process.exit(1)
-    return
+    return false
   }
 
   if (appTsConfig.compilerOptions == null) {
@@ -318,4 +318,6 @@ export async function verifyTypeScriptSetup(
         os.EOL
     )
   }
+
+  return true
 }
