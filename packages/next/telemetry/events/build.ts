@@ -19,23 +19,29 @@ type EventBuildOptimized = {
   totalPageCount: number
   staticPageCount: number
   ssrPageCount: number
-  hasInvalidPages: boolean
+  hasDunderPages: boolean
+  hasTestPages: boolean
 }
 
-const INVALID_PAGES = /^[\\/]__(tests|generated)__[\\/]/
+const DUNDER_PAGES = /^[\\/]__generated__[\\/]/
+const TEST_PAGES = /^[\\/]__(tests|mocks)__[\\/]/
 const TEST_FILE = /\.(spec|test)\.[jt]sx?$/
 
 export function eventBuildOptimize(
   pagePaths: string[],
-  event: Omit<EventBuildOptimized, 'totalPageCount' | 'hasInvalidPages'>
+  event: Omit<
+    EventBuildOptimized,
+    'totalPageCount' | 'hasDunderPages' | 'hasTestPages'
+  >
 ): { eventName: string; payload: EventBuildOptimized } {
   return {
     eventName: EVENT_BUILD_OPTIMIZE,
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasInvalidPages: pagePaths.some(
-        path => INVALID_PAGES.test(path) || TEST_FILE.test(path)
+      hasDunderPages: pagePaths.some(path => DUNDER_PAGES.test(path)),
+      hasTestPages: pagePaths.some(
+        path => TEST_PAGES.test(path) || TEST_FILE.test(path)
       ),
     },
   }
