@@ -16,6 +16,7 @@ const Page = () => {
       page2
       <p id="padded-str">{str}</p>
       <One />
+      <script src="https://polyfill.io/v3/polyfill.min.js?features=Blob%2CDocumentFragment%2CElement.prototype.append%2CElement.prototype.remove%2Cfetch"></script>
     </div>
   )
 }

@@ -23,4 +23,11 @@ describe('Conformance system', () => {
       '[BUILD CONFORMANCE WARNING]: A sync script was found in a react module.'
     )
   })
+
+  it('Should warn about sync external sync scripts', async () => {
+    const { stderr } = build
+    expect(stderr).toContain(
+      '[BUILD CONFORMANCE WARNING]: Found polyfill.io loading polyfill for fetch.'
+    )
+  })
 })

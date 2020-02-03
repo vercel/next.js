@@ -12,6 +12,7 @@ import {
 import { namedTypes } from 'ast-types/'
 import { NodePath } from 'ast-types/lib/node-path'
 import { getLocalFileName } from '../utils/file-utils'
+import { isNodeCreatingScriptElement } from '../utils/ast-utils'
 export const ErrorMessage: string = `${CONFORMANCE_ERROR_PREFIX}: A sync script was found in a react module.`
 export const WarningMessage: string = `${CONFORMANCE_WARNING_PREFIX}: A sync script was found in a react module.`
 export const ErrorDescription = ``
@@ -80,17 +81,4 @@ export class ReactSyncScriptsConformanceCheck
       },
     ]
   }
-}
-
-function isNodeCreatingScriptElement(node: namedTypes.CallExpression) {
-  const callee = node.callee as namedTypes.Identifier
-  if (callee.type !== 'Identifier') {
-    return false
-  }
-  const componentNode = node.arguments[0] as namedTypes.Literal
-  if (componentNode.type !== 'Literal') {
-    return false
-  }
-  // Next has pragma: __jsx.
-  return callee.name === '__jsx' && componentNode.value === 'script'
 }

@@ -47,6 +47,7 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
+  DuplicatePolyfillsConformanceTest,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -835,6 +836,9 @@ export default async function getBaseWebpackConfig(
           tests: [
             new MinificationConformanceCheck(),
             new ReactSyncScriptsConformanceCheck(),
+            new DuplicatePolyfillsConformanceTest({
+              BlockedAPIToBePolyfilled: ['fetch'],
+            }),
           ],
         }),
     ].filter((Boolean as any) as ExcludesFalse),
