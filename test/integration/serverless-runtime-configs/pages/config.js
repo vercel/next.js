@@ -2,4 +2,8 @@ import getConfig from 'next/config'
 
 const config = getConfig()
 
-export default () => <p id="config">{JSON.stringify(config)}</p>
+const page = () => <p id="config">{JSON.stringify(config)}</p>
+
+page.getInitialProps = () => ({ a: 'b' })
+
+export default page
