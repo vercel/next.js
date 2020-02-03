@@ -14,7 +14,7 @@ module.exports = {
       `git add ${escapedFileNames}`,
     ]
   },
-  '**/*.{json,md,mdx,css,html,yml,yaml,scss,sass}': filenames => {
+  '**/*.{json,md,mdx,css,html,yml,yaml,scss}': filenames => {
     const escapedFileNames = filenames
       .map(filename => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')

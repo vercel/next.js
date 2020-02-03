@@ -745,6 +745,21 @@ describe('SCSS Support', () => {
     })
   })
 
+  describe('Preprocessor loader order', () => {
+    const appDir = join(fixturesDir, 'loader-order')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+  })
+
   describe('Ordering with styled-jsx (dev)', () => {
     const appDir = join(fixturesDir, 'with-styled-jsx')
 

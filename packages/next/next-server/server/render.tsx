@@ -24,7 +24,12 @@ import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
-import { SSG_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
+import {
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+} from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 
@@ -129,6 +134,9 @@ type RenderOpts = LoadComponentsReturnType & {
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
   documentMiddlewareEnabled?: boolean
+  isDataReq?: boolean
+  params?: ParsedUrlQuery
+  pages404?: boolean
 }
 
 function renderDocument(
@@ -222,6 +230,14 @@ function renderDocument(
   )
 }
 
+const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+  return (
+    `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
+    `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+  )
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -246,6 +262,10 @@ export async function renderToHTML(
     ErrorDebug,
     unstable_getStaticProps,
     unstable_getStaticPaths,
+    unstable_getServerProps,
+    isDataReq,
+    params,
+    pages404,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -281,7 +301,10 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const isAutoExport =
-    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
+    !hasPageGetInitialProps &&
+    defaultAppGetInitialProps &&
+    !isSpr &&
+    !unstable_getServerProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -299,6 +322,14 @@ export async function renderToHTML(
 
   if (hasPageGetInitialProps && isSpr) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (hasPageGetInitialProps && unstable_getServerProps) {
+    throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (unstable_getServerProps && isSpr) {
+    throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
   if (!!unstable_getStaticPaths && !isSpr) {
@@ -334,6 +365,10 @@ export async function renderToHTML(
       }
       req.url = pathname
       renderOpts.nextExport = true
+    }
+
+    if (pages404 && pathname === '/404' && !isAutoExport) {
+      throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
@@ -395,7 +430,7 @@ export async function renderToHTML(
 
     if (isSpr) {
       const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? query : undefined,
+        params: isDynamicRoute(pathname) ? (query as any) : undefined,
       })
 
       const invalidKeys = Object.keys(data).filter(
@@ -403,11 +438,7 @@ export async function renderToHTML(
       )
 
       if (invalidKeys.length) {
-        throw new Error(
-          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
-            `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
-        )
+        throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
       if (typeof data.revalidate === 'number') {
@@ -451,6 +482,27 @@ export async function renderToHTML(
     ctx.err = err
     renderOpts.err = err
   }
+
+  if (unstable_getServerProps) {
+    const data = await unstable_getServerProps({
+      params,
+      query,
+      req,
+      res,
+    })
+
+    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
+    }
+
+    props.pageProps = data.props
+    ;(renderOpts as any).pageData = props
+  }
+  // We only need to do this if we want to support calling
+  // _app's getInitialProps for getServerProps if not this can be removed
+  if (isDataReq) return props
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
@@ -504,7 +556,10 @@ export async function renderToHTML(
     )
   }
   const documentCtx = { ...ctx, renderPage }
-  const docProps = await loadGetInitialProps(Document, documentCtx)
+  const docProps: DocumentInitialProps = await loadGetInitialProps(
+    Document,
+    documentCtx
+  )
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
@@ -519,7 +574,7 @@ export async function renderToHTML(
   const dynamicImports: ManifestItem[] = []
 
   for (const mod of reactLoadableModules) {
-    const manifestItem = reactLoadableManifest[mod]
+    const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
       manifestItem.forEach(item => {

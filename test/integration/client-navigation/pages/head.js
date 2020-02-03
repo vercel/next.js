@@ -16,6 +16,9 @@ export default () => (
 
       <meta content="my meta" />
 
+      {/* this will not render the content prop */}
+      <meta name="empty-content" content={undefined} />
+
       {/* allow duplicates for specific tags */}
       <meta property="article:tag" content="tag1" key="tag1key" />
       <meta property="article:tag" content="tag2" key="tag2key" />

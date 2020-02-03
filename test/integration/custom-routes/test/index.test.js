@@ -305,6 +305,7 @@ const runTests = (isDev = false) => {
 
       expect(manifest).toEqual({
         version: 1,
+        pages404: false,
         basePath: '',
         redirects: [
           {

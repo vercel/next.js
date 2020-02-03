@@ -232,7 +232,7 @@ export default async function(
     hotReloader: null,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
-    ampValidator: nextConfig.experimental.amp?.validator || undefined,
+    ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

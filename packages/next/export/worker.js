@@ -191,7 +191,7 @@ export default async function({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
-        curRenderOpts = { ...components, ...renderOpts, ampPath }
+        curRenderOpts = { ...components, ...renderOpts, ampPath, params }
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
@@ -214,7 +214,7 @@ export default async function({
     }
 
     if (curRenderOpts.inAmpMode) {
-      await validateAmp(html, path, curRenderOpts.ampValidator)
+      await validateAmp(html, path, curRenderOpts.ampValidatorPath)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
       let ampHtmlFilename = `${ampPath}${sep}index.html`

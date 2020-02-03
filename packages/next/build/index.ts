@@ -16,7 +16,10 @@ import checkCustomRoutes, {
   Rewrite,
   Header,
 } from '../lib/check-custom-routes'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import {
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+} from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -63,6 +66,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import escapeStringRegexp from 'escape-string-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -201,6 +205,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
   )
+  const hasPages404 =
+    config.experimental.pages404 &&
+    mappedPages['/404'] &&
+    mappedPages['/404'].startsWith('private-next-pages')
 
   if (hasPublicDir) {
     try {
@@ -258,22 +266,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
+  const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+  const routesManifest: any = {
+    version: 1,
+    pages404: !!hasPages404,
+    basePath: config.experimental.basePath,
+    redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
+    rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
+    headers: headers.map(r => buildCustomRoute(r, 'header')),
+    dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
+      page,
+      regex: getRouteRegex(page).re.source,
+    })),
+  }
+
   await mkdirp(distDir)
-  await fsWriteFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify({
-      version: 1,
-      basePath: config.experimental.basePath,
-      redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
-      headers: headers.map(r => buildCustomRoute(r, 'header')),
-      dynamicRoutes: getSortedRoutes(dynamicRoutes).map(page => ({
-        page,
-        regex: getRouteRegex(page).re.source,
-      })),
-    }),
-    'utf8'
-  )
+  // We need to write the manifest with rewrites before build
+  // so serverless can import the manifest
+  await fsWriteFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -405,6 +415,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
+  const serverPropsPages = new Set<string>()
   const additionalSsgPaths = new Map<string, Array<string>>()
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
@@ -502,9 +513,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
+          } else if (result.hasServerProps) {
+            serverPropsPages.add(page)
           } else if (result.isStatic && customAppGetInitialProps === false) {
             staticPages.add(page)
             isStatic = true
+          }
+
+          if (hasPages404 && page === '/404') {
+            if (!result.isStatic) {
+              throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+            }
+            // we need to ensure the 404 lambda is present since we use
+            // it when _app has getInitialProps
+            if (customAppGetInitialProps) {
+              staticPages.delete(page)
+            }
           }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -525,12 +549,46 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   staticCheckWorkers.end()
 
+  if (serverPropsPages.size > 0) {
+    // We update the routes manifest after the build with the
+    // serverProps routes since we can't determine this until after build
+    routesManifest.serverPropsRoutes = {}
+
+    for (const page of serverPropsPages) {
+      const dataRoute = path.posix.join(
+        '/_next/data',
+        buildId,
+        `${page === '/' ? '/index' : page}.json`
+      )
+
+      routesManifest.serverPropsRoutes[page] = {
+        page,
+        dataRouteRegex: isDynamicRoute(page)
+          ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
+              /\(\?:\\\/\)\?\$$/,
+              '\\.json$'
+            )
+          : new RegExp(
+              `^${path.posix.join(
+                '/_next/data',
+                escapeStringRegexp(buildId),
+                `${page === '/' ? '/index' : page}.json`
+              )}$`
+            ).source,
+      }
+    }
+
+    await fsWriteFile(
+      routesManifestPath,
+      JSON.stringify(routesManifest),
+      'utf8'
+    )
+  }
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
     !customAppGetInitialProps &&
-    !hasCustomErrorPage &&
-    config.experimental.static404
+    ((!hasCustomErrorPage && config.experimental.static404) || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -600,7 +658,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         })
 
         if (useStatic404) {
-          defaultMap['/_errors/404'] = { page: '/_error' }
+          defaultMap['/_errors/404'] = {
+            page: hasPages404 ? '/404' : '/_error',
+          }
         }
 
         return defaultMap

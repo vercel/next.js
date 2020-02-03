@@ -31,7 +31,7 @@ import checkCustomRoutes from '../lib/check-custom-routes'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/zeit/next.js/invalid-react-version`
   )
 }
 
@@ -432,6 +432,16 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
+        if (this.nextConfig.experimental.pages404) {
+          try {
+            await this.hotReloader!.ensurePage('/404')
+          } catch (err) {
+            if (err.code !== 'ENOENT') {
+              throw err
+            }
+          }
+        }
+
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       }
