@@ -36,7 +36,10 @@ const Home = () => (
           <p>Discover and deploy boilerplate example Next.js projects.</p>
         </a>
 
-        <a href="https://zeit.co/new/nextjs" className="card">
+        <a
+          href="https://zeit.co/new?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App"
+          className="card"
+        >
           <h3>Deploy &rarr;</h3>
           <p>
             Instantly deploy your Next.js site to a public URL with ZEIT Now.
@@ -46,7 +49,11 @@ const Home = () => (
     </main>
 
     <footer>
-      <a href="https://zeit.co" target="_blank" rel="noopener noreferrer">
+      <a
+        href="https://zeit.co?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         Powered by <img src="/zeit.svg" alt="ZEIT Logo" />
       </a>
     </footer>
