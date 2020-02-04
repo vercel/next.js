@@ -109,8 +109,8 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
-  '/catchall/another%2Fvalue': {
-    dataRoute: `/_next/data/${buildId}/catchall/another%2Fvalue.json`,
+  '/catchall/another/value': {
+    dataRoute: `/_next/data/${buildId}/catchall/another/value.json`,
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall/[...slug]',
   },

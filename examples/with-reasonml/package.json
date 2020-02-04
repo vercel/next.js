@@ -12,14 +12,14 @@
   "dependencies": {
     "babel-plugin-bucklescript": "^0.5.3",
     "next": "latest",
-    "next-transpile-modules": "2.3.1",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6",
+    "next-transpile-modules": "^3.0.2",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
     "reason-react": "^0.7.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.4.3",
-    "bs-platform": "5.0.3",
-    "concurrently": "^4.1.0"
+    "@babel/core": "^7.8.4",
+    "bs-platform": "^7.1.0",
+    "concurrently": "^5.1.0"
   }
 }

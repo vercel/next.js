@@ -21,6 +21,7 @@
     }
   },
   "overrides": [
+    { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
       "files": ["**/*.ts", "**/*.tsx"],
       "parser": "@typescript-eslint/parser",
