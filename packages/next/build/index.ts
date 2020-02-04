@@ -773,6 +773,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       durationInSeconds: analysisEnd[0],
       staticPageCount: staticPages.size,
       ssrPageCount: pagePaths.length - staticPages.size,
+      hasStatic404: useStatic404,
     })
   )
 
