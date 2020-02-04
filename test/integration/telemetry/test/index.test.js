@@ -93,14 +93,21 @@ describe('Telemetry CLI', () => {
   })
 
   it('detects tests correctly for `next build`', async () => {
+    await fs.rename(
+      path.join(appDir, 'pages', 'hello.test.skip'),
+      path.join(appDir, 'pages', 'hello.test.js')
+    )
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
+    await fs.rename(
+      path.join(appDir, 'pages', 'hello.test.js'),
+      path.join(appDir, 'pages', 'hello.test.skip')
+    )
 
-    console.log(stderr)
     expect(stderr).toMatch(/hasDunderPages.*?true/)
     expect(stderr).toMatch(/hasTestPages.*?true/)
   })
