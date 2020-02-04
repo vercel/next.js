@@ -40,6 +40,7 @@ type EventBuildOptimized = {
   ssrPageCount: number
   hasDunderPages: boolean
   hasTestPages: boolean
+  hasStatic404: boolean
 }
 
 export function eventBuildOptimize(
