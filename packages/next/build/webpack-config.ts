@@ -311,7 +311,7 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
-  const isModuleCSS = (module: {type: string}): boolean => {
+  const isModuleCSS = (module: { type: string }): boolean => {
     return (
       // mini-css-extract-plugin
       module.type === `css/mini-extract` ||
@@ -404,17 +404,19 @@ export default async function getBaseWebpackConfig(
         },
         shared: {
           name(module, chunks) {
-            return crypto
-              .createHash('sha1')
-              .update(
-                chunks.reduce(
-                  (acc: string, chunk: webpack.compilation.Chunk) => {
-                    return acc + chunk.name
-                  },
-                  ''
+            return (
+              crypto
+                .createHash('sha1')
+                .update(
+                  chunks.reduce(
+                    (acc: string, chunk: webpack.compilation.Chunk) => {
+                      return acc + chunk.name
+                    },
+                    ''
+                  )
                 )
-              )
-              .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
+            )
           },
           priority: 10,
           minChunks: 2,
