@@ -203,6 +203,12 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     },
   })
 
+  // call router.replace to trigger data fetching while
+  // the fallback is shown
+  if (data.isFallback) {
+    router.replace({ pathname: page, query }, asPath)
+  }
+
   // call init-client middleware
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line

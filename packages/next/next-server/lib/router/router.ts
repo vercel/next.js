@@ -150,7 +150,6 @@ export default class Router implements BaseRouter {
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
-    // @ts-ignore backwards compatibility
     this.events = Router.events
 
     this.pageLoader = pageLoader
@@ -355,7 +354,6 @@ export default class Router implements BaseRouter {
         method = 'replaceState'
       }
 
-      // @ts-ignore pathname is always a string
       const route = toRoute(pathname)
       const { shallow = false } = options
 
@@ -394,7 +392,6 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
-      // @ts-ignore pathname is always a string
       this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
         const { error } = routeInfo
 
@@ -404,7 +401,6 @@ export default class Router implements BaseRouter {
 
         Router.events.emit('beforeHistoryChange', as)
         this.changeState(method, url, addBasePath(as), options)
-        const hash = window.location.hash.substring(1)
 
         if (process.env.NODE_ENV !== 'production') {
           const appComp: any = this.components['/_app'].Component
@@ -413,8 +409,7 @@ export default class Router implements BaseRouter {
             !(routeInfo.Component as any).getInitialProps
         }
 
-        // @ts-ignore pathname is always defined
-        this.set(route, pathname, query, as, { ...routeInfo, hash })
+        this.set(route, pathname, query, as, routeInfo)
 
         if (error) {
           Router.events.emit('routeChangeError', error, as)
@@ -422,7 +417,20 @@ export default class Router implements BaseRouter {
         }
 
         Router.events.emit('routeChangeComplete', as)
-        return resolve(true)
+
+        if ((routeInfo as any).dataRes) {
+          return ((routeInfo as any).dataRes as Promise<RouteInfo>).then(
+            routeInfo => {
+              this.set(route, pathname, query, as, routeInfo)
+              // TODO: should we resolve when the fallback is rendered
+              // or when the data is returned and we render with data?
+              resolve(true)
+            },
+            reject
+          )
+        } else {
+          return resolve(true)
+        }
       }, reject)
     })
   }
@@ -491,20 +499,43 @@ export default class Router implements BaseRouter {
           }
         }
 
-        return this._getData<RouteInfo>(() =>
-          (Component as any).__N_SSG
+        const isSSG = (Component as any).__N_SSG
+        const isSSP = (Component as any).__N_SSG
+
+        const handleData = (props: any) => {
+          routeInfo.props = props
+          this.components[route] = routeInfo
+          return routeInfo
+        }
+
+        // if we have data in cache resolve with the data
+        // if not we we resolve with fallback routeInfo
+        if (isSSG || isSSP) {
+          const dataRes = isSSG
             ? this._getStaticData(as)
-            : (Component as any).__N_SSP
-            ? this._getServerData(as)
-            : this.getInitialProps(
-                Component,
-                // we provide AppTree later so this needs to be `any`
-                {
-                  pathname,
-                  query,
-                  asPath: as,
-                } as any
-              )
+            : this._getServerData(as)
+
+          return Promise.resolve(
+            typeof dataRes.then !== 'function'
+              ? handleData(dataRes)
+              : {
+                  ...routeInfo,
+                  props: {},
+                  dataRes: dataRes.then((props: any) => handleData(props)),
+                }
+          )
+        }
+
+        return this._getData<RouteInfo>(() =>
+          this.getInitialProps(
+            Component,
+            // we provide AppTree later so this needs to be `any`
+            {
+              pathname,
+              query,
+              asPath: as,
+            } as any
+          )
         ).then(props => {
           routeInfo.props = props
           this.components[route] = routeInfo
@@ -658,7 +689,6 @@ export default class Router implements BaseRouter {
         return
       }
 
-      // @ts-ignore pathname is always defined
       const route = toRoute(pathname)
       this.pageLoader.prefetch(route).then(resolve, reject)
     })
@@ -708,11 +738,11 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<object> => {
+  _getStaticData = (asPath: string): Promise<object> | any => {
     const pathname = prepareRoute(parse(asPath).pathname!)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? Promise.resolve(this.sdc[pathname])
+      ? this.sdc[pathname]
       : fetchNextData(pathname, null, data => (this.sdc[pathname] = data))
   }
 

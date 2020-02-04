@@ -52,6 +52,7 @@ import {
   Header,
   getRedirectStatus,
 } from '../../lib/check-custom-routes'
+import { getPrerenderPaths } from '../../build/ssg'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1008,6 +1009,39 @@ export default class Server {
 
       return { html, pageData, sprRevalidate }
     })
+
+    // render fallback if cached data wasn't available in prod
+    // and the page isn't specified in getStaticPaths in dev mode
+    let skipFallback = false
+
+    if (this.renderOpts.dev && result.unstable_getStaticPaths) {
+      const prerenderPaths = await getPrerenderPaths(
+        pathname,
+        result.unstable_getStaticPaths
+      )
+
+      skipFallback = prerenderPaths.includes(req.url || '')
+    }
+
+    if (
+      !skipFallback &&
+      !isResSent(res) &&
+      !isDataReq &&
+      isDynamicRoute(pathname)
+    ) {
+      query.__nextFallback = 'true'
+      let html = ''
+      if (isLikeServerless) {
+        this.prepareServerlessUrl(req, query)
+        html = await (result.Component as any).renderReqToHTML(req, res)
+      }
+      html = (await renderToHTML(req, res, pathname, query, {
+        ...result,
+        ...opts,
+      })) as string
+
+      this.__sendPayload(res, html, 'text/html; charset=utf-8')
+    }
 
     return doRender(ssgCacheKey, []).then(
       async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {

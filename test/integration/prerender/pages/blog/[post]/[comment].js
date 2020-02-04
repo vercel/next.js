@@ -11,6 +11,8 @@ export async function unstable_getStaticPaths() {
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticProps({ params }) {
+  await new Promise(resolve => setTimeout(resolve, 500))
+
   return {
     props: {
       post: params.post,
@@ -22,6 +24,11 @@ export async function unstable_getStaticProps({ params }) {
 }
 
 export default ({ post, comment, time }) => {
+  // we're in a loading state
+  if (!post) {
+    return <p>loading...</p>
+  }
+
   return (
     <>
       <p>Post: {post}</p>
