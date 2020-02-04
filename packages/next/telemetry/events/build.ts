@@ -19,13 +19,32 @@ type EventBuildOptimized = {
   totalPageCount: number
   staticPageCount: number
   ssrPageCount: number
+  hasDunderPages: boolean
+  hasTestPages: boolean
 }
 
+const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
+const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
+const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i
+
 export function eventBuildOptimize(
-  event: EventBuildOptimized
+  pagePaths: string[],
+  event: Omit<
+    EventBuildOptimized,
+    'totalPageCount' | 'hasDunderPages' | 'hasTestPages'
+  >
 ): { eventName: string; payload: EventBuildOptimized } {
   return {
     eventName: EVENT_BUILD_OPTIMIZE,
-    payload: event,
+    payload: {
+      ...event,
+      totalPageCount: pagePaths.length,
+      hasDunderPages: pagePaths.some(path =>
+        REGEXP_DIRECTORY_DUNDER.test(path)
+      ),
+      hasTestPages: pagePaths.some(
+        path => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
+      ),
+    },
   }
 }
