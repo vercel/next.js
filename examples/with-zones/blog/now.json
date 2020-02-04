@@ -1,0 +1,13 @@
+{
+  "build": {
+    "env": {
+      "BUILDING_FOR_NOW": "true"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/blog/_next$1",
+      "destination": "/_next$1"
+    }
+  ]
+}
