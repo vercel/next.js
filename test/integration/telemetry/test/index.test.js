@@ -92,6 +92,19 @@ describe('Telemetry CLI', () => {
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
+  fit('detects tests correctly for `next build`', async () => {
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+
+    console.log(stderr)
+    expect(stderr).toMatch(/hasDunderPages.*?true/)
+    expect(stderr).toMatch(/hasTestPages.*?true/)
+  })
+
   it('detects isSrcDir dir correctly for `next dev`', async () => {
     let port = await findPort()
     let stderr = ''
