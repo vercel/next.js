@@ -47,6 +47,10 @@ By default `next export` doesn't require any configuration. It will generate a d
 
 > To learn more about `exportPathMap` please visit the [documentation for the `exportPathMap` API](/docs/api-reference/next.config.js/exportPathMap.md).
 
+## Deployment
+
+You can read about deploying your Next.js application in the [deployment section](/docs/deployment.md).
+
 ## Caveats
 
 - With `next export`, we build an HTML version of your app. At export time we will run the [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) in your pages. The `req` and `res` fields of the [`context`](/docs/api-reference/data-fetching/getInitialProps.md#context-object) object will be empty objects during export as there is no server running.
