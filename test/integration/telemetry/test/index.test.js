@@ -108,8 +108,13 @@ describe('Telemetry CLI', () => {
       path.join(appDir, 'pages', 'hello.test.skip')
     )
 
-    expect(stderr).toMatch(/hasDunderPages.*?true/)
-    expect(stderr).toMatch(/hasTestPages.*?true/)
+    const event1 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event1).toMatch(/hasDunderPages.*?true/)
+    expect(event1).toMatch(/hasTestPages.*?true/)
+
+    const event2 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event2).toMatch(/hasDunderPages.*?true/)
+    expect(event2).toMatch(/hasTestPages.*?true/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
