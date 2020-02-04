@@ -47,6 +47,8 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
+> Choose `packages/web-app` as root directory when deploying.
+
 ## The idea behind the example
 
 Stencil is a compiler that generates Web Components (more specifically, Custom Elements). Stencil combines the best concepts of the most popular frameworks into a simple build-time tool.
