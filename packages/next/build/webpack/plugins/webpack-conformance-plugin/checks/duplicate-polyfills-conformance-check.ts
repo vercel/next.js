@@ -17,19 +17,20 @@ import {
   isNodeCreatingScriptElement,
   reducePropsToObject,
 } from '../utils/ast-utils'
-export const ErrorMessage: string = `${CONFORMANCE_ERROR_PREFIX}: A sync script was found in a react module.`
-export const WarningMessage: string = `${CONFORMANCE_ERROR_PREFIX}: A sync script was found in a react module.`
-export const ErrorDescription = ``
 
-function getErrorMessage(property: string, request: string): string {
-  return `${CONFORMANCE_WARNING_PREFIX}: Found a ${property} polyfill in ${getLocalFileName(
+function getMessage(
+  property: string,
+  request: string,
+  isWarning: Boolean = false
+): string {
+  if (isWarning) {
+    return `${CONFORMANCE_WARNING_PREFIX}: Found a ${property} polyfill in ${getLocalFileName(
+      request
+    )}.`
+  }
+  return `${CONFORMANCE_ERROR_PREFIX}: Found a ${property} polyfill in ${getLocalFileName(
     request
   )}.`
-  // Uncomment this when we are ready to throw error from the conformance system;
-  // if (isWarning) {
-  //   return `${CONFORMANCE_WARNING_PREFIX}: Found a ${property} polyfill in ${getLocalFileName(request)}.`;
-  // }
-  // return `${CONFORMANCE_ERROR_PREFIX}: Found a ${property} polyfill in ${getLocalFileName(request)}.`;
 }
 
 export interface DuplicatePolyfillsConformanceTestSettings {
@@ -45,7 +46,6 @@ export class DuplicatePolyfillsConformanceTest
     this.BlockedAPIs = options.BlockedAPIToBePolyfilled || []
   }
   public getAstNode(): IGetAstNodeResult[] {
-    // const meta:any = {};
     const EARLY_EXIT_SUCCESS_RESULT: IConformanceTestResult = {
       result: IConformanceTestStatus.SUCCESS,
     }
@@ -58,6 +58,11 @@ export class DuplicatePolyfillsConformanceTest
         ): IConformanceTestResult => {
           const { node } = path
           const left = node.left as namedTypes.MemberExpression
+          /**
+           * We're only interested in code like `foo.fetch = bar;`.
+           * For anything else we exit with a success.
+           * Also foo in foo.bar needs to be either Identifier or `this` and not someFunction().fetch;
+           */
           if (
             left.type !== 'MemberExpression' ||
             !BANNED_LEFT_OBJECT_TYPES.includes(left.object.type) ||
@@ -69,6 +74,8 @@ export class DuplicatePolyfillsConformanceTest
             return EARLY_EXIT_SUCCESS_RESULT
           }
           /**
+           * Here we know the code is `foo.(fetch/URL) = something.
+           * If foo === this/self, fail it immediately.
            * check for this.[fetch|URL(...BlockedAPIs)]/ self.[fetch|URL(...BlockedAPIs)]
            **/
           if (isNodeThisOrSelf(left.object)) {
@@ -76,7 +83,7 @@ export class DuplicatePolyfillsConformanceTest
               result: IConformanceTestStatus.FAILED,
               warnings: [
                 {
-                  message: getErrorMessage(left.property.name, request),
+                  message: getMessage(left.property.name, request),
                 },
               ],
             }
@@ -109,7 +116,7 @@ export class DuplicatePolyfillsConformanceTest
                 result: IConformanceTestStatus.FAILED,
                 warnings: [
                   {
-                    message: getErrorMessage(left.property.name, request),
+                    message: getMessage(left.property.name, request),
                   },
                 ],
               }
@@ -119,7 +126,7 @@ export class DuplicatePolyfillsConformanceTest
               originPath.parentPath.firstInStatement()
             ) {
               /**
-               * We do not know what will be the value of this param at runtime so we just throw an error.
+               * We do not know what will be the value of this param at runtime so we just throw a warning.
                * ```
                * (function(scope){
                *  ....
@@ -131,7 +138,7 @@ export class DuplicatePolyfillsConformanceTest
                 result: IConformanceTestStatus.FAILED,
                 warnings: [
                   {
-                    message: getErrorMessage(left.property.name, request),
+                    message: getMessage(left.property.name, request, true),
                   },
                 ],
               }
