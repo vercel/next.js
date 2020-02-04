@@ -770,9 +770,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const analysisEnd = process.hrtime(analysisBegin)
   telemetry.record(
-    eventBuildOptimize({
+    eventBuildOptimize(pagePaths, {
       durationInSeconds: analysisEnd[0],
-      totalPageCount: pagePaths.length,
       staticPageCount: staticPages.size,
       ssrPageCount: pagePaths.length - staticPages.size,
     })
