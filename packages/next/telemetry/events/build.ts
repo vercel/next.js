@@ -23,8 +23,9 @@ type EventBuildOptimized = {
   hasTestPages: boolean
 }
 
-const DUNDER_PAGES = /^[\\/]__generated__[\\/]/
-const TEST_PAGES = /^[\\/]__(tests|mocks)__[\\/]/
+const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<!tests|mocks)__[\\/]/
+const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/
+
 const TEST_FILE = /\.(spec|test)\.[jt]sx?$/
 
 export function eventBuildOptimize(
@@ -39,9 +40,11 @@ export function eventBuildOptimize(
     payload: {
       ...event,
       totalPageCount: pagePaths.length,
-      hasDunderPages: pagePaths.some(path => DUNDER_PAGES.test(path)),
+      hasDunderPages: pagePaths.some(path =>
+        REGEXP_DIRECTORY_DUNDER.test(path)
+      ),
       hasTestPages: pagePaths.some(
-        path => TEST_PAGES.test(path) || TEST_FILE.test(path)
+        path => REGEXP_DIRECTORY_TESTS.test(path) || TEST_FILE.test(path)
       ),
     },
   }
