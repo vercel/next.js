@@ -92,7 +92,7 @@ describe('Telemetry CLI', () => {
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
-  fit('detects tests correctly for `next build`', async () => {
+  it('detects tests correctly for `next build`', async () => {
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
