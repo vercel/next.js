@@ -48,6 +48,8 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
+> Choose `packages/web-app` as root directory when deploying.
+
 ## Useful Links
 
 - [Documentation](https://yarnpkg.com/en/docs/workspaces)
