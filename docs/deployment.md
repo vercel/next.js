@@ -1,5 +1,5 @@
 ---
-description: Compile and deploy your Next.js app to production with ZEIT Now and other hosting alternatives.
+description: Deploy your Next.js app to production with ZEIT Now and other hosting options.
 ---
 
 # Deployment
