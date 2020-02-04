@@ -1,5 +1,6 @@
 import React, { useRef, useState, Suspense } from 'react'
 import { Canvas, useFrame } from 'react-three-fiber'
+import './index.css'
 
 const Box = props => {
   const mesh = useRef()
@@ -27,34 +28,8 @@ const Box = props => {
   )
 }
 
-const BirdsPage = props => {
+const BirdsPage = () => {
   return [
-    <style jsx global>
-      {`
-        body {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-          height: 100vh;
-          background: lavender;
-        }
-
-        canvas {
-          width: 100%;
-          height: 100vh;
-        }
-      `}
-    </style>,
-    <style jsx>
-      {`
-        h1 {
-          display: flex;
-          justify-content: center;
-          align-content: center;
-          color: hotpink;
-        }
-      `}
-    </style>,
     <h1>Click on me - Hover me :)</h1>,
     <Canvas camera={{ position: [0, 0, 35] }}>
       <ambientLight intensity={2} />

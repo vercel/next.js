@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, Suspense } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame, useLoader } from 'react-three-fiber'
+import './index.css'
 
 let GLTFLoader
 
@@ -70,22 +71,6 @@ const BirdsPage = props => {
   }, [])
   return (
     <>
-      <style jsx global>
-        {`
-          body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100vh;
-            background: lavender;
-          }
-
-          canvas {
-            width: 100%;
-            height: 100vh;
-          }
-        `}
-      </style>
       <Canvas camera={{ position: [0, 0, 35] }}>
         <ambientLight intensity={2} />
         <pointLight position={[40, 40, 40]} />
