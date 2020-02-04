@@ -61,6 +61,12 @@ function runTests(dev) {
     expect(html).toMatch(/blog post.*321.*comment.*123/i)
   })
 
+  it('should not error when requesting dynamic page with /api', async () => {
+    const res = await fetchViaHTTP(appPort, '/api')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toMatch(/this is.*?api/i)
+  })
+
   it('should render dynamic route with query', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-post-1-with-query').click()
@@ -81,6 +87,12 @@ function runTests(dev) {
     } finally {
       if (browser) await browser.close()
     }
+  })
+
+  it('should allow calling Router.push on mount successfully', async () => {
+    const browser = await webdriver(appPort, '/post-1/on-mount-redir')
+    waitFor(2000)
+    expect(await browser.elementByCss('h3').text()).toBe('My blog')
   })
 
   // it('should navigate optional dynamic page', async () => {
@@ -419,6 +431,7 @@ function runTests(dev) {
 
       expect(manifest).toEqual({
         version: 1,
+        pages404: false,
         basePath: '',
         headers: [],
         rewrites: [],
@@ -455,6 +468,12 @@ function runTests(dev) {
           {
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
+          },
+          {
+            page: '/[name]/on-mount-redir',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
+            ),
           },
           {
             page: '/[name]/[comment]',
@@ -507,7 +526,10 @@ describe('Dynamic Routing', () => {
   })
 
   describe('serverless mode', () => {
+    let origNextConfig
+
     beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
@@ -526,7 +548,10 @@ describe('Dynamic Routing', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
     runTests()
   })
 })

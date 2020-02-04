@@ -28,9 +28,6 @@ After creating an app, it should look something like:
 ```
 .
 ├── README.md
-├── components
-│   ├── head.js
-│   └── nav.js
 ├── node_modules
 │   ├── [...]
 ├── package.json
@@ -54,7 +51,7 @@ Out of the box, we get:
 - Server rendering and indexing of `./pages/`
 - Static file serving. `./public/` is mapped to `/`
 
-Read more about [Next's Routing](https://github.com/zeit/next.js#routing)
+Read more about [Next's Routing](https://nextjs.org/docs/routing/introduction)
 
 ## Available Scripts
 
@@ -78,7 +75,7 @@ It correctly bundles React in production mode and optimizes the build for the be
 Starts the application in production mode.
 The application should be compiled with \`next build\` first.
 
-See the section in Next docs about [deployment](https://github.com/zeit/next.js/wiki/Deployment) for more information.
+See the section in Next docs about [deployment](https://nextjs.org/docs/deployment) for more information.
 
 ## Using CSS
 
@@ -107,7 +104,7 @@ export default () => (
 )
 ```
 
-Read more about [Next's CSS features](https://github.com/zeit/next.js#css).
+Read more about [Next's CSS features](https://nextjs.org/docs/basic-features/built-in-css-support).
 
 ## Adding Components
 
@@ -147,7 +144,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `./pages/`._
 
-Read more about [fetching data and the component lifecycle](https://github.com/zeit/next.js#fetching-data-and-component-lifecycle)
+Read more about [fetching data and the component lifecycle](https://nextjs.org/docs/basic-features/data-fetching)
 
 ## Syntax Highlighting
 
@@ -155,7 +152,7 @@ To configure the syntax highlighting in your favorite text editor, head to the [
 
 ## Deploy to Now
 
-[now](https://zeit.co/now) offers a zero-configuration single-command deployment.
+[ZEIT Now](https://zeit.co/home?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App) offers a zero-configuration single-command deployment.
 
 1.  Install the `now` command-line tool either via npm `npm install -g now` or Yarn `yarn global add now`.
 
@@ -167,7 +164,7 @@ To configure the syntax highlighting in your favorite text editor, head to the [
 
     Paste that URL into your browser when the build is complete, and you will see your deployed app.
 
-You can find more details about [`now` here](https://zeit.co/now).
+You can find more details about [`ZEIT Now` here](https://zeit.co/home?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App).
 
 ## Something Missing?
 

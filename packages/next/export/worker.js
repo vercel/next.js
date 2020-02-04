@@ -214,7 +214,7 @@ export default async function({
     }
 
     if (curRenderOpts.inAmpMode) {
-      await validateAmp(html, path, curRenderOpts.ampValidator)
+      await validateAmp(html, path, curRenderOpts.ampValidatorPath)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
       let ampHtmlFilename = `${ampPath}${sep}index.html`

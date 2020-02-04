@@ -92,6 +92,31 @@ describe('Telemetry CLI', () => {
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
+  it('detects tests correctly for `next build`', async () => {
+    await fs.rename(
+      path.join(appDir, 'pages', 'hello.test.skip'),
+      path.join(appDir, 'pages', 'hello.test.js')
+    )
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    await fs.rename(
+      path.join(appDir, 'pages', 'hello.test.js'),
+      path.join(appDir, 'pages', 'hello.test.skip')
+    )
+
+    const event1 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event1).toMatch(/hasDunderPages.*?true/)
+    expect(event1).toMatch(/hasTestPages.*?true/)
+
+    const event2 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event2).toMatch(/hasDunderPages.*?true/)
+    expect(event2).toMatch(/hasTestPages.*?true/)
+  })
+
   it('detects isSrcDir dir correctly for `next dev`', async () => {
     let port = await findPort()
     let stderr = ''
