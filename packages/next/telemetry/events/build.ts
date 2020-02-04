@@ -23,10 +23,10 @@ type EventBuildOptimized = {
   hasTestPages: boolean
 }
 
-const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<!tests|mocks)__[\\/]/
-const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/
+const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
+const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
 
-const TEST_FILE = /\.(spec|test)\.[jt]sx?$/
+const TEST_FILE = /\.(spec|test)\.[jt]sx?$/i
 
 export function eventBuildOptimize(
   pagePaths: string[],
