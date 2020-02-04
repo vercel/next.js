@@ -25,8 +25,7 @@ type EventBuildOptimized = {
 
 const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
-
-const TEST_FILE = /\.(spec|test)\.[jt]sx?$/i
+const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i
 
 export function eventBuildOptimize(
   pagePaths: string[],
@@ -44,7 +43,7 @@ export function eventBuildOptimize(
         REGEXP_DIRECTORY_DUNDER.test(path)
       ),
       hasTestPages: pagePaths.some(
-        path => REGEXP_DIRECTORY_TESTS.test(path) || TEST_FILE.test(path)
+        path => REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
     },
   }
