@@ -311,6 +311,17 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
+  const isModuleCSS = (module: { type: string }): boolean => {
+    return (
+      // mini-css-extract-plugin
+      module.type === `css/mini-extract` ||
+      // extract-css-chunks-webpack-plugin (old)
+      module.type === `css/extract-chunks` ||
+      // extract-css-chunks-webpack-plugin (new)
+      module.type === `css/extract-css-chunks`
+    )
+  }
+
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
     [propName: string]: webpack.Options.SplitChunksOptions
@@ -368,14 +379,7 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (
-              // mini-css-extract-plugin
-              module.type === `css/mini-extract` ||
-              // extract-css-chunks-webpack-plugin (old)
-              module.type === `css/extract-chunks` ||
-              // extract-css-chunks-webpack-plugin (new)
-              module.type === `css/extract-css-chunks`
-            ) {
+            if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -400,17 +404,19 @@ export default async function getBaseWebpackConfig(
         },
         shared: {
           name(module, chunks) {
-            return crypto
-              .createHash('sha1')
-              .update(
-                chunks.reduce(
-                  (acc: string, chunk: webpack.compilation.Chunk) => {
-                    return acc + chunk.name
-                  },
-                  ''
+            return (
+              crypto
+                .createHash('sha1')
+                .update(
+                  chunks.reduce(
+                    (acc: string, chunk: webpack.compilation.Chunk) => {
+                      return acc + chunk.name
+                    },
+                    ''
+                  )
                 )
-              )
-              .digest('hex')
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
+            )
           },
           priority: 10,
           minChunks: 2,
