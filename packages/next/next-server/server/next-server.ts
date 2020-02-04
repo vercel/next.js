@@ -1,5 +1,6 @@
 import compression from 'compression'
 import fs from 'fs'
+import Proxy from 'http-proxy'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
 import { compile as compilePathToRegex } from 'path-to-regexp'
@@ -451,7 +452,7 @@ export default class Server {
             type: route.type,
             statusCode: (route as Redirect).statusCode,
             name: `${route.type} ${route.source} route`,
-            fn: async (_req, res, params, _parsedUrl) => {
+            fn: async (req, res, params, _parsedUrl) => {
               const parsedDestination = parseUrl(route.destination, true)
               const destQuery = parsedDestination.query
               let destinationCompiler = compilePathToRegex(
@@ -485,15 +486,15 @@ export default class Server {
                 throw err
               }
 
-              if (route.type === 'redirect') {
-                const parsedNewUrl = parseUrl(newUrl)
-                const updatedDestination = formatUrl({
-                  ...parsedDestination,
-                  pathname: parsedNewUrl.pathname,
-                  hash: parsedNewUrl.hash,
-                  search: undefined,
-                })
+              const parsedNewUrl = parseUrl(newUrl)
+              const updatedDestination = formatUrl({
+                ...parsedDestination,
+                pathname: parsedNewUrl.pathname,
+                hash: parsedNewUrl.hash,
+                search: undefined,
+              })
 
+              if (route.type === 'redirect') {
                 res.setHeader('Location', updatedDestination)
                 res.statusCode = getRedirectStatus(route as Redirect)
 
@@ -508,7 +509,26 @@ export default class Server {
                   finished: true,
                 }
               } else {
-                ;(_req as any)._nextDidRewrite = true
+                // external rewrite, proxy it
+                if (parsedDestination.protocol) {
+                  const proxy = new Proxy({
+                    target: updatedDestination,
+                    changeOrigin: true,
+                    ignorePath: true,
+                  })
+                  proxy.web(req, res)
+
+                  proxy.on('error', (err: Error) => {
+                    console.error(
+                      `Error occurred proxying ${updatedDestination}`,
+                      err
+                    )
+                  })
+                  return {
+                    finished: true,
+                  }
+                }
+                ;(req as any)._nextDidRewrite = true
               }
 
               return {
