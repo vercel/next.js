@@ -127,8 +127,13 @@ export default function checkCustomRoutes(
         invalidParts.push('`destination` is missing')
       } else if (typeof _route.destination !== 'string') {
         invalidParts.push('`destination` is not a string')
-      } else if (type === 'rewrite' && !_route.destination.startsWith('/')) {
-        invalidParts.push('`destination` does not start with /')
+      } else if (
+        type === 'rewrite' &&
+        !_route.destination.match(/^(\/|https:\/\/|http:\/\/)/)
+      ) {
+        invalidParts.push(
+          '`destination` does not start with `/`, `http://`, or `https://`'
+        )
       }
     }
 
