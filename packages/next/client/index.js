@@ -318,11 +318,23 @@ function renderReactElement(reactEl, domEl) {
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(onPerfEntry)
       })
-      // Start observing paint entry types.
-      observer.observe({
-        type: 'paint',
-        buffered: true,
-      })
+      function getObservableTypes(types) {
+        if (PerformanceObserver && PerformanceObserver.supportedEntryTypes) {
+          return types.filter(type =>
+            PerformanceObserver.supportedEntryTypes.includes(type)
+          )
+        } else {
+          return []
+        }
+      }
+      function observe(entryTypes) {
+        // Start observing paint entry types.
+        observer.observe({
+          type: getObservableTypes(entryTypes),
+          buffered: true,
+        })
+      }
+      observe(['paint', 'largest-contentful-paint', 'layout-shift'])
     } catch (e) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
