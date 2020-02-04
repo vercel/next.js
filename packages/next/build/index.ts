@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
@@ -11,14 +12,14 @@ import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
   getRedirectStatus,
-  RouteType,
+  Header,
   Redirect,
   Rewrite,
-  Header,
+  RouteType,
 } from '../lib/check-custom-routes'
 import {
-  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   PAGES_404_GET_INITIAL_PROPS_ERROR,
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -44,7 +45,7 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import {
-  eventBuildDuration,
+  eventBuildCompleted,
   eventBuildOptimize,
   eventNextPlugins,
   eventVersion,
@@ -56,17 +57,16 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
-  isPageStatic,
   collectPages,
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
+  isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import escapeStringRegexp from 'escape-string-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -394,8 +394,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     console.log(chalk.green('Compiled successfully.\n'))
     telemetry.record(
-      eventBuildDuration({
-        totalPageCount: pagePaths.length,
+      eventBuildCompleted(pagePaths, {
         durationInSeconds: webpackBuildEnd[0],
       })
     )
