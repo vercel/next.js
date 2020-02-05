@@ -1,4 +1,5 @@
 import React from 'react'
+import App from 'next/app'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient } from 'apollo-client'
@@ -36,6 +37,10 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
       const { AppTree } = ctx
       const inAppContext = Boolean(ctx.ctx)
 
+      if (ctx.apolloClient) {
+        throw new Error('Multiple instances of withApollo found.')
+      }
+
       // Initialize ApolloClient
       const apolloClient = initApolloClient()
 
@@ -51,6 +56,8 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
       let pageProps = {}
       if (PageComponent.getInitialProps) {
         pageProps = await PageComponent.getInitialProps(ctx)
+      } else if (inAppContext) {
+        pageProps = await App.getInitialProps(ctx)
       }
 
       // Only on the server:
