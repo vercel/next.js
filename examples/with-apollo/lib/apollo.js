@@ -36,19 +36,6 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
       const { AppTree } = ctx
       const inAppContext = Boolean(ctx.ctx)
 
-      if (process.env.NODE_ENV === 'development') {
-        if (inAppContext) {
-          console.warn(
-            'Warning: You have opted-out of Automatic Static Optimization due to `withApollo` in `pages/_app`.\n' +
-              'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
-          )
-        }
-      }
-
-      if (ctx.apolloClient) {
-        throw new Error('Multiple instances of withApollo found.')
-      }
-
       // Initialize ApolloClient
       const apolloClient = initApolloClient()
 
