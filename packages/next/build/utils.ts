@@ -531,9 +531,18 @@ export async function isPageStatic(
       )
     }
 
-    let prerenderPaths: string[] | undefined
+    let prerenderPaths: Set<string> | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderPaths = [] as string[]
+      prerenderPaths = new Set()
+
+      const addPrerenderPath = (entry: string) => {
+        if (prerenderPaths?.has(entry)) {
+          console.warn(
+            `Warning: duplicate entry returned in getStaticPaths of \`${page}\` \`${entry}\``
+          )
+        }
+        prerenderPaths?.add(entry)
+      }
 
       const _routeRegex = getRouteRegex(page)
       const _routeMatcher = getRouteMatcher(_routeRegex)
@@ -555,7 +564,7 @@ export async function isPageStatic(
             )
           }
 
-          prerenderPaths!.push(entry)
+          addPrerenderPath(entry)
         }
         // For the object-provided path, we must make sure it specifies all
         // required keys.
@@ -598,7 +607,7 @@ export async function isPageStatic(
             )
           })
 
-          prerenderPaths!.push(builtPage)
+          addPrerenderPath(builtPage)
         }
       })
     }
@@ -607,7 +616,7 @@ export async function isPageStatic(
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes: prerenderPaths,
+      prerenderRoutes: prerenderPaths && [...prerenderPaths],
       hasStaticProps,
       hasServerProps,
     }
