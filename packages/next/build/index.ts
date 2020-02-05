@@ -31,6 +31,7 @@ import {
   EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  PHASE_DEVELOPMENT_BUILD,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -98,14 +99,22 @@ export type PrerenderManifest = {
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
 }
 
-export default async function build(dir: string, conf = null): Promise<void> {
+export default async function build(
+  dir: string,
+  devBuild: Boolean,
+  conf = null
+): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
 
-  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const config = loadConfig(
+    devBuild ? PHASE_DEVELOPMENT_BUILD : PHASE_PRODUCTION_BUILD,
+    dir,
+    conf
+  )
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
@@ -289,6 +298,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      dev: devBuild,
       isServer: false,
       config,
       target,
@@ -298,6 +308,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     getBaseWebpackConfig(dir, {
       tracer,
       buildId,
+      dev: devBuild,
       isServer: true,
       config,
       target,
@@ -422,7 +433,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   let customAppGetInitialProps: boolean | undefined
 
-  process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
+  process.env.NEXT_PHASE = devBuild
+    ? PHASE_DEVELOPMENT_BUILD
+    : PHASE_PRODUCTION_BUILD
 
   const staticCheckWorkers = new Worker(staticCheckWorker, {
     numWorkers: config.experimental.cpus,
