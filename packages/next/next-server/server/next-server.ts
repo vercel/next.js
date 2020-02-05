@@ -52,6 +52,7 @@ import {
   Header,
   getRedirectStatus,
 } from '../../lib/check-custom-routes'
+import { normalizePagePath } from './normalize-page-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -815,7 +816,7 @@ export default class Server {
         return await loadComponents(
           this.distDir,
           this.buildId,
-          (pathname === '/' ? '/index' : pathname) + '.amp',
+          normalizePagePath(pathname) + '.amp',
           serverless
         )
       } catch (err) {

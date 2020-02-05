@@ -555,11 +555,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     routesManifest.serverPropsRoutes = {}
 
     for (const page of serverPropsPages) {
-      const normalizedPage = normalizePagePath(page)
+      const pagePath = normalizePagePath(page)
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${normalizedPage}.json`
+        `${pagePath}.json`
       )
 
       routesManifest.serverPropsRoutes[page] = {
@@ -573,7 +573,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               `^${path.posix.join(
                 '/_next/data',
                 escapeStringRegexp(buildId),
-                `${normalizedPage}.json`
+                `${pagePath}.json`
               )}$`
             ).source,
       }
