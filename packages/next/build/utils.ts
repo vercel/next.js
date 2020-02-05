@@ -586,7 +586,7 @@ export async function isPageStatic(
               throw new Error(
                 `A required parameter (${validParamKey}) was not provided as ${
                   repeat ? 'an array' : 'a string'
-                }.`
+                } in unstable_getStaticPaths for ${page}`
               )
             }
 
