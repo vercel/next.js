@@ -34,10 +34,18 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
   if (ssr || PageComponent.getInitialProps) {
     WithApollo.getInitialProps = async ctx => {
       const { AppTree } = ctx
+      const inAppContext = Boolean(ctx.ctx)
 
-      // Initialize ApolloClient, add it to the ctx object so
-      // we can use it in `PageComponent.getInitialProp`.
-      const apolloClient = (ctx.apolloClient = initApolloClient())
+      // Initialize ApolloClient
+      const apolloClient = initApolloClient()
+
+      // Add apolloClient to NextPageContext & NextAppContext
+      // This allows us to consume the apolloClient inside our
+      // custom `getInitialProps({ apolloClient })`.
+      ctx.apolloClient = apolloClient
+      if (inAppContext) {
+        ctx.ctx.apolloClient = apolloClient
+      }
 
       // Run wrapped getInitialProps methods
       let pageProps = {}
@@ -61,7 +69,6 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
 
             // Since AppComponents and PageComponents have different context types
             // we need to modify their props a little.
-            const inAppContext = Boolean(ctx.ctx)
             let props
             if (inAppContext) {
               props = { ...pageProps, apolloClient }
