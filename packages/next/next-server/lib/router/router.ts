@@ -426,8 +426,6 @@ export default class Router implements BaseRouter {
         if ((routeInfo as any).dataRes) {
           const dataRes = (routeInfo as any).dataRes as Promise<RouteInfo>
           // race loading state timeout with data response
-          // if loading state wins we leave it for 50 ms even if data
-          // is 1ms after loading state timeout
 
           Promise.race([
             new Promise(resolve => setTimeout(() => resolve(false), 110)),
