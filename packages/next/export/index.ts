@@ -33,6 +33,7 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -352,7 +353,7 @@ export default async function(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async route => {
-        route = route === '/' ? '/index' : route
+        route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
         const htmlDest = join(
           outDir,

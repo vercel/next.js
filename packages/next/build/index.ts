@@ -67,6 +67,7 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -435,7 +436,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
-      const actualPage = page === '/' ? '/index' : page
+      const actualPage = normalizePagePath(page)
       const [selfSize, allSize] = await getPageSizeInKb(
         actualPage,
         distDir,
@@ -554,10 +555,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     routesManifest.serverPropsRoutes = {}
 
     for (const page of serverPropsPages) {
+      const pagePath = normalizePagePath(page)
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${page === '/' ? '/index' : page}.json`
+        `${pagePath}.json`
       )
 
       routesManifest.serverPropsRoutes[page] = {
@@ -571,7 +573,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               `^${path.posix.join(
                 '/_next/data',
                 escapeStringRegexp(buildId),
-                `${page === '/' ? '/index' : page}.json`
+                `${pagePath}.json`
               )}$`
             ).source,
       }
@@ -709,7 +711,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
       const isDynamic = isDynamicRoute(page)
-      let file = page === '/' ? '/index' : page
+      const file = normalizePagePath(page)
       // The dynamic version of SSG pages are not prerendered. Below, we handle
       // the specific prerenders of these.
       if (!(isSsg && isDynamic)) {
@@ -729,11 +731,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             initialRevalidateSeconds:
               exportConfig.initialPageRevalidationMap[page],
             srcRoute: null,
-            dataRoute: path.posix.join(
-              '/_next/data',
-              buildId,
-              `${page === '/' ? '/index' : page}.json`
-            ),
+            dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
         } else {
           // For a dynamic SSG page, we did not copy its html nor data exports.
@@ -750,7 +748,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               dataRoute: path.posix.join(
                 '/_next/data',
                 buildId,
-                `${route === '/' ? '/index' : route}.json`
+                `${normalizePagePath(route)}.json`
               ),
             }
           }
@@ -783,7 +781,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
+        `${normalizePagePath(tbdRoute)}.json`
       )
 
       finalDynamicRoutes[tbdRoute] = {
