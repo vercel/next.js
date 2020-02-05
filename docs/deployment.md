@@ -6,7 +6,7 @@ description: Deploy your Next.js app to production with ZEIT Now and other hosti
 
 ## ZEIT Now (Recommended)
 
-The easiest way to deploy Next.js to production is using the **[ZEIT Now platform](https://zeit.co)** from the creators of Next.js. [ZEIT Now](https://zeit.co) is an all-in-one platform with global CDN that supports as static & JAMstack deployment and serverless functions.
+The easiest way to deploy Next.js to production is using the **[ZEIT Now platform](https://zeit.co)** from the creators of Next.js. [ZEIT Now](https://zeit.co) is an all-in-one platform with Global CDN supporting static & JAMstack deployment and serverless functions.
 
 ### Getting started
 
@@ -35,7 +35,7 @@ By using the DPS workflow, instead of doing _code reviews_, your can do _deploym
 
 ### Optimized for Next.js
 
-[ZEIT Now](https://zeit.co) is made by the creators of Next.js. That means it has various optimizations specifically for Next.js.
+[ZEIT Now](https://zeit.co) is made by the creators of Next.js and has first-class support for Next.js.
 
 For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully supported out of the box.
 
@@ -43,10 +43,11 @@ For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully
 - Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts etc) will automatically be served from the [ZEIT Now Smart CDN](https://zeit.co/smart-cdn), which is blazingly fast.
 - Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated serverless functions. This allows page rendering and API requests to scale infinitely.
 
-### Custom Domains, Environment Variables, and more
+### Custom Domains, Environment Variables, Automatic HTTPS, and more
 
-- **Custom Domains:** Once deployed on [ZEIT Now](https://zeit.co), you can assign a custom domain to your Next.js app. Take a look at [our documentation here](https://zeit.co/docs/v2/custom-domains). Note that HTTPS is enabled by default (including custom domains) and doesn't require extra configuration.
+- **Custom Domains:** Once deployed on [ZEIT Now](https://zeit.co), you can assign a custom domain to your Next.js app. Take a look at [our documentation here](https://zeit.co/docs/v2/custom-domains).
 - **Environment Variables:** You can also set environment variables on ZEIT Now. Take a look at [our documentation here](https://zeit.co/docs/v2/build-step#using-environment-variables-and-secrets). You can then [use those environment variables](/docs/api-reference/next.config.js/environment-variables.md) in your Next.js app.
+- **Automatic HTTPS:** HTTPS is enabled by default (including custom domains) and doesn't require extra configuration. We auto-renew SSL certificates.
 - **More:** [Read our documentation](https://zeit.co/docs) to learn more about the ZEIT Now platform. You can deploy non-Next.js apps to ZEIT Now as well—[check out our how-to guides](https://zeit.co/guides).
 
 ## Other hosting options
