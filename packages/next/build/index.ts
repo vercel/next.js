@@ -748,7 +748,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               dataRoute: path.posix.join(
                 '/_next/data',
                 buildId,
-                `${file}.json`
+                `${normalizePagePath(route)}.json`
               ),
             }
           }
