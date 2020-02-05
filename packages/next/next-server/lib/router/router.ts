@@ -500,7 +500,7 @@ export default class Router implements BaseRouter {
         }
 
         const isSSG = (Component as any).__N_SSG
-        const isSSP = (Component as any).__N_SSG
+        const isSSP = (Component as any).__N_SSP
 
         const handleData = (props: any) => {
           routeInfo.props = props
@@ -510,6 +510,7 @@ export default class Router implements BaseRouter {
 
         // if we have data in cache resolve with the data
         // if not we we resolve with fallback routeInfo
+
         if (isSSG || isSSP) {
           const dataRes = isSSG
             ? this._getStaticData(as)
@@ -521,7 +522,9 @@ export default class Router implements BaseRouter {
               : {
                   ...routeInfo,
                   props: {},
-                  dataRes: dataRes.then((props: any) => handleData(props)),
+                  dataRes: this._getData(() =>
+                    dataRes.then((props: any) => handleData(props))
+                  ),
                 }
           )
         }
@@ -536,11 +539,7 @@ export default class Router implements BaseRouter {
               asPath: as,
             } as any
           )
-        ).then(props => {
-          routeInfo.props = props
-          this.components[route] = routeInfo
-          return routeInfo
-        })
+        ).then(props => handleData(props))
       })
       .catch(err => {
         return new Promise(resolve => {

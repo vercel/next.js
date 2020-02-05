@@ -648,8 +648,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             tbdPrerenderRoutes.push(page)
             // set __nextFallback query so render doesn't call
             // getStaticProps/getServerProps
-            defaultMap[page].query = { __nextFallback: true }
-            console.log('set fallback page')
+            defaultMap[page] = { page, query: { __nextFallback: true } }
           }
         })
         // Append the "well-known" routes we should prerender for, e.g. blog

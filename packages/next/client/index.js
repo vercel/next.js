@@ -96,9 +96,28 @@ class Container extends React.Component {
         })
     }
 
+    // call router.replace to trigger data fetching while
+    // the fallback is shown
+
+    if (data.isFallback) {
+      router.replace(
+        {
+          pathname: page,
+          query: {
+            ...router.query,
+            ...parseQs(location.search.substr(1)),
+          },
+        },
+        asPath,
+        { _h: 1 }
+      )
+    }
+
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
+
     if (
+      !data.isFallback &&
       router.isSsr &&
       ((data.nextExport &&
         (isDynamicRoute(router.pathname) || location.search)) ||
@@ -203,12 +222,6 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     },
   })
 
-  // call router.replace to trigger data fetching while
-  // the fallback is shown
-  if (data.isFallback) {
-    router.replace({ pathname: page, query }, asPath)
-  }
-
   // call init-client middleware
   if (process.env.__NEXT_PLUGINS) {
     // eslint-disable-next-line
@@ -224,6 +237,12 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const renderCtx = { App, Component, props, err: initialErr }
 
   if (process.env.NODE_ENV === 'production') {
+    // kick off static data request now so it's in the cache
+    // when we re-render post-hydration
+    if (data.isFallback) {
+      router._getStaticData(asPath).catch(() => {})
+    }
+
     render(renderCtx)
     return emitter
   }
