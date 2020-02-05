@@ -289,7 +289,7 @@ export default function onDemandEntryHandler(
         .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
       pageUrl = pageUrl === '' ? '/' : pageUrl
-      const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
+      const bundleFile = `${normalizePagePath(pageUrl)}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
