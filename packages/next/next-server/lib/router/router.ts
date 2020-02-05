@@ -427,8 +427,10 @@ export default class Router implements BaseRouter {
 
         if ((routeInfo as any).dataRes) {
           const dataRes = (routeInfo as any).dataRes as Promise<RouteInfo>
-          // race loading state timeout with data response
 
+          // to prevent a flash of the fallback page we delay showing it for
+          // 110ms and race the timeout with the data response. If the data
+          // beats the timeout we skip showing the fallback
           Promise.race([
             new Promise(resolve => setTimeout(() => resolve(false), 110)),
             dataRes,
