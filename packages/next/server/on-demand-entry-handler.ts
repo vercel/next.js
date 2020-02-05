@@ -285,9 +285,12 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = `${pagePath[0] !== '/' ? '/' : ''}${pagePath
+      let pageUrl = pagePath.replace(/\\/g, '/')
+
+      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
         .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-        .replace(/\\/g, '/')}`.replace(/\/index$/, '')
+        .replace(/\/index$/, '')}`
+
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
       const bundleFile = `${normalizePagePath(pageUrl)}.js`
