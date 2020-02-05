@@ -285,10 +285,11 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = `/${pagePath
+      let pageUrl = `${pagePath[0] !== '/' ? '/' : ''}${pagePath
         .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
         .replace(/\\/g, '/')}`.replace(/\/index$/, '')
       pageUrl = pageUrl === '' ? '/' : pageUrl
+
       const bundleFile = `${normalizePagePath(pageUrl)}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
