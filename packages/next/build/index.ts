@@ -101,7 +101,7 @@ export type PrerenderManifest = {
 
 export default async function build(
   dir: string,
-  devBuild: Boolean,
+  devBuild: boolean,
   conf = null
 ): Promise<void> {
   if (!(await isWriteable(dir))) {
