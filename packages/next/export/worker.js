@@ -9,6 +9,7 @@ import { loadComponents } from '../next-server/server/load-components'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const envConfig = require('../next-server/lib/runtime-config')
 const writeFileP = promisify(writeFile)
@@ -39,7 +40,7 @@ export default async function({
   try {
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
-    const filePath = path === '/' ? '/index' : path
+    const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
     let query = { ...originalQuery }
     let params

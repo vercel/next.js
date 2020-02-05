@@ -6,6 +6,7 @@ import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { isTargetLikeServerless } from '../next-server/server/config'
 import { warn } from './output/log'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 type PagesMapping = {
   [page: string]: string
@@ -91,7 +92,7 @@ export function createEntrypoints(
 
   Object.keys(pages).forEach(page => {
     const absolutePagePath = pages[page]
-    const bundleFile = page === '/' ? '/index.js' : `${page}.js`
+    const bundleFile = `${normalizePagePath(page)}.js`
     const isApiRoute = page.match(API_ROUTE)
 
     const bundlePath = join('static', buildId, 'pages', bundleFile)
