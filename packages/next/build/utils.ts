@@ -531,9 +531,9 @@ export async function isPageStatic(
       )
     }
 
-    let prerenderPaths: string[] | undefined
+    let prerenderPaths: Set<string> | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderPaths = [] as string[]
+      prerenderPaths = new Set()
 
       const _routeRegex = getRouteRegex(page)
       const _routeMatcher = getRouteMatcher(_routeRegex)
@@ -555,7 +555,7 @@ export async function isPageStatic(
             )
           }
 
-          prerenderPaths!.push(entry)
+          prerenderPaths?.add(entry)
         }
         // For the object-provided path, we must make sure it specifies all
         // required keys.
@@ -598,7 +598,7 @@ export async function isPageStatic(
             )
           })
 
-          prerenderPaths!.push(builtPage)
+          prerenderPaths?.add(builtPage)
         }
       })
     }
@@ -607,7 +607,7 @@ export async function isPageStatic(
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes: prerenderPaths,
+      prerenderRoutes: prerenderPaths && [...prerenderPaths],
       hasStaticProps,
       hasServerProps,
     }
