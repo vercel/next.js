@@ -1,4 +1,5 @@
 import AmpHtmlValidator from 'amphtml-validator'
+import findUp from 'find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, relative } from 'path'
@@ -6,9 +7,9 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import checkCustomRoutes from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -21,13 +22,12 @@ import {
 } from '../next-server/lib/router/utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import Router, { route, Params } from '../next-server/server/router'
-import { eventVersion } from '../telemetry/events'
+import Router, { Params, route } from '../next-server/server/router'
+import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import checkCustomRoutes from '../lib/check-custom-routes'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -230,7 +230,7 @@ export default class DevServer extends Server {
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
-      eventVersion({
+      eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),

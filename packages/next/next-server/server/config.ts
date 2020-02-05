@@ -198,7 +198,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-function normalizeConfig(phase: string, config: any) {
+export function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 
