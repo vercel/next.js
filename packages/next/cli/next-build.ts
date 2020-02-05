@@ -12,8 +12,10 @@ const nextBuild: cliCommand = argv => {
     {
       // Types
       '--help': Boolean,
+      '--development': Boolean,
       // Aliases
       '-h': '--help',
+      '-d': '--development',
     },
     { argv }
   )
@@ -42,7 +44,7 @@ const nextBuild: cliCommand = argv => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  build(dir)
+  build(dir, args['--development'])
     .then(() => process.exit(0))
     .catch(err => {
       // tslint:disable-next-line
