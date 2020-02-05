@@ -535,15 +535,6 @@ export async function isPageStatic(
     if (hasStaticProps && hasStaticPaths) {
       prerenderPaths = new Set()
 
-      const addPrerenderPath = (entry: string) => {
-        if (prerenderPaths?.has(entry)) {
-          console.warn(
-            `Warning: duplicate entry returned in getStaticPaths of \`${page}\` \`${entry}\``
-          )
-        }
-        prerenderPaths?.add(entry)
-      }
-
       const _routeRegex = getRouteRegex(page)
       const _routeMatcher = getRouteMatcher(_routeRegex)
 
@@ -564,7 +555,7 @@ export async function isPageStatic(
             )
           }
 
-          addPrerenderPath(entry)
+          prerenderPaths?.add(entry)
         }
         // For the object-provided path, we must make sure it specifies all
         // required keys.
@@ -607,7 +598,7 @@ export async function isPageStatic(
             )
           })
 
-          addPrerenderPath(builtPage)
+          prerenderPaths?.add(builtPage)
         }
       })
     }
