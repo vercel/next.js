@@ -409,27 +409,43 @@ export default class Router implements BaseRouter {
             !(routeInfo.Component as any).getInitialProps
         }
 
-        this.set(route, pathname, query, as, routeInfo)
+        const doRouteChange = (routeInfo: RouteInfo, emit: boolean) => {
+          this.set(route, pathname, query, as, routeInfo)
 
-        if (error) {
-          Router.events.emit('routeChangeError', error, as)
-          throw error
+          if (emit) {
+            if (error) {
+              Router.events.emit('routeChangeError', error, as)
+              throw error
+            }
+
+            Router.events.emit('routeChangeComplete', as)
+            resolve(true)
+          }
         }
 
-        Router.events.emit('routeChangeComplete', as)
-
         if ((routeInfo as any).dataRes) {
-          return ((routeInfo as any).dataRes as Promise<RouteInfo>).then(
-            routeInfo => {
-              this.set(route, pathname, query, as, routeInfo)
-              // TODO: should we resolve when the fallback is rendered
-              // or when the data is returned and we render with data?
-              resolve(true)
-            },
-            reject
-          )
+          const dataRes = (routeInfo as any).dataRes as Promise<RouteInfo>
+          // race loading state timeout with data response
+          // if loading state wins we leave it for 50 ms even if data
+          // is 1ms after loading state timeout
+
+          Promise.race([
+            new Promise(resolve => setTimeout(() => resolve(false), 110)),
+            dataRes,
+          ])
+            .then((data: any) => {
+              if (!data) {
+                // data didn't win the race, show fallback
+                doRouteChange(routeInfo, false)
+              }
+              return dataRes
+            })
+            .then(finalData => {
+              // render with the data and complete route change
+              doRouteChange(finalData as RouteInfo, true)
+            }, reject)
         } else {
-          return resolve(true)
+          doRouteChange(routeInfo, true)
         }
       }, reject)
     })
