@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
@@ -24,9 +25,13 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
+let externalServerHits = new Set()
+let nextConfigRestoreContent
 let nextConfigContent
-let buildId
+let externalServerPort
+let externalServer
 let stdout = ''
+let buildId
 let appPort
 let app
 
@@ -226,6 +231,13 @@ const runTests = (isDev = false) => {
     const res = await fetchViaHTTP(appPort, '/my-headers/first')
     expect(res.headers.get('x-first-header')).toBe('first')
     expect(res.headers.get('x-second-header')).toBe('second')
+  })
+
+  it('should support proxying to external resource', async () => {
+    const res = await fetchViaHTTP(appPort, '/proxy-me/first')
+    expect(res.status).toBe(200)
+    expect([...externalServerHits]).toEqual(['/first'])
+    expect(await res.text()).toContain('hi from external')
   })
 
   it('should support unnamed parameters correctly', async () => {
@@ -494,6 +506,13 @@ const runTests = (isDev = false) => {
             source: '/hidden/_next/:path*',
           },
           {
+            destination: `http://localhost:${externalServerPort}/:path*`,
+            regex: normalizeRegEx(
+              '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/proxy-me/:path*',
+          },
+          {
             destination: '/api/hello',
             regex: normalizeRegEx('^\\/api-hello$'),
             source: '/api-hello',
@@ -550,6 +569,32 @@ const runTests = (isDev = false) => {
 }
 
 describe('Custom routes', () => {
+  beforeEach(() => {
+    externalServerHits = new Set()
+  })
+  beforeAll(async () => {
+    externalServerPort = await findPort()
+    externalServer = http.createServer((req, res) => {
+      externalServerHits.add(req.url)
+      res.end('hi from external')
+    })
+    await new Promise((resolve, reject) => {
+      externalServer.listen(externalServerPort, error => {
+        if (error) return reject(error)
+        resolve()
+      })
+    })
+    nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
+    await fs.writeFile(
+      nextConfigPath,
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+    )
+  })
+  afterAll(async () => {
+    externalServer.close()
+    await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+  })
+
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
