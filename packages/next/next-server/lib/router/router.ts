@@ -393,23 +393,25 @@ export default class Router implements BaseRouter {
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
       this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
-        const { error } = routeInfo
-
-        if (error && error.cancelled) {
-          return resolve(false)
-        }
-
-        Router.events.emit('beforeHistoryChange', as)
-        this.changeState(method, url, addBasePath(as), options)
-
-        if (process.env.NODE_ENV !== 'production') {
-          const appComp: any = this.components['/_app'].Component
-          ;(window as any).next.isPrerendered =
-            appComp.getInitialProps === appComp.origGetInitialProps &&
-            !(routeInfo.Component as any).getInitialProps
-        }
-
         const doRouteChange = (routeInfo: RouteInfo, emit: boolean) => {
+          const { error } = routeInfo
+
+          if (error && error.cancelled) {
+            return resolve(false)
+          }
+
+          if (emit) {
+            Router.events.emit('beforeHistoryChange', as)
+            this.changeState(method, url, addBasePath(as), options)
+
+            if (process.env.NODE_ENV !== 'production') {
+              const appComp: any = this.components['/_app'].Component
+              ;(window as any).next.isPrerendered =
+                appComp.getInitialProps === appComp.origGetInitialProps &&
+                !(routeInfo.Component as any).getInitialProps
+            }
+          }
+
           this.set(route, pathname, query, as, routeInfo)
 
           if (emit) {
