@@ -1,13 +1,21 @@
 # rbx & bulma-pro example
 
+This example shows how to use Next.js along with [rbx](https://github.com/dfee/rbx)(Bulma UI Framework for react) and [Bulma Pro](https://mubaidr.js.org/bulma-pro/).
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-rbx-bulma-pro)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute create-next-app with yarn or npm to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-```
-npm create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
+```bash
+npm init next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 # or
 yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 ```
@@ -16,14 +24,14 @@ yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 
 Download the example:
 
-```
+```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-rbx-bulma-pro
 cd with-rbx-bulma-pro
 ```
 
 Install it and run:
 
-```
+```bash
 npm install
 npm run dev
 # or
@@ -31,12 +39,8 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
-```
+```bash
 now
 ```
-
-## The idea behind the example
-
-This example shows how to use Next.js along with [rbx](https://github.com/dfee/rbx)(Bulma UI Framework for react) and [Bulma Pro](https://mubaidr.js.org/bulma-pro/).

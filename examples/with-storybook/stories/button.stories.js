@@ -10,7 +10,7 @@ export const withText = () => (
 
 export const withSomeEmoji = () => (
   <Button onClick={action('clicked')}>
-    <span role='img' aria-label='so cool'>
+    <span role="img" aria-label="so cool">
       😀 😎 👍 💯
     </span>
   </Button>

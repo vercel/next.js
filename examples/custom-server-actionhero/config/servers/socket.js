@@ -1,5 +1,3 @@
-'use strict'
-
 exports['default'] = {
   servers: {
     socket: api => {
@@ -18,10 +16,10 @@ exports['default'] = {
         // Delimiter string for incoming messages
         delimiter: '\n',
         // Maximum incoming message string length in Bytes (use 0 for Infinite)
-        maxDataLength: 0
+        maxDataLength: 0,
       }
-    }
-  }
+    },
+  },
 }
 
 exports.test = {
@@ -30,8 +28,8 @@ exports.test = {
       return {
         enabled: true,
         port: 1001 + (process.pid % 64535),
-        secure: false
+        secure: false,
       }
-    }
-  }
+    },
+  },
 }

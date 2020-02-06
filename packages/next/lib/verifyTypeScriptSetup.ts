@@ -46,6 +46,7 @@ async function checkDependencies({
   const missingPackages = requiredPackages.filter(p => {
     try {
       resolutions.set(p.pkg, resolveRequest(p.file, `${dir}/`))
+      return false
     } catch (_) {
       return true
     }
@@ -217,7 +218,7 @@ export async function verifyTypeScriptSetup(
       )
     }
 
-    if (result.errors && result.errors.length) {
+    if (result.errors?.length) {
       throw new Error(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticHost)
       )
@@ -235,7 +236,7 @@ export async function verifyTypeScriptSetup(
       )
     }
 
-    console.info(e && e.message ? `${e.message}` : '')
+    console.info(e?.message ? `${e.message}` : '')
     process.exit(1)
     return
   }

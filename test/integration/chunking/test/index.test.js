@@ -1,9 +1,12 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import express from 'express'
+import http from 'http'
+import { nextBuild, nextServer, promiseCall, stopApp } from 'next-test-utils'
 import { readdir, readFile, unlink, access } from 'fs-extra'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -30,11 +33,15 @@ describe('Chunking', () => {
     } catch (e) {
       // Error here means old chunks don't exist, so we don't need to do anything
     }
-    await nextBuild(appDir)
+    const { stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    console.log(stdout)
+    console.error(stderr)
     stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
       // fixes backslashes in keyNames not being escaped on windows
-      .replace(/"static\\(.*?":)/g, '"static\\\\$1')
-      .replace(/("static\\.*?)\\pages\\(.*?":)/g, '$1\\\\pages\\\\$2')
+      .replace(/"static\\(.*?":?)/g, match => match.replace(/\\/g, '\\\\'))
 
     stats = JSON.parse(stats)
     buildId = await readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
@@ -94,5 +101,52 @@ describe('Chunking', () => {
       })
     })
     expect(misplacedReactDom).toBe(false)
+  })
+
+  describe('Serving', () => {
+    let server
+    let appPort
+
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      const app = nextServer({
+        dir: join(__dirname, '../'),
+        dev: false,
+        quiet: true,
+      })
+
+      const expressApp = express()
+      await app.prepare()
+      expressApp.use('/foo/_next', express.static(join(__dirname, '../.next')))
+      expressApp.use(app.getRequestHandler())
+      server = http.createServer(expressApp)
+      await promiseCall(server, 'listen')
+      appPort = server.address().port
+    })
+
+    afterAll(() => stopApp(server))
+
+    it('should hydrate with granularChunks config', async () => {
+      const browser = await webdriver(appPort, '/page2')
+      const text = await browser.elementByCss('#padded-str').text()
+
+      expect(text).toBe('__rad__')
+
+      await browser.close()
+    })
+
+    it('should load chunks when navigating', async () => {
+      const browser = await webdriver(appPort, '/page3')
+      const text = await browser
+        .elementByCss('#page2-link')
+        .click()
+        .waitForElementByCss('#padded-str')
+        .elementByCss('#padded-str')
+        .text()
+
+      expect(text).toBe('__rad__')
+
+      await browser.close()
+    })
   })
 })

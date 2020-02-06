@@ -1,7 +1,5 @@
-import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, normalize, relative as relativePath, sep } from 'path'
-import { promisify } from 'util'
 import webpack from 'webpack'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
@@ -24,9 +22,6 @@ import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import { NextHandleFunction } from 'connect'
 import { UrlObject } from 'url'
-
-const access = promisify(fs.access)
-const readFile = promisify(fs.readFile)
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -58,9 +53,10 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
   // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
   if (req.headers['access-control-request-headers']) {
-    res.setHeader('Access-Control-Allow-Headers', req.headers[
-      'access-control-request-headers'
-    ] as string)
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] as string
+    )
   }
 
   if (req.method === 'OPTIONS') {
@@ -73,7 +69,7 @@ function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
 }
 
 const matchNextPageBundleRequest = route(
-  '/_next/static/:buildId/pages/:path*.js(.map)?'
+  '/_next/static/:buildId/pages/:path*.js(\\.map|)'
 )
 
 // Recursively look up the issuer till it ends up at the root
@@ -195,15 +191,14 @@ export default class HotReloader {
         const bundlePath = join(
           this.dir,
           this.config.distDir,
-          'static/development/pages',
+          'server/static/development/pages',
           page + '.js'
         )
 
-        // make sure to 404 for AMP bundles in case they weren't removed
+        // Make sure to 404 for AMP first pages
         try {
-          await access(bundlePath)
-          const data = await readFile(bundlePath, 'utf8')
-          if (data.includes('__NEXT_DROP_CLIENT_FILE__')) {
+          const mod = require(bundlePath)
+          if (mod?.config?.amp === true) {
             res.statusCode = 404
             res.end()
             return { finished: true }
@@ -235,7 +230,7 @@ export default class HotReloader {
   }
 
   async clean() {
-    return recursiveDelete(join(this.dir, this.config.distDir))
+    return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
   }
 
   async getWebpackConfig() {
@@ -349,11 +344,13 @@ export default class HotReloader {
   async prepareBuildTools(multiCompiler: webpack.MultiCompiler) {
     const tsConfigPath = join(this.dir, 'tsconfig.json')
     const useTypeScript = await fileExists(tsConfigPath)
+    const ignoreTypeScriptErrors =
+      this.config.typescript && this.config.typescript.ignoreDevErrors
 
     watchCompilers(
       multiCompiler.compilers[0],
       multiCompiler.compilers[1],
-      useTypeScript,
+      useTypeScript && !ignoreTypeScriptErrors,
       ({ errors, warnings }) => this.send('typeChecked', { errors, warnings })
     )
 
@@ -453,9 +450,7 @@ export default class HotReloader {
 
     if (this.config.webpackDevMiddleware) {
       console.log(
-        `> Using "webpackDevMiddleware" config function defined in ${
-          this.config.configOrigin
-        }.`
+        `> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`
       )
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(
         webpackDevMiddlewareConfig

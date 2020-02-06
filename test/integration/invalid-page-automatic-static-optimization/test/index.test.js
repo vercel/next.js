@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine, test */
+/* global jasmine */
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 

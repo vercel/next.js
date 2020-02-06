@@ -1,5 +1,5 @@
 const InfoBox = ({ children }) => (
-  <div className='info'>
+  <div className="info">
     <style jsx>{`
       .info {
         margin-top: 20px;

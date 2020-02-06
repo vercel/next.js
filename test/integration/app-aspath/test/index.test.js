@@ -8,7 +8,7 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 let appPort

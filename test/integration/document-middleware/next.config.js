@@ -1,3 +1,3 @@
 module.exports = {
-  experimental: { documentMiddleware: true }
+  experimental: { documentMiddleware: true },
 }

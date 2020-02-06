@@ -18,7 +18,7 @@ describe('Modern Mode', () => {
     await runNextCommand(['build'], {
       cwd: appDir,
       stdout: true,
-      stderr: true
+      stderr: true,
     })
 
     const app = nextServer({
@@ -26,8 +26,8 @@ describe('Modern Mode', () => {
       dev: false,
       quiet: true,
       experimental: {
-        modern: true
-      }
+        modern: true,
+      },
     })
 
     server = await startApp(app)
@@ -46,7 +46,7 @@ describe('Modern Mode', () => {
       '_error',
       'main',
       'webpack',
-      'commons'
+      'commons',
     ]
     const buildFiles = [
       ...readdirSync(join(appDir, '.next/static', buildId, 'pages')),
@@ -55,7 +55,7 @@ describe('Modern Mode', () => {
       ),
       ...readdirSync(join(appDir, '.next/static/chunks')).map(
         file => file.replace(/\.\w+\./, '.') // remove hash
-      )
+      ),
     ]
 
     console.log(`Client files: ${buildFiles.join(', ')}`)

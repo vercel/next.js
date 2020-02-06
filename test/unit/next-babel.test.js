@@ -23,8 +23,8 @@ const babel = (code, esm = false, presetOptions = {}) =>
     compact: true,
     caller: {
       name: 'tests',
-      supportsStaticESM: esm
-    }
+      supportsStaticESM: esm,
+    },
   }).code
 
 describe('next/babel', () => {
@@ -145,11 +145,11 @@ describe('next/babel', () => {
       const output = babel(code, true, {
         'preset-env': {
           targets: {
-            esmodules: true
-          }
+            esmodules: true,
+          },
         },
         // our modern preset is no preset at all
-        'experimental-modern-preset': () => ({})
+        'experimental-modern-preset': () => ({}),
       })
 
       expect(output).toMatch(trim`

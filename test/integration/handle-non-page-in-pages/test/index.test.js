@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine, test */
+/* global jasmine */
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -11,7 +11,7 @@ describe('Handle non-page in pages when target: serverless', () => {
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
 
     expect(stderr).toMatch(
-      /webpack build failed: found page without a React Component as default export in/
+      /found page without a React Component as default export in/
     )
     expect(stderr).toMatch(/pages\/invalid/)
   })

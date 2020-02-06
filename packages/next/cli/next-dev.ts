@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve, join } from 'path'
+import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
@@ -57,7 +57,11 @@ const nextDev: cliCommand = argv => {
 
   startedDevelopmentServer(appUrl)
 
-  startServer({ dir, dev: true }, port, args['--hostname'])
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    port,
+    args['--hostname']
+  )
     .then(async app => {
       await app.prepare()
     })
@@ -73,9 +77,7 @@ const nextDev: cliCommand = argv => {
             scriptLine => scriptLine[1] === 'next'
           )
           if (nextScript) {
-            errorMessage += `\nUse \`npm run ${
-              nextScript[0]
-            } -- -p <some other port>\`.`
+            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
           }
         }
         // tslint:disable-next-line

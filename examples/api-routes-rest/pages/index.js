@@ -5,7 +5,7 @@ const Index = ({ users }) => (
   <ul>
     {users.map(user => (
       <li key={user.id}>
-        <Link href='/user/[id]' as={`/user/${user.id}`}>
+        <Link href="/user/[id]" as={`/user/${user.id}`}>
           <a>{`User ${user.id}`}</a>
         </Link>
       </li>

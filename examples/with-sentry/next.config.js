@@ -3,12 +3,12 @@ const nextSourceMaps = require('@zeit/next-source-maps')()
 
 module.exports = nextSourceMaps({
   env: {
-    SENTRY_DSN: process.env.SENTRY_DSN
+    SENTRY_DSN: process.env.SENTRY_DSN,
   },
   webpack: (config, { isServer, buildId }) => {
     config.plugins.push(
       new webpack.DefinePlugin({
-        'process.env.SENTRY_RELEASE': JSON.stringify(buildId)
+        'process.env.SENTRY_RELEASE': JSON.stringify(buildId),
       })
     )
 
@@ -17,5 +17,5 @@ module.exports = nextSourceMaps({
     }
 
     return config
-  }
+  },
 })

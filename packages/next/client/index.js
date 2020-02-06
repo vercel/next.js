@@ -4,27 +4,30 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
-import {
-  loadGetInitialProps,
-  getURL,
-  SUPPORTS_PERFORMANCE_USER_TIMING
-} from '../next-server/lib/utils'
+import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from '../next-server/lib/runtime-config'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import { DataManagerContext } from '../next-server/lib/data-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
-import { DataManager } from '../next-server/lib/data-manager'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
-// Polyfill Promise globally
-// This is needed because Webpack's dynamic loading(common chunks) code
-// depends on Promise.
-// So, we need to polyfill it.
-// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-if (!window.Promise) {
-  window.Promise = Promise
+/// <reference types="react-dom/experimental" />
+
+if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
+  if (!('finally' in Promise.prototype)) {
+    // eslint-disable-next-line no-extend-native
+    Promise.prototype.finally = require('finally-polyfill')
+  }
+} else {
+  // Polyfill Promise globally
+  // This is needed because Webpack's dynamic loading(common chunks) code
+  // depends on Promise.
+  // So, we need to polyfill it.
+  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
+  if (!self.Promise) {
+    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
+  }
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -40,11 +43,8 @@ const {
   buildId,
   assetPrefix,
   runtimeConfig,
-  dynamicIds
+  dynamicIds,
 } = data
-
-const d = JSON.parse(window.__NEXT_DATA__.dataManager)
-export const dataManager = new DataManager(d)
 
 const prefix = assetPrefix || ''
 
@@ -54,7 +54,7 @@ __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
-  publicRuntimeConfig: runtimeConfig || {}
+  publicRuntimeConfig: runtimeConfig || {},
 })
 
 const asPath = getURL()
@@ -73,23 +73,36 @@ const appElement = document.getElementById('__next')
 let lastAppProps
 let webpackHMR
 export let router
-export let ErrorComponent
+let ErrorComponent
 let Component
 let App, onPerfEntry
 
 class Container extends React.Component {
-  componentDidCatch (err, info) {
+  componentDidCatch(err, info) {
     this.props.fn(err, info)
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.scrollToHash()
+
+    if (process.env.__NEXT_PLUGINS) {
+      // eslint-disable-next-line
+      import('next-plugin-loader?middleware=unstable-post-hydration!')
+        .then(mod => {
+          return mod.default()
+        })
+        .catch(err => {
+          console.error('Error calling post-hydration for plugins', err)
+        })
+    }
 
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
     if (
-      data.nextExport &&
-      (isDynamicRoute(router.pathname) || location.search || data.skeleton)
+      router.isSsr &&
+      ((data.nextExport &&
+        (isDynamicRoute(router.pathname) || location.search)) ||
+        (Component && Component.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -97,24 +110,33 @@ class Container extends React.Component {
           '?' +
           stringifyQs({
             ...router.query,
-            ...parseQs(location.search.substr(1))
+            ...parseQs(location.search.substr(1)),
           }),
         asPath,
         {
           // WARNING: `_h` is an internal option for handing Next.js
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
-          _h: 1
+          _h: 1,
+          shallow: true,
         }
       )
     }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }
   }
 
-  componentDidUpdate () {
+  componentDidUpdate() {
     this.scrollToHash()
   }
 
-  scrollToHash () {
+  scrollToHash() {
     let { hash } = location
     hash = hash && hash.substring(1)
     if (!hash) return
@@ -127,7 +149,7 @@ class Container extends React.Component {
     setTimeout(() => el.scrollIntoView(), 0)
   }
 
-  render () {
+  render() {
     return this.props.children
   }
 }
@@ -142,8 +164,8 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
   if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function ({ name, startTime, value }) {
-      mod.unstable_onPerformanceData({ name, startTime, value })
+    onPerfEntry = function({ name, startTime, value, duration }) {
+      mod.unstable_onPerformanceData({ name, startTime, value, duration })
     }
   }
 
@@ -177,16 +199,35 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err, emitter })
-    }
+      render({ App, Component, props, err })
+    },
   })
-  const renderCtx = { App, Component, props, err: initialErr, emitter }
-  render(renderCtx)
 
-  return emitter
+  // call init-client middleware
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-init-client!')
+      .then(mod => {
+        return mod.default({ router })
+      })
+      .catch(err => {
+        console.error('Error calling client-init for plugins', err)
+      })
+  }
+
+  const renderCtx = { App, Component, props, err: initialErr }
+
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
-export async function render (props) {
+export async function render(props) {
   if (props.err) {
     await renderError(props)
     return
@@ -202,13 +243,23 @@ export async function render (props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (props) {
+export async function renderError(props) {
   const { App, err } = props
 
   // In development runtime errors are caught by react-error-overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
   if (process.env.NODE_ENV !== 'production') {
     return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+  }
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-error-client!')
+      .then(mod => {
+        return mod.default({ err })
+      })
+      .catch(err => {
+        console.error('error calling on-error-client for plugins', err)
+      })
   }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
@@ -224,7 +275,7 @@ export async function renderError (props) {
     Component: ErrorComponent,
     AppTree,
     router,
-    ctx: { err, pathname: page, query, asPath, AppTree }
+    ctx: { err, pathname: page, query, asPath, AppTree },
   }
 
   const initProps = props.props
@@ -236,27 +287,52 @@ export async function renderError (props) {
 
 // If hydrate does not exist, eg in preact.
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
-function renderReactElement (reactEl, domEl) {
-  // mark start of hydrate/render
-  if (SUPPORTS_PERFORMANCE_USER_TIMING) {
-    performance.mark('beforeRender')
-  }
-
-  // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender) {
-    ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-    isInitialRender = false
+let reactRoot = null
+function renderReactElement(reactEl, domEl) {
+  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+    if (!reactRoot) {
+      const opts = { hydrate: true }
+      reactRoot =
+        process.env.__NEXT_REACT_MODE === 'concurrent'
+          ? ReactDOM.createRoot(domEl, opts)
+          : ReactDOM.createBlockingRoot(domEl, opts)
+    }
+    reactRoot.render(reactEl)
   } else {
-    ReactDOM.render(reactEl, domEl, markRenderComplete)
+    // mark start of hydrate/render
+    if (ST) {
+      performance.mark('beforeRender')
+    }
+
+    // The check for `.hydrate` is there to support React alternatives like preact
+    if (isInitialRender) {
+      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      isInitialRender = false
+    } else {
+      ReactDOM.render(reactEl, domEl, markRenderComplete)
+    }
   }
 
-  if (onPerfEntry) {
-    performance.getEntriesByType('paint').forEach(onPerfEntry)
+  if (onPerfEntry && ST) {
+    try {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(onPerfEntry)
+      })
+      // Start observing paint entry types.
+      observer.observe({
+        type: 'paint',
+        buffered: true,
+      })
+    } catch (e) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
+    }
   }
 }
 
-function markHydrateComplete () {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+function markHydrateComplete() {
+  if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
 
@@ -273,8 +349,8 @@ function markHydrateComplete () {
   clearMarks()
 }
 
-function markRenderComplete () {
-  if (!SUPPORTS_PERFORMANCE_USER_TIMING) return
+function markRenderComplete() {
+  if (!ST) return
 
   performance.mark('afterRender') // mark end of render
   const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
@@ -298,19 +374,22 @@ function markRenderComplete () {
   clearMarks()
 }
 
-function clearMarks () {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    mark => performance.clearMarks(mark)
-  )
+function clearMarks() {
+  ;[
+    'beforeRender',
+    'afterHydrate',
+    'afterRender',
+    'routeChange',
+  ].forEach(mark => performance.clearMarks(mark))
   ;[
     'Next.js-before-hydration',
     'Next.js-hydration',
     'Next.js-route-change-to-render',
-    'Next.js-render'
+    'Next.js-render',
   ].forEach(measure => performance.clearMeasures(measure))
 }
 
-function AppContainer ({ children }) {
+function AppContainer({ children }) {
   return (
     <Container
       fn={error =>
@@ -320,11 +399,9 @@ function AppContainer ({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <DataManagerContext.Provider value={dataManager}>
-          <HeadManagerContext.Provider value={headManager.updateHead}>
-            {children}
-          </HeadManagerContext.Provider>
-        </DataManagerContext.Provider>
+        <HeadManagerContext.Provider value={headManager.updateHead}>
+          {children}
+        </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
   )
@@ -339,7 +416,7 @@ const wrapApp = App => props => {
   )
 }
 
-async function doRender ({ App, Component, props, err }) {
+async function doRender({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (
@@ -354,7 +431,7 @@ async function doRender ({ App, Component, props, err }) {
       router,
       AppTree,
       Component: ErrorComponent,
-      ctx: { err, pathname, query, asPath, AppTree }
+      ctx: { err, pathname, query, asPath, AppTree },
     }
     props = await loadGetInitialProps(App, appCtx)
   }
@@ -369,14 +446,22 @@ async function doRender ({ App, Component, props, err }) {
   emitter.emit('before-reactdom-render', {
     Component,
     ErrorComponent,
-    appProps
+    appProps,
   })
+
+  const elem = (
+    <AppContainer>
+      <App {...appProps} />
+    </AppContainer>
+  )
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>,
+    process.env.__NEXT_STRICT_MODE ? (
+      <React.StrictMode>{elem}</React.StrictMode>
+    ) : (
+      elem
+    ),
     appElement
   )
 

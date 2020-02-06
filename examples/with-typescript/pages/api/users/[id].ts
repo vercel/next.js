@@ -3,7 +3,7 @@ import { sampleUserData } from '../../../utils/sample-data'
 
 export default (req: NextApiRequest, res: NextApiResponse) => {
   try {
-    const { id } = req.query;
+    const { id } = req.query
     const selected = sampleUserData.find(data => data.id === Number(id))
 
     if (!selected) {
@@ -15,4 +15,3 @@ export default (req: NextApiRequest, res: NextApiResponse) => {
     res.status(404).json({ statusCode: 404, message: err.message })
   }
 }
-

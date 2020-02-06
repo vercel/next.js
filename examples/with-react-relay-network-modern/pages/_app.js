@@ -18,7 +18,7 @@ export default class App extends NextApp {
 
         return {
           variables,
-          relayData: await relaySSR.getCache()
+          relayData: await relaySSR.getCache(),
         }
       }
     } catch (e) {
@@ -26,17 +26,17 @@ export default class App extends NextApp {
     }
 
     return {
-      variables
+      variables,
     }
   }
 
-  render () {
+  render() {
     const { Component, variables = {}, relayData } = this.props
     const environment = createEnvironment(
       relayData,
       JSON.stringify({
         queryID: Component.query ? Component.query().params.name : undefined,
-        variables
+        variables,
       })
     )
 

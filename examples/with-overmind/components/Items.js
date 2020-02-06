@@ -1,7 +1,7 @@
 import React from 'react'
 import { useOvermind } from '../overmind'
 
-function Items () {
+function Items() {
   const { state } = useOvermind()
 
   return (

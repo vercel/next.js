@@ -6,6 +6,7 @@ import os from 'os'
 import path from 'path'
 
 import { downloadAndExtractExample, hasExample } from './helpers/examples'
+import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
@@ -60,6 +61,15 @@ export async function createApp({
     console.log()
     await downloadAndExtractExample(root, example)
 
+    // Copy our default `.gitignore` if the application did not provide one
+    const ignorePath = path.join(root, '.gitignore')
+    if (!fs.existsSync(ignorePath)) {
+      fs.copyFileSync(
+        path.join(__dirname, 'templates', 'default', 'gitignore'),
+        ignorePath
+      )
+    }
+
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
@@ -101,6 +111,11 @@ export async function createApp({
         }
       },
     })
+  }
+
+  if (tryGitInit(root)) {
+    console.log('Initialized a git repository.')
+    console.log()
   }
 
   let cdpath: string

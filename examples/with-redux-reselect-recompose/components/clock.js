@@ -29,7 +29,7 @@ export default compose(
   setDisplayName('Clock'),
   setPropTypes({
     lastUpdate: PropTypes.number,
-    light: PropTypes.bool
+    light: PropTypes.bool,
   }),
   pure
 )(Clock)

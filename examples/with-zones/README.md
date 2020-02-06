@@ -1,13 +1,21 @@
 # Using multiple zones
 
+With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs#multi-zones). This is an example showing how to use it.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-zones)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-zones with-zones-app
+npm init next-app --example with-zones with-zones-app
 # or
 yarn create next-app --example with-zones with-zones-app
 ```
@@ -21,24 +29,16 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-zones
 ```
 
-## The idea behind this example
+## Notes
 
-With Next.js you can use multiple apps as a single app using it's [multi-zones feature](https://nextjs.org/docs#multi-zones). This is an example showing how to use it.
-
-In this example, we have two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
-
-```bash
-now dev
-```
-
-Then, you can visit <http://localhost:3000> and develop for both apps as a single app.
-
-You can also start the apps separately, for example:
+In this example, we have two apps: 'home' and 'blog'. You can start each app separately, for example:
 
 ```bash
 cd blog
 yarn dev
 ```
+
+Then, you can visit <http://localhost:3000> and develop your app.
 
 ## Special Notes
 
@@ -49,8 +49,11 @@ yarn dev
 
 ## Production Deployment
 
-We only need to run `now`, the same `now.json` used for development will be used for the deployment:
+We only need to run `now <app>`, to deploy the app:
 
 ```bash
-now
+now blog
+now home
 ```
+
+> The rewrite destination in your `now.json` file in the `home` app must be adjusted to point to your deployment.

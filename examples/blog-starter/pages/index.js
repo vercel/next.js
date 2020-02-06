@@ -12,7 +12,7 @@ const Blog = ({ router, page = 1 }) => {
     prelink: '/',
     current: page,
     rowsPerPage: siteMeta.postsPerPage,
-    totalResult: blogposts.length
+    totalResult: blogposts.length,
   })
 
   const {
@@ -20,12 +20,12 @@ const Blog = ({ router, page = 1 }) => {
     range,
     next,
     fromResult,
-    toResult
+    toResult,
   } = paginator.getPaginationData()
   const results = _range(fromResult - 1, toResult)
 
   return (
-    <Layout pageTitle='Blog' path={router.pathname}>
+    <Layout pageTitle="Blog" path={router.pathname}>
       <header>
         <h1>Blog</h1>
       </header>

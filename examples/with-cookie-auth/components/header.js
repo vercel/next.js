@@ -1,22 +1,22 @@
 import Link from 'next/link'
 import { logout } from '../utils/auth'
 
-const Header = props => (
+const Header = () => (
   <header>
     <nav>
       <ul>
         <li>
-          <Link href='/'>
+          <Link href="/">
             <a>Home</a>
           </Link>
         </li>
         <li>
-          <Link href='/login'>
+          <Link href="/login">
             <a>Login</a>
           </Link>
         </li>
         <li>
-          <Link href='/profile'>
+          <Link href="/profile">
             <a>Profile</a>
           </Link>
         </li>

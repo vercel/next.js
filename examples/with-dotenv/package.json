@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "dotenv-webpack": "1.5.7",
+    "dotenv": "^8.2.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"

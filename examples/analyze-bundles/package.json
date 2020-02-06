@@ -5,12 +5,11 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "analyze": "BUNDLE_ANALYZE=both next build",
-    "analyze:server": "BUNDLE_ANALYZE=server next build",
-    "analyze:browser": "BUNDLE_ANALYZE=browser next build"
+    "analyze": "cross-env ANALYZE=true yarn build"
   },
   "dependencies": {
-    "@zeit/next-bundle-analyzer": "^0.1.2",
+    "@next/bundle-analyzer": "^9.1.4",
+    "cross-env": "^6.0.3",
     "faker": "^4.1.0",
     "next": "latest",
     "react": "^16.7.0",

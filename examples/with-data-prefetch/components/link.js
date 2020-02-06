@@ -48,13 +48,13 @@ export default class LinkWithData extends Link {
         }
 
         return null
-      }
+      },
     ]).isRequired,
-    withData: PropTypes.bool // our custom prop
+    withData: PropTypes.bool, // our custom prop
   })
 
   // our custom prefetch method
-  async prefetch () {
+  async prefetch() {
     // if the prefetch prop is not defined do nothing
     if (!this.props.prefetch) return
 

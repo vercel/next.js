@@ -10,7 +10,7 @@ const appDir = path.join(__dirname, '..')
 describe('Auto Export Error Serverless', () => {
   it('fails to emit the page', async () => {
     const { stderr } = await nextBuild(appDir, [], {
-      stderr: true
+      stderr: true,
     })
 
     expect(

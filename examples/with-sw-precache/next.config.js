@@ -9,12 +9,12 @@ module.exports = {
         runtimeCaching: [
           {
             handler: 'networkFirst',
-            urlPattern: /^https?.*/
-          }
-        ]
+            urlPattern: /^https?.*/,
+          },
+        ],
       })
     )
 
     return config
-  }
+  },
 }

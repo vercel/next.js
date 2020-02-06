@@ -12,7 +12,7 @@ const Post = ({ title, summary, date, path }) => (
 
       <PublishedAt link={path} date={date} />
     </header>
-    <div className='post-summary'>{summary}</div>
+    <div className="post-summary">{summary}</div>
     <style jsx>{`
       article {
         margin-bottom: 2em;

@@ -6,7 +6,7 @@ import PublishedAt from '../utils/published-at'
 import blogposts from '../../posts/index'
 import NextPrevPost from '../next-prev-post'
 
-function BlogPost ({ path, meta, children }) {
+function BlogPost({ path, meta, children }) {
   const currentPostIndex = blogposts
     .map(({ title }) => title)
     .indexOf(meta.title)
@@ -16,41 +16,41 @@ function BlogPost ({ path, meta, children }) {
   return (
     <Layout pageTitle={meta.title} ogImage={meta.image}>
       <SyntaxHighlight />
-      <article className='h-entry'>
+      <article className="h-entry">
         <header>
-          <h1 className='p-name'>{meta.title}</h1>
+          <h1 className="p-name">{meta.title}</h1>
 
           <div>
             <PublishedAt date={meta.publishedAt} link={path} />
 
-            <Link href='/about'>
+            <Link href="/about">
               <a
-                color='#aaa'
-                rel='author'
-                className='p-author h-card'
-                href='/about'
+                color="#aaa"
+                rel="author"
+                className="p-author h-card"
+                href="/about"
               >
                 {siteMeta.author}
               </a>
             </Link>
           </div>
         </header>
-        <div className='e-content'>{children}</div>
+        <div className="e-content">{children}</div>
         <footer>
           {(previousPost || nextPost) && (
-            <div className='post-pagination'>
+            <div className="post-pagination">
               {previousPost && (
                 <NextPrevPost
                   title={previousPost.title}
                   path={previousPost.path}
-                  position='previous'
+                  position="previous"
                 />
               )}
               {nextPost && (
                 <NextPrevPost
                   title={nextPost.title}
                   path={nextPost.path}
-                  position='next'
+                  position="next"
                 />
               )}
             </div>

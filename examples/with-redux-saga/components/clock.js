@@ -9,7 +9,7 @@ const format = t => {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
 }
 
-function Clock ({ lastUpdate, light }) {
+function Clock({ lastUpdate, light }) {
   return (
     <div className={light ? 'light' : ''}>
       {format(new Date(lastUpdate))}

@@ -14,32 +14,24 @@ import {
   NextComponentType,
   DocumentType,
   AppType,
-  NextPageContext,
 } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
-// @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
-import { DataManagerContext } from '../lib/data-manager-context'
 import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { DataManager } from '../lib/data-manager'
-import { getPageFiles, BuildManifest } from './get-page-files'
+import { getPageFiles } from './get-page-files'
 import { AmpStateContext } from '../lib/amp-context'
 import optimizeAmp from './optimize-amp'
 import { isInAmpMode } from '../lib/amp'
-// Uses a module path because of the compiled output directory location
-import { PageConfig } from 'next/types'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../../lib/constants'
-
-export type ManifestItem = {
-  id: number | string
-  name: string
-  file: string
-  publicPath: string
-}
-
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+import {
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+} from '../../lib/constants'
+import { AMP_RENDER_TARGET } from '../lib/constants'
+import { LoadComponentsReturnType, ManifestItem } from './load-components'
 
 function noRouter() {
   const message =
@@ -123,9 +115,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = {
-  documentMiddlewareEnabled: boolean
-  ampBindInitData: boolean
+type RenderOpts = LoadComponentsReturnType & {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
@@ -136,34 +126,22 @@ type RenderOpts = {
   err?: Error | null
   autoExport?: boolean
   nextExport?: boolean
-  skeleton?: boolean
   dev?: boolean
   ampMode?: any
   ampPath?: string
-  dataOnly?: boolean
   inAmpMode?: boolean
   hybridAmp?: boolean
-  buildManifest: BuildManifest
-  reactLoadableManifest: ReactLoadableManifest
-  pageConfig: PageConfig
-  Component: React.ComponentType
-  Document: DocumentType
-  DocumentMiddleware: (ctx: NextPageContext) => void
-  App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  unstable_getStaticProps?: (params: {
-    params: any | undefined
-  }) => {
-    props: any
-    revalidate: number | false
-  }
+  documentMiddlewareEnabled?: boolean
+  isDataReq?: boolean
+  params?: ParsedUrlQuery
+  pages404?: boolean
 }
 
 function renderDocument(
   Document: DocumentType,
   {
-    dataManagerData,
     props,
     docProps,
     pathname,
@@ -174,7 +152,6 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     autoExport,
-    skeleton,
     dynamicImportsIds,
     dangerousAsPath,
     hasCssMode,
@@ -187,9 +164,12 @@ function renderDocument(
     staticMarkup,
     devFiles,
     files,
+    polyfillFiles,
     dynamicImports,
+    htmlProps,
+    bodyTags,
+    headTags,
   }: RenderOpts & {
-    dataManagerData: string
     props: any
     docProps: DocumentInitialProps
     pathname: string
@@ -203,6 +183,10 @@ function renderDocument(
     dynamicImports: ManifestItem[]
     files: string[]
     devFiles: string[]
+    polyfillFiles: string[]
+    htmlProps: any
+    bodyTags: any
+    headTags: any
   }
 ): string {
   return (
@@ -211,7 +195,6 @@ function renderDocument(
       <AmpStateContext.Provider value={ampState}>
         {Document.renderDocument(Document, {
           __NEXT_DATA__: {
-            dataManager: dataManagerData,
             props, // The result of getInitialProps
             page: pathname, // The rendered page
             query, // querystring parsed / passed by the user
@@ -220,7 +203,6 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
-            skeleton, // If this is a skeleton page for experimentalPrerender
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -235,12 +217,24 @@ function renderDocument(
           staticMarkup,
           devFiles,
           files,
+          polyfillFiles,
           dynamicImports,
           assetPrefix,
+          htmlProps,
+          bodyTags,
+          headTags,
           ...docProps,
         })}
       </AmpStateContext.Provider>
     )
+  )
+}
+
+const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
+  return (
+    `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
+    `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
   )
 }
 
@@ -256,7 +250,6 @@ export async function renderToHTML(
     err,
     dev = false,
     documentMiddlewareEnabled = false,
-    ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
     App,
@@ -268,7 +261,38 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
     unstable_getStaticProps,
+    unstable_getStaticPaths,
+    unstable_getServerProps,
+    isDataReq,
+    params,
+    pages404,
   } = renderOpts
+
+  const callMiddleware = async (method: string, args: any[], props = false) => {
+    let results: any = props ? {} : []
+
+    if ((Document as any)[`${method}Middleware`]) {
+      let middlewareFunc = await (Document as any)[`${method}Middleware`]
+      middlewareFunc = middlewareFunc.default || middlewareFunc
+
+      const curResults = await middlewareFunc(...args)
+      if (props) {
+        for (const result of curResults) {
+          results = {
+            ...results,
+            ...result,
+          }
+        }
+      } else {
+        results = curResults
+      }
+    }
+    return results
+  }
+
+  const headTags = (...args: any) => callMiddleware('headTags', args)
+  const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
+  const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
   const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
@@ -277,10 +301,41 @@ export async function renderToHTML(
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
   const isAutoExport =
-    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSpr
+    !hasPageGetInitialProps &&
+    defaultAppGetInitialProps &&
+    !isSpr &&
+    !unstable_getServerProps
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    isAutoExport &&
+    isDynamicRoute(pathname) &&
+    (req as any)._nextDidRewrite
+  ) {
+    // TODO: add err.sh when rewrites go stable
+    // Behavior might change before then (prefer SSR in this case)
+    throw new Error(
+      `Rewrites don't support auto-exported dynamic pages yet. ` +
+        `Using this will cause the page to fail to parse the params on the client`
+    )
+  }
 
   if (hasPageGetInitialProps && isSpr) {
-    throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+    throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (hasPageGetInitialProps && unstable_getServerProps) {
+    throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
+  }
+
+  if (unstable_getServerProps && isSpr) {
+    throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
+  }
+
+  if (!!unstable_getStaticPaths && !isSpr) {
+    throw new Error(
+      `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
+    )
   }
 
   if (dev) {
@@ -310,6 +365,10 @@ export async function renderToHTML(
       }
       req.url = pathname
       renderOpts.nextExport = true
+    }
+
+    if (pages404 && pathname === '/404' && !isAutoExport) {
+      throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
@@ -341,11 +400,6 @@ export async function renderToHTML(
     await DocumentMiddleware(ctx)
   }
 
-  let dataManager: DataManager | undefined
-  if (ampBindInitData) {
-    dataManager = new DataManager()
-  }
-
   const ampState = {
     ampFirst: pageConfig.amp === true,
     hasQuery: Boolean(query.amp),
@@ -356,15 +410,13 @@ export async function renderToHTML(
 
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
-      <DataManagerContext.Provider value={dataManager}>
-        <AmpStateContext.Provider value={ampState}>
-          <LoadableContext.Provider
-            value={moduleName => reactLoadableModules.push(moduleName)}
-          >
-            {children}
-          </LoadableContext.Provider>
-        </AmpStateContext.Provider>
-      </DataManagerContext.Provider>
+      <AmpStateContext.Provider value={ampState}>
+        <LoadableContext.Provider
+          value={moduleName => reactLoadableModules.push(moduleName)}
+        >
+          {children}
+        </LoadableContext.Provider>
+      </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
 
@@ -378,7 +430,7 @@ export async function renderToHTML(
 
     if (isSpr) {
       const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? query : undefined,
+        params: isDynamicRoute(pathname) ? (query as any) : undefined,
       })
 
       const invalidKeys = Object.keys(data).filter(
@@ -386,28 +438,22 @@ export async function renderToHTML(
       )
 
       if (invalidKeys.length) {
-        throw new Error(
-          `Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:\n\n\treturn { props: { title: 'My Title', content: '...' }\n\nKeys that need moved: ${invalidKeys.join(
-            ', '
-          )}.
-        `
-        )
+        throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${
-              data.revalidate
-            }', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
                 data.revalidate
-              )}' or using \`Math.round()\` if you're computing the value.`
+              )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.revalidate < 0) {
+        } else if (data.revalidate <= 0) {
           throw new Error(
-            `A page's revalidate option can not be less than zero. A revalidate option of zero means to revalidate _after_ every request.` +
-              `\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).`
+            `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
         } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
@@ -416,20 +462,20 @@ export async function renderToHTML(
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === false) {
-        // `false` is an allowed behavior. We'll catch `revalidate: true` and
-        // fall into our default behavior.
-      } else {
-        // By default, we revalidate after 1 second. This value is optimal for
+      } else if (data.revalidate === true) {
+        // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
         data.revalidate = 1
+      } else {
+        // By default, we never revalidate.
+        data.revalidate = false
       }
 
       props.pageProps = data.props
       // pass up revalidate and props for export
       ;(renderOpts as any).revalidate = data.revalidate
-      ;(renderOpts as any).sprData = props
+      ;(renderOpts as any).pageData = props
     }
   } catch (err) {
     if (!dev || !err) throw err
@@ -437,16 +483,38 @@ export async function renderToHTML(
     renderOpts.err = err
   }
 
+  if (unstable_getServerProps) {
+    const data = await unstable_getServerProps({
+      params,
+      query,
+      req,
+      res,
+    })
+
+    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
+    }
+
+    props.pageProps = data.props
+    ;(renderOpts as any).pageData = props
+  }
+  // We only need to do this if we want to support calling
+  // _app's getInitialProps for getServerProps if not this can be removed
+  if (isDataReq) return props
+
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...getPageFiles(buildManifest, pathname),
       ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, pathname),
     ]),
   ]
+  const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
 
   const renderElementToString = staticMarkup
     ? renderToStaticMarkup
@@ -468,86 +536,32 @@ export async function renderToHTML(
     }
   }
 
-  let renderPage: RenderPage
+  let renderPage: RenderPage = (
+    options: ComponentsEnhancer = {}
+  ): { html: string; head: any } => {
+    const renderError = renderPageError()
+    if (renderError) return renderError
 
-  if (ampBindInitData) {
-    const ssrPrepass = require('react-ssr-prepass')
+    const {
+      App: EnhancedApp,
+      Component: EnhancedComponent,
+    } = enhanceComponents(options, App, Component)
 
-    renderPage = async (
-      options: ComponentsEnhancer = {}
-    ): Promise<{ html: string; head: any; dataOnly?: true }> => {
-      const renderError = renderPageError()
-      if (renderError) return renderError
-
-      const {
-        App: EnhancedApp,
-        Component: EnhancedComponent,
-      } = enhanceComponents(options, App, Component)
-
-      const Application = () => (
-        <AppContainer>
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </AppContainer>
-      )
-
-      const element = <Application />
-
-      try {
-        return render(renderElementToString, element, ampState)
-      } catch (err) {
-        if (err && typeof err === 'object' && typeof err.then === 'function') {
-          await ssrPrepass(element)
-          if (renderOpts.dataOnly) {
-            return {
-              html: '',
-              head: [],
-              dataOnly: true,
-            }
-          } else {
-            return render(renderElementToString, element, ampState)
-          }
-        }
-        throw err
-      }
-    }
-  } else {
-    renderPage = (
-      options: ComponentsEnhancer = {}
-    ): { html: string; head: any } => {
-      const renderError = renderPageError()
-      if (renderError) return renderError
-
-      const {
-        App: EnhancedApp,
-        Component: EnhancedComponent,
-      } = enhanceComponents(options, App, Component)
-
-      return render(
-        renderElementToString,
-        <AppContainer>
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </AppContainer>,
-        ampState
-      )
-    }
+    return render(
+      renderElementToString,
+      <AppContainer>
+        <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
+      </AppContainer>,
+      ampState
+    )
   }
-
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const documentCtx = { ...ctx, renderPage }
+  const docProps: DocumentInitialProps = await loadGetInitialProps(
+    Document,
+    documentCtx
+  )
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
-
-  let dataManagerData = '[]'
-  if (dataManager) {
-    dataManagerData = JSON.stringify([...dataManager.getData()])
-  }
 
   if (!docProps || typeof docProps.html !== 'string') {
     const message = `"${getDisplayName(
@@ -556,18 +570,14 @@ export async function renderToHTML(
     throw new Error(message)
   }
 
-  if (docProps.dataOnly) {
-    return dataManagerData
-  }
-
   const dynamicImportIdsSet = new Set<string>()
   const dynamicImports: ManifestItem[] = []
 
   for (const mod of reactLoadableModules) {
-    const manifestItem = reactLoadableManifest[mod]
+    const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.map(item => {
+      manifestItem.forEach(item => {
         dynamicImports.push(item)
         dynamicImportIdsSet.add(item.id as string)
       })
@@ -585,9 +595,11 @@ export async function renderToHTML(
   let html = renderDocument(Document, {
     ...renderOpts,
     dangerousAsPath: router.asPath,
-    dataManagerData,
     ampState,
     props,
+    headTags: await headTags(documentCtx),
+    bodyTags: await bodyTags(documentCtx),
+    htmlProps: await htmlProps(documentCtx),
     docProps,
     pathname,
     ampPath,
@@ -598,14 +610,17 @@ export async function renderToHTML(
     dynamicImports,
     files,
     devFiles,
+    polyfillFiles,
   })
 
   if (inAmpMode && html) {
-    // use replace to allow rendering directly to body in AMP mode
-    html = html.replace(
-      '__NEXT_AMP_RENDER_TARGET__',
-      `<!-- __NEXT_DATA__ -->${docProps.html}`
-    )
+    // inject HTML to AMP_RENDER_TARGET to allow rendering
+    // directly to body in AMP mode
+    const ampRenderIndex = html.indexOf(AMP_RENDER_TARGET)
+    html =
+      html.substring(0, ampRenderIndex) +
+      `<!-- __NEXT_DATA__ -->${docProps.html}` +
+      html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
     html = await optimizeAmp(html)
 
     if (renderOpts.ampValidator) {

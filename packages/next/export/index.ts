@@ -1,11 +1,16 @@
 import chalk from 'chalk'
-import { copyFile as copyFileOrig, existsSync, readFileSync } from 'fs'
+import findUp from 'find-up'
+import {
+  copyFile as copyFileOrig,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from 'fs'
 import Worker from 'jest-worker'
 import mkdirpModule from 'mkdirp'
 import { cpus } from 'os'
-import { dirname, join, resolve } from 'path'
+import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
-
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import createSpinner from '../build/spinner'
 import { API_ROUTE } from '../lib/constants'
@@ -16,17 +21,19 @@ import {
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
+  EXPORT_DETAIL,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -93,19 +100,22 @@ export default async function(
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
-  if (!options.buildExport) {
-    const telemetry = new Telemetry({ distDir })
-    telemetry.record(eventVersion({ cliCommand: 'export' }))
+
+  const telemetry = options.buildExport ? null : new Telemetry({ distDir })
+
+  if (telemetry) {
+    telemetry.record(
+      eventVersion({
+        cliCommand: 'export',
+        isSrcDir: null,
+        hasNowJson: !!(await findUp('now.json', { cwd: dir })),
+        isCustomServer: null,
+      })
+    )
   }
 
   const subFolders = nextConfig.exportTrailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
-
-  if (!options.buildExport && isLikeServerless) {
-    throw new Error(
-      'Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless'
-    )
-  }
 
   log(`> using build directory: ${distDir}`)
 
@@ -117,7 +127,12 @@ export default async function(
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
-    !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+    !options.pages &&
+    require(join(
+      distDir,
+      isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+      PAGES_MANIFEST
+    ))
 
   let prerenderManifest
   try {
@@ -148,6 +163,14 @@ export default async function(
       continue
     }
 
+    // iSSG pages that are dynamic should not export templated version by
+    // default. In most cases, this would never work. There is no server that
+    // could run `getStaticProps`. If users make their page work lazily, they
+    // can manually add it to the `exportPathMap`.
+    if (prerenderManifest?.dynamicRoutes[page]) {
+      continue
+    }
+
     defaultPathMap[page] = { page }
   }
 
@@ -162,6 +185,16 @@ export default async function(
 
   await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
+
+  writeFileSync(
+    join(distDir, EXPORT_DETAIL),
+    JSON.stringify({
+      version: 1,
+      outDirectory: outDir,
+      success: false,
+    }),
+    'utf8'
+  )
 
   // Copy static directory
   if (!options.buildExport && existsSync(join(dir, 'static'))) {
@@ -198,8 +231,9 @@ export default async function(
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
+    canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
+    ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -221,8 +255,8 @@ export default async function(
     distDir,
     buildId,
   })
-  if (!exportPathMap['/404']) {
-    exportPathMap['/404.html'] = exportPathMap['/404.html'] || {
+  if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
+    exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
@@ -243,7 +277,7 @@ export default async function(
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
-  const sprDataDir = options.buildExport
+  const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
 
@@ -267,7 +301,7 @@ export default async function(
     {
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
     }
   ) as any
@@ -285,7 +319,7 @@ export default async function(
         distDir,
         buildId,
         outDir,
-        sprDataDir,
+        pagesDataDir,
         renderOpts,
         serverRuntimeConfig,
         subFolders,
@@ -298,7 +332,7 @@ export default async function(
         ampValidations[page] = result
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result && result.errors) && result.errors.length > 0)
+          (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
 
@@ -319,10 +353,15 @@ export default async function(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async route => {
-        route = route === '/' ? '/index' : route
+        route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
-        const htmlDest = join(outDir, `${route}.html`)
-        const jsonDest = join(sprDataDir, `${route}.json`)
+        const htmlDest = join(
+          outDir,
+          `${route}${
+            subFolders && route !== '/index' ? `${sep}index` : ''
+          }.html`
+        )
+        const jsonDest = join(pagesDataDir, `${route}.json`)
 
         await mkdirp(dirname(htmlDest))
         await mkdirp(dirname(jsonDest))
@@ -346,4 +385,18 @@ export default async function(
   }
   // Add an empty line to the console for the better readability.
   log('')
+
+  writeFileSync(
+    join(distDir, EXPORT_DETAIL),
+    JSON.stringify({
+      version: 1,
+      outDirectory: outDir,
+      success: true,
+    }),
+    'utf8'
+  )
+
+  if (telemetry) {
+    await telemetry.flush()
+  }
 }

@@ -1,7 +1,7 @@
 const Page = ({ from }) => (
   <div>
     <p>{from}</p>
-    <a href='https://google.com'>External link</a>
+    <a href="https://google.com">External link</a>
   </div>
 )
 

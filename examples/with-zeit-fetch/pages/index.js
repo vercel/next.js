@@ -2,11 +2,11 @@ import React from 'react'
 import Link from 'next/link'
 import fetch from '../fetch'
 
-function Index (props) {
+function Index(props) {
   return (
     <div>
       <p>Next.js has {props.stars} ⭐️</p>
-      <Link href='/preact'>
+      <Link href="/preact">
         <a>How about preact?</a>
       </Link>
     </div>

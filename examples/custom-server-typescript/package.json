@@ -7,6 +7,7 @@
     "start": "cross-env NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
+    "cross-env": "^5.2.0",
     "next": "latest",
     "react": "^16.8.4",
     "react-dom": "^16.8.4"
@@ -15,7 +16,6 @@
     "@types/node": "^12.0.12",
     "@types/react": "^16.8.17",
     "@types/react-dom": "16.8.4",
-    "cross-env": "^5.2.0",
     "nodemon": "^1.19.0",
     "ts-node": "^8.1.0",
     "typescript": "^3.4.5"

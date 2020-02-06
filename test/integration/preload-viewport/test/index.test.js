@@ -7,7 +7,7 @@ import {
   runNextCommand,
   startApp,
   stopApp,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -24,7 +24,7 @@ describe('Prefetching Links in viewport', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -36,8 +36,7 @@ describe('Prefetching Links in viewport', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      await waitFor(2 * 1000)
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
       for (const link of links) {
@@ -60,7 +59,7 @@ describe('Prefetching Links in viewport', () => {
       await browser.elementByCss('button').click()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let foundFirst = false
       let foundAnother = false
 
@@ -83,7 +82,7 @@ describe('Prefetching Links in viewport', () => {
       await browser.elementByCss('#scroll-to-another').click()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
       for (const link of links) {
@@ -106,7 +105,7 @@ describe('Prefetching Links in viewport', () => {
       await browser.elementByCss('#btn-link').moveTo()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
       let found = false
 
       for (const link of links) {
@@ -124,9 +123,8 @@ describe('Prefetching Links in viewport', () => {
 
   it('should not prefetch when prefetch is explicitly set to false', async () => {
     const browser = await webdriver(appPort, '/opt-out')
-    await waitFor(2 * 1000)
 
-    const links = await browser.elementsByCss('link[rel=preload]')
+    const links = await browser.elementsByCss('link[rel=prefetch]')
     let found = false
 
     for (const link of links) {
@@ -137,5 +135,40 @@ describe('Prefetching Links in viewport', () => {
       }
     }
     expect(found).toBe(false)
+  })
+
+  it('should not duplicate prefetches', async () => {
+    const browser = await webdriver(appPort, '/multi-prefetch')
+
+    const links = await browser.elementsByCss('link[rel=prefetch]')
+
+    const hrefs = []
+    for (const link of links) {
+      const href = await link.getAttribute('href')
+      hrefs.push(href)
+    }
+    hrefs.sort()
+
+    // Ensure no duplicates
+    expect(hrefs).toEqual([...new Set(hrefs)])
+
+    // Verify encoding
+    expect(hrefs.some(e => e.includes(`%5Bhello%5D.js`))).toBe(true)
+  })
+
+  it('should not add an another observer for a prefetched page', async () => {
+    // info: both `/` and `/de-duped` ref the `/first` page, which we don't
+    // want to be re-fetched/re-observed.
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.calledPrefetch = false
+      window.next.router.prefetch = function() {
+        window.calledPrefetch = true
+      }
+      window.next.router.push('/de-duped')
+    })()`)
+    await waitFor(2 * 1000)
+    const calledPrefetch = await browser.eval(`window.calledPrefetch`)
+    expect(calledPrefetch).toBe(false)
   })
 })

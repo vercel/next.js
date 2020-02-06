@@ -4,7 +4,7 @@ import React from 'react'
  * Return the weather. This component is not loaded on the homepage, to test that getInitialProps works client-side too.
  */
 export default class Weather extends React.Component {
-  static async getInitialProps ({ props, req, res }) {
+  static async getInitialProps({ props, req, res }) {
     // Fetch the weather from a remote API, it may take some time...
     return new Promise(resolve => {
       console.log(typeof window !== 'undefined' ? 'client-side' : 'server-side')
@@ -13,14 +13,14 @@ export default class Weather extends React.Component {
         () =>
           resolve({
             ...props, // Props from the main page, passed through the internal fragment URL server-side
-            weather: 'sunny ☀️'
+            weather: 'sunny ☀️',
           }),
         2000
       )
     })
   }
 
-  render () {
+  render() {
     console.log(typeof window !== 'undefined' ? 'client-side' : 'server-side')
 
     return (

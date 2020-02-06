@@ -1,0 +1,12 @@
+{
+  "name": "@next/plugin-material-ui",
+  "version": "9.2.2-canary.12",
+  "nextjs": {
+    "name": "Material UI",
+    "required-env": []
+  },
+  "peerDependencies": {
+    "@material-ui/styles": "*",
+    "next": "*"
+  }
+}

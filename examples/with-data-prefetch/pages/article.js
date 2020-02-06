@@ -3,7 +3,7 @@ import fetch from 'isomorphic-unfetch'
 import { format } from 'url'
 
 export default class Article extends Component {
-  static async getInitialProps ({ req, query, pathname, isVirtualCall }) {
+  static async getInitialProps({ req, query, pathname, isVirtualCall }) {
     const url = format({ pathname, query })
 
     // if we're not running server side
@@ -19,7 +19,7 @@ export default class Article extends Component {
     // fetch data as usual
     const responses = await Promise.all([
       fetch(`https://jsonplaceholder.typicode.com/posts/${query.id}`),
-      fetch(`https://jsonplaceholder.typicode.com/posts/${query.id}/comments`)
+      fetch(`https://jsonplaceholder.typicode.com/posts/${query.id}/comments`),
     ])
 
     const [article, comments] = await Promise.all(
@@ -42,7 +42,7 @@ export default class Article extends Component {
     return props
   }
 
-  render () {
+  render() {
     const { article, comments, user } = this.props
 
     return (

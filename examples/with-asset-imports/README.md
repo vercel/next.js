@@ -1,13 +1,21 @@
 # Example app with asset imports
 
+This example shows how to enable the imports of assets (images, videos, etc.) and get a URL pointing to `/public`.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-asset-imports)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-asset-imports with-asset-imports-app
+npm init next-app --example with-asset-imports with-asset-imports-app
 # or
 yarn create next-app --example with-asset-imports with-asset-imports-app
 ```
@@ -31,15 +39,13 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
 
 ```bash
 now
 ```
 
-## The idea behind the example
-
-This example shows how to enable the imports of assets (images, videos, etc.) and get a URL pointing to `/public`.
+## Note
 
 This is also configurable to point to a CDN changing the `baseUri` to the CDN domain, something similar to this:
 

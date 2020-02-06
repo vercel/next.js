@@ -27,7 +27,7 @@ describe('Errors on output to public', () => {
       { outdir },
       {
         stdout: true,
-        stderr: true
+        stderr: true,
       }
     )
     expect(results.stdout + results.stderr).toMatch(

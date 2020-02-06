@@ -1,6 +1,6 @@
 import {
   RelayNetworkLayer,
-  urlMiddleware
+  urlMiddleware,
 } from 'react-relay-network-modern/node8'
 import RelaySSR from 'react-relay-network-modern-ssr/node8/server'
 import { Network, Environment, RecordSource, Store } from 'relay-runtime'
@@ -17,11 +17,11 @@ export default {
         store,
         network: new RelayNetworkLayer([
           urlMiddleware({
-            url: req => process.env.RELAY_ENDPOINT
+            url: req => process.env.RELAY_ENDPOINT,
           }),
-          relaySSR.getMiddleware()
-        ])
-      })
+          relaySSR.getMiddleware(),
+        ]),
+      }),
     }
   },
   createEnvironment: (relayData, key) => {
@@ -32,7 +32,7 @@ export default {
       store,
       network: Network.create(
         () => relayData.find(([dataKey]) => dataKey === key)[1]
-      )
+      ),
     })
-  }
+  },
 }

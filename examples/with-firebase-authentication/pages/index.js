@@ -6,7 +6,7 @@ import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
 export default class Index extends Component {
-  static async getInitialProps ({ req, query }) {
+  static async getInitialProps({ req, query }) {
     const user = req && req.session ? req.session.decodedToken : null
     // don't fetch anything from firebase if the user is not found
     // const snap = user && await req.firebaseServer.database().ref('messages').once('value')
@@ -15,12 +15,12 @@ export default class Index extends Component {
     return { user, messages }
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       user: this.props.user,
       value: '',
-      messages: this.props.messages
+      messages: this.props.messages,
     }
 
     this.addDbListener = this.addDbListener.bind(this)
@@ -29,7 +29,7 @@ export default class Index extends Component {
     this.handleSubmit = this.handleSubmit.bind(this)
   }
 
-  componentDidMount () {
+  componentDidMount() {
     firebase.initializeApp(clientCredentials)
 
     if (this.state.user) this.addDbListener()
@@ -46,7 +46,7 @@ export default class Index extends Component {
               // eslint-disable-next-line no-undef
               headers: new Headers({ 'Content-Type': 'application/json' }),
               credentials: 'same-origin',
-              body: JSON.stringify({ token })
+              body: JSON.stringify({ token }),
             })
           })
           .then(res => this.addDbListener())
@@ -55,18 +55,18 @@ export default class Index extends Component {
         // eslint-disable-next-line no-undef
         fetch('/api/logout', {
           method: 'POST',
-          credentials: 'same-origin'
+          credentials: 'same-origin',
         }).then(() => this.removeDbListener())
       }
     })
   }
 
-  addDbListener () {
+  addDbListener() {
     var db = firebase.firestore()
     let unsubscribe = db.collection('messages').onSnapshot(
       querySnapshot => {
         var messages = {}
-        querySnapshot.forEach(function (doc) {
+        querySnapshot.forEach(function(doc) {
           messages[doc.id] = doc.data()
         })
         if (messages) this.setState({ messages })
@@ -78,18 +78,18 @@ export default class Index extends Component {
     this.setState({ unsubscribe })
   }
 
-  removeDbListener () {
+  removeDbListener() {
     // firebase.database().ref('messages').off()
     if (this.state.unsubscribe) {
       this.state.unsubscribe()
     }
   }
 
-  handleChange (event) {
+  handleChange(event) {
     this.setState({ value: event.target.value })
   }
 
-  handleSubmit (event) {
+  handleSubmit(event) {
     event.preventDefault()
     var db = firebase.firestore()
     const date = new Date().getTime()
@@ -97,20 +97,20 @@ export default class Index extends Component {
       .doc(`${date}`)
       .set({
         id: date,
-        text: this.state.value
+        text: this.state.value,
       })
     this.setState({ value: '' })
   }
 
-  handleLogin () {
+  handleLogin() {
     firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
   }
 
-  handleLogout () {
+  handleLogout() {
     firebase.auth().signOut()
   }
 
-  render () {
+  render() {
     const { user, value, messages } = this.state
 
     return (

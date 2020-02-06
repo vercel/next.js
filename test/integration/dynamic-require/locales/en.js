@@ -1,3 +1,3 @@
-;(function en (props) {
+;(function en(props) {
   // no-nop
 })()

@@ -3,26 +3,26 @@ import fetch from 'isomorphic-unfetch'
 const github = {
   state: {
     users: [],
-    isLoading: false
+    isLoading: false,
   }, // initial state
   reducers: {
-    requestUsers (state) {
+    requestUsers(state) {
       return {
         users: [],
-        isLoading: true
+        isLoading: true,
       }
     },
-    receiveUsers (state, payload) {
+    receiveUsers(state, payload) {
       return {
         isLoading: false,
-        users: payload
+        users: payload,
       }
-    }
+    },
   },
   effects: {
     // handle state changes with impure functions.
     // use async/await for async actions
-    async fetchUsers () {
+    async fetchUsers() {
       try {
         this.requestUsers()
         const response = await fetch('https://api.github.com/users')
@@ -32,8 +32,8 @@ const github = {
         console.log(err)
         this.receiveUsers([])
       }
-    }
-  }
+    },
+  },
 }
 
 export default github

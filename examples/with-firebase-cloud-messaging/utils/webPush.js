@@ -7,9 +7,9 @@ const firebaseCloudMessaging = {
     return localforage.getItem('fcm_token')
   },
 
-  init: async function () {
+  init: async function() {
     firebase.initializeApp({
-      messagingSenderId: 'your sender id'
+      messagingSenderId: 'your sender id',
     })
 
     try {
@@ -26,7 +26,7 @@ const firebaseCloudMessaging = {
     } catch (error) {
       console.error(error)
     }
-  }
+  },
 }
 
 export { firebaseCloudMessaging }

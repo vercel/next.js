@@ -11,7 +11,7 @@ const RedPage = () => {
       <br />
       <br />
       Go back to the{' '}
-      <Link href='/'>
+      <Link href="/">
         <a>Blue Page</a>
       </Link>
     </p>

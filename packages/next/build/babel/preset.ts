@@ -54,7 +54,7 @@ type BabelPreset = {
 
 // Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
 function supportsStaticESM(caller: any) {
-  return !!(caller && caller.supportsStaticESM)
+  return !!caller?.supportsStaticESM
 }
 
 module.exports = (
@@ -64,10 +64,12 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+  const isPolyfillsOptimization = api.caller(
+    (caller: any) => !!caller && caller.polyfillsOptimization
+  )
   const isLaxModern =
     isModern ||
-    (options['preset-env'] &&
-      options['preset-env'].targets &&
+    (options['preset-env']?.targets &&
       options['preset-env'].targets.esmodules === true)
 
   const presetEnvConfig = {
@@ -95,7 +97,7 @@ module.exports = (
     }
   }
 
-  // spefify a preset to use instead of @babel/preset-env:
+  // specify a preset to use instead of @babel/preset-env:
   const customModernPreset =
     isLaxModern && options['experimental-modern-preset']
 
@@ -116,7 +118,7 @@ module.exports = (
           ...options['preset-react'],
         },
       ],
-      require('@babel/preset-typescript'),
+      [require('@babel/preset-typescript'), { allowNamespaces: true }],
     ],
     plugins: [
       [
@@ -150,10 +152,10 @@ module.exports = (
           useBuiltIns: true,
         },
       ],
-      [
+      !isServer && [
         require('@babel/plugin-transform-runtime'),
         {
-          corejs: 2,
+          corejs: isPolyfillsOptimization ? false : 2,
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
@@ -176,6 +178,9 @@ module.exports = (
           removeImport: true,
         },
       ],
+      require('@babel/plugin-proposal-optional-chaining'),
+      require('@babel/plugin-proposal-nullish-coalescing-operator'),
+      isServer && require('@babel/plugin-syntax-bigint'),
     ].filter(Boolean),
   }
 }

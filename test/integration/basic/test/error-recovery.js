@@ -6,7 +6,7 @@ import {
   File,
   waitFor,
   getReactErrorOverlayContent,
-  getBrowserBodyText
+  getBrowserBodyText,
 } from 'next-test-utils'
 
 export default (context, renderViaHTTP) => {

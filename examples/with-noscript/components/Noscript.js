@@ -6,7 +6,7 @@ if (typeof window === 'undefined') {
   ReactDOMServer = require('react-dom/server')
 }
 
-export default function Noscript ({ children }) {
+export default function Noscript({ children }) {
   if (!ReactDOMServer) {
     return null
   }

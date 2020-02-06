@@ -8,7 +8,6 @@ import {
   startApp,
   stopApp,
   renderViaHTTP,
-  waitFor
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -23,7 +22,7 @@ describe('future.excludeDefaultMomentLocales', () => {
     const app = nextServer({
       dir: appDir,
       dev: false,
-      quiet: true
+      quiet: true,
     })
     server = await startApp(app)
     appPort = server.address().port
@@ -34,9 +33,10 @@ describe('future.excludeDefaultMomentLocales', () => {
 
   it('should load momentjs', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(5000)
     expect(await browser.elementByCss('h1').text()).toMatch(/current time/i)
-    expect(await browser.eval('moment.locales()')).toStrictEqual(['en'])
+    const locales = await browser.eval('moment.locales()')
+    expect(locales).toEqual(['en'])
+    expect(locales.length).toBe(1)
     await browser.close()
   })
 })

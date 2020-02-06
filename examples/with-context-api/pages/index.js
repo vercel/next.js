@@ -8,11 +8,11 @@ const IndexPage = () => {
 
   const handleIncrease = event =>
     dispatch({
-      type: 'INCREASE'
+      type: 'INCREASE',
     })
   const handleDecrease = event =>
     dispatch({
-      type: 'DECREASE'
+      type: 'DECREASE',
     })
 
   return (
@@ -22,7 +22,7 @@ const IndexPage = () => {
       <button onClick={handleIncrease}>Increase</button>
       <button onClick={handleDecrease}>Decrease</button>
       <p>
-        <Link href='/about'>
+        <Link href="/about">
           <a>About</a>
         </Link>
       </p>

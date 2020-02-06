@@ -1,26 +1,30 @@
 import React, { useState } from 'react'
 import ClientOnlyPortal from './ClientOnlyPortal'
 
-export default function Modal () {
+export default function Modal() {
   const [open, setOpen] = useState()
 
   return (
     <React.Fragment>
-      <button type='button' onClick={event => setOpen(true)}>
+      <button type="button" onClick={event => setOpen(true)}>
         Open Modal
       </button>
       {open && (
-        <ClientOnlyPortal selector='#modal'>
-          <div className='backdrop'>
-            <div className='modal'>
+        <ClientOnlyPortal selector="#modal">
+          <div className="backdrop">
+            <div className="modal">
               <p>
                 This modal is rendered using{' '}
-                <a href='https://reactjs.org/docs/portals.html' target='_blank'>
+                <a
+                  href="https://reactjs.org/docs/portals.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   portals
                 </a>
                 .
               </p>
-              <button type='button' onClick={event => setOpen(false)}>
+              <button type="button" onClick={event => setOpen(false)}>
                 Close Modal
               </button>
             </div>

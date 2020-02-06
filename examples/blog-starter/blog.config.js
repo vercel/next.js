@@ -6,8 +6,8 @@ module.exports = {
     description: 'Next.js starter blog',
     siteUrl: 'https://nextjs-blog-starter.now.sh',
     social: {
-      twitter: '_jolvera'
+      twitter: '_jolvera',
     },
-    postsPerPage: 5
-  }
+    postsPerPage: 5,
+  },
 }

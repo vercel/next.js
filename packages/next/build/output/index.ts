@@ -173,7 +173,7 @@ buildStore.subscribe(state => {
       }
 
       if (Object.keys(amp).length > 0) {
-        warnings = (warnings || []).concat(formatAmpMessages(amp))
+        warnings = (warnings || []).concat(formatAmpMessages(amp) || [])
         if (!warnings.length) warnings = null
       }
     }
@@ -202,6 +202,7 @@ export function ampValidation(
       amp: Object.keys(amp)
         .filter(k => k !== page)
         .sort()
+        // eslint-disable-next-line no-sequences
         .reduce((a, c) => ((a[c] = amp[c]), a), {} as any),
     })
     return
@@ -211,6 +212,7 @@ export function ampValidation(
   buildStore.setState({
     amp: Object.keys(newAmp)
       .sort()
+      // eslint-disable-next-line no-sequences
       .reduce((a, c) => ((a[c] = newAmp[c]), a), {} as any),
   })
 }
@@ -290,8 +292,8 @@ export function watchCompilers(
         stats.toJson({ all: false, warnings: true, errors: true })
       )
 
-      const hasErrors = errors && errors.length
-      const hasWarnings = warnings && warnings.length
+      const hasErrors = !!errors?.length
+      const hasWarnings = !!warnings?.length
 
       onEvent({
         loading: false,

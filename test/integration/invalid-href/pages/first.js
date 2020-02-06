@@ -9,7 +9,7 @@ export default () => {
 
   return method ? (
     <a
-      id='click-me'
+      id="click-me"
       onClick={e => {
         e.preventDefault()
         router[method](invalidLink)
@@ -21,7 +21,7 @@ export default () => {
     // this should throw an error on load since prefetch
     // receives the invalid href
     <Link href={invalidLink}>
-      <a id='click-me'>invalid link :o</a>
+      <a id="click-me">invalid link :o</a>
     </Link>
   )
 }

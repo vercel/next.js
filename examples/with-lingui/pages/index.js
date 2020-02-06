@@ -6,7 +6,7 @@ import LangSwitcher from '../components/LangSwitcher'
 const Index = () => (
   <div>
     <Trans>Hello World.</Trans>
-    <Link href='/two'>
+    <Link href="/two">
       <a>
         <Trans>Go to page 2</Trans>
       </a>

@@ -23,8 +23,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to put `webpack` and `modules` under `loadableGenerated` to be backwards compatible with next/dynamic which has a `modules` key
 // Modified to support `dynamic(import('something'))` and `dynamic(import('something'), options)
 
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
+import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
 
 export default function({ types: t }: { types: typeof BabelTypes }): PluginObj {

@@ -1,6 +1,6 @@
 import Router from '../router'
 
-export default function initializeBuildWatcher () {
+export default function initializeBuildWatcher() {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-prerender-indicator'
   // Make sure container is fixed and on a high zIndex so it shows
@@ -45,7 +45,7 @@ export default function initializeBuildWatcher () {
 
   let isVisible = !dismissed && window.__NEXT_DATA__.nextExport
 
-  function updateContainer () {
+  function updateContainer() {
     if (isVisible) {
       container.classList.add(`${prefix}visible`)
     } else {
@@ -87,7 +87,7 @@ export default function initializeBuildWatcher () {
   updateContainer()
 }
 
-function createContainer (prefix) {
+function createContainer(prefix) {
   const container = document.createElement('div')
   container.id = `${prefix}container`
   container.innerHTML = `
@@ -108,7 +108,7 @@ function createContainer (prefix) {
   return container
 }
 
-function createCss (prefix) {
+function createCss(prefix) {
   const css = document.createElement('style')
   css.textContent = `
     #${prefix}container {

@@ -2,38 +2,38 @@ import React from 'react'
 import Link from 'next/link'
 
 export default class UrlPropChange extends React.Component {
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       previousUrl: {},
-      url: props.url
+      url: props.url,
     }
   }
 
   // eslint-disable-next-line camelcase
-  componentDidUpdate (prevProps) {
+  componentDidUpdate(prevProps) {
     if (prevProps.url !== this.props.url) {
       this.setState(() => {
         return {
           previousUrl: prevProps.url,
-          url: this.props.url
+          url: this.props.url,
         }
       })
     }
   }
 
-  render () {
+  render() {
     const { previousUrl, url } = this.state
     return (
       <div>
         Current:
-        <div id='url-result'>{JSON.stringify(url)}</div>
+        <div id="url-result">{JSON.stringify(url)}</div>
         <br />
         <br />
         Previous:
-        <div id='previous-url-result'>{JSON.stringify(previousUrl)}</div>
-        <Link href='/nav/url-prop-change?added=yes'>
-          <a id='add-query'>Add querystring</a>
+        <div id="previous-url-result">{JSON.stringify(previousUrl)}</div>
+        <Link href="/nav/url-prop-change?added=yes">
+          <a id="add-query">Add querystring</a>
         </Link>
       </div>
     )

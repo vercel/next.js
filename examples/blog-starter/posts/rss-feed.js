@@ -15,7 +15,7 @@ const feed = {
   author: {
     name: siteMeta.author,
     url: siteMeta.siteUrl,
-    avatar: `${siteMeta.siteUrl}/static/_jolvera-avatar.jpg`
+    avatar: `${siteMeta.siteUrl}/static/_jolvera-avatar.jpg`,
   },
   items: posts.map(post => ({
     id: `${siteMeta.siteUrl}${post.path}`,
@@ -25,8 +25,8 @@ const feed = {
     summary: post.summary,
     image: `${siteMeta.siteUrl}${post.image}`,
     date_published: post.publishedAt,
-    author: siteMeta.author
-  }))
+    author: siteMeta.author,
+  })),
 }
 
 fs.writeFileSync(path.join('./.next/static', 'feed.json'), JSON.stringify(feed))

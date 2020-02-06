@@ -1,22 +1,22 @@
 import React from 'react'
 
 export default class MyLuckNo extends React.Component {
-  constructor (...args) {
+  constructor(...args) {
     super(...args)
     this.state = { randomNo: null }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.recalculate()
   }
 
-  recalculate () {
+  recalculate() {
     this.setState({
-      randomNo: Math.ceil(Math.random() * 100)
+      randomNo: Math.ceil(Math.random() * 100),
     })
   }
 
-  render () {
+  render() {
     const { randomNo } = this.state
 
     if (randomNo === null) {

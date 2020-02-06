@@ -5,14 +5,14 @@ import auth0 from '../../lib/auth0'
 import { fetchUser } from '../../lib/user'
 import Layout from '../../components/layout'
 
-function Profile ({ user }) {
+function Profile({ user }) {
   return (
     <Layout user={user}>
       <h1>Profile</h1>
 
       <div>
         <h3>Profile (server rendered)</h3>
-        <img src={user.picture} alt='user picture' />
+        <img src={user.picture} alt="user picture" />
         <p>nickname: {user.nickname}</p>
         <p>name: {user.name}</p>
       </div>
@@ -28,7 +28,7 @@ Profile.getInitialProps = async ({ req, res }) => {
     const { user } = await auth0.getSession(req)
     if (!user) {
       res.writeHead(302, {
-        Location: '/api/login'
+        Location: '/api/login',
       })
       res.end()
       return
@@ -46,7 +46,7 @@ Profile.getInitialProps = async ({ req, res }) => {
   if (!user) {
     if (typeof window === 'undefined') {
       res.writeHead(302, {
-        Location: '/api/login'
+        Location: '/api/login',
       })
       return res.end()
     }

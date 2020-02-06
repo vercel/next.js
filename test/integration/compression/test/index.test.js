@@ -6,7 +6,7 @@ import {
   renderViaHTTP,
   findPort,
   launchApp,
-  killApp
+  killApp,
 } from 'next-test-utils'
 
 const context = {}

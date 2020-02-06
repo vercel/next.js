@@ -10,12 +10,12 @@ if (typeof window !== 'undefined') {
 }
 
 class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
       /* This is where we'll render one of our universal portals */
       <>
-        <div id='modal' />
+        <div id="modal" />
         <Component {...pageProps} />
       </>
     )

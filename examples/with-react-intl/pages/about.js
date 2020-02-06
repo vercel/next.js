@@ -8,7 +8,7 @@ export default () => {
     <Layout>
       <p>
         <FormattedRelativeTime
-          numeric='auto'
+          numeric="auto"
           value={value}
           unit={unit}
           updateIntervalInSeconds={1}

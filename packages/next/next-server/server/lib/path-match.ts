@@ -1,31 +1,46 @@
-// We borrow this code from https://github.com/pillarjs/path-match
-// That's because, ^^^ package comes with very old version of path-to-regexp
-// So, it'll give us issues when the app has used a newer version of path-to-regexp
-// (When webpack resolving packages)
-const pathToRegexp = require('path-to-regexp')
+import * as pathToRegexp from 'path-to-regexp'
 
-export default () => {
+export { pathToRegexp }
+
+export default (customRoute = false) => {
   return (path: string) => {
-    const keys: any[] = []
-    const re = pathToRegexp(path, keys, {})
+    const keys: pathToRegexp.Key[] = []
+    const matcherOptions = {
+      sensitive: false,
+      delimiter: '/',
+      ...(customRoute ? { strict: true } : undefined),
+      decode: decodeParam,
+    }
+    const matcherRegex = pathToRegexp.pathToRegexp(path, keys, matcherOptions)
+    const matcher = pathToRegexp.regexpToFunction(
+      matcherRegex,
+      keys,
+      matcherOptions
+    )
 
-    return (pathname: string | undefined, params?: any) => {
-      const m = re.exec(pathname)
-      if (!m) return false
-
-      params = params || {}
-
-      let key
-      let param
-      for (let i = 0; i < keys.length; i++) {
-        key = keys[i]
-        param = m[i + 1]
-        if (!param) continue
-        params[key.name] = decodeParam(param)
-        if (key.repeat) params[key.name] = params[key.name].split(key.delimiter)
+    return (pathname: string | null | undefined, params?: any) => {
+      const res = pathname == null ? false : matcher(pathname)
+      if (!res) {
+        return false
       }
 
-      return params
+      if (customRoute) {
+        const newParams: { [k: string]: string } = {}
+        for (const key of keys) {
+          // unnamed matches should always be a number while named
+          // should be a string
+          if (typeof key.name === 'number') {
+            newParams[key.name + 1 + ''] = (res.params as any)[key.name + '']
+            delete (res.params as any)[key.name + '']
+          }
+        }
+        res.params = {
+          ...res.params,
+          ...newParams,
+        }
+      }
+
+      return { ...params, ...res.params }
     }
   }
 }

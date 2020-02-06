@@ -14,9 +14,14 @@ export async function recursiveCopy(
   source: string,
   dest: string,
   {
-    concurrency = 255,
+    concurrency = 32,
+    overwrite = false,
     filter = () => true,
-  }: { concurrency?: number; filter?(path: string): boolean } = {}
+  }: {
+    concurrency?: number
+    overwrite?: boolean
+    filter?(path: string): boolean
+  } = {}
 ) {
   const cwdPath = process.cwd()
   const from = path.resolve(cwdPath, source)
@@ -39,6 +44,7 @@ export async function recursiveCopy(
           throw err
         }
       }
+      sema.release()
       const files = await readdir(item)
       await Promise.all(files.map(file => _copy(path.join(item, file))))
     } else if (
@@ -47,11 +53,9 @@ export async function recursiveCopy(
       // we remove the base path (from) and replace \ by / (windows)
       filter(item.replace(from, '').replace(/\\/g, '/'))
     ) {
-      await copyFile(item, target, COPYFILE_EXCL)
+      await copyFile(item, target, overwrite ? undefined : COPYFILE_EXCL)
+      sema.release()
     }
-
-    sema.release()
-    return
   }
 
   await _copy(from)

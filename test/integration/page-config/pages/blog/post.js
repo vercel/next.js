@@ -1,5 +1,5 @@
 export const meta = {
-  hello: 'world'
+  hello: 'world',
 }
 
 export default () => <p>hi</p>

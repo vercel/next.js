@@ -4,7 +4,7 @@ import { useContext, useEffect } from 'react'
 import { StoreContext, start, stop } from '../store'
 import Clock from './Clock'
 
-function Page ({ linkTo, title }) {
+function Page({ linkTo, title }) {
   const store = useContext(StoreContext)
 
   useEffect(() => {

@@ -87,9 +87,8 @@ async function run() {
     appPath: resolvedProjectPath,
     useNpm: !!program.useNpm,
     example:
-      typeof program.example === 'string' && program.example.trim()
-        ? program.example.trim()
-        : undefined,
+      (typeof program.example === 'string' && program.example.trim()) ||
+      undefined,
   })
 }
 
@@ -98,7 +97,7 @@ const update = checkForUpdate(packageJson).catch(() => null)
 async function notifyUpdate() {
   try {
     const res = await update
-    if (res && res.latest) {
+    if (res?.latest) {
       const isYarn = shouldUseYarn()
 
       console.log()
