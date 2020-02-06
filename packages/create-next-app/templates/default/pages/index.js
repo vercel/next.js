@@ -37,7 +37,7 @@ const Home = () => (
         </a>
 
         <a
-          href="https://zeit.co/new?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App"
+          href="https://zeit.co/new?utm_source=create-next-app&utm_medium=example&utm_campaign=default-example"
           className="card"
         >
           <h3>Deploy &rarr;</h3>
@@ -50,7 +50,7 @@ const Home = () => (
 
     <footer>
       <a
-        href="https://zeit.co?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App"
+        href="https://zeit.co?utm_source=create-next-app&utm_medium=example&utm_campaign=default-example"
         target="_blank"
         rel="noopener noreferrer"
       >
