@@ -50,28 +50,39 @@ export default function nextPageConfig({
                   return
                 }
 
-                const { declarations } = path.node.declaration as any
-                const config: PageConfig = {}
-
-                if (!declarations) {
+                if (!BabelTypes.isVariableDeclaration(path.node.declaration)) {
                   return
                 }
+
+                const { declarations } = path.node.declaration
+                const config: PageConfig = {}
+
                 for (const declaration of declarations) {
-                  if (declaration.id.name !== 'config') {
+                  if (
+                    !BabelTypes.isIdentifier(declaration.id, { name: 'config' })
+                  ) {
                     continue
                   }
 
-                  if (declaration.init.type !== 'ObjectExpression') {
+                  if (!BabelTypes.isObjectExpression(declaration.init)) {
                     const pageName =
                       (state.filename || '').split(state.cwd || '').pop() ||
                       'unknown'
 
+                    const got = declaration.init
+                      ? declaration.init.type
+                      : 'undefined'
                     throw new Error(
-                      `Invalid page config export found. Expected object but got ${declaration.init.type} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                      `Invalid page config export found. Expected object but got ${got} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
                     )
                   }
 
                   for (const prop of declaration.init.properties) {
+                    if (BabelTypes.isSpreadElement(prop)) {
+                      throw new Error(
+                        `Invalid page config export found. Property spread is not supported.`
+                      )
+                    }
                     const { name } = prop.key
                     if (configKeys.has(name)) {
                       // @ts-ignore
