@@ -2,21 +2,33 @@ import React from 'react'
 import App from 'next/app'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
-import { ApolloClient } from 'apollo-client'
-import { InMemoryCache } from 'apollo-cache-inmemory'
-import { HttpLink } from 'apollo-link-http'
-import fetch from 'isomorphic-unfetch'
 
 let globalApolloClient = null
 
 /**
- * Creates and provides the apolloContext
- * to a next.js PageTree. Use it by wrapping
- * your PageComponent via HOC pattern.
+ * Creates a withApollo HOC
+ * that provides the apolloContext
+ * to a next.js Page or AppTree.
  */
-export const withApollo = ({ ssr = true } = {}) => PageComponent => {
+export const createWithApollo = createApolloClient => ({
+  ssr = true,
+} = {}) => PageComponent => {
+  if (typeof createApolloClient !== 'function') {
+    throw new Error(
+      '[withApollo] requires a function that returns an ApolloClient'
+    )
+  }
   const WithApollo = ({ apolloClient, apolloState, ...pageProps }) => {
-    const client = apolloClient || initApolloClient(apolloState)
+    // Called by:
+    // - getDataFromTree => apolloClient
+    // - next.js ssr => apolloClient
+    // - next.js csr => apolloState
+    let client
+    if (apolloClient) {
+      client = apolloClient
+    } else {
+      client = initApolloClient(createApolloClient, apolloState, undefined)
+    }
     return (
       <ApolloProvider client={client}>
         <PageComponent {...pageProps} />
@@ -51,7 +63,11 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
       }
 
       // Initialize ApolloClient
-      const apolloClient = initApolloClient()
+      const apolloClient = initApolloClient(
+        createApolloClient,
+        {},
+        inAppContext ? ctx.ctx : ctx
+      )
 
       // Add apolloClient to NextPageContext & NextAppContext
       // This allows us to consume the apolloClient inside our
@@ -111,9 +127,16 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
       // Extract query data from the Apollo store
       const apolloState = apolloClient.cache.extract()
 
+      // To avoid calling initApollo() twice in the server we send the Apollo Client as a prop
+      // to the component, otherwise the component would have to call initApollo() again but this
+      // time without the context, once that happens the following code will make sure we send
+      // the prop as `null` to the browser
+      apolloClient.toJSON = () => null
+
       return {
         ...pageProps,
         apolloState,
+        apolloClient,
       }
     }
   }
@@ -126,34 +149,17 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
  * Creates or reuses apollo client in the browser.
  * @param  {Object} initialState
  */
-const initApolloClient = initialState => {
+const initApolloClient = (createApolloClient, initialState, ctx) => {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (typeof window === 'undefined') {
-    return createApolloClient(initialState)
+    return createApolloClient(initialState, ctx)
   }
 
   // Reuse client on the client-side
   if (!globalApolloClient) {
-    globalApolloClient = createApolloClient(initialState)
+    globalApolloClient = createApolloClient(initialState, ctx)
   }
 
   return globalApolloClient
-}
-
-/**
- * Creates and configures the ApolloClient
- * @param  {Object} [initialState={}]
- */
-const createApolloClient = (initialState = {}) => {
-  // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
-  return new ApolloClient({
-    ssrMode: typeof window === 'undefined', // Disables forceFetch on the server (so queries are only run once)
-    link: new HttpLink({
-      uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
-      credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
-      fetch,
-    }),
-    cache: new InMemoryCache().restore(initialState),
-  })
 }
