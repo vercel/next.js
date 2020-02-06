@@ -4,11 +4,7 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
-import {
-  Redirect,
-  Rewrite,
-  getRedirectStatus,
-} from '../lib/check-custom-routes'
+import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -232,43 +228,62 @@ export async function printTreeView(
 export function printCustomRoutes({
   redirects,
   rewrites,
+  headers,
 }: {
   redirects: Redirect[]
   rewrites: Rewrite[]
+  headers: Header[]
 }) {
   const printRoutes = (
-    routes: Redirect[] | Rewrite[],
-    type: 'Redirects' | 'Rewrites'
+    routes: Redirect[] | Rewrite[] | Header[],
+    type: 'Redirects' | 'Rewrites' | 'Headers'
   ) => {
     const isRedirects = type === 'Redirects'
+    const isHeaders = type === 'Headers'
     console.log(chalk.underline(type))
     console.log()
 
-    console.log(
-      textTable(
-        [
-          [
-            'Source',
-            'Destination',
-            ...(isRedirects ? ['statusCode'] : []),
-          ].map(str => chalk.bold(str)),
-          ...Object.entries(routes).map(([key, route]) => {
-            return [
-              route.source,
-              route.destination,
-              ...(isRedirects
-                ? [getRedirectStatus(route as Redirect) + '']
-                : []),
-            ]
-          }),
-        ],
-        {
-          align: ['l', 'l', 'l'],
-          stringLength: str => stripAnsi(str).length,
+    /*
+        ┌ source
+        ├ permanent/statusCode
+        └ destination
+     */
+    const routesStr = (routes as any[])
+      .map((route: { source: string }) => {
+        let routeStr = `┌ source: ${route.source}\n`
+
+        if (!isHeaders) {
+          const r = route as Rewrite
+          routeStr += `${isRedirects ? '├' : '└'} destination: ${
+            r.destination
+          }\n`
         }
-      )
-    )
-    console.log()
+        if (isRedirects) {
+          const r = route as Redirect
+          routeStr += `└ ${
+            r.statusCode
+              ? `status: ${r.statusCode}`
+              : `permanent: ${r.permanent}`
+          }\n`
+        }
+
+        if (isHeaders) {
+          const r = route as Header
+          routeStr += `└ headers:\n`
+
+          for (let i = 0; i < r.headers.length; i++) {
+            const header = r.headers[i]
+            const last = i === headers.length - 1
+
+            routeStr += `  ${last ? '└' : '├'} ${header.key}: ${header.value}\n`
+          }
+        }
+
+        return routeStr
+      })
+      .join('\n')
+
+    console.log(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -276,6 +291,9 @@ export function printCustomRoutes({
   }
   if (rewrites.length) {
     printRoutes(rewrites, 'Rewrites')
+  }
+  if (headers.length) {
+    printRoutes(headers, 'Headers')
   }
 }
 
