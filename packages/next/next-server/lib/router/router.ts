@@ -400,16 +400,14 @@ export default class Router implements BaseRouter {
             return resolve(false)
           }
 
-          if (emit) {
-            Router.events.emit('beforeHistoryChange', as)
-            this.changeState(method, url, addBasePath(as), options)
+          Router.events.emit('beforeHistoryChange', as)
+          this.changeState(method, url, addBasePath(as), options)
 
-            if (process.env.NODE_ENV !== 'production') {
-              const appComp: any = this.components['/_app'].Component
-              ;(window as any).next.isPrerendered =
-                appComp.getInitialProps === appComp.origGetInitialProps &&
-                !(routeInfo.Component as any).getInitialProps
-            }
+          if (process.env.NODE_ENV !== 'production') {
+            const appComp: any = this.components['/_app'].Component
+            ;(window as any).next.isPrerendered =
+              appComp.getInitialProps === appComp.origGetInitialProps &&
+              !(routeInfo.Component as any).getInitialProps
           }
 
           this.set(route, pathname, query, as, routeInfo)
