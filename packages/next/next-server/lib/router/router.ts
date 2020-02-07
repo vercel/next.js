@@ -526,25 +526,18 @@ export default class Router implements BaseRouter {
           return routeInfo
         }
 
-        // if we have data in cache resolve with the data
-        // if not we we resolve with fallback routeInfo
-
+        // resolve with fallback routeInfo and promise for data
         if (isSSG || isSSP) {
-          const dataRes = isSSG
-            ? this._getStaticData(as)
-            : this._getServerData(as)
-
-          return Promise.resolve(
-            typeof dataRes.then !== 'function'
-              ? handleData(dataRes)
-              : {
-                  ...routeInfo,
-                  props: {},
-                  dataRes: this._getData(() =>
-                    dataRes.then((props: any) => handleData(props))
-                  ),
-                }
-          )
+          return Promise.resolve({
+            ...routeInfo,
+            props: {},
+            dataRes: this._getData(() =>
+              (isSSG
+                ? this._getStaticData(as)
+                : this._getServerData(as)
+              ).then((props: any) => handleData(props))
+            ),
+          })
         }
 
         return this._getData<RouteInfo>(() =>
@@ -755,11 +748,11 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<object> | any => {
+  _getStaticData = (asPath: string): Promise<object> => {
     const pathname = prepareRoute(parse(asPath).pathname!)
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? this.sdc[pathname]
+      ? Promise.resolve(this.sdc[pathname])
       : fetchNextData(pathname, null, data => (this.sdc[pathname] = data))
   }
 
