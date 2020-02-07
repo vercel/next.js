@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "run": "next && next build && next start",
+    "test": "curl http://localhost:3000/api/hello"
+  },
+  "dependencies": {
+    "babel-plugin-module-resolver": "4.0.0",
+    "next": "latest",
+    "node-postgres": "0.1.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "devDependencies": {}
+}
