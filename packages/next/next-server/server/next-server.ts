@@ -1017,19 +1017,21 @@ export default class Server {
 
     // render fallback if cached data wasn't available
     if (!isResSent(res) && !isDataReq && isDynamicRoute(pathname)) {
-      if (!this.renderOpts.dev) {
-        return getFallback(pathname)
-      }
-      query.__nextFallback = 'true'
       let html = ''
-      if (isLikeServerless) {
-        this.prepareServerlessUrl(req, query)
-        html = await (result.Component as any).renderReqToHTML(req, res)
+
+      if (!this.renderOpts.dev) {
+        html = await getFallback(pathname)
       } else {
-        html = (await renderToHTML(req, res, pathname, query, {
-          ...result,
-          ...opts,
-        })) as string
+        query.__nextFallback = 'true'
+        if (isLikeServerless) {
+          this.prepareServerlessUrl(req, query)
+          html = await (result.Component as any).renderReqToHTML(req, res)
+        } else {
+          html = (await renderToHTML(req, res, pathname, query, {
+            ...result,
+            ...opts,
+          })) as string
+        }
       }
 
       this.__sendPayload(res, html, 'text/html; charset=utf-8')
