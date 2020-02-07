@@ -22,6 +22,11 @@ export async function unstable_getStaticProps({ params }) {
 }
 
 export default ({ post, comment, time }) => {
+  // we're in a loading state
+  if (!post) {
+    return <p>loading...</p>
+  }
+
   return (
     <>
       <p>Post: {post}</p>

@@ -308,7 +308,9 @@ const nextServerlessLoader: loader.Loader = function() {
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
+        const isFallback = parsedUrl.query.__nextFallback
+
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (_nextData && !fromExport) {
           const payload = JSON.stringify(renderOpts.pageData)

@@ -16,4 +16,4 @@ export async function unstable_getStaticPaths() {
   ]
 }
 
-export default ({ slug }) => <p id="catchall">Hi {slug.join('/')}</p>
+export default ({ slug }) => <p id="catchall">Hi {slug?.join('/')}</p>

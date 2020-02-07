@@ -88,7 +88,7 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-
+  fallback: string
   dataRoute: string
   dataRouteRegex: string
 }
@@ -639,15 +639,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        // Remove dynamically routed pages from the default path map. These
-        // pages cannot be prerendered because we don't have enough information
-        // to do so.
+        // Generate fallback for dynamically routed pages to use as
+        // the loading state for pages while the data is being populated
         //
         // Note: prerendering disables automatic static optimization.
         ssgPages.forEach(page => {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
-            delete defaultMap[page]
+            // set __nextFallback query so render doesn't call
+            // getStaticProps/getServerProps
+            defaultMap[page] = { page, query: { __nextFallback: true } }
           }
         })
         // Append the "well-known" routes we should prerender for, e.g. blog
@@ -711,13 +712,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
       const isDynamic = isDynamicRoute(page)
-      const file = normalizePagePath(page)
-      // The dynamic version of SSG pages are not prerendered. Below, we handle
-      // the specific prerenders of these.
-      if (!(isSsg && isDynamic)) {
-        await moveExportedPage(page, file, isSsg, 'html')
-      }
       const hasAmp = hybridAmpPages.has(page)
+      let file = normalizePagePath(page)
+
+      // We should always have an HTML file to move for each page
+      await moveExportedPage(page, file, isSsg, 'html')
+
       if (hasAmp) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
       }
@@ -734,8 +734,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
             dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
         } else {
-          // For a dynamic SSG page, we did not copy its html nor data exports.
-          // Instead, we must copy specific versions of this page as defined by
+          // For a dynamic SSG page, we did not copy its data exports and only
+          // copy the fallback HTML file.
+          // We must also copy specific versions of this page as defined by
           // `unstable_getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
@@ -778,15 +779,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (ssgPages.size > 0) {
     const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
     tbdPrerenderRoutes.forEach(tbdRoute => {
+      const normalizedRoute = normalizePagePath(tbdRoute)
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${normalizePagePath(tbdRoute)}.json`
+        `${normalizedRoute}.json`
       )
 
       finalDynamicRoutes[tbdRoute] = {
         routeRegex: getRouteRegex(tbdRoute).re.source,
         dataRoute,
+        fallback: `${normalizedRoute}.html`,
         dataRouteRegex: getRouteRegex(
           dataRoute.replace(/\.json$/, '')
         ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
