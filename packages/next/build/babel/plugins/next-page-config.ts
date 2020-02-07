@@ -2,7 +2,6 @@ import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
 import { PageConfig } from 'next/types'
 
-const configKeys = new Set(['amp'])
 const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 
 // replace program path with just a variable with the drop identifier
@@ -24,6 +23,12 @@ function replaceBundle(path: any, t: typeof BabelTypes) {
       []
     )
   )
+}
+
+function errorMessage(state: any, details: string) {
+  const pageName =
+    (state.filename || '').split(state.cwd || '').pop() || 'unknown'
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
 }
 
 interface ConfigState {
@@ -65,28 +70,36 @@ export default function nextPageConfig({
                   }
 
                   if (!BabelTypes.isObjectExpression(declaration.init)) {
-                    const pageName =
-                      (state.filename || '').split(state.cwd || '').pop() ||
-                      'unknown'
-
                     const got = declaration.init
                       ? declaration.init.type
                       : 'undefined'
                     throw new Error(
-                      `Invalid page config export found. Expected object but got ${got} in file ${pageName}. See: https://err.sh/zeit/next.js/invalid-page-config`
+                      errorMessage(state, `Expected object but got ${got}`)
                     )
                   }
 
                   for (const prop of declaration.init.properties) {
                     if (BabelTypes.isSpreadElement(prop)) {
                       throw new Error(
-                        `Invalid page config export found. Property spread is not supported.`
+                        errorMessage(state, `Property spread is not allowed`)
                       )
                     }
                     const { name } = prop.key
-                    if (configKeys.has(name)) {
-                      // @ts-ignore
-                      config[name] = prop.value.value
+                    if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
+                      if (!BabelTypes.isObjectProperty(prop)) {
+                        throw new Error(
+                          errorMessage(state, `Invalid property "${name}"`)
+                        )
+                      }
+                      if (
+                        !BabelTypes.isBooleanLiteral(prop.value) &&
+                        !BabelTypes.isStringLiteral(prop.value)
+                      ) {
+                        throw new Error(
+                          errorMessage(state, `Invalid value for "${name}"`)
+                        )
+                      }
+                      config.amp = prop.value.value as PageConfig['amp']
                     }
                   }
                 }

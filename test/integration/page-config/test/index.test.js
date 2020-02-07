@@ -56,7 +56,33 @@ describe('Page Config', () => {
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
       expect(stderr).toMatch(
-        /Invalid page config export found\. Property spread is not supported\./
+        /https:\/\/err\.sh\/zeit\/next\.js\/invalid-page-config/
+      )
+    } finally {
+      await reset()
+    }
+  })
+
+  it('shows error when page config has invalid properties', async () => {
+    const reset = await uncommentExport('invalid/invalid-property.js')
+
+    try {
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      expect(stderr).toMatch(
+        /https:\/\/err\.sh\/zeit\/next\.js\/invalid-page-config/
+      )
+    } finally {
+      await reset()
+    }
+  })
+
+  it('shows error when page config has invalid property value', async () => {
+    const reset = await uncommentExport('invalid/invalid-value.js')
+
+    try {
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      expect(stderr).toMatch(
+        /https:\/\/err\.sh\/zeit\/next\.js\/invalid-page-config/
       )
     } finally {
       await reset()
