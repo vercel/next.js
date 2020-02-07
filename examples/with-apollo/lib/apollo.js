@@ -29,7 +29,8 @@ export const initOnContext = ctx => {
 
   // Initialize ApolloClient if not already done
   const apolloClient =
-    ctx.apolloClient || initApolloClient({}, inAppContext ? ctx.ctx : ctx)
+    ctx.apolloClient ||
+    initApolloClient(ctx.apolloState || {}, inAppContext ? ctx.ctx : ctx)
 
   // To avoid calling initApollo() twice in the server we send the Apollo Client as a prop
   // to the component, otherwise the component would have to call initApollo() again but this
