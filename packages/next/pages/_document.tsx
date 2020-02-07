@@ -296,7 +296,7 @@ export class Head extends Component<
       headTags,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
-    const { page, buildId } = __NEXT_DATA__
+    const { page, buildId, isFallback } = __NEXT_DATA__
 
     let { head } = this.context._documentProps
     let children = this.props.children
@@ -477,6 +477,17 @@ export class Head extends Component<
               <link
                 rel="amphtml"
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
+              />
+            )}
+            {isFallback && (
+              <link
+                rel="preload"
+                href={
+                  assetPrefix + `/_next/data/${buildId}${dangerousAsPath}.json`
+                }
+                as="fetch"
+                nonce={this.props.nonce}
+                crossOrigin={this.props.crossOrigin || process.crossOrigin}
               />
             )}
             {this.getCssLinks()}
