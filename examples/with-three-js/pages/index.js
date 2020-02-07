@@ -1,10 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
-import style from './index.css'
 
 const Index = () => {
   return (
-    <div className={style.main}>
+    <div className="main">
       <Link href="/birds">
         <a>Birds Example</a>
       </Link>
