@@ -92,6 +92,11 @@ export function initializeSprCache({
   })
 }
 
+export async function getFallback(page: string): Promise<string> {
+  page = normalizePagePath(page)
+  return readFile(getSeedPath(page, 'html'), 'utf8')
+}
+
 // get data from SPR cache if available
 export async function getSprCache(
   pathname: string
