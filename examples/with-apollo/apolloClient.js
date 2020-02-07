@@ -4,7 +4,7 @@ import { HttpLink } from 'apollo-link-http'
 import fetch from 'isomorphic-unfetch'
 
 export default function createApolloClient(initialState, ctx) {
-  // The `ctx` will only be present on the server.
+  // The `ctx` (NextPageContext) will only be present on the server.
   // use it to extract auth headers (ctx.req) or similar.
   return new ApolloClient({
     ssrMode: Boolean(ctx),
