@@ -7,7 +7,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import escapeRegex from 'escape-string-regexp'
 import {
   launchApp,
   killApp,
@@ -548,14 +547,22 @@ const runTests = (isDev = false) => {
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
       expect(cleanStdout).toContain('Rewrites')
-      expect(cleanStdout).toMatch(/Source.*?Destination.*?statusCode/i)
+      expect(cleanStdout).toContain('Headers')
+      expect(cleanStdout).toMatch(/source.*?/i)
+      expect(cleanStdout).toMatch(/destination.*?/i)
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
-        expect(cleanStdout).toMatch(
-          new RegExp(
-            `${escapeRegex(route.source)}.*?${escapeRegex(route.destination)}`
-          )
-        )
+        expect(cleanStdout).toContain(route.source)
+        expect(cleanStdout).toContain(route.destination)
+      }
+
+      for (const route of manifest.headers) {
+        expect(cleanStdout).toContain(route.source)
+
+        for (const header of route.headers) {
+          expect(cleanStdout).toContain(header.key)
+          expect(cleanStdout).toContain(header.value)
+        }
       }
     })
   } else {
