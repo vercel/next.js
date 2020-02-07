@@ -2,7 +2,7 @@ import React from 'react'
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticPaths() {
-  return [{ foo: 'bad', baz: 'herro' }]
+  return { paths: [{ foo: 'bad', baz: 'herro' }] }
 }
 
 // eslint-disable-next-line camelcase
