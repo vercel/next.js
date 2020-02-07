@@ -842,7 +842,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isModern: config.experimental.modern,
     }
   )
-  printCustomRoutes({ redirects, rewrites })
+  printCustomRoutes({ redirects, rewrites, headers })
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
