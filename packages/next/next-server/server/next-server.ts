@@ -43,7 +43,12 @@ import Router, {
 } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
-import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
+import {
+  getSprCache,
+  initializeSprCache,
+  setSprCache,
+  getFallback,
+} from './spr-cache'
 import { isBlockedPage } from './utils'
 import {
   Redirect,
@@ -1012,6 +1017,9 @@ export default class Server {
 
     // render fallback if cached data wasn't available
     if (!isResSent(res) && !isDataReq && isDynamicRoute(pathname)) {
+      if (!this.renderOpts.dev) {
+        return getFallback(pathname)
+      }
       query.__nextFallback = 'true'
       let html = ''
       if (isLikeServerless) {
