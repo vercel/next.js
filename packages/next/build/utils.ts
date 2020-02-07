@@ -574,7 +574,7 @@ export async function isPageStatic(
 
       if (invalidStaticPathKeys.length > 0) {
         throw new Error(
-          `Extra keys returned from unstable_getStaticPaths (${invalidStaticPathKeys.join(
+          `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
             ', '
           )}) The only field allowed currently is \`paths\``
         )
@@ -584,7 +584,7 @@ export async function isPageStatic(
 
       if (!Array.isArray(toPrerender)) {
         throw new Error(
-          `Invalid \`paths\` value returned from unstable_getStaticProps.\n` +
+          `Invalid \`paths\` value returned from unstable_getStaticProps in ${page}.\n` +
             `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
         )
       }
