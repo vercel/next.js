@@ -24,8 +24,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
     res,
     err,
   }: NextPageContext): Promise<ErrorProps> | ErrorProps {
-    const statusCode =
-      res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
+    const statusCode = res?.statusCode || err?.statusCode || 404
     return { statusCode }
   }
 
