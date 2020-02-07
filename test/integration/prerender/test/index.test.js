@@ -255,13 +255,16 @@ const runTests = (dev = false) => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
     if (dev) {
-      expect(
-        JSON.parse(
-          cheerio
-            .load(html)('#__NEXT_DATA__')
-            .text()
-        ).isFallback
-      ).toBe(true)
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(true)
+
+      const preloadLink = Array.from($('link[rel=preload]')).find(el =>
+        el.attribs.href.endsWith('post-1.json')
+      )
+
+      expect(preloadLink.attribs.href).toBe(
+        `/_next/data/${buildId}/blog/post-1.json`
+      )
     } else {
       expect(html).toMatch(/Post:.*?post-1/)
     }
