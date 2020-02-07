@@ -43,7 +43,12 @@ import Router, {
 } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
-import { getSprCache, initializeSprCache, setSprCache } from './spr-cache'
+import {
+  getSprCache,
+  initializeSprCache,
+  setSprCache,
+  getFallback,
+} from './spr-cache'
 import { isBlockedPage } from './utils'
 import {
   Redirect,
@@ -1009,6 +1014,28 @@ export default class Server {
 
       return { html, pageData, sprRevalidate }
     })
+
+    // render fallback if cached data wasn't available
+    if (!isResSent(res) && !isDataReq && isDynamicRoute(pathname)) {
+      let html = ''
+
+      if (!this.renderOpts.dev) {
+        html = await getFallback(pathname)
+      } else {
+        query.__nextFallback = 'true'
+        if (isLikeServerless) {
+          this.prepareServerlessUrl(req, query)
+          html = await (result.Component as any).renderReqToHTML(req, res)
+        } else {
+          html = (await renderToHTML(req, res, pathname, query, {
+            ...result,
+            ...opts,
+          })) as string
+        }
+      }
+
+      this.__sendPayload(res, html, 'text/html; charset=utf-8')
+    }
 
     return doRender(ssgCacheKey, []).then(
       async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {
