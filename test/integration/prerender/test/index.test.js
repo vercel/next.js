@@ -352,6 +352,12 @@ const runTests = (dev = false) => {
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
+
+    if (!dev) {
+      expect(
+        await browser.eval('document.documentElement.innerHTML')
+      ).toContain('Internal Server Error')
+    }
   })
 
   it('should support prerendered catchall route', async () => {

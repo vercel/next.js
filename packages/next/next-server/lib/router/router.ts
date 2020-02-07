@@ -496,6 +496,61 @@ export default class Router implements BaseRouter {
       return Promise.resolve(cachedRouteInfo)
     }
 
+    const handleError = (
+      err: Error & { cancelled?: boolean; code?: string }
+    ) => {
+      return new Promise(resolve => {
+        if (err.code === 'PAGE_LOAD_ERROR') {
+          // If we can't load the page it could be one of following reasons
+          //  1. Page doesn't exists
+          //  2. Page does exist in a different zone
+          //  3. Internal error while loading the page
+
+          // So, doing a hard reload is the proper way to deal with this.
+          window.location.href = as
+
+          // Changing the URL doesn't block executing the current code path.
+          // So, we need to mark it as a cancelled error and stop the routing logic.
+          err.cancelled = true
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
+
+        if (err.cancelled) {
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
+
+        resolve(
+          this.fetchComponent('/_error').then(Component => {
+            const routeInfo: RouteInfo = { Component, err }
+            return new Promise(resolve => {
+              this.getInitialProps(Component, {
+                err,
+                pathname,
+                query,
+              } as any).then(
+                props => {
+                  routeInfo.props = props
+                  routeInfo.error = err
+                  resolve(routeInfo)
+                },
+                gipErr => {
+                  console.error(
+                    'Error in error page `getInitialProps`: ',
+                    gipErr
+                  )
+                  routeInfo.error = err
+                  routeInfo.props = {}
+                  resolve(routeInfo)
+                }
+              )
+            }) as Promise<RouteInfo>
+          })
+        )
+      }) as Promise<RouteInfo>
+    }
+
     return (new Promise((resolve, reject) => {
       if (cachedRouteInfo) {
         return resolve(cachedRouteInfo)
@@ -548,6 +603,7 @@ export default class Router implements BaseRouter {
                 .catch(retry)
                 .catch(retry)
                 .then((props: any) => handleData(props))
+                .catch(err => handleError(err))
             ),
           })
         }
@@ -564,58 +620,7 @@ export default class Router implements BaseRouter {
           )
         ).then(props => handleData(props))
       })
-      .catch(err => {
-        return new Promise(resolve => {
-          if (err.code === 'PAGE_LOAD_ERROR') {
-            // If we can't load the page it could be one of following reasons
-            //  1. Page doesn't exists
-            //  2. Page does exist in a different zone
-            //  3. Internal error while loading the page
-
-            // So, doing a hard reload is the proper way to deal with this.
-            window.location.href = as
-
-            // Changing the URL doesn't block executing the current code path.
-            // So, we need to mark it as a cancelled error and stop the routing logic.
-            err.cancelled = true
-            // @ts-ignore TODO: fix the control flow here
-            return resolve({ error: err })
-          }
-
-          if (err.cancelled) {
-            // @ts-ignore TODO: fix the control flow here
-            return resolve({ error: err })
-          }
-
-          resolve(
-            this.fetchComponent('/_error').then(Component => {
-              const routeInfo: RouteInfo = { Component, err }
-              return new Promise(resolve => {
-                this.getInitialProps(Component, {
-                  err,
-                  pathname,
-                  query,
-                } as any).then(
-                  props => {
-                    routeInfo.props = props
-                    routeInfo.error = err
-                    resolve(routeInfo)
-                  },
-                  gipErr => {
-                    console.error(
-                      'Error in error page `getInitialProps`: ',
-                      gipErr
-                    )
-                    routeInfo.error = err
-                    routeInfo.props = {}
-                    resolve(routeInfo)
-                  }
-                )
-              }) as Promise<RouteInfo>
-            })
-          )
-        }) as Promise<RouteInfo>
-      })
+      .catch(err => handleError(err))
   }
 
   set(
