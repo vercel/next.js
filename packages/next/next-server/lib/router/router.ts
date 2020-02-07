@@ -78,16 +78,14 @@ const fetchNextData = (
   )
     .then(res => {
       if (!res.ok) {
-        throw new Error(`Failed to load static props`)
+        const error = new Error(`Failed to load static props`)
+        ;(error as any).statusCode = res.status
+        throw error
       }
       return res.json()
     })
     .then(data => {
       return cb ? cb(data) : data
-    })
-    .catch((err: Error) => {
-      ;(err as any).code = 'PAGE_LOAD_ERROR'
-      throw err
     })
 }
 
@@ -393,15 +391,20 @@ export default class Router implements BaseRouter {
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
       this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
-        const doRouteChange = (routeInfo: RouteInfo, emit: boolean) => {
+        let emitHistory = false
+
+        const doRouteChange = (routeInfo: RouteInfo, complete: boolean) => {
           const { error } = routeInfo
 
           if (error && error.cancelled) {
             return resolve(false)
           }
 
-          Router.events.emit('beforeHistoryChange', as)
-          this.changeState(method, url, addBasePath(as), options)
+          if (!emitHistory) {
+            emitHistory = true
+            Router.events.emit('beforeHistoryChange', as)
+            this.changeState(method, url, addBasePath(as), options)
+          }
 
           if (process.env.NODE_ENV !== 'production') {
             const appComp: any = this.components['/_app'].Component
@@ -412,7 +415,7 @@ export default class Router implements BaseRouter {
 
           this.set(route, pathname, query, as, routeInfo)
 
-          if (emit) {
+          if (complete) {
             if (error) {
               Router.events.emit('routeChangeError', error, as)
               throw error
@@ -526,14 +529,25 @@ export default class Router implements BaseRouter {
 
         // resolve with fallback routeInfo and promise for data
         if (isSSG || isSSP) {
+          const dataMethod = () =>
+            isSSG ? this._getStaticData(as) : this._getServerData(as)
+
+          const retry = (error: Error & { statusCode: number }) => {
+            if (error.statusCode === 404) {
+              throw error
+            }
+            return dataMethod()
+          }
+
           return Promise.resolve({
             ...routeInfo,
             props: {},
             dataRes: this._getData(() =>
-              (isSSG
-                ? this._getStaticData(as)
-                : this._getServerData(as)
-              ).then((props: any) => handleData(props))
+              dataMethod()
+                // we retry for data twice unless we get a 404
+                .catch(retry)
+                .catch(retry)
+                .then((props: any) => handleData(props))
             ),
           })
         }

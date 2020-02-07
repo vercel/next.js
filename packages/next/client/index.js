@@ -44,7 +44,10 @@ const {
   assetPrefix,
   runtimeConfig,
   dynamicIds,
+  isFallback,
 } = data
+
+let fallbackDataPromise = Promise.resolve()
 
 const prefix = assetPrefix || ''
 
@@ -96,51 +99,38 @@ class Container extends React.Component {
         })
     }
 
-    // call router.replace to trigger data fetching while
-    // the fallback is shown
-
-    if (data.isFallback) {
-      router.replace(
-        {
-          pathname: page,
-          query: {
-            ...router.query,
-            ...parseQs(location.search.substr(1)),
-          },
-        },
-        asPath,
-        { _h: 1 }
-      )
-    }
-
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
-
-    if (
-      !data.isFallback &&
-      router.isSsr &&
-      ((data.nextExport &&
-        (isDynamicRoute(router.pathname) || location.search)) ||
-        (Component && Component.__N_SSG && location.search))
-    ) {
-      // update query on mount for exported pages
-      router.replace(
-        router.pathname +
-          '?' +
-          stringifyQs({
-            ...router.query,
-            ...parseQs(location.search.substr(1)),
-          }),
-        asPath,
-        {
-          // WARNING: `_h` is an internal option for handing Next.js
-          // client-side hydration. Your app should _never_ use this property.
-          // It may change at any time without notice.
-          _h: 1,
-          shallow: true,
-        }
-      )
-    }
+    // wait for fallbackDataPromise so we don't kick off an extra
+    // request if one is pending
+    fallbackDataPromise.then(() => {
+      // If page was exported and has a querystring
+      // If it's a dynamic route or has a querystring
+      // if it's a fallback page
+      if (
+        router.isSsr &&
+        (isFallback ||
+          (data.nextExport &&
+            (isDynamicRoute(router.pathname) || location.search)) ||
+            (Component && Component.__N_SSG && location.search))
+      ) {
+        // update query on mount for exported pages
+        router.replace(
+          router.pathname +
+            '?' +
+            stringifyQs({
+              ...router.query,
+              ...parseQs(location.search.substr(1)),
+            }),
+          asPath,
+          {
+            // WARNING: `_h` is an internal option for handing Next.js
+            // client-side hydration. Your app should _never_ use this property.
+            // It may change at any time without notice.
+            _h: 1,
+            shallow: !isFallback,
+          }
+        )
+      }
+    })
 
     if (process.env.__NEXT_TEST_MODE) {
       window.__NEXT_HYDRATED = true
@@ -240,7 +230,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     // kick off static data request now so it's in the cache
     // when we re-render post-hydration
     if (data.isFallback) {
-      router._getStaticData(asPath).catch(() => {})
+      fallbackDataPromise = router._getStaticData(asPath).catch(() => {})
     }
 
     render(renderCtx)
