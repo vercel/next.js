@@ -3,7 +3,7 @@ import InfoBox from '../components/InfoBox'
 import Header from '../components/Header'
 import Submit from '../components/Submit'
 import PostList from '../components/PostList'
-import withApollo from '../lib/withApollo'
+import { withApollo } from '../lib/apollo'
 
 const ClientOnlyPage = props => (
   <App>
@@ -27,4 +27,4 @@ const ClientOnlyPage = props => (
 )
 
 // Disable apollo ssr fetching in favour of automatic static optimization
-export default withApollo({ ssr: false })(ClientOnlyPage)
+export default withApollo()(ClientOnlyPage)
