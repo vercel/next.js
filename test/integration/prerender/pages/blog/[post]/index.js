@@ -10,6 +10,7 @@ export async function unstable_getStaticPaths() {
     '/blog/[post3]',
     '/blog/post-4',
     '/blog/post.1',
+    '/blog/post.1', // handle duplicates
   ]
 }
 

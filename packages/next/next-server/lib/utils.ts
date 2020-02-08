@@ -3,7 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { format, URLFormatOptions, UrlObject } from 'url'
 
-import { ManifestItem } from '../server/render'
+import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 
 /**
@@ -76,6 +76,7 @@ export type NEXT_DATA = {
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
   autoExport?: boolean
+  isFallback?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
 }

@@ -14,13 +14,20 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 /// <reference types="react-dom/experimental" />
 
-// Polyfill Promise globally
-// This is needed because Webpack's dynamic loading(common chunks) code
-// depends on Promise.
-// So, we need to polyfill it.
-// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-if (!window.Promise) {
-  window.Promise = require('@babel/runtime-corejs2/core-js/promise')
+if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
+  if (!('finally' in Promise.prototype)) {
+    // eslint-disable-next-line no-extend-native
+    Promise.prototype.finally = require('finally-polyfill')
+  }
+} else {
+  // Polyfill Promise globally
+  // This is needed because Webpack's dynamic loading(common chunks) code
+  // depends on Promise.
+  // So, we need to polyfill it.
+  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
+  if (!self.Promise) {
+    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
+  }
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -37,6 +44,7 @@ const {
   assetPrefix,
   runtimeConfig,
   dynamicIds,
+  isFallback,
 } = data
 
 const prefix = assetPrefix || ''
@@ -91,10 +99,13 @@ class Container extends React.Component {
 
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
+    // if it's a fallback page
     if (
-      (data.nextExport &&
-        (isDynamicRoute(router.pathname) || location.search)) ||
-      (Component && Component.__N_SSG && location.search)
+      router.isSsr &&
+      (isFallback ||
+        (data.nextExport &&
+          (isDynamicRoute(router.pathname) || location.search)) ||
+        (Component && Component.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -110,7 +121,7 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
-          shallow: true,
+          shallow: !isFallback,
         }
       )
     }

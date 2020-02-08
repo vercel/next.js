@@ -4,7 +4,7 @@ import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { parse } from 'content-type'
 import { Params } from './router'
-import { PageConfig } from '../../types'
+import { PageConfig } from 'next/types'
 import { interopDefault } from './load-components'
 import { isResSent } from '../lib/utils'
 
@@ -55,11 +55,19 @@ export async function apiResolver(
     apiRes.json = data => sendJson(apiRes, data)
 
     const resolver = interopDefault(resolverModule)
+    let wasPiped = false
+
+    if (process.env.NODE_ENV !== 'production') {
+      // listen for pipe event and don't show resolve warning
+      res.once('pipe', () => (wasPiped = true))
+    }
+
+    // Call API route method
     await resolver(req, res)
 
-    if (process.env.NODE_ENV !== 'production' && !isResSent(res)) {
+    if (process.env.NODE_ENV !== 'production' && !isResSent(res) && !wasPiped) {
       console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in a stalled requests.`
+        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
       )
     }
   } catch (err) {

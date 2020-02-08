@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
@@ -23,13 +24,15 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
+let externalServerHits = new Set()
+let nextConfigRestoreContent
 let nextConfigContent
-let buildId
+let externalServerPort
+let externalServer
 let stdout = ''
+let buildId
 let appPort
 let app
-
-const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
@@ -229,6 +232,13 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should support proxying to external resource', async () => {
+    const res = await fetchViaHTTP(appPort, '/proxy-me/first')
+    expect(res.status).toBe(200)
+    expect([...externalServerHits]).toEqual(['/first'])
+    expect(await res.text()).toContain('hi from external')
+  })
+
   it('should support unnamed parameters correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/unnamed/first/final', undefined, {
       redirect: 'manual',
@@ -294,6 +304,7 @@ const runTests = (isDev = false) => {
 
       expect(manifest).toEqual({
         version: 1,
+        pages404: false,
         basePath: '',
         redirects: [
           {
@@ -494,6 +505,13 @@ const runTests = (isDev = false) => {
             source: '/hidden/_next/:path*',
           },
           {
+            destination: `http://localhost:${externalServerPort}/:path*`,
+            regex: normalizeRegEx(
+              '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/proxy-me/:path*',
+          },
+          {
             destination: '/api/hello',
             regex: normalizeRegEx('^\\/api-hello$'),
             source: '/api-hello',
@@ -529,14 +547,22 @@ const runTests = (isDev = false) => {
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
       expect(cleanStdout).toContain('Rewrites')
-      expect(cleanStdout).toMatch(/Source.*?Destination.*?statusCode/i)
+      expect(cleanStdout).toContain('Headers')
+      expect(cleanStdout).toMatch(/source.*?/i)
+      expect(cleanStdout).toMatch(/destination.*?/i)
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
-        expect(cleanStdout).toMatch(
-          new RegExp(
-            `${escapeRegex(route.source)}.*?${escapeRegex(route.destination)}`
-          )
-        )
+        expect(cleanStdout).toContain(route.source)
+        expect(cleanStdout).toContain(route.destination)
+      }
+
+      for (const route of manifest.headers) {
+        expect(cleanStdout).toContain(route.source)
+
+        for (const header of route.headers) {
+          expect(cleanStdout).toContain(header.key)
+          expect(cleanStdout).toContain(header.value)
+        }
       }
     })
   } else {
@@ -550,6 +576,32 @@ const runTests = (isDev = false) => {
 }
 
 describe('Custom routes', () => {
+  beforeEach(() => {
+    externalServerHits = new Set()
+  })
+  beforeAll(async () => {
+    externalServerPort = await findPort()
+    externalServer = http.createServer((req, res) => {
+      externalServerHits.add(req.url)
+      res.end('hi from external')
+    })
+    await new Promise((resolve, reject) => {
+      externalServer.listen(externalServerPort, error => {
+        if (error) return reject(error)
+        resolve()
+      })
+    })
+    nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
+    await fs.writeFile(
+      nextConfigPath,
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+    )
+  })
+  afterAll(async () => {
+    externalServer.close()
+    await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+  })
+
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

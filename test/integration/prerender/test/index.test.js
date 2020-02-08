@@ -2,8 +2,9 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -108,8 +109,8 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
-  '/catchall/another%2Fvalue': {
-    dataRoute: `/_next/data/${buildId}/catchall/another%2Fvalue.json`,
+  '/catchall/another/value': {
+    dataRoute: `/_next/data/${buildId}/catchall/another/value.json`,
     initialRevalidateSeconds: 1,
     srcRoute: '/catchall/[...slug]',
   },
@@ -252,7 +253,13 @@ const runTests = (dev = false) => {
 
   it('should SSR SPR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
-    expect(html).toMatch(/Post:.*?post-1/)
+
+    if (dev) {
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(true)
+    } else {
+      expect(html).toMatch(/Post:.*?post-1/)
+    }
   })
 
   it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
@@ -264,11 +271,26 @@ const runTests = (dev = false) => {
     expect(JSON.parse(params)).toEqual({})
   })
 
+  it('should not supply query values to params in /_next/data request', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/something.json?hello=world`
+      )
+    )
+    expect(data.pageProps.params).toEqual({})
+  })
+
   it('should not supply query values to params or useRouter dynamic page SSR', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
-    const params = $('#params').text()
-    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+
+    if (!dev) {
+      // these aren't available in dev since we render the fallback always
+      const params = $('#params').text()
+      expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+    }
+
     const query = $('#query').text()
     expect(JSON.parse(query)).toEqual({ post: 'post-1' })
   })
@@ -335,13 +357,24 @@ const runTests = (dev = false) => {
   it('should support prerendered catchall route', async () => {
     const html = await renderViaHTTP(appPort, '/catchall/another/value')
     const $ = cheerio.load(html)
-    expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
+
+    if (dev) {
+      expect(
+        JSON.parse(
+          cheerio
+            .load(html)('#__NEXT_DATA__')
+            .text()
+        ).isFallback
+      ).toBe(true)
+    } else {
+      expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
+    }
   })
 
   it('should support lazy catchall route', async () => {
-    const html = await renderViaHTTP(appPort, '/catchall/third')
-    const $ = cheerio.load(html)
-    expect($('#catchall').text()).toMatch(/Hi.*?third/)
+    const browser = await webdriver(appPort, '/catchall/third')
+    const text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi.*?third/)
   })
 
   if (dev) {
@@ -410,7 +443,7 @@ const runTests = (dev = false) => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
-      const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+      const escapedBuildId = escapeRegex(buildId)
 
       Object.keys(manifest.dynamicRoutes).forEach(key => {
         const item = manifest.dynamicRoutes[key]
@@ -427,6 +460,7 @@ const runTests = (dev = false) => {
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
+          fallback: '/blog/[post].html',
           dataRoute: `/_next/data/${buildId}/blog/[post].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`
@@ -434,6 +468,7 @@ const runTests = (dev = false) => {
           routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
         },
         '/blog/[post]/[comment]': {
+          fallback: '/blog/[post]/[comment].html',
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
@@ -443,6 +478,7 @@ const runTests = (dev = false) => {
           ),
         },
         '/user/[user]/profile': {
+          fallback: '/user/[user]/profile.html',
           dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`
@@ -452,6 +488,7 @@ const runTests = (dev = false) => {
           ),
         },
         '/catchall/[...slug]': {
+          fallback: '/catchall/[...slug].html',
           routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
@@ -478,11 +515,15 @@ const runTests = (dev = false) => {
     it('should handle de-duping correctly', async () => {
       let vals = new Array(10).fill(null)
 
+      // use data route so we don't get the fallback
       vals = await Promise.all(
-        vals.map(() => renderViaHTTP(appPort, '/blog/post-10'))
+        vals.map(() =>
+          renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-10.json`)
+        )
       )
       const val = vals[0]
-      expect(val).toMatch(/Post:.*?post-10/)
+
+      expect(JSON.parse(val).pageProps.post).toBe('post-10')
       expect(new Set(vals).size).toBe(1)
     })
 
@@ -579,7 +620,7 @@ describe('SPR Prerender', () => {
       await nextBuild(appDir)
       stderr = ''
       appPort = await findPort()
-      app = nextStart(appDir, appPort, {
+      app = await nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
         },

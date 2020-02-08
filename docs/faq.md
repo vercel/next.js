@@ -66,7 +66,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>Can I use Next with my favorite JavaScript library or toolkit?</summary>
-  <p>Since our first release we've had many example contributions, you can check them out in the <a href="https://github.com/zeit/next.js/tree/canary/examples">examples</a> directory.</p>
+  <p>Since our first release we've had many example contributions. You can check them out in the <a href="https://github.com/zeit/next.js/tree/canary/examples">examples</a> directory.</p>
 </details>
 
 <details>
