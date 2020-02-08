@@ -304,6 +304,7 @@ export function tryGetPreviewData(
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
   const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
+  // TODO: handle error
   const encryptedPreviewData = jsonwebtoken.verify(
     tokenPreviewData,
     options.previewModeSigningKey
