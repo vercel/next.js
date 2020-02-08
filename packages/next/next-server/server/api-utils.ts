@@ -1,12 +1,12 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { NextApiResponse, NextApiRequest } from '../lib/utils'
-import { Stream } from 'stream'
-import getRawBody from 'raw-body'
 import { parse } from 'content-type'
-import { Params } from './router'
+import { IncomingMessage, ServerResponse } from 'http'
 import { PageConfig } from 'next/types'
+import getRawBody from 'raw-body'
+import { Stream } from 'stream'
+import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import { encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
-import { isResSent } from '../lib/utils'
+import { Params } from './router'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -16,6 +16,10 @@ export async function apiResolver(
   res: ServerResponse,
   params: any,
   resolverModule: any,
+  apiContext: {
+    previewModeEncryptionKey: string
+    previewModeSigningKey: string
+  },
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -53,6 +57,9 @@ export async function apiResolver(
     apiRes.status = statusCode => sendStatusCode(apiRes, statusCode)
     apiRes.send = data => sendData(apiRes, data)
     apiRes.json = data => sendJson(apiRes, data)
+    apiRes.previewData = (data, options = {}) =>
+      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
+    apiRes.clearPreviewData = () => clearPreviewData(apiRes)
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
@@ -243,6 +250,78 @@ export function sendJson(res: NextApiResponse, jsonBody: any): void {
 
   // Use send to handle request
   res.send(jsonBody)
+}
+
+// X-Prerender-Bypass-Mode
+const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
+const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
+
+function setPreviewData<T>(
+  res: NextApiResponse<T>,
+  data: object | string,
+  options: {
+    previewModeEncryptionKey: string
+    previewModeSigningKey: string
+    maxAge?: number
+  }
+): NextApiResponse<T> {
+  if (
+    typeof options.previewModeEncryptionKey !== 'string' ||
+    options.previewModeEncryptionKey.length < 16
+  ) {
+    throw new Error('invariant: invalid previewModeEncryptionKey')
+  }
+  if (
+    typeof options.previewModeSigningKey !== 'string' ||
+    options.previewModeSigningKey.length < 16
+  ) {
+    throw new Error('invariant: invalid previewModeSigningKey')
+  }
+
+  const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
+
+  const payload = jsonwebtoken.sign(
+    encryptWithSecret(
+      Buffer.from(options.previewModeEncryptionKey),
+      JSON.stringify(data)
+    ),
+    options.previewModeSigningKey,
+    { algorithm: 'HS256', expiresIn: options.maxAge }
+  )
+
+  const { serialize } = require('cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(
+    `Set-Cookie`,
+    [
+      ...(typeof previous === 'string' ? [previous] : []),
+      serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+      }),
+      serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+      }),
+    ].join('; ')
+  )
+  return res
+}
+
+function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
+  const { serialize } = require('cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(
+    `Set-Cookie`,
+    [
+      ...(typeof previous === 'string' ? [previous] : []),
+      serialize(COOKIE_NAME_PRERENDER_BYPASS, '', { maxAge: 0 }),
+      serialize(COOKIE_NAME_PRERENDER_DATA, '', { maxAge: 0 }),
+    ].join('; ')
+  )
+  return res
 }
 
 /**
