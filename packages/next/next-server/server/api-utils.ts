@@ -253,7 +253,6 @@ export function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.send(jsonBody)
 }
 
-// X-Prerender-Bypass-Mode
 const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
 const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 

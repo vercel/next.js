@@ -1034,8 +1034,15 @@ export default class Server {
       return { html, pageData, sprRevalidate }
     })
 
-    // render fallback if cached data wasn't available
-    if (!isResSent(res) && !isDataReq && isDynamicRoute(pathname)) {
+    // render fallback if for a preview path or a non-seeded dynamic path
+    if (
+      !isResSent(res) &&
+      !isDataReq &&
+      ((isPreviewMode &&
+        // A header can opt into the blocking behavior.
+        req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking') ||
+        isDynamicRoute(pathname))
+    ) {
       let html = ''
 
       if (!this.renderOpts.dev) {
