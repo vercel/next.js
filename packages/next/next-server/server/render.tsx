@@ -32,6 +32,7 @@ import {
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import { tryGetPreviewData } from './api-utils'
 
 function noRouter() {
   const message =
@@ -442,9 +443,22 @@ export async function renderToHTML(
     })
 
     if (isSpr && !isFallback) {
-      const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? (query as any) : undefined,
+      const previewData = tryGetPreviewData(req, res, {
+        // TODO: set properties
       })
+      const data = await unstable_getStaticProps!(
+        Object.assign(
+          {},
+          isDynamicRoute(pathname)
+            ? {
+                params: query as any,
+              }
+            : undefined,
+          previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined
+        )
+      )
 
       const invalidKeys = Object.keys(data).filter(
         key => key !== 'revalidate' && key !== 'props'
