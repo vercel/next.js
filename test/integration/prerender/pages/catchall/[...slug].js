@@ -8,12 +8,14 @@ export async function unstable_getStaticProps({ params: { slug } }) {
 }
 
 export async function unstable_getStaticPaths() {
-  return [
-    { params: { slug: ['first'] } },
-    '/catchall/second',
-    { params: { slug: ['another', 'value'] } },
-    '/catchall/hello/another',
-  ]
+  return {
+    paths: [
+      { params: { slug: ['first'] } },
+      '/catchall/second',
+      { params: { slug: ['another', 'value'] } },
+      '/catchall/hello/another',
+    ],
+  }
 }
 
 export default ({ slug }) => <p id="catchall">Hi {slug?.join('/')}</p>

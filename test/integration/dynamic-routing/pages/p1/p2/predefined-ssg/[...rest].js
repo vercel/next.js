@@ -7,10 +7,12 @@ export function unstable_getStaticProps({ params }) {
 }
 
 export function unstable_getStaticPaths() {
-  return [
-    `/p1/p2/predefined-ssg/one-level`,
-    `/p1/p2/predefined-ssg/1st-level/2nd-level`,
-  ]
+  return {
+    paths: [
+      `/p1/p2/predefined-ssg/one-level`,
+      `/p1/p2/predefined-ssg/1st-level/2nd-level`,
+    ],
+  }
 }
 
 export default All

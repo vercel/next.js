@@ -32,7 +32,9 @@ type Unstable_getStaticProps = (params: {
   revalidate?: number | boolean
 }>
 
-type Unstable_getStaticPaths = () => Promise<Array<string | ParsedUrlQuery>>
+export type Unstable_getStaticPaths = () => Promise<{
+  paths: Array<string | { params: ParsedUrlQuery }>
+}>
 
 type Unstable_getServerProps = (context: {
   params: ParsedUrlQuery | undefined
