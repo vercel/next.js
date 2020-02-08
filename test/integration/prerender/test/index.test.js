@@ -378,6 +378,14 @@ const runTests = (dev = false) => {
   })
 
   if (dev) {
+    it('should show error when rewriting to dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+      expect(html).toContain(
+        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+      )
+    })
+
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
       expect(initialRes.headers.get('cache-control')).toBeFalsy()
@@ -595,8 +603,27 @@ const runTests = (dev = false) => {
 }
 
 describe('SPR Prerender', () => {
+  afterAll(() => fs.remove(nextConfig))
+
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            rewrites() {
+              return [
+                {
+                  source: "/some-rewrite/:item",
+                  destination: "/blog/post-:item"
+                }
+              ]
+            }
+          }
+        }
+      `
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         onStderr: msg => {
