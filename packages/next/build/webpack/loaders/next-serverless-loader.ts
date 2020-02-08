@@ -176,6 +176,7 @@ const nextServerlessLoader: loader.Loader = function() {
             res,
             Object.assign({}, parsedUrl.query, params ),
             resolver,
+            {}, // TODO: set properties
             onError
           )
         } catch (err) {

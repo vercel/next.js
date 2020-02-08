@@ -1,12 +1,19 @@
 import compression from 'compression'
 import fs from 'fs'
-import Proxy from 'http-proxy'
 import { IncomingMessage, ServerResponse } from 'http'
+import Proxy from 'http-proxy'
+import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, resolve, sep } from 'path'
 import { compile as compilePathToRegex } from 'path-to-regexp'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
-
+import {
+  getRedirectStatus,
+  Header,
+  Redirect,
+  Rewrite,
+  RouteType,
+} from '../../lib/check-custom-routes'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
@@ -16,8 +23,8 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
   ROUTES_MANIFEST,
-  SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  SERVER_DIRECTORY,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -27,37 +34,30 @@ import {
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
-import { apiResolver } from './api-utils'
+import { apiResolver, tryGetPreviewData } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
+import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
+  DynamicRoutes,
+  PageChecker,
   Params,
   route,
   Route,
-  DynamicRoutes,
-  PageChecker,
 } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import {
+  getFallback,
   getSprCache,
   initializeSprCache,
   setSprCache,
-  getFallback,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
-import {
-  Redirect,
-  Rewrite,
-  RouteType,
-  Header,
-  getRedirectStatus,
-} from '../../lib/check-custom-routes'
-import { normalizePagePath } from './normalize-page-path'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -697,7 +697,16 @@ export default class Server {
       }
     }
 
-    await apiResolver(req, res, query, pageModule, this.onErrorMiddleware)
+    await apiResolver(
+      req,
+      res,
+      query,
+      pageModule,
+      {
+        // TODO: set properties
+      },
+      this.onErrorMiddleware
+    )
     return true
   }
 
@@ -954,11 +963,21 @@ export default class Server {
       })
     }
 
+    const previewData = tryGetPreviewData(req, res, {
+      // TODO: set properties
+    })
+    const isPreviewMode = previewData !== false
+
     // Compute the SPR cache key
-    const ssgCacheKey = parseUrl(req.url || '').pathname!
+    const ssgCacheKey = isPreviewMode
+      ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
+      : parseUrl(req.url || '').pathname!
 
     // Complete the response with cached data if its present
-    const cachedData = await getSprCache(ssgCacheKey)
+    const cachedData = isPreviewMode
+      ? // Preview data bypasses the cache
+        undefined
+      : await getSprCache(ssgCacheKey)
     if (cachedData) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
@@ -1051,11 +1070,14 @@ export default class Server {
 
         // Update the SPR cache if the head request
         if (isOrigin) {
-          await setSprCache(
-            ssgCacheKey,
-            { html: html!, pageData },
-            sprRevalidate
-          )
+          // Preview mode should not be stored in cache
+          if (!isPreviewMode) {
+            await setSprCache(
+              ssgCacheKey,
+              { html: html!, pageData },
+              sprRevalidate
+            )
+          }
         }
 
         return null
