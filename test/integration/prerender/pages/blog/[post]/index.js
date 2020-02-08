@@ -4,14 +4,16 @@ import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticPaths() {
-  return [
-    '/blog/post-1',
-    { params: { post: 'post-2' } },
-    '/blog/[post3]',
-    '/blog/post-4',
-    '/blog/post.1',
-    '/blog/post.1', // handle duplicates
-  ]
+  return {
+    paths: [
+      '/blog/post-1',
+      { params: { post: 'post-2' } },
+      '/blog/[post3]',
+      '/blog/post-4',
+      '/blog/post.1',
+      '/blog/post.1', // handle duplicates
+    ],
+  }
 }
 
 // eslint-disable-next-line camelcase

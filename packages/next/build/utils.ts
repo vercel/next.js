@@ -15,6 +15,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
+import { Unstable_getStaticPaths } from '../next-server/server/load-components'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -559,9 +560,35 @@ export async function isPageStatic(
       // Get the default list of allowed params.
       const _validParamKeys = Object.keys(_routeMatcher(page))
 
-      const toPrerender: Array<
-        { params?: { [key: string]: string } } | string
-      > = await mod.unstable_getStaticPaths()
+      const staticPathsResult = await (mod.unstable_getStaticPaths as Unstable_getStaticPaths)()
+
+      if (!staticPathsResult || typeof staticPathsResult !== 'object') {
+        throw new Error(
+          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} Expected: { paths: [] }`
+        )
+      }
+
+      const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
+        key => key !== 'paths'
+      )
+
+      if (invalidStaticPathKeys.length > 0) {
+        throw new Error(
+          `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+            ', '
+          )}) The only field allowed currently is \`paths\``
+        )
+      }
+
+      const toPrerender = staticPathsResult.paths
+
+      if (!Array.isArray(toPrerender)) {
+        throw new Error(
+          `Invalid \`paths\` value returned from unstable_getStaticProps in ${page}.\n` +
+            `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
+        )
+      }
+
       toPrerender.forEach(entry => {
         // For a string-provided path, we must make sure it matches the dynamic
         // route.
@@ -594,9 +621,7 @@ export async function isPageStatic(
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
             const { repeat } = _routeRegex.groups[validParamKey]
-            const paramValue: string | string[] = params[validParamKey] as
-              | string
-              | string[]
+            const paramValue = params[validParamKey]
             if (
               (repeat && !Array.isArray(paramValue)) ||
               (!repeat && typeof paramValue !== 'string')
