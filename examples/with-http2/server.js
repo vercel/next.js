@@ -6,13 +6,7 @@ const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 
 // Init the Next app:
-const app = next({
-  dev,
-  conf: {
-    // this needs to be set false  unitl to a bug in the compression npm module ets fixed.
-    compress: false,
-  },
-})
+const app = next({ dev })
 
 // Create the secure HTTPS server:
 // Don't forget to create the keys for your development
