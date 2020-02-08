@@ -297,6 +297,7 @@ export async function renderToHTML(
   const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
   const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
+  const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
@@ -314,15 +315,21 @@ export async function renderToHTML(
 
   if (
     process.env.NODE_ENV !== 'production' &&
-    isAutoExport &&
+    (isAutoExport || isFallback) &&
     isDynamicRoute(pathname) &&
-    (req as any)._nextDidRewrite
+    didRewrite
   ) {
     // TODO: add err.sh when rewrites go stable
-    // Behavior might change before then (prefer SSR in this case)
+    // Behavior might change before then (prefer SSR in this case).
+    // If we decide to ship rewrites to the client we could solve this
+    // by running over the rewrites and getting the params.
     throw new Error(
-      `Rewrites don't support auto-exported dynamic pages yet. ` +
-        `Using this will cause the page to fail to parse the params on the client`
+      `Rewrites don't support${
+        isFallback ? ' ' : ' auto-exported '
+      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
+        `Using this will cause the page to fail to parse the params on the client${
+          isFallback ? ' for the fallback page ' : ''
+        }`
     )
   }
 
