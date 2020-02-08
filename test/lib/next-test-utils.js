@@ -82,7 +82,12 @@ export function runNextCommand(argv, options = {}) {
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = { ...process.env, ...options.env, NODE_ENV: '' }
+  const env = {
+    ...process.env,
+    ...options.env,
+    NODE_ENV: '',
+    __NEXT_TEST_MODE: 'true',
+  }
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
@@ -111,8 +116,9 @@ export function runNextCommand(argv, options = {}) {
       })
     }
 
-    instance.on('close', () => {
+    instance.on('close', code => {
       resolve({
+        code,
         stdout: stdoutOutput,
         stderr: stderrOutput,
       })
@@ -271,7 +277,7 @@ export async function stopApp(server) {
   await promiseCall(server, 'close')
 }
 
-function promiseCall(obj, method, ...args) {
+export function promiseCall(obj, method, ...args) {
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,

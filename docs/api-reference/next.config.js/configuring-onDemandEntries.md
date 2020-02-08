@@ -1,3 +1,7 @@
+---
+description: Configure how Next.js will dispose and keep in memory pages created in development.
+---
+
 # Configuring onDemandEntries
 
 Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
@@ -14,3 +18,12 @@ module.exports = {
   },
 }
 ```
+
+## Related
+
+<div class="card">
+  <a href="/docs/api-reference/next.config.js/introduction.md">
+    <b>Introduction to next.config.js:</b>
+    <small>Learn more about the configuration file used by Next.js.</small>
+  </a>
+</div>

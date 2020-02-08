@@ -2,8 +2,9 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -108,9 +109,29 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: null,
   },
+  '/catchall/another/value': {
+    dataRoute: `/_next/data/${buildId}/catchall/another/value.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/first': {
+    dataRoute: `/_next/data/${buildId}/catchall/first.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/second': {
+    dataRoute: `/_next/data/${buildId}/catchall/second.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
+  '/catchall/hello/another': {
+    dataRoute: `/_next/data/${buildId}/catchall/hello/another.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall/[...slug]',
+  },
 })
 
-const navigateTest = () => {
+const navigateTest = (dev = false) => {
   it('should navigate between pages successfully', async () => {
     const toBuild = [
       '/',
@@ -119,6 +140,7 @@ const navigateTest = () => {
       '/normal',
       '/blog/post-1',
       '/blog/post-1/comment-1',
+      '/catchall/first',
     ]
 
     await waitFor(2500)
@@ -129,22 +151,55 @@ const navigateTest = () => {
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
-    // hydration
-    await waitFor(2500)
-
     // go to /another
-    await browser.elementByCss('#another').click()
-    await browser.waitForElementByCss('#home')
-    text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
+    async function goFromHomeToAnother() {
+      await browser.eval('window.beforeAnother = true')
+      await browser.elementByCss('#another').click()
+      await browser.waitForElementByCss('#home')
+      text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeAnother')).toBe(true)
+      expect(text).toMatch(/hello.*?world/)
+    }
+    await goFromHomeToAnother()
 
     // go to /
-    await browser.eval('window.didTransition = 1')
-    await browser.elementByCss('#home').click()
-    await browser.waitForElementByCss('#another')
-    text = await browser.elementByCss('p').text()
-    expect(text).toMatch(/hello.*?world/)
-    expect(await browser.eval('window.didTransition')).toBe(1)
+    async function goFromAnotherToHome() {
+      await browser.eval('window.didTransition = 1')
+      await browser.elementByCss('#home').click()
+      await browser.waitForElementByCss('#another')
+      text = await browser.elementByCss('p').text()
+      expect(text).toMatch(/hello.*?world/)
+      expect(await browser.eval('window.didTransition')).toBe(1)
+    }
+    await goFromAnotherToHome()
+
+    // Client-side SSG data caching test
+    // eslint-disable-next-line no-lone-blocks
+    {
+      // Let revalidation period lapse
+      await waitFor(2000)
+
+      // Trigger revalidation (visit page)
+      await goFromHomeToAnother()
+      const snapTime = await browser.elementByCss('#anotherTime').text()
+
+      // Wait for revalidation to finish
+      await waitFor(2000)
+
+      // Re-visit page
+      await goFromAnotherToHome()
+      await goFromHomeToAnother()
+
+      const nextTime = await browser.elementByCss('#anotherTime').text()
+      if (dev) {
+        expect(snapTime).not.toMatch(nextTime)
+      } else {
+        expect(snapTime).toMatch(nextTime)
+      }
+
+      // Reset to Home for next test
+      await goFromAnotherToHome()
+    }
 
     // go to /something
     await browser.elementByCss('#something').click()
@@ -175,12 +230,21 @@ const navigateTest = () => {
     expect(text).toMatch(/Comment:.*?comment-1/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
+    // go to /catchall/first
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#to-catchall')
+    await browser.elementByCss('#to-catchall').click()
+    await browser.waitForElementByCss('#catchall')
+    text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi.*?first/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
     await browser.close()
   })
 }
 
 const runTests = (dev = false) => {
-  navigateTest()
+  navigateTest(dev)
 
   it('should SSR normal page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
@@ -189,7 +253,13 @@ const runTests = (dev = false) => {
 
   it('should SSR SPR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
-    expect(html).toMatch(/Post:.*?post-1/)
+
+    if (dev) {
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(true)
+    } else {
+      expect(html).toMatch(/Post:.*?post-1/)
+    }
   })
 
   it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
@@ -201,11 +271,26 @@ const runTests = (dev = false) => {
     expect(JSON.parse(params)).toEqual({})
   })
 
+  it('should not supply query values to params in /_next/data request', async () => {
+    const data = JSON.parse(
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/something.json?hello=world`
+      )
+    )
+    expect(data.pageProps.params).toEqual({})
+  })
+
   it('should not supply query values to params or useRouter dynamic page SSR', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
-    const params = $('#params').text()
-    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+
+    if (!dev) {
+      // these aren't available in dev since we render the fallback always
+      const params = $('#params').text()
+      expect(JSON.parse(params)).toEqual({ post: 'post-1' })
+    }
+
     const query = $('#query').text()
     expect(JSON.parse(query)).toEqual({ post: 'post-1' })
   })
@@ -256,7 +341,6 @@ const runTests = (dev = false) => {
 
   it('should parse query values on mount correctly', async () => {
     const browser = await webdriver(appPort, '/blog/post-1?another=value')
-    await waitFor(2000)
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
     expect(text).toMatch(/post.*?post-1/)
@@ -264,14 +348,44 @@ const runTests = (dev = false) => {
 
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(500)
     await browser.eval('window.beforeClick = true')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
 
+  it('should support prerendered catchall route', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall/another/value')
+    const $ = cheerio.load(html)
+
+    if (dev) {
+      expect(
+        JSON.parse(
+          cheerio
+            .load(html)('#__NEXT_DATA__')
+            .text()
+        ).isFallback
+      ).toBe(true)
+    } else {
+      expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
+    }
+  })
+
+  it('should support lazy catchall route', async () => {
+    const browser = await webdriver(appPort, '/catchall/third')
+    const text = await browser.elementByCss('#catchall').text()
+    expect(text).toMatch(/Hi.*?third/)
+  })
+
   if (dev) {
+    it('should show error when rewriting to dynamic SSG page', async () => {
+      const item = Math.round(Math.random() * 100)
+      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+      expect(html).toContain(
+        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+      )
+    })
+
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
       expect(initialRes.headers.get('cache-control')).toBeFalsy()
@@ -306,6 +420,23 @@ const runTests = (dev = false) => {
         await fs.writeFile(indexPage, origContent)
       }
     })
+
+    it('should not re-call getStaticProps when updating query', async () => {
+      const browser = await webdriver(appPort, '/something?hello=world')
+      await waitFor(2000)
+
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({ hello: 'world' })
+
+      const {
+        props: {
+          pageProps: { random: initialRandom },
+        },
+      } = await browser.eval('window.__NEXT_DATA__')
+
+      const curRandom = await browser.elementByCss('#random').text()
+      expect(curRandom).toBe(initialRandom + '')
+    })
   } else {
     it('should should use correct caching headers for a no-revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
@@ -320,7 +451,7 @@ const runTests = (dev = false) => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
       )
-      const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+      const escapedBuildId = escapeRegex(buildId)
 
       Object.keys(manifest.dynamicRoutes).forEach(key => {
         const item = manifest.dynamicRoutes[key]
@@ -337,6 +468,7 @@ const runTests = (dev = false) => {
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
+          fallback: '/blog/[post].html',
           dataRoute: `/_next/data/${buildId}/blog/[post].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`
@@ -344,6 +476,7 @@ const runTests = (dev = false) => {
           routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
         },
         '/blog/[post]/[comment]': {
+          fallback: '/blog/[post]/[comment].html',
           dataRoute: `/_next/data/${buildId}/blog/[post]/[comment].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
@@ -353,12 +486,21 @@ const runTests = (dev = false) => {
           ),
         },
         '/user/[user]/profile': {
+          fallback: '/user/[user]/profile.html',
           dataRoute: `/_next/data/${buildId}/user/[user]/profile.json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`
           ),
           routeRegex: normalizeRegEx(
             `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
+          ),
+        },
+        '/catchall/[...slug]': {
+          fallback: '/catchall/[...slug].html',
+          routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
+          dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
           ),
         },
       })
@@ -381,11 +523,15 @@ const runTests = (dev = false) => {
     it('should handle de-duping correctly', async () => {
       let vals = new Array(10).fill(null)
 
+      // use data route so we don't get the fallback
       vals = await Promise.all(
-        vals.map(() => renderViaHTTP(appPort, '/blog/post-10'))
+        vals.map(() =>
+          renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-10.json`)
+        )
       )
       const val = vals[0]
-      expect(val).toMatch(/Post:.*?post-10/)
+
+      expect(JSON.parse(val).pageProps.post).toBe('post-10')
       expect(new Set(vals).size).toBe(1)
     })
 
@@ -457,8 +603,27 @@ const runTests = (dev = false) => {
 }
 
 describe('SPR Prerender', () => {
+  afterAll(() => fs.remove(nextConfig))
+
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            rewrites() {
+              return [
+                {
+                  source: "/some-rewrite/:item",
+                  destination: "/blog/post-:item"
+                }
+              ]
+            }
+          }
+        }
+      `
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         onStderr: msg => {
@@ -482,7 +647,7 @@ describe('SPR Prerender', () => {
       await nextBuild(appDir)
       stderr = ''
       appPort = await findPort()
-      app = nextStart(appDir, appPort, {
+      app = await nextStart(appDir, appPort, {
         onStderr: msg => {
           stderr += msg
         },

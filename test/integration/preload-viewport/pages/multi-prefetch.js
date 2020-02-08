@@ -8,6 +8,10 @@ export default () => {
     router.prefetch('/dynamic/[hello]')
     router.prefetch('/dynamic/[hello]')
     router.prefetch('/dynamic/[hello]')
+
+    router.prefetch('/dynamic/first')
+    router.prefetch('/dynamic/first')
+    router.prefetch('/dynamic/first')
   }, [router])
   return (
     <div>

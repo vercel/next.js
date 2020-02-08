@@ -8,6 +8,7 @@ import {
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { API_ROUTE } from '../../../lib/constants'
+import escapeRegexp from 'escape-string-regexp'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -18,10 +19,10 @@ export type ServerlessLoaderQuery = {
   absoluteErrorPath: string
   buildId: string
   assetPrefix: string
-  ampBindInitData: boolean | string
   generateEtags: string
   canonicalBase: string
   basePath: string
+  runtimeConfig: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -32,12 +33,12 @@ const nextServerlessLoader: loader.Loader = function() {
     buildId,
     canonicalBase,
     assetPrefix,
-    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags,
     basePath,
+    runtimeConfig,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -48,13 +49,26 @@ const nextServerlessLoader: loader.Loader = function() {
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
 
-  const escapedBuildId = buildId.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
+  const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
+
+  const runtimeConfigImports = runtimeConfig
+    ? `
+      const { setConfig } = require('next/dist/next-server/lib/runtime-config')
+    `
+    : ''
+
+  const runtimeConfigSetter = runtimeConfig
+    ? `
+      const runtimeConfig = ${runtimeConfig}
+      setConfig(runtimeConfig)
+    `
+    : 'const runtimeConfig = {}'
 
   const dynamicRouteImports = pageIsDynamicRoute
     ? `
-    import { getRouteMatcher } from 'next/dist/next-server/lib/router/utils/route-matcher';
-      import { getRouteRegex } from 'next/dist/next-server/lib/router/utils/route-regex';
+    const { getRouteMatcher } = require('next/dist/next-server/lib/router/utils/route-matcher');
+      const { getRouteRegex } = require('next/dist/next-server/lib/router/utils/route-regex');
   `
     : ''
 
@@ -65,8 +79,8 @@ const nextServerlessLoader: loader.Loader = function() {
     : ''
 
   const rewriteImports = `
-    import { rewrites } from '${routesManifest}'
-    import pathMatch, { pathToRegexp } from 'next/dist/next-server/server/lib/path-match'
+    const { rewrites } = require('${routesManifest}')
+    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/server/lib/path-match')
   `
 
   const handleRewrites = `
@@ -118,11 +132,18 @@ const nextServerlessLoader: loader.Loader = function() {
 
   if (page.match(API_ROUTE)) {
     return `
-      ${dynamicRouteImports}
-      import { parse } from 'url'
-      import { apiResolver } from 'next/dist/next-server/server/api-utils'
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
+      ${runtimeConfigImports}
+      ${
+        /*
+          this needs to be called first so its available for any other imports
+        */
+        runtimeConfigSetter
+      }
+      ${dynamicRouteImports}
+      const { parse } = require('url')
+      const { apiResolver } = require('next/dist/next-server/server/api-utils')
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
@@ -167,26 +188,33 @@ const nextServerlessLoader: loader.Loader = function() {
     `
   } else {
     return `
-    import {parse} from 'url'
-    import {parse as parseQs} from 'querystring'
-    import {renderToHTML} from 'next/dist/next-server/server/render';
-    import {sendHTML} from 'next/dist/next-server/server/send-html';
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
-    import buildManifest from '${buildManifest}';
-    import reactLoadableManifest from '${reactLoadableManifest}';
-    import Document from '${absoluteDocumentPath}';
-    import Error from '${absoluteErrorPath}';
-    import App from '${absoluteAppPath}';
-    import * as ComponentInfo from '${absolutePagePath}';
+    ${runtimeConfigImports}
+    ${
+      // this needs to be called first so its available for any other imports
+      runtimeConfigSetter
+    }
+    const {parse} = require('url')
+    const {parse: parseQs} = require('querystring')
+    const {renderToHTML} =require('next/dist/next-server/server/render');
+    const {sendHTML} = require('next/dist/next-server/server/send-html');
+    const buildManifest = require('${buildManifest}');
+    const reactLoadableManifest = require('${reactLoadableManifest}');
+    const Document = require('${absoluteDocumentPath}').default;
+    const Error = require('${absoluteErrorPath}').default;
+    const App = require('${absoluteAppPath}').default;
     ${dynamicRouteImports}
     ${rewriteImports}
+
+    const ComponentInfo = require('${absolutePagePath}')
 
     const Component = ComponentInfo.default
     export default Component
     export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
+    export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
     ${handleRewrites}
@@ -208,30 +236,30 @@ const nextServerlessLoader: loader.Loader = function() {
         Document,
         buildManifest,
         unstable_getStaticProps,
+        unstable_getServerProps,
         unstable_getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
-        ampBindInitData: ${ampBindInitData === true ||
-          ampBindInitData === 'true'},
+        runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         ..._renderOpts
       }
-      let sprData = false
+      let _nextData = false
 
-      if (req.url.match(/_next\\/data/)) {
-        sprData = true
-        req.url = req.url
+      const parsedUrl = handleRewrites(parse(req.url, true))
+
+      if (parsedUrl.pathname.match(/_next\\/data/)) {
+        _nextData = true
+        parsedUrl.pathname = parsedUrl.pathname
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
           .replace(/\\.json$/, '')
       }
-      const parsedUrl = handleRewrites(parse(req.url, true))
 
       const renderOpts = Object.assign(
         {
           Component,
           pageConfig: config,
-          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           nextExport: fromExport
         },
         options,
@@ -240,7 +268,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !unstable_getStaticProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !unstable_getStaticProps && !unstable_getServerProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -276,15 +304,24 @@ const nextServerlessLoader: loader.Loader = function() {
           `
             : `const nowParams = null;`
         }
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
+        // make sure to set renderOpts to the correct params e.g. _params
+        // if provided from worker or params if we're parsing them here
+        renderOpts.params = _params || params
 
-        if (sprData && !fromExport) {
-          const payload = JSON.stringify(renderOpts.sprData)
+        const isFallback = parsedUrl.query.__nextFallback
+
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+
+        if (_nextData && !fromExport) {
+          const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
+
           res.setHeader(
             'Cache-Control',
-            \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
+            unstable_getServerProps
+              ? \`no-cache, no-store, must-revalidate\`
+              : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )
           res.end(payload)
           return null
@@ -298,6 +335,7 @@ const nextServerlessLoader: loader.Loader = function() {
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
+            unstable_getServerProps: undefined,
             Component: Error
           }))
           return result
@@ -307,6 +345,7 @@ const nextServerlessLoader: loader.Loader = function() {
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
+            unstable_getServerProps: undefined,
             Component: Error,
             err
           }))

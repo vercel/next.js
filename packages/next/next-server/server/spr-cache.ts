@@ -92,6 +92,11 @@ export function initializeSprCache({
   })
 }
 
+export async function getFallback(page: string): Promise<string> {
+  page = normalizePagePath(page)
+  return readFile(getSeedPath(page, 'html'), 'utf8')
+}
+
 // get data from SPR cache if available
 export async function getSprCache(
   pathname: string
@@ -146,12 +151,12 @@ export async function setSprCache(
 ) {
   if (sprOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
-    // TODO: This is really bad. We shouldn't be mutating the manifest from the
+    // TODO: Update this to not mutate the manifest from the
     // build.
     prerenderManifest.routes[pathname] = {
       dataRoute: path.posix.join(
         '/_next/data',
-        `${pathname === '/' ? '/index' : pathname}.json`
+        `${normalizePagePath(pathname)}.json`
       ),
       srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
       initialRevalidateSeconds: revalidateSeconds,

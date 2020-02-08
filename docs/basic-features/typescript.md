@@ -1,3 +1,7 @@
+---
+description: Next.js supports TypeScript by default and has built-in types for pages and the API. You can get started with TypeScript in Next.js here.
+---
+
 # TypeScript
 
 <details>
@@ -97,7 +101,7 @@ The following is an example of how to use the built-in types for API routes:
 import { NextApiRequest, NextApiResponse } from 'next'
 
 export default (req: NextApiRequest, res: NextApiResponse) => {
-  res.status(200).json({ name: 'Jhon Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }
 ```
 
@@ -111,6 +115,20 @@ type Data = {
 }
 
 export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
-  res.status(200).json({ name: 'Jhon Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }
+```
+
+## Custom `App`
+
+If you have a [custom `App` ](/docs/advanced-features/custom-app), you can use the built-in type `AppProps`, like so:
+
+```ts
+import { AppProps } from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export default MyApp
 ```

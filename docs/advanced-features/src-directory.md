@@ -1,3 +1,7 @@
+---
+description: Save pages under the `src` directory as an alternative to the root `pages` directory.
+---
+
 # `src` Directory
 
 Pages can also be added under `src/pages` as an alternative to the root `pages` directory.

@@ -18,6 +18,16 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
+function normalizeRoute(route) {
+  if (route[0] !== '/') {
+    throw new Error(`Route name should start with a "/", got "${route}"`)
+  }
+  route = route.replace(/\/index$/, '/')
+
+  if (route === '/') return route
+  return route.replace(/\/$/, '')
+}
+
 function appendLink(href, rel, as) {
   return new Promise((res, rej, link) => {
     link = document.createElement('link')
@@ -39,7 +49,6 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -59,18 +68,12 @@ export default class PageLoader {
   getDependencies(route) {
     return this.promisedBuildManifest.then(
       man =>
-        (man[route] && man[route].map(url => `/_next/${encodeURI(url)}`)) || []
+        (man[route] &&
+          man[route].map(
+            url => `${this.assetPrefix}/_next/${encodeURI(url)}`
+          )) ||
+        []
     )
-  }
-
-  normalizeRoute(route) {
-    if (route[0] !== '/') {
-      throw new Error(`Route name should start with a "/", got "${route}"`)
-    }
-    route = route.replace(/\/index$/, '/')
-
-    if (route === '/') return route
-    return route.replace(/\/$/, '')
   }
 
   loadPage(route) {
@@ -78,7 +81,7 @@ export default class PageLoader {
   }
 
   loadPageScript(route) {
-    route = this.normalizeRoute(route)
+    route = normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
       const fire = ({ error, page, mod }) => {
@@ -110,6 +113,7 @@ export default class PageLoader {
       }
 
       if (!this.loadingRoutes[route]) {
+        this.loadingRoutes[route] = true
         if (process.env.__NEXT_GRANULAR_CHUNKS) {
           this.getDependencies(route).then(deps => {
             deps.forEach(d => {
@@ -130,18 +134,16 @@ export default class PageLoader {
               }
             })
             this.loadRoute(route)
-            this.loadingRoutes[route] = true
           })
         } else {
           this.loadRoute(route)
-          this.loadingRoutes[route] = true
         }
       }
     })
   }
 
-  async loadRoute(route) {
-    route = this.normalizeRoute(route)
+  loadRoute(route) {
+    route = normalizeRoute(route)
     let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
@@ -204,48 +206,49 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch(route, isDependency) {
+  prefetch(route, isDependency) {
     // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
     // License: Apache 2.0
     let cn
     if ((cn = navigator.connection)) {
       // Don't prefetch if using 2G or if Save-Data is enabled.
-      if (cn.saveData || /2g/.test(cn.effectiveType)) return
+      if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
-    let url = this.assetPrefix
+    let url
     if (isDependency) {
-      url += route
+      url = route
     } else {
-      route = this.normalizeRoute(route)
-      this.prefetched[route] = true
+      route = normalizeRoute(route)
 
       let scriptRoute = `${route === '/' ? '/index' : route}.js`
       if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
         scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
       }
 
-      url += `/_next/static/${encodeURIComponent(
+      url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
       )}/pages${encodeURI(scriptRoute)}`
     }
 
-    if (
+    return Promise.all(
       document.querySelector(
         `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
       )
-    ) {
-      return
-    }
-
-    return Promise.all([
-      appendLink(url, relPrefetch, url.match(/\.css$/) ? 'style' : 'script'),
-      process.env.__NEXT_GRANULAR_CHUNKS &&
-        !isDependency &&
-        this.getDependencies(route).then(urls =>
-          Promise.all(urls.map(url => this.prefetch(url, true)))
-        ),
-    ]).then(
+        ? []
+        : [
+            appendLink(
+              url,
+              relPrefetch,
+              url.match(/\.css$/) ? 'style' : 'script'
+            ),
+            process.env.__NEXT_GRANULAR_CHUNKS &&
+              !isDependency &&
+              this.getDependencies(route).then(urls =>
+                Promise.all(urls.map(url => this.prefetch(url, true)))
+              ),
+          ]
+    ).then(
       // do not return any data
       () => {},
       // swallow prefetch errors

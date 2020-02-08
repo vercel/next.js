@@ -4,8 +4,9 @@ import { Stream } from 'stream'
 import getRawBody from 'raw-body'
 import { parse } from 'content-type'
 import { Params } from './router'
-import { PageConfig } from '../../types'
+import { PageConfig } from 'next/types'
 import { interopDefault } from './load-components'
+import { isResSent } from '../lib/utils'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -54,7 +55,21 @@ export async function apiResolver(
     apiRes.json = data => sendJson(apiRes, data)
 
     const resolver = interopDefault(resolverModule)
-    resolver(req, res)
+    let wasPiped = false
+
+    if (process.env.NODE_ENV !== 'production') {
+      // listen for pipe event and don't show resolve warning
+      res.once('pipe', () => (wasPiped = true))
+    }
+
+    // Call API route method
+    await resolver(req, res)
+
+    if (process.env.NODE_ENV !== 'production' && !isResSent(res) && !wasPiped) {
+      console.warn(
+        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
+      )
+    }
   } catch (err) {
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)

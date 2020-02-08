@@ -3,6 +3,7 @@ import fetch from 'unfetch'
 import EventSourcePolyfill from './event-source-polyfill'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 import { setupPing } from './on-demand-entries-utils'
+import { displayContent } from './fouc'
 
 if (!window.EventSource) {
   window.EventSource = EventSourcePolyfill
@@ -89,3 +90,4 @@ getEventSourceWrapper({
 })
 
 setupPing(assetPrefix, () => page)
+displayContent()

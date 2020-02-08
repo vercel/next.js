@@ -1,3 +1,7 @@
+---
+description: Next.js has a built-in, opinionated, and file-system based Router. You can learn how it works here.
+---
+
 # Routing
 
 Next.js has a file-system based router built on the [concept of pages](/docs/basic-features/pages.md).
@@ -26,6 +30,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 - `pages/blog/[slug].js` → `/blog/:slug` (`/blog/hello-world`)
 - `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
+- `pages/post/[...all].js` → `/post/*` (`/post/2020/id/title`)
 
 ## Linking between pages
 

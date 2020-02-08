@@ -23,14 +23,23 @@ describe('Basic CSS Module Support', () => {
 
   let appPort
   let app
+  let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -65,6 +74,62 @@ describe('Basic CSS Module Support', () => {
   })
 })
 
+describe('3rd Party CSS Module Support', () => {
+  const appDir = join(fixturesDir, '3rd-party-module')
+
+  let appPort
+  let app
+  let stdout
+  let code
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".index_foo__29BAH{position:relative}.index_foo__29BAH .bar,.index_foo__29BAH .baz{height:100%;overflow:hidden}.index_foo__29BAH .lol,.index_foo__29BAH>.lel{width:80%}"`
+    )
+  })
+
+  it(`should've injected the CSS on server render`, async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    const cssPreload = $('link[rel="preload"][as="style"]')
+    expect(cssPreload.length).toBe(1)
+    expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+    const cssSheet = $('link[rel="stylesheet"]')
+    expect(cssSheet.length).toBe(1)
+    expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+    expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
+      `"index_foo__29BAH"`
+    )
+  })
+})
+
 describe('Has CSS Module in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'dev-module')
 
@@ -94,14 +159,23 @@ describe('Has CSS Module in computed styles in Production', () => {
 
   let appPort
   let app
+  let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it('should have CSS for page', async () => {
@@ -131,7 +205,6 @@ xdescribe('Can hot reload CSS Module without losing state', () => {
   // FIXME: this is broken
   it('should update CSS color without remounting <input>', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(2000) // ensure application hydrates
 
     const desiredText = 'hello world'
     await browser.elementById('text-input').type(desiredText)
@@ -170,9 +243,10 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('node_modules/example/index.module.css')
     expect(stderr).toMatch(
@@ -190,9 +264,10 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 
   it('should fail to build', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
+    const { code, stderr } = await nextBuild(appDir, [], {
       stderr: true,
     })
+    expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
     expect(stderr).toContain('node_modules/example/index.css')
     expect(stderr).toMatch(
@@ -211,13 +286,23 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
   let appPort
   let app
+  let stdout
+  let code
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -240,7 +325,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".example_redText__1rb5g{color:\\"red\\"}"`
+      `".example_redText__1rb5g{color:red}"`
     )
   })
 })
@@ -254,13 +339,23 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
   let appPort
   let app
+  let stdout
+  let code
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -292,9 +387,18 @@ describe('CSS Module Composes Usage (Basic)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-basic')
 
+  let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -316,9 +420,18 @@ describe('CSS Module Composes Usage (External)', () => {
   // This is a very bad feature. Do not use it.
   const appDir = join(fixturesDir, 'composes-external')
 
+  let stdout
+  let code
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+  })
+
+  it('should have compiled successfully', () => {
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {

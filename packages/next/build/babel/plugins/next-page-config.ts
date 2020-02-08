@@ -1,6 +1,6 @@
 import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
-import { PageConfig } from '../../../types'
+import { PageConfig } from 'next/types'
 
 const configKeys = new Set(['amp'])
 const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
@@ -81,13 +81,7 @@ export default function nextPageConfig({
                 }
 
                 if (config.amp === true) {
-                  if (
-                    !(
-                      state.file &&
-                      state.file.opts &&
-                      state.file.opts.caller.isDev
-                    )
-                  ) {
+                  if (!state.file?.opts?.caller.isDev) {
                     // don't replace bundle in development so HMR can track
                     // dependencies and trigger reload when they are changed
                     replaceBundle(path, t)

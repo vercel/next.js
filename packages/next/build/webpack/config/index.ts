@@ -2,7 +2,6 @@ import webpack from 'webpack'
 import { base } from './blocks/base'
 import { css } from './blocks/css'
 import { ConfigurationContext, pipe } from './utils'
-import { experimentData } from './blocks/experiment-data'
 
 export async function build(
   config: webpack.Configuration,
@@ -12,14 +11,16 @@ export async function build(
     isDevelopment,
     isServer,
     hasSupportCss,
-    hasExperimentalData,
+    hasSupportScss,
+    assetPrefix,
   }: {
     rootDirectory: string
     customAppFile: string | null
     isDevelopment: boolean
     isServer: boolean
     hasSupportCss: boolean
-    hasExperimentalData: boolean
+    hasSupportScss: boolean
+    assetPrefix: string
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -29,12 +30,13 @@ export async function build(
     isProduction: !isDevelopment,
     isServer,
     isClient: !isServer,
+    assetPrefix: assetPrefix
+      ? assetPrefix.endsWith('/')
+        ? assetPrefix.slice(0, -1)
+        : assetPrefix
+      : '',
   }
 
-  const fn = pipe(
-    base(ctx),
-    experimentData(hasExperimentalData, ctx),
-    css(hasSupportCss, ctx)
-  )
+  const fn = pipe(base(ctx), css(hasSupportCss, hasSupportScss, ctx))
   return fn(config)
 }

@@ -9,7 +9,6 @@ import {
   Title,
   Footer,
 } from 'rbx'
-import 'bulma-pro/css/bulma.css'
 
 const Layout = ({ children }) => {
   return (

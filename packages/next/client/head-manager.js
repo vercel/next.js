@@ -95,6 +95,9 @@ function reactElementToDOM({ type, props }) {
     if (!props.hasOwnProperty(p)) continue
     if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
 
+    // we don't render undefined props to the DOM
+    if (props[p] === undefined) continue
+
     const attr = DOMAttributeNames[p] || p.toLowerCase()
     el.setAttribute(attr, props[p])
   }

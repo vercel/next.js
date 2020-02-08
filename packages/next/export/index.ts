@@ -33,6 +33,7 @@ import loadConfig, {
 } from '../next-server/server/config'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -166,7 +167,7 @@ export default async function(
     // default. In most cases, this would never work. There is no server that
     // could run `getStaticProps`. If users make their page work lazily, they
     // can manually add it to the `exportPathMap`.
-    if (prerenderManifest && prerenderManifest.dynamicRoutes[page]) {
+    if (prerenderManifest?.dynamicRoutes[page]) {
       continue
     }
 
@@ -230,11 +231,9 @@ export default async function(
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    canonicalBase: (nextConfig.amp && nextConfig.amp.canonicalBase) || '',
+    canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
-    ampValidator:
-      (nextConfig.experimental.amp && nextConfig.experimental.amp.validator) ||
-      undefined,
+    ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -256,8 +255,8 @@ export default async function(
     distDir,
     buildId,
   })
-  if (!exportPathMap['/404']) {
-    exportPathMap['/404.html'] = exportPathMap['/404.html'] || {
+  if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
+    exportPathMap['/404'] = exportPathMap['/404.html'] = {
       page: '/_error',
     }
   }
@@ -278,7 +277,7 @@ export default async function(
   }
 
   const progress = !options.silent && createProgress(filteredPaths.length)
-  const sprDataDir = options.buildExport
+  const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
 
@@ -320,7 +319,7 @@ export default async function(
         distDir,
         buildId,
         outDir,
-        sprDataDir,
+        pagesDataDir,
         renderOpts,
         serverRuntimeConfig,
         subFolders,
@@ -333,7 +332,7 @@ export default async function(
         ampValidations[page] = result
         hadValidationError =
           hadValidationError ||
-          (Array.isArray(result && result.errors) && result.errors.length > 0)
+          (Array.isArray(result?.errors) && result.errors.length > 0)
       }
       renderError = renderError || !!result.error
 
@@ -354,7 +353,7 @@ export default async function(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async route => {
-        route = route === '/' ? '/index' : route
+        route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
         const htmlDest = join(
           outDir,
@@ -362,7 +361,7 @@ export default async function(
             subFolders && route !== '/index' ? `${sep}index` : ''
           }.html`
         )
-        const jsonDest = join(sprDataDir, `${route}.json`)
+        const jsonDest = join(pagesDataDir, `${route}.json`)
 
         await mkdirp(dirname(htmlDest))
         await mkdirp(dirname(jsonDest))

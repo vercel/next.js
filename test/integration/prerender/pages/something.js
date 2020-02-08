@@ -20,7 +20,7 @@ export default ({ world, time, params, random }) => {
     <>
       <p>hello: {world}</p>
       <span>time: {time}</span>
-      <div>{random}</div>
+      <div id="random">{random}</div>
       <div id="params">{JSON.stringify(params)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <Link href="/">

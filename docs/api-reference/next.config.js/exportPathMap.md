@@ -1,3 +1,7 @@
+---
+description: Customize the pages that will be exported as HTML files when using `next export`.
+---
+
 # exportPathMap
 
 > This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
@@ -62,3 +66,19 @@ module.exports = {
   exportTrailingSlash: true,
 }
 ```
+
+## Related
+
+<div class="card">
+  <a href="/docs/api-reference/next.config.js/introduction.md">
+    <b>Introduction to next.config.js:</b>
+    <small>Learn more about the configuration file used by Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/advanced-features/static-html-export.md">
+    <b>Static HTML Export:</b>
+    <small>Export your Next.js app to static HTML.</small>
+  </a>
+</div>

@@ -1,3 +1,7 @@
+---
+description: Next.js reports TypeScript errors by default. Learn to opt-out of this behavior here.
+---
+
 # Ignoring TypeScript Errors
 
 Next.js reports TypeScript errors by default. If you don't want to leverage this behavior and prefer something else instead, like your editor's integration, you may want to disable it.
@@ -36,3 +40,19 @@ module.exports = {
   },
 }
 ```
+
+## Related
+
+<div class="card">
+  <a href="/docs/api-reference/next.config.js/introduction.md">
+    <b>Introduction to next.config.js:</b>
+    <small>Learn more about the configuration file used by Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/typescript.md">
+    <b>TypeScript:</b>
+    <small>Get started with TypeScript in Next.js.</small>
+  </a>
+</div>

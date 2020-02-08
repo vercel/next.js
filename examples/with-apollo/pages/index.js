@@ -26,4 +26,4 @@ const IndexPage = props => (
   </App>
 )
 
-export default withApollo(IndexPage)
+export default withApollo()(IndexPage)

@@ -2,6 +2,7 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
+import AbortController from 'abort-controller'
 import {
   killApp,
   findPort,
@@ -17,6 +18,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
+let stderr
 let mode
 let app
 
@@ -58,6 +60,13 @@ function runTests(dev = false) {
 
   it('should throw Internal Server Error', async () => {
     const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
+    const text = await res.text()
+    expect(res.status).toBe(500)
+    expect(text).toBe('Internal Server Error')
+  })
+
+  it('should throw Internal Server Error (async)', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/user-error-async', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
     expect(text).toBe('Internal Server Error')
@@ -109,16 +118,32 @@ function runTests(dev = false) {
   })
 
   it('should return error exceeded body limit', async () => {
-    const data = await fetchViaHTTP(appPort, '/api/parse', null, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: JSON.stringify(json),
-    })
+    let res
+    let error
 
-    expect(data.status).toEqual(413)
-    expect(data.statusText).toEqual('Body exceeded 1mb limit')
+    try {
+      res = await fetchViaHTTP(appPort, '/api/parse', null, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+        body: JSON.stringify(json),
+      })
+    } catch (err) {
+      error = err
+    }
+
+    if (error) {
+      // This is a temporary workaround for testing since node doesn't handle
+      // closed connections when POSTing data to an endpoint correctly
+      // https://github.com/nodejs/node/issues/12339
+      // TODO: investigate re-enabling this after above issue has been
+      // addressed in node or `node-fetch`
+      expect(error.code).toBe('EPIPE')
+    } else {
+      expect(res.status).toEqual(413)
+      expect(res.statusText).toEqual('Body exceeded 1mb limit')
+    }
   })
 
   it('should parse bigger body then 1mb', async () => {
@@ -325,6 +350,27 @@ function runTests(dev = false) {
         )
       ).toBeTruthy()
     })
+
+    it('should show warning when the API resolves without ending the request in dev mode', async () => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort()
+      }, 2000)
+      await fetchViaHTTP(appPort, '/api/test-no-end', undefined, {
+        signal: controller.signal,
+      }).catch(() => {})
+      expect(stderr).toContain(
+        `API resolved without sending a response for /api/test-no-end, this may result in stalled requests.`
+      )
+    })
+
+    it('should not show warning when the API resolves and the response is piped', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      await fetchViaHTTP(appPort, `/api/test-res-pipe`, { port: appPort })
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for /api/test-res-pipe`
+      )
+    })
   } else {
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
@@ -353,8 +399,13 @@ function runTests(dev = false) {
 describe('API routes', () => {
   describe('dev support', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr: msg => {
+          stderr += msg
+        },
+      })
     })
     afterAll(() => killApp(app))
 

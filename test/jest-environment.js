@@ -4,7 +4,10 @@ const getPort = require('get-port')
 const seleniumServer = require('selenium-standalone')
 const NodeEnvironment = require('jest-environment-node')
 
-const { BROWSER_NAME: browserName = 'chrome' } = process.env
+const {
+  BROWSER_NAME: browserName = 'chrome',
+  SKIP_LOCAL_SELENIUM_SERVER,
+} = process.env
 
 const newTabPg = `
 <!DOCTYPE html>
@@ -38,7 +41,7 @@ class CustomEnvironment extends NodeEnvironment {
 
     let seleniumServerPort
 
-    if (browserName !== 'chrome') {
+    if (browserName !== 'chrome' && SKIP_LOCAL_SELENIUM_SERVER !== 'true') {
       console.log('Installing selenium server')
       await new Promise((resolve, reject) => {
         seleniumServer.install(err => {
