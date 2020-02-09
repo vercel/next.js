@@ -69,6 +69,11 @@ type Middleware = (
   next: (err?: Error) => void
 ) => void
 
+type FindComponentsResult = {
+  result: LoadComponentsReturnType
+  query: ParsedUrlQuery
+}
+
 export type ServerConstructor = {
   /**
    * Where the Next project is located - @default '.'
@@ -814,28 +819,36 @@ export default class Server {
 
   private async findPageComponents(
     pathname: string,
-    query: ParsedUrlQuery = {}
-  ) {
-    const serverless = !this.renderOpts.dev && this._isLikeServerless
-    // try serving a static AMP version first
-    if (query.amp) {
+    query: ParsedUrlQuery = {},
+    params: Params | null = null
+  ): Promise<FindComponentsResult | null> {
+    const paths = [
+      // try serving a static AMP version first
+      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      pathname,
+    ].filter(Boolean)
+    for (const pagePath of paths) {
       try {
-        return await loadComponents(
+        const result = await loadComponents(
           this.distDir,
           this.buildId,
-          normalizePagePath(pathname) + '.amp',
-          serverless
+          pagePath!,
+          !this.renderOpts.dev && this._isLikeServerless
         )
+        return {
+          result,
+          query: {
+            ...(result.unstable_getStaticProps
+              ? { _nextDataReq: query._nextDataReq }
+              : query),
+            ...(params || {}),
+          },
+        }
       } catch (err) {
         if (err.code !== 'ENOENT') throw err
       }
     }
-    return await loadComponents(
-      this.distDir,
-      this.buildId,
-      pathname,
-      serverless
-    )
+    return null
   }
 
   private __sendPayload(
@@ -881,8 +894,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
-    result: LoadComponentsReturnType,
+    { result, query }: FindComponentsResult,
     opts: any
   ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
@@ -1074,59 +1086,53 @@ export default class Server {
     } = {}
   ): Promise<string | null> {
     try {
-      try {
-        const result = await this.findPageComponents(pathname, query)
+      const result = await this.findPageComponents(pathname, query)
+      if (result) {
         return await this.renderToHTMLWithComponents(
           req,
           res,
           pathname,
-          getQueryForComponents(result, query),
           result,
           { ...this.renderOpts, amphtml, hasAmp }
         )
-      } catch (err) {
-        if (err?.code !== 'ENOENT' || !this.dynamicRoutes) {
-          throw err
-        }
+      }
 
+      if (this.dynamicRoutes) {
         for (const dynamicRoute of this.dynamicRoutes) {
           const params = dynamicRoute.match(pathname)
           if (!params) {
             continue
           }
 
-          const result = await this.findPageComponents(dynamicRoute.page, query)
-          return await this.renderToHTMLWithComponents(
-            req,
-            res,
+          const result = await this.findPageComponents(
             dynamicRoute.page,
-            // only add params for SPR enabled pages
-            {
-              ...getQueryForComponents(result, query),
-              ...params,
-            },
-            result,
-            {
-              ...this.renderOpts,
-              params,
-              amphtml,
-              hasAmp,
-            }
+            query,
+            params
           )
+          if (result) {
+            return await this.renderToHTMLWithComponents(
+              req,
+              res,
+              dynamicRoute.page,
+              result,
+              {
+                ...this.renderOpts,
+                params,
+                amphtml,
+                hasAmp,
+              }
+            )
+          }
         }
-
-        throw err
       }
     } catch (err) {
-      if (err && err.code === 'ENOENT') {
-        res.statusCode = 404
-        return await this.renderErrorToHTML(null, req, res, pathname, query)
-      } else {
-        this.logError(err)
-        res.statusCode = 500
-        return await this.renderErrorToHTML(err, req, res, pathname, query)
-      }
+      this.logError(err)
+      res.statusCode = 500
+      return await this.renderErrorToHTML(err, req, res, pathname, query)
     }
+
+    res.statusCode = 404
+    return await this.renderErrorToHTML(null, req, res, pathname, query)
   }
 
   public async renderError(
@@ -1154,7 +1160,7 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | LoadComponentsReturnType = null
+    let result: null | FindComponentsResult = null
 
     const { static404, pages404 } = this.nextConfig.experimental
     const is404 = res.statusCode === 404
@@ -1163,26 +1169,14 @@ export default class Server {
     // use static 404 page if available and is 404 response
     if (is404) {
       if (static404) {
-        try {
-          result = await this.findPageComponents('/_errors/404')
-        } catch (err) {
-          if (err.code !== 'ENOENT') {
-            throw err
-          }
-        }
+        result = await this.findPageComponents('/_errors/404')
       }
 
       // use 404 if /_errors/404 isn't available which occurs
       // during development and when _app has getInitialProps
       if (!result && pages404) {
-        try {
-          result = await this.findPageComponents('/404')
-          using404Page = true
-        } catch (err) {
-          if (err.code !== 'ENOENT') {
-            throw err
-          }
-        }
+        result = await this.findPageComponents('/404')
+        using404Page = result !== null
       }
     }
 
@@ -1196,8 +1190,7 @@ export default class Server {
         req,
         res,
         using404Page ? '/404' : '/_error',
-        query,
-        result,
+        result!,
         {
           ...this.renderOpts,
           err,
@@ -1287,13 +1280,4 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
-}
-
-function getQueryForComponents(
-  components: LoadComponentsReturnType,
-  query: ParsedUrlQuery
-) {
-  return components.unstable_getStaticProps
-    ? { _nextDataReq: query._nextDataReq }
-    : query
 }
