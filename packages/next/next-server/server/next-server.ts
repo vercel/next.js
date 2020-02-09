@@ -227,7 +227,7 @@ export default class Server {
     console.error(err)
   }
 
-  private handleRequest(
+  private async handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
@@ -254,11 +254,13 @@ export default class Server {
     }
 
     res.statusCode = 200
-    return this.run(req, res, parsedUrl).catch(err => {
+    try {
+      return await this.run(req, res, parsedUrl)
+    } catch (err) {
       this.logError(err)
       res.statusCode = 500
       res.end('Internal Server Error')
-    })
+    }
   }
 
   public getRequestHandler() {
@@ -1037,33 +1039,28 @@ export default class Server {
       this.__sendPayload(res, html, 'text/html; charset=utf-8')
     }
 
-    return doRender(ssgCacheKey, []).then(
-      async ({ isOrigin, value: { html, pageData, sprRevalidate } }) => {
-        // Respond to the request if a payload wasn't sent above (from cache)
-        if (!isResSent(res)) {
-          this.__sendPayload(
-            res,
-            isDataReq ? JSON.stringify(pageData) : html,
-            isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-            sprRevalidate
-          )
-        }
+    const {
+      isOrigin,
+      value: { html, pageData, sprRevalidate },
+    } = await doRender(ssgCacheKey, [])
+    if (!isResSent(res)) {
+      this.__sendPayload(
+        res,
+        isDataReq ? JSON.stringify(pageData) : html,
+        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+        sprRevalidate
+      )
+    }
 
-        // Update the SPR cache if the head request
-        if (isOrigin) {
-          await setSprCache(
-            ssgCacheKey,
-            { html: html!, pageData },
-            sprRevalidate
-          )
-        }
+    // Update the SPR cache if the head request
+    if (isOrigin) {
+      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
+    }
 
-        return null
-      }
-    )
+    return null
   }
 
-  public renderToHTML(
+  public async renderToHTML(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
@@ -1076,69 +1073,60 @@ export default class Server {
       hasAmp?: boolean
     } = {}
   ): Promise<string | null> {
-    return this.findPageComponents(pathname, query)
-      .then(
-        result => {
-          return this.renderToHTMLWithComponents(
+    try {
+      try {
+        const result = await this.findPageComponents(pathname, query)
+        return await this.renderToHTMLWithComponents(
+          req,
+          res,
+          pathname,
+          getQueryForComponents(result, query),
+          result,
+          { ...this.renderOpts, amphtml, hasAmp }
+        )
+      } catch (err) {
+        if (err.code !== 'ENOENT' || !this.dynamicRoutes) {
+          throw err
+        }
+
+        for (const dynamicRoute of this.dynamicRoutes) {
+          const params = dynamicRoute.match(pathname)
+          if (!params) {
+            continue
+          }
+
+          const result = await this.findPageComponents(dynamicRoute.page, query)
+          return await this.renderToHTMLWithComponents(
             req,
             res,
-            pathname,
-            result.unstable_getStaticProps
-              ? { _nextDataReq: query._nextDataReq }
-              : query,
+            dynamicRoute.page,
+            // only add params for SPR enabled pages
+            {
+              ...getQueryForComponents(result, query),
+              ...params,
+            },
             result,
-            { ...this.renderOpts, amphtml, hasAmp }
-          )
-        },
-        err => {
-          if (err.code !== 'ENOENT' || !this.dynamicRoutes) {
-            return Promise.reject(err)
-          }
-
-          for (const dynamicRoute of this.dynamicRoutes) {
-            const params = dynamicRoute.match(pathname)
-            if (!params) {
-              continue
+            {
+              ...this.renderOpts,
+              params,
+              amphtml,
+              hasAmp,
             }
-
-            return this.findPageComponents(dynamicRoute.page, query).then(
-              result => {
-                return this.renderToHTMLWithComponents(
-                  req,
-                  res,
-                  dynamicRoute.page,
-                  // only add params for SPR enabled pages
-                  {
-                    ...(result.unstable_getStaticProps
-                      ? { _nextDataReq: query._nextDataReq }
-                      : query),
-                    ...params,
-                  },
-                  result,
-                  {
-                    ...this.renderOpts,
-                    params,
-                    amphtml,
-                    hasAmp,
-                  }
-                )
-              }
-            )
-          }
-
-          return Promise.reject(err)
+          )
         }
-      )
-      .catch(err => {
-        if (err && err.code === 'ENOENT') {
-          res.statusCode = 404
-          return this.renderErrorToHTML(null, req, res, pathname, query)
-        } else {
-          this.logError(err)
-          res.statusCode = 500
-          return this.renderErrorToHTML(err, req, res, pathname, query)
-        }
-      })
+
+        throw err
+      }
+    } catch (err) {
+      if (err && err.code === 'ENOENT') {
+        res.statusCode = 404
+        return await this.renderErrorToHTML(null, req, res, pathname, query)
+      } else {
+        this.logError(err)
+        res.statusCode = 500
+        return await this.renderErrorToHTML(err, req, res, pathname, query)
+      }
+    }
   }
 
   public async renderError(
@@ -1299,4 +1287,13 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
+}
+
+function getQueryForComponents(
+  components: LoadComponentsReturnType,
+  query: ParsedUrlQuery
+) {
+  return components.unstable_getStaticProps
+    ? { _nextDataReq: query._nextDataReq }
+    : query
 }
