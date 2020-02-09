@@ -1085,7 +1085,7 @@ export default class Server {
           { ...this.renderOpts, amphtml, hasAmp }
         )
       } catch (err) {
-        if (err.code !== 'ENOENT' || !this.dynamicRoutes) {
+        if (err?.code !== 'ENOENT' || !this.dynamicRoutes) {
           throw err
         }
 
