@@ -21,6 +21,7 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
@@ -312,12 +313,16 @@ export default class DevServer extends Server {
     return this.customRoutes
   }
 
+  private _devCachedPreviewProps: __ApiPreviewProps | undefined
   protected getPreviewProps() {
-    return {
+    if (this._devCachedPreviewProps) {
+      return this._devCachedPreviewProps
+    }
+    return (this._devCachedPreviewProps = {
       previewModeId: crypto.randomBytes(16).toString('hex'),
       previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
       previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-    }
+    })
   }
 
   private async loadCustomRoutes() {

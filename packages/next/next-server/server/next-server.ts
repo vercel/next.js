@@ -284,8 +284,15 @@ export default class Server {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
+  private _cachedPreviewProps: __ApiPreviewProps | undefined
   protected getPreviewProps(): __ApiPreviewProps {
-    return require(join(this.distDir, PRERENDER_MANIFEST)).preview
+    if (this._cachedPreviewProps) {
+      return this._cachedPreviewProps
+    }
+    return (this._cachedPreviewProps = require(join(
+      this.distDir,
+      PRERENDER_MANIFEST
+    )).preview)
   }
 
   protected generateRoutes(): {
@@ -702,14 +709,13 @@ export default class Server {
       }
     }
 
+    const previewProps = this.getPreviewProps()
     await apiResolver(
       req,
       res,
       query,
       pageModule,
-      {
-        // TODO: set properties
-      },
+      { ...previewProps },
       this.onErrorMiddleware
     )
     return true
@@ -968,9 +974,8 @@ export default class Server {
       })
     }
 
-    const previewData = tryGetPreviewData(req, res, {
-      // TODO: set properties
-    })
+    const previewProps = this.getPreviewProps()
+    const previewData = tryGetPreviewData(req, res, { ...previewProps })
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
