@@ -45,6 +45,14 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/multi-rewrites/)
   })
 
+  it('should not match dynamic route immediately after applying header', async () => {
+    const res = await fetchViaHTTP(appPort, '/blog/post-321')
+    expect(res.headers.get('x-something')).toBe('applied-everywhere')
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('p').text()).path).toBe('blog')
+  })
+
   it('should handle chained redirects successfully', async () => {
     const res1 = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
       redirect: 'manual',
@@ -453,6 +461,18 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
             source: '/my-headers/(.*)',
           },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'applied-everywhere',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/:path*',
+          },
         ],
         rewrites: [
           {
@@ -552,6 +572,11 @@ const runTests = (isDev = false) => {
             destination: '/api/hello?name=:name',
             regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
             source: '/api-hello-param/:name',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
+            source: '/:path/post-321',
           },
         ],
         dynamicRoutes: [

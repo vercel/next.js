@@ -437,7 +437,6 @@ export default class Server {
       headers = this.customRoutes.headers.map(r => {
         const route = getCustomRoute(r, 'header')
         return {
-          check: true,
           match: route.match,
           type: route.type,
           name: `${route.type} ${route.source} header route`,

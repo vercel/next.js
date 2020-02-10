@@ -75,6 +75,10 @@ module.exports = {
           source: '/api-hello-param/:name',
           destination: '/api/hello?name=:name',
         },
+        {
+          source: '/:path/post-321',
+          destination: '/with-params',
+        },
       ]
     },
     async redirects() {
@@ -187,6 +191,15 @@ module.exports = {
             {
               key: 'x-second-header',
               value: 'second',
+            },
+          ],
+        },
+        {
+          source: '/:path*',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'applied-everywhere',
             },
           ],
         },
