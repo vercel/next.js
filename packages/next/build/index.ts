@@ -827,6 +827,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       version: 1,
       routes: {},
       dynamicRoutes: {},
+      preview: previewProps,
     }
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
