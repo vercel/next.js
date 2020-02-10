@@ -11,16 +11,18 @@ import { Params } from './router'
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
 
+export type __ApiPreviewProps = {
+  previewModeId: string
+  previewModeEncryptionKey: string
+  previewModeSigningKey: string
+}
+
 export async function apiResolver(
   req: IncomingMessage,
   res: ServerResponse,
   params: any,
   resolverModule: any,
-  apiContext: {
-    previewModeId: string
-    previewModeEncryptionKey: string
-    previewModeSigningKey: string
-  },
+  apiContext: __ApiPreviewProps,
   onError?: ({ err }: { err: any }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
@@ -261,11 +263,7 @@ export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
 export function tryGetPreviewData(
   req: IncomingMessage,
   res: ServerResponse,
-  options: {
-    previewModeId: string
-    previewModeEncryptionKey: string
-    previewModeSigningKey: string
-  }
+  options: __ApiPreviewProps
 ): object | string | false {
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
@@ -339,11 +337,8 @@ function setPreviewData<T>(
   res: NextApiResponse<T>,
   data: object | string, // TODO: strict runtime type checking
   options: {
-    previewModeId: string
-    previewModeEncryptionKey: string
-    previewModeSigningKey: string
     maxAge?: number
-  }
+  } & __ApiPreviewProps
 ): NextApiResponse<T> {
   if (
     typeof options.previewModeId !== 'string' ||

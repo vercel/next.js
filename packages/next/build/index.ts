@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import crypto from 'crypto'
 import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
@@ -41,9 +42,11 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import {
   eventBuildCompleted,
   eventBuildOptimize,
@@ -67,7 +70,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -97,6 +99,7 @@ export type PrerenderManifest = {
   version: number
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  preview: __ApiPreviewProps
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -799,6 +802,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       version: 1,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
+      preview: {
+        previewModeId: crypto.randomBytes(16).toString('hex'),
+        previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+        previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+      },
     }
 
     await fsWriteFile(
