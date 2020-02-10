@@ -204,7 +204,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
   /**
    * Set preview data for Next.js' prerender mode
    */
-  previewData: (
+  setPreviewData: (
     data: object | string,
     options?: {
       /**
