@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@stripe/react-stripe-js": "^1.0.0-beta.5",
-    "@stripe/stripe-js": "^1.0.0-beta.5",
+    "@stripe/stripe-js": "^1.0.0-beta.6",
     "dotenv": "latest",
     "isomorphic-unfetch": "^3.0.0",
     "micro": "^9.3.4",
