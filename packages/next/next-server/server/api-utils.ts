@@ -304,11 +304,17 @@ export function tryGetPreviewData(
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
   const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
-  // TODO: handle error
-  const encryptedPreviewData = jsonwebtoken.verify(
-    tokenPreviewData,
-    options.previewModeSigningKey
-  ) as string
+  let encryptedPreviewData: string
+  try {
+    encryptedPreviewData = jsonwebtoken.verify(
+      tokenPreviewData,
+      options.previewModeSigningKey
+    ) as string
+  } catch {
+    // TODO: warn
+    clearPreviewData(res as NextApiResponse)
+    return false
+  }
 
   const decryptedPreviewData = decryptWithSecret(
     Buffer.from(options.previewModeEncryptionKey),
