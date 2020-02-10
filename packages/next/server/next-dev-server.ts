@@ -106,7 +106,7 @@ export default class DevServer extends Server {
         const { page, query = {} } = exportPathMap[path]
 
         // We use unshift so that we're sure the routes is defined before Next's default routes
-        this.router.add({
+        this.router.addFsRoute({
           match: route(path),
           type: 'route',
           name: `${path} exportpathmap route`,
@@ -336,13 +336,7 @@ export default class DevServer extends Server {
   }
 
   generateRoutes() {
-    const {
-      routes,
-      fsRoutes,
-      catchAllRoute,
-      dynamicRoutes,
-      pageChecker,
-    } = super.generateRoutes()
+    const { fsRoutes, ...otherRoutes } = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
@@ -359,7 +353,30 @@ export default class DevServer extends Server {
       },
     })
 
-    return { routes, fsRoutes, catchAllRoute, dynamicRoutes, pageChecker }
+    fsRoutes.push({
+      match: route('/:path*'),
+      type: 'route',
+      name: 'Catchall public directory route',
+      fn: async (req, res, params, parsedUrl) => {
+        const { pathname } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // Used in development to check public directory paths
+        if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
+          return {
+            finished: true,
+          }
+        }
+
+        return {
+          finished: false,
+        }
+      },
+    })
+
+    return { fsRoutes, ...otherRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
