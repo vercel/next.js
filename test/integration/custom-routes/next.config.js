@@ -60,6 +60,10 @@ module.exports = {
           destination: '/_next/:path*',
         },
         {
+          source: '/proxy-me/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+        },
+        {
           source: '/api-hello',
           destination: '/api/hello',
         },

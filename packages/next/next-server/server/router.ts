@@ -1,6 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { compile as compilePathToRegex } from 'path-to-regexp'
+import { stringify as stringifyQs } from 'querystring'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
@@ -54,6 +55,11 @@ export const prepareDestination = (destination: string, params: Params) => {
 
   try {
     newUrl = destinationCompiler(params)
+    const [pathname, hash] = newUrl.split('#')
+    parsedDestination.pathname = pathname
+    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
+    parsedDestination.search = stringifyQs(parsedDestination.query)
+    parsedDestination.path = `${pathname}${parsedDestination.search}`
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
