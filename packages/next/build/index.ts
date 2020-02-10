@@ -806,6 +806,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
+  } else {
+    const prerenderManifest: PrerenderManifest = {
+      version: 1,
+      routes: {},
+      dynamicRoutes: {},
+    }
+    await fsWriteFile(
+      path.join(distDir, PRERENDER_MANIFEST),
+      JSON.stringify(prerenderManifest),
+      'utf8'
+    )
   }
 
   await fsWriteFile(
