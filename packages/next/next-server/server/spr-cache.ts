@@ -1,11 +1,11 @@
 import fs from 'fs'
-import path from 'path'
 import LRUCache from 'lru-cache'
+import mkdirpOrig from 'mkdirp'
+import path from 'path'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
-import mkdirpOrig from 'mkdirp'
 
 const mkdirp = promisify(mkdirpOrig)
 const readFile = promisify(fs.readFile)
@@ -72,14 +72,12 @@ export function initializeSprCache({
       !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
   }
 
-  try {
-    prerenderManifest = dev
-      ? { routes: {}, dynamicRoutes: [] }
-      : JSON.parse(
-          fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
-        )
-  } catch (_) {
-    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: {} }
+  if (dev) {
+    prerenderManifest = { version: -1, routes: {}, dynamicRoutes: {} }
+  } else {
+    prerenderManifest = JSON.parse(
+      fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
+    )
   }
 
   cache = new LRUCache({
