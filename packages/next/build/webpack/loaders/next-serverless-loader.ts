@@ -25,7 +25,7 @@ export type ServerlessLoaderQuery = {
   canonicalBase: string
   basePath: string
   runtimeConfig: string
-  previewProps: __ApiPreviewProps
+  previewProps: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -56,7 +56,9 @@ const nextServerlessLoader: loader.Loader = function() {
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
 
-  const encodedPreviewProps = devalue(previewProps)
+  const encodedPreviewProps = devalue(
+    JSON.parse(previewProps) as __ApiPreviewProps
+  )
 
   const runtimeConfigImports = runtimeConfig
     ? `

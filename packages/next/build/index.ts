@@ -201,8 +201,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
+  const previewProps: __ApiPreviewProps = {
+    previewModeId: crypto.randomBytes(16).toString('hex'),
+    previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+    previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+  }
+
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const entrypoints = createEntrypoints(
+    mappedPages,
+    target,
+    buildId,
+    previewProps,
+    config
+  )
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
@@ -802,11 +814,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       version: 1,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
-      preview: {
-        previewModeId: crypto.randomBytes(16).toString('hex'),
-        previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
-        previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
-      },
+      preview: previewProps,
     }
 
     await fsWriteFile(

@@ -222,6 +222,7 @@ export default class DevServer extends Server {
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
       config: this.nextConfig,
+      previewProps: this.getPreviewProps(),
       buildId: this.buildId,
     })
     await super.prepare()
