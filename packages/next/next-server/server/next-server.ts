@@ -3,7 +3,6 @@ import fs from 'fs'
 import Proxy from 'http-proxy'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, resolve, sep } from 'path'
-import { compile as compilePathToRegex } from 'path-to-regexp'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 
@@ -40,6 +39,7 @@ import Router, {
   Route,
   DynamicRoutes,
   PageChecker,
+  prepareDestination,
 } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
@@ -284,10 +284,13 @@ export default class Server {
   }
 
   protected generateRoutes(): {
-    routes: Route[]
+    headers: Route[]
+    rewrites: Route[]
     fsRoutes: Route[]
+    redirects: Route[]
     catchAllRoute: Route
     pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
     this.customRoutes = this.getCustomRoutes()
@@ -315,6 +318,10 @@ export default class Server {
           } as Route,
         ]
       : []
+
+    let headers: Route[] = []
+    let rewrites: Route[] = []
+    let redirects: Route[] = []
 
     const fsRoutes: Route[] = [
       {
@@ -412,166 +419,108 @@ export default class Server {
       ...publicRoutes,
       ...staticFilesRoute,
     ]
-    const routes: Route[] = []
 
     if (this.customRoutes) {
-      const { redirects, rewrites, headers } = this.customRoutes
-
       const getCustomRoute = (
         r: Rewrite | Redirect | Header,
         type: RouteType
-      ) => ({
-        ...r,
-        type,
-        matcher: getCustomRouteMatcher(r.source),
-      })
+      ) =>
+        ({
+          ...r,
+          type,
+          match: getCustomRouteMatcher(r.source),
+          name: type,
+          fn: async (req, res, params, parsedUrl) => ({ finished: false }),
+        } as Route & Rewrite & Header)
 
       // Headers come very first
-      routes.push(
-        ...headers.map(r => {
-          const route = getCustomRoute(r, 'header')
-          return {
-            check: true,
-            match: route.matcher,
-            type: route.type,
-            name: `${route.type} ${route.source} header route`,
-            fn: async (_req, res, _params, _parsedUrl) => {
-              for (const header of (route as Header).headers) {
-                res.setHeader(header.key, header.value)
-              }
-              return { finished: false }
-            },
-          } as Route
-        })
-      )
-
-      const customRoutes = [
-        ...redirects.map(r => getCustomRoute(r, 'redirect')),
-        ...rewrites.map(r => getCustomRoute(r, 'rewrite')),
-      ]
-
-      routes.push(
-        ...customRoutes.map(route => {
-          return {
-            check: true,
-            match: route.matcher,
-            type: route.type,
-            statusCode: (route as Redirect).statusCode,
-            name: `${route.type} ${route.source} route`,
-            fn: async (req, res, params, _parsedUrl) => {
-              const parsedDestination = parseUrl(route.destination, true)
-              const destQuery = parsedDestination.query
-              let destinationCompiler = compilePathToRegex(
-                `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
-              )
-              let newUrl
-
-              Object.keys(destQuery).forEach(key => {
-                const val = destQuery[key]
-                if (
-                  typeof val === 'string' &&
-                  val.startsWith(':') &&
-                  params[val.substr(1)]
-                ) {
-                  destQuery[key] = params[val.substr(1)]
-                }
-              })
-
-              try {
-                newUrl = destinationCompiler(params)
-              } catch (err) {
-                if (
-                  err.message.match(
-                    /Expected .*? to not repeat, but got an array/
-                  )
-                ) {
-                  throw new Error(
-                    `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/zeit/next.js/invalid-multi-match`
-                  )
-                }
-                throw err
-              }
-
-              const parsedNewUrl = parseUrl(newUrl)
-              const updatedDestination = formatUrl({
-                ...parsedDestination,
-                pathname: parsedNewUrl.pathname,
-                hash: parsedNewUrl.hash,
-                search: undefined,
-              })
-
-              if (route.type === 'redirect') {
-                res.setHeader('Location', updatedDestination)
-                res.statusCode = getRedirectStatus(route as Redirect)
-
-                // Since IE11 doesn't support the 308 header add backwards
-                // compatibility using refresh header
-                if (res.statusCode === 308) {
-                  res.setHeader('Refresh', `0;url=${updatedDestination}`)
-                }
-
-                res.end()
-                return {
-                  finished: true,
-                }
-              } else {
-                // external rewrite, proxy it
-                if (parsedDestination.protocol) {
-                  const proxy = new Proxy({
-                    target: updatedDestination,
-                    changeOrigin: true,
-                    ignorePath: true,
-                  })
-                  proxy.web(req, res)
-
-                  proxy.on('error', (err: Error) => {
-                    console.error(
-                      `Error occurred proxying ${updatedDestination}`,
-                      err
-                    )
-                  })
-                  return {
-                    finished: true,
-                  }
-                }
-                ;(req as any)._nextDidRewrite = true
-              }
-
-              return {
-                finished: false,
-                pathname: newUrl,
-                query: parsedDestination.query,
-              }
-            },
-          } as Route
-        })
-      )
-    }
-
-    const catchPublicDirectoryRoute: Route = {
-      match: route('/:path*'),
-      type: 'route',
-      name: 'Catch public directory route',
-      fn: async (req, res, params, parsedUrl) => {
-        const { pathname } = parsedUrl
-        if (!pathname) {
-          throw new Error('pathname is undefined')
-        }
-
-        // Used in development to check public directory paths
-        if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
-          return {
-            finished: true,
-          }
-        }
-
+      headers = this.customRoutes.headers.map(r => {
+        const route = getCustomRoute(r, 'header')
         return {
-          finished: false,
-        }
-      },
-    }
+          match: route.match,
+          type: route.type,
+          name: `${route.type} ${route.source} header route`,
+          fn: async (_req, res, _params, _parsedUrl) => {
+            for (const header of (route as Header).headers) {
+              res.setHeader(header.key, header.value)
+            }
+            return { finished: false }
+          },
+        } as Route
+      })
 
-    routes.push(catchPublicDirectoryRoute)
+      redirects = this.customRoutes.redirects.map(redirect => {
+        const route = getCustomRoute(redirect, 'redirect')
+        return {
+          type: route.type,
+          match: route.match,
+          statusCode: route.statusCode,
+          name: `Redirect route`,
+          fn: async (_req, res, params, _parsedUrl) => {
+            const { parsedDestination } = prepareDestination(
+              route.destination,
+              params
+            )
+            const updatedDestination = formatUrl(parsedDestination)
+
+            res.setHeader('Location', updatedDestination)
+            res.statusCode = getRedirectStatus(route as Redirect)
+
+            // Since IE11 doesn't support the 308 header add backwards
+            // compatibility using refresh header
+            if (res.statusCode === 308) {
+              res.setHeader('Refresh', `0;url=${updatedDestination}`)
+            }
+
+            res.end()
+            return {
+              finished: true,
+            }
+          },
+        } as Route
+      })
+
+      rewrites = this.customRoutes.rewrites.map(rewrite => {
+        const route = getCustomRoute(rewrite, 'rewrite')
+        return {
+          check: true,
+          type: route.type,
+          name: `Rewrite route`,
+          match: route.match,
+          fn: async (req, res, params, _parsedUrl) => {
+            const { newUrl, parsedDestination } = prepareDestination(
+              route.destination,
+              params
+            )
+
+            // external rewrite, proxy it
+            if (parsedDestination.protocol) {
+              const target = formatUrl(parsedDestination)
+              const proxy = new Proxy({
+                target,
+                changeOrigin: true,
+                ignorePath: true,
+              })
+              proxy.web(req, res)
+
+              proxy.on('error', (err: Error) => {
+                console.error(`Error occurred proxying ${target}`, err)
+              })
+              return {
+                finished: true,
+              }
+            }
+            ;(req as any)._nextDidRewrite = true
+
+            return {
+              finished: false,
+              pathname: newUrl,
+              query: parsedDestination.query,
+            }
+          },
+        } as Route
+      })
+    }
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
@@ -602,20 +551,19 @@ export default class Server {
       },
     }
 
-    if (this.nextConfig.useFileSystemPublicRoutes) {
-      this.dynamicRoutes = this.getDynamicRoutes()
+    const { useFileSystemPublicRoutes } = this.nextConfig
 
-      // It's very important to keep this route's param optional.
-      // (but it should support as many params as needed, separated by '/')
-      // Otherwise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      routes.push(catchAllRoute)
+    if (useFileSystemPublicRoutes) {
+      this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {
-      routes,
+      headers,
       fsRoutes,
+      rewrites,
+      redirects,
       catchAllRoute,
+      useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       pageChecker: this.hasPage.bind(this),
     }
