@@ -1,7 +1,7 @@
 # Example using Stripe with TypeScript and react-stripe-js 🔒💸
 
 - Demo: https://nextjs-typescript-react-stripe-js.now.sh/
-- CodeSandbox: https://codesandbox.io/s/nextjs-typescript-react-stripe-js-ix23n
+- CodeSandbox: https://codesandbox.io/s/nextjs-typescript-react-stripe-js-rqrss
 - Tutorial: https://dev.to/thorwebdev/type-safe-payments-with-next-js-typescript-and-stripe-2a1o
 
 This is a full-stack TypeScript example using:

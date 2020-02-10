@@ -1,7 +1,7 @@
 {
   "name": "with-stripe-typescript",
   "version": "1.0.0",
-  "description": "",
+  "description": "Full-stack TypeScript sample using Next.js, react-stripe-js, and stripe-node.",
   "scripts": {
     "dev": "next",
     "build": "next build",
