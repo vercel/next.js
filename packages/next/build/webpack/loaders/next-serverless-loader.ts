@@ -1,14 +1,16 @@
-import { loader } from 'webpack'
+import devalue from 'devalue'
+import escapeRegexp from 'escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
+import { loader } from 'webpack'
+import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
-  ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
-import { API_ROUTE } from '../../../lib/constants'
-import escapeRegexp from 'escape-string-regexp'
+import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -23,6 +25,7 @@ export type ServerlessLoaderQuery = {
   canonicalBase: string
   basePath: string
   runtimeConfig: string
+  previewProps: __ApiPreviewProps
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -39,6 +42,7 @@ const nextServerlessLoader: loader.Loader = function() {
     generateEtags,
     basePath,
     runtimeConfig,
+    previewProps,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -51,6 +55,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
+
+  const encodedPreviewProps = devalue(previewProps)
 
   const runtimeConfigImports = runtimeConfig
     ? `
@@ -176,7 +182,7 @@ const nextServerlessLoader: loader.Loader = function() {
             res,
             Object.assign({}, parsedUrl.query, params ),
             resolver,
-            {}, // TODO: set properties
+            ${encodedPreviewProps},
             onError
           )
         } catch (err) {
@@ -244,6 +250,7 @@ const nextServerlessLoader: loader.Loader = function() {
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
+        previewProps: ${encodedPreviewProps},
         ..._renderOpts
       }
       let _nextData = false
