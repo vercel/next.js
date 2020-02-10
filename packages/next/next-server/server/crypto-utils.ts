@@ -9,7 +9,7 @@ const CIPHER_ALGORITHM = `aes-256-gcm`,
   CIPHER_TAG_LENGTH = 16,
   CIPHER_SALT_LENGTH = 64
 
-const PBKDF2_ITERATIONS = 10000 // https://support.1password.com/pbkdf2/
+const PBKDF2_ITERATIONS = 100_000 // https://support.1password.com/pbkdf2/
 
 export function encryptWithSecret(secret: Buffer, data: string) {
   const iv = crypto.randomBytes(CIPHER_IV_LENGTH)
