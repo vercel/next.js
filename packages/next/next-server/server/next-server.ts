@@ -22,6 +22,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_SERVER,
+  PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
@@ -34,7 +35,7 @@ import {
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
-import { apiResolver, tryGetPreviewData } from './api-utils'
+import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
@@ -281,6 +282,10 @@ export default class Server {
 
   protected getCustomRoutes() {
     return require(join(this.distDir, ROUTES_MANIFEST))
+  }
+
+  protected getPreviewProps(): __ApiPreviewProps {
+    return require(join(this.distDir, PRERENDER_MANIFEST)).preview
   }
 
   protected generateRoutes(): {
