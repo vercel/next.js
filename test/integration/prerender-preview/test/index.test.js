@@ -153,11 +153,8 @@ function runTests() {
     )
   })
 
-  it('should close the client-side browser', async () => {
+  afterAll(async () => {
     await browser.close()
-  })
-
-  it('should stop production application', async () => {
     await killApp(app)
   })
 }
