@@ -368,47 +368,34 @@ function setPreviewData<T>(
       JSON.stringify(data)
     ),
     options.previewModeSigningKey,
-    Object.assign(
-      {},
-      { algorithm: 'HS256' },
-      options.maxAge !== undefined ? { expiresIn: options.maxAge } : undefined
-    )
+    {
+      algorithm: 'HS256',
+      ...(options.maxAge !== undefined
+        ? { expiresIn: options.maxAge }
+        : undefined),
+    }
   )
 
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string' ? [previous] : []),
-    serialize(
-      COOKIE_NAME_PRERENDER_BYPASS,
-      options.previewModeId,
-      Object.assign(
-        {} as CookieSerializeOptions,
-        {
-          httpOnly: true,
-          sameSite: 'strict',
-          path: '/',
-        } as CookieSerializeOptions,
-        options.maxAge !== undefined
-          ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
-          : undefined
-      ) as CookieSerializeOptions
-    ),
-    serialize(
-      COOKIE_NAME_PRERENDER_DATA,
-      payload,
-      Object.assign(
-        {} as CookieSerializeOptions,
-        {
-          httpOnly: true,
-          sameSite: 'strict',
-          path: '/',
-        } as CookieSerializeOptions,
-        options.maxAge !== undefined
-          ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
-          : undefined
-      ) as CookieSerializeOptions
-    ),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+      ...(options.maxAge !== undefined
+        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+    }),
+    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+      ...(options.maxAge !== undefined
+        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+    }),
   ])
   return res
 }

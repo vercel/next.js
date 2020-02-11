@@ -446,19 +446,16 @@ export async function renderToHTML(
 
     if (isSpr && !isFallback) {
       const previewData = tryGetPreviewData(req, res, previewProps)
-      const data = await unstable_getStaticProps!(
-        Object.assign(
-          {},
-          isDynamicRoute(pathname)
-            ? {
-                params: query as any,
-              }
-            : undefined,
-          previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined
-        )
-      )
+      const data = await unstable_getStaticProps!({
+        ...(isDynamicRoute(pathname)
+          ? {
+              params: query as ParsedUrlQuery,
+            }
+          : { params: undefined }),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
+      })
 
       const invalidKeys = Object.keys(data).filter(
         key => key !== 'revalidate' && key !== 'props'
