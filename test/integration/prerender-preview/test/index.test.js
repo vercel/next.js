@@ -2,6 +2,7 @@
 /* global jasmine */
 import cheerio from 'cheerio'
 import cookie from 'cookie'
+import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
@@ -26,6 +27,7 @@ function getData(html) {
 
 describe('Prerender Preview Mode', () => {
   it('should compile successfully', async () => {
+    await fs.remove(join(appDir, '.next'))
     const { code, stdout } = await nextBuild(appDir, [], {
       stdout: true,
     })
