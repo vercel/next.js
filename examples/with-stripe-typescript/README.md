@@ -107,4 +107,4 @@ After the successful deploy, Now will show you the URL for your site. Copy that 
     now secrets rm stripe_webhook_secret
     now secrets add stripe_webhook_secret whsec_***
 
-As the secrets are pulled into the application at deploy time, we will need to redeploy our app after we made changes to the secrets. Run `now` again to redeploy with the new secret value.
+As the secrets are set as env vars in the project at deploy time, we will need to redeploy our app after we made changes to the secrets. Run `now` again to redeploy with the new secret value.
