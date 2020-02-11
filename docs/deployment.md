@@ -56,7 +56,7 @@ For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully
 
 Next.js can be deployed to any hosting provider that supports Node.js. This is the approach you should take if you’re using a [custom server](/docs/advanced-features/custom-server.md).
 
-Make sure your `package.json` has `build` and `start` scripts:
+Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ```json
 {
