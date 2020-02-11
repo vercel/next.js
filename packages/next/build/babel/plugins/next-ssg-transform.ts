@@ -57,6 +57,33 @@ function decorateSsgExport(
       ])
       path.scope.registerDeclaration(pageCompPath)
     },
+    ExportNamedDeclaration(path) {
+      if (state.done) {
+        return
+      }
+      // we need to handle the default export being a named export
+      // for `export default class Page extends Component {}` syntax
+      const defaultSpecifier = path.node.specifiers.find(s => {
+        return s.exported.name === 'default'
+      })
+
+      if (!defaultSpecifier) {
+        return
+      }
+      state.done = true
+
+      path.replaceWithMultiple([
+        t.assignmentExpression(
+          '=',
+          t.memberExpression(
+            t.identifier((defaultSpecifier as any).local.name),
+            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
+          ),
+          t.booleanLiteral(true)
+        ),
+        path.node,
+      ])
+    },
   })
 }
 
