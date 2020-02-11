@@ -239,48 +239,58 @@ function runTests(dev) {
     }
   })
 
-  it('[ssg: catch all] should pass param in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
-  })
-
-  it('[ssg: catch all] should pass params in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1/test2')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
-  })
-
-  it('[predefined ssg: catch all] should pass param in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/test1')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
-  })
-
-  it('[predefined ssg: catch all] should pass params in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(
+  it('[ssg: catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
       appPort,
-      '/p1/p2/predefined-ssg/test1/test2'
+      `/_next/data/${buildId}/p1/p2/all-ssg/test1.json`
     )
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
+  })
+
+  it('[ssg: catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/all-ssg/test1/test2.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['test1', 'test2'],
+    })
+  })
+
+  it('[predefined ssg: catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/test1.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
+  })
+
+  it('[predefined ssg: catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/test1/test2.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['test1', 'test2'],
+    })
   })
 
   it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/one-level')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["one-level"]}')
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/one-level.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['one-level'] })
   })
 
   it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(
+    const data = await renderViaHTTP(
       appPort,
-      '/p1/p2/predefined-ssg/1st-level/2nd-level'
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/1st-level/2nd-level.json`
     )
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe(
-      '{"rest":["1st-level","2nd-level"]}'
-    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['1st-level', '2nd-level'],
+    })
   })
 
   it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
@@ -492,6 +502,7 @@ describe('Dynamic Routing', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
+      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
