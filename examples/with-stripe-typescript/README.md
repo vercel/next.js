@@ -31,7 +31,7 @@ This is a full-stack TypeScript example using:
   - By default Next.js API routes are same-origin only. To allow Stripe webhook event requests to reach our API route, we need to add `micro-cors` and [verify the webhook signature](https://stripe.com/docs/webhooks/signatures) of the event. All of this happens in [pages/api/webhooks/index.ts](pages/api/webhooks/index.ts).
 - Helpers
   - [utils/api-helpers.ts](utils/api-helpers.ts)
-    - `isomorphic-unfetch` helpers for GET and POST requests.
+    - helpers for GET and POST requests.
   - [utils/stripe-helpers.ts](utils/stripe-helpers.ts)
     - Format amount strings properly using `Intl.NumberFormat`.
     - Format amount for usage with Stripe, including zero decimal currency detection.
