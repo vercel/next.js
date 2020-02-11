@@ -28,7 +28,7 @@ Congratulations! You’ve just deployed your Next.js app! If you have questions,
 Let’s talk about the workflow we recommend using. [ZEIT Now](https://zeit.co) supports what we call the **DPS** workflow: **D**evelop, **P**review, and **S**hip:
 
 - **Develop:** When you work on something new, create a new Git branch.
-- **Preview:** Every time you push changes to GitHub / GitLab / BitBucket, ZEIT Now automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request or under “Preview Deployments” on your project page on ZEIT Now. [Learn more about it here](https://zeit.co/features/deployment-previews).
+- **Preview:** Every time you push changes to GitHub / GitLab / BitBucket, ZEIT Now automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request, or under “Preview Deployments” on your project page on ZEIT Now. [Learn more about it here](https://zeit.co/features/deployment-previews).
 - **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `master`). ZEIT Now will automatically create a production deployment.
 
 By using the DPS workflow, instead of doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
