@@ -2,7 +2,7 @@
 
 - Demo: https://nextjs-typescript-react-stripe-js.now.sh/
 - CodeSandbox: https://codesandbox.io/s/nextjs-typescript-react-stripe-js-rqrss
-- Tutorial: https://dev.to/thorwebdev/type-safe-payments-with-next-js-typescript-and-stripe-2a1o
+- Tutorial: https://dev.to/thorwebdev/type-safe-payments-with-next-js-typescript-and-stripe-4jo7
 
 This is a full-stack TypeScript example using:
 
