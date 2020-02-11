@@ -7,13 +7,13 @@
 This is a full-stack TypeScript example using:
 
 - Frontend:
-  - [Next.js 9](https://nextjs.org/blog/next-9) for [SSR](https://nextjs.org/features/server-side-rendering)
+  - Next.js and [SWR](https://github.com/zeit/swr)
   - [react-stripe-js](https://github.com/stripe/react-stripe-js) for [Checkout](https://stripe.com/checkout) and [Elements](https://stripe.com/elements)
 - Backend
-  - Next.js 9 [API routes](https://nextjs.org/blog/next-9#api-routes)
+  - Next.js [API routes](https://nextjs.org/docs/api-routes/introduction)
   - [stripe-node with TypeScript](https://github.com/stripe/stripe-node#usage-with-typescript)
 
-## Included functionality
+### Included functionality
 
 - Making `.env` variables available to next: [next.config.js](next.config.js)
   - **_NOTE_**: when deploying with Now you need to [add your secrets](https://zeit.co/docs/v2/serverless-functions/env-and-secrets) and specify a [now.json](/now.json) file.
@@ -86,7 +86,7 @@ Next, start the webhook forwarding:
 
 The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECRET` to this value in your `.env` file.
 
-### Deploy it to the cloud with Zeit Now
+## Deploy it to the cloud with Zeit Now
 
 Install [Now](https://zeit.co/now) ([download](https://zeit.co/download))
 
