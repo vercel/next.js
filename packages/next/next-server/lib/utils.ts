@@ -76,6 +76,7 @@ export type NEXT_DATA = {
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
   autoExport?: boolean
+  isFallback?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
 }

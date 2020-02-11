@@ -28,6 +28,7 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
 } from '../../lib/constants'
 import { AMP_RENDER_TARGET } from '../lib/constants'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
@@ -135,6 +136,7 @@ type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
+  pages404?: boolean
 }
 
 function renderDocument(
@@ -150,6 +152,7 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     autoExport,
+    isFallback,
     dynamicImportsIds,
     dangerousAsPath,
     hasCssMode,
@@ -185,6 +188,7 @@ function renderDocument(
     htmlProps: any
     bodyTags: any
     headTags: any
+    isFallback?: boolean
   }
 ): string {
   return (
@@ -201,6 +205,7 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
+            isFallback,
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -263,6 +268,7 @@ export async function renderToHTML(
     unstable_getServerProps,
     isDataReq,
     params,
+    pages404,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -291,6 +297,10 @@ export async function renderToHTML(
   const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
   const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
+  const didRewrite = (req as any)._nextDidRewrite
+  const isFallback = !!query.__nextFallback
+  delete query.__nextFallback
+
   const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
@@ -305,15 +315,21 @@ export async function renderToHTML(
 
   if (
     process.env.NODE_ENV !== 'production' &&
-    isAutoExport &&
+    (isAutoExport || isFallback) &&
     isDynamicRoute(pathname) &&
-    (req as any)._nextDidRewrite
+    didRewrite
   ) {
     // TODO: add err.sh when rewrites go stable
-    // Behavior might change before then (prefer SSR in this case)
+    // Behavior might change before then (prefer SSR in this case).
+    // If we decide to ship rewrites to the client we could solve this
+    // by running over the rewrites and getting the params.
     throw new Error(
-      `Rewrites don't support auto-exported dynamic pages yet. ` +
-        `Using this will cause the page to fail to parse the params on the client`
+      `Rewrites don't support${
+        isFallback ? ' ' : ' auto-exported '
+      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
+        `Using this will cause the page to fail to parse the params on the client${
+          isFallback ? ' for the fallback page ' : ''
+        }`
     )
   }
 
@@ -362,6 +378,10 @@ export async function renderToHTML(
       }
       req.url = pathname
       renderOpts.nextExport = true
+    }
+
+    if (pages404 && pathname === '/404' && !isAutoExport) {
+      throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
@@ -421,7 +441,7 @@ export async function renderToHTML(
       ctx,
     })
 
-    if (isSpr) {
+    if (isSpr && !isFallback) {
       const data = await unstable_getStaticProps!({
         params: isDynamicRoute(pathname) ? (query as any) : undefined,
       })
@@ -476,7 +496,7 @@ export async function renderToHTML(
     renderOpts.err = err
   }
 
-  if (unstable_getServerProps) {
+  if (unstable_getServerProps && !isFallback) {
     const data = await unstable_getServerProps({
       params,
       query,
@@ -496,6 +516,12 @@ export async function renderToHTML(
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerProps if not this can be removed
   if (isDataReq) return props
+
+  // We don't call getStaticProps or getServerProps while generating
+  // the fallback so make sure to set pageProps to an empty object
+  if (isFallback) {
+    props.pageProps = {}
+  }
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
@@ -593,6 +619,7 @@ export async function renderToHTML(
     headTags: await headTags(documentCtx),
     bodyTags: await bodyTags(documentCtx),
     htmlProps: await htmlProps(documentCtx),
+    isFallback,
     docProps,
     pathname,
     ampPath,

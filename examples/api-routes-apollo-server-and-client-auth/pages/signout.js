@@ -16,12 +16,11 @@ function SignOut() {
   const [signOut] = useMutation(SignOutMutation)
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      signOut().then(() => {
-        client.resetStore()
+    signOut().then(() => {
+      client.resetStore().then(() => {
         router.push('/signin')
       })
-    }
+    })
   }, [signOut, router, client])
 
   return <p>Signing out...</p>
