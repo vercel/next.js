@@ -37,7 +37,7 @@ const Home = () => (
         </a>
 
         <a
-          href="https://zeit.co/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://zeit.co/new?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
           className="card"
         >
           <h3>Deploy &rarr;</h3>
