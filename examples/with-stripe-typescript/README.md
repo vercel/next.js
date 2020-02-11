@@ -61,20 +61,26 @@ cd with-stripe-typescript
 
 Copy the `.env.example` file into a file named `.env` in the root directory of this project:
 
-    cp .env.example .env
+```bash
+cp .env.example .env
+```
 
 You will need a Stripe account ([register](https://dashboard.stripe.com/register)) to run this sample. Go to the Stripe [developer dashboard](https://stripe.com/docs/development#api-keys) to find your API keys and replace them in the `.env` file.
 
-    STRIPE_PUBLISHABLE_KEY=<replace-with-your-publishable-key>
-    STRIPE_SECRET_KEY=<replace-with-your-secret-key>
+```bash
+STRIPE_PUBLISHABLE_KEY=<replace-with-your-publishable-key>
+STRIPE_SECRET_KEY=<replace-with-your-secret-key>
+```
 
 Now install the dependencies and start the development server.
 
-    npm install
-    npm run dev
-    # or
-    yarn
-    yarn dev
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
 
 ### Forward webhooks to your local dev server
 
@@ -82,29 +88,37 @@ First [install the CLI](https://stripe.com/docs/stripe-cli) and [link your Strip
 
 Next, start the webhook forwarding:
 
-    stripe listen --forward-to localhost:3000/api/webhooks
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks
+```
 
 The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECRET` to this value in your `.env` file.
 
-## Deploy it to the cloud with Zeit Now
+### Deploy it to the cloud with ZEIT Now
 
 Install [Now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 Add your Stripe [secrets to Now](https://zeit.co/docs/v2/serverless-functions/env-and-secrets):
 
-    now secrets add stripe_publishable_key pk_***
-    now secrets add stripe_secret_key sk_***
-    now secrets add stripe_webhook_secret whsec_***
+```bash
+now secrets add stripe_publishable_key pk_***
+now secrets add stripe_secret_key sk_***
+now secrets add stripe_webhook_secret whsec_***
+```
 
 To start the deploy, run:
 
-    now
+```bash
+now
+```
 
 After the successful deploy, Now will show you the URL for your site. Copy that URL (`https://your-url.now.sh/api/webhooks`) and create a live webhook endpoint [in your Stripe dashboard](https://stripe.com/docs/webhooks/setup#configure-webhook-settings).
 
-**_Note_** that you're live webhook will have a different secret. To update it in your deployed application you will need to first rm the existing secret and then add the new secret:
+**_Note_** that your live webhook will have a different secret. To update it in your deployed application you will need to first remove the existing secret and then add the new secret:
 
-    now secrets rm stripe_webhook_secret
-    now secrets add stripe_webhook_secret whsec_***
+```bash
+now secrets rm stripe_webhook_secret
+now secrets add stripe_webhook_secret whsec_***
+```
 
 As the secrets are set as env vars in the project at deploy time, we will need to redeploy our app after we made changes to the secrets. Run `now` again to redeploy with the new secret value.
