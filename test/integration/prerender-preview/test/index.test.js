@@ -45,14 +45,14 @@ describe('Prerender Preview Mode', () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toMatchInlineSnapshot(`"undefined and undefined"`)
+    expect(pre).toBe('undefined and undefined')
   })
 
   it('should return prerendered page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toMatchInlineSnapshot(`"undefined and undefined"`)
+    expect(pre).toBe('undefined and undefined')
   })
 
   let previewCookieString
@@ -90,7 +90,7 @@ describe('Prerender Preview Mode', () => {
 
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: true })
-    expect(pre).toMatchInlineSnapshot(`"Has No Props"`)
+    expect(pre).toBe('Has No Props')
   })
 
   it('should return cookies to be expired on reset request', async () => {
@@ -134,12 +134,10 @@ describe('Prerender Preview Mode', () => {
   it('should fetch preview data', async () => {
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toMatchInlineSnapshot(
-      `"Has No Props"`
-    )
+    expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
     await new Promise(resolve => setTimeout(resolve, 2000))
-    expect(await browser.elementById('props-pre').text()).toMatchInlineSnapshot(
-      `"true and {\\"client\\":\\"mode\\"}"`
+    expect(await browser.elementById('props-pre').text()).toBe(
+      'true and {"client":"mode"}'
     )
   })
 
@@ -148,8 +146,8 @@ describe('Prerender Preview Mode', () => {
 
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toMatchInlineSnapshot(
-      `"undefined and undefined"`
+    expect(await browser.elementById('props-pre').text()).toBe(
+      'undefined and undefined'
     )
   })
 
