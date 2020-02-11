@@ -1045,17 +1045,19 @@ export default class Server {
     })
 
     // render fallback if for a preview path or a non-seeded dynamic path
+    const isDynamicPathname = isDynamicRoute(pathname)
     if (
       !isResSent(res) &&
       !isDataReq &&
       ((isPreviewMode &&
         // A header can opt into the blocking behavior.
         req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking') ||
-        isDynamicRoute(pathname))
+        isDynamicPathname)
     ) {
       let html = ''
 
-      if (!this.renderOpts.dev) {
+      const isProduction = !this.renderOpts.dev
+      if (isProduction && (isDynamicPathname || !isPreviewMode)) {
         html = await getFallback(pathname)
       } else {
         query.__nextFallback = 'true'
