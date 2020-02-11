@@ -1,4 +1,5 @@
 import { parse } from 'content-type'
+import { CookieSerializeOptions } from 'cookie'
 import { IncomingMessage, ServerResponse } from 'http'
 import { PageConfig } from 'next/types'
 import getRawBody from 'raw-body'
@@ -378,16 +379,36 @@ function setPreviewData<T>(
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string' ? [previous] : []),
-    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
-      httpOnly: true,
-      sameSite: 'strict',
-      path: '/',
-    }),
-    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
-      httpOnly: true,
-      sameSite: 'strict',
-      path: '/',
-    }),
+    serialize(
+      COOKIE_NAME_PRERENDER_BYPASS,
+      options.previewModeId,
+      Object.assign(
+        {} as CookieSerializeOptions,
+        {
+          httpOnly: true,
+          sameSite: 'strict',
+          path: '/',
+        } as CookieSerializeOptions,
+        options.maxAge !== undefined
+          ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+          : undefined
+      ) as CookieSerializeOptions
+    ),
+    serialize(
+      COOKIE_NAME_PRERENDER_DATA,
+      payload,
+      Object.assign(
+        {} as CookieSerializeOptions,
+        {
+          httpOnly: true,
+          sameSite: 'strict',
+          path: '/',
+        } as CookieSerializeOptions,
+        options.maxAge !== undefined
+          ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+          : undefined
+      ) as CookieSerializeOptions
+    ),
   ])
   return res
 }
