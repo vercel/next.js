@@ -12,11 +12,13 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
+const nextConfigPath = join(appDir, 'next.config.js')
 
 function getData(html) {
   const $ = cheerio.load(html)
@@ -25,7 +27,7 @@ function getData(html) {
   return { nextData: JSON.parse(nextData.html()), pre: preEl.text() }
 }
 
-describe('Prerender Preview Mode', () => {
+function runTests() {
   it('should compile successfully', async () => {
     await fs.remove(join(appDir, '.next'))
     const { code, stdout } = await nextBuild(appDir, [], {
@@ -157,5 +159,28 @@ describe('Prerender Preview Mode', () => {
 
   it('should stop production application', async () => {
     await killApp(app)
+  })
+}
+
+describe('Prerender Preview Mode', () => {
+  describe('Server Mode', () => {
+    beforeAll(async () => {
+      await fs.remove(nextConfigPath)
+    })
+
+    runTests()
+  })
+  describe('Serverless Mode', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
+      )
+    })
+    afterAll(async () => {
+      await fs.remove(nextConfigPath)
+    })
+
+    runTests()
   })
 })
