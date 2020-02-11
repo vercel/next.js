@@ -6,7 +6,7 @@ description: Deploy your Next.js app to production with ZEIT Now and other hosti
 
 ## ZEIT Now (Recommended)
 
-The easiest way to deploy Next.js to production is using the **[ZEIT Now platform](https://zeit.co)** from the creators of Next.js. [ZEIT Now](https://zeit.co) is an all-in-one platform with Global CDN supporting static & JAMstack deployment and serverless functions.
+The easiest way to deploy Next.js to production is using the **[ZEIT Now platform](https://zeit.co)** from the creators of Next.js. [ZEIT Now](https://zeit.co) is an all-in-one platform with Global CDN supporting static & JAMstack deployment and Serverless Functions.
 
 ### Getting started
 
@@ -41,7 +41,7 @@ For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully
 
 - Every page can either use [Static Generation](/docs/basic-features/pages.md#static-generation) or [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering).
 - Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts etc) will automatically be served from the [ZEIT Now Smart CDN](https://zeit.co/smart-cdn), which is blazingly fast.
-- Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated serverless functions. This allows page rendering and API requests to scale infinitely.
+- Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated Serverless Functions. This allows page rendering and API requests to scale infinitely.
 
 ### Custom Domains, Environment Variables, Automatic HTTPS, and more
 
