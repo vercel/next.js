@@ -6,7 +6,7 @@ description: Deploy your Next.js app to production with ZEIT Now and other hosti
 
 ## ZEIT Now (Recommended)
 
-The easiest way to deploy Next.js to production is using the **[ZEIT Now platform](https://zeit.co)** from the creators of Next.js. [ZEIT Now](https://zeit.co) is an all-in-one platform with Global CDN supporting static & JAMstack deployment and Serverless Functions.
+The easiest way to deploy Next.js to production is to use the **[ZEIT Now platform](https://zeit.co)** from the creators of Next.js. [ZEIT Now](https://zeit.co) is an all-in-one platform with Global CDN supporting static & JAMstack deployment and Serverless Functions.
 
 ### Getting started
 
@@ -31,7 +31,7 @@ Let’s talk about the workflow we recommend using. [ZEIT Now](https://zeit.co) 
 - **Preview:** Every time you push changes to GitHub / GitLab / BitBucket, ZEIT Now automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request or under “Preview Deployments” on your project page on ZEIT Now. [Learn more about it here](https://zeit.co/features/deployment-previews).
 - **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `master`). ZEIT Now will automatically create a production deployment.
 
-By using the DPS workflow, instead of doing _code reviews_, your can do _deployment previews_. Each deployment creates a unique URL which can be shared or used for integration tests.
+By using the DPS workflow, instead of doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
 
 ### Optimized for Next.js
 
@@ -40,7 +40,7 @@ By using the DPS workflow, instead of doing _code reviews_, your can do _deploym
 For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully supported out of the box.
 
 - Every page can either use [Static Generation](/docs/basic-features/pages.md#static-generation) or [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering).
-- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts etc) will automatically be served from the [ZEIT Now Smart CDN](https://zeit.co/smart-cdn), which is blazingly fast.
+- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts, etc) will automatically be served from the [ZEIT Now Smart CDN](https://zeit.co/smart-cdn), which is blazingly fast.
 - Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated Serverless Functions. This allows page rendering and API requests to scale infinitely.
 
 ### Custom Domains, Environment Variables, Automatic HTTPS, and more
