@@ -381,10 +381,12 @@ function setPreviewData<T>(
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: 'strict',
+      path: '/',
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
       sameSite: 'strict',
+      path: '/',
     }),
   ])
   return res
@@ -395,8 +397,18 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string' ? [previous] : []),
-    serialize(COOKIE_NAME_PRERENDER_BYPASS, '', { maxAge: 0 }),
-    serialize(COOKIE_NAME_PRERENDER_DATA, '', { maxAge: 0 }),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+    }),
+    serialize(COOKIE_NAME_PRERENDER_DATA, '', {
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+    }),
   ])
   return res
 }
