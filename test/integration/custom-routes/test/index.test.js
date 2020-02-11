@@ -45,6 +45,14 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/multi-rewrites/)
   })
 
+  it('should not match dynamic route immediately after applying header', async () => {
+    const res = await fetchViaHTTP(appPort, '/blog/post-321')
+    expect(res.headers.get('x-something')).toBe('applied-everywhere')
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('p').text()).path).toBe('blog')
+  })
+
   it('should handle chained redirects successfully', async () => {
     const res1 = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
       redirect: 'manual',
@@ -157,6 +165,22 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/this-should-be-the-value/)
     expect(html).not.toMatch(/first/)
     expect(html).toMatch(/second/)
+  })
+
+  // current routes order do not allow rewrites to override page
+  // but allow redirects to
+  it('should not allow rewrite to override page file', async () => {
+    const html = await renderViaHTTP(appPort, '/nav')
+    expect(html).toContain('to-hello')
+  })
+
+  it('show allow redirect to override the page', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect-override', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/thank-you-next')
   })
 
   it('should work successfully on the client', async () => {
@@ -401,6 +425,12 @@ const runTests = (isDev = false) => {
             source: '/named-like-unnamed/:0',
             statusCode: 307,
           },
+          {
+            destination: '/thank-you-next',
+            regex: normalizeRegEx('^\\/redirect-override$'),
+            source: '/redirect-override',
+            statusCode: 307,
+          },
         ],
         headers: [
           {
@@ -431,12 +461,29 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
             source: '/my-headers/(.*)',
           },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'applied-everywhere',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/:path*',
+          },
         ],
         rewrites: [
           {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
             source: '/to-another',
+          },
+          {
+            destination: '/404',
+            regex: '^\\/nav$',
+            source: '/nav',
           },
           {
             source: '/hello-world',
@@ -525,6 +572,11 @@ const runTests = (isDev = false) => {
             destination: '/api/hello?name=:name',
             regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
             source: '/api-hello-param/:name',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
+            source: '/:path/post-321',
           },
         ],
         dynamicRoutes: [
