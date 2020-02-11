@@ -380,12 +380,10 @@ function setPreviewData<T>(
     ...(typeof previous === 'string' ? [previous] : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
-      secure: true,
       sameSite: 'strict',
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
-      secure: true,
       sameSite: 'strict',
     }),
   ])
