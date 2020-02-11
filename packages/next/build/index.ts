@@ -388,17 +388,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     }
     throw new Error('> Build failed because of webpack errors')
-  } else if (result.warnings.length > 0) {
-    console.warn(chalk.yellow('Compiled with warnings.\n'))
-    console.warn(result.warnings.join('\n\n'))
-    console.warn()
   } else {
-    console.log(chalk.green('Compiled successfully.\n'))
     telemetry.record(
       eventBuildCompleted(pagePaths, {
         durationInSeconds: webpackBuildEnd[0],
       })
     )
+
+    if (result.warnings.length > 0) {
+      console.warn(chalk.yellow('Compiled with warnings.\n'))
+      console.warn(result.warnings.join('\n\n'))
+      console.warn()
+    } else {
+      console.log(chalk.green('Compiled successfully.\n'))
+    }
   }
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
