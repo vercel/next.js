@@ -8,6 +8,7 @@ import {
   findPort,
   killApp,
   waitFor,
+  nextBuild,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -90,6 +91,41 @@ describe('Telemetry CLI', () => {
     await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr2).toMatch(/isSrcDir.*?true/)
+  })
+
+  it('detects tests correctly for `next build`', async () => {
+    await fs.rename(
+      path.join(appDir, 'pages', 'hello.test.skip'),
+      path.join(appDir, 'pages', 'hello.test.js')
+    )
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    await fs.rename(
+      path.join(appDir, 'pages', 'hello.test.js'),
+      path.join(appDir, 'pages', 'hello.test.skip')
+    )
+
+    const event1 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event1).toMatch(/hasDunderPages.*?true/)
+    expect(event1).toMatch(/hasTestPages.*?true/)
+
+    const event2 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event2).toMatch(/hasDunderPages.*?true/)
+    expect(event2).toMatch(/hasTestPages.*?true/)
+  })
+
+  it('detect static 404 correctly for `next build`', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event1).toMatch(/hasStatic404.*?true/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {

@@ -44,6 +44,7 @@ const {
   assetPrefix,
   runtimeConfig,
   dynamicIds,
+  isFallback,
 } = data
 
 const prefix = assetPrefix || ''
@@ -98,10 +99,12 @@ class Container extends React.Component {
 
     // If page was exported and has a querystring
     // If it's a dynamic route or has a querystring
+    // if it's a fallback page
     if (
       router.isSsr &&
-      ((data.nextExport &&
-        (isDynamicRoute(router.pathname) || location.search)) ||
+      (isFallback ||
+        (data.nextExport &&
+          (isDynamicRoute(router.pathname) || location.search)) ||
         (Component && Component.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
@@ -118,7 +121,7 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
-          shallow: true,
+          shallow: !isFallback,
         }
       )
     }
