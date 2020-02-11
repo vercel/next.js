@@ -367,41 +367,39 @@ function setPreviewData<T>(
       JSON.stringify(data)
     ),
     options.previewModeSigningKey,
-    { algorithm: 'HS256', expiresIn: options.maxAge }
+    Object.assign(
+      {},
+      { algorithm: 'HS256' },
+      options.maxAge !== undefined ? { expiresIn: options.maxAge } : undefined
+    )
   )
 
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
-  res.setHeader(
-    `Set-Cookie`,
-    [
-      ...(typeof previous === 'string' ? [previous] : []),
-      serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-      }),
-      serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-      }),
-    ].join('; ')
-  )
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string' ? [previous] : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    }),
+    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+    }),
+  ])
   return res
 }
 
 function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
-  res.setHeader(
-    `Set-Cookie`,
-    [
-      ...(typeof previous === 'string' ? [previous] : []),
-      serialize(COOKIE_NAME_PRERENDER_BYPASS, '', { maxAge: 0 }),
-      serialize(COOKIE_NAME_PRERENDER_DATA, '', { maxAge: 0 }),
-    ].join('; ')
-  )
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string' ? [previous] : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, '', { maxAge: 0 }),
+    serialize(COOKIE_NAME_PRERENDER_DATA, '', { maxAge: 0 }),
+  ])
   return res
 }
 
