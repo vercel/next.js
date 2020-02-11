@@ -48,7 +48,7 @@ For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully
 - **Custom Domains:** Once deployed on [ZEIT Now](https://zeit.co), you can assign a custom domain to your Next.js app. Take a look at [our documentation here](https://zeit.co/docs/v2/custom-domains).
 - **Environment Variables:** You can also set environment variables on ZEIT Now. Take a look at [our documentation here](https://zeit.co/docs/v2/build-step#using-environment-variables-and-secrets). You can then [use those environment variables](/docs/api-reference/next.config.js/environment-variables.md) in your Next.js app.
 - **Automatic HTTPS:** HTTPS is enabled by default (including custom domains) and doesn't require extra configuration. We auto-renew SSL certificates.
-- **More:** [Read our documentation](https://zeit.co/docs) to learn more about the ZEIT Now platform. You can deploy non-Next.js apps to ZEIT Now as well—[check out our how-to guides](https://zeit.co/guides).
+- **More:** [Read our documentation](https://zeit.co/docs) to learn more about the ZEIT Now platform.
 
 ## Other hosting options
 
@@ -74,7 +74,7 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ### Static HTML Export
 
-If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md). By default, `next export` will generate an `out` directory, which can be served by any static site server.
+If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md). By default, `next export` will generate an `out` directory, which can be served by any static hosting service or CDN.
 
 > We strongly recommend using [ZEIT Now](https://zeit.co/) even if your Next.js app is fully static. [ZEIT Now](https://zeit.co/) is optimized to make static Next.js apps blazingly fast.
 >
