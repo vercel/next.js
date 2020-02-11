@@ -1,5 +1,3 @@
-import fetch from 'isomorphic-unfetch'
-
 export async function fetchGetJSON(url: string) {
   try {
     const data = await fetch(url).then(res => res.json())
