@@ -1172,48 +1172,33 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | FindComponentsResult = null
-
     const { static404, pages404 } = this.nextConfig.experimental
     const is404 = res.statusCode === 404
-    let using404Page = false
 
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      if (static404) {
-        result = await this.findPageComponents('/_errors/404')
-      }
+    const pages = [
+      is404 && static404 ? '/_errors/404' : null,
+      is404 && pages404 ? '/404' : null,
+      '/_error',
+    ].filter(Boolean)
 
-      // use 404 if /_errors/404 isn't available which occurs
-      // during development and when _app has getInitialProps
-      if (!result && pages404) {
-        result = await this.findPageComponents('/404')
-        using404Page = result !== null
-      }
-    }
-
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
-    }
-
-    let html
     try {
-      html = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
-          err,
+      for (const pathname of pages) {
+        const result = await this.renderPageToHTML({
+          req,
+          res,
+          pathname: pathname!,
+          query,
+        })
+        if (result) {
+          return result
         }
-      )
+      }
     } catch (err) {
       console.error(err)
-      res.statusCode = 500
-      html = 'Internal Server Error'
     }
-    return html
+
+    res.statusCode = 500
+    return 'Internal Server Error'
   }
 
   public async render404(
