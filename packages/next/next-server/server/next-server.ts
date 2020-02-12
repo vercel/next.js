@@ -1069,6 +1069,7 @@ export default class Server {
     amphtml,
     hasAmp,
     params,
+    err,
   }: {
     req: IncomingMessage
     res: ServerResponse
@@ -1077,6 +1078,7 @@ export default class Server {
     params?: Params
     amphtml?: boolean
     hasAmp?: boolean
+    err?: Error | null
   }): Promise<string | null> {
     const result = await this.findPageComponents(pathname, query, params)
     if (result) {
@@ -1085,6 +1087,7 @@ export default class Server {
         amphtml,
         hasAmp,
         params,
+        err,
       })
     }
     return null
@@ -1188,6 +1191,7 @@ export default class Server {
           res,
           pathname: pathname!,
           query,
+          err,
         })
         if (result) {
           return result
