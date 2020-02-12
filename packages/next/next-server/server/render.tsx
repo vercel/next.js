@@ -1,37 +1,38 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
-import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { NextRouter } from '../lib/router/router'
-import mitt, { MittEmitter } from '../lib/mitt'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import {
-  loadGetInitialProps,
-  isResSent,
-  getDisplayName,
-  ComponentsEnhancer,
-  RenderPage,
-  DocumentInitialProps,
-  NextComponentType,
-  DocumentType,
-  AppType,
-} from '../lib/utils'
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+} from '../../lib/constants'
+import { isInAmpMode } from '../lib/amp'
+import { AmpStateContext } from '../lib/amp-context'
+import { AMP_RENDER_TARGET } from '../lib/constants'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
+import mitt, { MittEmitter } from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
-import { getPageFiles } from './get-page-files'
-import { AmpStateContext } from '../lib/amp-context'
-import optimizeAmp from './optimize-amp'
-import { isInAmpMode } from '../lib/amp'
+import { NextRouter } from '../lib/router/router'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import {
-  SSG_GET_INITIAL_PROPS_CONFLICT,
-  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SSG_CONFLICT,
-  PAGES_404_GET_INITIAL_PROPS_ERROR,
-} from '../../lib/constants'
-import { AMP_RENDER_TARGET } from '../lib/constants'
+  AppType,
+  ComponentsEnhancer,
+  DocumentInitialProps,
+  DocumentType,
+  getDisplayName,
+  isResSent,
+  loadGetInitialProps,
+  NextComponentType,
+  RenderPage,
+} from '../lib/utils'
+import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import optimizeAmp from './optimize-amp'
 
 function noRouter() {
   const message =
@@ -137,6 +138,7 @@ type RenderOpts = LoadComponentsReturnType & {
   isDataReq?: boolean
   params?: ParsedUrlQuery
   pages404?: boolean
+  previewProps: __ApiPreviewProps
 }
 
 function renderDocument(
@@ -269,6 +271,7 @@ export async function renderToHTML(
     isDataReq,
     params,
     pages404,
+    previewProps,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -442,8 +445,19 @@ export async function renderToHTML(
     })
 
     if (isSpr && !isFallback) {
+      // Reads of this are cached on the `req` object, so this should resolve
+      // instantly. There's no need to pass this data down from a previous
+      // invoke, where we'd have to consider server & serverless.
+      const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? (query as any) : undefined,
+        ...(isDynamicRoute(pathname)
+          ? {
+              params: query as ParsedUrlQuery,
+            }
+          : { params: undefined }),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
       })
 
       const invalidKeys = Object.keys(data).filter(

@@ -19,7 +19,7 @@ let app
 
 const runTests = () => {
   it('should show error for invalid mulit-match', async () => {
-    await renderViaHTTP(appPort, '/hello')
+    await renderViaHTTP(appPort, '/random')
     expect(stderr).toContain(
       'To use a multi-match in the destination you must add'
     )
@@ -27,7 +27,7 @@ const runTests = () => {
   })
 }
 
-describe('Custom routes', () => {
+describe('Custom routes invalid multi-match', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
