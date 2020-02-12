@@ -56,5 +56,3 @@ In case you want to deploy this example, replace the URL in the following locati
 - `ROOT_URL` in `server/app.js`
 - `Sitemap` at the bottom of `robots.txt`
 - `alias` in `now.json`
-
-Deploy with `now` or with `yarn now` if you specified `alias` in `now.json`
