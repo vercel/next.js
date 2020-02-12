@@ -1,12 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 
 import Stripe from 'stripe'
-const stripeSecretKey: string = process.env.STRIPE_SECRET_KEY!
-const stripe = new Stripe(stripeSecretKey, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   // https://github.com/stripe/stripe-node#configuration
   apiVersion: '2019-12-03',
-  typescript: true,
-  telemetry: true,
 })
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
