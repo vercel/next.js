@@ -445,6 +445,9 @@ export async function renderToHTML(
     })
 
     if (isSpr && !isFallback) {
+      // Reads of this are cached on the `req` object, so this should resolve
+      // instantly. There's no need to pass this data down from a previous
+      // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await unstable_getStaticProps!({
         ...(isDynamicRoute(pathname)
