@@ -37,10 +37,6 @@ Start the development server with [now](https://zeit.co/now) ([download](https:/
 now dev
 ```
 
-Deploy it to the cloud with `now`:
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 keep in mind that in order to deploy the app to `now` the env [secrets](https://zeit.co/docs/getting-started/secrets) defined in `now.json` should be listed in your account.
