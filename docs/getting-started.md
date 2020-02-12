@@ -25,6 +25,8 @@ npm init next-app
 yarn create next-app
 ```
 
+After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
+
 ## Manual Setup
 
 Install `next`, `react` and `react-dom` in your project:
