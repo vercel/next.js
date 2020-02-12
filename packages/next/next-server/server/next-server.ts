@@ -1061,6 +1061,35 @@ export default class Server {
     return null
   }
 
+  protected async renderPageToHTML({
+    req,
+    res,
+    pathname,
+    query,
+    amphtml,
+    hasAmp,
+    params,
+  }: {
+    req: IncomingMessage
+    res: ServerResponse
+    pathname: string
+    query: ParsedUrlQuery
+    params?: Params
+    amphtml?: boolean
+    hasAmp?: boolean
+  }): Promise<string | null> {
+    const result = await this.findPageComponents(pathname, query, params)
+    if (result) {
+      return await this.renderToHTMLWithComponents(req, res, pathname, result, {
+        ...this.renderOpts,
+        amphtml,
+        hasAmp,
+        params,
+      })
+    }
+    return null
+  }
+
   public async renderToHTML(
     req: IncomingMessage,
     res: ServerResponse,
@@ -1075,15 +1104,16 @@ export default class Server {
     } = {}
   ): Promise<string | null> {
     try {
-      const result = await this.findPageComponents(pathname, query)
+      const result = await this.renderPageToHTML({
+        req,
+        res,
+        pathname,
+        query,
+        amphtml,
+        hasAmp,
+      })
       if (result) {
-        return await this.renderToHTMLWithComponents(
-          req,
-          res,
-          pathname,
-          result,
-          { ...this.renderOpts, amphtml, hasAmp }
-        )
+        return result
       }
 
       if (this.dynamicRoutes) {
@@ -1093,24 +1123,17 @@ export default class Server {
             continue
           }
 
-          const result = await this.findPageComponents(
-            dynamicRoute.page,
+          const result = await this.renderPageToHTML({
+            req,
+            res,
+            pathname: dynamicRoute.page,
             query,
-            params
-          )
+            params,
+            amphtml,
+            hasAmp,
+          })
           if (result) {
-            return await this.renderToHTMLWithComponents(
-              req,
-              res,
-              dynamicRoute.page,
-              result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
-              }
-            )
+            return result
           }
         }
       }
