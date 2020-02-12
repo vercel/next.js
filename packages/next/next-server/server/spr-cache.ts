@@ -73,7 +73,12 @@ export function initializeSprCache({
   }
 
   if (dev) {
-    prerenderManifest = { version: -1, routes: {}, dynamicRoutes: {} }
+    prerenderManifest = {
+      version: -1,
+      routes: {},
+      dynamicRoutes: {},
+      preview: null as any, // `preview` is special case read in next-dev-server
+    }
   } else {
     prerenderManifest = JSON.parse(
       fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
