@@ -1,4 +1,6 @@
 import AmpHtmlValidator from 'amphtml-validator'
+import crypto from 'crypto'
+import findUp from 'find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, relative } from 'path'
@@ -6,9 +8,9 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import checkCustomRoutes from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -19,15 +21,15 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import Router, { route, Params } from '../next-server/server/router'
+import Router, { Params, route } from '../next-server/server/router'
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import checkCustomRoutes from '../lib/check-custom-routes'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -220,6 +222,7 @@ export default class DevServer extends Server {
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
       config: this.nextConfig,
+      previewProps: this.getPreviewProps(),
       buildId: this.buildId,
     })
     await super.prepare()
@@ -309,6 +312,18 @@ export default class DevServer extends Server {
   // override production loading of routes-manifest
   protected getCustomRoutes() {
     return this.customRoutes
+  }
+
+  private _devCachedPreviewProps: __ApiPreviewProps | undefined
+  protected getPreviewProps() {
+    if (this._devCachedPreviewProps) {
+      return this._devCachedPreviewProps
+    }
+    return (this._devCachedPreviewProps = {
+      previewModeId: crypto.randomBytes(16).toString('hex'),
+      previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+      previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+    })
   }
 
   private async loadCustomRoutes() {
