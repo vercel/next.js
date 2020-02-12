@@ -93,6 +93,26 @@ describe('Telemetry CLI', () => {
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
+  it('logs completed `next build` with warnings', async () => {
+    await fs.rename(
+      path.join(appDir, 'pages', 'warning.skip'),
+      path.join(appDir, 'pages', 'warning.js')
+    )
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    await fs.rename(
+      path.join(appDir, 'pages', 'warning.js'),
+      path.join(appDir, 'pages', 'warning.skip')
+    )
+
+    expect(stderr).toMatch(/Compiled with warnings/)
+    expect(stderr).toMatch(/NEXT_BUILD_COMPLETED/)
+  })
+
   it('detects tests correctly for `next build`', async () => {
     await fs.rename(
       path.join(appDir, 'pages', 'hello.test.skip'),

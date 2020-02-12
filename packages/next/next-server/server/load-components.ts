@@ -25,8 +25,10 @@ export type ManifestItem = {
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
-type Unstable_getStaticProps = (params: {
+type Unstable_getStaticProps = (ctx: {
   params: ParsedUrlQuery | undefined
+  preview?: boolean
+  previewData?: any
 }) => Promise<{
   props: { [key: string]: any }
   revalidate?: number | boolean
