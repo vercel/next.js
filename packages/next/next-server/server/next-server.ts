@@ -1011,7 +1011,15 @@ export default class Server {
     // * Dynamic pages should return their skeleton, then finish the data
     //   request on the client-side.
     //
-    if (!didRespond && !isDataReq && !isPreviewMode && isDynamicPathname) {
+    if (
+      !didRespond &&
+      !isDataReq &&
+      !isPreviewMode &&
+      isDynamicPathname &&
+      // TODO: development should trigger fallback when the path is not in
+      // `getStaticPaths`, for now, let's assume it is.F
+      isProduction
+    ) {
       let html: string
 
       // Production already emitted the fallback as static HTML.
