@@ -25,6 +25,11 @@ const Header = () => (
       </ul>
     </nav>
     <style jsx>{`
+      nav {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 0.2rem 1.25rem;
+      }
       ul {
         display: flex;
         list-style: none;
@@ -42,9 +47,17 @@ const Header = () => (
         text-decoration: none;
       }
       header {
-        padding: 0.2rem;
         color: #fff;
         background-color: #333;
+      }
+      button {
+        color: #fff;
+        font-size: 1rem;
+        font-family: inherit;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
       }
     `}</style>
   </header>

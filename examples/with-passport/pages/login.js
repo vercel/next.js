@@ -41,15 +41,15 @@ const Login = () => {
             <span>Password</span>
             <input type="password" name="password" />
           </label>
-
-          <button type="submit">Login</button>
-
-          {errorMsg && <p className="error">Error: {errorMsg}</p>}
+          <div className="submit">
+            {errorMsg && <p className="error">{errorMsg}</p>}
+            <button type="submit">Login</button>
+          </div>
         </form>
       </div>
       <style jsx>{`
         .login {
-          max-width: 340px;
+          max-width: 21rem;
           margin: 0 auto;
           padding: 1rem;
           border: 1px solid #ccc;
@@ -69,9 +69,26 @@ const Login = () => {
           border: 1px solid #ccc;
           border-radius: 4px;
         }
+        .submit {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+        }
+        .submit > button {
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+          background: #fff;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+        }
+        .submit > button:hover {
+          border-color: #888;
+        }
         .error {
-          margin: 0.5rem 0 0;
           color: brown;
+          flex-grow: 1;
+          margin: 0;
+          margin-right: 1rem;
         }
       `}</style>
     </Layout>
