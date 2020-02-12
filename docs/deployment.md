@@ -31,7 +31,7 @@ Let’s talk about the workflow we recommend using. [ZEIT Now](https://zeit.co) 
 - **Preview:** Every time you push changes to a branch on GitHub / GitLab / BitBucket, ZEIT Now automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request, or under “Preview Deployments” on your project page on ZEIT Now. [Learn more about it here](https://zeit.co/features/deployment-previews).
 - **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `master`). ZEIT Now will automatically create a production deployment.
 
-By using the DPS workflow, instead of doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
+By using the DPS workflow, in addition to doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
 
 ### Optimized for Next.js
 
@@ -74,6 +74,4 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md). By default, `next export` will generate an `out` directory, which can be served by any static hosting service or CDN.
 
-> We strongly recommend using [ZEIT Now](https://zeit.co/) even if your Next.js app is fully static. [ZEIT Now](https://zeit.co/) is optimized to make static Next.js apps blazingly fast.
->
-> **Note:** If you use [ZEIT Now](https://zeit.co/), you don’t need to use `next export`. It’ll automatically serve all pages from the [ZEIT Now Smart CDN](https://zeit.co/smart-cdn).
+> We strongly recommend using [ZEIT Now](https://zeit.co/) even if your Next.js app is fully static. [ZEIT Now](https://zeit.co/) is optimized to make static Next.js apps blazingly fast. `next export` works with Zero Config deployments on ZEIT Now.
