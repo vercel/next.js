@@ -49,13 +49,4 @@ npm run build-storybook
 yarn build-storybook
 ```
 
-Deploy Storybook to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-npm run build-storybook
-# or
-yarn build-storybook
-# then
-cd storybook-static
-now
-```
+You can use [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.
