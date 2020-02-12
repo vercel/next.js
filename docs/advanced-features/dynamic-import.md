@@ -37,11 +37,11 @@ function Home() {
 export default Home
 ```
 
-`DynamicComponent` will be the default component returned by `../components/hello`, it still works like any other React Component, and any props you add will be received by it.
+`DynamicComponent` will be the default component returned by `../components/hello`. It works like a regular React Component, and you can pass props to it as you normally would.
 
 ## With named exports
 
-If the dynamic component is not the default export, you can use a named export too, consider the module `components/hello.js` with the following content:
+If the dynamic component is not the default export, you can use a named export too. Consider the module `../components/hello.js` which has a named export `Hello`:
 
 ```jsx
 export function Hello() {
