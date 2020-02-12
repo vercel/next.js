@@ -254,12 +254,9 @@ const runTests = (dev = false) => {
   it('should SSR SPR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
-    if (dev) {
-      const $ = cheerio.load(html)
-      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(true)
-    } else {
-      expect(html).toMatch(/Post:.*?post-1/)
-    }
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    expect(html).toMatch(/Post:.*?post-1/)
   })
 
   it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
