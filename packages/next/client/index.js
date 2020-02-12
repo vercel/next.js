@@ -164,8 +164,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
   if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value, duration }) {
-      mod.unstable_onPerformanceData({ name, startTime, value, duration })
+    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
+      mod.unstable_onPerformanceData({
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+      })
     }
   }
 

@@ -30,6 +30,12 @@ describe('Analytics relayer', () => {
     const firstContentfulPaint = parseFloat(
       await browser.eval('localStorage.getItem("first-contentful-paint")')
     )
+    const largestContentfulPaint = parseFloat(
+      await browser.eval('localStorage.getItem("largest-contentful-paint")')
+    )
+    let cls = await browser.eval(
+      'localStorage.getItem("cumulative-layout-shift")'
+    )
     expect(h1Text).toMatch(/Hello!/)
     expect(data).not.toBeNaN()
     expect(data).toBeGreaterThan(0)
@@ -37,6 +43,17 @@ describe('Analytics relayer', () => {
     expect(firstPaint).toBeGreaterThan(0)
     expect(firstContentfulPaint).not.toBeNaN()
     expect(firstContentfulPaint).toBeGreaterThan(0)
+    expect(largestContentfulPaint).not.toBeNaN()
+    expect(largestContentfulPaint).toBeGreaterThan(0)
+    expect(cls).toBeNull()
+    // Create an artificial layout shift
+    await browser.eval('document.querySelector("h1").style.fontSize = "2px"')
+    await browser.refresh()
+    cls = parseFloat(
+      await browser.eval('localStorage.getItem("cumulative-layout-shift")')
+    )
+    expect(cls).not.toBeNaN()
+    expect(cls).toBeGreaterThan(0)
     await browser.close()
   })
 })
