@@ -379,7 +379,11 @@ function setPreviewData<T>(
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string' ? [previous] : []),
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: 'strict',
@@ -404,7 +408,11 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
-    ...(typeof previous === 'string' ? [previous] : []),
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
       maxAge: 0,
       httpOnly: true,
