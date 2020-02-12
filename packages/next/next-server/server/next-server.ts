@@ -1079,16 +1079,23 @@ export default class Server {
     amphtml?: boolean
     hasAmp?: boolean
     err?: Error | null
-  }): Promise<string | null> {
+  }): Promise<{ html: string | null } | null> {
     const result = await this.findPageComponents(pathname, query, params)
     if (result) {
-      return await this.renderToHTMLWithComponents(req, res, pathname, result, {
-        ...this.renderOpts,
-        amphtml,
-        hasAmp,
-        params,
-        err,
-      })
+      const html = await this.renderToHTMLWithComponents(
+        req,
+        res,
+        pathname,
+        result,
+        {
+          ...this.renderOpts,
+          amphtml,
+          hasAmp,
+          params,
+          err,
+        }
+      )
+      return { html }
     }
     return null
   }
@@ -1116,7 +1123,7 @@ export default class Server {
         hasAmp,
       })
       if (result) {
-        return result
+        return result.html
       }
 
       if (this.dynamicRoutes) {
@@ -1136,7 +1143,7 @@ export default class Server {
             hasAmp,
           })
           if (result) {
-            return result
+            return result.html
           }
         }
       }
@@ -1194,7 +1201,7 @@ export default class Server {
           err,
         })
         if (result) {
-          return result
+          return result.html
         }
       }
     } catch (err) {
