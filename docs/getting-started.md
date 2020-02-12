@@ -17,6 +17,18 @@ The interactive course with quizzes will guide you through everything you need t
 
 ## Setup
 
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+
+```bash
+npm init next-app
+# or
+yarn create next-app
+```
+
+After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
+
+## Manual Setup
+
 Install `next`, `react` and `react-dom` in your project:
 
 ```bash
