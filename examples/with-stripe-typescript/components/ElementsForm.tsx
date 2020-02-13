@@ -10,6 +10,7 @@ import * as config from '../config'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
 const CARD_OPTIONS = {
+  iconStyle: 'solid' as const,
   style: {
     base: {
       iconColor: '#6772e5',
