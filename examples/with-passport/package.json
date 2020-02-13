@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@hapi/iron": "6.0.0",
+    "cookie": "0.4.0",
     "express": "4.17.1",
     "js-cookie": "latest",
     "next": "latest",
