@@ -70,19 +70,26 @@ function fetchNextData(
   isServerRender: boolean,
   cb?: (...args: any) => any
 ) {
-  return fetch(
-    formatWithValidation({
-      // @ts-ignore __NEXT_DATA__
-      pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
-      query,
-    })
-  )
-    .then(res => {
+  let attempts = isServerRender ? 3 : 1
+  function getResponse(): Promise<any> {
+    return fetch(
+      formatWithValidation({
+        // @ts-ignore __NEXT_DATA__
+        pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+        query,
+      })
+    ).then(res => {
       if (!res.ok) {
+        if (--attempts > 0 && res.status >= 500) {
+          return getResponse()
+        }
         throw new Error(`Failed to load static props`)
       }
       return res.json()
     })
+  }
+
+  return getResponse()
     .then(data => {
       return cb ? cb(data) : data
     })
