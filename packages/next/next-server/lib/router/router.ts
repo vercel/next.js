@@ -64,11 +64,12 @@ type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
-const fetchNextData = (
+function fetchNextData(
   pathname: string,
   query: ParsedUrlQuery | null,
+  isServerRender: boolean,
   cb?: (...args: any) => any
-) => {
+) {
   return fetch(
     formatWithValidation({
       // @ts-ignore __NEXT_DATA__
@@ -86,7 +87,12 @@ const fetchNextData = (
       return cb ? cb(data) : data
     })
     .catch((err: Error) => {
-      ;(err as any).code = 'PAGE_LOAD_ERROR'
+      // We should only trigger a server-side transition if this was caused
+      // on a client-side transition. Otherwise, we'd get into an infinite
+      // loop.
+      if (!isServerRender) {
+        ;(err as any).code = 'PAGE_LOAD_ERROR'
+      }
       throw err
     })
 }
@@ -707,13 +713,18 @@ export default class Router implements BaseRouter {
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
       ? Promise.resolve(this.sdc[pathname])
-      : fetchNextData(pathname, null, data => (this.sdc[pathname] = data))
+      : fetchNextData(
+          pathname,
+          null,
+          this.isSsr,
+          data => (this.sdc[pathname] = data)
+        )
   }
 
   _getServerData = (asPath: string): Promise<object> => {
     let { pathname, query } = parse(asPath, true)
     pathname = prepareRoute(pathname!)
-    return fetchNextData(pathname, query)
+    return fetchNextData(pathname, query, this.isSsr)
   }
 
   getInitialProps(
