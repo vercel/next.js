@@ -246,6 +246,7 @@ pre {
 
   .banner {
     box-shadow: none;
+    bottom: 0;
   }
 }
 
@@ -277,5 +278,6 @@ pre {
 
   .banner {
     box-shadow: none;
+    bottom: 0;
   }
 }
