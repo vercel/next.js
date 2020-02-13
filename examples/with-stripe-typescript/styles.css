@@ -10,7 +10,7 @@
   --h3-color: #a3acb9;
   --radius: 6px;
   --container-width-max: 1280px;
-  --page-width-max: 700px;
+  --page-width-max: 600px;
   --transition-duration: 2s;
 }
 
@@ -237,10 +237,15 @@ pre {
 
   .card {
     margin: 0 20px 20px 0;
+    box-shadow: none;
   }
 
   .card-list {
     padding-top: 0;
+  }
+
+  .banner {
+    box-shadow: none;
   }
 }
 
@@ -257,6 +262,7 @@ pre {
     padding-left: 0;
     padding-right: 0;
     margin: 0 0 20px 0;
+    box-shadow: none;
   }
 
   .card-list {
@@ -264,7 +270,12 @@ pre {
   }
 
   code,
-  pre {
-    max-width: 400px;
+  pre,
+  h3 {
+    display: none;
+  }
+
+  .banner {
+    box-shadow: none;
   }
 }
