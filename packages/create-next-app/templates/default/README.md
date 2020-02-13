@@ -152,7 +152,7 @@ To configure the syntax highlighting in your favorite text editor, head to the [
 
 ## Deploy to Now
 
-[ZEIT Now](https://zeit.co/home?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App) offers a zero-configuration single-command deployment.
+[ZEIT Now](https://zeit.co/home?utm_source=create-next-app&utm_medium=readme&utm_campaign=create-next-app) offers a zero-configuration single-command deployment.
 
 1.  Install the `now` command-line tool either via npm `npm install -g now` or Yarn `yarn global add now`.
 
@@ -164,7 +164,7 @@ To configure the syntax highlighting in your favorite text editor, head to the [
 
     Paste that URL into your browser when the build is complete, and you will see your deployed app.
 
-You can find more details about [`ZEIT Now` here](https://zeit.co/home?utm_source=create-next-app&utm_medium=referral&utm_campaign=Create%20Next%20App).
+You can find more details about [`ZEIT Now` here](https://zeit.co/home?utm_source=create-next-app&utm_medium=readme&utm_campaign=create-next-app).
 
 ## Something Missing?
 

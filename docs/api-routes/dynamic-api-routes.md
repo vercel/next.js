@@ -19,3 +19,44 @@ export default (req, res) => {
 ```
 
 Now, a request to `/api/post/abc` will respond with the text: `Post: abc`.
+
+### Catch all API routes
+
+API Routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
+
+- `pages/api/post/[...slug].js` matches `/api/post/a`, but also `/api/post/a/b`, `/api/post/a/b/c` and so on.
+
+> **Note**: You can use names other than `slug`, such as: `[...param]`
+
+Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/api/post/a` will have the following `query` object:
+
+```json
+{ "slug": ["a"] }
+```
+
+And in the case of `/api/post/a/b`, and any other matching path, new parameters will be added to the array, like so:
+
+```json
+{ "slug": ["a", "b"] }
+```
+
+An API route for `pages/api/post/[...slug].js` could look like this:
+
+```js
+export default (req, res) => {
+  const {
+    query: { slug },
+  } = req
+
+  res.end(`Post: ${slug.join(', ')}`)
+}
+```
+
+Now, a request to `/api/post/a/b/c` will respond with the text: `Post: a, b, c`.
+
+## Caveats
+
+- Predefined API routes take precedence over dynamic API routes, and dynamic API routes over catch all API routes. Take a look at the following examples:
+  - `pages/api/post/create.js` - Will match `/api/post/create`
+  - `pages/api/post/[pid].js` - Will match `/api/post/1`, `/api/post/abc`, etc. But not `/api/post/create`
+  - `pages/api/post/[...slug].js` - Will match `/api/post/1/2`, `/api/post/a/b/c`, etc. But not `/api/post/create`, `/api/post/abc`

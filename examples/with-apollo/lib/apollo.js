@@ -1,4 +1,5 @@
 import React from 'react'
+import App from 'next/app'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
 import { ApolloClient } from 'apollo-client'
@@ -28,25 +29,44 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
     const displayName =
       PageComponent.displayName || PageComponent.name || 'Component'
 
-    if (displayName === 'App') {
-      console.warn('This withApollo HOC only works with PageComponents.')
-    }
-
     WithApollo.displayName = `withApollo(${displayName})`
   }
 
   if (ssr || PageComponent.getInitialProps) {
     WithApollo.getInitialProps = async ctx => {
       const { AppTree } = ctx
+      const inAppContext = Boolean(ctx.ctx)
 
-      // Initialize ApolloClient, add it to the ctx object so
-      // we can use it in `PageComponent.getInitialProp`.
-      const apolloClient = (ctx.apolloClient = initApolloClient())
+      if (process.env.NODE_ENV === 'development') {
+        if (inAppContext) {
+          console.warn(
+            'Warning: You have opted-out of Automatic Static Optimization due to `withApollo` in `pages/_app`.\n' +
+              'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+          )
+        }
+      }
+
+      if (ctx.apolloClient) {
+        throw new Error('Multiple instances of withApollo found.')
+      }
+
+      // Initialize ApolloClient
+      const apolloClient = initApolloClient()
+
+      // Add apolloClient to NextPageContext & NextAppContext
+      // This allows us to consume the apolloClient inside our
+      // custom `getInitialProps({ apolloClient })`.
+      ctx.apolloClient = apolloClient
+      if (inAppContext) {
+        ctx.ctx.apolloClient = apolloClient
+      }
 
       // Run wrapped getInitialProps methods
       let pageProps = {}
       if (PageComponent.getInitialProps) {
         pageProps = await PageComponent.getInitialProps(ctx)
+      } else if (inAppContext) {
+        pageProps = await App.getInitialProps(ctx)
       }
 
       // Only on the server:
@@ -62,14 +82,19 @@ export const withApollo = ({ ssr = true } = {}) => PageComponent => {
           try {
             // Run all GraphQL queries
             const { getDataFromTree } = await import('@apollo/react-ssr')
-            await getDataFromTree(
-              <AppTree
-                pageProps={{
-                  ...pageProps,
-                  apolloClient,
-                }}
-              />
-            )
+
+            // Since AppComponents and PageComponents have different context types
+            // we need to modify their props a little.
+            let props
+            if (inAppContext) {
+              props = { ...pageProps, apolloClient }
+            } else {
+              props = { pageProps: { ...pageProps, apolloClient } }
+            }
+
+            // Takes React AppTree, determine which queries are needed to render,
+            // then fetche them all.
+            await getDataFromTree(<AppTree {...props} />)
           } catch (error) {
             // Prevent Apollo Client GraphQL errors from crashing SSR.
             // Handle them in components via the data.error prop:
