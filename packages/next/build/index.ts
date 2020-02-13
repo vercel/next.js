@@ -657,15 +657,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        // Generate fallback for dynamically routed pages to use as
-        // the loading state for pages while the data is being populated
+        // Dynamically routed pages should be prerendered to be used as
+        // a client-side skeleton (fallback) while data is being fetched.
+        // This ensures the end-user never sees a 500 or slow response from the
+        // server.
         //
         // Note: prerendering disables automatic static optimization.
         ssgPages.forEach(page => {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
-            // set __nextFallback query so render doesn't call
-            // getStaticProps/getServerProps
+
+            // Override the rendering for the dynamic page to be treated as a
+            // fallback render.
             defaultMap[page] = { page, query: { __nextFallback: true } }
           }
         })
