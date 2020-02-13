@@ -106,7 +106,7 @@ function getOptimizedAliases(
       'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
       'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-      // TODO: re-enable
+      // TODO: re-enable when `native-url` supports Safari 10
       // // Replace: full URL polyfill with platform-based polyfill
       // url: require.resolve('native-url'),
     }
