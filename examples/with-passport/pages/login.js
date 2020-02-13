@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Router from 'next/router'
 import Layout from '../components/layout'
 import Form from '../components/form'
 
@@ -22,8 +23,7 @@ const Login = () => {
         body: JSON.stringify(body),
       })
       if (res.status === 200) {
-        // const { token } = await response.json()
-        // await login({ token })
+        Router.push('/profile')
       } else {
         throw new Error(await res.text())
       }
