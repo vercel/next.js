@@ -16,16 +16,16 @@ const Signup = () => {
     }
 
     try {
-      const response = await fetch('/api/signup', {
+      const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (response.status === 200) {
+      if (res.status === 200) {
         // const { token } = await response.json()
         // await login({ token })
       } else {
-        throw new Error(response.statusText)
+        throw new Error(await res.text())
       }
     } catch (error) {
       console.error('An unexpected error happened occurred:', error)

@@ -18,7 +18,7 @@ export const localStrategy = new Local.Strategy(function(
     .then(encryptedToken => {
       done(null, encryptedToken)
     })
-    .catch(() => {
-      done(null, false, { message: 'Invalid user' })
+    .catch(error => {
+      done(error)
     })
 })

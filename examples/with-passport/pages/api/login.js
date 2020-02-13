@@ -1,21 +1,35 @@
 import express from 'express'
 import passport from 'passport'
-import { loginStrategy } from '../../lib/password-login'
+import { localStrategy } from '../../lib/password-login'
 
 const app = express()
+
+const authenticate = (method, req, res) =>
+  new Promise((resolve, reject) => {
+    passport.authenticate(method, { session: false }, (error, token) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve(token)
+      }
+    })(req, res)
+  })
 
 app.disable('x-powered-by')
 
 app.use(passport.initialize())
 
-passport.use(loginStrategy)
+passport.use(localStrategy)
 
-app.post('/api/login', (req, res) => {
-  // callbackURL is not in the options for the GitHub strategy, but it can be used
-  passport.authenticate('local', { session: false }, (token, info) => {
-    console.log('TOKEN', token, info)
+app.post('/api/login', async (req, res) => {
+  try {
+    const token = await authenticate('local', req, res)
+    console.log(token)
     res.status(200).send({ done: true })
-  })(req, res)
+  } catch (error) {
+    console.error(error)
+    res.status(401).send(error.message)
+  }
 })
 
 export default app
