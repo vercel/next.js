@@ -338,8 +338,14 @@ function renderReactElement(reactEl, domEl) {
           return []
         }
       }
+
       function observeSupportedTypes(entryTypes) {
         const supportedTypes = getSupportedTypes(entryTypes)
+
+        /**
+         * Layout shift has special handling as this will be sent
+         * cumulative layout shift.
+         */
         if (supportedTypes.includes('layout-shift')) {
           // Stores the current layout shift score for the page.
           let cumulativeLayoutShiftScore = 0
@@ -367,7 +373,8 @@ function renderReactElement(reactEl, domEl) {
             }
           })
         }
-        // Start observing paint entry types.
+
+        // For all other entry types, we send values to relayer as given by PerformanceObserver
         supportedTypes.forEach(type => {
           if (type === 'layout-shift') {
             return
@@ -387,7 +394,6 @@ function renderReactElement(reactEl, domEl) {
         'layout-shift',
       ])
     } catch (e) {
-      console.log({ e })
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
       })
