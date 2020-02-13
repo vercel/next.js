@@ -348,6 +348,21 @@ const runTests = (dev = false) => {
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
 
+  // TODO: dev currently renders this page as blocking, meaning it shows the
+  // server error instead of continously retrying. Do we want to change this?
+  if (!dev) {
+    it('should reload page on failed data request, and retry', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeClick = true')
+      await browser.elementByCss('#broken-at-first-post').click()
+      await waitFor(3000)
+      expect(await browser.eval('window.beforeClick')).not.toBe('true')
+
+      const text = await browser.elementByCss('#params').text()
+      expect(text).toMatch(/post.*?post-999/)
+    })
+  }
+
   it('should support prerendered catchall route', async () => {
     const html = await renderViaHTTP(appPort, '/catchall/another/value')
     const $ = cheerio.load(html)
