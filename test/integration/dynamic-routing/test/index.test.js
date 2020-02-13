@@ -275,7 +275,7 @@ function runTests(dev) {
     })
   })
 
-  it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
+  it('[predefined ssg: prerendered catch all] should pass param in getStaticProps during SSR', async () => {
     const data = await renderViaHTTP(
       appPort,
       `/_next/data/${buildId}/p1/p2/predefined-ssg/one-level.json`
@@ -283,7 +283,7 @@ function runTests(dev) {
     expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['one-level'] })
   })
 
-  it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
+  it('[predefined ssg: prerendered catch all] should pass params in getStaticProps during SSR', async () => {
     const data = await renderViaHTTP(
       appPort,
       `/_next/data/${buildId}/p1/p2/predefined-ssg/1st-level/2nd-level.json`

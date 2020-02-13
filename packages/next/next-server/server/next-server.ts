@@ -992,22 +992,42 @@ export default class Server {
       return { html, pageData, sprRevalidate }
     })
 
-    // render fallback if for a preview path or a non-seeded dynamic path
+    const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
-    if (
-      !isResSent(res) &&
-      !isDataReq &&
-      ((isPreviewMode &&
-        // A header can opt into the blocking behavior.
-        req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking') ||
-        isDynamicPathname)
-    ) {
-      let html = ''
+    const didRespond = isResSent(res)
+    // const isForcedBlocking =
+    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
-      const isProduction = !this.renderOpts.dev
-      if (isProduction && (isDynamicPathname || !isPreviewMode)) {
+    // When we did not respond from cache, we need to choose to block on
+    // rendering or return a skeleton.
+    //
+    // * Data requests always block.
+    //
+    // * Preview mode toggles all pages to be resolved in a blocking manner.
+    //
+    // * Non-dynamic pages should block (though this is an be an impossible
+    //   case in production).
+    //
+    // * Dynamic pages should return their skeleton, then finish the data
+    //   request on the client-side.
+    //
+    if (
+      !didRespond &&
+      !isDataReq &&
+      !isPreviewMode &&
+      isDynamicPathname &&
+      // TODO: development should trigger fallback when the path is not in
+      // `getStaticPaths`, for now, let's assume it is.
+      isProduction
+    ) {
+      let html: string
+
+      // Production already emitted the fallback as static HTML.
+      if (isProduction) {
         html = await getFallback(pathname)
-      } else {
+      }
+      // We need to generate the fallback on-demand for development.
+      else {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
           this.prepareServerlessUrl(req, query)

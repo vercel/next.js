@@ -254,12 +254,9 @@ const runTests = (dev = false) => {
   it('should SSR SPR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
 
-    if (dev) {
-      const $ = cheerio.load(html)
-      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(true)
-    } else {
-      expect(html).toMatch(/Post:.*?post-1/)
-    }
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    expect(html).toMatch(/Post:.*?post-1/)
   })
 
   it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
@@ -285,11 +282,8 @@ const runTests = (dev = false) => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
 
-    if (!dev) {
-      // these aren't available in dev since we render the fallback always
-      const params = $('#params').text()
-      expect(JSON.parse(params)).toEqual({ post: 'post-1' })
-    }
+    const params = $('#params').text()
+    expect(JSON.parse(params)).toEqual({ post: 'post-1' })
 
     const query = $('#query').text()
     expect(JSON.parse(query)).toEqual({ post: 'post-1' })
@@ -358,33 +352,40 @@ const runTests = (dev = false) => {
     const html = await renderViaHTTP(appPort, '/catchall/another/value')
     const $ = cheerio.load(html)
 
-    if (dev) {
-      expect(
-        JSON.parse(
-          cheerio
-            .load(html)('#__NEXT_DATA__')
-            .text()
-        ).isFallback
-      ).toBe(true)
-    } else {
-      expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
-    }
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
   })
 
   it('should support lazy catchall route', async () => {
-    const browser = await webdriver(appPort, '/catchall/third')
-    const text = await browser.elementByCss('#catchall').text()
-    expect(text).toMatch(/Hi.*?third/)
+    // Dev doesn't support fallback yet
+    if (dev) {
+      const html = await renderViaHTTP(appPort, '/catchall/notreturnedinpaths')
+      const $ = cheerio.load(html)
+      expect($('#catchall').text()).toMatch(/Hi.*?notreturnedinpaths/)
+    }
+    // Production will render fallback for a "lazy" route
+    else {
+      const browser = await webdriver(appPort, '/catchall/notreturnedinpaths')
+      const text = await browser.elementByCss('#catchall').text()
+      expect(text).toMatch(/Hi.*?notreturnedinpaths/)
+    }
   })
 
   if (dev) {
-    it('should show error when rewriting to dynamic SSG page', async () => {
-      const item = Math.round(Math.random() * 100)
-      const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
-      expect(html).toContain(
-        `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
-      )
-    })
+    // TODO: re-enable when this is supported in dev
+    // it('should show error when rewriting to dynamic SSG page', async () => {
+    //   const item = Math.round(Math.random() * 100)
+    //   const html = await renderViaHTTP(appPort, `/some-rewrite/${item}`)
+    //   expect(html).toContain(
+    //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
+    //   )
+    // })
 
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
