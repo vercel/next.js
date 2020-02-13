@@ -61,12 +61,11 @@ function decorateSsgExport(
       if (state.done) {
         return
       }
-      // we need to handle the default export being a named export
-      // for `export default class Page extends Component {}` syntax
+
+      // Look for a `export { _ as default }` specifier
       const defaultSpecifier = path.node.specifiers.find(s => {
         return s.exported.name === 'default'
       })
-
       if (!defaultSpecifier) {
         return
       }
