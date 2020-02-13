@@ -147,7 +147,7 @@ const nextServerlessLoader: loader.Loader = function() {
     : ''
 
   const processedEnv = `
-    const processedEnv = processEnv(${envConfig || '{}'})
+    const processedEnv = ${envConfig ? `processEnv(${envConfig})` : '{}'}
   `
 
   if (page.match(API_ROUTE)) {
