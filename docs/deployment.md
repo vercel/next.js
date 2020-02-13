@@ -21,7 +21,7 @@ Then, follow these steps:
 
 Congratulations! You’ve just deployed your Next.js app! If you have questions, take a look at the [ZEIT Now documentation](https://zeit.co/docs).
 
-> If you’re using a [custom server](/docs/advanced-features/custom-server.md) (which we don’t recommend), consider [other hosting options](#other-hosting-options).
+> If you’re using a [custom server](/docs/advanced-features/custom-server.md), we strongly recommend migrating away from it (for example, by using [dynamic routing](/docs/routing/dynamic-routes.md)). If you cannot migrate, consider [other hosting options](#other-hosting-options).
 
 ### DPS: Develop, Preview, Ship
 
