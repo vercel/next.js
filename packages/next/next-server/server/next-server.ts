@@ -1017,7 +1017,7 @@ export default class Server {
       !isPreviewMode &&
       isDynamicPathname &&
       // TODO: development should trigger fallback when the path is not in
-      // `getStaticPaths`, for now, let's assume it is.F
+      // `getStaticPaths`, for now, let's assume it is.
       isProduction
     ) {
       let html: string
