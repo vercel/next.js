@@ -16,6 +16,8 @@ export async function unstable_getStaticPaths() {
   }
 }
 
+let counter = 0
+
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticProps({ params }) {
   if (params.post === 'post-10') {
@@ -26,6 +28,12 @@ export async function unstable_getStaticProps({ params }) {
 
   if (params.post === 'post-100') {
     throw new Error('such broken..')
+  }
+
+  if (params.post === 'post-999') {
+    if (++counter < 3) {
+      throw new Error('try again..')
+    }
   }
 
   return {
