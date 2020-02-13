@@ -28,7 +28,49 @@ function decorateSsgExport(
   path: NodePath<BabelTypes.Program>,
   state: PluginState
 ) {
+  function getNodes(prev: any): BabelTypes.Node[] {
+    return [
+      t.variableDeclaration('const', [
+        t.variableDeclarator(t.identifier(pageComponentVar), prev),
+      ]),
+      t.assignmentExpression(
+        '=',
+        t.memberExpression(
+          t.identifier(pageComponentVar),
+          t.identifier(state.isPrerender ? prerenderId : serverPropsId)
+        ),
+        t.booleanLiteral(true)
+      ),
+      t.exportDefaultDeclaration(t.identifier(pageComponentVar)),
+    ]
+  }
+
   path.traverse({
+    ExportNamedDeclaration(path) {
+      if (state.done) {
+        return
+      }
+
+      const defaultSpecifierIndex = path.node.specifiers.findIndex(
+        ({ exported: { name } }) => name === 'default'
+      )
+      if (defaultSpecifierIndex === -1) {
+        return
+      }
+      state.done = true
+
+      const defaultSpecifier = path.node.specifiers[
+        defaultSpecifierIndex
+      ] as BabelTypes.ExportSpecifier
+      path.node.specifiers.splice(defaultSpecifierIndex, 1)
+
+      const [pageCompPath] = path.insertAfter(getNodes(defaultSpecifier.local))
+      path.scope.registerDeclaration(pageCompPath)
+
+      if (path.node.specifiers.length < 1) {
+        path.remove()
+      }
+    },
     ExportDefaultDeclaration(path) {
       if (state.done) {
         return
@@ -41,20 +83,7 @@ function decorateSsgExport(
       }
 
       // @ts-ignore invalid return type
-      const [pageCompPath] = path.replaceWithMultiple([
-        t.variableDeclaration('const', [
-          t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
-        ]),
-        t.assignmentExpression(
-          '=',
-          t.memberExpression(
-            t.identifier(pageComponentVar),
-            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
-          ),
-          t.booleanLiteral(true)
-        ),
-        t.exportDefaultDeclaration(t.identifier(pageComponentVar)),
-      ])
+      const [pageCompPath] = path.replaceWithMultiple(getNodes(prev))
       path.scope.registerDeclaration(pageCompPath)
     },
   })
