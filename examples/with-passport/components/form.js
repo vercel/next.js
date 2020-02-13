@@ -10,6 +10,12 @@ const Form = ({ isLogin, errorMessage, onSubmit }) => (
       <span>Password</span>
       <input type="password" name="password" required />
     </label>
+    {!isLogin && (
+      <label>
+        <span>Repeat password</span>
+        <input type="password" name="rpassword" required />
+      </label>
+    )}
 
     <div className="submit">
       {isLogin ? (
