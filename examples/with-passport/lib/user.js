@@ -13,7 +13,7 @@ export async function createUser({ username, password }) {
   // const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex')
   // const user = await DB.createUser({ username, salt, hash })
 
-  return { username }
+  return { username, createdAt: Date.now() }
 }
 
 export async function findUser({ username, password }) {
@@ -23,5 +23,5 @@ export async function findUser({ username, password }) {
   // const hash = crypto.pbkdf2Sync(password, user.salt, 1000, 64, 'sha512').toString('hex')
   // const passwordsMatch = user.hash === hash
 
-  return { username }
+  return { username, createdAt: Date.now() }
 }

@@ -1,12 +1,7 @@
-import { serialize } from 'cookie'
+import { removeTokenCookie } from '../../lib/auth-cookies'
 
 export default async function logout(req, res) {
-  const cookie = serialize('token', '', {
-    maxAge: -1,
-    path: '/',
-  })
-
-  res.setHeader('Set-Cookie', cookie)
+  removeTokenCookie(res)
   res.writeHead(302, { Location: '/' })
   res.end()
 }

@@ -1,10 +1,10 @@
 import express from 'express'
 import passport from 'passport'
-import { serialize } from 'cookie'
 import { localStrategy } from '../../lib/password-login'
+import { encryptSession } from '../../lib/auth'
+import { setTokenCookie } from '../../lib/auth-cookies'
 
 const app = express()
-
 const authenticate = (method, req, res) =>
   new Promise((resolve, reject) => {
     passport.authenticate(method, { session: false }, (error, token) => {
@@ -24,18 +24,13 @@ passport.use(localStrategy)
 
 app.post('/api/login', async (req, res) => {
   try {
-    const token = await authenticate('local', req, res)
-    const maxAge = 60 * 60 * 8 // 8 hours
-    const cookie = serialize('token', token, {
-      maxAge,
-      expires: new Date(Date.now() + maxAge * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      sameSite: 'lax',
-    })
+    const user = await authenticate('local', req, res)
+    // session is the payload to save in the token, it may contain basic info about the user
+    const session = { ...user }
+    // The token is a string with the encrypted session
+    const token = await encryptSession(session)
 
-    res.setHeader('Set-Cookie', cookie)
+    setTokenCookie(res, token)
     res.status(200).send({ done: true })
   } catch (error) {
     console.error(error)
