@@ -38,25 +38,16 @@ export async function unstable_getStaticProps({ params }) {
   }
 }
 
-function Query() {
-  return <div id="query">{JSON.stringify(useRouter().query)}</div>
-}
-
-// Do not change this, it is making sure our SSG transform handles
-// export default in this way with a class component
-export default class Page extends React.Component {
-  render() {
-    const { post, time, params } = this.props
-    return (
-      <>
-        <p>Post: {post}</p>
-        <span>time: {time}</span>
-        <div id="params">{JSON.stringify(params)}</div>
-        <Query />
-        <Link href="/">
-          <a id="home">to home</a>
-        </Link>
-      </>
-    )
-  }
+export default ({ post, time, params }) => {
+  return (
+    <>
+      <p>Post: {post}</p>
+      <span>time: {time}</span>
+      <div id="params">{JSON.stringify(params)}</div>
+      <div id="query">{JSON.stringify(useRouter().query)}</div>
+      <Link href="/">
+        <a id="home">to home</a>
+      </Link>
+    </>
+  )
 }
