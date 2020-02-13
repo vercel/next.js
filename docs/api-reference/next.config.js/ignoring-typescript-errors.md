@@ -24,7 +24,7 @@ If you'd like Next.js to dangerously produce production code even when your appl
 
 > Be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
 
-Open `next.config.js` and enable the `ignoreDevErrors` option in the `typescript` config:
+Open `next.config.js` and enable the `ignoreBuildErrors` option in the `typescript` config:
 
 ```js
 module.exports = {

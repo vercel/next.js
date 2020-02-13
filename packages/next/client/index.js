@@ -97,9 +97,10 @@ class Container extends React.Component {
         })
     }
 
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
-    // if it's a fallback page
+    // We need to replace the router state if:
+    // - the page was (auto) exported and has a query string or search (hash)
+    // - it was auto exported and is a dynamic route (to provide params)
+    // - if it is a client-side skeleton (fallback render)
     if (
       router.isSsr &&
       (isFallback ||
@@ -121,6 +122,10 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
+          // Fallback pages must trigger the data fetch, so the transition is
+          // not shallow.
+          // Other pages (strictly updating query) happens shallowly, as data
+          // requirements would already be present.
           shallow: !isFallback,
         }
       )
