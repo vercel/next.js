@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import crypto from 'crypto'
 import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
@@ -41,9 +42,11 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import {
   eventBuildCompleted,
   eventBuildOptimize,
@@ -68,7 +71,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
 import checkLockFile from '../lib/check-lock-file'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -98,6 +100,7 @@ export type PrerenderManifest = {
   version: number
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  preview: __ApiPreviewProps
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -201,8 +204,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
+  const previewProps: __ApiPreviewProps = {
+    previewModeId: crypto.randomBytes(16).toString('hex'),
+    previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+    previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+  }
+
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const entrypoints = createEntrypoints(
+    mappedPages,
+    target,
+    buildId,
+    previewProps,
+    config
+  )
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
@@ -391,17 +406,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     }
     throw new Error('> Build failed because of webpack errors')
-  } else if (result.warnings.length > 0) {
-    console.warn(chalk.yellow('Compiled with warnings.\n'))
-    console.warn(result.warnings.join('\n\n'))
-    console.warn()
   } else {
-    console.log(chalk.green('Compiled successfully.\n'))
     telemetry.record(
       eventBuildCompleted(pagePaths, {
         durationInSeconds: webpackBuildEnd[0],
       })
     )
+
+    if (result.warnings.length > 0) {
+      console.warn(chalk.yellow('Compiled with warnings.\n'))
+      console.warn(result.warnings.join('\n\n'))
+      console.warn()
+    } else {
+      console.log(chalk.green('Compiled successfully.\n'))
+    }
   }
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
@@ -642,15 +660,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        // Generate fallback for dynamically routed pages to use as
-        // the loading state for pages while the data is being populated
+        // Dynamically routed pages should be prerendered to be used as
+        // a client-side skeleton (fallback) while data is being fetched.
+        // This ensures the end-user never sees a 500 or slow response from the
+        // server.
         //
         // Note: prerendering disables automatic static optimization.
         ssgPages.forEach(page => {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
-            // set __nextFallback query so render doesn't call
-            // getStaticProps/getServerProps
+
+            // Override the rendering for the dynamic page to be treated as a
+            // fallback render.
             defaultMap[page] = { page, query: { __nextFallback: true } }
           }
         })
@@ -802,8 +823,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
       version: 1,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
+      preview: previewProps,
     }
 
+    await fsWriteFile(
+      path.join(distDir, PRERENDER_MANIFEST),
+      JSON.stringify(prerenderManifest),
+      'utf8'
+    )
+  } else {
+    const prerenderManifest: PrerenderManifest = {
+      version: 1,
+      routes: {},
+      dynamicRoutes: {},
+      preview: previewProps,
+    }
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
       JSON.stringify(prerenderManifest),

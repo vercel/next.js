@@ -25,14 +25,18 @@ export type ManifestItem = {
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
-type Unstable_getStaticProps = (params: {
+type Unstable_getStaticProps = (ctx: {
   params: ParsedUrlQuery | undefined
+  preview?: boolean
+  previewData?: any
 }) => Promise<{
   props: { [key: string]: any }
   revalidate?: number | boolean
 }>
 
-type Unstable_getStaticPaths = () => Promise<Array<string | ParsedUrlQuery>>
+export type Unstable_getStaticPaths = () => Promise<{
+  paths: Array<string | { params: ParsedUrlQuery }>
+}>
 
 type Unstable_getServerProps = (context: {
   params: ParsedUrlQuery | undefined
