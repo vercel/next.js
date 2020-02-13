@@ -26,6 +26,7 @@ export type ServerlessLoaderQuery = {
   basePath: string
   runtimeConfig: string
   previewProps: string
+  envConfig: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -43,6 +44,7 @@ const nextServerlessLoader: loader.Loader = function() {
     basePath,
     runtimeConfig,
     previewProps,
+    envConfig,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -138,10 +140,21 @@ const nextServerlessLoader: loader.Loader = function() {
     }
   `
 
+  const envImports = envConfig
+    ? `
+    const { processEnv } = require('next/dist/lib/load-env-config')
+  `
+    : ''
+
+  const processedEnv = `
+    const processedEnv = processEnv(${envConfig || '{}'})
+  `
+
   if (page.match(API_ROUTE)) {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
+      ${envImports}
       ${runtimeConfigImports}
       ${
         /*
@@ -156,6 +169,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
       ${dynamicRouteMatcher}
       ${handleRewrites}
+
+      ${processedEnv}
 
       export default async (req, res) => {
         try {
@@ -185,6 +200,7 @@ const nextServerlessLoader: loader.Loader = function() {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
+            processedEnv,
             onError
           )
         } catch (err) {
@@ -215,6 +231,7 @@ const nextServerlessLoader: loader.Loader = function() {
     const App = require('${absoluteAppPath}').default;
     ${dynamicRouteImports}
     ${rewriteImports}
+    ${envImports}
 
     const ComponentInfo = require('${absolutePagePath}')
 
@@ -227,6 +244,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
     ${dynamicRouteMatcher}
     ${handleRewrites}
+    ${processedEnv}
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
@@ -253,6 +271,7 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         previewProps: ${encodedPreviewProps},
+        env: processedEnv,
         ..._renderOpts
       }
       let _nextData = false

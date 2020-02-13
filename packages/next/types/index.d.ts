@@ -51,6 +51,7 @@ export type PageConfig = {
      */
     bodyParser?: { sizeLimit?: number | string } | false
   }
+  env?: Array<string>
 }
 
 export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }

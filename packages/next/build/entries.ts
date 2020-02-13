@@ -7,6 +7,7 @@ import { isTargetLikeServerless } from '../next-server/server/config'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
+import { EnvironmentConfig } from '../lib/load-env-config'
 
 type PagesMapping = {
   [page: string]: string
@@ -64,7 +65,8 @@ export function createEntrypoints(
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: any
+  config: any,
+  envConfig: EnvironmentConfig
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
@@ -72,6 +74,8 @@ export function createEntrypoints(
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
     Object.keys(config.serverRuntimeConfig).length > 0
+
+  const hasEnvConfig = Object.keys(envConfig).length > 0
 
   const defaultServerlessOptions = {
     absoluteAppPath: pages['/_app'],
@@ -90,6 +94,7 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
+    envConfig: hasEnvConfig ? JSON.stringify(envConfig) : '',
   }
 
   Object.keys(pages).forEach(page => {

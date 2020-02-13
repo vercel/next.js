@@ -11,6 +11,7 @@ import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
 import { PageConfig, NextPageContext } from 'next/types'
+import { Env } from '../../lib/load-env-config'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
@@ -26,6 +27,7 @@ export type ManifestItem = {
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
 type Unstable_getStaticProps = (ctx: {
+  env: Env
   params: ParsedUrlQuery | undefined
   preview?: boolean
   previewData?: any
@@ -39,6 +41,7 @@ export type Unstable_getStaticPaths = () => Promise<{
 }>
 
 type Unstable_getServerProps = (context: {
+  env: Env
   params: ParsedUrlQuery | undefined
   req: IncomingMessage
   res: ServerResponse

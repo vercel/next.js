@@ -59,6 +59,7 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
+import { Env, loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -115,6 +116,7 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
     pages404?: boolean
+    env: Env
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -163,6 +165,8 @@ export default class Server {
       buildId: this.buildId,
       generateEtags,
       pages404: this.nextConfig.experimental.pages404,
+      // TODO: do we want to hot-reload this in development at all?
+      env: loadEnvConfig(dir),
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -671,6 +675,7 @@ export default class Server {
       query,
       pageModule,
       { ...previewProps },
+      this.renderOpts.env,
       this.onErrorMiddleware
     )
     return true

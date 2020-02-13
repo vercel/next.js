@@ -34,6 +34,7 @@ import loadConfig, {
 import { eventVersion } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { loadEnvConfig } from '../lib/load-env-config'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -226,6 +227,7 @@ export default async function(
     dir,
     buildId,
     nextExport: true,
+    env: loadEnvConfig(dir),
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,

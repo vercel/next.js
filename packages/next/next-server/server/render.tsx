@@ -33,6 +33,7 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { Env } from '../../lib/load-env-config'
 
 function noRouter() {
   const message =
@@ -139,6 +140,7 @@ type RenderOpts = LoadComponentsReturnType & {
   params?: ParsedUrlQuery
   pages404?: boolean
   previewProps: __ApiPreviewProps
+  env: Env
 }
 
 function renderDocument(
@@ -273,6 +275,13 @@ export async function renderToHTML(
     pages404,
     previewProps,
   } = renderOpts
+
+  const curEnv: Env = pageConfig.env
+    ? pageConfig.env.reduce((prev: Env, key): Env => {
+        prev[key] = renderOpts.env[key]
+        return prev
+      }, {})
+    : {}
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -450,6 +459,7 @@ export async function renderToHTML(
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await unstable_getStaticProps!({
+        env: curEnv,
         ...(isDynamicRoute(pathname)
           ? {
               params: query as ParsedUrlQuery,
@@ -512,6 +522,7 @@ export async function renderToHTML(
 
   if (unstable_getServerProps && !isFallback) {
     const data = await unstable_getServerProps({
+      env: curEnv,
       params,
       query,
       req,
