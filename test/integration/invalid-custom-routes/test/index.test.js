@@ -59,6 +59,12 @@ const runTests = () => {
           destination: '/another',
           permanent: 'yes',
         },
+        {
+          // unnamed in destination
+          source: '/hello/world/(.*)',
+          destination: '/:0',
+          permanent: true,
+        },
         // invalid objects
         null,
         'string',
@@ -97,6 +103,10 @@ const runTests = () => {
 
     expect(stderr).toContain(
       `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
+    )
+
+    expect(stderr).toContain(
+      `\`destination\` has unnamed params :0 for route {"source":"/hello/world/(.*)","destination":"/:0","permanent":true}`
     )
 
     expect(stderr).toContain(
@@ -142,6 +152,11 @@ const runTests = () => {
           source: '/feedback/(?!general)',
           destination: '/feedback/general',
         },
+        {
+          // unnamed in destination
+          source: '/hello/world/(.*)',
+          destination: '/:0',
+        },
         // invalid objects
         null,
         'string',
@@ -172,6 +187,10 @@ const runTests = () => {
 
     expect(stderr).toContain(
       `Error parsing \`/feedback/(?!general)\` https://err.sh/zeit/next.js/invalid-route-source`
+    )
+
+    expect(stderr).toContain(
+      `\`destination\` has unnamed params :0 for route {"source":"/hello/world/(.*)","destination":"/:0"}`
     )
 
     expect(stderr).toContain(

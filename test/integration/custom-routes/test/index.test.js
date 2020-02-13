@@ -269,7 +269,7 @@ const runTests = (isDev = false) => {
     })
     const { pathname } = url.parse(res.headers.get('location') || '')
     expect(res.status).toBe(307)
-    expect(pathname).toBe('/first/final')
+    expect(pathname).toBe('/got-unnamed')
   })
 
   it('should support named like unnamed parameters correctly', async () => {
@@ -302,13 +302,40 @@ const runTests = (isDev = false) => {
   it('should handle api rewrite with un-named param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-regex/hello/world')
     expect(JSON.parse(data)).toEqual({
-      query: { '1': 'hello/world', name: 'hello/world' },
+      query: { name: 'hello/world', first: 'hello/world' },
     })
   })
 
   it('should handle api rewrite with param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-param/hello')
     expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
+  })
+
+  it('should handle unnamed parameters with multi-match successfully', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/unnamed-params/nested/first/second/hello/world'
+    )
+    const params = JSON.parse(
+      cheerio
+        .load(html)('p')
+        .text()
+    )
+    expect(params).toEqual({ test: 'hello' })
+  })
+
+  it('should handle named regex parameters with multi-match successfully', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/docs/integrations/v2-some/thing',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/integrations/-some/thing')
   })
 
   if (!isDev) {
@@ -412,7 +439,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
           },
           {
-            destination: '/:1/:2',
+            destination: '/got-unnamed',
             regex: normalizeRegEx(
               '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
             ),
@@ -429,6 +456,14 @@ const runTests = (isDev = false) => {
             destination: '/thank-you-next',
             regex: normalizeRegEx('^\\/redirect-override$'),
             source: '/redirect-override',
+            statusCode: 307,
+          },
+          {
+            destination: '/:first/:second',
+            regex: normalizeRegEx(
+              '^\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)$'
+            ),
+            source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
             statusCode: 307,
           },
         ],
@@ -564,9 +599,9 @@ const runTests = (isDev = false) => {
             source: '/api-hello',
           },
           {
-            destination: '/api/hello?name=:1',
+            destination: '/api/hello?name=:first*',
             regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
-            source: '/api-hello-regex/(.*)',
+            source: '/api-hello-regex/:first(.*)',
           },
           {
             destination: '/api/hello?name=:name',
@@ -577,6 +612,13 @@ const runTests = (isDev = false) => {
             destination: '/with-params',
             regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
             source: '/:path/post-321',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx(
+              '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))$'
+            ),
+            source: '/unnamed-params/nested/(.*)/:test/(.*)',
           },
         ],
         dynamicRoutes: [

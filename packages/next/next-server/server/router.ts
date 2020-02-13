@@ -38,18 +38,26 @@ export const prepareDestination = (destination: string, params: Params) => {
   const parsedDestination = parseUrl(destination, true)
   const destQuery = parsedDestination.query
   let destinationCompiler = compilePathToRegex(
-    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
+    // we don't validate while compiling the destination since we should
+    // have already validated before we got to this point and validating
+    // breaks compiling destinations with named pattern params from the source
+    // e.g. /something:hello(.*) -> /another/:hello is broken with validation
+    // since compile validation is meant for reversing and not for inserting
+    // params from a separate path-regex into another
+    { validate: false }
   )
   let newUrl
 
   Object.keys(destQuery).forEach(key => {
     const val = destQuery[key]
-    if (
-      typeof val === 'string' &&
-      val.startsWith(':') &&
-      params[val.substr(1)]
-    ) {
-      destQuery[key] = params[val.substr(1)]
+    if (typeof val === 'string' && val.startsWith(':')) {
+      // remove any special chars for consistency /:path* /:path+
+      const paramName = val.substr(1).replace(/(\*|\+|\?)/g, '')
+
+      if (params[paramName]) {
+        destQuery[key] = params[paramName]
+      }
     }
   })
 
