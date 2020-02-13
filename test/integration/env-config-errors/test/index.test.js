@@ -13,7 +13,7 @@ const nextConfig = join(appDir, 'next.config.js')
 const build = async (isDev = false) => {
   let output = ''
   if (isDev) {
-    const app = launchApp(appDir, await findPort(), {
+    const app = await launchApp(appDir, await findPort(), {
       onStdout(msg) {
         output += msg || ''
       },
@@ -21,7 +21,7 @@ const build = async (isDev = false) => {
         output += msg || ''
       },
     })
-    const timeout = setTimeout(() => killApp(app), 5 * 1000)
+    const timeout = setTimeout(() => killApp(app).catch(() => {}), 5 * 1000)
     await app
     clearTimeout(timeout)
   } else {
