@@ -9,7 +9,9 @@ import * as config from '../config'
 import { useStripe } from '@stripe/react-stripe-js'
 
 const CheckoutForm: React.FunctionComponent = () => {
-  const [input, setInput] = useState({ customDonation: config.MIN_AMOUNT })
+  const [input, setInput] = useState({
+    customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
+  })
   const stripe = useStripe()
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = e =>
@@ -46,6 +48,7 @@ const CheckoutForm: React.FunctionComponent = () => {
   return (
     <form onSubmit={handleSubmit}>
       <CustomDonationInput
+        className="checkout-style"
         name={'customDonation'}
         value={input.customDonation}
         min={config.MIN_AMOUNT}
@@ -54,7 +57,11 @@ const CheckoutForm: React.FunctionComponent = () => {
         currency={config.CURRENCY}
         onChange={handleInputChange}
       />
-      <button type="submit" disabled={!stripe}>
+      <button
+        className="checkout-style-background"
+        type="submit"
+        disabled={!stripe}
+      >
         Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
       </button>
     </form>
