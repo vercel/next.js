@@ -51,6 +51,7 @@ function decorateSsgExport(
         return
       }
 
+      // Look for a `export { _ as default }` specifier
       const defaultSpecifierIndex = path.node.specifiers.findIndex(
         ({ exported: { name } }) => name === 'default'
       )
@@ -62,11 +63,15 @@ function decorateSsgExport(
       const defaultSpecifier = path.node.specifiers[
         defaultSpecifierIndex
       ] as BabelTypes.ExportSpecifier
+      // Remove the specifier so we can insert a new default export
       path.node.specifiers.splice(defaultSpecifierIndex, 1)
 
+      // Insert a new `export default _;` that was annotated
       const [pageCompPath] = path.insertAfter(getNodes(defaultSpecifier.local))
       path.scope.registerDeclaration(pageCompPath)
 
+      // If there are no specifiers left in the original path (`export {}`),
+      // remove it all together
       if (path.node.specifiers.length < 1) {
         path.remove()
       }
