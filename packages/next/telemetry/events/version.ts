@@ -1,5 +1,5 @@
-import Babel from '@babel/core'
 import findUp from 'find-up'
+import path from 'path'
 import {
   CONFIG_FILE,
   PHASE_DEVELOPMENT_SERVER,
@@ -25,8 +25,17 @@ type EventCliSessionStarted = {
 
 function hasBabelConfig(dir: string): boolean {
   try {
-    const res = Babel.loadPartialConfig({ cwd: dir }) as any
-    return res.hasFilesystemConfig()
+    const noopFile = path.join(dir, 'noop.js')
+    const res = require('@babel/core').loadPartialConfig({
+      cwd: dir,
+      filename: noopFile,
+      sourceFileName: noopFile,
+    }) as any
+    const isForTooling =
+      res.options?.presets?.every(
+        (e: any) => e?.file?.request === 'next/babel'
+      ) && res.options?.plugins?.length === 0
+    return res.hasFilesystemConfig() && !isForTooling
   } catch {
     return false
   }
