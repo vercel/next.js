@@ -32,7 +32,7 @@ export default MyAmpPage
 
 The above example uses the [`amp-timeago`](https://amp.dev/documentation/components/amp-timeago/?format=websites) component.
 
-By default, always the latest version of a component is imported. If you wan to customize the version, you can use `next/head`, as in the following example:
+By default, the latest version of a component is always imported. If you want to customize the version, you can use `next/head`, as in the following example:
 
 ```jsx
 import Head from 'next/head'
