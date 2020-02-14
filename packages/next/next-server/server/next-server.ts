@@ -881,7 +881,7 @@ export default class Server {
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
         opts.dev ? null : -1
       )
-      return { html }
+      return { html: null }
     }
 
     const previewProps = this.getPreviewProps()
