@@ -30,7 +30,6 @@ export function getPagePath(
 
   try {
     page = normalizePagePath(page)
-    page = page === '/' ? '/index' : page
   } catch (err) {
     // tslint:disable-next-line
     console.error(err)

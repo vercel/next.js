@@ -8,6 +8,10 @@ module.exports = {
           destination: '/another/one',
         },
         {
+          source: '/nav',
+          destination: '/404',
+        },
+        {
           source: '/hello-world',
           destination: '/static/hello.txt',
         },
@@ -56,6 +60,10 @@ module.exports = {
           destination: '/_next/:path*',
         },
         {
+          source: '/proxy-me/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+        },
+        {
           source: '/api-hello',
           destination: '/api/hello',
         },
@@ -66,6 +74,10 @@ module.exports = {
         {
           source: '/api-hello-param/:name',
           destination: '/api/hello?name=:name',
+        },
+        {
+          source: '/:path/post-321',
+          destination: '/with-params',
         },
       ]
     },
@@ -146,6 +158,11 @@ module.exports = {
           destination: '/:0',
           permanent: false,
         },
+        {
+          source: '/redirect-override',
+          destination: '/thank-you-next',
+          permanent: false,
+        },
       ]
     },
 
@@ -174,6 +191,15 @@ module.exports = {
             {
               key: 'x-second-header',
               value: 'second',
+            },
+          ],
+        },
+        {
+          source: '/:path*',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'applied-everywhere',
             },
           ],
         },

@@ -1,8 +1,6 @@
 # Dynamic Routing example
 
-This example shows usage of dynamic routing.
-
-This example contains two dynamic pages:
+This example shows how to do [dynamic routing](https://nextjs.org/docs/routing/dynamic-routes) in Next.js. It contains two dynamic routes:
 
 1. `pages/post/[id]/index.js`
    - e.g. matches `/post/my-example` (`/post/:id`)
@@ -49,8 +47,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [Now](https://zeit.co/now) ([download](https://zeit.co/download)):
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

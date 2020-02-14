@@ -4,14 +4,19 @@ import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticPaths() {
-  return [
-    '/blog/post-1',
-    { params: { post: 'post-2' } },
-    '/blog/[post3]',
-    '/blog/post-4',
-    '/blog/post.1',
-  ]
+  return {
+    paths: [
+      '/blog/post-1',
+      { params: { post: 'post-2' } },
+      '/blog/[post3]',
+      '/blog/post-4',
+      '/blog/post.1',
+      '/blog/post.1', // handle duplicates
+    ],
+  }
 }
+
+let counter = 0
 
 // eslint-disable-next-line camelcase
 export async function unstable_getStaticProps({ params }) {
@@ -23,6 +28,12 @@ export async function unstable_getStaticProps({ params }) {
 
   if (params.post === 'post-100') {
     throw new Error('such broken..')
+  }
+
+  if (params.post === 'post-999') {
+    if (++counter < 3) {
+      throw new Error('try again..')
+    }
   }
 
   return {

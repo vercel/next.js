@@ -6,8 +6,8 @@ import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: postcss.AcceptedPlugin[],
-  preProcessors: webpack.RuleSetUseItem[] = []
+  postCssPlugins: readonly postcss.AcceptedPlugin[],
+  preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
 
@@ -56,7 +56,7 @@ export function getCssModuleLoader(
   loaders.push(
     // Webpack loaders run like a stack, so we need to reverse the natural
     // order of preprocessors.
-    ...preProcessors.reverse()
+    ...preProcessors.slice().reverse()
   )
 
   return loaders
