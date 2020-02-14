@@ -1,7 +1,7 @@
 import Iron from '@hapi/iron'
 import { getTokenCookie } from './auth-cookies'
 
-// Use an environment variable here instead of a hardcoded value in a production environment
+// Use an environment variable here instead of a hardcoded value for production
 const TOKEN_SECRET = 'this-is-a-secret-value-with-at-least-32-characters'
 
 export function encryptSession(session) {

@@ -26,7 +26,7 @@ const Login = () => {
         body: JSON.stringify(body),
       })
       if (res.status === 200) {
-        Router.push('/profile')
+        Router.push('/')
       } else {
         throw new Error(await res.text())
       }
