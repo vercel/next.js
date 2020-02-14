@@ -142,7 +142,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const envImports = envConfig
     ? `
-    const { processEnv } = require('next/dist/lib/load-env-config')
+    const { processEnv } = require('next/dist/lib/process-env')
   `
     : ''
 

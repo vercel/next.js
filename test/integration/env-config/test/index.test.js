@@ -18,6 +18,7 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
+const dotenvFile = join(appDir, '.env')
 
 const neededDevEnv = { NOTION_KEY: 'hello-notion' }
 const expectedDevEnv = {
@@ -96,9 +97,18 @@ describe('Env Config', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort, { env: neededDevEnv })
+      await fs.writeFile(
+        dotenvFile,
+        Object.keys(neededDevEnv)
+          .map(key => `${key}=${neededDevEnv[key]}`)
+          .join('\n')
+      )
+      app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.remove(dotenvFile)
+      await killApp(app)
+    })
 
     runTests(true)
   })

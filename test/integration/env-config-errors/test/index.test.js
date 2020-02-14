@@ -2,12 +2,13 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
+import { ENV_CONFIG_FILE } from 'next/dist/next-server/lib/constants'
 import { nextBuild, findPort, launchApp, killApp } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const appDir = join(__dirname, '..')
-const envFile = join(appDir, 'env.json')
+const envFile = join(appDir, ENV_CONFIG_FILE)
 const nextConfig = join(appDir, 'next.config.js')
 
 const build = async (isDev = false) => {
@@ -67,7 +68,9 @@ const runTests = (isDev = false) => {
     console.log(output)
 
     expect(output).toContain(
-      'Required environment items from `env.json` are missing: NOTION_KEY, SENTRY_DSN'
+      'Required environment items from `' +
+        ENV_CONFIG_FILE +
+        '` are missing: NOTION_KEY, SENTRY_DSN'
     )
   })
 
@@ -77,7 +80,7 @@ const runTests = (isDev = false) => {
       JSON.stringify({
         NOTION_KEY: {
           description: 'Notion API key',
-          value: 'notion',
+          defaultValue: 'notion',
           required: true,
         },
         APP_TITLE: {
@@ -88,7 +91,7 @@ const runTests = (isDev = false) => {
           description: 'our sentry dsn',
           env: {
             [isDev ? 'development' : 'production']: {
-              value: 'sentry',
+              defaultValue: 'sentry',
               required: true,
             },
             [!isDev ? 'development' : 'production']: {
@@ -104,7 +107,7 @@ const runTests = (isDev = false) => {
     const output = await build(isDev)
 
     expect(output).not.toContain(
-      'Required environment items from `env.json` are missing:'
+      'Required environment items from `' + ENV_CONFIG_FILE + '` are missing:'
     )
   })
 }
