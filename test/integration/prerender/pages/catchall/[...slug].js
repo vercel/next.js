@@ -1,4 +1,4 @@
-import { useFallback } from 'next/fallback'
+import { useFallback } from 'next/unstable-fallback'
 
 export async function unstable_getStaticProps({ params: { slug } }) {
   if (slug[0] === 'delayby3s') {
