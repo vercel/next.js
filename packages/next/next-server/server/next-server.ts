@@ -1081,6 +1081,45 @@ export default class Server {
     return null
   }
 
+  protected async renderPageToHTML({
+    req,
+    res,
+    pathname,
+    query,
+    amphtml,
+    hasAmp,
+    params,
+    err,
+  }: {
+    req: IncomingMessage
+    res: ServerResponse
+    pathname: string
+    query: ParsedUrlQuery
+    params?: Params
+    amphtml?: boolean
+    hasAmp?: boolean
+    err?: Error | null
+  }): Promise<{ html: string | null } | null> {
+    const result = await this.findPageComponents(pathname, query, params)
+    if (result) {
+      const html = await this.renderToHTMLWithComponents(
+        req,
+        res,
+        pathname,
+        result,
+        {
+          ...this.renderOpts,
+          amphtml,
+          hasAmp,
+          params,
+          err,
+        }
+      )
+      return { html }
+    }
+    return null
+  }
+
   public async renderToHTML(
     req: IncomingMessage,
     res: ServerResponse,
@@ -1095,15 +1134,16 @@ export default class Server {
     } = {}
   ): Promise<string | null> {
     try {
-      const result = await this.findPageComponents(pathname, query)
+      const result = await this.renderPageToHTML({
+        req,
+        res,
+        pathname,
+        query,
+        amphtml,
+        hasAmp,
+      })
       if (result) {
-        return await this.renderToHTMLWithComponents(
-          req,
-          res,
-          pathname,
-          result,
-          { ...this.renderOpts, amphtml, hasAmp }
-        )
+        return result.html
       }
 
       if (this.dynamicRoutes) {
@@ -1113,24 +1153,17 @@ export default class Server {
             continue
           }
 
-          const result = await this.findPageComponents(
-            dynamicRoute.page,
+          const result = await this.renderPageToHTML({
+            req,
+            res,
+            pathname: dynamicRoute.page,
             query,
-            params
-          )
+            params,
+            amphtml,
+            hasAmp,
+          })
           if (result) {
-            return await this.renderToHTMLWithComponents(
-              req,
-              res,
-              dynamicRoute.page,
-              result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
-              }
-            )
+            return result.html
           }
         }
       }
@@ -1169,48 +1202,34 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | FindComponentsResult = null
-
     const { static404, pages404 } = this.nextConfig.experimental
     const is404 = res.statusCode === 404
-    let using404Page = false
 
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      if (static404) {
-        result = await this.findPageComponents('/_errors/404')
-      }
+    const pages = [
+      is404 && static404 ? '/_errors/404' : null,
+      is404 && pages404 ? '/404' : null,
+      '/_error',
+    ].filter(Boolean)
 
-      // use 404 if /_errors/404 isn't available which occurs
-      // during development and when _app has getInitialProps
-      if (!result && pages404) {
-        result = await this.findPageComponents('/404')
-        using404Page = result !== null
-      }
-    }
-
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
-    }
-
-    let html
     try {
-      html = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
+      for (const pathname of pages) {
+        const result = await this.renderPageToHTML({
+          req,
+          res,
+          pathname: pathname!,
+          query,
           err,
+        })
+        if (result) {
+          return result.html
         }
-      )
+      }
     } catch (err) {
       console.error(err)
-      res.statusCode = 500
-      html = 'Internal Server Error'
     }
-    return html
+
+    res.statusCode = 500
+    return 'Internal Server Error'
   }
 
   public async render404(
