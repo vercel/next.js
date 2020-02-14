@@ -1223,14 +1223,19 @@ function sendPayload(
   res.setHeader('Content-Type', type)
   res.setHeader('Content-Length', Buffer.byteLength(payload))
   if (revalidate !== null) {
-    res.setHeader(
-      'Cache-Control',
-      revalidate < 0
-        ? `no-cache, no-store, must-revalidate`
-        : `s-maxage=${revalidate}, stale-while-revalidate`
-    )
-  } else if (revalidate === false) {
-    res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
+    if (revalidate) {
+      res.setHeader(
+        'Cache-Control',
+        revalidate < 0
+          ? `no-cache, no-store, must-revalidate`
+          : `s-maxage=${revalidate}, stale-while-revalidate`
+      )
+    } else if (revalidate === false) {
+      res.setHeader(
+        'Cache-Control',
+        `s-maxage=31536000, stale-while-revalidate`
+      )
+    }
   }
   res.end(payload)
 }
