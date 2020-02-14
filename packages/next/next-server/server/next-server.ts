@@ -819,33 +819,6 @@ export default class Server {
     return null
   }
 
-  private __sendPayload(
-    res: ServerResponse,
-    payload: any,
-    type: string,
-    revalidate?: number | false
-  ) {
-    // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', type)
-    res.setHeader('Content-Length', Buffer.byteLength(payload))
-    if (!this.renderOpts.dev) {
-      if (revalidate) {
-        res.setHeader(
-          'Cache-Control',
-          revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${revalidate}, stale-while-revalidate`
-        )
-      } else if (revalidate === false) {
-        res.setHeader(
-          'Cache-Control',
-          `s-maxage=31536000, stale-while-revalidate`
-        )
-      }
-    }
-    res.end(payload)
-  }
-
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -896,11 +869,11 @@ export default class Server {
             true
           )
 
-          this.__sendPayload(
+          sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
             'application/json',
-            -1
+            this.renderOpts.dev ? null : -1
           )
           return null
         }
@@ -914,7 +887,12 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', -1)
+        sendPayload(
+          res,
+          JSON.stringify(props),
+          'application/json',
+          this.renderOpts.dev ? null : -1
+        )
         return null
       }
 
@@ -943,11 +921,11 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      this.__sendPayload(
+      sendPayload(
         res,
         data,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate
+        this.renderOpts.dev ? null : cachedData.curRevalidate ?? null
       )
 
       // Stop the request chain here if the data we sent was up-to-date
@@ -1042,7 +1020,7 @@ export default class Server {
         }
       }
 
-      this.__sendPayload(res, html, 'text/html; charset=utf-8')
+      sendPayload(res, html, 'text/html; charset=utf-8', null)
     }
 
     const {
@@ -1050,11 +1028,11 @@ export default class Server {
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
     if (!isResSent(res)) {
-      this.__sendPayload(
+      sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        sprRevalidate
+        this.renderOpts.dev ? null : sprRevalidate
       )
     }
 
@@ -1308,4 +1286,26 @@ function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
       ...query,
     },
   })
+}
+
+function sendPayload(
+  res: ServerResponse,
+  payload: any,
+  type: string,
+  revalidate: number | false | null
+) {
+  // TODO: ETag? Cache-Control headers? Next-specific headers?
+  res.setHeader('Content-Type', type)
+  res.setHeader('Content-Length', Buffer.byteLength(payload))
+  if (revalidate) {
+    res.setHeader(
+      'Cache-Control',
+      revalidate < 0
+        ? `no-cache, no-store, must-revalidate`
+        : `s-maxage=${revalidate}, stale-while-revalidate`
+    )
+  } else if (revalidate === false) {
+    res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
+  }
+  res.end(payload)
 }
