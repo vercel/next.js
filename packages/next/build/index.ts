@@ -1,5 +1,7 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
+import crypto from 'crypto'
+import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
 import Worker from 'jest-worker'
@@ -11,12 +13,15 @@ import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import checkCustomRoutes, {
   getRedirectStatus,
-  RouteType,
+  Header,
   Redirect,
   Rewrite,
-  Header,
+  RouteType,
 } from '../lib/check-custom-routes'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
+import {
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+} from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -37,11 +42,13 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import {
-  eventBuildDuration,
+  eventBuildCompleted,
   eventBuildOptimize,
   eventNextPlugins,
   eventVersion,
@@ -53,17 +60,16 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import createSpinner from './spinner'
 import {
-  isPageStatic,
   collectPages,
   getPageSizeInKb,
   hasCustomAppGetInitialProps,
+  isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import escapeStringRegexp from 'escape-string-regexp'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -84,7 +90,7 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-
+  fallback: string
   dataRoute: string
   dataRouteRegex: string
 }
@@ -93,6 +99,7 @@ export type PrerenderManifest = {
   version: number
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  preview: __ApiPreviewProps
 }
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -194,14 +201,30 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const allStaticPages = new Set<string>()
   let allPageInfos = new Map<string, PageInfo>()
 
+  const previewProps: __ApiPreviewProps = {
+    previewModeId: crypto.randomBytes(16).toString('hex'),
+    previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+    previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+  }
+
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(mappedPages, target, buildId, config)
+  const entrypoints = createEntrypoints(
+    mappedPages,
+    target,
+    buildId,
+    previewProps,
+    config
+  )
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
   const conflictingPublicFiles: string[] = []
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
   )
+  const hasPages404 =
+    config.experimental.pages404 &&
+    mappedPages['/404'] &&
+    mappedPages['/404'].startsWith('private-next-pages')
 
   if (hasPublicDir) {
     try {
@@ -262,6 +285,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 1,
+    pages404: !!hasPages404,
     basePath: config.experimental.basePath,
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
@@ -379,18 +403,20 @@ export default async function build(dir: string, conf = null): Promise<void> {
       )
     }
     throw new Error('> Build failed because of webpack errors')
-  } else if (result.warnings.length > 0) {
-    console.warn(chalk.yellow('Compiled with warnings.\n'))
-    console.warn(result.warnings.join('\n\n'))
-    console.warn()
   } else {
-    console.log(chalk.green('Compiled successfully.\n'))
     telemetry.record(
-      eventBuildDuration({
-        totalPageCount: pagePaths.length,
+      eventBuildCompleted(pagePaths, {
         durationInSeconds: webpackBuildEnd[0],
       })
     )
+
+    if (result.warnings.length > 0) {
+      console.warn(chalk.yellow('Compiled with warnings.\n'))
+      console.warn(result.warnings.join('\n\n'))
+      console.warn()
+    } else {
+      console.log(chalk.green('Compiled successfully.\n'))
+    }
   }
   const postBuildSpinner = createSpinner({
     prefixText: 'Automatically optimizing pages',
@@ -428,7 +454,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async page => {
-      const actualPage = page === '/' ? '/index' : page
+      const actualPage = normalizePagePath(page)
       const [selfSize, allSize] = await getPageSizeInKb(
         actualPage,
         distDir,
@@ -511,6 +537,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
             staticPages.add(page)
             isStatic = true
           }
+
+          if (hasPages404 && page === '/404') {
+            if (!result.isStatic) {
+              throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+            }
+            // we need to ensure the 404 lambda is present since we use
+            // it when _app has getInitialProps
+            if (customAppGetInitialProps) {
+              staticPages.delete(page)
+            }
+          }
         } catch (err) {
           if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
           invalidPages.add(page)
@@ -536,10 +573,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     routesManifest.serverPropsRoutes = {}
 
     for (const page of serverPropsPages) {
+      const pagePath = normalizePagePath(page)
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${page === '/' ? '/index' : page}.json`
+        `${pagePath}.json`
       )
 
       routesManifest.serverPropsRoutes[page] = {
@@ -553,7 +591,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               `^${path.posix.join(
                 '/_next/data',
                 escapeStringRegexp(buildId),
-                `${page === '/' ? '/index' : page}.json`
+                `${pagePath}.json`
               )}$`
             ).source,
       }
@@ -569,8 +607,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
     !customAppGetInitialProps &&
-    !hasCustomErrorPage &&
-    config.experimental.static404
+    ((!hasCustomErrorPage && config.experimental.static404) || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -620,15 +657,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        // Remove dynamically routed pages from the default path map. These
-        // pages cannot be prerendered because we don't have enough information
-        // to do so.
+        // Dynamically routed pages should be prerendered to be used as
+        // a client-side skeleton (fallback) while data is being fetched.
+        // This ensures the end-user never sees a 500 or slow response from the
+        // server.
         //
         // Note: prerendering disables automatic static optimization.
         ssgPages.forEach(page => {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
-            delete defaultMap[page]
+
+            // Override the rendering for the dynamic page to be treated as a
+            // fallback render.
+            defaultMap[page] = { page, query: { __nextFallback: true } }
           }
         })
         // Append the "well-known" routes we should prerender for, e.g. blog
@@ -640,7 +681,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
         })
 
         if (useStatic404) {
-          defaultMap['/_errors/404'] = { page: '/_error' }
+          defaultMap['/_errors/404'] = {
+            page: hasPages404 ? '/404' : '/_error',
+          }
         }
 
         return defaultMap
@@ -690,13 +733,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
       const isDynamic = isDynamicRoute(page)
-      let file = page === '/' ? '/index' : page
-      // The dynamic version of SSG pages are not prerendered. Below, we handle
-      // the specific prerenders of these.
-      if (!(isSsg && isDynamic)) {
-        await moveExportedPage(page, file, isSsg, 'html')
-      }
       const hasAmp = hybridAmpPages.has(page)
+      let file = normalizePagePath(page)
+
+      // We should always have an HTML file to move for each page
+      await moveExportedPage(page, file, isSsg, 'html')
+
       if (hasAmp) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
       }
@@ -710,15 +752,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
             initialRevalidateSeconds:
               exportConfig.initialPageRevalidationMap[page],
             srcRoute: null,
-            dataRoute: path.posix.join(
-              '/_next/data',
-              buildId,
-              `${page === '/' ? '/index' : page}.json`
-            ),
+            dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
         } else {
-          // For a dynamic SSG page, we did not copy its html nor data exports.
-          // Instead, we must copy specific versions of this page as defined by
+          // For a dynamic SSG page, we did not copy its data exports and only
+          // copy the fallback HTML file.
+          // We must also copy specific versions of this page as defined by
           // `unstable_getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
@@ -731,7 +770,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               dataRoute: path.posix.join(
                 '/_next/data',
                 buildId,
-                `${route === '/' ? '/index' : route}.json`
+                `${normalizePagePath(route)}.json`
               ),
             }
           }
@@ -750,26 +789,28 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const analysisEnd = process.hrtime(analysisBegin)
   telemetry.record(
-    eventBuildOptimize({
+    eventBuildOptimize(pagePaths, {
       durationInSeconds: analysisEnd[0],
-      totalPageCount: pagePaths.length,
       staticPageCount: staticPages.size,
       ssrPageCount: pagePaths.length - staticPages.size,
+      hasStatic404: useStatic404,
     })
   )
 
   if (ssgPages.size > 0) {
     const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
     tbdPrerenderRoutes.forEach(tbdRoute => {
+      const normalizedRoute = normalizePagePath(tbdRoute)
       const dataRoute = path.posix.join(
         '/_next/data',
         buildId,
-        `${tbdRoute === '/' ? '/index' : tbdRoute}.json`
+        `${normalizedRoute}.json`
       )
 
       finalDynamicRoutes[tbdRoute] = {
         routeRegex: getRouteRegex(tbdRoute).re.source,
         dataRoute,
+        fallback: `${normalizedRoute}.html`,
         dataRouteRegex: getRouteRegex(
           dataRoute.replace(/\.json$/, '')
         ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
@@ -779,8 +820,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
       version: 1,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
+      preview: previewProps,
     }
 
+    await fsWriteFile(
+      path.join(distDir, PRERENDER_MANIFEST),
+      JSON.stringify(prerenderManifest),
+      'utf8'
+    )
+  } else {
+    const prerenderManifest: PrerenderManifest = {
+      version: 1,
+      routes: {},
+      dynamicRoutes: {},
+      preview: previewProps,
+    }
     await fsWriteFile(
       path.join(distDir, PRERENDER_MANIFEST),
       JSON.stringify(prerenderManifest),
@@ -822,7 +876,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isModern: config.experimental.modern,
     }
   )
-  printCustomRoutes({ redirects, rewrites })
+  printCustomRoutes({ redirects, rewrites, headers })
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
