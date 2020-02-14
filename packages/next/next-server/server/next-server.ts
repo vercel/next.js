@@ -981,7 +981,7 @@ export default class Server {
             buildId,
             opts,
           })
-        ).html
+        ).html!
       }
 
       sendPayload(res, html, 'text/html; charset=utf-8', null)
@@ -1251,10 +1251,14 @@ async function renderToHTMLWithComponents({
   isDataReq: boolean
   buildId: string
   opts: any
-}) {
+}): Promise<{ html: string | null; pageData: any; sprRevalidate: any }> {
   // handle static page
   if (typeof components.Component === 'string') {
-    return components.Component
+    return {
+      html: components.Component,
+      pageData: null,
+      sprRevalidate: null,
+    }
   }
 
   // check request state
