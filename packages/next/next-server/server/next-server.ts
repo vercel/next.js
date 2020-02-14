@@ -819,234 +819,6 @@ export default class Server {
     return null
   }
 
-  private async renderToHTMLWithComponents(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    { components, query }: FindComponentsResult,
-    opts: any
-  ): Promise<string | null> {
-    // we need to ensure the status code if /404 is visited directly
-    if (this.nextConfig.experimental.pages404 && pathname === '/404') {
-      res.statusCode = 404
-    }
-
-    // handle static page
-    if (typeof components.Component === 'string') {
-      return components.Component
-    }
-
-    // check request state
-    const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
-    const isSSG = !!components.unstable_getStaticProps
-    const isServerProps = !!components.unstable_getServerProps
-
-    // Toggle whether or not this is a Data request
-    const isDataReq = query._nextDataReq
-    delete query._nextDataReq
-
-    // Serverless requests need its URL transformed back into the original
-    // request path (to emulate lambda behavior in production)
-    if (isLikeServerless && isDataReq) {
-      let { pathname } = parseUrl(req.url || '', true)
-      pathname = !pathname || pathname === '/' ? '/index' : pathname
-      req.url = formatUrl({
-        pathname: `/_next/data/${this.buildId}${pathname}.json`,
-        query,
-      })
-    }
-
-    // non-spr requests should render like normal
-    if (!isSSG) {
-      // handle serverless
-      if (isLikeServerless) {
-        if (isDataReq) {
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            true
-          )
-
-          sendPayload(
-            res,
-            JSON.stringify(renderResult?.renderOpts?.pageData),
-            'application/json',
-            this.renderOpts.dev ? null : -1
-          )
-          return null
-        }
-        prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
-      }
-
-      if (isDataReq && isServerProps) {
-        const props = await renderToHTML(req, res, pathname, query, {
-          ...components,
-          ...opts,
-          isDataReq,
-        })
-        sendPayload(
-          res,
-          JSON.stringify(props),
-          'application/json',
-          this.renderOpts.dev ? null : -1
-        )
-        return null
-      }
-
-      return renderToHTML(req, res, pathname, query, {
-        ...components,
-        ...opts,
-      })
-    }
-
-    const previewProps = this.getPreviewProps()
-    const previewData = tryGetPreviewData(req, res, { ...previewProps })
-    const isPreviewMode = previewData !== false
-
-    // Compute the SPR cache key
-    const ssgCacheKey = isPreviewMode
-      ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
-      : parseUrl(req.url || '').pathname!
-
-    // Complete the response with cached data if its present
-    const cachedData = isPreviewMode
-      ? // Preview data bypasses the cache
-        undefined
-      : await getSprCache(ssgCacheKey)
-    if (cachedData) {
-      const data = isDataReq
-        ? JSON.stringify(cachedData.pageData)
-        : cachedData.html
-
-      sendPayload(
-        res,
-        data,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        this.renderOpts.dev ? null : cachedData.curRevalidate ?? null
-      )
-
-      // Stop the request chain here if the data we sent was up-to-date
-      if (!cachedData.isStale) {
-        return null
-      }
-    }
-
-    // If we're here, that means data is missing or it's stale.
-
-    const doRender = withCoalescedInvoke(async function(): Promise<{
-      html: string | null
-      pageData: any
-      sprRevalidate: number | false
-    }> {
-      let pageData: any
-      let html: string | null
-      let sprRevalidate: number | false
-
-      let renderResult
-      // handle serverless
-      if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          true
-        )
-
-        html = renderResult.html
-        pageData = renderResult.renderOpts.pageData
-        sprRevalidate = renderResult.renderOpts.revalidate
-      } else {
-        const renderOpts = {
-          ...components,
-          ...opts,
-        }
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
-
-        html = renderResult
-        pageData = renderOpts.pageData
-        sprRevalidate = renderOpts.revalidate
-      }
-
-      return { html, pageData, sprRevalidate }
-    })
-
-    const isProduction = !this.renderOpts.dev
-    const isDynamicPathname = isDynamicRoute(pathname)
-    const didRespond = isResSent(res)
-    // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
-
-    // When we did not respond from cache, we need to choose to block on
-    // rendering or return a skeleton.
-    //
-    // * Data requests always block.
-    //
-    // * Preview mode toggles all pages to be resolved in a blocking manner.
-    //
-    // * Non-dynamic pages should block (though this is an be an impossible
-    //   case in production).
-    //
-    // * Dynamic pages should return their skeleton, then finish the data
-    //   request on the client-side.
-    //
-    if (
-      !didRespond &&
-      !isDataReq &&
-      !isPreviewMode &&
-      isDynamicPathname &&
-      // TODO: development should trigger fallback when the path is not in
-      // `getStaticPaths`, for now, let's assume it is.
-      isProduction
-    ) {
-      let html: string
-
-      // Production already emitted the fallback as static HTML.
-      if (isProduction) {
-        html = await getFallback(pathname)
-      }
-      // We need to generate the fallback on-demand for development.
-      else {
-        query.__nextFallback = 'true'
-        if (isLikeServerless) {
-          prepareServerlessUrl(req, query)
-          html = await (components.Component as any).renderReqToHTML(req, res)
-        } else {
-          html = (await renderToHTML(req, res, pathname, query, {
-            ...components,
-            ...opts,
-          })) as string
-        }
-      }
-
-      sendPayload(res, html, 'text/html; charset=utf-8', null)
-    }
-
-    const {
-      isOrigin,
-      value: { html, pageData, sprRevalidate },
-    } = await doRender(ssgCacheKey, [])
-    if (!isResSent(res)) {
-      sendPayload(
-        res,
-        isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        this.renderOpts.dev ? null : sprRevalidate
-      )
-    }
-
-    // Update the SPR cache if the head request
-    if (isOrigin) {
-      // Preview mode should not be stored in cache
-      if (!isPreviewMode) {
-        await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
-      }
-    }
-
-    return null
-  }
-
   protected async renderPageToHTML({
     req,
     res,
@@ -1066,21 +838,28 @@ export default class Server {
     hasAmp?: boolean
     err?: Error | null
   }): Promise<{ html: string | null } | null> {
-    const result = await this.findPageComponents(pathname, query, params)
-    if (result) {
-      const html = await this.renderToHTMLWithComponents(
+    const components = await this.findPageComponents(pathname, query, params)
+    if (components) {
+      // we need to ensure the status code if /404 is visited directly
+      // TODO: move this into the page itself
+      if (this.nextConfig.experimental.pages404 && pathname === '/404') {
+        res.statusCode = 404
+      }
+      const html = await renderToHTMLWithComponents({
         req,
         res,
         pathname,
-        result,
-        {
+        components,
+        buildId: this.buildId,
+        getPreviewProps: this.getPreviewProps.bind(this),
+        opts: {
           ...this.renderOpts,
           amphtml,
           hasAmp,
           params,
           err,
-        }
-      )
+        },
+      })
       return { html }
     }
     return null
@@ -1308,4 +1087,237 @@ function sendPayload(
     res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
   }
   res.end(payload)
+}
+
+async function renderToHTMLWithComponents({
+  req,
+  res,
+  pathname,
+  components: { components, query },
+  buildId,
+  opts,
+  getPreviewProps,
+}: {
+  req: IncomingMessage
+  res: ServerResponse
+  pathname: string
+  components: FindComponentsResult
+  buildId: string
+  opts: any
+  getPreviewProps: any
+}): Promise<string | null> {
+  // handle static page
+  if (typeof components.Component === 'string') {
+    return components.Component
+  }
+
+  // check request state
+  const isLikeServerless =
+    typeof components.Component === 'object' &&
+    typeof (components.Component as any).renderReqToHTML === 'function'
+  const isSSG = !!components.unstable_getStaticProps
+  const isServerProps = !!components.unstable_getServerProps
+
+  // Toggle whether or not this is a Data request
+  const isDataReq = query._nextDataReq
+  delete query._nextDataReq
+
+  // Serverless requests need its URL transformed back into the original
+  // request path (to emulate lambda behavior in production)
+  if (isLikeServerless && isDataReq) {
+    let { pathname } = parseUrl(req.url || '', true)
+    pathname = !pathname || pathname === '/' ? '/index' : pathname
+    req.url = formatUrl({
+      pathname: `/_next/data/${buildId}${pathname}.json`,
+      query,
+    })
+  }
+
+  // non-spr requests should render like normal
+  if (!isSSG) {
+    // handle serverless
+    if (isLikeServerless) {
+      if (isDataReq) {
+        const renderResult = await (components.Component as any).renderReqToHTML(
+          req,
+          res,
+          true
+        )
+
+        sendPayload(
+          res,
+          JSON.stringify(renderResult?.renderOpts?.pageData),
+          'application/json',
+          opts.dev ? null : -1
+        )
+        return null
+      }
+      prepareServerlessUrl(req, query)
+      return (components.Component as any).renderReqToHTML(req, res)
+    }
+
+    if (isDataReq && isServerProps) {
+      const props = await renderToHTML(req, res, pathname, query, {
+        ...components,
+        ...opts,
+        isDataReq,
+      })
+      sendPayload(
+        res,
+        JSON.stringify(props),
+        'application/json',
+        opts.dev ? null : -1
+      )
+      return null
+    }
+
+    return renderToHTML(req, res, pathname, query, {
+      ...components,
+      ...opts,
+    })
+  }
+
+  const previewProps = getPreviewProps()
+  const previewData = tryGetPreviewData(req, res, { ...previewProps })
+  const isPreviewMode = previewData !== false
+
+  // Compute the SPR cache key
+  const ssgCacheKey = isPreviewMode
+    ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
+    : parseUrl(req.url || '').pathname!
+
+  // Complete the response with cached data if its present
+  const cachedData = isPreviewMode
+    ? // Preview data bypasses the cache
+      undefined
+    : await getSprCache(ssgCacheKey)
+  if (cachedData) {
+    const data = isDataReq
+      ? JSON.stringify(cachedData.pageData)
+      : cachedData.html
+
+    sendPayload(
+      res,
+      data,
+      isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+      opts.dev ? null : cachedData.curRevalidate ?? null
+    )
+
+    // Stop the request chain here if the data we sent was up-to-date
+    if (!cachedData.isStale) {
+      return null
+    }
+  }
+
+  // If we're here, that means data is missing or it's stale.
+
+  const doRender = withCoalescedInvoke(async function(): Promise<{
+    html: string | null
+    pageData: any
+    sprRevalidate: number | false
+  }> {
+    let pageData: any
+    let html: string | null
+    let sprRevalidate: number | false
+
+    let renderResult
+    // handle serverless
+    if (isLikeServerless) {
+      renderResult = await (components.Component as any).renderReqToHTML(
+        req,
+        res,
+        true
+      )
+
+      html = renderResult.html
+      pageData = renderResult.renderOpts.pageData
+      sprRevalidate = renderResult.renderOpts.revalidate
+    } else {
+      const renderOpts = {
+        ...components,
+        ...opts,
+      }
+      renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+
+      html = renderResult
+      pageData = renderOpts.pageData
+      sprRevalidate = renderOpts.revalidate
+    }
+
+    return { html, pageData, sprRevalidate }
+  })
+
+  const isProduction = !opts.dev
+  const isDynamicPathname = isDynamicRoute(pathname)
+  const didRespond = isResSent(res)
+  // const isForcedBlocking =
+  //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
+
+  // When we did not respond from cache, we need to choose to block on
+  // rendering or return a skeleton.
+  //
+  // * Data requests always block.
+  //
+  // * Preview mode toggles all pages to be resolved in a blocking manner.
+  //
+  // * Non-dynamic pages should block (though this is an be an impossible
+  //   case in production).
+  //
+  // * Dynamic pages should return their skeleton, then finish the data
+  //   request on the client-side.
+  //
+  if (
+    !didRespond &&
+    !isDataReq &&
+    !isPreviewMode &&
+    isDynamicPathname &&
+    // TODO: development should trigger fallback when the path is not in
+    // `getStaticPaths`, for now, let's assume it is.
+    isProduction
+  ) {
+    let html: string
+
+    // Production already emitted the fallback as static HTML.
+    if (isProduction) {
+      html = await getFallback(pathname)
+    }
+    // We need to generate the fallback on-demand for development.
+    else {
+      query.__nextFallback = 'true'
+      if (isLikeServerless) {
+        prepareServerlessUrl(req, query)
+        html = await (components.Component as any).renderReqToHTML(req, res)
+      } else {
+        html = (await renderToHTML(req, res, pathname, query, {
+          ...components,
+          ...opts,
+        })) as string
+      }
+    }
+
+    sendPayload(res, html, 'text/html; charset=utf-8', null)
+  }
+
+  const {
+    isOrigin,
+    value: { html, pageData, sprRevalidate },
+  } = await doRender(ssgCacheKey, [])
+  if (!isResSent(res)) {
+    sendPayload(
+      res,
+      isDataReq ? JSON.stringify(pageData) : html,
+      isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+      opts.dev ? null : sprRevalidate
+    )
+  }
+
+  // Update the SPR cache if the head request
+  if (isOrigin) {
+    // Preview mode should not be stored in cache
+    if (!isPreviewMode) {
+      await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
+    }
+  }
+
+  return null
 }
