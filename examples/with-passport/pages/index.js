@@ -11,14 +11,14 @@ const Home = () => {
       <p>Steps to test the example:</p>
 
       <ol>
-        <li>Click login and enter an username and password.</li>
+        <li>Click Login and enter an username and password.</li>
         <li>
-          Click home and click profile again, notice how your session is being
-          used through a token stored in a cookie.
+          You'll be redirected to Home. Click on Profile, notice how your
+          session is being used through a token stored in a cookie.
         </li>
         <li>
-          Click logout and try to go to profile again. You'll get redirected to
-          the `/login` route.
+          Click Logout and try to go to Profile again. You'll get redirected to
+          Login.
         </li>
       </ol>
 

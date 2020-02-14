@@ -2,7 +2,7 @@ import { useUser } from '../lib/hooks'
 import Layout from '../components/layout'
 
 const Profile = () => {
-  const user = useUser({ redirectTo: '/' })
+  const user = useUser({ redirectTo: '/login' })
 
   return (
     <Layout>
