@@ -658,7 +658,7 @@ export default class Server {
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
         return true
       }
@@ -846,18 +846,6 @@ export default class Server {
     res.end(payload)
   }
 
-  private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
-    const curUrl = parseUrl(req.url!, true)
-    req.url = formatUrl({
-      ...curUrl,
-      search: undefined,
-      query: {
-        ...curUrl.query,
-        ...query,
-      },
-    })
-  }
-
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -916,7 +904,7 @@ export default class Server {
           )
           return null
         }
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         return (components.Component as any).renderReqToHTML(req, res)
       }
 
@@ -1044,7 +1032,7 @@ export default class Server {
       else {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
-          this.prepareServerlessUrl(req, query)
+          prepareServerlessUrl(req, query)
           html = await (components.Component as any).renderReqToHTML(req, res)
         } else {
           html = (await renderToHTML(req, res, pathname, query, {
@@ -1308,4 +1296,16 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
+}
+
+function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
+  const curUrl = parseUrl(req.url!, true)
+  req.url = formatUrl({
+    ...curUrl,
+    search: undefined,
+    query: {
+      ...curUrl.query,
+      ...query,
+    },
+  })
 }
