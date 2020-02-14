@@ -208,6 +208,34 @@ describe('Telemetry CLI', () => {
     expect(event).toMatch(/"hasBabelConfig": true/)
   })
 
+  it('cli session: package.json custom babel config (plugin)', async () => {
+    await fs.rename(
+      path.join(appDir, 'package.babel'),
+      path.join(appDir, 'package.json')
+    )
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    await fs.rename(
+      path.join(appDir, 'package.json'),
+      path.join(appDir, 'package.babel')
+    )
+
+    console.log(stderr)
+
+    const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event).toMatch(/"hasNextConfig": false/)
+    expect(event).toMatch(/"buildTarget": "default"/)
+    expect(event).toMatch(/"hasWebpackConfig": false/)
+    expect(event).toMatch(/"hasBabelConfig": true/)
+  })
+
   it('cli session: custom babel config (preset)', async () => {
     await fs.rename(
       path.join(appDir, '.babelrc.preset'),
