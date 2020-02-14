@@ -11,6 +11,7 @@ import {
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import { AMP_RENDER_TARGET } from '../lib/constants'
+import { FallbackContext } from '../lib/fallback-context'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
@@ -426,13 +427,15 @@ export async function renderToHTML(
 
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
-      <AmpStateContext.Provider value={ampState}>
-        <LoadableContext.Provider
-          value={moduleName => reactLoadableModules.push(moduleName)}
-        >
-          {children}
-        </LoadableContext.Provider>
-      </AmpStateContext.Provider>
+      <FallbackContext.Provider value={isFallback}>
+        <AmpStateContext.Provider value={ampState}>
+          <LoadableContext.Provider
+            value={moduleName => reactLoadableModules.push(moduleName)}
+          >
+            {children}
+          </LoadableContext.Provider>
+        </AmpStateContext.Provider>
+      </FallbackContext.Provider>
     </RouterContext.Provider>
   )
 

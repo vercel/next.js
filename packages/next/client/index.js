@@ -1,16 +1,17 @@
 /* global location */
+import { createRouter, makePublicRouterInstance } from 'next/router'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import HeadManager from './head-manager'
-import { createRouter, makePublicRouterInstance } from 'next/router'
-import mitt from '../next-server/lib/mitt'
-import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
-import PageLoader from './page-loader'
-import * as envConfig from '../next-server/lib/runtime-config'
+import { FallbackContext } from '../next-server/lib/fallback-context'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import * as envConfig from '../next-server/lib/runtime-config'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import HeadManager from './head-manager'
+import PageLoader from './page-loader'
 
 /// <reference types="react-dom/experimental" />
 
@@ -77,6 +78,7 @@ export let router
 let ErrorComponent
 let Component
 let App, onPerfEntry
+let isServerRoute = true
 
 class Container extends React.Component {
   componentDidCatch(err, info) {
@@ -207,6 +209,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     wrapApp,
     err: initialErr,
     subscription: ({ Component, props, err }, App) => {
+      isServerRoute = false
       render({ App, Component, props, err })
     },
   })
@@ -407,9 +410,19 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager.updateHead}>
-          {children}
-        </HeadManagerContext.Provider>
+        <FallbackContext.Provider
+          value={
+            // Fallback is true iff server-rendered page was a fallback
+            isFallback &&
+            // And iff the router hasn't successfully switched states yet (on
+            // different route or data ready).
+            isServerRoute
+          }
+        >
+          <HeadManagerContext.Provider value={headManager.updateHead}>
+            {children}
+          </HeadManagerContext.Provider>
+        </FallbackContext.Provider>
       </RouterContext.Provider>
     </Container>
   )
