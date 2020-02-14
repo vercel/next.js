@@ -21,6 +21,7 @@
     }
   },
   "overrides": [
+    { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
       "files": ["**/*.ts", "**/*.tsx"],
       "parser": "@typescript-eslint/parser",
@@ -59,6 +60,15 @@
           {
             "args": "none",
             "ignoreRestSiblings": true
+          }
+        ],
+        "no-unused-expressions": "off",
+        "@typescript-eslint/no-unused-expressions": [
+          "error",
+          {
+            "allowShortCircuit": true,
+            "allowTernary": true,
+            "allowTaggedTemplates": true
           }
         ],
         "no-useless-constructor": "off",

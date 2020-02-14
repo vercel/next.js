@@ -1,4 +1,8 @@
 import { match as regexpMatch } from 'path-to-regexp'
+import {
+  PERMANENT_REDIRECT_STATUS,
+  TEMPORARY_REDIRECT_STATUS,
+} from '../next-server/lib/constants'
 
 export type Rewrite = {
   source: string
@@ -7,6 +11,7 @@ export type Rewrite = {
 
 export type Redirect = Rewrite & {
   statusCode?: number
+  permanent?: boolean
 }
 
 export type Header = {
@@ -16,6 +21,13 @@ export type Header = {
 
 const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
+export function getRedirectStatus(route: Redirect) {
+  return (
+    route.statusCode ||
+    (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
+  )
+}
+
 function checkRedirect(route: Redirect) {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
@@ -24,6 +36,10 @@ function checkRedirect(route: Redirect) {
     hadInvalidStatus = true
     invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
   }
+  if (typeof route.permanent !== 'boolean' && !route.statusCode) {
+    invalidParts.push(`\`permanent\` is not set to \`true\` or \`false\``)
+  }
+
   return {
     invalidParts,
     hadInvalidStatus,
@@ -72,13 +88,25 @@ export default function checkCustomRoutes(
     allowedKeys = new Set([
       'source',
       'destination',
-      ...(isRedirect ? ['statusCode'] : []),
+      ...(isRedirect ? ['statusCode', 'permanent'] : []),
     ])
   } else {
     allowedKeys = new Set(['source', 'headers'])
   }
 
   for (const route of routes) {
+    if (!route || typeof route !== 'object') {
+      console.error(
+        `The route ${JSON.stringify(
+          route
+        )} is not a valid object with \`source\` and \`${
+          type === 'header' ? 'headers' : 'destination'
+        }\``
+      )
+      numInvalidRoutes++
+      continue
+    }
+
     const keys = Object.keys(route)
     const invalidKeys = keys.filter(key => !allowedKeys.has(key))
     const invalidParts: string[] = []
@@ -99,29 +127,48 @@ export default function checkCustomRoutes(
         invalidParts.push('`destination` is missing')
       } else if (typeof _route.destination !== 'string') {
         invalidParts.push('`destination` is not a string')
-      } else if (type === 'rewrite' && !_route.destination.startsWith('/')) {
-        invalidParts.push('`destination` does not start with /')
+      } else if (
+        type === 'rewrite' &&
+        !_route.destination.match(/^(\/|https:\/\/|http:\/\/)/)
+      ) {
+        invalidParts.push(
+          '`destination` does not start with `/`, `http://`, or `https://`'
+        )
       }
     }
 
     if (type === 'redirect') {
       const result = checkRedirect(route as Redirect)
-      hadInvalidStatus = result.hadInvalidStatus
+      hadInvalidStatus = hadInvalidStatus || result.hadInvalidStatus
       invalidParts.push(...result.invalidParts)
     }
 
-    if (typeof route.source === 'string') {
+    if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
       try {
         // Make sure we can parse the source properly
         regexpMatch(route.source)
       } catch (err) {
-        // If there is an error show our err.sh but still show original error
-        console.error(
-          `\nError parsing ${route.source} https://err.sh/zeit/next.js/invalid-route-source`,
-          err
-        )
+        // If there is an error show our err.sh but still show original error or a formatted one if we can
+        const errMatches = err.message.match(/at (\d{0,})/)
+
+        if (errMatches) {
+          const position = parseInt(errMatches[1], 10)
+          console.error(
+            `\nError parsing \`${route.source}\` ` +
+              `https://err.sh/zeit/next.js/invalid-route-source\n` +
+              `Reason: ${err.message}\n\n` +
+              `  ${route.source}\n` +
+              `  ${new Array(position).fill(' ').join('')}^\n`
+          )
+        } else {
+          console.error(
+            `\nError parsing ${route.source} https://err.sh/zeit/next.js/invalid-route-source`,
+            err
+          )
+        }
+        invalidParts.push('`source` parse failed')
       }
     }
 

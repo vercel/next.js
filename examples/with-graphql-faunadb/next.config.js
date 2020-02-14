@@ -8,7 +8,7 @@ module.exports = {
     | https://docs.fauna.com/fauna/current/security/
     |--------------------------------------------------
     */
-    faunaDbSecret: 'fnADcnWRUcACE_6uDSw05MspruDdWKk88ZSmsm2a',
+    faunaDbSecret: '< GRAPHQL_SECRET >',
     faunaDbGraphQlEndpoint: 'https://graphql.fauna.com/graphql',
   },
 }

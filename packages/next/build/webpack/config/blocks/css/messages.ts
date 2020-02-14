@@ -25,3 +25,9 @@ export function getLocalModuleImportError() {
     'node_modules'
   )}.\nRead more: https://err.sh/next.js/css-modules-npm`
 }
+
+export function getCustomDocumentError() {
+  return `CSS ${chalk.bold('cannot')} be imported within ${chalk.cyan(
+    'pages/_document.js'
+  )}. Please move global styles to ${chalk.cyan('pages/_app.js')}.`
+}

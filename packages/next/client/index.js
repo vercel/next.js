@@ -14,13 +14,20 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 /// <reference types="react-dom/experimental" />
 
-// Polyfill Promise globally
-// This is needed because Webpack's dynamic loading(common chunks) code
-// depends on Promise.
-// So, we need to polyfill it.
-// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-if (!window.Promise) {
-  window.Promise = Promise
+if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
+  if (!('finally' in Promise.prototype)) {
+    // eslint-disable-next-line no-extend-native
+    Promise.prototype.finally = require('finally-polyfill')
+  }
+} else {
+  // Polyfill Promise globally
+  // This is needed because Webpack's dynamic loading(common chunks) code
+  // depends on Promise.
+  // So, we need to polyfill it.
+  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
+  if (!self.Promise) {
+    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
+  }
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -37,6 +44,7 @@ const {
   assetPrefix,
   runtimeConfig,
   dynamicIds,
+  isFallback,
 } = data
 
 const prefix = assetPrefix || ''
@@ -89,12 +97,16 @@ class Container extends React.Component {
         })
     }
 
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
+    // We need to replace the router state if:
+    // - the page was (auto) exported and has a query string or search (hash)
+    // - it was auto exported and is a dynamic route (to provide params)
+    // - if it is a client-side skeleton (fallback render)
     if (
-      (data.nextExport &&
-        (isDynamicRoute(router.pathname) || location.search)) ||
-      (Component.__NEXT_SPR && location.search)
+      router.isSsr &&
+      (isFallback ||
+        (data.nextExport &&
+          (isDynamicRoute(router.pathname) || location.search)) ||
+        (Component && Component.__N_SSG && location.search))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -110,9 +122,21 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
-          shallow: true,
+          // Fallback pages must trigger the data fetch, so the transition is
+          // not shallow.
+          // Other pages (strictly updating query) happens shallowly, as data
+          // requirements would already be present.
+          shallow: !isFallback,
         }
       )
+    }
+
+    if (process.env.__NEXT_TEST_MODE) {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
     }
   }
 
@@ -200,9 +224,15 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   }
 
   const renderCtx = { App, Component, props, err: initialErr }
-  render(renderCtx)
 
-  return emitter
+  if (process.env.NODE_ENV === 'production') {
+    render(renderCtx)
+    return emitter
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return { emitter, render, renderCtx }
+  }
 }
 
 export async function render(props) {
@@ -267,23 +297,21 @@ export async function renderError(props) {
 let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot = null
 function renderReactElement(reactEl, domEl) {
-  // mark start of hydrate/render
-  if (ST) {
-    performance.mark('beforeRender')
-  }
-
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    let callback = markRenderComplete
     if (!reactRoot) {
       const opts = { hydrate: true }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
           ? ReactDOM.createRoot(domEl, opts)
           : ReactDOM.createBlockingRoot(domEl, opts)
-      callback = markHydrateComplete
     }
-    reactRoot.render(reactEl, callback)
+    reactRoot.render(reactEl)
   } else {
+    // mark start of hydrate/render
+    if (ST) {
+      performance.mark('beforeRender')
+    }
+
     // The check for `.hydrate` is there to support React alternatives like preact
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
@@ -294,19 +322,19 @@ function renderReactElement(reactEl, domEl) {
   }
 
   if (onPerfEntry && ST) {
-    if (!('PerformanceObserver' in window)) {
-      window.addEventListener('load', () => {
-        performance.getEntriesByType('paint').forEach(onPerfEntry)
-      })
-    } else {
-      performance.getEntriesByType('paint').forEach(onPerfEntry)
-
-      // Start an observer to catch any paint metrics which may fire _after_
-      // the load event is fired on the window
+    try {
       const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(onPerfEntry)
       })
-      observer.observe({ entryTypes: ['paint'] })
+      // Start observing paint entry types.
+      observer.observe({
+        type: 'paint',
+        buffered: true,
+      })
+    } catch (e) {
+      window.addEventListener('load', () => {
+        performance.getEntriesByType('paint').forEach(onPerfEntry)
+      })
     }
   }
 }

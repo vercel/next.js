@@ -54,4 +54,11 @@ describe('FileSystemPublicRoutes', () => {
     const body = await res.text()
     expect(body).toMatch(/exportpathmap was here/)
   })
+
+  it('should route to public folder files', async () => {
+    const res = await fetch('/hello.txt')
+    expect(res.status).toBe(200)
+    const body = await res.text()
+    expect(body).toMatch(/hello/)
+  })
 })

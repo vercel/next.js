@@ -4,14 +4,18 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
-import { Redirect, Rewrite } from '../lib/check-custom-routes'
-import { SPR_GET_INITIAL_PROPS_CONFLICT } from '../lib/constants'
+import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
+import {
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+} from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { DEFAULT_REDIRECT_STATUS } from '../next-server/lib/constants'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
+import { Unstable_getStaticPaths } from '../next-server/server/load-components'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -225,46 +229,62 @@ export async function printTreeView(
 export function printCustomRoutes({
   redirects,
   rewrites,
+  headers,
 }: {
   redirects: Redirect[]
   rewrites: Rewrite[]
+  headers: Header[]
 }) {
   const printRoutes = (
-    routes: Redirect[] | Rewrite[],
-    type: 'Redirects' | 'Rewrites'
+    routes: Redirect[] | Rewrite[] | Header[],
+    type: 'Redirects' | 'Rewrites' | 'Headers'
   ) => {
     const isRedirects = type === 'Redirects'
+    const isHeaders = type === 'Headers'
     console.log(chalk.underline(type))
     console.log()
 
-    console.log(
-      textTable(
-        [
-          [
-            'Source',
-            'Destination',
-            ...(isRedirects ? ['statusCode'] : []),
-          ].map(str => chalk.bold(str)),
-          ...Object.entries(routes).map(([key, route]) => {
-            return [
-              route.source,
-              route.destination,
-              ...(isRedirects
-                ? [
-                    ((route as Redirect).statusCode ||
-                      DEFAULT_REDIRECT_STATUS) + '',
-                  ]
-                : []),
-            ]
-          }),
-        ],
-        {
-          align: ['l', 'l', 'l'],
-          stringLength: str => stripAnsi(str).length,
+    /*
+        ┌ source
+        ├ permanent/statusCode
+        └ destination
+     */
+    const routesStr = (routes as any[])
+      .map((route: { source: string }) => {
+        let routeStr = `┌ source: ${route.source}\n`
+
+        if (!isHeaders) {
+          const r = route as Rewrite
+          routeStr += `${isRedirects ? '├' : '└'} destination: ${
+            r.destination
+          }\n`
         }
-      )
-    )
-    console.log()
+        if (isRedirects) {
+          const r = route as Redirect
+          routeStr += `└ ${
+            r.statusCode
+              ? `status: ${r.statusCode}`
+              : `permanent: ${r.permanent}`
+          }\n`
+        }
+
+        if (isHeaders) {
+          const r = route as Header
+          routeStr += `└ headers:\n`
+
+          for (let i = 0; i < r.headers.length; i++) {
+            const header = r.headers[i]
+            const last = i === headers.length - 1
+
+            routeStr += `  ${last ? '└' : '├'} ${header.key}: ${header.value}\n`
+          }
+        }
+
+        return routeStr
+      })
+      .join('\n')
+
+    console.log(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -272,6 +292,9 @@ export function printCustomRoutes({
   }
   if (rewrites.length) {
     printRoutes(rewrites, 'Rewrites')
+  }
+  if (headers.length) {
+    printRoutes(headers, 'Headers')
   }
 }
 
@@ -479,9 +502,10 @@ export async function isPageStatic(
   serverBundle: string,
   runtimeEnvConfig: any
 ): Promise<{
-  static?: boolean
-  prerender?: boolean
+  isStatic?: boolean
   isHybridAmp?: boolean
+  hasServerProps?: boolean
+  hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
 }> {
   try {
@@ -496,6 +520,7 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
+    const hasServerProps = !!mod.unstable_getServerProps
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
@@ -507,7 +532,15 @@ export async function isPageStatic(
     // A page cannot be prerendered _and_ define a data requirement. That's
     // contradictory!
     if (hasGetInitialProps && hasStaticProps) {
-      throw new Error(SPR_GET_INITIAL_PROPS_CONFLICT)
+      throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
+    }
+
+    if (hasGetInitialProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+    }
+
+    if (hasStaticProps && hasServerProps) {
+      throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
     // A page cannot have static parameters if it is not a dynamic page.
@@ -517,18 +550,45 @@ export async function isPageStatic(
       )
     }
 
-    let prerenderPaths: string[] | undefined
+    let prerenderPaths: Set<string> | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderPaths = [] as string[]
+      prerenderPaths = new Set()
 
-      const _routeMatcher = getRouteMatcher(getRouteRegex(page))
+      const _routeRegex = getRouteRegex(page)
+      const _routeMatcher = getRouteMatcher(_routeRegex)
 
       // Get the default list of allowed params.
       const _validParamKeys = Object.keys(_routeMatcher(page))
 
-      const toPrerender: Array<
-        { params?: { [key: string]: string } } | string
-      > = await mod.unstable_getStaticPaths()
+      const staticPathsResult = await (mod.unstable_getStaticPaths as Unstable_getStaticPaths)()
+
+      if (!staticPathsResult || typeof staticPathsResult !== 'object') {
+        throw new Error(
+          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} Expected: { paths: [] }`
+        )
+      }
+
+      const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
+        key => key !== 'paths'
+      )
+
+      if (invalidStaticPathKeys.length > 0) {
+        throw new Error(
+          `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+            ', '
+          )}) The only field allowed currently is \`paths\``
+        )
+      }
+
+      const toPrerender = staticPathsResult.paths
+
+      if (!Array.isArray(toPrerender)) {
+        throw new Error(
+          `Invalid \`paths\` value returned from unstable_getStaticProps in ${page}.\n` +
+            `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
+        )
+      }
+
       toPrerender.forEach(entry => {
         // For a string-provided path, we must make sure it matches the dynamic
         // route.
@@ -540,7 +600,7 @@ export async function isPageStatic(
             )
           }
 
-          prerenderPaths!.push(entry)
+          prerenderPaths?.add(entry)
         }
         // For the object-provided path, we must make sure it specifies all
         // required keys.
@@ -560,29 +620,39 @@ export async function isPageStatic(
           const { params = {} } = entry
           let builtPage = page
           _validParamKeys.forEach(validParamKey => {
-            if (typeof params[validParamKey] !== 'string') {
+            const { repeat } = _routeRegex.groups[validParamKey]
+            const paramValue = params[validParamKey]
+            if (
+              (repeat && !Array.isArray(paramValue)) ||
+              (!repeat && typeof paramValue !== 'string')
+            ) {
               throw new Error(
-                `A required parameter (${validParamKey}) was not provided as a string.`
+                `A required parameter (${validParamKey}) was not provided as ${
+                  repeat ? 'an array' : 'a string'
+                } in unstable_getStaticPaths for ${page}`
               )
             }
 
             builtPage = builtPage.replace(
-              `[${validParamKey}]`,
-              encodeURIComponent(params[validParamKey])
+              `[${repeat ? '...' : ''}${validParamKey}]`,
+              repeat
+                ? (paramValue as string[]).map(encodeURIComponent).join('/')
+                : encodeURIComponent(paramValue as string)
             )
           })
 
-          prerenderPaths!.push(builtPage)
+          prerenderPaths?.add(builtPage)
         }
       })
     }
 
     const config = mod.config || {}
     return {
-      static: !hasStaticProps && !hasGetInitialProps,
+      isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes: prerenderPaths,
-      prerender: hasStaticProps,
+      prerenderRoutes: prerenderPaths && [...prerenderPaths],
+      hasStaticProps,
+      hasServerProps,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}

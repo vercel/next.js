@@ -17,3 +17,19 @@ module.exports = {
   },
 }
 ```
+
+## Related
+
+<div class="card">
+  <a href="/docs/api-reference/next.config.js/introduction.md">
+    <b>Introduction to next.config.js:</b>
+    <small>Learn more about the configuration file used by Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/advanced-features/automatic-static-optimization.md">
+    <b>Automatic Static Optimization:</b>
+    <small>Next.js automatically optimizes your app to be static HTML whenever possible. Learn how it works here.</small>
+  </a>
+</div>
