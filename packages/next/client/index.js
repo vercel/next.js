@@ -414,7 +414,7 @@ function AppContainer({ children }) {
           value={
             // Fallback is true iff server-rendered page was a fallback
             isFallback &&
-            // And iff the router hasn't successfully switched states yet (on
+            // And the router hasn't successfully switched states yet (on
             // different route or data ready).
             isServerRoute
           }
