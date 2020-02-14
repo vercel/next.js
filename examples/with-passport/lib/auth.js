@@ -10,7 +10,5 @@ export function encryptSession(session) {
 
 export async function getSession(req) {
   const token = getTokenCookie(req)
-  const session = await Iron.unseal(token, TOKEN_SECRET, Iron.defaults)
-
-  return Iron.unseal(session, TOKEN_SECRET, Iron.defaults)
+  return token && Iron.unseal(token, TOKEN_SECRET, Iron.defaults)
 }

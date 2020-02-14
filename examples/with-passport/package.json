@@ -15,7 +15,8 @@
     "passport": "0.4.1",
     "passport-local": "1.0.0",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "swr": "0.1.16"
   },
   "license": "ISC"
 }

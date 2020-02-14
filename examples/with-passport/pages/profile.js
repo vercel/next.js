@@ -1,10 +1,15 @@
+import { useUser } from '../lib/hooks'
 import Layout from '../components/layout'
 
-const Home = () => (
-  <Layout>
-    <h1>Profile</h1>
-    <p>Your session: {JSON.stringify({ yo: 'yay' })}</p>
-  </Layout>
-)
+const Profile = () => {
+  const user = useUser({ redirectTo: '/' })
 
-export default Home
+  return (
+    <Layout>
+      <h1>Profile</h1>
+      {user && <p>Your session: {JSON.stringify(user)}</p>}
+    </Layout>
+  )
+}
+
+export default Profile

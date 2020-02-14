@@ -20,7 +20,9 @@ const Header = () => (
           </Link>
         </li>
         <li>
-          <button>Logout</button>
+          <Link href="/api/logout">
+            <a>Logout</a>
+          </Link>
         </li>
       </ul>
     </nav>
@@ -49,15 +51,6 @@ const Header = () => (
       header {
         color: #fff;
         background-color: #333;
-      }
-      button {
-        color: #fff;
-        font-size: 1rem;
-        font-family: inherit;
-        cursor: pointer;
-        background: none;
-        border: none;
-        padding: 0;
       }
     `}</style>
   </header>
