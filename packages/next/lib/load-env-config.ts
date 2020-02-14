@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import dotenv from 'dotenv'
+import dotenv from 'next/dist/compiled/dotenv'
 import { processEnv } from './process-env'
 import { existsSync } from './find-pages-dir'
 import { ENV_CONFIG_FILE } from '../next-server/lib/constants'
@@ -44,11 +44,11 @@ export function loadEnvConfig(dir: any, processItems?: any): any {
     return _Env
   }
   // only load .env if the user provided has an env config file
-  const dotEnv = path.join(dir, '.env')
-  const result = dotenv.config({ path: dotEnv })
+  const dotEnvPath = path.join(dir, '.env')
+  const result = dotenv.config({ path: dotEnvPath })
 
   if (result.parsed) {
-    console.log(`Loaded .env from ${dotEnv}`)
+    console.log(`Loaded .env from ${dotEnvPath}`)
   }
   return processEnv(_Env)
 }

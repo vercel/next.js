@@ -41,6 +41,14 @@ export async function ncc_text_table(task, opts) {
     .target('dist/compiled/text-table')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_dotenv(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('dotenv')))
+    .ncc({ packageName: 'dotenv' })
+    .target('dist/compiled/dotenv')
+}
+
 export async function precompile(task) {
   await task.parallel([
     'ncc_unistore',
@@ -48,6 +56,7 @@ export async function precompile(task) {
     'ncc_arg',
     'ncc_nanoid',
     'ncc_text_table',
+    'ncc_dotenv',
   ])
 }
 

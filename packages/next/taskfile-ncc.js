@@ -40,7 +40,9 @@ function writePackageManifest(packageName) {
 
   let typesFile = types || typings
   if (typesFile) {
-    typesFile = require.resolve(join(packageName, typesFile))
+    try {
+      typesFile = require.resolve(join(packageName, typesFile))
+    } catch (_) {}
   } else {
     try {
       const typesPackage = `@types/${packageName}`
