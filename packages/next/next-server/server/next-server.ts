@@ -934,7 +934,7 @@ export default class Server {
       })
     })
 
-    const isProduction = !this.renderOpts.dev
+    const isProduction = !opts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
     // const isForcedBlocking =
