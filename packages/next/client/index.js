@@ -11,6 +11,11 @@ import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import {
+  observeLayoutShift,
+  observeLargestContentfulPaint,
+  observePaint,
+} from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
@@ -329,70 +334,9 @@ function renderReactElement(reactEl, domEl) {
 
   if (onPerfEntry && ST) {
     try {
-      function getSupportedTypes(types) {
-        if (PerformanceObserver && PerformanceObserver.supportedEntryTypes) {
-          return types.filter(type =>
-            PerformanceObserver.supportedEntryTypes.includes(type)
-          )
-        } else {
-          return []
-        }
-      }
-
-      function observeSupportedTypes(entryTypes) {
-        const supportedTypes = getSupportedTypes(entryTypes)
-
-        /**
-         * Layout shift has special handling as this will be sent
-         * cumulative layout shift.
-         */
-        if (supportedTypes.includes('layout-shift')) {
-          // Stores the current layout shift score for the page.
-          let cumulativeLayoutShiftScore = 0
-          const observer = new PerformanceObserver(list => {
-            for (const entry of list.getEntries()) {
-              // Only count layout shifts without recent user input.
-              if (!entry.hadRecentInput) {
-                cumulativeLayoutShiftScore += entry.value
-              }
-            }
-          })
-          observer.observe({
-            type: 'layout-shift',
-            buffered: true,
-          })
-          document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-              // Force any pending records to be dispatched.
-              observer.takeRecords()
-              observer.disconnect()
-              onPerfEntry({
-                name: 'cumulative-layout-shift',
-                value: cumulativeLayoutShiftScore,
-              })
-            }
-          })
-        }
-
-        // For all other entry types, we send values to relayer as given by PerformanceObserver
-        supportedTypes.forEach(type => {
-          if (type === 'layout-shift') {
-            return
-          }
-          const observer = new PerformanceObserver(list => {
-            list.getEntries().forEach(onPerfEntry)
-          })
-          observer.observe({
-            type,
-            buffered: true,
-          })
-        })
-      }
-      observeSupportedTypes([
-        'paint',
-        'largest-contentful-paint',
-        'layout-shift',
-      ])
+      observeLayoutShift(onPerfEntry)
+      observeLargestContentfulPaint(onPerfEntry)
+      observePaint(onPerfEntry)
     } catch (e) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
