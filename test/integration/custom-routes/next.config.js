@@ -84,6 +84,11 @@ module.exports = {
     async redirects() {
       return [
         {
+          source: '/redirect/me/to-about/:lang',
+          destination: '/:lang/about',
+          permanent: false,
+        },
+        {
           source: '/docs/router-status/:code',
           destination: '/docs/v2/network/status-codes#:code',
           statusCode: 301,
