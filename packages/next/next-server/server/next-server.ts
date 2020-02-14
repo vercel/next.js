@@ -875,13 +875,16 @@ export default class Server {
         buildId,
         opts,
       })
-      sendPayload(
-        res,
-        isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        opts.dev ? null : -1
-      )
-      return { html: null }
+      if (isDataReq) {
+        sendPayload(
+          res,
+          JSON.stringify(pageData),
+          'application/json',
+          opts.dev ? null : -1
+        )
+        return { html: null }
+      }
+      return { html }
     }
 
     const previewProps = this.getPreviewProps()
@@ -1289,11 +1292,10 @@ async function renderToHTMLWithComponents({
       res,
       isDataReq
     )
-
     return {
       html: renderResult.html,
-      pageData: renderResult.renderOpts.pageData,
-      sprRevalidate: renderResult.renderOpts.revalidate,
+      pageData: renderResult.renderOpts?.pageData,
+      sprRevalidate: renderResult.renderOpts?.revalidate,
     }
   } else {
     const renderOpts = {
