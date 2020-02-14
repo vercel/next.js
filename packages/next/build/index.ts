@@ -50,8 +50,8 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import {
   eventBuildCompleted,
   eventBuildOptimize,
+  eventCliSession,
   eventNextPlugins,
-  eventVersion,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -161,7 +161,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let hasPublicDir = false
 
   telemetry.record(
-    eventVersion({
+    eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
       cliCommand: 'build',
       isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
