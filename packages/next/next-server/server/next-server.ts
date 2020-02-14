@@ -1222,7 +1222,7 @@ function sendPayload(
   // TODO: ETag? Cache-Control headers? Next-specific headers?
   res.setHeader('Content-Type', type)
   res.setHeader('Content-Length', Buffer.byteLength(payload))
-  if (revalidate) {
+  if (revalidate !== null) {
     res.setHeader(
       'Cache-Control',
       revalidate < 0
