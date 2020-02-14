@@ -43,7 +43,7 @@ declare module 'next/dist/compiled/text-table' {
   export = textTable
 }
 
-declare module 'next/dist/compiled/dotenv/index.js' {
+declare module 'next/dist/compiled/dotenv' {
   import dotenv from 'dotenv'
 
   export = dotenv
