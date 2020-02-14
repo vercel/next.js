@@ -16,8 +16,12 @@ describe('CSS Customization', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    await nextBuild(appDir)
+  it('should compile successfully', async () => {
+    const { code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -71,6 +75,35 @@ describe('CSS Customization', () => {
   })
 })
 
+describe('Legacy Next-CSS Customization', () => {
+  const appDir = join(fixturesDir, 'custom-configuration-legacy')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should compile successfully', async () => {
+    const { code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it(`should've compiled and prefixed`, async () => {
+    const cssFolder = join(appDir, '.next/static/chunks')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter(f => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
+    )
+  })
+})
+
 describe('CSS Customization Array', () => {
   const appDir = join(fixturesDir, 'custom-configuration-arr')
 
@@ -78,8 +111,12 @@ describe('CSS Customization Array', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    await nextBuild(appDir)
+  it('should compile successfully', async () => {
+    const { code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -143,9 +180,12 @@ describe('Bad CSS Customization', () => {
     await remove(join(appDir, '.next'))
   })
 
-  it('should build successfully', async () => {
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-
+  it('should compile successfully', async () => {
+    const { stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    expect(stdout).toMatch(/Compiled successfully/)
     expect(stderr).toMatch(/field which is not supported.*?sourceMap/)
     ;[
       'postcss-modules-values',
@@ -301,6 +341,40 @@ describe('Bad CSS Customization Array (7)', () => {
 
     expect(stderr).toMatch(
       /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
+    )
+    expect(stderr).toMatch(/Build error occurred/)
+  })
+})
+
+describe('Bad CSS Customization Array (8)', () => {
+  const appDir = join(fixturesDir, 'bad-custom-configuration-arr-8')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail the build', async () => {
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+    expect(stderr).toMatch(
+      /A PostCSS Plugin was passed as a function using require\(\), but it must be provided as a string/
+    )
+    expect(stderr).toMatch(/Build error occurred/)
+  })
+})
+
+describe('Bad CSS Customization Function', () => {
+  const appDir = join(fixturesDir, 'bad-custom-configuration-func')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should fail the build', async () => {
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+    expect(stderr).toMatch(
+      /Your custom PostCSS configuration may not export a function/
     )
     expect(stderr).toMatch(/Build error occurred/)
   })

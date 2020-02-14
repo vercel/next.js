@@ -4,7 +4,7 @@ import hash from 'string-hash'
 
 // increment 'e' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'g' + '-'
+const cacheKey = 'babel-cache-' + 'h' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {

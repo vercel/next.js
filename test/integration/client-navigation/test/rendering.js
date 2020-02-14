@@ -90,12 +90,12 @@ export default function(render, fetch) {
 
     test('header helper dedupes tags with the same key as the default', async () => {
       const html = await render('/head-duplicate-default-keys')
-      expect(html).toContain('<meta charSet="iso-8859-5"/>')
-      expect(html).not.toContain('<meta charSet="utf-8"/>')
-      expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
-      )
-      expect(html).not.toContain('<meta name="width=device-width"/>')
+      // Expect exactly one `charSet`
+      expect((html.match(/charSet=/g) || []).length).toBe(1)
+      // Expect exactly one `viewport`
+      expect((html.match(/name="viewport"/g) || []).length).toBe(1)
+      expect(html).toContain('<meta charSet="iso-8859-1"/>')
+      expect(html).toContain('<meta name="viewport" content="width=500"/>')
     })
 
     test('header helper avoids dedupe of specific tags', async () => {

@@ -28,13 +28,13 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
+import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 // @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
-import MiniCssExtractPlugin from './webpack/plugins/mini-css-extract-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -44,6 +44,9 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import WebpackConformancePlugin, {
+  MinificationConformanceCheck,
+} from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -87,7 +90,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
     'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
     // Replace: full URL polyfill with platform-based polyfill
-    url: require.resolve('native-url'),
+    // url: require.resolve('native-url'),
   }
 }
 
@@ -202,8 +205,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript && config.typescript.ignoreDevErrors
-    : config.typescript && config.typescript.ignoreBuildErrors
+    ? config.typescript?.ignoreDevErrors
+    : config.typescript?.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -334,7 +337,14 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (module.type === `css/mini-extract`) {
+            if (
+              // mini-css-extract-plugin
+              module.type === `css/mini-extract` ||
+              // extract-css-chunks-webpack-plugin (old)
+              module.type === `css/extract-chunks` ||
+              // extract-css-chunks-webpack-plugin (new)
+              module.type === `css/extract-css-chunks`
+            ) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -432,8 +442,7 @@ export default async function getBaseWebpackConfig(
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            const start = request.charAt(0)
-            if (start === '.' || start === '/') {
+            if (request.startsWith('.') || request.startsWith('/')) {
               return callback()
             }
 
@@ -444,21 +453,6 @@ export default async function getBaseWebpackConfig(
             try {
               res = resolveRequest(request, `${context}/`)
             } catch (err) {
-              // This is a special case for the Next.js data experiment. This
-              // will be removed in the future.
-              // We're telling webpack to externalize a package that doesn't
-              // exist because we know it won't ever be used at runtime.
-              if (
-                request === 'react-ssr-prepass' &&
-                !config.experimental.ampBindInitData
-              ) {
-                if (
-                  context.replace(/\\/g, '/').includes('next-server/server')
-                ) {
-                  return callback(undefined, `commonjs ${request}`)
-                }
-              }
-
               // If the request cannot be resolved, we need to tell webpack to
               // "bundle" it so that webpack shows an error (that it cannot be
               // resolved).
@@ -490,7 +484,7 @@ export default async function getBaseWebpackConfig(
             // Default pages have to be transpiled
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-              (res.match(/next[/\\]dist[/\\]/) ||
+              (res.match(/[/\\]next[/\\]dist[/\\]/) ||
                 res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
                 res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
             ) {
@@ -519,19 +513,6 @@ export default async function getBaseWebpackConfig(
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
           '@ampproject/toolbox-optimizer', // except this one
-          (context, request, callback) => {
-            if (
-              request === 'react-ssr-prepass' &&
-              !config.experimental.ampBindInitData
-            ) {
-              // if it's the Next.js' require mark it as external
-              // since it's not used
-              if (context.replace(/\\/g, '/').includes('next-server/server')) {
-                return callback(undefined, `commonjs ${request}`)
-              }
-            }
-            return callback()
-          },
         ],
     optimization: {
       checkWasmTypes: false,
@@ -642,7 +623,30 @@ export default async function getBaseWebpackConfig(
             }
             return /node_modules/.test(path)
           },
-          use: defaultLoaders.babel,
+          use: config.experimental.babelMultiThread
+            ? [
+                // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
+                // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
+                {
+                  loader: 'cache-loader',
+                  options: {
+                    cacheContext: dir,
+                    cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+                    cacheIdentifier: `webpack${isServer ? '-server' : ''}${
+                      config.experimental.modern ? '-hasmodern' : ''
+                    }`,
+                  },
+                },
+                {
+                  loader: 'thread-loader',
+                  options: {
+                    workers: 2,
+                    workerParallelJobs: Infinity,
+                  },
+                },
+                defaultLoaders.babel,
+              ]
+            : defaultLoaders.babel,
         },
       ].filter(Boolean),
     },
@@ -677,12 +681,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
         ),
-        'process.env.__NEXT_PREFETCH_PRELOAD': JSON.stringify(
-          config.experimental.prefetchPreload
-        ),
-        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
-          config.experimental.deferScripts
-        ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
         ),
@@ -703,6 +701,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
+        ),
+        'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(
+          config.experimental.basePath
         ),
         ...(isServer
           ? {
@@ -788,14 +789,6 @@ export default async function getBaseWebpackConfig(
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
-      // Extract CSS as CSS file(s) in the client-side production bundle.
-      config.experimental.css &&
-        !isServer &&
-        !dev &&
-        new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].chunk.css',
-        }),
       tracer &&
         new ProfilingPlugin({
           tracer,
@@ -835,6 +828,11 @@ export default async function getBaseWebpackConfig(
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
         }),
+      config.experimental.conformance &&
+        !dev &&
+        new WebpackConformancePlugin({
+          tests: [new MinificationConformanceCheck()],
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -844,7 +842,8 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
-    hasExperimentalData: !!config.experimental.ampBindInitData,
+    hasSupportScss: !!config.experimental.scss,
+    assetPrefix: config.assetPrefix || '',
   })
 
   if (typeof config.webpack === 'function') {
@@ -872,18 +871,31 @@ export default async function getBaseWebpackConfig(
       return false
     }
 
-    const fileName = '/tmp/test.css'
+    const fileNames = [
+      '/tmp/test.css',
+      '/tmp/test.scss',
+      '/tmp/test.sass',
+      '/tmp/test.less',
+      '/tmp/test.styl',
+    ]
 
-    if (rule instanceof RegExp && rule.test(fileName)) {
+    if (rule instanceof RegExp && fileNames.some(input => rule.test(input))) {
       return true
     }
 
     if (typeof rule === 'function') {
-      try {
-        if (rule(fileName)) {
-          return true
-        }
-      } catch (_) {}
+      if (
+        fileNames.some(input => {
+          try {
+            if (rule(input)) {
+              return true
+            }
+          } catch (_) {}
+          return false
+        })
+      ) {
+        return true
+      }
     }
 
     if (Array.isArray(rule) && rule.some(canMatchCss)) {
@@ -895,10 +907,9 @@ export default async function getBaseWebpackConfig(
 
   if (config.experimental.css) {
     const hasUserCssConfig =
-      webpackConfig.module &&
-      webpackConfig.module.rules.some(
+      webpackConfig.module?.rules.some(
         rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      )
+      ) ?? false
 
     if (hasUserCssConfig) {
       if (webpackConfig.module?.rules.length) {
@@ -923,6 +934,8 @@ export default async function getBaseWebpackConfig(
           e => (e as any).__next_css_remove !== true
         )
       }
+    } else {
+      await __overrideCssConfiguration(dir, !dev, webpackConfig)
     }
   }
 

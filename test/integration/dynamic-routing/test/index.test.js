@@ -304,7 +304,6 @@ function runTests(dev) {
     expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
-    await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
@@ -316,14 +315,12 @@ function runTests(dev) {
 
   it('should update with a hash in the URL', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#abc')
-    await waitFor(1000)
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
   })
 
   it('should scroll to a hash on mount', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
-    await waitFor(1000)
 
     const text = await browser.eval(`document.body.innerHTML`)
     expect(text).toMatch(/onmpost:.*post-1/)
@@ -334,7 +331,6 @@ function runTests(dev) {
 
   it('should scroll to a hash on client-side navigation', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(1000)
     await browser.elementByCss('#view-dynamic-with-hash').click()
     await browser.waitForElementByCss('p')
 
@@ -348,6 +344,34 @@ function runTests(dev) {
   it('should prioritize public files over dynamic route', async () => {
     const data = await renderViaHTTP(appPort, '/hello.txt')
     expect(data).toMatch(/hello world/)
+  })
+
+  it('should serve file with space from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with plus from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello+copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world +')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file from public folder encoded', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello%20copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world copy')
+    expect(res.status).toBe(200)
+  })
+
+  it('should serve file with %20 from public folder', async () => {
+    const res = await fetchViaHTTP(appPort, '/hello%2520copy.txt')
+    const text = (await res.text()).trim()
+    expect(text).toBe('hello world %20')
+    expect(res.status).toBe(200)
   })
 
   if (dev) {
@@ -389,8 +413,14 @@ function runTests(dev) {
         join(appDir, '.next/routes-manifest.json')
       )
 
+      for (const route of manifest.dynamicRoutes) {
+        route.regex = normalizeRegEx(route.regex)
+      }
+
       expect(manifest).toEqual({
         version: 1,
+        basePath: '',
+        headers: [],
         rewrites: [],
         redirects: [],
         dynamicRoutes: [
@@ -459,8 +489,7 @@ describe('Dynamic Routing', () => {
           `
           module.exports = {
             experimental: {
-              modern: true,
-              catchAllRouting: true
+              modern: true
             }
           }
         `
@@ -485,8 +514,7 @@ describe('Dynamic Routing', () => {
         module.exports = {
           target: 'serverless',
           experimental: {
-            modern: true,
-            catchAllRouting: true
+            modern: true
           }
         }
       `

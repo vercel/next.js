@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import { resolveRequest } from '../../../../../lib/resolve-request'
+import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
@@ -36,7 +37,8 @@ function isIgnoredPlugin(pluginPath: string): boolean {
     `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
       plugin
     )} plugin from your PostCSS configuration. ` +
-      `This plugin is automatically configured by Next.js.`
+      `This plugin is automatically configured by Next.js.\n` +
+      'Read more: https://err.sh/next.js/postcss-ignored-plugin'
   )
   return true
 }
@@ -69,12 +71,24 @@ async function loadPlugin(
   }
 }
 
-function getDefaultPlugins(): CssPluginCollection {
+function getDefaultPlugins(
+  baseDirectory: string,
+  isProduction: boolean
+): CssPluginCollection {
+  let browsers: any
+  try {
+    browsers = browserslist.loadConfig({
+      path: baseDirectory,
+      env: isProduction ? 'production' : 'development',
+    })
+  } catch {}
+
   return [
     require.resolve('postcss-flexbugs-fixes'),
     [
       require.resolve('postcss-preset-env'),
       {
+        browsers: browsers ?? ['defaults'],
         autoprefixer: {
           // Disable legacy flexbox support
           flexbox: 'no-2009',
@@ -82,21 +96,32 @@ function getDefaultPlugins(): CssPluginCollection {
         // Enable CSS features that have shipped to the
         // web platform, i.e. in 2+ browsers unflagged.
         stage: 3,
+        features: {
+          'custom-properties': false,
+        },
       },
     ],
   ]
 }
 
 export async function getPostCssPlugins(
-  dir: string
+  dir: string,
+  isProduction: boolean,
+  defaults: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = await findConfig<{ plugins: CssPluginCollection }>(
-    dir,
-    'postcss'
-  )
+  let config = defaults
+    ? null
+    : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
 
   if (config == null) {
-    config = { plugins: getDefaultPlugins() }
+    config = { plugins: getDefaultPlugins(dir, isProduction) }
+  }
+
+  if (typeof config === 'function') {
+    throw new Error(
+      `Your custom PostCSS configuration may not export a function. Please export a plain object instead.\n` +
+        'Read more: https://err.sh/next.js/postcss-function'
+    )
   }
 
   // Warn user about configuration keys which are not respected
@@ -159,22 +184,34 @@ export async function getPostCssPlugins(
               'Error'
             )}: A PostCSS Plugin must be provided as a ${chalk.bold(
               'string'
-            )}. Instead, we got: '${pluginName}'.`
+            )}. Instead, we got: '${pluginName}'.\n` +
+              'Read more: https://err.sh/next.js/postcss-shape'
           )
         } else {
           console.error(
             `${chalk.red.bold(
               'Error'
-            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').`
+            )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').\n` +
+              'Read more: https://err.sh/next.js/postcss-shape'
           )
         }
         throw new Error(genericErrorText)
       }
+    } else if (typeof plugin === 'function') {
+      console.error(
+        `${chalk.red.bold(
+          'Error'
+        )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
+          'string'
+        )}.\nRead more: https://err.sh/next.js/postcss-shape`
+      )
+      throw new Error(genericErrorText)
     } else {
       console.error(
         `${chalk.red.bold(
           'Error'
-        )}: An unknown PostCSS plugin was provided (${plugin}).`
+        )}: An unknown PostCSS plugin was provided (${plugin}).\n` +
+          'Read more: https://err.sh/next.js/postcss-shape'
       )
       throw new Error(genericErrorText)
     }

@@ -5,6 +5,7 @@ declare module 'unfetch'
 declare module 'launch-editor'
 declare module 'styled-jsx/server'
 declare module 'async-retry'
+declare module 'browserslist'
 
 declare module 'cssnano-simple' {
   import { Plugin } from 'postcss'
