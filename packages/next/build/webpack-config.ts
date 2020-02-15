@@ -1110,7 +1110,6 @@ export default async function getBaseWebpackConfig(
           : originalEntry
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
-        // all entries but main.js are strings
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
