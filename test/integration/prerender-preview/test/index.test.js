@@ -81,7 +81,7 @@ function runTests() {
       cookie.serialize('__next_preview_data', cookies[1].__next_preview_data)
   })
 
-  it('should return fallback page on preview request', async () => {
+  it('should not return fallback page on preview request', async () => {
     const res = await fetchViaHTTP(
       appPort,
       '/',
@@ -91,8 +91,8 @@ function runTests() {
     const html = await res.text()
 
     const { nextData, pre } = getData(html)
-    expect(nextData).toMatchObject({ isFallback: true })
-    expect(pre).toBe('Has No Props')
+    expect(nextData).toMatchObject({ isFallback: false })
+    expect(pre).toBe('true and {"lets":"goooo"}')
   })
 
   it('should return cookies to be expired on reset request', async () => {
@@ -136,8 +136,8 @@ function runTests() {
   it('should fetch preview data', async () => {
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
+    // await new Promise(resolve => setTimeout(resolve, 2000))
     expect(await browser.elementById('props-pre').text()).toBe(
       'true and {"client":"mode"}'
     )

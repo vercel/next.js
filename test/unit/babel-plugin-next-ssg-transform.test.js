@@ -331,5 +331,103 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"function Function1(){return{a:function bug(a){return 2;}};}function Function2(){var bug=1;return{bug};}"`
       )
     })
+
+    it('should support class exports', () => {
+      const output = babel(trim`
+        export function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        export default class Test extends React.Component {
+          render() {
+            return <div />
+          }
+        }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"const __NEXT_COMP=class Test extends React.Component{render(){return __jsx(\\"div\\",null);}};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should support class exports 2', () => {
+      const output = babel(trim`
+        export function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        class Test extends React.Component {
+          render() {
+            return <div />
+          }
+        }
+
+        export default Test;
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}const __NEXT_COMP=Test;__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+      )
+    })
+
+    it('should support export { _ as default }', () => {
+      const output = babel(trim`
+        export function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        function El() {
+          return <div />
+        }
+
+        export { El as default }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"function El(){return __jsx(\\"div\\",null);}El.__N_SSG=true export{El as default};"`
+      )
+    })
+
+    it('should support export { _ as default } with other specifiers', () => {
+      const output = babel(trim`
+        export function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        function El() {
+          return <div />
+        }
+
+        const a = 5
+
+        export { El as default, a }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"function El(){return __jsx(\\"div\\",null);}const a=5;El.__N_SSG=true export{El as default,a};"`
+      )
+    })
+
+    it('should support export { _ as default } with a class', () => {
+      const output = babel(trim`
+        export function unstable_getStaticProps() {
+          return { props: {} }
+        }
+
+        class El extends React.Component {
+          render() {
+            return <div />
+          }
+        }
+
+        const a = 5
+
+        export { El as default, a }
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"class El extends React.Component{render(){return __jsx(\\"div\\",null);}}const a=5;El.__N_SSG=true export{El as default,a};"`
+      )
+    })
   })
 })

@@ -311,6 +311,22 @@ const runTests = (isDev = false) => {
     expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
   })
 
+  it('should handle encoded value in the pathname correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/redirect/me/to-about/' + encodeURI('\\google.com'),
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    const { pathname, hostname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe(encodeURI('/\\google.com/about'))
+    expect(hostname).not.toBe('google.com')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -331,6 +347,14 @@ const runTests = (isDev = false) => {
         pages404: false,
         basePath: '',
         redirects: [
+          {
+            destination: '/:lang/about',
+            regex: normalizeRegEx(
+              '^\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))$'
+            ),
+            source: '/redirect/me/to-about/:lang',
+            statusCode: 307,
+          },
           {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',

@@ -1,6 +1,5 @@
 import { NextPage } from 'next'
 import { useRouter } from 'next/router'
-import Link from 'next/link'
 import Layout from '../components/Layout'
 import PrintObject from '../components/PrintObject'
 
@@ -23,18 +22,12 @@ const ResultPage: NextPage = () => {
 
   return (
     <Layout title="Checkout Payment Result | Next.js + TypeScript Example">
-      <h1>Checkout Payment Result</h1>
-      <h2>Status: {data?.payment_intent?.status ?? 'loading...'}</h2>
-      <p>
-        Your Checkout Session ID:{' '}
-        <code>{router.query.session_id ?? 'loading...'}</code>
-      </p>
-      <PrintObject content={data ?? 'loading...'} />
-      <p>
-        <Link href="/">
-          <a>Go home</a>
-        </Link>
-      </p>
+      <div className="page-container">
+        <h1>Checkout Payment Result</h1>
+        <h2>Status: {data?.payment_intent?.status ?? 'loading...'}</h2>
+        <h3>CheckoutSession response:</h3>
+        <PrintObject content={data ?? 'loading...'} />
+      </div>
     </Layout>
   )
 }

@@ -48,8 +48,4 @@ yarn dev
 
 > If you have issues installing `bcrypt`, follow this instructions: https://github.com/kelektiv/node.bcrypt.js/wiki/Installation-Instructions
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
