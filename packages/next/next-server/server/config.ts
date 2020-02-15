@@ -53,6 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     static404: true,
+    pages404: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -197,7 +198,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-function normalizeConfig(phase: string, config: any) {
+export function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 
@@ -252,20 +253,6 @@ export default function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
-    }
-
-    if (
-      userConfig.target &&
-      userConfig.target !== 'server' &&
-      ((userConfig.publicRuntimeConfig &&
-        Object.keys(userConfig.publicRuntimeConfig).length !== 0) ||
-        (userConfig.serverRuntimeConfig &&
-          Object.keys(userConfig.serverRuntimeConfig).length !== 0))
-    ) {
-      // TODO: change error message tone to "Only compatible with [fat] server mode"
-      throw new Error(
-        'Cannot use publicRuntimeConfig or serverRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
-      )
     }
 
     if (
