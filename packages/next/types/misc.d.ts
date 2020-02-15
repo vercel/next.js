@@ -96,9 +96,14 @@ declare module 'pnp-webpack-plugin' {
   import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 
   class PnpWebpackPlugin extends webpack.Plugin {
-    static forkTsCheckerOptions: (
-      settings: Partial<ForkTsCheckerWebpackPlugin.Options>
-    ) => ForkTsCheckerWebpackPlugin.Options
+    static forkTsCheckerOptions: <
+      T extends Partial<ForkTsCheckerWebpackPlugin.Options>
+    >(
+      settings: T
+    ) => T & {
+      resolveModuleNameModule?: string
+      resolveTypeReferenceDirectiveModule?: string
+    }
   }
 
   export = PnpWebpackPlugin
