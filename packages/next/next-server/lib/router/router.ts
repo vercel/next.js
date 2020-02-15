@@ -49,6 +49,7 @@ export type NextRouter = BaseRouter &
     | 'prefetch'
     | 'beforePopState'
     | 'events'
+    | 'isFallback'
   >
 
 type RouteInfo = {
@@ -122,6 +123,7 @@ export default class Router implements BaseRouter {
   events: MittEmitter
   _wrapApp: (App: ComponentType) => any
   isSsr: boolean
+  isFallback: boolean
 
   static events: MittEmitter = mitt()
 
@@ -137,6 +139,7 @@ export default class Router implements BaseRouter {
       Component,
       err,
       subscription,
+      isFallback,
     }: {
       subscription: Subscription
       initialProps: any
@@ -145,6 +148,7 @@ export default class Router implements BaseRouter {
       App: ComponentType
       wrapApp: (App: ComponentType) => any
       err?: Error
+      isFallback: boolean
     }
   ) {
     // represents the current component key
@@ -179,6 +183,8 @@ export default class Router implements BaseRouter {
     // make sure to ignore extra popState in safari on navigating
     // back from external site
     this.isSsr = true
+
+    this.isFallback = isFallback
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -580,6 +586,8 @@ export default class Router implements BaseRouter {
     as: string,
     data: RouteInfo
   ): void {
+    this.isFallback = false
+
     this.route = route
     this.pathname = pathname
     this.query = query
