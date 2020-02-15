@@ -111,6 +111,12 @@ function getOptimizedAliases(
   )
 }
 
+type ClientEntries = {
+  'main.js': string[]
+} & {
+  [key: string]: string
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -195,9 +201,9 @@ export default async function getBaseWebpackConfig(
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
-    ? {
+    ? ({
         // Backwards compatibility
-        'main.js': [] as string[],
+        'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
           `.${path.sep}` +
           path.relative(
@@ -213,7 +219,7 @@ export default async function getBaseWebpackConfig(
             ? 'polyfills-nomodule.js'
             : 'polyfills.js'
         ),
-      }
+      } as ClientEntries)
     : undefined
 
   let typeScriptPath
@@ -1105,9 +1111,7 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         // all entries but main.js are strings
-        const originalFile = clientEntries[
-          CLIENT_STATIC_FILES_RUNTIME_MAIN
-        ] as string
+        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,
