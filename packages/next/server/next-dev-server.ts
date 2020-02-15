@@ -30,7 +30,6 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -160,22 +159,24 @@ export default class DevServer extends Server {
       let wp = (this.webpackWatcher = new Watchpack())
       wp.watch([], [pagesDir!], 0)
 
-      wp.on('aggregated', async () => {
+      wp.on('aggregated', () => {
         const dynamicRoutedPages = []
-        const pageExtensionsRegex = new RegExp(
-          `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
-        )
-        const curPageFiles = new Set(
-          (await recursiveReadDir(this.pagesDir!, pageExtensionsRegex)).map(
-            f =>
-              f
-                .replace(/\\/g, '/')
-                .replace(pageExtensionsRegex, '')
-                .replace(/\/index$/, '') || '/'
-          )
-        )
+        const knownFiles = wp.getTimeInfoEntries()
+        for (const [fileName, { accuracy }] of knownFiles) {
+          if (accuracy === undefined) {
+            continue
+          }
 
-        for (const pageName of curPageFiles) {
+          let pageName =
+            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
+
+          pageName = pageName.replace(
+            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
+            ''
+          )
+
+          pageName = pageName.replace(/\/index$/, '') || '/'
+
           if (!isDynamicRoute(pageName)) {
             continue
           }
