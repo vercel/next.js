@@ -91,7 +91,23 @@ declare module 'autodll-webpack-plugin' {
   export = AutoDllPlugin
 }
 
+declare module 'pnp-webpack-plugin' {
+  import webpack from 'webpack'
+  import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+
+  class PnpWebpackPlugin extends webpack.Plugin {
+    static forkTsCheckerOptions: (
+      settings: Partial<ForkTsCheckerWebpackPlugin.Options>
+    ) => ForkTsCheckerWebpackPlugin.Options
+  }
+
+  export = PnpWebpackPlugin
+}
+
 declare module NodeJS {
+  interface ProcessVersions {
+    pnp?: string
+  }
   interface Process {
     crossOrigin?: string
   }

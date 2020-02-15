@@ -155,8 +155,7 @@ class Link extends Component<LinkProps> {
     }
   })
 
-  linkClicked = (e: React.MouseEvent) => {
-    // @ts-ignore target exists on currentTarget
+  linkClicked = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const { nodeName, target } = e.currentTarget
     if (
       nodeName === 'A' &&
@@ -241,7 +240,7 @@ class Link extends Component<LinkProps> {
         }
         this.prefetch()
       },
-      onClick: (e: React.MouseEvent) => {
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
         }
