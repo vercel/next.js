@@ -206,6 +206,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     Component,
     wrapApp,
     err: initialErr,
+    isFallback,
     subscription: ({ Component, props, err }, App) => {
       render({ App, Component, props, err })
     },
