@@ -9,6 +9,7 @@ import { createApp } from './create-app'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { shouldUseYarn } from './helpers/should-use-yarn'
+import { listExamples } from './helpers/examples'
 
 let projectPath: string = ''
 
@@ -81,6 +82,55 @@ async function run() {
 
     problems!.forEach(p => console.error(`    ${chalk.red.bold('*')} ${p}`))
     process.exit(1)
+  }
+
+  if (!program.example) {
+    const wantsRes = await prompts({
+      type: 'confirm',
+      name: 'wantsExample',
+      message: 'Would you like to create your an app from an example?',
+      initial: false,
+    })
+
+    if (wantsRes.wantsExample) {
+      const examplesJSON = await listExamples()
+      const options = examplesJSON.map((example: any) => {
+        return { title: example.name, value: example.name }
+      })
+
+      // The search function built into `prompts` isn’t very helpful:
+      // someone searching for `styled-components` would get no results since
+      // the example is called `with-styled-components`, and `prompts` searches
+      // the beginnings of titles.
+
+      // To solve this, we implement a basic fuzzy search here.
+      const fuzzyMatch = (pattern: string, str: string) => {
+        pattern = '.*' + pattern.split('').join('.*') + '.*'
+        const re = new RegExp(pattern)
+        return re.test(str)
+      }
+
+      const fuzzySuggest = (input: any, choices: any) =>
+        Promise.resolve(
+          choices.filter((choice: any) => fuzzyMatch(input, choice.title))
+        )
+
+      const nameRes = await prompts({
+        type: 'autocomplete',
+        name: 'exampleName',
+        message: 'Pick an example',
+        suggest: fuzzySuggest,
+        choices: options,
+      })
+
+      if (!nameRes.exampleName) {
+        console.error(
+          'Could not locate an example with that name. Creating project from blank starter instead.'
+        )
+      }
+
+      program.example = nameRes.exampleName
+    }
   }
 
   await createApp({

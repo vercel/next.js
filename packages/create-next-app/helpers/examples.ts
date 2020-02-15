@@ -20,3 +20,10 @@ export async function downloadAndExtractExample(
     tar.extract({ cwd: root, strip: 3 }, [`next.js-canary/examples/${name}`])
   )
 }
+
+export async function listExamples(): Promise<any> {
+  const res = await got(
+    'https://api.github.com/repositories/70107786/contents/examples'
+  ).catch(e => e)
+  return JSON.parse(res.body)
+}
