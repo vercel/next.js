@@ -322,39 +322,6 @@ function runTests(dev = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
-  it('should return data when catch-all', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/catch-all/users/1',
-      null,
-      {}
-    ).then(res => res.ok && res.json())
-
-    expect(data).toEqual({ slug: ['1'] })
-  })
-
-  it('should 404 when catch-all with index and trailing slash', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/catch-all/users/',
-      null,
-      {}
-    ).then(res => res.status)
-
-    expect(data).toEqual(404)
-  })
-
-  it('should return data when catch-all with index and no trailing slash', async () => {
-    const data = await fetchViaHTTP(
-      appPort,
-      '/api/catch-all/users',
-      null,
-      {}
-    ).then(res => res.ok && res.json())
-
-    expect(data).toEqual({})
-  })
-
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/')
