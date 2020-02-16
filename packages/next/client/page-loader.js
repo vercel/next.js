@@ -56,7 +56,9 @@ export default class PageLoader {
         if (window.__BUILD_MANIFEST) {
           resolve(window.__BUILD_MANIFEST)
         } else {
-          window.__BUILD_MANIFEST_CB = () => resolve(window.__BUILD_MANIFEST)
+          window.__BUILD_MANIFEST_CB = () => {
+            resolve(window.__BUILD_MANIFEST)
+          }
         }
       })
     }
