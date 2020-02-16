@@ -90,15 +90,15 @@ export default class PageLoader {
   prefetchAs(asPath) {
     asPath = normalizeRoute(asPath)
     return this.promisedSsgManifest.then(
-      m =>
+      (m, _href) =>
         m.some(r => r.test(asPath)) &&
-        appendLink(
-          `${this.assetPrefix}/_next/data/${this.buildId}${
-            asPath === '/' ? '/index' : asPath
-          }.json`,
-          relPrefetch,
-          'fetch'
-        )
+        ((_href = `${this.assetPrefix}/_next/data/${this.buildId}${
+          asPath === '/' ? '/index' : asPath
+        }.json`),
+        !document.querySelector(
+          `link[rel="${relPrefetch}"][href^="${_href}"]`
+        )) &&
+        appendLink(_href, relPrefetch, 'fetch')
     )
   }
 
