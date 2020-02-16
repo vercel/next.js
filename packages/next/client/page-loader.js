@@ -67,7 +67,9 @@ export default class PageLoader {
       if (window.__SSG_MANIFEST) {
         resolve(window.__SSG_MANIFEST)
       } else {
-        window.__SSG_MANIFEST_CB = () => resolve(window.__SSG_MANIFEST)
+        window.__SSG_MANIFEST_CB = () => {
+          resolve(window.__SSG_MANIFEST)
+        }
       }
     })
   }
