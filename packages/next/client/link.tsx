@@ -127,15 +127,14 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
-  getHrefs(): { href: string; as: string } {
+  getHref() {
     const { pathname } = window.location
-    const { href, as } = this.formatUrls(this.props.href, this.props.as)
-    const parsedHref = resolve(pathname, href)
-    return { href: parsedHref, as: as ? resolve(pathname, as) : parsedHref }
+    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
+    return resolve(pathname, parsedHref)
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = prefetched[this.getHrefs().href]
+    const isPrefetched = prefetched[this.getHref()]
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
@@ -205,11 +204,8 @@ class Link extends Component<LinkProps> {
   prefetch() {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    const { href, as } = this.getHrefs()
+    const href = this.getHref()
     Router.prefetch(href)
-    // Cast to any because this is a private method, might be public in the
-    // future
-    ;(Router as any).prefetchAs(as)
     prefetched[href] = true
   }
 
