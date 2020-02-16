@@ -105,6 +105,11 @@ export async function createApp({
           case 'gitignore': {
             return '.'.concat(name)
           }
+          // README.md is ignored by webpack-asset-relocator-loader used by ncc:
+          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+          case 'README-template.md': {
+            return 'README.md'
+          }
           default: {
             return name
           }
