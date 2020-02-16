@@ -127,14 +127,18 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
-  getHref() {
+  getPaths() {
     const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    return resolve(pathname, parsedHref)
+    const { href: parsedHref, as: parsedAs } = this.formatUrls(
+      this.props.href,
+      this.props.as
+    )
+    const resolvedHref = resolve(pathname, parsedHref)
+    return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = prefetched[this.getHref()]
+    const isPrefetched = prefetched[this.getPaths()[0]]
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
@@ -204,8 +208,8 @@ class Link extends Component<LinkProps> {
   prefetch() {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    const href = this.getHref()
-    Router.prefetch(href)
+    const [href, asPath] = this.getPaths()
+    Router.prefetch(href, asPath)
     prefetched[href] = true
   }
 

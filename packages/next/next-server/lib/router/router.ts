@@ -652,11 +652,12 @@ export default class Router implements BaseRouter {
   }
 
   /**
-   * Prefetch `page` code, you may wait for the data during `page` rendering.
+   * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
-   * @param url of prefetched `page`
+   * @param url the href of prefetched page
+   * @param asPath the as path of the prefetched page
    */
-  prefetch(url: string): Promise<void> {
+  prefetch(url: string, asPath: string = url): Promise<void> {
     return new Promise((resolve, reject) => {
       const { pathname, protocol } = parse(url)
 
@@ -674,8 +675,10 @@ export default class Router implements BaseRouter {
         return
       }
 
-      const route = toRoute(pathname)
-      this.pageLoader.prefetch(route).then(resolve, reject)
+      Promise.all([
+        this.pageLoader.prefetch(toRoute(pathname)),
+        this.pageLoader.prefetchAs(toRoute(asPath)),
+      ]).then(() => resolve(), reject)
     })
   }
 
