@@ -947,12 +947,9 @@ function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   { buildId, distDir }: { buildId: string; distDir: string }
 ) {
-  const regexOperatorsRegex = /[|\\{}()[\]^$+*?.-]/g
   const ssgMatchers: RegExp[] = []
   Object.keys(prerenderManifest.routes).forEach(route =>
-    ssgMatchers.push(
-      new RegExp('^' + route.replace(regexOperatorsRegex, '\\$&') + '$')
-    )
+    ssgMatchers.push(new RegExp('^' + escapeStringRegexp(route) + '$'))
   )
   Object.values(prerenderManifest.dynamicRoutes).forEach(entry =>
     ssgMatchers.push(new RegExp(entry.routeRegex))
