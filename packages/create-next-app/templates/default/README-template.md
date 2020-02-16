@@ -18,7 +18,7 @@ Starts the app in production mode. It should be compiled with `next build` first
 
 ## Deploy on ZEIT
 
-The easiest way to deploy this app is to use the [ZEIT Now Platform]() from the creators of Next.js.
+The easiest way to deploy this app is to use the [ZEIT Now Platform](https://zeit.co/) from the creators of Next.js.
 
 **[Click here to deploy on ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=create-next-app&utm_medium=readme&utm_campaign=create-next-app)**.
 
