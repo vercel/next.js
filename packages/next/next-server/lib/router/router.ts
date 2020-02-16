@@ -235,7 +235,8 @@ export default class Router implements BaseRouter {
     if (
       e.state &&
       this.isSsr &&
-      e.state.url === this.pathname &&
+      // Remove the query portion of the URL when checking paths
+      e.state.url.replace(/\?(.)+/, '') === this.pathname &&
       e.state.as === this.asPath
     ) {
       return
