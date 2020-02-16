@@ -679,16 +679,6 @@ export default class Router implements BaseRouter {
     })
   }
 
-  prefetchAs(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const { pathname, protocol } = parse(url)
-      if (!pathname || protocol || process.env.NODE_ENV !== 'production') {
-        return
-      }
-      this.pageLoader.prefetchAs(pathname).then(resolve, reject)
-    })
-  }
-
   async fetchComponent(route: string): Promise<ComponentType> {
     let cancelled = false
     const cancel = (this.clc = () => {
