@@ -31,8 +31,9 @@ import {
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
-import { eventVersion } from '../telemetry/events'
+import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const mkdirp = promisify(mkdirpModule)
 const copyFile = promisify(copyFileOrig)
@@ -104,7 +105,7 @@ export default async function(
 
   if (telemetry) {
     telemetry.record(
-      eventVersion({
+      eventCliSession(PHASE_EXPORT, distDir, {
         cliCommand: 'export',
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -232,7 +233,7 @@ export default async function(
     hotReloader: null,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
-    ampValidator: nextConfig.experimental.amp?.validator || undefined,
+    ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -352,7 +353,7 @@ export default async function(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async route => {
-        route = route === '/' ? '/index' : route
+        route = normalizePagePath(route)
         const orig = join(distPagesDir, route)
         const htmlDest = join(
           outDir,

@@ -8,6 +8,10 @@ module.exports = {
           destination: '/another/one',
         },
         {
+          source: '/nav',
+          destination: '/404',
+        },
+        {
           source: '/hello-world',
           destination: '/static/hello.txt',
         },
@@ -55,10 +59,35 @@ module.exports = {
           source: '/hidden/_next/:path*',
           destination: '/_next/:path*',
         },
+        {
+          source: '/proxy-me/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+        },
+        {
+          source: '/api-hello',
+          destination: '/api/hello',
+        },
+        {
+          source: '/api-hello-regex/(.*)',
+          destination: '/api/hello?name=:1',
+        },
+        {
+          source: '/api-hello-param/:name',
+          destination: '/api/hello?name=:name',
+        },
+        {
+          source: '/:path/post-321',
+          destination: '/with-params',
+        },
       ]
     },
     async redirects() {
       return [
+        {
+          source: '/redirect/me/to-about/:lang',
+          destination: '/:lang/about',
+          permanent: false,
+        },
         {
           source: '/docs/router-status/:code',
           destination: '/docs/v2/network/status-codes#:code',
@@ -124,6 +153,21 @@ module.exports = {
           destination: '/with-params?first=:section&second=:name',
           permanent: false,
         },
+        {
+          source: '/unnamed/(first|second)/(.*)',
+          destination: '/:1/:2',
+          permanent: false,
+        },
+        {
+          source: '/named-like-unnamed/:0',
+          destination: '/:0',
+          permanent: false,
+        },
+        {
+          source: '/redirect-override',
+          destination: '/thank-you-next',
+          permanent: false,
+        },
       ]
     },
 
@@ -152,6 +196,15 @@ module.exports = {
             {
               key: 'x-second-header',
               value: 'second',
+            },
+          ],
+        },
+        {
+          source: '/:path*',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'applied-everywhere',
             },
           ],
         },

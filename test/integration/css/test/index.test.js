@@ -28,8 +28,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -52,8 +56,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -76,8 +84,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -101,8 +113,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -128,8 +144,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've compiled and prefixed`, async () => {
@@ -187,8 +207,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -213,9 +237,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles.module.css')
       expect(stderr).toMatch(
@@ -233,9 +258,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
@@ -253,9 +279,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
@@ -273,9 +300,10 @@ describe('CSS Support', () => {
     })
 
     it('should fail to build', async () => {
-      const { stderr } = await nextBuild(appDir, [], {
+      const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
       })
+      expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toContain('Please move all global CSS imports')
@@ -304,7 +332,6 @@ describe('CSS Support', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/page1')
-        await waitFor(2000) // ensure application hydrates
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)
@@ -449,14 +476,23 @@ describe('CSS Support', () => {
 
     let appPort
     let app
+    let stdout
+    let code
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
-      await nextBuild(appDir)
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it('should have CSS for page', async () => {
@@ -496,8 +532,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -541,8 +581,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -586,8 +630,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted expected files`, async () => {
@@ -631,8 +679,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -654,8 +706,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've emitted a single CSS file`, async () => {
@@ -680,8 +736,9 @@ describe('CSS Support', () => {
     })
 
     it('should fail the build', async () => {
-      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
+      expect(code).not.toBe(0)
       expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
       expect(stderr).toMatch(/Build error occurred/)
     })
@@ -703,7 +760,6 @@ describe('CSS Support', () => {
 
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`
@@ -717,9 +773,13 @@ describe('CSS Support', () => {
 
     let appPort
     let app
+    let stdout
+    let code
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
-      await nextBuild(appDir)
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -727,9 +787,13 @@ describe('CSS Support', () => {
       await killApp(app)
     })
 
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
     it('should have the correct color (css ordering)', async () => {
       const browser = await webdriver(appPort, '/')
-      await waitFor(2000) // ensure application hydrates
 
       const currentColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('.my-text')).color`
@@ -745,8 +809,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've compiled and prefixed`, async () => {
@@ -782,8 +850,12 @@ describe('CSS Support', () => {
       await remove(join(appDir, '.next'))
     })
 
-    it('should build successfully', async () => {
-      await nextBuild(appDir)
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've compiled and prefixed`, async () => {

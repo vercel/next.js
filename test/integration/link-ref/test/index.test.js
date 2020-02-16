@@ -35,7 +35,6 @@ const noError = async pathname => {
 
 const didPrefetch = async pathname => {
   const browser = await webdriver(appPort, pathname)
-  await waitFor(500)
   const links = await browser.elementsByCss('link[rel=prefetch]')
   let found = false
 

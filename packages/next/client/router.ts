@@ -29,7 +29,14 @@ const singletonRouter: SingletonRouterBase = {
 }
 
 // Create public properties and methods of the router in the singletonRouter
-const urlPropertyFields = ['pathname', 'route', 'query', 'asPath', 'components']
+const urlPropertyFields = [
+  'pathname',
+  'route',
+  'query',
+  'asPath',
+  'components',
+  'isFallback',
+]
 const routerEvents = [
   'routeChangeStart',
   'beforeHistoryChange',
@@ -138,7 +145,7 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   for (const property of urlPropertyFields) {
     if (typeof _router[property] === 'object') {
-      instance[property] = { ..._router[property] } // makes sure query is not stateful
+      instance[property] = Object.assign({}, _router[property]) // makes sure query is not stateful
       continue
     }
 

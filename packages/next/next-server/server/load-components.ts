@@ -1,3 +1,5 @@
+import { IncomingMessage, ServerResponse } from 'http'
+import { ParsedUrlQuery } from 'querystring'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -5,28 +7,55 @@ import {
   SERVER_DIRECTORY,
 } from '../lib/constants'
 import { join } from 'path'
-import { PageConfig } from '../../types'
 import { requirePage } from './require'
+import { BuildManifest } from './get-page-files'
+import { AppType, DocumentType } from '../lib/utils'
+import { PageConfig, NextPageContext } from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
 }
 
+export type ManifestItem = {
+  id: number | string
+  name: string
+  file: string
+  publicPath: string
+}
+
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+
+type Unstable_getStaticProps = (ctx: {
+  params: ParsedUrlQuery | undefined
+  preview?: boolean
+  previewData?: any
+}) => Promise<{
+  props: { [key: string]: any }
+  revalidate?: number | boolean
+}>
+
+export type Unstable_getStaticPaths = () => Promise<{
+  paths: Array<string | { params: ParsedUrlQuery }>
+}>
+
+type Unstable_getServerProps = (context: {
+  params: ParsedUrlQuery | undefined
+  req: IncomingMessage
+  res: ServerResponse
+  query: ParsedUrlQuery
+}) => Promise<{ [key: string]: any }>
+
 export type LoadComponentsReturnType = {
-  Component: any
-  pageConfig: PageConfig
-  unstable_getStaticProps?: (params: {
-    params: any
-  }) => {
-    props: any
-    revalidate?: number | boolean
-  }
-  unstable_getStaticPaths?: () => void
-  buildManifest?: any
-  reactLoadableManifest?: any
-  Document?: any
-  DocumentMiddleware?: any
-  App?: any
+  Component: React.ComponentType
+  pageConfig?: PageConfig
+  buildManifest: BuildManifest
+  reactLoadableManifest: ReactLoadableManifest
+  Document: DocumentType
+  DocumentMiddleware?: (ctx: NextPageContext) => void
+  App: AppType
+  unstable_getStaticProps?: Unstable_getStaticProps
+  unstable_getStaticPaths?: Unstable_getStaticPaths
+  unstable_getServerProps?: Unstable_getServerProps
 }
 
 export async function loadComponents(
@@ -42,7 +71,7 @@ export async function loadComponents(
       pageConfig: Component.config || {},
       unstable_getStaticProps: Component.unstable_getStaticProps,
       unstable_getStaticPaths: Component.unstable_getStaticPaths,
-    }
+    } as LoadComponentsReturnType
   }
   const documentPath = join(
     distDir,
@@ -90,6 +119,7 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
+    unstable_getServerProps: ComponentMod.unstable_getServerProps,
     unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
     unstable_getStaticPaths: ComponentMod.unstable_getStaticPaths,
   }

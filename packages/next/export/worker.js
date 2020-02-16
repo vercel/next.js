@@ -9,6 +9,7 @@ import { loadComponents } from '../next-server/server/load-components'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
 const envConfig = require('../next-server/lib/runtime-config')
 const writeFileP = promisify(writeFile)
@@ -37,11 +38,23 @@ export default async function({
   }
 
   try {
-    let { query = {} } = pathMap
+    const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
-    const filePath = path === '/' ? '/index' : path
+    const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
+    let query = { ...originalQuery }
     let params
+
+    // We need to show a warning if they try to provide query values
+    // for an auto-exported page since they won't be available
+    const hasOrigQueryValues = Object.keys(originalQuery).length > 0
+    const queryWithAutoExportWarn = () => {
+      if (hasOrigQueryValues) {
+        throw new Error(
+          `\nError: you provided query values for ${path} which is an auto-exported page. These can not be applied since the page can no longer be re-rendered on the server. To disable auto-export for this page add \`getInitialProps\`\n`
+        )
+      }
+    }
 
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
@@ -130,6 +143,7 @@ export default async function({
       // if it was auto-exported the HTML is loaded here
       if (typeof mod === 'string') {
         html = mod
+        queryWithAutoExportWarn()
       } else {
         // for non-dynamic SSG pages we should have already
         // prerendered the file
@@ -176,8 +190,9 @@ export default async function({
 
       if (typeof components.Component === 'string') {
         html = components.Component
+        queryWithAutoExportWarn()
       } else {
-        curRenderOpts = { ...components, ...renderOpts, ampPath }
+        curRenderOpts = { ...components, ...renderOpts, ampPath, params }
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
@@ -200,7 +215,7 @@ export default async function({
     }
 
     if (curRenderOpts.inAmpMode) {
-      await validateAmp(html, path, curRenderOpts.ampValidator)
+      await validateAmp(html, path, curRenderOpts.ampValidatorPath)
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
       let ampHtmlFilename = `${ampPath}${sep}index.html`

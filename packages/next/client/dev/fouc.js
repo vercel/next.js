@@ -1,4 +1,4 @@
-export function displayContent() {
+export function displayContent(callback) {
   // This is the fallback helper that removes Next.js' no-FOUC styles when
   // CSS mode is enabled. This only really activates if you haven't created
   // _any_ styles in your application yet.
@@ -9,6 +9,9 @@ export function displayContent() {
 
     ) {
       x[i].parentNode.removeChild(x[i])
+    }
+    if (callback) {
+      callback()
     }
   })
 }
