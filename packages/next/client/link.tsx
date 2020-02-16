@@ -205,11 +205,11 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch() {
+  prefetch(options: { priority?: boolean } = {}) {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const [href, asPath] = this.getPaths()
-    Router.prefetch(href, asPath)
+    Router.prefetch(href, asPath, { priority: options.priority })
     prefetched[href] = true
   }
 
@@ -243,7 +243,7 @@ class Link extends Component<LinkProps> {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
         }
-        this.prefetch()
+        this.prefetch({ priority: true })
       },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {

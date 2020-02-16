@@ -3,7 +3,6 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { parse, UrlObject } from 'url'
-
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -657,7 +656,11 @@ export default class Router implements BaseRouter {
    * @param url the href of prefetched page
    * @param asPath the as path of the prefetched page
    */
-  prefetch(url: string, asPath: string = url): Promise<void> {
+  prefetch(
+    url: string,
+    asPath: string = url,
+    options: { priority?: boolean } = {}
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const { pathname, protocol } = parse(url)
 
@@ -676,8 +679,10 @@ export default class Router implements BaseRouter {
       }
 
       Promise.all([
-        this.pageLoader.prefetch(toRoute(pathname)),
         this.pageLoader.prefetchAs(toRoute(asPath)),
+        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
+          toRoute(pathname)
+        ),
       ]).then(() => resolve(), reject)
     })
   }
