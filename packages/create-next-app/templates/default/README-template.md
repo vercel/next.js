@@ -27,6 +27,7 @@ You can check out [the Next.js GitHub repository](https://github.com/zeit/next.j
 
 The easiest way to deploy this app is to use the [ZEIT Now Platform](https://zeit.co/) from the creators of Next.js.
 
-**[Click here to deploy on ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=create-next-app&utm_medium=readme&utm_campaign=create-next-app)**.
+- First, push your repository to GitHub, GitLab, or BitBucket.
+- Then, **[click here to import your repository on ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=create-next-app&utm_medium=readme&utm_campaign=create-next-app)**.
 
 Check out our [deployment documentation](https://nextjs.org/docs/deployment) for more details.
