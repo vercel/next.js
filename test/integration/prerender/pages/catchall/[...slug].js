@@ -1,4 +1,10 @@
+import { useRouter } from 'next/router'
+
 export async function unstable_getStaticProps({ params: { slug } }) {
+  if (slug[0] === 'delayby3s') {
+    await new Promise(resolve => setTimeout(resolve, 3000))
+  }
+
   return {
     props: {
       slug,
@@ -18,4 +24,10 @@ export async function unstable_getStaticPaths() {
   }
 }
 
-export default ({ slug }) => <p id="catchall">Hi {slug?.join('/')}</p>
+export default ({ slug }) => {
+  const { isFallback } = useRouter()
+  if (isFallback) {
+    return <p id="catchall">fallback</p>
+  }
+  return <p id="catchall">Hi {slug.join('/')}</p>
+}
