@@ -51,6 +51,10 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
   >
 
+export type PrefetchOptions = {
+  priority?: boolean
+}
+
 type RouteInfo = {
   Component: ComponentType
   props?: any
@@ -659,7 +663,7 @@ export default class Router implements BaseRouter {
   prefetch(
     url: string,
     asPath: string = url,
-    options: { priority?: boolean } = {}
+    options: PrefetchOptions = {}
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const { pathname, protocol } = parse(url)

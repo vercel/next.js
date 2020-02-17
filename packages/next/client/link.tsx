@@ -2,6 +2,7 @@ declare const __NEXT_DATA__: any
 
 import React, { Children, Component } from 'react'
 import { parse, resolve, UrlObject } from 'url'
+import { PrefetchOptions } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
@@ -205,11 +206,11 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch(options: { priority?: boolean } = {}) {
+  prefetch(options?: PrefetchOptions) {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const [href, asPath] = this.getPaths()
-    Router.prefetch(href, asPath, { priority: options.priority })
+    Router.prefetch(href, asPath, options)
     prefetched[href] = true
   }
 
