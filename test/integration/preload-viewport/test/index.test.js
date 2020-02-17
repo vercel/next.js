@@ -1,7 +1,5 @@
 /* eslint-env jest */
 /* global jasmine */
-import webdriver from 'next-webdriver'
-import { join } from 'path'
 import {
   nextServer,
   runNextCommand,
@@ -9,6 +7,8 @@ import {
   stopApp,
   waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -98,24 +98,66 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
-  it('should fallback to prefetching onMouseEnter with invalid ref', async () => {
+  it('should prefetch with link in viewport and inject script on hover', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#scroll-to-another').click()
+      await waitFor(2 * 1000)
+
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      let foundLink = false
+
+      for (const link of links) {
+        const href = await link.getAttribute('href')
+        if (href.includes('another')) {
+          foundLink = true
+          break
+        }
+      }
+      expect(foundLink).toBe(true)
+
+      await browser.elementByCss('#link-another').moveTo()
+      await waitFor(2 * 1000)
+
+      const scripts = await browser.elementsByCss(
+        // Mouse hover is a high-priority fetch
+        'script:not([async])'
+      )
+      let scriptFound = false
+      for (const aScript of scripts) {
+        const href = await aScript.getAttribute('src')
+        if (href.includes('another')) {
+          scriptFound = true
+          break
+        }
+      }
+      expect(scriptFound).toBe(true)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should inject a <script> tag when onMouseEnter (even with invalid ref)', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/invalid-ref')
       await browser.elementByCss('#btn-link').moveTo()
       await waitFor(2 * 1000)
 
-      const links = await browser.elementsByCss('link[rel=prefetch]')
-      let found = false
-
-      for (const link of links) {
-        const href = await link.getAttribute('href')
+      const scripts = await browser.elementsByCss(
+        // Mouse hover is a high-priority fetch
+        'script:not([async])'
+      )
+      let scriptFound = false
+      for (const aScript of scripts) {
+        const href = await aScript.getAttribute('src')
         if (href.includes('another')) {
-          found = true
+          scriptFound = true
           break
         }
       }
-      expect(found).toBe(true)
+      expect(scriptFound).toBe(true)
     } finally {
       if (browser) await browser.close()
     }

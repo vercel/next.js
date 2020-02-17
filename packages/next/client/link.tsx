@@ -1,13 +1,14 @@
 declare const __NEXT_DATA__: any
 
-import { resolve, parse, UrlObject } from 'url'
-import React, { Component, Children } from 'react'
-import Router from './router'
+import React, { Children, Component } from 'react'
+import { parse, resolve, UrlObject } from 'url'
+import { PrefetchOptions } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
+import Router from './router'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)
@@ -127,14 +128,18 @@ class Link extends Component<LinkProps> {
     this.cleanUpListeners()
   }
 
-  getHref() {
+  getPaths() {
     const { pathname } = window.location
-    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
-    return resolve(pathname, parsedHref)
+    const { href: parsedHref, as: parsedAs } = this.formatUrls(
+      this.props.href,
+      this.props.as
+    )
+    const resolvedHref = resolve(pathname, parsedHref)
+    return [resolvedHref, parsedAs ? resolve(pathname, parsedAs) : resolvedHref]
   }
 
   handleRef(ref: Element) {
-    const isPrefetched = prefetched[this.getHref()]
+    const isPrefetched = prefetched[this.getPaths()[0]]
     if (this.p && IntersectionObserver && ref && ref.tagName) {
       this.cleanUpListeners()
 
@@ -201,11 +206,11 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch() {
+  prefetch(options?: PrefetchOptions) {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
-    const href = this.getHref()
-    Router.prefetch(href)
+    const [href, asPath] = this.getPaths()
+    Router.prefetch(href, asPath, options)
     prefetched[href] = true
   }
 
@@ -239,7 +244,7 @@ class Link extends Component<LinkProps> {
         if (child.props && typeof child.props.onMouseEnter === 'function') {
           child.props.onMouseEnter(e)
         }
-        this.prefetch()
+        this.prefetch({ priority: true })
       },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
