@@ -22,7 +22,7 @@ const program = new Commander.Command(packageJson.name)
   })
   .option('--use-npm')
   .option(
-    '-e, --example <example-path>',
+    '-e, --example [example-path]',
     'an example to bootstrap the app with'
   )
   .allowUnknownOption()
@@ -84,11 +84,14 @@ async function run() {
     process.exit(1)
   }
 
-  if (!program.example) {
+  // --example flag included, but no example path provided, i.e.:
+  // $ create-next-app --example
+  if (program.example && typeof program.example !== 'string') {
     const wantsRes = await prompts({
       type: 'confirm',
       name: 'wantsExample',
-      message: 'Would you like to create your an app from an example?',
+      message:
+        'You forgot to select an example, would you like to pick one now?',
       initial: false,
     })
 
@@ -130,6 +133,11 @@ async function run() {
       }
 
       program.example = nameRes.exampleName
+
+      // If the user says 'no' to choosing from examples, they are warned that the default
+      // template is being used.
+    } else {
+      console.warn(chalk.yellow('Creating project from blank starter instead.'))
     }
   }
 
