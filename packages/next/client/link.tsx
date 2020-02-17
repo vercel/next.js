@@ -161,8 +161,7 @@ class Link extends Component<LinkProps> {
   })
 
   linkClicked = (e: React.MouseEvent) => {
-    // @ts-ignore target exists on currentTarget
-    const { nodeName, target } = e.currentTarget
+    const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
       ((target && target !== '_self') ||
