@@ -1290,7 +1290,7 @@ async function renderToHTMLWithComponents({
     const renderResult = await (components.Component as any).renderReqToHTML(
       req,
       res,
-      isDataReq
+      true
     )
     return {
       html: renderResult.html,
