@@ -39,7 +39,7 @@ export interface DuplicatePolyfillsConformanceTestSettings {
 
 const BANNED_LEFT_OBJECT_TYPES = ['Identifier', 'ThisExpression']
 
-export class DuplicatePolyfillsConformanceTest
+export class DuplicatePolyfillsConformanceCheck
   implements IWebpackConformanceTest {
   private BlockedAPIs: string[] = []
   constructor(options: DuplicatePolyfillsConformanceTestSettings = {}) {

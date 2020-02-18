@@ -12,7 +12,7 @@ import { visit } from 'recast'
 
 export { MinificationConformanceCheck } from './checks/minification-conformance-check'
 export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
-export { DuplicatePolyfillsConformanceTest } from './checks/duplicate-polyfills-conformance-check'
+export { DuplicatePolyfillsConformanceCheck } from './checks/duplicate-polyfills-conformance-check'
 
 export interface IWebpackConformancePluginOptions {
   tests: IWebpackConformanceTest[]
