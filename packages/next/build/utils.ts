@@ -562,9 +562,15 @@ export async function isPageStatic(
 
       const staticPathsResult = await (mod.unstable_getStaticPaths as Unstable_getStaticPaths)()
 
-      if (!staticPathsResult || typeof staticPathsResult !== 'object') {
+      const expectedReturnVal = `Expected: { paths: [] }`
+
+      if (
+        !staticPathsResult ||
+        typeof staticPathsResult !== 'object' ||
+        Array.isArray(staticPathsResult)
+      ) {
         throw new Error(
-          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} Expected: { paths: [] }`
+          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
         )
       }
 
@@ -576,7 +582,7 @@ export async function isPageStatic(
         throw new Error(
           `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
             ', '
-          )}) The only field allowed currently is \`paths\``
+          )}) ${expectedReturnVal}`
         )
       }
 
