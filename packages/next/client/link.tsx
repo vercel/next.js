@@ -209,7 +209,10 @@ class Link extends Component<LinkProps> {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const [href, asPath] = this.getPaths()
-    Router.prefetch(href, asPath, options)
+    // make sure to catch here since we should have an unhandledRejection
+    // since we're doing this automatically and we don't want to reload the
+    // page while automatically prefetching for the user
+    Router.prefetch(href, asPath, options).catch(() => {})
     prefetched[href] = true
   }
 
