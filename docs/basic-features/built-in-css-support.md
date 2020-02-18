@@ -175,6 +175,9 @@ Sass support has the same benefits and restrictions as the built-in CSS support 
 
 To support importing `.less` or `.styl` files you can use the following plugins:
 
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)	
+- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
