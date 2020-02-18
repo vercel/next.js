@@ -1,7 +1,6 @@
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
-// @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
 import {
@@ -29,7 +28,6 @@ import {
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
-// @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
@@ -106,10 +104,17 @@ function getOptimizedAliases(
       'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
       'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-      // Replace: full URL polyfill with platform-based polyfill
+      // TODO: re-enable when `native-url` supports Safari 10
+      // // Replace: full URL polyfill with platform-based polyfill
       // url: require.resolve('native-url'),
     }
   )
+}
+
+type ClientEntries = {
+  'main.js': string[]
+} & {
+  [key: string]: string
 }
 
 export default async function getBaseWebpackConfig(
@@ -196,7 +201,7 @@ export default async function getBaseWebpackConfig(
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
-    ? {
+    ? ({
         // Backwards compatibility
         'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -214,7 +219,7 @@ export default async function getBaseWebpackConfig(
             ? 'polyfills-nomodule.js'
             : 'polyfills.js'
         ),
-      }
+      } as ClientEntries)
     : undefined
 
   let typeScriptPath
@@ -311,6 +316,17 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
+  const isModuleCSS = (module: { type: string }): boolean => {
+    return (
+      // mini-css-extract-plugin
+      module.type === `css/mini-extract` ||
+      // extract-css-chunks-webpack-plugin (old)
+      module.type === `css/extract-chunks` ||
+      // extract-css-chunks-webpack-plugin (new)
+      module.type === `css/extract-css-chunks`
+    )
+  }
+
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
     [propName: string]: webpack.Options.SplitChunksOptions
@@ -368,14 +384,7 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (
-              // mini-css-extract-plugin
-              module.type === `css/mini-extract` ||
-              // extract-css-chunks-webpack-plugin (old)
-              module.type === `css/extract-chunks` ||
-              // extract-css-chunks-webpack-plugin (new)
-              module.type === `css/extract-css-chunks`
-            ) {
+            if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -400,17 +409,19 @@ export default async function getBaseWebpackConfig(
         },
         shared: {
           name(module, chunks) {
-            return crypto
-              .createHash('sha1')
-              .update(
-                chunks.reduce(
-                  (acc: string, chunk: webpack.compilation.Chunk) => {
-                    return acc + chunk.name
-                  },
-                  ''
+            return (
+              crypto
+                .createHash('sha1')
+                .update(
+                  chunks.reduce(
+                    (acc: string, chunk: webpack.compilation.Chunk) => {
+                      return acc + chunk.name
+                    },
+                    ''
+                  )
                 )
-              )
-              .digest('hex')
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
+            )
           },
           priority: 10,
           minChunks: 2,
@@ -579,7 +590,6 @@ export default async function getBaseWebpackConfig(
           }),
       ].filter(Boolean),
     },
-    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
@@ -646,7 +656,6 @@ export default async function getBaseWebpackConfig(
       ],
       plugins: [PnpWebpackPlugin],
     },
-    // @ts-ignore this is filtered
     module: {
       rules: [
         {
@@ -896,8 +905,7 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
-    // @ts-ignore: Property 'then' does not exist on type 'Configuration'
-    if (typeof webpackConfig.then === 'function') {
+    if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
         '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
@@ -1103,7 +1111,6 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-        // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,
@@ -1116,8 +1123,8 @@ export default async function getBaseWebpackConfig(
   }
 
   if (!dev) {
-    // @ts-ignore entry is always a function
-    webpackConfig.entry = await webpackConfig.entry()
+    // entry is always a function
+    webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
   }
 
   return webpackConfig

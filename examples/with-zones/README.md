@@ -31,20 +31,14 @@ cd with-zones
 
 ## Notes
 
-In this example, we have two apps: 'home' and 'blog'. We'll start both apps with [Now](https://zeit.co/now):
-
-```bash
-now dev
-```
-
-Then, you can visit <http://localhost:3000> and develop for both apps as a single app.
-
-You can also start the apps separately, for example:
+In this example, we have two apps: 'home' and 'blog'. You can start each app separately, for example:
 
 ```bash
 cd blog
 yarn dev
 ```
+
+Then, you can visit <http://localhost:3000> and develop your app.
 
 ## Special Notes
 
@@ -55,8 +49,11 @@ yarn dev
 
 ## Production Deployment
 
-We only need to run `now`, the same `now.json` used for development will be used for the deployment:
+We only need to run `now <app>`, to deploy the app:
 
 ```bash
-now
+now blog
+now home
 ```
+
+> The rewrite destination in your `now.json` file in the `home` app must be adjusted to point to your deployment.
