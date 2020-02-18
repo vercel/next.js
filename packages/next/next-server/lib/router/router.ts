@@ -3,7 +3,6 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { parse, UrlObject } from 'url'
-
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -18,8 +17,8 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
 function addBasePath(path: string): string {
-  // @ts-ignore variable is always a string
-  const p: string = process.env.__NEXT_ROUTER_BASEPATH
+  // variable is always a string
+  const p = process.env.__NEXT_ROUTER_BASEPATH as string
   return path.indexOf(p) !== 0 ? p + path : path
 }
 
@@ -49,7 +48,12 @@ export type NextRouter = BaseRouter &
     | 'prefetch'
     | 'beforePopState'
     | 'events'
+    | 'isFallback'
   >
+
+export type PrefetchOptions = {
+  priority?: boolean
+}
 
 type RouteInfo = {
   Component: ComponentType
@@ -64,29 +68,44 @@ type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
-const fetchNextData = (
+type HistoryMethod = 'replaceState' | 'pushState'
+
+function fetchNextData(
   pathname: string,
   query: ParsedUrlQuery | null,
+  isServerRender: boolean,
   cb?: (...args: any) => any
-) => {
-  return fetch(
-    formatWithValidation({
-      // @ts-ignore __NEXT_DATA__
-      pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
-      query,
-    })
-  )
-    .then(res => {
+) {
+  let attempts = isServerRender ? 3 : 1
+  function getResponse(): Promise<any> {
+    return fetch(
+      formatWithValidation({
+        // @ts-ignore __NEXT_DATA__
+        pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
+        query,
+      })
+    ).then(res => {
       if (!res.ok) {
+        if (--attempts > 0 && res.status >= 500) {
+          return getResponse()
+        }
         throw new Error(`Failed to load static props`)
       }
       return res.json()
     })
+  }
+
+  return getResponse()
     .then(data => {
       return cb ? cb(data) : data
     })
     .catch((err: Error) => {
-      ;(err as any).code = 'PAGE_LOAD_ERROR'
+      // We should only trigger a server-side transition if this was caused
+      // on a client-side transition. Otherwise, we'd get into an infinite
+      // loop.
+      if (!isServerRender) {
+        ;(err as any).code = 'PAGE_LOAD_ERROR'
+      }
       throw err
     })
 }
@@ -109,6 +128,7 @@ export default class Router implements BaseRouter {
   events: MittEmitter
   _wrapApp: (App: ComponentType) => any
   isSsr: boolean
+  isFallback: boolean
 
   static events: MittEmitter = mitt()
 
@@ -124,6 +144,7 @@ export default class Router implements BaseRouter {
       Component,
       err,
       subscription,
+      isFallback,
     }: {
       subscription: Subscription
       initialProps: any
@@ -132,6 +153,7 @@ export default class Router implements BaseRouter {
       App: ComponentType
       wrapApp: (App: ComponentType) => any
       err?: Error
+      isFallback: boolean
     }
   ) {
     // represents the current component key
@@ -150,7 +172,6 @@ export default class Router implements BaseRouter {
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
-    // @ts-ignore backwards compatibility
     this.events = Router.events
 
     this.pageLoader = pageLoader
@@ -167,6 +188,8 @@ export default class Router implements BaseRouter {
     // make sure to ignore extra popState in safari on navigating
     // back from external site
     this.isSsr = true
+
+    this.isFallback = isFallback
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -292,7 +315,12 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
+  change(
+    method: HistoryMethod,
+    _url: Url,
+    _as: Url,
+    options: any
+  ): Promise<boolean> {
     return new Promise((resolve, reject) => {
       if (!options._h) {
         this.isSsr = false
@@ -355,7 +383,6 @@ export default class Router implements BaseRouter {
         method = 'replaceState'
       }
 
-      // @ts-ignore pathname is always a string
       const route = toRoute(pathname)
       const { shallow = false } = options
 
@@ -394,7 +421,6 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as)
 
       // If shallow is true and the route exists in the router cache we reuse the previous result
-      // @ts-ignore pathname is always a string
       this.getRouteInfo(route, pathname, query, as, shallow).then(routeInfo => {
         const { error } = routeInfo
 
@@ -404,7 +430,6 @@ export default class Router implements BaseRouter {
 
         Router.events.emit('beforeHistoryChange', as)
         this.changeState(method, url, addBasePath(as), options)
-        const hash = window.location.hash.substring(1)
 
         if (process.env.NODE_ENV !== 'production') {
           const appComp: any = this.components['/_app'].Component
@@ -413,8 +438,7 @@ export default class Router implements BaseRouter {
             !(routeInfo.Component as any).getInitialProps
         }
 
-        // @ts-ignore pathname is always defined
-        this.set(route, pathname, query, as, { ...routeInfo, hash })
+        this.set(route, pathname, query, as, routeInfo)
 
         if (error) {
           Router.events.emit('routeChangeError', error, as)
@@ -427,13 +451,18 @@ export default class Router implements BaseRouter {
     })
   }
 
-  changeState(method: string, url: string, as: string, options = {}): void {
+  changeState(
+    method: HistoryMethod,
+    url: string,
+    as: string,
+    options = {}
+  ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
         console.error(`Warning: window.history is not available.`)
         return
       }
-      // @ts-ignore method should always exist on history
+
       if (typeof window.history[method] === 'undefined') {
         console.error(`Warning: window.history.${method} is not available`)
         return
@@ -441,14 +470,16 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
-      // @ts-ignore method should always exist on history
       window.history[method](
         {
           url,
           as,
           options,
         },
-        null,
+        // Most browsers currently ignores this parameter, although they may use it in the future.
+        // Passing the empty string here should be safe against future changes to the method.
+        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        '',
         as
       )
     }
@@ -572,6 +603,8 @@ export default class Router implements BaseRouter {
     as: string,
     data: RouteInfo
   ): void {
+    this.isFallback = false
+
     this.route = route
     this.pathname = pathname
     this.query = query
@@ -636,11 +669,16 @@ export default class Router implements BaseRouter {
   }
 
   /**
-   * Prefetch `page` code, you may wait for the data during `page` rendering.
+   * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
-   * @param url of prefetched `page`
+   * @param url the href of prefetched page
+   * @param asPath the as path of the prefetched page
    */
-  prefetch(url: string): Promise<void> {
+  prefetch(
+    url: string,
+    asPath: string = url,
+    options: PrefetchOptions = {}
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const { pathname, protocol } = parse(url)
 
@@ -658,9 +696,9 @@ export default class Router implements BaseRouter {
         return
       }
 
-      // @ts-ignore pathname is always defined
-      const route = toRoute(pathname)
-      this.pageLoader.prefetch(route).then(resolve, reject)
+      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
+        toRoute(pathname)
+      ).then(() => resolve(), reject)
     })
   }
 
@@ -713,13 +751,18 @@ export default class Router implements BaseRouter {
 
     return process.env.NODE_ENV === 'production' && this.sdc[pathname]
       ? Promise.resolve(this.sdc[pathname])
-      : fetchNextData(pathname, null, data => (this.sdc[pathname] = data))
+      : fetchNextData(
+          pathname,
+          null,
+          this.isSsr,
+          data => (this.sdc[pathname] = data)
+        )
   }
 
   _getServerData = (asPath: string): Promise<object> => {
     let { pathname, query } = parse(asPath, true)
     pathname = prepareRoute(pathname!)
-    return fetchNextData(pathname, query)
+    return fetchNextData(pathname, query, this.isSsr)
   }
 
   getInitialProps(

@@ -1,9 +1,10 @@
+import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, normalize, relative as relativePath, sep } from 'path'
+import { UrlObject } from 'url'
 import webpack from 'webpack'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
-
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
@@ -16,12 +17,11 @@ import {
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../next-server/lib/constants'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
-import { NextHandleFunction } from 'connect'
-import { UrlObject } from 'url'
 
 export async function renderScriptError(res: ServerResponse, error: Error) {
   // Asks CDNs and others to not to cache the errored page
@@ -129,6 +129,7 @@ export default class HotReloader {
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
   private onDemandEntries: any
+  private previewProps: __ApiPreviewProps
 
   constructor(
     dir: string,
@@ -136,7 +137,13 @@ export default class HotReloader {
       config,
       pagesDir,
       buildId,
-    }: { config: object; pagesDir: string; buildId: string }
+      previewProps,
+    }: {
+      config: object
+      pagesDir: string
+      buildId: string
+      previewProps: __ApiPreviewProps
+    }
   ) {
     this.buildId = buildId
     this.dir = dir
@@ -149,6 +156,7 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
+    this.previewProps = previewProps
   }
 
   async run(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlObject) {
@@ -247,6 +255,7 @@ export default class HotReloader {
       pages,
       'server',
       this.buildId,
+      this.previewProps,
       this.config
     )
 

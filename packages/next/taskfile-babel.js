@@ -95,11 +95,6 @@ module.exports = function(task) {
     const output = transform(file.data, options)
     const ext = extname(file.base)
 
-    output.code = output.code.replace(
-      /@babel\/runtime\//g,
-      '@babel/runtime-corejs2/'
-    )
-
     // Replace `.ts|.tsx` with `.js` in files with an extension
     if (ext) {
       const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
