@@ -83,7 +83,14 @@ function fetchNextData(
         // @ts-ignore __NEXT_DATA__
         pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
         query,
-      })
+      }),
+      {
+        headers: {
+          // This header is ignored when not in Preview mode, so we can always
+          // include it and still get the cached response.
+          'X-Prerender-Bypass-Mode': 'Blocking',
+        },
+      }
     ).then(res => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {

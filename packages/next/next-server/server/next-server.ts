@@ -1010,7 +1010,7 @@ export default class Server {
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
     // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
+    //   isPreviewMode && req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
     // When we did not respond from cache, we need to choose to block on
     // rendering or return a skeleton.
