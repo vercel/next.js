@@ -46,14 +46,22 @@ class ServerRouter implements NextRouter {
   query: ParsedUrlQuery
   asPath: string
   events: any
+  isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: ParsedUrlQuery, as: string) {
+  constructor(
+    pathname: string,
+    query: ParsedUrlQuery,
+    as: string,
+    { isFallback }: { isFallback: boolean }
+  ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
+
+    this.isFallback = isFallback
   }
   push(): any {
     noRouter()
@@ -392,9 +400,11 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  // @ts-ignore url will always be set
-  const asPath: string = req.url
-  const router = new ServerRouter(pathname, query, asPath)
+  // url will always be set
+  const asPath = req.url as string
+  const router = new ServerRouter(pathname, query, asPath, {
+    isFallback: isFallback,
+  })
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
