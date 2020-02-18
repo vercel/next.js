@@ -222,8 +222,10 @@ export type NextApiResponse<T = any> = ServerResponse & {
 /**
  * Next `API` route handler
  */
-export type NextApiHandler<T = any> = (req: NextApiRequest, res: NextApiResponse<T>) => void;
-
+export type NextApiHandler<T = any> = (
+  req: NextApiRequest,
+  res: NextApiResponse<T>
+) => void
 
 /**
  * Utils
