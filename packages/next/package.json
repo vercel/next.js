@@ -72,7 +72,6 @@
     "@babel/preset-react": "7.7.0",
     "@babel/preset-typescript": "7.7.2",
     "@babel/runtime": "7.7.2",
-    "@babel/runtime-corejs2": "7.7.2",
     "@babel/types": "7.7.4",
     "@next/polyfill-nomodule": "9.2.3-canary.0",
     "amphtml-validator": "1.0.23",
@@ -117,7 +116,6 @@
     "mini-css-extract-plugin": "0.8.0",
     "mkdirp": "0.5.1",
     "node-fetch": "2.6.0",
-    "object-assign": "4.1.1",
     "ora": "3.4.0",
     "path-to-regexp": "6.1.0",
     "pnp-webpack-plugin": "1.5.0",
@@ -148,8 +146,7 @@
     "webpack": "4.41.2",
     "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0",
-    "webpack-sources": "1.4.3",
-    "whatwg-fetch": "3.0.0"
+    "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
     "react": "^16.6.0",
