@@ -163,6 +163,21 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
+  it('should not have unhandledRejection when failing to prefetch on link', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.addEventListener('unhandledrejection', function (err) {
+        window.hadUnhandledReject = true;
+      })
+      window.next.router.push('/invalid-prefetch');
+    })()`)
+
+    expect(await browser.eval('window.hadUnhandledReject')).toBeFalsy()
+
+    await browser.elementByCss('#invalid-link').moveTo()
+    expect(await browser.eval('window.hadUnhandledReject')).toBeFalsy()
+  })
+
   it('should not prefetch when prefetch is explicitly set to false', async () => {
     const browser = await webdriver(appPort, '/opt-out')
 
