@@ -42,7 +42,7 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     css: true,
-    scss: false,
+    scss: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
