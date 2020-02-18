@@ -52,7 +52,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
             privileges: [
               {
                 resource: q.Collection('GuestbookEntry'),
-                actions: { read: true, write: true },
+                actions: { read: true, write: true, create: true },
               },
               {
                 resource: q.Index('entries'),
