@@ -221,10 +221,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
   )
-  const hasPages404 =
-    config.experimental.pages404 &&
-    mappedPages['/404'] &&
-    mappedPages['/404'].startsWith('private-next-pages')
+  const hasPages404 = Boolean(
+    mappedPages['/404'] && mappedPages['/404'].startsWith('private-next-pages')
+  )
 
   if (hasPublicDir) {
     try {
@@ -606,8 +605,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
-    !customAppGetInitialProps &&
-    ((!hasCustomErrorPage && config.experimental.static404) || hasPages404)
+    !customAppGetInitialProps && (!hasCustomErrorPage || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -681,7 +679,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         })
 
         if (useStatic404) {
-          defaultMap['/_errors/404'] = {
+          defaultMap['/404'] = {
             page: hasPages404 ? '/404' : '/_error',
           }
         }
