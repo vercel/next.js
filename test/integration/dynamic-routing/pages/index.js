@@ -44,6 +44,18 @@ const Page = () => (
     <Link href="/p1/p2/all-ssg/[...rest]" as="/p1/p2/all-ssg/hello1/hello2">
       <a id="ssg-catch-all-multi">Catch-all route (multi)</a>
     </Link>
+    <Link
+      href="/p1/p2/nested-all-ssg/[...rest]"
+      as="/p1/p2/nested-all-ssg/hello"
+    >
+      <a id="nested-ssg-catch-all-single">Nested Catch-all route (single)</a>
+    </Link>
+    <Link
+      href="/p1/p2/nested-all-ssg/[...rest]"
+      as="/p1/p2/nested-all-ssg/hello1/hello2"
+    >
+      <a id="nested-ssg-catch-all-multi">Nested Catch-all route (multi)</a>
+    </Link>
   </div>
 )
 
