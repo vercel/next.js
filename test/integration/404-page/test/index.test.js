@@ -68,7 +68,7 @@ const runTests = (mode = 'server') => {
       const manifest = await fs.readJSON(
         join(appDir, '.next', mode, 'pages-manifest.json')
       )
-      expect('/_errors/404' in manifest).toBe(true)
+      expect('/404' in manifest).toBe(true)
     })
   }
 }
@@ -212,7 +212,7 @@ describe('404 Page Support', () => {
     it('should not output static 404 if _app has getInitialProps', async () => {
       expect(
         await fs.exists(
-          join(appDir, '.next/server/static', buildId, 'pages/_errors/404.html')
+          join(appDir, '.next/server/static', buildId, 'pages/404.html')
         )
       ).toBe(false)
     })
