@@ -1171,20 +1171,20 @@ export default class Server {
   ) {
     const { static404, pages404 } = this.nextConfig.experimental
     const is404 = res.statusCode === 404
-    const pages = [
-      is404 && static404 ? '/_errors/404' : null,
-      pages404 ? '/404' : null,
-      '/_error',
-    ].filter(Boolean)
+    const pages: string[] = [
+      is404 && static404 ? ['/_errors/404', '/_error'] : null,
+      pages404 ? ['/404', '/404'] : null,
+      ['/_error', '/_error'],
+    ].filter(Boolean) as any
 
-    for (const pathname of pages) {
-      const result = await this.findPageComponents('/_error', query)
+    for (const [searchPathName, renderPathName] of pages) {
+      const result = await this.findPageComponents(searchPathName, query)
       if (result) {
         try {
           return await this.renderToHTMLWithComponents(
             req,
             res,
-            pathname!,
+            renderPathName,
             result,
             {
               ...this.renderOpts,
