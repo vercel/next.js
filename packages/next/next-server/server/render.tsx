@@ -145,7 +145,6 @@ type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
-  pages404?: boolean
   previewProps: __ApiPreviewProps
 }
 
@@ -278,7 +277,6 @@ export async function renderToHTML(
     unstable_getServerProps,
     isDataReq,
     params,
-    pages404,
     previewProps,
   } = renderOpts
 
@@ -391,7 +389,7 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
 
-    if (pages404 && pathname === '/404' && !isAutoExport) {
+    if (pathname === '/404' && !isAutoExport) {
       throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
