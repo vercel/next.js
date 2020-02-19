@@ -4,7 +4,12 @@ import { mkdirSync } from 'fs'
 export default function checkLockFile(distDir: string) {
   try {
     mkdirSync(distDir)
-  } catch (_) {}
+    console.log('made dir')
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      throw err
+    }
+  }
 
   const locked = lock.checkSync(distDir)
 
