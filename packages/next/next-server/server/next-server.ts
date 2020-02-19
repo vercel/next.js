@@ -114,7 +114,6 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
-    pages404?: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -162,7 +161,6 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      pages404: this.nextConfig.experimental.pages404,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -866,7 +864,7 @@ export default class Server {
     opts: any
   ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
-    if (this.nextConfig.experimental.pages404 && pathname === '/404') {
+    if (pathname === '/404') {
       res.statusCode = 404
     }
 
@@ -1171,19 +1169,16 @@ export default class Server {
   ) {
     let result: null | FindComponentsResult = null
 
-    const { static404, pages404 } = this.nextConfig.experimental
     const is404 = res.statusCode === 404
     let using404Page = false
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      if (static404) {
-        result = await this.findPageComponents('/_errors/404')
-      }
+      result = await this.findPageComponents('/_errors/404')
 
       // use 404 if /_errors/404 isn't available which occurs
       // during development and when _app has getInitialProps
-      if (!result && pages404) {
+      if (!result) {
         result = await this.findPageComponents('/404')
         using404Page = result !== null
       }
