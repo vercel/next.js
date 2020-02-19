@@ -119,7 +119,7 @@
     "ora": "3.4.0",
     "path-to-regexp": "6.1.0",
     "pnp-webpack-plugin": "1.5.0",
-    "postcss-flexbugs-fixes": "4.1.0",
+    "postcss-flexbugs-fixes": "4.2.0",
     "postcss-loader": "3.0.0",
     "postcss-preset-env": "6.7.0",
     "prop-types": "15.7.2",
