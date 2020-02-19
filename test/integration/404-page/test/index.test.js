@@ -49,7 +49,7 @@ const runTests = (mode = 'server') => {
   })
 
   if (mode !== 'dev') {
-    it('should output _errors/404.html during build', async () => {
+    it('should output 404.html during build', async () => {
       expect(
         await fs.exists(
           join(
@@ -58,13 +58,13 @@ const runTests = (mode = 'server') => {
             mode === 'serverless'
               ? 'serverless/pages'
               : `server/static/${buildId}/pages`,
-            '_errors/404.html'
+            '404.html'
           )
         )
       ).toBe(true)
     })
 
-    it('should add _errors/404 to pages-manifest correctly', async () => {
+    it('should add /404 to pages-manifest correctly', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next', mode, 'pages-manifest.json')
       )
