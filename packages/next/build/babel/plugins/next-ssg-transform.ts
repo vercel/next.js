@@ -42,9 +42,13 @@ function decorateSsgExport(
 
       // @ts-ignore invalid return type
       const [pageCompPath] = path.replaceWithMultiple([
-        t.variableDeclaration('var', [
-          t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
-        ]),
+        t.variableDeclaration(
+          // We use 'var' instead of 'let' or 'const' for ES5 support. Since
+          // this runs in `Program#exit`, no ES2015 transforms (present env)
+          // will be ran against this code.
+          'var',
+          [t.variableDeclarator(t.identifier(pageComponentVar), prev as any)]
+        ),
         t.assignmentExpression(
           '=',
           t.memberExpression(
