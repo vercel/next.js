@@ -931,7 +931,7 @@ export default class Server {
         return sendResponse(
           this.__responseFromHTML(
             status,
-            (components.Component as any).renderReqToHTML(req, res)
+            await (components.Component as any).renderReqToHTML(req, res)
           )
         )
       }
