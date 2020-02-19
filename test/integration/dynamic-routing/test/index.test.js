@@ -257,6 +257,24 @@ function runTests(dev) {
     })
   })
 
+  it('[nested ssg: catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/nested-all-ssg/test1.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
+  })
+
+  it('[nested ssg: catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/nested-all-ssg/test1/test2.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['test1', 'test2'],
+    })
+  })
+
   it('[predefined ssg: catch all] should pass param in getStaticProps during SSR', async () => {
     const data = await renderViaHTTP(
       appPort,
@@ -315,6 +333,34 @@ function runTests(dev) {
       await browser.waitForElementByCss('#all-ssg-content')
 
       const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[nested ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#nested-ssg-catch-all-single').click()
+      await browser.waitForElementByCss('#nested-all-ssg-content')
+
+      const text = await browser.elementByCss('#nested-all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[nested ssg: catch-all] should pass params in getStaticProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#nested-ssg-catch-all-multi').click()
+      await browser.waitForElementByCss('#nested-all-ssg-content')
+
+      const text = await browser.elementByCss('#nested-all-ssg-content').text()
       expect(text).toBe('{"rest":["hello1","hello2"]}')
     } finally {
       if (browser) await browser.close()
@@ -464,6 +510,12 @@ function runTests(dev) {
           {
             page: '/p1/p2/all-ssr/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
+          },
+          {
+            page: '/p1/p2/nested-all-ssg/[...rest]',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
           },
           {
             page: '/p1/p2/predefined-ssg/[...rest]',
