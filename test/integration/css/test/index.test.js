@@ -184,12 +184,16 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF",
+          "mappings": "AAAA,+CACE,4BACE,WACF,CAFA,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
             color: green;
           }
+        }
+
+        .flex-parsing {
+          flex: 0 0 calc(50% - var(--vertical-gutter));
         }
         ",
           ],

@@ -184,13 +184,17 @@ describe('SCSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AACA,qCAEI,SAHK,CACT,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,iCAEI,SAHK,CACT,uBAEI,SAHK",
+          "mappings": "AACA,qCAEI,SAHK,CACT,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,iCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
           "sourcesContent": Array [
             "$var: red;
         .redText {
           ::placeholder {
             color: $var;
           }
+        }
+
+        .flex-parsing {
+          flex: 0 0 calc(50% - var(--vertical-gutter));
         }
         ",
           ],
