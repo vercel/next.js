@@ -240,8 +240,8 @@ export default class Router implements BaseRouter {
     if (
       e.state &&
       this.isSsr &&
-      e.state.url === this.pathname &&
-      e.state.as === this.asPath
+      e.state.as === this.asPath &&
+      parse(e.state.url).pathname === this.pathname
     ) {
       return
     }
