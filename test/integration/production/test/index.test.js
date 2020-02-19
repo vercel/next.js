@@ -310,8 +310,8 @@ describe('Production Usage', () => {
     expect(newText).toBe('server')
   })
 
-  it('should navigate back then forward', async () => {
-    const browser = await webdriver(appPort, '/external-and-back')
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -321,8 +321,10 @@ describe('Production Usage', () => {
       .waitForElementByCss('input')
       .back()
       .waitForElementByCss('p')
-      .forward()
-      .waitForElementByCss('input')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
   })
 
   it('should change query correctly', async () => {
