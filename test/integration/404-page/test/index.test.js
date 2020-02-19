@@ -104,10 +104,7 @@ describe('404 Page Support', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'serverless',
-          experimental: {
-            pages404: true
-          }
+          target: 'serverless'
         }
       `
       )
