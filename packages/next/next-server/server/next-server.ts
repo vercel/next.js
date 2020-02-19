@@ -1293,7 +1293,8 @@ export default class Server {
   private isServeableUrl(path: string): boolean {
     const resolved = resolve(path)
     if (
-      resolved.indexOf(join(this.distDir) + sep) !== 0 &&
+      // Ensure to not add path separator if distDir contains trailing slash
+      resolved.indexOf(join(this.distDir, sep)) !== 0 &&
       resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
       resolved.indexOf(join(this.dir, 'public') + sep) !== 0
     ) {
