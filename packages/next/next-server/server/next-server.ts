@@ -33,7 +33,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
@@ -79,7 +79,7 @@ type RequestContext = {}
 type RequestResponse = {
   status: number
   headers: { [key: string]: any }
-  body: AsyncGenerator<Buffer>
+  body: () => AsyncGenerator<Buffer>
 }
 
 export type ServerConstructor = {
@@ -838,49 +838,20 @@ export default class Server {
 
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
-    _res: ServerResponse,
-    pathname: string,
-    result: FindComponentsResult,
-    opts: any
-  ): Promise<RequestResponse> {
-    let responseCallback: (res: RequestResponse) => void
-    let responsePromise = new Promise<RequestResponse>(resolve => {
-      responseCallback = res => resolve(res)
-    })
-
-    this.renderToHTMLWithComponentsInternal(
-      req,
-      _res,
-      pathname,
-      result,
-      opts,
-      responseCallback!
-    )
-    return await responsePromise
-  }
-
-  private async renderToHTMLWithComponentsInternal(
-    req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: any,
-    _sendResponse: (res: RequestResponse) => void
+    response: ResponseStream
   ): Promise<void> {
-    let didSendResponse = false
-    const sendResponse = (res: RequestResponse) => {
-      if (!didSendResponse) {
-        didSendResponse = true
-        _sendResponse(res)
-      }
-    }
-
     const status =
       this.nextConfig.experimental.pages404 && pathname === '/404' ? 404 : 200
 
     // handle static page
     if (typeof components.Component === 'string') {
-      return sendResponse(this.__responseFromHTML(status, components.Component))
+      return response.send(
+        this.__responseFromHTML(status, components.Component)
+      )
     }
 
     // check request state
@@ -916,7 +887,7 @@ export default class Server {
             true
           )
 
-          return sendResponse(
+          return response.send(
             this.__responseFromPayload(
               status,
               JSON.stringify(renderResult?.renderOpts?.pageData),
@@ -926,12 +897,11 @@ export default class Server {
           )
         }
         this.prepareServerlessUrl(req, query)
-        return sendResponse(
-          this.__responseFromHTML(
-            status,
-            await (components.Component as any).renderReqToHTML(req, res)
-          )
+        const result = await (components.Component as any).renderReqToHTML(
+          req,
+          res
         )
+        return response.send(this.__responseFromHTML(status, result))
       }
 
       if (isDataReq && isServerProps) {
@@ -940,7 +910,7 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        return sendResponse(
+        return response.send(
           this.__responseFromPayload(
             status,
             JSON.stringify(props),
@@ -950,15 +920,11 @@ export default class Server {
         )
       }
 
-      return sendResponse(
-        this.__responseFromHTML(
-          status,
-          await renderToHTML(req, res, pathname, query, {
-            ...components,
-            ...opts,
-          })
-        )
-      )
+      const result = await renderToHTML(req, res, pathname, query, {
+        ...components,
+        ...opts,
+      })
+      return response.send(this.__responseFromHTML(status, result))
     }
 
     const previewProps = this.getPreviewProps()
@@ -980,7 +946,7 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      sendResponse(
+      response.send(
         this.__responseFromPayload(
           status,
           data,
@@ -1035,7 +1001,6 @@ export default class Server {
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
-    const didRespond = isResSent(res)
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
@@ -1053,7 +1018,7 @@ export default class Server {
     //   request on the client-side.
     //
     if (
-      !didRespond &&
+      !response.didRespond() &&
       !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
@@ -1081,7 +1046,7 @@ export default class Server {
         }
       }
 
-      sendResponse(
+      response.send(
         this.__responseFromPayload(status, html, 'text/html; charset=utf-8')
       )
     }
@@ -1090,8 +1055,8 @@ export default class Server {
       isOrigin,
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
-    if (!didSendResponse) {
-      sendResponse(
+    if (!response.didRespond()) {
+      response.send(
         this.__responseFromPayload(
           status,
           isDataReq ? JSON.stringify(pageData) : html,
@@ -1121,8 +1086,9 @@ export default class Server {
     }: {
       amphtml?: boolean
       hasAmp?: boolean
-    } = {}
-  ): Promise<RequestResponse> {
+    } = {},
+    response: ResponseStream
+  ): Promise<void> {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
@@ -1131,7 +1097,8 @@ export default class Server {
           res,
           pathname,
           result,
-          { ...this.renderOpts, amphtml, hasAmp }
+          { ...this.renderOpts, amphtml, hasAmp },
+          response
         )
       }
 
@@ -1158,7 +1125,8 @@ export default class Server {
                 params,
                 amphtml,
                 hasAmp,
-              }
+              },
+              response
             )
           }
         }
@@ -1171,7 +1139,8 @@ export default class Server {
         req,
         res,
         pathname,
-        query
+        query,
+        response
       )
     }
 
@@ -1181,7 +1150,8 @@ export default class Server {
       req,
       res,
       pathname,
-      query
+      query,
+      response
     )
   }
 
@@ -1195,13 +1165,9 @@ export default class Server {
       hasAmp?: boolean
     } = {}
   ): Promise<string | null> {
-    const response = await this.renderToResponse(
-      req,
-      res,
-      pathname,
-      query,
-      opts
-    )
+    const stream = new ResponseStream()
+    await this.renderToResponse(req, res, pathname, query, opts, stream)
+    const response = stream.response()!
     res.statusCode = response.status
     return await responseToHTML(response)
   }
@@ -1230,8 +1196,9 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     _pathname: string,
-    query: ParsedUrlQuery = {}
-  ) {
+    query: ParsedUrlQuery = {},
+    response: ResponseStream
+  ): Promise<void> {
     let result: null | FindComponentsResult = null
 
     const is404 = status === 404
@@ -1247,9 +1214,8 @@ export default class Server {
       result = await this.findPageComponents('/_error', query)
     }
 
-    let response: RequestResponse
     try {
-      response = await this.renderToHTMLWithComponents(
+      return await this.renderToHTMLWithComponents(
         req,
         res,
         using404Page ? '/404' : '/_error',
@@ -1257,12 +1223,14 @@ export default class Server {
         {
           ...this.renderOpts,
           err,
-        }
+        },
+        response
       )
-      return response
     } catch (err) {
       console.error(err)
-      return this.__responseFromHTML(500, 'Internal Server Error')
+      return response.send(
+        this.__responseFromHTML(500, 'Internal Server Error')
+      )
     }
   }
 
@@ -1273,14 +1241,17 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const response = await this.renderErrorToResponse(
+    const stream = new ResponseStream()
+    await this.renderErrorToResponse(
       res.statusCode,
       err,
       req,
       res,
       pathname,
-      query
+      query,
+      stream
     )
+    const response = stream.response()!
     res.statusCode = response.status
     return await responseToHTML(response)
   }
@@ -1382,9 +1353,9 @@ export default class Server {
     return {
       status,
       headers,
-      body: (async function*() {
+      body: async function*() {
         yield Buffer.from(payload)
-      })(),
+      },
     }
   }
 
@@ -1397,19 +1368,42 @@ export default class Server {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
       },
-      body: (async function*() {
+      body: async function*() {
         if (html) {
           yield Buffer.from(html)
         }
-      })(),
+      },
     }
   }
 }
 
 async function responseToHTML(response: RequestResponse): Promise<string> {
   let buffer = Buffer.from([])
-  for await (const chunk of response.body) {
+  for await (const chunk of response.body()) {
     buffer = Buffer.concat([buffer, chunk])
   }
   return buffer.toString('utf-8')
+}
+
+class ResponseStream {
+  _response: RequestResponse | null
+
+  constructor() {
+    this._response = null
+  }
+
+  send(response: RequestResponse) {
+    if (this._response) {
+      throw new Error('Already sent response')
+    }
+    this._response = response
+  }
+
+  response(): RequestResponse | null {
+    return this._response
+  }
+
+  didRespond(): boolean {
+    return !!this._response
+  }
 }
