@@ -163,7 +163,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".redText ::-webkit-input-placeholder{color:red}.redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::-ms-input-placeholder{color:red}.redText ::placeholder{color:red}"`
+        `".redText ::-webkit-input-placeholder{color:red}.redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
       )
 
       // Contains a source map
