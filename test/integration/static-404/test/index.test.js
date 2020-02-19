@@ -28,17 +28,6 @@ describe('Static 404 page', () => {
   })
   beforeEach(() => fs.remove(join(appDir, '.next/server')))
 
-  describe('With config disabled', () => {
-    it('should not have exported static 404 page', async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { ${buildId}, experimental: { static404: false } }`
-      )
-      await nextBuild(appDir)
-      expect(await fs.exists(static404)).toBe(false)
-    })
-  })
-
   describe('With config enabled', () => {
     beforeEach(() =>
       fs.writeFile(nextConfig, `module.exports = { ${buildId} }`)
@@ -59,8 +48,7 @@ describe('Static 404 page', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'experimental-serverless-trace',
-          experimental: { static404: true }
+          target: 'experimental-serverless-trace'
         }
       `
       )

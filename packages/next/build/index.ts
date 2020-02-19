@@ -688,6 +688,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       },
       exportTrailingSlash: false,
     }
+
     await exportApp(dir, exportOptions, exportConfig)
 
     // remove server bundles that were exported
@@ -722,6 +723,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
+    }
+
+    // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+    if (!hasPages404 && useStatic404) {
+      await moveExportedPage('/404', '/404', false, 'html')
     }
 
     for (const page of combinedPages) {
