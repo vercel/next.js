@@ -76,7 +76,11 @@
       }
     },
     {
-      "files": ["test/**/*", "examples/**/*"],
+      "files": [
+        "test/**/*",
+        "examples/**/*",
+        "packages/create-next-app/templates/**/*"
+      ],
       "rules": { "react/react-in-jsx-scope": "off" }
     }
   ],

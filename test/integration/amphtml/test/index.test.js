@@ -103,6 +103,11 @@ describe('AMP support', () => {
       await validateAMP(html)
     })
 
+    it('should auto import extensions', async () => {
+      const html = await renderViaHTTP(appPort, '/auto-import')
+      await validateAMP(html)
+    })
+
     it('should render the normal page that uses the AMP hook', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook')
       expect(html).toMatch(/Hello others/)

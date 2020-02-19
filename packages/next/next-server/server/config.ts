@@ -42,7 +42,7 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     css: true,
-    scss: false,
+    scss: true,
     documentMiddleware: false,
     granularChunks: true,
     modern: false,
@@ -53,7 +53,7 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     basePath: '',
     static404: true,
-    pages404: false,
+    pages404: true,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -198,7 +198,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-function normalizeConfig(phase: string, config: any) {
+export function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 

@@ -26,7 +26,6 @@ export function runCompiler(
   config: webpack.Configuration | webpack.Configuration[]
 ): Promise<CompilerResult> {
   return new Promise(async (resolve, reject) => {
-    // @ts-ignore webpack allows both a single config or array of configs
     const compiler = webpack(config)
     compiler.run((err: Error, statsOrMultiStats: any) => {
       if (err) {

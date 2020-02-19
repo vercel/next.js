@@ -40,14 +40,7 @@ describe('Modern Mode', () => {
   it('should generate client side modern and legacy build files', async () => {
     const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
 
-    const expectedFiles = [
-      'index',
-      '_app',
-      '_error',
-      'main',
-      'webpack',
-      'commons',
-    ]
+    const expectedFiles = ['index', '_app', '_error', 'main', 'webpack']
     const buildFiles = [
       ...readdirSync(join(appDir, '.next/static', buildId, 'pages')),
       ...readdirSync(join(appDir, '.next/static/runtime')).map(

@@ -9,9 +9,33 @@ import * as config from '../config'
 
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
+const CARD_OPTIONS = {
+  iconStyle: 'solid' as const,
+  style: {
+    base: {
+      iconColor: '#6772e5',
+      color: '#6772e5',
+      fontWeight: '500',
+      fontFamily: 'Roboto, Open Sans, Segoe UI, sans-serif',
+      fontSize: '16px',
+      fontSmoothing: 'antialiased',
+      ':-webkit-autofill': {
+        color: '#fce883',
+      },
+      '::placeholder': {
+        color: '#6772e5',
+      },
+    },
+    invalid: {
+      iconColor: '#ef2961',
+      color: '#ef2961',
+    },
+  },
+}
+
 const ElementsForm: React.FunctionComponent = () => {
   const [input, setInput] = useState({
-    customDonation: config.MIN_AMOUNT,
+    customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
     cardholderName: '',
   })
   const [payment, setPayment] = useState({ status: 'initial' })
@@ -36,7 +60,7 @@ const ElementsForm: React.FunctionComponent = () => {
         return (
           <>
             <h2>Error 😭</h2>
-            <p>{errorMessage}</p>
+            <p className="error-message">{errorMessage}</p>
           </>
         )
 
@@ -53,6 +77,8 @@ const ElementsForm: React.FunctionComponent = () => {
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async e => {
     e.preventDefault()
+    // Abort if form isn't valid
+    if (!e.currentTarget.reportValidity()) return
     setPayment({ status: 'processing' })
 
     // Create a PaymentIntent with the specified amount.
@@ -95,6 +121,7 @@ const ElementsForm: React.FunctionComponent = () => {
     <>
       <form onSubmit={handleSubmit}>
         <CustomDonationInput
+          className="elements-style"
           name="customDonation"
           value={input.customDonation}
           min={config.MIN_AMOUNT}
@@ -103,35 +130,30 @@ const ElementsForm: React.FunctionComponent = () => {
           currency={config.CURRENCY}
           onChange={handleInputChange}
         />
-        <fieldset>
+        <fieldset className="elements-style">
           <legend>Your payment details:</legend>
-          <label>
-            Cardholder name:
-            <input
-              type="Text"
-              name="cardholderName"
-              onChange={handleInputChange}
-              required={true}
-            />
-          </label>
-          <CardElement
-            options={{
-              style: {
-                base: {
-                  fontSize: '16px',
-                  color: '#424770',
-                  '::placeholder': {
-                    color: '#aab7c4',
-                  },
-                },
-                invalid: {
-                  color: '#9e2146',
-                },
-              },
-            }}
+          <input
+            placeholder="Cardholder name"
+            className="elements-style"
+            type="Text"
+            name="cardholderName"
+            onChange={handleInputChange}
+            required
           />
+          <div className="FormRow elements-style">
+            <CardElement
+              options={CARD_OPTIONS}
+              onChange={e => {
+                if (e.error) {
+                  setPayment({ status: 'error' })
+                  setErrorMessage(e.error.message ?? 'An unknown error occured')
+                }
+              }}
+            />
+          </div>
         </fieldset>
         <button
+          className="elements-style-background"
           type="submit"
           disabled={
             !['initial', 'succeeded', 'error'].includes(payment.status) ||
