@@ -13,10 +13,7 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
-const static404 = join(
-  appDir,
-  '.next/server/static/test-id/pages/_errors/404.html'
-)
+const static404 = join(appDir, '.next/server/static/test-id/pages/404.html')
 const appPage = join(appDir, 'pages/_app.js')
 const errorPage = join(appDir, 'pages/_error.js')
 const buildId = `generateBuildId: () => 'test-id'`
@@ -30,17 +27,6 @@ describe('Static 404 page', () => {
     await fs.remove(nextConfig)
   })
   beforeEach(() => fs.remove(join(appDir, '.next/server')))
-
-  describe('With config disabled', () => {
-    it('should not have exported static 404 page', async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { ${buildId}, experimental: { static404: false } }`
-      )
-      await nextBuild(appDir)
-      expect(await fs.exists(static404)).toBe(false)
-    })
-  })
 
   describe('With config enabled', () => {
     beforeEach(() =>
@@ -62,8 +48,7 @@ describe('Static 404 page', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'experimental-serverless-trace',
-          experimental: { static404: true }
+          target: 'experimental-serverless-trace'
         }
       `
       )
@@ -74,7 +59,7 @@ describe('Static 404 page', () => {
       await killApp(app)
       expect(html).toContain('This page could not be found')
       expect(
-        await fs.exists(join(appDir, '.next/serverless/pages/_errors/404.html'))
+        await fs.exists(join(appDir, '.next/serverless/pages/404.html'))
       ).toBe(true)
     })
 
