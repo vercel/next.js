@@ -310,6 +310,23 @@ describe('Production Usage', () => {
     expect(newText).toBe('server')
   })
 
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
   it('should change query correctly', async () => {
     const browser = await webdriver(appPort, '/query?id=0')
     let id = await browser.elementByCss('#q0').text()
