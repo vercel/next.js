@@ -3,7 +3,6 @@
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { parse, UrlObject } from 'url'
-
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -18,8 +17,8 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
 function addBasePath(path: string): string {
-  // @ts-ignore variable is always a string
-  const p: string = process.env.__NEXT_ROUTER_BASEPATH
+  // variable is always a string
+  const p = process.env.__NEXT_ROUTER_BASEPATH as string
   return path.indexOf(p) !== 0 ? p + path : path
 }
 
@@ -52,6 +51,10 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
   >
 
+export type PrefetchOptions = {
+  priority?: boolean
+}
+
 type RouteInfo = {
   Component: ComponentType
   props?: any
@@ -64,6 +67,8 @@ type Subscription = (data: RouteInfo, App?: ComponentType) => void
 type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
+
+type HistoryMethod = 'replaceState' | 'pushState'
 
 function fetchNextData(
   pathname: string,
@@ -310,7 +315,12 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
+  change(
+    method: HistoryMethod,
+    _url: Url,
+    _as: Url,
+    options: any
+  ): Promise<boolean> {
     return new Promise((resolve, reject) => {
       if (!options._h) {
         this.isSsr = false
@@ -441,13 +451,18 @@ export default class Router implements BaseRouter {
     })
   }
 
-  changeState(method: string, url: string, as: string, options = {}): void {
+  changeState(
+    method: HistoryMethod,
+    url: string,
+    as: string,
+    options = {}
+  ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
         console.error(`Warning: window.history is not available.`)
         return
       }
-      // @ts-ignore method should always exist on history
+
       if (typeof window.history[method] === 'undefined') {
         console.error(`Warning: window.history.${method} is not available`)
         return
@@ -455,14 +470,16 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
-      // @ts-ignore method should always exist on history
       window.history[method](
         {
           url,
           as,
           options,
         },
-        null,
+        // Most browsers currently ignores this parameter, although they may use it in the future.
+        // Passing the empty string here should be safe against future changes to the method.
+        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        '',
         as
       )
     }
@@ -652,11 +669,16 @@ export default class Router implements BaseRouter {
   }
 
   /**
-   * Prefetch `page` code, you may wait for the data during `page` rendering.
+   * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
-   * @param url of prefetched `page`
+   * @param url the href of prefetched page
+   * @param asPath the as path of the prefetched page
    */
-  prefetch(url: string): Promise<void> {
+  prefetch(
+    url: string,
+    asPath: string = url,
+    options: PrefetchOptions = {}
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const { pathname, protocol } = parse(url)
 
@@ -674,8 +696,9 @@ export default class Router implements BaseRouter {
         return
       }
 
-      const route = toRoute(pathname)
-      this.pageLoader.prefetch(route).then(resolve, reject)
+      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
+        toRoute(pathname)
+      ).then(() => resolve(), reject)
     })
   }
 

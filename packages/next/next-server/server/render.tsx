@@ -400,8 +400,8 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  // @ts-ignore url will always be set
-  const asPath: string = req.url
+  // url will always be set
+  const asPath = req.url as string
   const router = new ServerRouter(pathname, query, asPath, {
     isFallback: isFallback,
   })
