@@ -1397,7 +1397,7 @@ export default class Server {
       status,
       headers,
       body: (async function*() {
-        yield payload
+        yield Buffer.from(payload)
       })(),
     }
   }
