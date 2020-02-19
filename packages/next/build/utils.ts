@@ -564,7 +564,7 @@ export async function isPageStatic(
 
       const expectedReturnVal =
         `Expected: { paths: [] }\n` +
-        `See here for more info: https://err.sh/zeit/next.js/invalid-getstatic-paths-value`
+        `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
 
       if (
         !staticPathsResult ||
