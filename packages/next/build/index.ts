@@ -724,10 +724,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsMove(orig, dest)
     }
 
-    if (useStatic404) {
-      await moveExportedPage('/404', '/404', false, 'html')
-    }
-
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
       const isDynamic = isDynamicRoute(page)
