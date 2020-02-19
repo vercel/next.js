@@ -67,8 +67,4 @@ Make sure to leave us a guestbook message in our [live demo](https://with-graphq
 
 ### Deploy
 
-Deploy it to the cloud with [now](https://zeit.co/now)! [Install now](https://zeit.co/download) on your development machine before proceeding:
-
-```bash
-now
-```
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
