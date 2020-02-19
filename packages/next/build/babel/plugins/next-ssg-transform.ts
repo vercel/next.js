@@ -42,7 +42,7 @@ function decorateSsgExport(
 
       // @ts-ignore invalid return type
       const [pageCompPath] = path.replaceWithMultiple([
-        t.variableDeclaration('const', [
+        t.variableDeclaration('var', [
           t.variableDeclarator(t.identifier(pageComponentVar), prev as any),
         ]),
         t.assignmentExpression(
