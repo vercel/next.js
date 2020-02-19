@@ -75,6 +75,13 @@ type FindComponentsResult = {
   query: ParsedUrlQuery
 }
 
+type RequestContext = {}
+type RequestResponse = {
+  status: number
+  headers: { [key: string]: any }
+  body: AsyncGenerator<Buffer>
+}
+
 export type ServerConstructor = {
   /**
    * Where the Next project is located - @default '.'
@@ -819,33 +826,6 @@ export default class Server {
     return null
   }
 
-  private __sendPayload(
-    res: ServerResponse,
-    payload: any,
-    type: string,
-    revalidate?: number | false
-  ) {
-    // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', type)
-    res.setHeader('Content-Length', Buffer.byteLength(payload))
-    if (!this.renderOpts.dev) {
-      if (revalidate) {
-        res.setHeader(
-          'Cache-Control',
-          revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${revalidate}, stale-while-revalidate`
-        )
-      } else if (revalidate === false) {
-        res.setHeader(
-          'Cache-Control',
-          `s-maxage=31536000, stale-while-revalidate`
-        )
-      }
-    }
-    res.end(payload)
-  }
-
   private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
     const curUrl = parseUrl(req.url!, true)
     req.url = formatUrl({
@@ -860,19 +840,49 @@ export default class Server {
 
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
+    _res: ServerResponse,
+    pathname: string,
+    result: FindComponentsResult,
+    opts: any
+  ): Promise<RequestResponse> {
+    let responseCallback: (res: RequestResponse) => void
+    let responsePromise = new Promise<RequestResponse>(resolve => {
+      responseCallback = res => resolve(res)
+    })
+
+    this.renderToHTMLWithComponentsInternal(
+      req,
+      _res,
+      pathname,
+      result,
+      opts,
+      responseCallback!
+    )
+    return await responsePromise
+  }
+
+  private async renderToHTMLWithComponentsInternal(
+    req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
-    opts: any
-  ): Promise<string | null> {
-    // we need to ensure the status code if /404 is visited directly
-    if (this.nextConfig.experimental.pages404 && pathname === '/404') {
-      res.statusCode = 404
+    opts: any,
+    _sendResponse: (res: RequestResponse) => void
+  ): Promise<void> {
+    let didSendResponse = false
+    const sendResponse = (res: RequestResponse) => {
+      if (!didSendResponse) {
+        didSendResponse = true
+        _sendResponse(res)
+      }
     }
+
+    const status =
+      this.nextConfig.experimental.pages404 && pathname === '/404' ? 404 : 200
 
     // handle static page
     if (typeof components.Component === 'string') {
-      return components.Component
+      return sendResponse(this.__responseFromHTML(status, components.Component))
     }
 
     // check request state
@@ -908,16 +918,22 @@ export default class Server {
             true
           )
 
-          this.__sendPayload(
-            res,
-            JSON.stringify(renderResult?.renderOpts?.pageData),
-            'application/json',
-            -1
+          return sendResponse(
+            this.__responseFromPayload(
+              status,
+              JSON.stringify(renderResult?.renderOpts?.pageData),
+              'application/json',
+              -1
+            )
           )
-          return null
         }
         this.prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
+        return sendResponse(
+          this.__responseFromHTML(
+            status,
+            (components.Component as any).renderReqToHTML(req, res)
+          )
+        )
       }
 
       if (isDataReq && isServerProps) {
@@ -926,14 +942,25 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', -1)
-        return null
+        return sendResponse(
+          this.__responseFromPayload(
+            status,
+            JSON.stringify(props),
+            'application/json',
+            -1
+          )
+        )
       }
 
-      return renderToHTML(req, res, pathname, query, {
-        ...components,
-        ...opts,
-      })
+      return sendResponse(
+        this.__responseFromHTML(
+          status,
+          await renderToHTML(req, res, pathname, query, {
+            ...components,
+            ...opts,
+          })
+        )
+      )
     }
 
     const previewProps = this.getPreviewProps()
@@ -955,16 +982,18 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      this.__sendPayload(
-        res,
-        data,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate
+      sendResponse(
+        this.__responseFromPayload(
+          status,
+          data,
+          isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+          cachedData.curRevalidate
+        )
       )
 
       // Stop the request chain here if the data we sent was up-to-date
       if (!cachedData.isStale) {
-        return null
+        return
       }
     }
 
@@ -1054,19 +1083,23 @@ export default class Server {
         }
       }
 
-      this.__sendPayload(res, html, 'text/html; charset=utf-8')
+      sendResponse(
+        this.__responseFromPayload(status, html, 'text/html; charset=utf-8')
+      )
     }
 
     const {
       isOrigin,
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
-    if (!isResSent(res)) {
-      this.__sendPayload(
-        res,
-        isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        sprRevalidate
+    if (!didSendResponse) {
+      sendResponse(
+        this.__responseFromPayload(
+          status,
+          isDataReq ? JSON.stringify(pageData) : html,
+          isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+          sprRevalidate
+        )
       )
     }
 
@@ -1077,11 +1110,9 @@ export default class Server {
         await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
       }
     }
-
-    return null
   }
 
-  public async renderToHTML(
+  private async renderToResponse(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
@@ -1093,7 +1124,7 @@ export default class Server {
       amphtml?: boolean
       hasAmp?: boolean
     } = {}
-  ): Promise<string | null> {
+  ): Promise<RequestResponse> {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
@@ -1136,12 +1167,45 @@ export default class Server {
       }
     } catch (err) {
       this.logError(err)
-      res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
+      return await this.renderErrorToResponse(
+        500,
+        err,
+        req,
+        res,
+        pathname,
+        query
+      )
     }
 
-    res.statusCode = 404
-    return await this.renderErrorToHTML(null, req, res, pathname, query)
+    return await this.renderErrorToResponse(
+      404,
+      null,
+      req,
+      res,
+      pathname,
+      query
+    )
+  }
+
+  public async renderToHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {},
+    opts: {
+      amphtml?: boolean
+      hasAmp?: boolean
+    } = {}
+  ): Promise<string | null> {
+    const response = await this.renderToResponse(
+      req,
+      res,
+      pathname,
+      query,
+      opts
+    )
+    res.statusCode = response.status
+    return await responseToHTML(response)
   }
 
   public async renderError(
@@ -1162,7 +1226,8 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  public async renderErrorToHTML(
+  private async renderErrorToResponse(
+    status: number,
     err: Error | null,
     req: IncomingMessage,
     res: ServerResponse,
@@ -1172,7 +1237,7 @@ export default class Server {
     let result: null | FindComponentsResult = null
 
     const { static404, pages404 } = this.nextConfig.experimental
-    const is404 = res.statusCode === 404
+    const is404 = status === 404
     let using404Page = false
 
     // use static 404 page if available and is 404 response
@@ -1193,9 +1258,9 @@ export default class Server {
       result = await this.findPageComponents('/_error', query)
     }
 
-    let html
+    let response: RequestResponse
     try {
-      html = await this.renderToHTMLWithComponents(
+      response = await this.renderToHTMLWithComponents(
         req,
         res,
         using404Page ? '/404' : '/_error',
@@ -1205,12 +1270,30 @@ export default class Server {
           err,
         }
       )
+      return response
     } catch (err) {
       console.error(err)
-      res.statusCode = 500
-      html = 'Internal Server Error'
+      return this.__responseFromHTML(500, 'Internal Server Error')
     }
-    return html
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ) {
+    const response = await this.renderErrorToResponse(
+      res.statusCode,
+      err,
+      req,
+      res,
+      pathname,
+      query
+    )
+    res.statusCode = response.status
+    return await responseToHTML(response)
   }
 
   public async render404(
@@ -1289,4 +1372,58 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
+
+  private __responseFromPayload(
+    status: number,
+    payload: any,
+    type: string,
+    revalidate?: number | false
+  ): RequestResponse {
+    const headers: { [key: string]: any } = {
+      'Content-Type': type,
+      'Content-Length': Buffer.byteLength(payload),
+    }
+    if (!this.renderOpts.dev) {
+      if (revalidate) {
+        headers['Cache-Control'] =
+          revalidate < 0
+            ? `no-cache, no-store, must-revalidate`
+            : `s-maxage=${revalidate}, stale-while-revalidate`
+      } else if (revalidate === false) {
+        headers['Cache-Control'] = `s-maxage=31536000, stale-while-revalidate`
+      }
+    }
+    return {
+      status,
+      headers,
+      body: (async function*() {
+        yield payload
+      })(),
+    }
+  }
+
+  private __responseFromHTML(
+    status: number,
+    html: string | null
+  ): RequestResponse {
+    return {
+      status,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+      },
+      body: (async function*() {
+        if (html) {
+          yield Buffer.from(html)
+        }
+      })(),
+    }
+  }
+}
+
+async function responseToHTML(response: RequestResponse): Promise<string> {
+  let buffer = Buffer.from([])
+  for await (const chunk of response.body) {
+    buffer = Buffer.concat([buffer, chunk])
+  }
+  return buffer.toString('utf-8')
 }
