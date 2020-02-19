@@ -512,6 +512,12 @@ function runTests(dev) {
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
           },
           {
+            page: '/p1/p2/nested-all-ssg/[...rest]',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
+          },
+          {
             page: '/p1/p2/predefined-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
