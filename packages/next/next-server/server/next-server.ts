@@ -1174,14 +1174,8 @@ export default class Server {
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      result = await this.findPageComponents('/_errors/404')
-
-      // use 404 if /_errors/404 isn't available which occurs
-      // during development and when _app has getInitialProps
-      if (!result) {
-        result = await this.findPageComponents('/404')
-        using404Page = result !== null
-      }
+      result = await this.findPageComponents('/404')
+      using404Page = result !== null
     }
 
     if (!result) {

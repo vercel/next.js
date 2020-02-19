@@ -725,7 +725,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
 
     if (useStatic404) {
-      await moveExportedPage('/_errors/404', '/_errors/404', false, 'html')
+      await moveExportedPage('/404', '/404', false, 'html')
     }
 
     for (const page of combinedPages) {
