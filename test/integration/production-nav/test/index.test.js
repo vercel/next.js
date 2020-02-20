@@ -1,12 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
-import {
-  nextBuild,
-  findPort,
-  nextStart,
-  killApp,
-  waitFor,
-} from 'next-test-utils'
+import { nextBuild, nextStart, killApp, waitFor } from 'next-test-utils'
+import getPort from 'get-port'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -18,7 +13,10 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 describe('Production Usage', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
-    appPort = await findPort()
+    // use compatible port: https://www.browserstack.com/question/664
+    appPort = await getPort({
+      port: [8080, 8081, 8888, 8899],
+    })
     app = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(app))
