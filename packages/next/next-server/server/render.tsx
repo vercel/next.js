@@ -316,6 +316,8 @@ export async function renderToHTML(
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
+  const pageIsDynamic = isDynamicRoute(pathname)
+
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
@@ -325,7 +327,7 @@ export async function renderToHTML(
   if (
     process.env.NODE_ENV !== 'production' &&
     (isAutoExport || isFallback) &&
-    isDynamicRoute(pathname) &&
+    pageIsDynamic &&
     didRewrite
   ) {
     // TODO: add err.sh when rewrites go stable
@@ -357,6 +359,13 @@ export async function renderToHTML(
   if (!!unstable_getStaticPaths && !isSpr) {
     throw new Error(
       `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
+    )
+  }
+
+  if (pageIsDynamic && !unstable_getStaticPaths) {
+    throw new Error(
+      `unstable_getStaticPaths is required for dynamic SSG pages and is missing for ${pathname}.\n` +
+        `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
     )
   }
 
@@ -458,7 +467,7 @@ export async function renderToHTML(
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await unstable_getStaticProps!({
-        ...(isDynamicRoute(pathname)
+        ...(pageIsDynamic
           ? {
               params: query as ParsedUrlQuery,
             }
