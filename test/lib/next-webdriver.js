@@ -105,16 +105,6 @@ let browser = new Builder()
 
 global.wd = browser
 
-/*
-  # Methods to match
-
-  - elementByCss
-  - elementsByCss
-  - waitForElementByCss
-  - elementByCss.text
-  - elementByCss.click
-*/
-
 let initialWindow
 let deviceIP = 'localhost'
 
@@ -166,7 +156,7 @@ export default async (appPort, path, waitHydration = true) => {
   if (!initialWindow) {
     initialWindow = await browser.getWindowHandle()
   }
-  if (isBrowserStack && deviceIP === 'localhost') {
+  if (isBrowserStack && deviceIP === 'localhost' && !LEGACY_SAFARI) {
     await getDeviceIP()
   }
   // browser.switchTo().window() fails with `missing field `handle``
