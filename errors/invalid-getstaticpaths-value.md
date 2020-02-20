@@ -15,4 +15,3 @@ export async function unstable_getStaticProps() {
   }
 }
 ```
-
