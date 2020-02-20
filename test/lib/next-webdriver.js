@@ -15,6 +15,7 @@ const {
   BROWSERSTACK_ACCESS_KEY,
   HEADLESS,
   CHROME_BIN,
+  LEGACY_SAFARI,
 } = process.env
 
 let capabilities = {}
@@ -36,6 +37,12 @@ if (isBrowserStack) {
     os: 'OS X',
     os_version: 'Mojave',
     browser: 'Safari',
+  }
+  const safariLegacyOpts = {
+    os: 'OS X',
+    os_version: 'Sierra',
+    browserName: 'Safari',
+    browser_version: '10.1',
   }
   const ieOpts = {
     os: 'Windows',
@@ -60,7 +67,7 @@ if (isBrowserStack) {
     ...sharedOpts,
 
     ...(isIE ? ieOpts : {}),
-    ...(isSafari ? safariOpts : {}),
+    ...(isSafari ? (LEGACY_SAFARI ? safariLegacyOpts : safariOpts) : {}),
     ...(isFirefox ? firefoxOpts : {}),
   }
 }
