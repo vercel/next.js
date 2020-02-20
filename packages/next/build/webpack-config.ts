@@ -865,7 +865,8 @@ export default async function getBaseWebpackConfig(
         !dev &&
         new WebpackConformancePlugin({
           tests: [
-            conformanceConfig.MinificationConformanceCheck.enabled &&
+            !isServer &&
+              conformanceConfig.MinificationConformanceCheck.enabled &&
               new MinificationConformanceCheck(),
             conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
               new ReactSyncScriptsConformanceCheck(),
