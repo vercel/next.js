@@ -562,7 +562,9 @@ export async function isPageStatic(
 
       const staticPathsResult = await (mod.unstable_getStaticPaths as Unstable_getStaticPaths)()
 
-      const expectedReturnVal = `Expected: { paths: [] }`
+      const expectedReturnVal =
+        `Expected: { paths: [] }\n` +
+        `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
 
       if (
         !staticPathsResult ||
