@@ -9,6 +9,7 @@ import {
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
+  NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
@@ -54,6 +55,12 @@ export type PageConfig = {
   env?: Array<string>
 }
 
-export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  NextApiHandler,
+}
 
 export default next
