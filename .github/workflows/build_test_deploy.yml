@@ -96,7 +96,7 @@ jobs:
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production/'
 
   testSafariOld:
-    name: Test Safari 10.1 (production)
+    name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
     needs: [build, testSafari]
     env:
@@ -112,7 +112,7 @@ jobs:
         with:
           path: '.'
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production/'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production-nav/'
 
   publishRelease:
     name: Potentially publish release
