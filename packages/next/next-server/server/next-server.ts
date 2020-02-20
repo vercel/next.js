@@ -59,8 +59,19 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
+import Worker from 'jest-worker'
 
 const getCustomRouteMatcher = pathMatch(true)
+
+const staticPathsWorker = new Worker(require.resolve('./static-paths-worker'), {
+  numWorkers: 1,
+  maxRetries: 0,
+}) as Worker & {
+  loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+}
+
+staticPathsWorker.getStdout().pipe(process.stdout)
+staticPathsWorker.getStderr().pipe(process.stderr)
 
 type NextConfig = any
 
@@ -124,6 +135,7 @@ export default class Server {
     redirects: Redirect[]
     headers: Header[]
   }
+  private staticPathsCache: { [pathname: string]: string[] }
 
   public constructor({
     dir = '.',
@@ -139,6 +151,7 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
+    this.staticPathsCache = {}
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -879,6 +892,7 @@ export default class Server {
       typeof (components.Component as any).renderReqToHTML === 'function'
     const isSSG = !!components.unstable_getStaticProps
     const isServerProps = !!components.unstable_getServerProps
+    const hasStaticPaths = !!components.unstable_getStaticPaths
 
     // Toggle whether or not this is a Data request
     const isDataReq = query._nextDataReq
@@ -939,9 +953,10 @@ export default class Server {
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
+    const urlPathname = parseUrl(req.url || '').pathname!
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
-      : parseUrl(req.url || '').pathname!
+      : urlPathname
 
     // Complete the response with cached data if its present
     const cachedData = isPreviewMode
@@ -1007,6 +1022,34 @@ export default class Server {
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
+
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+    let staticPaths = this.staticPathsCache[pathname]
+
+    if (!isProduction && hasStaticPaths) {
+      // this is the first call so we need to block since getStaticPaths
+      // has not been called yet and we don't want to inaccurately render
+      // the fallback
+      const __getStaticPaths = async () => {
+        // TODO: bubble any errors from calling this to the client
+        const paths = await staticPathsWorker.loadStaticPaths(
+          this.distDir,
+          this.buildId,
+          pathname,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+        this.staticPathsCache[pathname] = paths
+        return paths
+      }
+
+      if (!staticPaths) {
+        staticPaths = await __getStaticPaths()
+      } else {
+        withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
+      }
+    }
+
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
@@ -1017,20 +1060,20 @@ export default class Server {
     //
     // * Preview mode toggles all pages to be resolved in a blocking manner.
     //
-    // * Non-dynamic pages should block (though this is an be an impossible
+    // * Non-dynamic pages should block (though this is an impossible
     //   case in production).
     //
-    // * Dynamic pages should return their skeleton, then finish the data
-    //   request on the client-side.
+    // * Dynamic pages should return their skeleton if not defined in
+    //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
       !didRespond &&
       !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
-      // TODO: development should trigger fallback when the path is not in
-      // `getStaticPaths`, for now, let's assume it is.
-      isProduction
+      // Development should trigger fallback when the path is not in
+      // `getStaticPaths`
+      (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
     ) {
       let html: string
 
