@@ -551,7 +551,7 @@ export async function isPageStatic(
       )
     }
 
-    if (pageIsDynamic && !hasStaticPaths) {
+    if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
       throw new Error(
         `unstable_getStaticPaths is required for dynamic SSG pages and is missing for ${page}.\n` +
           `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`

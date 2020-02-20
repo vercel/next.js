@@ -362,7 +362,7 @@ export async function renderToHTML(
     )
   }
 
-  if (pageIsDynamic && !unstable_getStaticPaths) {
+  if (isSpr && pageIsDynamic && !unstable_getStaticPaths) {
     throw new Error(
       `unstable_getStaticPaths is required for dynamic SSG pages and is missing for ${pathname}.\n` +
         `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
