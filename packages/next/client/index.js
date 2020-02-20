@@ -14,20 +14,9 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 /// <reference types="react-dom/experimental" />
 
-if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
-  if (!('finally' in Promise.prototype)) {
-    // eslint-disable-next-line no-extend-native
-    Promise.prototype.finally = require('finally-polyfill')
-  }
-} else {
-  // Polyfill Promise globally
-  // This is needed because Webpack's dynamic loading(common chunks) code
-  // depends on Promise.
-  // So, we need to polyfill it.
-  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-  if (!self.Promise) {
-    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
-  }
+if (!('finally' in Promise.prototype)) {
+  // eslint-disable-next-line no-extend-native
+  Promise.prototype.finally = require('finally-polyfill')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)

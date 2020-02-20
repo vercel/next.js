@@ -209,7 +209,15 @@ class Link extends Component<LinkProps> {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const [href, asPath] = this.getPaths()
-    Router.prefetch(href, asPath, options)
+    // We need to handle a prefetch error here since we may be
+    // loading with priority which can reject but we don't
+    // want to force navigation since this is only a prefetch
+    Router.prefetch(href, asPath, options).catch(err => {
+      if (process.env.NODE_ENV !== 'production') {
+        // rethrow to show invalid URL errors
+        throw err
+      }
+    })
     prefetched[href] = true
   }
 

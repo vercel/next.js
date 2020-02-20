@@ -220,6 +220,14 @@ export type NextApiResponse<T = any> = ServerResponse & {
 }
 
 /**
+ * Next `API` route handler
+ */
+export type NextApiHandler<T = any> = (
+  req: NextApiRequest,
+  res: NextApiResponse<T>
+) => void
+
+/**
  * Utils
  */
 export function execOnce(this: any, fn: (...args: any) => any) {

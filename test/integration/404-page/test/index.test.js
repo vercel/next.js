@@ -49,7 +49,7 @@ const runTests = (mode = 'server') => {
   })
 
   if (mode !== 'dev') {
-    it('should output _errors/404.html during build', async () => {
+    it('should output 404.html during build', async () => {
       expect(
         await fs.exists(
           join(
@@ -58,17 +58,17 @@ const runTests = (mode = 'server') => {
             mode === 'serverless'
               ? 'serverless/pages'
               : `server/static/${buildId}/pages`,
-            '_errors/404.html'
+            '404.html'
           )
         )
       ).toBe(true)
     })
 
-    it('should add _errors/404 to pages-manifest correctly', async () => {
+    it('should add /404 to pages-manifest correctly', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next', mode, 'pages-manifest.json')
       )
-      expect('/_errors/404' in manifest).toBe(true)
+      expect('/404' in manifest).toBe(true)
     })
   }
 }
@@ -104,10 +104,7 @@ describe('404 Page Support', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'serverless',
-          experimental: {
-            pages404: true
-          }
+          target: 'serverless'
         }
       `
       )
@@ -212,7 +209,7 @@ describe('404 Page Support', () => {
     it('should not output static 404 if _app has getInitialProps', async () => {
       expect(
         await fs.exists(
-          join(appDir, '.next/server/static', buildId, 'pages/_errors/404.html')
+          join(appDir, '.next/server/static', buildId, 'pages/404.html')
         )
       ).toBe(false)
     })
