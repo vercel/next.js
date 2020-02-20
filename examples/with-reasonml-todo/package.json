@@ -12,7 +12,7 @@
   "dependencies": {
     "babel-plugin-bucklescript": "^0.5.3",
     "next": "latest",
-    "next-transpile-modules": "2.3.1",
+    "next-transpile-modules": "^3.0.2",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "reason-react": "^0.7.0"
