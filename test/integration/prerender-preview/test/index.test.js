@@ -106,6 +106,7 @@ function runTests() {
 
     const cookies = res.headers
       .get('set-cookie')
+      .replace(/(=\w{3}),/g, '$1')
       .split(',')
       .map(cookie.parse)
 
@@ -113,15 +114,17 @@ function runTests() {
     expect(cookies[0]).toMatchObject({
       Path: '/',
       SameSite: 'Strict',
-      'Max-Age': '0',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]).not.toHaveProperty('Max-Age')
     expect(cookies[1]).toMatchObject({
       Path: '/',
       SameSite: 'Strict',
-      'Max-Age': '0',
+      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
     })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
 
   /** @type import('next-webdriver').Chain */
