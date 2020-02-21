@@ -547,14 +547,15 @@ export async function isPageStatic(
     // A page cannot have static parameters if it is not a dynamic page.
     if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
-        `unstable_getStaticPaths can only be used with dynamic pages ${page}. https://nextjs.org/docs#dynamic-routing`
+        `unstable_getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+          `\nLearn more: https://nextjs.org/docs#dynamic-routing`
       )
     }
 
     if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
       throw new Error(
-        `unstable_getStaticPaths is required for dynamic SSG pages and is missing for ${page}.\n` +
-          `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+        `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+          `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
       )
     }
 
