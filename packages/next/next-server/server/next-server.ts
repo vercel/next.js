@@ -1200,16 +1200,17 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    const pages = [res.statusCode === 404 ? '/404' : null, '/_error'].filter(
-      Boolean
-    )
+    const pages: string[] = [
+      res.statusCode === 404 ? '/404' : null,
+      '/_error',
+    ].filter(Boolean) as any
 
     try {
       for (const pathname of pages) {
         const result = await this.renderPageToHTML({
           req,
           res,
-          pathname: pathname!,
+          pathname,
           query,
           err,
         })
