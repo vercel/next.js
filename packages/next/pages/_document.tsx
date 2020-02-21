@@ -186,6 +186,7 @@ export class Head extends Component<
 
   getCssLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
     const cssFiles =
       files && files.length ? files.filter(f => /\.css$/.test(f)) : []
 
@@ -196,7 +197,9 @@ export class Head extends Component<
           key={`${file}-preload`}
           nonce={this.props.nonce}
           rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
           as="style"
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />,
@@ -204,7 +207,9 @@ export class Head extends Component<
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
-          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
       )
