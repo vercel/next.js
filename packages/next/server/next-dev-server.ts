@@ -25,7 +25,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
-import { eventVersion } from '../telemetry/events'
+import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
@@ -140,6 +140,10 @@ export default class DevServer extends Server {
       return
     }
 
+    const regexPageExtension = new RegExp(
+      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    )
+
     let resolved = false
     return new Promise(resolve => {
       const pagesDir = this.pagesDir
@@ -163,18 +167,13 @@ export default class DevServer extends Server {
         const dynamicRoutedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
-          if (accuracy === undefined) {
+          if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
 
           let pageName =
             '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-
-          pageName = pageName.replace(
-            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
-
+          pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
           if (!isDynamicRoute(pageName)) {
@@ -233,7 +232,7 @@ export default class DevServer extends Server {
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
-      eventVersion({
+      eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -464,13 +463,11 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
-        if (this.nextConfig.experimental.pages404) {
-          try {
-            await this.hotReloader!.ensurePage('/404')
-          } catch (err) {
-            if (err.code !== 'ENOENT') {
-              throw err
-            }
+        try {
+          await this.hotReloader!.ensurePage('/404')
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            throw err
           }
         }
 

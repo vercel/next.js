@@ -82,8 +82,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     env:
-      NEXT_TELEMETRY_DISABLED: 1
       BROWSERSTACK: true
+      NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
@@ -94,6 +94,25 @@ jobs:
           path: '.'
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production/'
+
+  testSafariOld:
+    name: Test Safari 10.1 (nav)
+    runs-on: ubuntu-latest
+    needs: [build, testSafari]
+    env:
+      BROWSERSTACK: true
+      LEGACY_SAFARI: true
+      NEXT_TELEMETRY_DISABLED: 1
+      SKIP_LOCAL_SELENIUM_SERVER: true
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+    steps:
+      - uses: actions/cache@v1
+        id: restore-build
+        with:
+          path: '.'
+          key: ${{ github.sha }}
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || yarn testsafari --forceExit test/integration/production-nav/'
 
   publishRelease:
     name: Potentially publish release

@@ -386,9 +386,20 @@ const runTests = (dev = false) => {
     }
     // Production will render fallback for a "lazy" route
     else {
-      const browser = await webdriver(appPort, '/catchall/notreturnedinpaths')
-      const text = await browser.elementByCss('#catchall').text()
-      expect(text).toMatch(/Hi.*?notreturnedinpaths/)
+      const html = await renderViaHTTP(appPort, '/catchall/notreturnedinpaths')
+      const $ = cheerio.load(html)
+      expect($('#catchall').text()).toBe('fallback')
+
+      // hydration
+      const browser = await webdriver(appPort, '/catchall/delayby3s')
+
+      const text1 = await browser.elementByCss('#catchall').text()
+      expect(text1).toBe('fallback')
+
+      await new Promise(resolve => setTimeout(resolve, 4000))
+
+      const text2 = await browser.elementByCss('#catchall').text()
+      expect(text2).toMatch(/Hi.*?delayby3s/)
     }
   })
 
