@@ -64,9 +64,7 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
-  const isPolyfillsOptimization = api.caller(
-    (caller: any) => !!caller && caller.polyfillsOptimization
-  )
+
   const isLaxModern =
     isModern ||
     (options['preset-env']?.targets &&
@@ -155,7 +153,7 @@ module.exports = (
       !isServer && [
         require('@babel/plugin-transform-runtime'),
         {
-          corejs: isPolyfillsOptimization ? false : 2,
+          corejs: false,
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',

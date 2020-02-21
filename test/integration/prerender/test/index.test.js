@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import fs from 'fs-extra'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
@@ -386,9 +386,20 @@ const runTests = (dev = false) => {
     }
     // Production will render fallback for a "lazy" route
     else {
-      const browser = await webdriver(appPort, '/catchall/notreturnedinpaths')
-      const text = await browser.elementByCss('#catchall').text()
-      expect(text).toMatch(/Hi.*?notreturnedinpaths/)
+      const html = await renderViaHTTP(appPort, '/catchall/notreturnedinpaths')
+      const $ = cheerio.load(html)
+      expect($('#catchall').text()).toBe('fallback')
+
+      // hydration
+      const browser = await webdriver(appPort, '/catchall/delayby3s')
+
+      const text1 = await browser.elementByCss('#catchall').text()
+      expect(text1).toBe('fallback')
+
+      await new Promise(resolve => setTimeout(resolve, 4000))
+
+      const text2 = await browser.elementByCss('#catchall').text()
+      expect(text2).toMatch(/Hi.*?delayby3s/)
     }
   })
 
@@ -434,6 +445,33 @@ const runTests = (dev = false) => {
         expect(html).toMatch(/Additional keys were returned/)
       } finally {
         await fs.writeFile(indexPage, origContent)
+      }
+    })
+
+    it('should error on dynamic page without getStaticPaths', async () => {
+      const curPage = join(__dirname, '../pages/temp/[slug].js')
+      await fs.mkdirp(dirname(curPage))
+      await fs.writeFile(
+        curPage,
+        `
+          export async function unstable_getStaticProps() {
+            return {
+              props: {
+                hello: 'world'
+              }
+            }
+          }
+          export default () => 'oops'
+        `
+      )
+      await waitFor(1000)
+      try {
+        const html = await renderViaHTTP(appPort, '/temp/hello')
+        expect(html).toMatch(
+          /unstable_getStaticPaths is required for dynamic SSG pages and is missing for/
+        )
+      } finally {
+        await fs.remove(curPage)
       }
     })
 

@@ -543,10 +543,19 @@ export async function isPageStatic(
       throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
+    const pageIsDynamic = isDynamicRoute(page)
     // A page cannot have static parameters if it is not a dynamic page.
-    if (hasStaticProps && hasStaticPaths && !isDynamicRoute(page)) {
+    if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
-        `unstable_getStaticPaths can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+        `unstable_getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+          `\nLearn more: https://nextjs.org/docs#dynamic-routing`
+      )
+    }
+
+    if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
+      throw new Error(
+        `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+          `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
       )
     }
 
@@ -562,9 +571,17 @@ export async function isPageStatic(
 
       const staticPathsResult = await (mod.unstable_getStaticPaths as Unstable_getStaticPaths)()
 
-      if (!staticPathsResult || typeof staticPathsResult !== 'object') {
+      const expectedReturnVal =
+        `Expected: { paths: [] }\n` +
+        `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+
+      if (
+        !staticPathsResult ||
+        typeof staticPathsResult !== 'object' ||
+        Array.isArray(staticPathsResult)
+      ) {
         throw new Error(
-          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} Expected: { paths: [] }`
+          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
         )
       }
 
@@ -576,7 +593,7 @@ export async function isPageStatic(
         throw new Error(
           `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
             ', '
-          )}) The only field allowed currently is \`paths\``
+          )}) ${expectedReturnVal}`
         )
       }
 
