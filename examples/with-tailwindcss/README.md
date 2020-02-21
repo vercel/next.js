@@ -12,10 +12,10 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-tailwindcss with-tailwindcss-app
+npm init next-app --example with-tailwindcss with-tailwindcss-app
 # or
 yarn create next-app --example with-tailwindcss with-tailwindcss-app
 ```
@@ -39,20 +39,14 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-```bash
-now
-```
-
-## The idea behind the example
+## Notes
 
 This setup is a basic starting point for using [Tailwind CSS](https://tailwindcss.com) with Next.js. This example also includes the following [PostCSS](https://github.com/postcss/postcss) plugins:
 
-- [autoprefixer](https://github.com/postcss/autoprefixer) - Adds vendor prefixes to CSS rules in your stylesheet using values from [Can I Use](https://caniuse.com/)
+- [postcss-preset-env](https://preset-env.cssdb.org/) - Adds stage 2+ features and autoprefixes
 - [purgecss](https://github.com/FullHuman/purgecss) - Removes unused CSS
-- [cssnano](https://cssnano.co/) - Minifies CSS
-- [postcss-easy-import](https://github.com/TrySound/postcss-easy-import) - Allows importing one stylesheet into another
 
 ## Limitations
 

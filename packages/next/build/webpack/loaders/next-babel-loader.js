@@ -2,9 +2,9 @@ import babelLoader from 'babel-loader'
 import { basename, join } from 'path'
 import hash from 'string-hash'
 
-// increment 'e' to invalidate cache
+// increment 'j' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'g' + '-'
+const cacheKey = 'babel-cache-' + 'j' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const getModernOptions = (babelOptions = {}) => {
@@ -71,6 +71,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
+                '-new-polyfills' +
                 (opts.development ? '-development' : '-production') +
                 JSON.stringify(
                   babel.loadPartialConfig({

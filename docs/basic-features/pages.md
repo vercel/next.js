@@ -83,7 +83,7 @@ Data is always up-to-date but it comes at the cost of a slightly higher [Time to
 // Next.js will execute `getInitialProps`
 // It will wait for the result of `getInitialProps`
 // When the results comes back Next.js will render the page.
-// Next.js wil do this for every request that comes in.
+// Next.js will do this for every request that comes in.
 import fetch from 'isomorphic-unfetch'
 
 function HomePage({ stars }) {
@@ -106,13 +106,13 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/routing/introduction.md">
     <b>Routing:</b>
-    <small>Learn more about routing in Next.js</small>
+    <small>Learn more about routing in Next.js.</small>
   </a>
 </div>
 
 <div class="card">
   <a href="/docs/basic-features/typescript.md#pages">
     <b>TypeScript:</b>
-    <small>Add TypeScript to your pages</small>
+    <small>Add TypeScript to your pages.</small>
   </a>
 </div>

@@ -1,7 +1,6 @@
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
-// @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
 import {
@@ -28,14 +27,12 @@ import {
   VALID_MIDDLEWARE,
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
-import { __overrideCssConfiguration } from './webpack/config/blocks/css'
-// @ts-ignore: JS file
+import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
-import MiniCssExtractPlugin from './webpack/plugins/mini-css-extract-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -45,6 +42,9 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import WebpackConformancePlugin, {
+  MinificationConformanceCheck,
+} from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -63,33 +63,42 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
-  return {
-    // Polyfill: Window#fetch
-    __next_polyfill__fetch: require.resolve('whatwg-fetch'),
-    unfetch$: stubWindowFetch,
-    'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': path.join(
-      __dirname,
-      'polyfills',
-      'fetch',
-      'whatwg-fetch.js'
-    ),
+  return Object.assign(
+    {},
+    {
+      unfetch$: stubWindowFetch,
+      'isomorphic-unfetch$': stubWindowFetch,
+      'whatwg-fetch$': path.join(
+        __dirname,
+        'polyfills',
+        'fetch',
+        'whatwg-fetch.js'
+      ),
+    },
+    {
+      'object-assign$': stubObjectAssign,
 
-    // Polyfill: Object.assign
-    __next_polyfill__object_assign: require.resolve('object-assign'),
-    'object-assign$': stubObjectAssign,
-    '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
+      // Stub Package: object.assign
+      'object.assign/auto': path.join(shimAssign, 'auto.js'),
+      'object.assign/implementation': path.join(
+        shimAssign,
+        'implementation.js'
+      ),
+      'object.assign$': path.join(shimAssign, 'index.js'),
+      'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
+      'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-    // Stub Package: object.assign
-    'object.assign/auto': path.join(shimAssign, 'auto.js'),
-    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
-    'object.assign$': path.join(shimAssign, 'index.js'),
-    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-    'object.assign/shim': path.join(shimAssign, 'shim.js'),
+      // TODO: re-enable when `native-url` supports Safari 10
+      // // Replace: full URL polyfill with platform-based polyfill
+      // url: require.resolve('native-url'),
+    }
+  )
+}
 
-    // Replace: full URL polyfill with platform-based polyfill
-    url: require.resolve('native-url'),
-  }
+type ClientEntries = {
+  'main.js': string[]
+} & {
+  [key: string]: string
 }
 
 export default async function getBaseWebpackConfig(
@@ -175,7 +184,7 @@ export default async function getBaseWebpackConfig(
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
-    ? {
+    ? ({
         // Backwards compatibility
         'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -191,7 +200,7 @@ export default async function getBaseWebpackConfig(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
           'polyfills.js'
         ),
-      }
+      } as ClientEntries)
     : undefined
 
   let typeScriptPath
@@ -203,8 +212,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
   const ignoreTypeScriptErrors = dev
-    ? config.typescript && config.typescript.ignoreDevErrors
-    : config.typescript && config.typescript.ignoreBuildErrors
+    ? config.typescript?.ignoreDevErrors
+    : config.typescript?.ignoreBuildErrors
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -278,6 +287,17 @@ export default async function getBaseWebpackConfig(
 
   const devtool = dev ? 'cheap-module-source-map' : false
 
+  const isModuleCSS = (module: { type: string }): boolean => {
+    return (
+      // mini-css-extract-plugin
+      module.type === `css/mini-extract` ||
+      // extract-css-chunks-webpack-plugin (old)
+      module.type === `css/extract-chunks` ||
+      // extract-css-chunks-webpack-plugin (new)
+      module.type === `css/extract-css-chunks`
+    )
+  }
+
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
     [propName: string]: webpack.Options.SplitChunksOptions
@@ -335,7 +355,7 @@ export default async function getBaseWebpackConfig(
             updateHash: (hash: crypto.Hash) => void
           }): string {
             const hash = crypto.createHash('sha1')
-            if (module.type === `css/mini-extract`) {
+            if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
               if (!module.libIdent) {
@@ -360,17 +380,19 @@ export default async function getBaseWebpackConfig(
         },
         shared: {
           name(module, chunks) {
-            return crypto
-              .createHash('sha1')
-              .update(
-                chunks.reduce(
-                  (acc: string, chunk: webpack.compilation.Chunk) => {
-                    return acc + chunk.name
-                  },
-                  ''
+            return (
+              crypto
+                .createHash('sha1')
+                .update(
+                  chunks.reduce(
+                    (acc: string, chunk: webpack.compilation.Chunk) => {
+                      return acc + chunk.name
+                    },
+                    ''
+                  )
                 )
-              )
-              .digest('hex')
+                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
+            )
           },
           priority: 10,
           minChunks: 2,
@@ -433,8 +455,7 @@ export default async function getBaseWebpackConfig(
             // are relative to requests we've already resolved here.
             // Absolute requires (require('/foo')) are extremely uncommon, but
             // also have no need for customization as they're already resolved.
-            const start = request.charAt(0)
-            if (start === '.' || start === '/') {
+            if (request.startsWith('.') || request.startsWith('/')) {
               return callback()
             }
 
@@ -476,9 +497,9 @@ export default async function getBaseWebpackConfig(
             // Default pages have to be transpiled
             if (
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-              (res.match(/next[/\\]dist[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/))
+              (res.match(/[/\\]next[/\\]dist[/\\]/) ||
+                // This is the @babel/plugin-transform-runtime "helpers: true" option
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
             ) {
               return callback()
             }
@@ -536,8 +557,10 @@ export default async function getBaseWebpackConfig(
           }),
       ].filter(Boolean),
     },
-    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
+    node: {
+      setImmediate: false,
+    },
     // Kept as function to be backwards compatible
     entry: async () => {
       return {
@@ -603,7 +626,6 @@ export default async function getBaseWebpackConfig(
       ],
       plugins: [PnpWebpackPlugin],
     },
-    // @ts-ignore this is filtered
     module: {
       rules: [
         {
@@ -672,9 +694,6 @@ export default async function getBaseWebpackConfig(
           : {}),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.exportTrailingSlash
-        ),
-        'process.env.__NEXT_DEFER_SCRIPTS': JSON.stringify(
-          config.experimental.deferScripts
         ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
@@ -784,14 +803,6 @@ export default async function getBaseWebpackConfig(
           clientManifest: config.experimental.granularChunks,
           modern: config.experimental.modern,
         }),
-      // Extract CSS as CSS file(s) in the client-side production bundle.
-      config.experimental.css &&
-        !isServer &&
-        !dev &&
-        new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].chunk.css',
-        }),
       tracer &&
         new ProfilingPlugin({
           tracer,
@@ -831,6 +842,11 @@ export default async function getBaseWebpackConfig(
           chunkFilename: (inputChunkName: string) =>
             inputChunkName.replace(/\.js$/, '.module.js'),
         }),
+      config.experimental.conformance &&
+        !dev &&
+        new WebpackConformancePlugin({
+          tests: [new MinificationConformanceCheck()],
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -840,6 +856,7 @@ export default async function getBaseWebpackConfig(
     isDevelopment: dev,
     isServer,
     hasSupportCss: !!config.experimental.css,
+    hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
   })
 
@@ -855,8 +872,7 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
-    // @ts-ignore: Property 'then' does not exist on type 'Configuration'
-    if (typeof webpackConfig.then === 'function') {
+    if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
         '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
@@ -868,18 +884,31 @@ export default async function getBaseWebpackConfig(
       return false
     }
 
-    const fileName = '/tmp/test.css'
+    const fileNames = [
+      '/tmp/test.css',
+      '/tmp/test.scss',
+      '/tmp/test.sass',
+      '/tmp/test.less',
+      '/tmp/test.styl',
+    ]
 
-    if (rule instanceof RegExp && rule.test(fileName)) {
+    if (rule instanceof RegExp && fileNames.some(input => rule.test(input))) {
       return true
     }
 
     if (typeof rule === 'function') {
-      try {
-        if (rule(fileName)) {
-          return true
-        }
-      } catch (_) {}
+      if (
+        fileNames.some(input => {
+          try {
+            if (rule(input)) {
+              return true
+            }
+          } catch (_) {}
+          return false
+        })
+      ) {
+        return true
+      }
     }
 
     if (Array.isArray(rule) && rule.some(canMatchCss)) {
@@ -891,10 +920,9 @@ export default async function getBaseWebpackConfig(
 
   if (config.experimental.css) {
     const hasUserCssConfig =
-      webpackConfig.module &&
-      webpackConfig.module.rules.some(
+      webpackConfig.module?.rules.some(
         rule => canMatchCss(rule.test) || canMatchCss(rule.include)
-      )
+      ) ?? false
 
     if (hasUserCssConfig) {
       if (webpackConfig.module?.rules.length) {
@@ -920,7 +948,7 @@ export default async function getBaseWebpackConfig(
         )
       }
     } else {
-      await __overrideCssConfiguration(dir, webpackConfig)
+      await __overrideCssConfiguration(dir, !dev, webpackConfig)
     }
   }
 
@@ -1050,7 +1078,6 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-        // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,
@@ -1063,8 +1090,8 @@ export default async function getBaseWebpackConfig(
   }
 
   if (!dev) {
-    // @ts-ignore entry is always a function
-    webpackConfig.entry = await webpackConfig.entry()
+    // entry is always a function
+    webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
   }
 
   return webpackConfig

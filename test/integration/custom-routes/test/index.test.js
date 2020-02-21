@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
@@ -23,13 +24,15 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
+let externalServerHits = new Set()
+let nextConfigRestoreContent
 let nextConfigContent
-let buildId
+let externalServerPort
+let externalServer
 let stdout = ''
+let buildId
 let appPort
 let app
-
-const escapeRegex = str => str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
 
 const runTests = (isDev = false) => {
   it('should handle one-to-one rewrite successfully', async () => {
@@ -40,6 +43,14 @@ const runTests = (isDev = false) => {
   it('should handle chained rewrites successfully', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/multi-rewrites/)
+  })
+
+  it('should not match dynamic route immediately after applying header', async () => {
+    const res = await fetchViaHTTP(appPort, '/blog/post-321')
+    expect(res.headers.get('x-something')).toBe('applied-everywhere')
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('p').text()).path).toBe('blog')
   })
 
   it('should handle chained redirects successfully', async () => {
@@ -65,7 +76,7 @@ const runTests = (isDev = false) => {
     expect(res3location).toBe('/')
   })
 
-  it('should redirect successfully with default statusCode', async () => {
+  it('should redirect successfully with permanent: false', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual',
     })
@@ -156,6 +167,22 @@ const runTests = (isDev = false) => {
     expect(html).toMatch(/second/)
   })
 
+  // current routes order do not allow rewrites to override page
+  // but allow redirects to
+  it('should not allow rewrite to override page file', async () => {
+    const html = await renderViaHTTP(appPort, '/nav')
+    expect(html).toContain('to-hello')
+  })
+
+  it('show allow redirect to override the page', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect-override', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/thank-you-next')
+  })
+
   it('should work successfully on the client', async () => {
     const browser = await webdriver(appPort, '/nav')
     await browser.elementByCss('#to-hello').click()
@@ -229,101 +256,174 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('x-second-header')).toBe('second')
   })
 
+  it('should support proxying to external resource', async () => {
+    const res = await fetchViaHTTP(appPort, '/proxy-me/first')
+    expect(res.status).toBe(200)
+    expect([...externalServerHits]).toEqual(['/first'])
+    expect(await res.text()).toContain('hi from external')
+  })
+
+  it('should support unnamed parameters correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/unnamed/first/final', undefined, {
+      redirect: 'manual',
+    })
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/first/final')
+  })
+
+  it('should support named like unnamed parameters correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/named-like-unnamed/first',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/first')
+  })
+
+  it('should add refresh header for 308 redirect', async () => {
+    const res = await fetchViaHTTP(appPort, '/redirect4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(308)
+    expect(res.headers.get('refresh')).toBe(`0;url=/`)
+  })
+
+  it('should handle basic api rewrite successfully', async () => {
+    const data = await renderViaHTTP(appPort, '/api-hello')
+    expect(JSON.parse(data)).toEqual({ query: {} })
+  })
+
+  it('should handle api rewrite with un-named param successfully', async () => {
+    const data = await renderViaHTTP(appPort, '/api-hello-regex/hello/world')
+    expect(JSON.parse(data)).toEqual({
+      query: { '1': 'hello/world', name: 'hello/world' },
+    })
+  })
+
+  it('should handle api rewrite with param successfully', async () => {
+    const data = await renderViaHTTP(appPort, '/api-hello-param/hello')
+    expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
+  })
+
+  it('should handle encoded value in the pathname correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/redirect/me/to-about/' + encodeURI('\\google.com'),
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    const { pathname, hostname } = url.parse(res.headers.get('location') || '')
+    expect(res.status).toBe(307)
+    expect(pathname).toBe(encodeURI('/\\google.com/about'))
+    expect(hostname).not.toBe('google.com')
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
 
-      for (const route of [...manifest.dynamicRoutes, ...manifest.rewrites]) {
+      for (const route of [
+        ...manifest.dynamicRoutes,
+        ...manifest.rewrites,
+        ...manifest.redirects,
+        ...manifest.headers,
+      ]) {
         route.regex = normalizeRegEx(route.regex)
       }
 
       expect(manifest).toEqual({
         version: 1,
+        pages404: true,
         basePath: '',
         redirects: [
+          {
+            destination: '/:lang/about',
+            regex: normalizeRegEx(
+              '^\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))$'
+            ),
+            source: '/redirect/me/to-about/:lang',
+            statusCode: 307,
+          },
           {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',
             statusCode: 301,
             regex: normalizeRegEx('^\\/docs\\/router-status(?:\\/([^\\/]+?))$'),
-            regexKeys: ['code'],
           },
           {
             source: '/docs/github',
             destination: '/docs/v2/advanced/now-for-github',
             statusCode: 301,
             regex: normalizeRegEx('^\\/docs\\/github$'),
-            regexKeys: [],
           },
           {
             source: '/docs/v2/advanced/:all(.*)',
             destination: '/docs/v2/more/:all',
             statusCode: 301,
             regex: normalizeRegEx('^\\/docs\\/v2\\/advanced(?:\\/(.*))$'),
-            regexKeys: ['all'],
           },
           {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
             regex: normalizeRegEx('^\\/hello(?:\\/([^\\/]+?))\\/another$'),
-            regexKeys: ['id'],
           },
           {
             source: '/redirect1',
             destination: '/',
             statusCode: 307,
             regex: normalizeRegEx('^\\/redirect1$'),
-            regexKeys: [],
           },
           {
             source: '/redirect2',
             destination: '/',
             statusCode: 301,
             regex: normalizeRegEx('^\\/redirect2$'),
-            regexKeys: [],
           },
           {
             source: '/redirect3',
             destination: '/another',
             statusCode: 302,
             regex: normalizeRegEx('^\\/redirect3$'),
-            regexKeys: [],
           },
           {
             source: '/redirect4',
             destination: '/',
             statusCode: 308,
             regex: normalizeRegEx('^\\/redirect4$'),
-            regexKeys: [],
           },
           {
             source: '/redir-chain1',
             destination: '/redir-chain2',
             statusCode: 301,
             regex: normalizeRegEx('^\\/redir-chain1$'),
-            regexKeys: [],
           },
           {
             source: '/redir-chain2',
             destination: '/redir-chain3',
             statusCode: 302,
             regex: normalizeRegEx('^\\/redir-chain2$'),
-            regexKeys: [],
           },
           {
             source: '/redir-chain3',
             destination: '/',
             statusCode: 303,
             regex: normalizeRegEx('^\\/redir-chain3$'),
-            regexKeys: [],
           },
           {
             destination: 'https://google.com',
             regex: normalizeRegEx('^\\/to-external$'),
-            regexKeys: [],
             source: '/to-external',
             statusCode: 307,
           },
@@ -332,8 +432,27 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/query-redirect(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
             ),
-            regexKeys: ['section', 'name'],
             source: '/query-redirect/:section/:name',
+            statusCode: 307,
+          },
+          {
+            destination: '/:1/:2',
+            regex: normalizeRegEx(
+              '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
+            ),
+            source: '/unnamed/(first|second)/(.*)',
+            statusCode: 307,
+          },
+          {
+            destination: '/:0',
+            regex: normalizeRegEx('^\\/named-like-unnamed(?:\\/([^\\/]+?))$'),
+            source: '/named-like-unnamed/:0',
+            statusCode: 307,
+          },
+          {
+            destination: '/thank-you-next',
+            regex: normalizeRegEx('^\\/redirect-override$'),
+            source: '/redirect-override',
             statusCode: 307,
           },
         ],
@@ -350,7 +469,6 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx('^\\/add-header$'),
-            regexKeys: [],
             source: '/add-header',
           },
           {
@@ -365,64 +483,71 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
-            regexKeys: [0],
             source: '/my-headers/(.*)',
+          },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'applied-everywhere',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/:path*',
           },
         ],
         rewrites: [
           {
             destination: '/another/one',
             regex: normalizeRegEx('^\\/to-another$'),
-            regexKeys: [],
             source: '/to-another',
+          },
+          {
+            destination: '/404',
+            regex: '^\\/nav$',
+            source: '/nav',
           },
           {
             source: '/hello-world',
             destination: '/static/hello.txt',
             regex: normalizeRegEx('^\\/hello-world$'),
-            regexKeys: [],
           },
           {
             source: '/',
             destination: '/another',
             regex: normalizeRegEx('^\\/$'),
-            regexKeys: [],
           },
           {
             source: '/another',
             destination: '/multi-rewrites',
             regex: normalizeRegEx('^\\/another$'),
-            regexKeys: [],
           },
           {
             source: '/first',
             destination: '/hello',
             regex: normalizeRegEx('^\\/first$'),
-            regexKeys: [],
           },
           {
             source: '/second',
             destination: '/hello-again',
             regex: normalizeRegEx('^\\/second$'),
-            regexKeys: [],
           },
           {
             destination: '/hello',
             regex: normalizeRegEx('^\\/to-hello$'),
-            regexKeys: [],
             source: '/to-hello',
           },
           {
             destination: '/blog/post-2',
             regex: normalizeRegEx('^\\/blog\\/post-1$'),
-            regexKeys: [],
             source: '/blog/post-1',
           },
           {
             source: '/test/:path',
             destination: '/:path',
             regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))$'),
-            regexKeys: ['path'],
           },
           {
             source: '/test-overwrite/:something/:another',
@@ -430,20 +555,17 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
             ),
-            regexKeys: ['something', 'another'],
           },
           {
             source: '/params/:something',
             destination: '/with-params',
             regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))$'),
-            regexKeys: ['something'],
           },
           {
             destination: '/with-params?first=:section&second=:name',
             regex: normalizeRegEx(
               '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
             ),
-            regexKeys: ['section', 'name'],
             source: '/query-rewrite/:section/:name',
           },
           {
@@ -451,8 +573,34 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx(
               '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
-            regexKeys: ['path'],
             source: '/hidden/_next/:path*',
+          },
+          {
+            destination: `http://localhost:${externalServerPort}/:path*`,
+            regex: normalizeRegEx(
+              '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/proxy-me/:path*',
+          },
+          {
+            destination: '/api/hello',
+            regex: normalizeRegEx('^\\/api-hello$'),
+            source: '/api-hello',
+          },
+          {
+            destination: '/api/hello?name=:1',
+            regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
+            source: '/api-hello-regex/(.*)',
+          },
+          {
+            destination: '/api/hello?name=:name',
+            regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
+            source: '/api-hello-param/:name',
+          },
+          {
+            destination: '/with-params',
+            regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
+            source: '/:path/post-321',
           },
         ],
         dynamicRoutes: [
@@ -475,14 +623,22 @@ const runTests = (isDev = false) => {
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
       expect(cleanStdout).toContain('Rewrites')
-      expect(cleanStdout).toMatch(/Source.*?Destination.*?statusCode/i)
+      expect(cleanStdout).toContain('Headers')
+      expect(cleanStdout).toMatch(/source.*?/i)
+      expect(cleanStdout).toMatch(/destination.*?/i)
 
       for (const route of [...manifest.redirects, ...manifest.rewrites]) {
-        expect(cleanStdout).toMatch(
-          new RegExp(
-            `${escapeRegex(route.source)}.*?${escapeRegex(route.destination)}`
-          )
-        )
+        expect(cleanStdout).toContain(route.source)
+        expect(cleanStdout).toContain(route.destination)
+      }
+
+      for (const route of manifest.headers) {
+        expect(cleanStdout).toContain(route.source)
+
+        for (const header of route.headers) {
+          expect(cleanStdout).toContain(header.key)
+          expect(cleanStdout).toContain(header.value)
+        }
       }
     })
   } else {
@@ -496,6 +652,32 @@ const runTests = (isDev = false) => {
 }
 
 describe('Custom routes', () => {
+  beforeEach(() => {
+    externalServerHits = new Set()
+  })
+  beforeAll(async () => {
+    externalServerPort = await findPort()
+    externalServer = http.createServer((req, res) => {
+      externalServerHits.add(req.url)
+      res.end('hi from external')
+    })
+    await new Promise((resolve, reject) => {
+      externalServer.listen(externalServerPort, error => {
+        if (error) return reject(error)
+        resolve()
+      })
+    })
+    nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
+    await fs.writeFile(
+      nextConfigPath,
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+    )
+  })
+  afterAll(async () => {
+    externalServer.close()
+    await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+  })
+
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

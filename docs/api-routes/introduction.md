@@ -25,7 +25,7 @@ For example, the following API route `pages/api/user.js` handles a simple `json`
 export default (req, res) => {
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify({ name: 'Jhon Doe' }))
+  res.end(JSON.stringify({ name: 'John Doe' }))
 }
 ```
 
@@ -45,6 +45,8 @@ export default (req, res) => {
   }
 }
 ```
+
+To fetch API endpoints, take a look into any of the examples at the start of this section.
 
 > API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with [micro-cors](/docs/api-routes/api-middlewares.md#micro-support).
 
@@ -71,6 +73,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/basic-features/typescript.md#api-routes">
     <b>TypeScript:</b>
-    <small>Add TypeScript to your API Routes</small>
+    <small>Add TypeScript to your API Routes.</small>
   </a>
 </div>

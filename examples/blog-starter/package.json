@@ -7,7 +7,6 @@
     "now-build": "next build && yarn build:rss"
   },
   "dependencies": {
-    "@zeit/next-css": "^1.0.1",
     "@zeit/next-mdx": "^1.2.0",
     "babel-plugin-macros": "^2.5.0",
     "babel-plugin-preval": "^3.0.1",

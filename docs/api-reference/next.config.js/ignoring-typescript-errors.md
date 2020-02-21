@@ -24,7 +24,7 @@ If you'd like Next.js to dangerously produce production code even when your appl
 
 > Be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
 
-Open `next.config.js` and enable the `ignoreDevErrors` option in the `typescript` config:
+Open `next.config.js` and enable the `ignoreBuildErrors` option in the `typescript` config:
 
 ```js
 module.exports = {
@@ -40,3 +40,19 @@ module.exports = {
   },
 }
 ```
+
+## Related
+
+<div class="card">
+  <a href="/docs/api-reference/next.config.js/introduction.md">
+    <b>Introduction to next.config.js:</b>
+    <small>Learn more about the configuration file used by Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/typescript.md">
+    <b>TypeScript:</b>
+    <small>Get started with TypeScript in Next.js.</small>
+  </a>
+</div>

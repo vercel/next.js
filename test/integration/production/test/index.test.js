@@ -1,26 +1,27 @@
 /* eslint-env jest */
 /* global jasmine, browserName */
-import webdriver from 'next-webdriver'
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import cheerio from 'cheerio'
+import { existsSync, readFileSync } from 'fs'
 import {
   nextServer,
+  renderViaHTTP,
   runNextCommand,
   startApp,
   stopApp,
-  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import {
+  BUILD_MANIFEST,
+  PAGES_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from 'next/constants'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
+import { join } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {
-  BUILD_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
-  PAGES_MANIFEST,
-} from 'next/constants'
-import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
 let appPort
@@ -172,23 +173,39 @@ describe('Production Usage', () => {
       ))
       const url = `http://localhost:${appPort}/_next/`
 
-      const resources = []
+      const resources = new Set()
 
       // test a regular page
-      resources.push(`${url}static/${buildId}/pages/index.js`)
+      resources.add(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(
+      resources.add(
         url + reactLoadableManifest['../../components/hello1'][0].publicPath
       )
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
-        resources.push(url + item)
+        resources.add(url + item)
       }
 
+      const cssStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.css$/
+      )
+      expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      const mediaStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.svg$/
+      )
+      expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      ;[...cssStaticAssets, ...mediaStaticAssets].forEach(asset => {
+        resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
+      })
+
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        [...resources].map(resource => fetch(resource))
       )
 
       responses.forEach(res => {
@@ -278,6 +295,23 @@ describe('Production Usage', () => {
 
   it('should navigate to external site and back', async () => {
     const browser = await webdriver(appPort, '/external-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -460,7 +494,7 @@ describe('Production Usage', () => {
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
         // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(13)
+        expect(elements.length).toBe(11)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
@@ -591,7 +625,6 @@ describe('Production Usage', () => {
 
   it('should handle AMP correctly in IE', async () => {
     const browser = await webdriver(appPort, '/some-amp')
-    await waitFor(1000)
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('Not AMP')
   })
@@ -684,7 +717,7 @@ describe('Production Usage', () => {
     let missing = false
 
     for (const script of $('script').toArray()) {
-      // application/json doesn't need defer
+      // application/json doesn't need async
       if (
         script.attribs.type === 'application/json' ||
         script.attribs.src.includes('polyfills')
@@ -692,7 +725,7 @@ describe('Production Usage', () => {
         continue
       }
 
-      if (script.attribs.async !== '') {
+      if (script.attribs.defer === '' || script.attribs.async !== '') {
         missing = true
       }
     }
@@ -702,5 +735,5 @@ describe('Production Usage', () => {
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
-  if (browserName === 'chrome') security(context)
+  if (browserName !== 'safari') security(context)
 })

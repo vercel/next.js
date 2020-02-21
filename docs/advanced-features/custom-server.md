@@ -11,7 +11,7 @@ description: Start a Next.js app programmatically using a custom server.
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server-express">Express integration</a></li>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server-hapi">Hapi integration</a></li>
     <li><a href="https://github.com/zeit/next.js/tree/canary/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/ssr-caching">SSR Catching</a></li>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/ssr-caching">SSR Caching</a></li>
   </ul>
 </details>
 

@@ -21,6 +21,7 @@
     }
   },
   "overrides": [
+    { "files": ["**/__tests__/**"], "env": { "jest": true } },
     {
       "files": ["**/*.ts", "**/*.tsx"],
       "parser": "@typescript-eslint/parser",
@@ -61,12 +62,25 @@
             "ignoreRestSiblings": true
           }
         ],
+        "no-unused-expressions": "off",
+        "@typescript-eslint/no-unused-expressions": [
+          "error",
+          {
+            "allowShortCircuit": true,
+            "allowTernary": true,
+            "allowTaggedTemplates": true
+          }
+        ],
         "no-useless-constructor": "off",
         "@typescript-eslint/no-useless-constructor": "warn"
       }
     },
     {
-      "files": ["test/**/*", "examples/**/*"],
+      "files": [
+        "test/**/*",
+        "examples/**/*",
+        "packages/create-next-app/templates/**/*"
+      ],
       "rules": { "react/react-in-jsx-scope": "off" }
     }
   ],

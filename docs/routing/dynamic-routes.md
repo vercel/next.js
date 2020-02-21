@@ -56,11 +56,41 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 
 Client-side navigations to a dynamic route can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes).
 
+### Catch all routes
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/catch-all-routes">Catch All Routes</a></li>
+  </ul>
+</details>
+
+Dynamic routes can be extended to catch all paths by adding three dots (`...`) inside the brackets. For example:
+
+- `pages/post/[...slug].js` matches `/post/a`, but also `/post/a/b`, `/post/a/b/c` and so on.
+
+> **Note**: You can use names other than `slug`, such as: `[...param]`
+
+Matched parameters will be sent as a query parameter (`slug` in the example) to the page, and it will always be an array, so, the path `/post/a` will have the following `query` object:
+
+```json
+{ "slug": ["a"] }
+```
+
+And in the case of `/post/a/b`, and any other matching path, new parameters will be added to the array, like so:
+
+```json
+{ "slug": ["a", "b"] }
+```
+
+> A good example of catch all routes is the Next.js docs, a single page called [pages/docs/[...slug].js](https://github.com/zeit/next-site/blob/master/pages/docs/%5B...slug%5D.js) takes care of all the docs you're currently looking at.
+
 ## Caveats
 
-- Predefined routes take precedence over dynamic routes. Take a look at the following examples:
+- Predefined routes take precedence over dynamic routes, and dynamic routes over catch all routes. Take a look at the following examples:
   - `pages/post/create.js` - Will match `/post/create`
-  - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. but not `/post/create`
+  - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
+  - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.

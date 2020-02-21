@@ -6,4 +6,10 @@ export function unstable_getStaticProps({ params }) {
   return { props: { params } }
 }
 
+export function unstable_getStaticPaths() {
+  return {
+    paths: [],
+  }
+}
+
 export default All

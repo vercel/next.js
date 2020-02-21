@@ -49,7 +49,6 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.prefetched = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
     if (process.env.__NEXT_GRANULAR_CHUNKS) {
@@ -69,7 +68,11 @@ export default class PageLoader {
   getDependencies(route) {
     return this.promisedBuildManifest.then(
       man =>
-        (man[route] && man[route].map(url => `/_next/${encodeURI(url)}`)) || []
+        (man[route] &&
+          man[route].map(
+            url => `${this.assetPrefix}/_next/${encodeURI(url)}`
+          )) ||
+        []
     )
   }
 
@@ -212,19 +215,18 @@ export default class PageLoader {
       if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
-    let url = this.assetPrefix
+    let url
     if (isDependency) {
-      url += route
+      url = route
     } else {
       route = normalizeRoute(route)
-      this.prefetched[route] = true
 
       let scriptRoute = `${route === '/' ? '/index' : route}.js`
       if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
         scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
       }
 
-      url += `/_next/static/${encodeURIComponent(
+      url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
         this.buildId
       )}/pages${encodeURI(scriptRoute)}`
     }

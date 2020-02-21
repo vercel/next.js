@@ -1,9 +1,7 @@
-import 'semantic-ui-css/semantic.min.css'
 import { Modal, Button, Icon } from 'semantic-ui-react'
 
 import SmallImage from './SmallImage.png'
 import LargeImage from './LargeImage.png'
-import './styles.css'
 
 export default () => (
   <div className="centered">
@@ -18,7 +16,7 @@ export default () => (
           <div className="wrapper">
             <div className="row">
               <p>
-                Larger content should be still availble as a fallback to{' '}
+                Larger content should be still available as a fallback to{' '}
                 <em>fileLoader</em> but it should not polute{' '}
                 <em>/.next/static/css</em> folder. You should see two images
                 below. One, smaller, loaded as data url, and one, bigger, loaded

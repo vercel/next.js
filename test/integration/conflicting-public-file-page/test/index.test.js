@@ -7,7 +7,6 @@ import {
   findPort,
   killApp,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -25,7 +24,6 @@ describe('Errors on conflict between public file and page file', () => {
         /A conflicting public file and page file was found for path/
       )
     }
-    await waitFor(1000)
     await killApp(app)
   })
 
