@@ -246,7 +246,8 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   return (
     `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
     `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
+    `\nRead more: https://err.sh/next.js/invalid-getstaticprops-value`
   )
 }
 
