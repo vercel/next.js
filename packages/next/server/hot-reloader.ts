@@ -256,8 +256,7 @@ export default class HotReloader {
       'server',
       this.buildId,
       this.previewProps,
-      this.config,
-      {}
+      this.config
     )
 
     let additionalClientEntrypoints: { [file: string]: string } = {}
