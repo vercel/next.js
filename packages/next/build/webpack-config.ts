@@ -558,6 +558,9 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     context: dir,
+    node: {
+      setImmediate: false,
+    },
     // Kept as function to be backwards compatible
     entry: async () => {
       return {
