@@ -2,13 +2,7 @@
 /* global jasmine */
 import path from 'path'
 import webdriver from 'next-webdriver'
-import {
-  nextBuild,
-  nextStart,
-  findPort,
-  killApp,
-  waitFor,
-} from 'next-test-utils'
+import { nextBuild, nextStart, findPort, killApp, check } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 const appDir = path.join(__dirname, '..')
@@ -29,8 +23,11 @@ describe('Failing to load _error', () => {
     await killApp(app)
 
     await browser.elementByCss('#to-broken').click()
-    await waitFor(2000)
 
-    expect(await browser.eval('window.beforeNavigate')).toBeFalsy()
+    await check(async () => {
+      return !(await browser.eval('window.beforeNavigate'))
+        ? 'reloaded'
+        : 'fail'
+    }, /reloaded/)
   })
 })
