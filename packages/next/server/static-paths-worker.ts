@@ -1,5 +1,5 @@
-import { loadComponents } from './load-components'
-import { buildStaticPaths } from '../../build/utils'
+import { loadComponents } from '../next-server/server/load-components'
+import { buildStaticPaths } from '../build/utils'
 // we call getStaticPaths in a separate thread to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build

@@ -59,19 +59,8 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
-import Worker from 'jest-worker'
 
 const getCustomRouteMatcher = pathMatch(true)
-
-const staticPathsWorker = new Worker(require.resolve('./static-paths-worker'), {
-  numWorkers: 1,
-  maxRetries: 0,
-}) as Worker & {
-  loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
-}
-
-staticPathsWorker.getStdout().pipe(process.stdout)
-staticPathsWorker.getStderr().pipe(process.stderr)
 
 type NextConfig = any
 
@@ -134,6 +123,9 @@ export default class Server {
     rewrites: Rewrite[]
     redirects: Redirect[]
     headers: Header[]
+  }
+  protected staticPathsWorker?: import('jest-worker').default & {
+    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
   }
   private staticPathsCache: { [pathname: string]: string[] }
 
@@ -1033,7 +1025,7 @@ export default class Server {
       // the fallback
       const __getStaticPaths = async () => {
         // TODO: bubble any errors from calling this to the client
-        const paths = await staticPathsWorker.loadStaticPaths(
+        const paths = await this.staticPathsWorker!.loadStaticPaths(
           this.distDir,
           this.buildId,
           pathname,
