@@ -2,124 +2,127 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import { ENV_CONFIG_FILE } from 'next/dist/next-server/lib/constants'
-import { nextBuild, findPort, launchApp, killApp } from 'next-test-utils'
+import { ENV_FILE } from 'next/dist/next-server/lib/constants'
+import {
+  nextBuild,
+  findPort,
+  launchApp,
+  killApp,
+  nextStart,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const appDir = join(__dirname, '..')
-const envFile = join(appDir, ENV_CONFIG_FILE)
+const envFile = join(appDir, ENV_FILE)
 const nextConfig = join(appDir, 'next.config.js')
 
-const build = async (isDev = false) => {
-  let output = ''
-  if (isDev) {
-    const app = await launchApp(appDir, await findPort(), {
-      onStdout(msg) {
-        output += msg || ''
-      },
-      onStderr(msg) {
-        output += msg || ''
-      },
-    })
-    const timeout = setTimeout(() => killApp(app).catch(() => {}), 5 * 1000)
-    await app
-    clearTimeout(timeout)
-  } else {
-    const { stdout, stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      stdout: true,
-    })
-    output = (stdout || '') + '\n\n' + (stderr || '')
-  }
-  return output
-}
+let app
+let appPort
+let output = ''
+
+const envValues = ['NOTION_KEY', 'SENTRY_DSN', 'DATABASE_KEY', 'DATABASE_USER']
+
+const writeEnv = () =>
+  fs.writeFile(envFile, envValues.map(val => `${val}=value`).join('\n'))
+const rmEnv = () => fs.remove(envFile)
 
 const runTests = (isDev = false) => {
-  it('should error for missing required values', async () => {
-    await fs.writeFile(
-      envFile,
-      JSON.stringify({
-        NOTION_KEY: {
-          description: 'Notion API key',
-          required: true,
-        },
-        APP_TITLE: {
-          description: 'some title',
-          required: false,
-        },
-        SENTRY_DSN: {
-          description: 'our sentry dsn',
-          env: {
-            [isDev ? 'development' : 'production']: {
-              required: true,
-            },
-            [!isDev ? 'development' : 'production']: {
-              required: false,
-            },
-          },
-        },
-        DATABASE_ACCESS_KEY: {
-          description: 'used to access our database for SSG',
-        },
-      })
-    )
-    const output = await build(isDev)
-    console.log(output)
+  const startApp = async () => {
+    output = ''
+    appPort = await findPort()
+    let method = isDev ? launchApp : nextStart
 
+    app = await method(appDir, appPort, {
+      onStdout(msg) {
+        output += msg
+      },
+      onStderr(msg) {
+        output += msg
+      },
+    })
+  }
+
+  if (isDev) {
+    it('should warn for missing values on SSG page', async () => {
+      await startApp()
+      await renderViaHTTP(appPort, '/')
+      await killApp(app)
+      expect(output).toContain(
+        `Missing env values: ${envValues.join(', ')} for /`
+      )
+    })
+
+    it('should not warn for missing values on SSG page', async () => {
+      await writeEnv()
+      await startApp()
+      await renderViaHTTP(appPort, '/')
+      await killApp(app)
+      await rmEnv()
+      expect(output).not.toContain(
+        `Missing env values: ${envValues.join(', ')} for /`
+      )
+    })
+  }
+
+  it('should warn for missing values on server props page', async () => {
+    await startApp()
+    await renderViaHTTP(appPort, '/ssp')
+    await killApp(app)
     expect(output).toContain(
-      'Required environment items from `' +
-        ENV_CONFIG_FILE +
-        '` are missing: NOTION_KEY, SENTRY_DSN'
+      `Missing env values: ${envValues.join(', ')} for /ssp`
     )
   })
 
-  it('should not error for missing required values if default values provided', async () => {
-    await fs.writeFile(
-      envFile,
-      JSON.stringify({
-        NOTION_KEY: {
-          description: 'Notion API key',
-          defaultValue: 'notion',
-          required: true,
-        },
-        APP_TITLE: {
-          description: 'some title',
-          required: false,
-        },
-        SENTRY_DSN: {
-          description: 'our sentry dsn',
-          env: {
-            [isDev ? 'development' : 'production']: {
-              defaultValue: 'sentry',
-              required: true,
-            },
-            [!isDev ? 'development' : 'production']: {
-              required: false,
-            },
-          },
-        },
-        DATABASE_ACCESS_KEY: {
-          description: 'used to access our database for SSG',
-        },
-      })
-    )
-    const output = await build(isDev)
-
+  it('should not warn for missing values on server props page', async () => {
+    await writeEnv()
+    await startApp()
+    await renderViaHTTP(appPort, '/ssp')
+    await killApp(app)
+    await rmEnv()
     expect(output).not.toContain(
-      'Required environment items from `' + ENV_CONFIG_FILE + '` are missing:'
+      `Missing env values: ${envValues.join(', ')} for /ssp`
+    )
+  })
+
+  it('should warn for missing values on API route', async () => {
+    await startApp()
+    await renderViaHTTP(appPort, '/api/hello')
+    await killApp(app)
+    expect(output).toContain(
+      `Missing env values: ${envValues.join(', ')} for /api/hello`
+    )
+  })
+
+  it('should not warn for missing values on API route', async () => {
+    await writeEnv()
+    await startApp()
+    await renderViaHTTP(appPort, '/api/hello')
+    await killApp(app)
+    await rmEnv()
+    expect(output).not.toContain(
+      `Missing env values: ${envValues.join(', ')} for /api/hello`
     )
   })
 }
 
 describe('Env Config', () => {
-  afterEach(() => fs.remove(envFile))
+  afterEach(async () => {
+    await fs.remove(envFile)
+    try {
+      await killApp(app)
+    } catch (_) {}
+  })
 
   describe('dev mode', () => {
     runTests(true)
   })
 
   describe('server mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+    })
     runTests()
   })
 
@@ -129,11 +132,8 @@ describe('Env Config', () => {
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`
       )
+      await nextBuild(appDir)
     })
-    afterAll(async () => {
-      await fs.remove(nextConfig)
-    })
-
     runTests()
   })
 })

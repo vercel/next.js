@@ -59,7 +59,7 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
-import { Env, loadEnvConfig } from '../../lib/load-env-config'
+import { loadEnvConfig } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -115,7 +115,6 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
-    env: Env
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -163,9 +162,9 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      // TODO: do we want to hot-reload this in development at all?
-      env: loadEnvConfig(dir),
     }
+
+    loadEnvConfig(dir, dev)
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -673,7 +672,6 @@ export default class Server {
       query,
       pageModule,
       { ...previewProps },
-      this.renderOpts.env,
       this.onErrorMiddleware
     )
     return true

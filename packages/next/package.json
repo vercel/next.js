@@ -194,6 +194,7 @@
     "ast-types": "0.13.2",
     "babel-plugin-dynamic-import-node": "2.3.0",
     "dotenv": "8.2.0",
+    "dotenv-expand": "5.1.0",
     "nanoid": "2.0.3",
     "resolve": "1.11.0",
     "taskr": "1.1.0",

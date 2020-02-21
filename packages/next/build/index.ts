@@ -207,10 +207,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
     previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
   }
-  // TODO: should we process config here also to show any errors
-  // from missing env values which will be missing for auto-export
-  // pages/SSG pages after the build completes
-  const envConfig = loadEnvConfig(dir, false)
+  // load env values from current .env files
+  loadEnvConfig(dir)
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
@@ -218,8 +216,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     target,
     buildId,
     previewProps,
-    config,
-    envConfig
+    config
   )
   const pageKeys = Object.keys(mappedPages)
   const dynamicRoutes = pageKeys.filter(page => isDynamicRoute(page))
