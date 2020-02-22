@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
+  initNextServerScript,
   killApp,
   nextBuild,
   nextStart,
@@ -31,7 +32,7 @@ function getData(html) {
   return { nextData: JSON.parse(nextData.html()), pre: preEl.text() }
 }
 
-function runTests() {
+function runTests(startServer = nextStart) {
   it('should compile successfully', async () => {
     await fs.remove(join(appDir, '.next'))
     const { code, stdout } = await nextBuild(appDir, [], {
@@ -44,7 +45,7 @@ function runTests() {
   let appPort, app
   it('should start production application', async () => {
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await startServer(appDir, appPort)
   })
 
   it('should return prerendered page on first request', async () => {
@@ -189,6 +190,16 @@ function runTests() {
   })
 }
 
+const startServerlessEmulator = async (dir, port) => {
+  const scriptPath = join(dir, 'server.js')
+  const env = Object.assign(
+    {},
+    { ...process.env },
+    { PORT: port, BUILD_ID: await getBuildId() }
+  )
+  return initNextServerScript(scriptPath, /ready on/i, env)
+}
+
 describe('Prerender Preview Mode', () => {
   describe('Server Mode', () => {
     beforeAll(async () => {
@@ -197,6 +208,7 @@ describe('Prerender Preview Mode', () => {
 
     runTests()
   })
+
   describe('Serverless Mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
@@ -209,5 +221,19 @@ describe('Prerender Preview Mode', () => {
     })
 
     runTests()
+  })
+
+  describe('Emulated Serverless Mode', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
+      )
+    })
+    afterAll(async () => {
+      await fs.remove(nextConfigPath)
+    })
+
+    runTests(startServerlessEmulator)
   })
 })

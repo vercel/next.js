@@ -341,6 +341,11 @@ const nextServerlessLoader: loader.Loader = function() {
           )
           res.end(payload)
           return null
+        } else if (isPreviewMode) {
+          res.setHeader(
+            'Cache-Control',
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
         }
 
         if (fromExport) return { html: result, renderOpts }
