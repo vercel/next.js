@@ -151,7 +151,7 @@ const nextServerlessLoader: loader.Loader = function() {
       }
       ${dynamicRouteImports}
       const { parse } = require('url')
-      const { apiResolver } = require('next/dist/next-server/server/api-utils')
+      const { tryGetPreviewData, apiResolver } = require('next/dist/next-server/server/api-utils')
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
