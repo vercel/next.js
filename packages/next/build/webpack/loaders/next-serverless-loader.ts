@@ -151,7 +151,7 @@ const nextServerlessLoader: loader.Loader = function() {
       }
       ${dynamicRouteImports}
       const { parse } = require('url')
-      const { tryGetPreviewData, apiResolver } = require('next/dist/next-server/server/api-utils')
+      const { apiResolver } = require('next/dist/next-server/server/api-utils')
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
@@ -206,7 +206,8 @@ const nextServerlessLoader: loader.Loader = function() {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} =require('next/dist/next-server/server/render');
+    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
