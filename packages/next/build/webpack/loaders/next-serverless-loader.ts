@@ -320,6 +320,9 @@ const nextServerlessLoader: loader.Loader = function() {
 
         const isFallback = parsedUrl.query.__nextFallback
 
+        const previewData = tryGetPreviewData(req, res, options.previewProps)
+        const isPreviewMode = previewData !== false
+
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (_nextData && !fromExport) {
@@ -329,7 +332,9 @@ const nextServerlessLoader: loader.Loader = function() {
 
           res.setHeader(
             'Cache-Control',
-            unstable_getServerProps
+            isPreviewMode
+              ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
+              : unstable_getServerProps
               ? \`no-cache, no-store, must-revalidate\`
               : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )

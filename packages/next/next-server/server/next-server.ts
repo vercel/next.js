@@ -821,20 +821,25 @@ export default class Server {
     res: ServerResponse,
     payload: any,
     type: string,
-    revalidate?: number | false
+    options?: { revalidate: number | false; private: boolean }
   ) {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
     res.setHeader('Content-Type', type)
     res.setHeader('Content-Length', Buffer.byteLength(payload))
     if (!this.renderOpts.dev) {
-      if (revalidate) {
+      if (options?.private) {
         res.setHeader(
           'Cache-Control',
-          revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${revalidate}, stale-while-revalidate`
+          `private, no-cache, no-store, max-age=0, must-revalidate`
         )
-      } else if (revalidate === false) {
+      } else if (options?.revalidate) {
+        res.setHeader(
+          'Cache-Control',
+          options.revalidate < 0
+            ? `no-cache, no-store, must-revalidate`
+            : `s-maxage=${options.revalidate}, stale-while-revalidate`
+        )
+      } else if (options?.revalidate === false) {
         res.setHeader(
           'Cache-Control',
           `s-maxage=31536000, stale-while-revalidate`
@@ -910,7 +915,10 @@ export default class Server {
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
             'application/json',
-            -1
+            {
+              revalidate: -1,
+              private: false, // Leave to user-land caching
+            }
           )
           return null
         }
@@ -924,7 +932,10 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', -1)
+        this.__sendPayload(res, JSON.stringify(props), 'application/json', {
+          revalidate: -1,
+          private: false, // Leave to user-land caching
+        })
         return null
       }
 
@@ -957,7 +968,9 @@ export default class Server {
         res,
         data,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate
+        cachedData.curRevalidate !== undefined
+          ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
+          : undefined
       )
 
       // Stop the request chain here if the data we sent was up-to-date
@@ -1064,7 +1077,7 @@ export default class Server {
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        sprRevalidate
+        { revalidate: sprRevalidate, private: isPreviewMode }
       )
     }
 
