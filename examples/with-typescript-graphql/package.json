@@ -32,6 +32,7 @@
     "@graphql-codegen/typescript": "^1.12.2",
     "@graphql-codegen/typescript-operations": "^1.12.2",
     "@graphql-codegen/typescript-react-apollo": "^1.12.2",
+    "@graphql-codegen/typescript-resolvers": "1.12.2",
     "@types/react": "^16.9.22",
     "@types/react-dom": "^16.9.5",
     "graphql-let": "0.x",
