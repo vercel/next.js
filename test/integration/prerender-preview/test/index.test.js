@@ -20,6 +20,10 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
+async function getBuildId() {
+  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+}
+
 function getData(html) {
   const $ = cheerio.load(html)
   const nextData = $('#__NEXT_DATA__')
@@ -91,8 +95,31 @@ function runTests() {
     const html = await res.text()
 
     const { nextData, pre } = getData(html)
+    expect(res.headers.get('cache-control')).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
     expect(nextData).toMatchObject({ isFallback: false })
     expect(pre).toBe('true and {"lets":"goooo"}')
+  })
+
+  it('should return correct caching headers for data preview request', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${encodeURI(await getBuildId())}/index.json`,
+      {},
+      { headers: { Cookie: previewCookieString } }
+    )
+    const json = await res.json()
+
+    expect(res.headers.get('cache-control')).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    expect(json).toMatchObject({
+      pageProps: {
+        preview: true,
+        previewData: { lets: 'goooo' },
+      },
+    })
   })
 
   it('should return cookies to be expired on reset request', async () => {
