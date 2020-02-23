@@ -548,7 +548,7 @@ export async function renderToHTML(
 
   if (
     process.env.NODE_ENV !== 'production' &&
-    Object.keys(props.pageProps).includes('url')
+    Object.keys(props.pageProps || {}).includes('url')
   ) {
     throw new Error(
       'The prop `url` can not be passed to pages as this is a reserved prop for Next.js. See more info here: https://err.sh/zeit/next.js/reserved-page-prop'
