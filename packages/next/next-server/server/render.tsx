@@ -545,6 +545,16 @@ export async function renderToHTML(
     props.pageProps = data.props
     ;(renderOpts as any).pageData = props
   }
+
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    Object.keys(props.pageProps).includes('url')
+  ) {
+    throw new Error(
+      'The prop `url` can not be passed to pages as this is a reserved prop for Next.js. See more info here: https://err.sh/zeit/next.js/reserved-page-prop'
+    )
+  }
+
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerProps if not this can be removed
   if (isDataReq) return props
