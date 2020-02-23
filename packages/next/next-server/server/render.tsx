@@ -526,6 +526,7 @@ export async function renderToHTML(
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
+    console.error(err)
   }
 
   if (unstable_getServerProps && !isFallback) {

@@ -19,11 +19,13 @@ import {
   normalizeRegEx,
   startStaticServer,
   initNextServerScript,
+  getReactErrorOverlayContent,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
+const indexPage = join(__dirname, '../pages/index.js')
 let app
 let appPort
 let buildId
@@ -413,6 +415,31 @@ const runTests = (dev = false) => {
     //   )
     // })
 
+    it('should log error in console and browser in dev mode', async () => {
+      const origContent = await fs.readFile(indexPage, 'utf8')
+
+      const browser = await webdriver(appPort, '/')
+      expect(await browser.elementByCss('p').text()).toMatch(/hello.*?world/)
+
+      await fs.writeFile(
+        indexPage,
+        origContent
+          .replace('// throw new', 'throw new')
+          .replace('{/* <div', '<div')
+          .replace('</div> */}', '</div>')
+      )
+      await browser.waitForElementByCss('#after-change')
+      // we need to reload the page to trigger getStaticProps
+      await browser.refresh()
+
+      const errOverlayContent = await getReactErrorOverlayContent(browser)
+
+      await fs.writeFile(indexPage, origContent)
+      const errorMsg = /oops from getStaticProps/
+      expect(stderr).toMatch(errorMsg)
+      expect(errOverlayContent).toMatch(errorMsg)
+    })
+
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
       expect(initialRes.headers.get('cache-control')).toBeFalsy()
@@ -433,7 +460,6 @@ const runTests = (dev = false) => {
     })
 
     it('should error on bad object from getStaticProps', async () => {
-      const indexPage = join(__dirname, '../pages/index.js')
       const origContent = await fs.readFile(indexPage, 'utf8')
       await fs.writeFile(
         indexPage,
