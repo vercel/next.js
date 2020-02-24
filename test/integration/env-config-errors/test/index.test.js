@@ -2,7 +2,6 @@
 /* global jasmine */
 import fs from 'fs-extra'
 import { join } from 'path'
-import { ENV_FILE } from 'next/dist/next-server/lib/constants'
 import {
   nextBuild,
   findPort,
@@ -15,7 +14,7 @@ import {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const appDir = join(__dirname, '..')
-const envFile = join(appDir, ENV_FILE)
+const envFile = join(appDir, '.env')
 const nextConfig = join(appDir, 'next.config.js')
 
 let app

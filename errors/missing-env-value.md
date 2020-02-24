@@ -5,9 +5,16 @@
 One of your pages' config requested an env value that wasn't populated.
 
 ```js
+// pages/index.js
 export const config = {
-  env: ['MY_ENV_KEY'],
+  // this value isn't provided in `.env`
+  env: ['MISSING_KEY'],
 }
+```
+
+```
+// .env (notice no `MISSING_KEY` provided here)
+NOTION_KEY='...'
 ```
 
 #### Possible Ways to Fix It

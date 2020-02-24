@@ -40,9 +40,12 @@ function writePackageManifest(packageName) {
 
   let typesFile = types || typings
   if (typesFile) {
-    try {
-      typesFile = require.resolve(join(packageName, typesFile))
-    } catch (_) {}
+    // if they provide a types directory resolve it
+    if (extname(typesFile) === '') {
+      typesFile = join(typesFile, 'index.d.ts')
+    }
+
+    typesFile = require.resolve(join(packageName, typesFile))
   } else {
     try {
       const typesPackage = `@types/${packageName}`
