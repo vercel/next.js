@@ -381,61 +381,41 @@ const runTests = (dev = false, looseMode = false) => {
   })
 
   it('should support lazy catchall route', async () => {
-    // Dev doesn't support fallback yet
-    if (dev) {
-      const html = await renderViaHTTP(appPort, '/catchall/notreturnedinpaths')
-      const $ = cheerio.load(html)
-      expect($('#catchall').text()).toMatch(/Hi.*?notreturnedinpaths/)
-    }
-    // Production will render fallback for a "lazy" route
-    else {
-      const html = await renderViaHTTP(appPort, '/catchall/notreturnedinpaths')
-      const $ = cheerio.load(html)
-      expect($('#catchall').text()).toBe('fallback')
+    const html = await renderViaHTTP(appPort, '/catchall/notreturnedinpaths')
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toBe('fallback')
 
-      // hydration
-      const browser = await webdriver(appPort, '/catchall/delayby3s')
+    // hydration
+    const browser = await webdriver(appPort, '/catchall/delayby3s')
 
-      const text1 = await browser.elementByCss('#catchall').text()
-      expect(text1).toBe('fallback')
+    const text1 = await browser.elementByCss('#catchall').text()
+    expect(text1).toBe('fallback')
 
-      await check(
-        () => browser.elementByCss('#catchall').text(),
-        /Hi.*?delayby3s/
-      )
-    }
+    await check(
+      () => browser.elementByCss('#catchall').text(),
+      /Hi.*?delayby3s/
+    )
   })
 
   it('should support nested lazy catchall route', async () => {
-    // Dev doesn't support fallback yet
-    if (dev) {
-      const html = await renderViaHTTP(
-        appPort,
-        '/catchall/notreturnedinpaths/nested'
-      )
-      const $ = cheerio.load(html)
-      expect($('#catchall').text()).toMatch(/Hi.*?notreturnedinpaths nested/)
-    }
-    // Production will render fallback for a "lazy" route
-    else {
-      const html = await renderViaHTTP(
-        appPort,
-        '/catchall/notreturnedinpaths/nested'
-      )
-      const $ = cheerio.load(html)
-      expect($('#catchall').text()).toBe('fallback')
+    // We will render fallback for a "lazy" route
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall/notreturnedinpaths/nested'
+    )
+    const $ = cheerio.load(html)
+    expect($('#catchall').text()).toBe('fallback')
 
-      // hydration
-      const browser = await webdriver(appPort, '/catchall/delayby3s/nested')
+    // hydration
+    const browser = await webdriver(appPort, '/catchall/delayby3s/nested')
 
-      const text1 = await browser.elementByCss('#catchall').text()
-      expect(text1).toBe('fallback')
+    const text1 = await browser.elementByCss('#catchall').text()
+    expect(text1).toBe('fallback')
 
-      await check(
-        () => browser.elementByCss('#catchall').text(),
-        /Hi.*?delayby3s nested/
-      )
-    }
+    await check(
+      () => browser.elementByCss('#catchall').text(),
+      /Hi.*?delayby3s nested/
+    )
   })
 
   if (dev) {
@@ -447,6 +427,28 @@ const runTests = (dev = false, looseMode = false) => {
     //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
     //   )
     // })
+
+    it('should always show fallback for page not in getStaticPaths', async () => {
+      const html = await renderViaHTTP(appPort, '/blog/post-321')
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(true)
+
+      // make another request to ensure it still is
+      const html2 = await renderViaHTTP(appPort, '/blog/post-321')
+      const $2 = cheerio.load(html2)
+      expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(true)
+    })
+
+    it('should not show fallback for page in getStaticPaths', async () => {
+      const html = await renderViaHTTP(appPort, '/blog/post-1')
+      const $ = cheerio.load(html)
+      expect(JSON.parse($('#__NEXT_DATA__').text()).isFallback).toBe(false)
+
+      // make another request to ensure it's still not
+      const html2 = await renderViaHTTP(appPort, '/blog/post-1')
+      const $2 = cheerio.load(html2)
+      expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
+    })
 
     it('should log error in console and browser in dev mode', async () => {
       const origContent = await fs.readFile(indexPage, 'utf8')

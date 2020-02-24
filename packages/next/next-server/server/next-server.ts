@@ -124,6 +124,9 @@ export default class Server {
     redirects: Redirect[]
     headers: Header[]
   }
+  protected staticPathsWorker?: import('jest-worker').default & {
+    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
+  }
 
   public constructor({
     dir = '.',
@@ -884,6 +887,7 @@ export default class Server {
       typeof (components.Component as any).renderReqToHTML === 'function'
     const isSSG = !!components.unstable_getStaticProps
     const isServerProps = !!components.unstable_getServerProps
+    const hasStaticPaths = !!components.unstable_getStaticPaths
 
     // Toggle whether or not this is a Data request
     const isDataReq = query._nextDataReq
@@ -950,9 +954,10 @@ export default class Server {
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
+    const urlPathname = parseUrl(req.url || '').pathname!
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
-      : parseUrl(req.url || '').pathname!
+      : urlPathname
 
     // Complete the response with cached data if its present
     const cachedData = isPreviewMode
@@ -1020,6 +1025,30 @@ export default class Server {
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
+
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+    let staticPaths: string[] | undefined
+
+    if (!isProduction && hasStaticPaths) {
+      const __getStaticPaths = async () => {
+        const paths = await this.staticPathsWorker!.loadStaticPaths(
+          this.distDir,
+          this.buildId,
+          pathname,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+        return paths
+      }
+
+      staticPaths = (
+        await withCoalescedInvoke(__getStaticPaths)(
+          `staticPaths-${pathname}`,
+          []
+        )
+      ).value
+    }
+
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
@@ -1030,20 +1059,20 @@ export default class Server {
     //
     // * Preview mode toggles all pages to be resolved in a blocking manner.
     //
-    // * Non-dynamic pages should block (though this is an be an impossible
+    // * Non-dynamic pages should block (though this is an impossible
     //   case in production).
     //
-    // * Dynamic pages should return their skeleton, then finish the data
-    //   request on the client-side.
+    // * Dynamic pages should return their skeleton if not defined in
+    //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
       !didRespond &&
       !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
-      // TODO: development should trigger fallback when the path is not in
-      // `getStaticPaths`, for now, let's assume it is.
-      isProduction
+      // Development should trigger fallback when the path is not in
+      // `getStaticPaths`
+      (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
     ) {
       let html: string
 
