@@ -905,10 +905,10 @@ export default class Server {
       // handle serverless
       if (isLikeServerless) {
         if (isDataReq) {
+          req.headers['x-next-export'] = '1'
           const renderResult = await (components.Component as any).renderReqToHTML(
             req,
-            res,
-            true
+            res
           )
 
           this.__sendPayload(
@@ -993,10 +993,10 @@ export default class Server {
       let renderResult
       // handle serverless
       if (isLikeServerless) {
+        req.headers['x-next-export'] = '1'
         renderResult = await (components.Component as any).renderReqToHTML(
           req,
-          res,
-          true
+          res
         )
 
         html = renderResult.html

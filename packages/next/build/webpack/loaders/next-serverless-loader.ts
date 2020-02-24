@@ -145,8 +145,8 @@ const nextServerlessLoader: loader.Loader = function() {
       ${runtimeConfigImports}
       ${
         /*
-          this needs to be called first so its available for any other imports
-        */
+        this needs to be called first so its available for any other imports
+      */
         runtimeConfigSetter
       }
       ${dynamicRouteImports}
@@ -231,7 +231,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+    export async function renderReqToHTML(req, res, _renderOpts, _params) {
       ${
         basePath
           ? `
@@ -241,6 +241,7 @@ const nextServerlessLoader: loader.Loader = function() {
       `
           : ''
       }
+      const fromExport = req.headers['x-next-export'] != null
       const options = {
         App,
         Document,
