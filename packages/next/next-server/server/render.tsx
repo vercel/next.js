@@ -1,37 +1,38 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
-import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { NextRouter } from '../lib/router/router'
-import mitt, { MittEmitter } from '../lib/mitt'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import {
-  loadGetInitialProps,
-  isResSent,
-  getDisplayName,
-  ComponentsEnhancer,
-  RenderPage,
-  DocumentInitialProps,
-  NextComponentType,
-  DocumentType,
-  AppType,
-} from '../lib/utils'
+  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
+  SERVER_PROPS_SSG_CONFLICT,
+  SSG_GET_INITIAL_PROPS_CONFLICT,
+} from '../../lib/constants'
+import { isInAmpMode } from '../lib/amp'
+import { AmpStateContext } from '../lib/amp-context'
+import { AMP_RENDER_TARGET } from '../lib/constants'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
+import mitt, { MittEmitter } from '../lib/mitt'
 import { RouterContext } from '../lib/router-context'
-import { getPageFiles } from './get-page-files'
-import { AmpStateContext } from '../lib/amp-context'
-import optimizeAmp from './optimize-amp'
-import { isInAmpMode } from '../lib/amp'
+import { NextRouter } from '../lib/router/router'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
 import {
-  SSG_GET_INITIAL_PROPS_CONFLICT,
-  SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SSG_CONFLICT,
-  PAGES_404_GET_INITIAL_PROPS_ERROR,
-} from '../../lib/constants'
-import { AMP_RENDER_TARGET } from '../lib/constants'
+  AppType,
+  ComponentsEnhancer,
+  DocumentInitialProps,
+  DocumentType,
+  getDisplayName,
+  isResSent,
+  loadGetInitialProps,
+  NextComponentType,
+  RenderPage,
+} from '../lib/utils'
+import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import optimizeAmp from './optimize-amp'
 
 function noRouter() {
   const message =
@@ -45,14 +46,22 @@ class ServerRouter implements NextRouter {
   query: ParsedUrlQuery
   asPath: string
   events: any
+  isFallback: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: ParsedUrlQuery, as: string) {
+  constructor(
+    pathname: string,
+    query: ParsedUrlQuery,
+    as: string,
+    { isFallback }: { isFallback: boolean }
+  ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
+
+    this.isFallback = isFallback
   }
   push(): any {
     noRouter()
@@ -136,7 +145,7 @@ type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
-  pages404?: boolean
+  previewProps: __ApiPreviewProps
 }
 
 function renderDocument(
@@ -152,6 +161,7 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     autoExport,
+    isFallback,
     dynamicImportsIds,
     dangerousAsPath,
     hasCssMode,
@@ -187,6 +197,7 @@ function renderDocument(
     htmlProps: any
     bodyTags: any
     headTags: any
+    isFallback?: boolean
   }
 ): string {
   return (
@@ -203,6 +214,7 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             autoExport, // If this is an auto exported page
+            isFallback,
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
@@ -234,7 +246,8 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   return (
     `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
     `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
+    `\nRead more: https://err.sh/next.js/invalid-getstaticprops-value`
   )
 }
 
@@ -265,7 +278,7 @@ export async function renderToHTML(
     unstable_getServerProps,
     isDataReq,
     params,
-    pages404,
+    previewProps,
   } = renderOpts
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
@@ -294,11 +307,17 @@ export async function renderToHTML(
   const bodyTags = (...args: any) => callMiddleware('bodyTags', args)
   const htmlProps = (...args: any) => callMiddleware('htmlProps', args, true)
 
+  const didRewrite = (req as any)._nextDidRewrite
+  const isFallback = !!query.__nextFallback
+  delete query.__nextFallback
+
   const isSpr = !!unstable_getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
+
+  const pageIsDynamic = isDynamicRoute(pathname)
 
   const isAutoExport =
     !hasPageGetInitialProps &&
@@ -308,15 +327,21 @@ export async function renderToHTML(
 
   if (
     process.env.NODE_ENV !== 'production' &&
-    isAutoExport &&
-    isDynamicRoute(pathname) &&
-    (req as any)._nextDidRewrite
+    (isAutoExport || isFallback) &&
+    pageIsDynamic &&
+    didRewrite
   ) {
     // TODO: add err.sh when rewrites go stable
-    // Behavior might change before then (prefer SSR in this case)
+    // Behavior might change before then (prefer SSR in this case).
+    // If we decide to ship rewrites to the client we could solve this
+    // by running over the rewrites and getting the params.
     throw new Error(
-      `Rewrites don't support auto-exported dynamic pages yet. ` +
-        `Using this will cause the page to fail to parse the params on the client`
+      `Rewrites don't support${
+        isFallback ? ' ' : ' auto-exported '
+      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet. ` +
+        `Using this will cause the page to fail to parse the params on the client${
+          isFallback ? ' for the fallback page ' : ''
+        }`
     )
   }
 
@@ -335,6 +360,13 @@ export async function renderToHTML(
   if (!!unstable_getStaticPaths && !isSpr) {
     throw new Error(
       `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
+    )
+  }
+
+  if (isSpr && pageIsDynamic && !unstable_getStaticPaths) {
+    throw new Error(
+      `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
+        `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
     )
   }
 
@@ -367,7 +399,7 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
 
-    if (pages404 && pathname === '/404' && !isAutoExport) {
+    if (pathname === '/404' && !isAutoExport) {
       throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
@@ -376,9 +408,11 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  // @ts-ignore url will always be set
-  const asPath: string = req.url
-  const router = new ServerRouter(pathname, query, asPath)
+  // url will always be set
+  const asPath = req.url as string
+  const router = new ServerRouter(pathname, query, asPath, {
+    isFallback: isFallback,
+  })
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -428,9 +462,20 @@ export async function renderToHTML(
       ctx,
     })
 
-    if (isSpr) {
+    if (isSpr && !isFallback) {
+      // Reads of this are cached on the `req` object, so this should resolve
+      // instantly. There's no need to pass this data down from a previous
+      // invoke, where we'd have to consider server & serverless.
+      const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await unstable_getStaticProps!({
-        params: isDynamicRoute(pathname) ? (query as any) : undefined,
+        ...(pageIsDynamic
+          ? {
+              params: query as ParsedUrlQuery,
+            }
+          : { params: undefined }),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
       })
 
       const invalidKeys = Object.keys(data).filter(
@@ -481,9 +526,10 @@ export async function renderToHTML(
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
+    console.error(err)
   }
 
-  if (unstable_getServerProps) {
+  if (unstable_getServerProps && !isFallback) {
     const data = await unstable_getServerProps({
       params,
       query,
@@ -503,6 +549,12 @@ export async function renderToHTML(
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerProps if not this can be removed
   if (isDataReq) return props
+
+  // We don't call getStaticProps or getServerProps while generating
+  // the fallback so make sure to set pageProps to an empty object
+  if (isFallback) {
+    props.pageProps = {}
+  }
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSpr) return null
@@ -600,6 +652,7 @@ export async function renderToHTML(
     headTags: await headTags(documentCtx),
     bodyTags: await bodyTags(documentCtx),
     htmlProps: await htmlProps(documentCtx),
+    isFallback,
     docProps,
     pathname,
     ampPath,

@@ -1,14 +1,16 @@
-import { loader } from 'webpack'
+import devalue from 'devalue'
+import escapeRegexp from 'escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
+import { loader } from 'webpack'
+import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
-  ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
-import { API_ROUTE } from '../../../lib/constants'
-import escapeRegexp from 'escape-string-regexp'
+import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -23,6 +25,7 @@ export type ServerlessLoaderQuery = {
   canonicalBase: string
   basePath: string
   runtimeConfig: string
+  previewProps: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -39,6 +42,7 @@ const nextServerlessLoader: loader.Loader = function() {
     generateEtags,
     basePath,
     runtimeConfig,
+    previewProps,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -51,6 +55,10 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
+
+  const encodedPreviewProps = devalue(
+    JSON.parse(previewProps) as __ApiPreviewProps
+  )
 
   const runtimeConfigImports = runtimeConfig
     ? `
@@ -176,6 +184,7 @@ const nextServerlessLoader: loader.Loader = function() {
             res,
             Object.assign({}, parsedUrl.query, params ),
             resolver,
+            ${encodedPreviewProps},
             onError
           )
         } catch (err) {
@@ -197,7 +206,8 @@ const nextServerlessLoader: loader.Loader = function() {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} =require('next/dist/next-server/server/render');
+    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -243,6 +253,7 @@ const nextServerlessLoader: loader.Loader = function() {
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
+        previewProps: ${encodedPreviewProps},
         ..._renderOpts
       }
       let _nextData = false
@@ -290,7 +301,7 @@ const nextServerlessLoader: loader.Loader = function() {
                           return Object.keys(obj).reduce(
                             (prev, key) =>
                               Object.assign(prev, {
-                                [key]: encodeURIComponent(obj[key])
+                                [key]: obj[key]
                               }),
                             {}
                           );
@@ -308,7 +319,12 @@ const nextServerlessLoader: loader.Loader = function() {
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params), renderOpts)
+        const isFallback = parsedUrl.query.__nextFallback
+
+        const previewData = tryGetPreviewData(req, res, options.previewProps)
+        const isPreviewMode = previewData !== false
+
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (_nextData && !fromExport) {
           const payload = JSON.stringify(renderOpts.pageData)
@@ -317,12 +333,19 @@ const nextServerlessLoader: loader.Loader = function() {
 
           res.setHeader(
             'Cache-Control',
-            unstable_getServerProps
+            isPreviewMode
+              ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
+              : unstable_getServerProps
               ? \`no-cache, no-store, must-revalidate\`
               : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )
           res.end(payload)
           return null
+        } else if (isPreviewMode) {
+          res.setHeader(
+            'Cache-Control',
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
         }
 
         if (fromExport) return { html: result, renderOpts }
