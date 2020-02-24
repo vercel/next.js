@@ -1,26 +1,27 @@
 /* eslint-env jest */
 /* global jasmine */
-import fs from 'fs-extra'
-import { join, dirname } from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
+import fs from 'fs-extra'
 import {
-  renderViaHTTP,
+  check,
   fetchViaHTTP,
   findPort,
-  launchApp,
-  killApp,
-  waitFor,
-  nextBuild,
-  nextStart,
-  stopApp,
-  nextExport,
-  normalizeRegEx,
-  startStaticServer,
-  initNextServerScript,
   getReactErrorOverlayContent,
+  initNextServerScript,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextExport,
+  nextStart,
+  normalizeRegEx,
+  renderViaHTTP,
+  startStaticServer,
+  stopApp,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { dirname, join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
@@ -398,10 +399,10 @@ const runTests = (dev = false, looseMode = false) => {
       const text1 = await browser.elementByCss('#catchall').text()
       expect(text1).toBe('fallback')
 
-      await new Promise(resolve => setTimeout(resolve, 4000))
-
-      const text2 = await browser.elementByCss('#catchall').text()
-      expect(text2).toMatch(/Hi.*?delayby3s/)
+      await check(
+        () => browser.elementByCss('#catchall').text(),
+        /Hi.*?delayby3s/
+      )
     }
   })
 
@@ -430,10 +431,10 @@ const runTests = (dev = false, looseMode = false) => {
       const text1 = await browser.elementByCss('#catchall').text()
       expect(text1).toBe('fallback')
 
-      await new Promise(resolve => setTimeout(resolve, 4000))
-
-      const text2 = await browser.elementByCss('#catchall').text()
-      expect(text2).toMatch(/Hi.*?delayby3s nested/)
+      await check(
+        () => browser.elementByCss('#catchall').text(),
+        /Hi.*?delayby3s nested/
+      )
     }
   })
 
