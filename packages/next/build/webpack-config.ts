@@ -872,7 +872,11 @@ export default async function getBaseWebpackConfig(
               conformanceConfig.MinificationConformanceCheck.enabled &&
               new MinificationConformanceCheck(),
             conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
-              new ReactSyncScriptsConformanceCheck(),
+              new ReactSyncScriptsConformanceCheck({
+                AllowedSources:
+                  conformanceConfig.ReactSyncScriptsConformanceCheck
+                    .allowedSources || [],
+              }),
             !isServer &&
               conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
               new DuplicatePolyfillsConformanceCheck({
