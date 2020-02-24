@@ -78,6 +78,13 @@ export default function checkCustomRoutes(
   routes: Redirect[] | Header[] | Rewrite[],
   type: RouteType
 ): void {
+  if (!Array.isArray(routes)) {
+    throw new Error(
+      `${type}s must return an array, received ${typeof routes}.\n` +
+        `See here for more info: https://err.sh/next.js/routes-must-be-array`
+    )
+  }
+
   let numInvalidRoutes = 0
   let hadInvalidStatus = false
 
