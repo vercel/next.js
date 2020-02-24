@@ -868,6 +868,8 @@ export default class Server {
     { components, query }: FindComponentsResult,
     opts: any
   ): Promise<string | null> {
+    delete req.headers['x-next-export']
+
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
