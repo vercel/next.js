@@ -1,5 +1,12 @@
 export const config = {
-  env: ['NOTION_KEY', 'DATABASE_SECRET', 'APP_TITLE', 'SENTRY_DSN'],
+  env: [
+    'ENV_FILE_KEY',
+    'LOCAL_ENV_FILE_KEY',
+    'PRODUCTION_ENV_FILE_KEY',
+    'LOCAL_PRODUCTION_ENV_FILE_KEY',
+    'DEVELOPMENT_ENV_FILE_KEY',
+    'LOCAL_DEVELOPMENT_ENV_FILE_KEY',
+  ],
 }
 
 // eslint-disable-next-line camelcase

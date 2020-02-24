@@ -18,25 +18,27 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
-const dotenvFile = join(appDir, '.env')
+// const dotenvFile = join(appDir, '.env')
 
-const neededDevEnv = { NOTION_KEY: 'hello-notion' }
-const expectedDevEnv = {
-  NOTION_KEY: 'hello-notion',
-  DATABASE_SECRET: 'abc',
-  APP_TITLE: 'hello',
-}
+// const neededDevEnv = { NOTION_KEY: 'hello-notion' }
+// const expectedDevEnv = {
+//   NOTION_KEY: 'hello-notion',
+//   DATABASE_SECRET: 'abc',
+//   APP_TITLE: 'hello',
+//   LOCAL_ENV_FILE_KEY: 'hello-world'
+// }
 
-const neededProdEnv = {
-  SENTRY_DSN: 'bug-catcher',
-  NOTION_KEY: 'hello-notion',
-}
-const expectedProdEnv = {
-  APP_TITLE: 'hello',
-  SENTRY_DSN: 'bug-catcher',
-  NOTION_KEY: 'hello-notion',
-  DATABASE_SECRET: 'cba',
-}
+// const neededProdEnv = {
+//   SENTRY_DSN: 'bug-catcher',
+//   NOTION_KEY: 'hello-notion',
+// }
+// const expectedProdEnv = {
+//   APP_TITLE: 'hello',
+//   SENTRY_DSN: 'bug-catcher',
+//   NOTION_KEY: 'hello-notion',
+//   DATABASE_SECRET: 'cba',
+//   LOCAL_ENV_FILE_KEY: 'hello-world'
+// }
 
 const getEnvFromHtml = async path => {
   const html = await renderViaHTTP(appPort, path)
@@ -47,56 +49,212 @@ const getEnvFromHtml = async path => {
   )
 }
 
-const runTests = (isDev = false) => {
-  const expectedEnv = isDev ? expectedDevEnv : expectedProdEnv
+const runTests = isDev => {
+  // const expectedEnv = isDev ? expectedDevEnv : expectedProdEnv
 
-  it('should provide env correctly for getStaticProps', async () => {
-    expect(await getEnvFromHtml('/')).toEqual(expectedEnv)
-  })
+  describe('Loads .env', () => {
+    it('should provide env for SSG', async () => {
+      const data = await getEnvFromHtml('/some-ssg')
+      expect(data.ENV_FILE_KEY).toBe('env')
+    })
 
-  it('should provide env correctly through next.config.js', async () => {
-    expect(await getEnvFromHtml('/next-config-loaded-env')).toEqual({
-      APP_TITLE: expectedDevEnv.APP_TITLE,
+    it('should provide env correctly for SSR', async () => {
+      const data = await getEnvFromHtml('/some-ssp')
+      expect(data.ENV_FILE_KEY).toBe('env')
+    })
+
+    it('should provide env correctly for API routes', async () => {
+      const data = await renderViaHTTP(appPort, '/api/all')
+      expect(JSON.parse(data).ENV_FILE_KEY).toEqual('env')
+    })
+
+    it('should provide env correctly through next.config.js', async () => {
+      const data = await getEnvFromHtml('/next-config-loaded-env')
+      expect(data.ENV_FILE_KEY).toEqual('env')
     })
   })
 
-  it('should provide specific env correctly for SSG routes', async () => {
-    const data = await getEnvFromHtml('/some-ssg')
-    expect(data).toEqual({
-      NOTION_KEY: expectedEnv.NOTION_KEY,
-      DATABASE_SECRET: expectedEnv.DATABASE_SECRET,
+  describe('Loads .env.local', () => {
+    it('should provide env for SSG', async () => {
+      const data = await getEnvFromHtml('/some-ssg')
+      expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
+    })
+
+    it('should provide env correctly for SSR', async () => {
+      const data = await getEnvFromHtml('/some-ssp')
+      expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
+    })
+
+    it('should provide env correctly for API routes', async () => {
+      const data = await renderViaHTTP(appPort, '/api/all')
+      expect(JSON.parse(data).LOCAL_ENV_FILE_KEY).toEqual('localenv')
+    })
+
+    it('should provide env correctly through next.config.js', async () => {
+      const data = await getEnvFromHtml('/next-config-loaded-env')
+      expect(data.LOCAL_ENV_FILE_KEY).toEqual('localenv')
     })
   })
 
-  it('should provide specific env correctly for SSG routes', async () => {
-    const data = await getEnvFromHtml('/some-ssp')
-    expect(data).toEqual({
-      NOTION_KEY: expectedEnv.NOTION_KEY,
-      DATABASE_SECRET: expectedEnv.DATABASE_SECRET,
+  describe('Loads .env.development', () => {
+    it('should provide env for SSG', async () => {
+      const data = await getEnvFromHtml('/some-ssg')
+      expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
+        isDev ? 'development' : undefined
+      )
+    })
+
+    it('should provide env correctly for SSR', async () => {
+      const data = await getEnvFromHtml('/some-ssp')
+      expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
+        isDev ? 'development' : undefined
+      )
+    })
+
+    it('should provide env correctly for API routes', async () => {
+      const data = await renderViaHTTP(appPort, '/api/all')
+      expect(JSON.parse(data).DEVELOPMENT_ENV_FILE_KEY).toEqual(
+        isDev ? 'development' : undefined
+      )
+    })
+
+    it('should provide env correctly through next.config.js', async () => {
+      const data = await getEnvFromHtml('/next-config-loaded-env')
+      expect(data.DEVELOPMENT_ENV_FILE_KEY).toEqual(
+        isDev ? 'development' : undefined
+      )
     })
   })
 
-  it('should provide env correctly for getServerProps', async () => {
-    expect(await getEnvFromHtml('/ssp')).toEqual(expectedEnv)
-  })
+  describe('Loads .env.development.local', () => {
+    it('should provide env for SSG', async () => {
+      const data = await getEnvFromHtml('/some-ssg')
+      expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
+        isDev ? 'localdevelopment' : undefined
+      )
+    })
 
-  it('should provide env correctly for API routes', async () => {
-    const data = await renderViaHTTP(appPort, '/api/all')
-    expect(JSON.parse(data)).toEqual(expectedEnv)
-  })
+    it('should provide env correctly for SSR', async () => {
+      const data = await getEnvFromHtml('/some-ssp')
+      expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
+        isDev ? 'localdevelopment' : undefined
+      )
+    })
 
-  it('should provide env correctly for API routes specific item', async () => {
-    const data = await renderViaHTTP(appPort, '/api/notion')
-    expect(JSON.parse(data)).toEqual({ NOTION_KEY: expectedProdEnv.NOTION_KEY })
-  })
+    it('should provide env correctly for API routes', async () => {
+      const data = await renderViaHTTP(appPort, '/api/all')
+      expect(JSON.parse(data).LOCAL_DEVELOPMENT_ENV_FILE_KEY).toEqual(
+        isDev ? 'localdevelopment' : undefined
+      )
+    })
 
-  it('should provide env correctly for API routes specific items', async () => {
-    const data = await renderViaHTTP(appPort, '/api/some')
-    expect(JSON.parse(data)).toEqual({
-      NOTION_KEY: expectedEnv.NOTION_KEY,
-      SENTRY_DSN: expectedEnv.SENTRY_DSN,
+    it('should provide env correctly through next.config.js', async () => {
+      const data = await getEnvFromHtml('/next-config-loaded-env')
+      expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toEqual(
+        isDev ? 'localdevelopment' : undefined
+      )
     })
   })
+
+  describe('Loads .env.production', () => {
+    it('should provide env for SSG', async () => {
+      const data = await getEnvFromHtml('/some-ssg')
+      expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
+        isDev ? undefined : 'production'
+      )
+    })
+
+    it('should provide env correctly for SSR', async () => {
+      const data = await getEnvFromHtml('/some-ssp')
+      expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
+        isDev ? undefined : 'production'
+      )
+    })
+
+    it('should provide env correctly for API routes', async () => {
+      const data = await renderViaHTTP(appPort, '/api/all')
+      expect(JSON.parse(data).PRODUCTION_ENV_FILE_KEY).toEqual(
+        isDev ? undefined : 'production'
+      )
+    })
+
+    it('should provide env correctly through next.config.js', async () => {
+      const data = await getEnvFromHtml('/next-config-loaded-env')
+      expect(data.PRODUCTION_ENV_FILE_KEY).toEqual(
+        isDev ? undefined : 'production'
+      )
+    })
+  })
+
+  describe('Loads .env.production.local', () => {
+    it('should provide env for SSG', async () => {
+      const data = await getEnvFromHtml('/some-ssg')
+      expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
+        isDev ? undefined : 'localproduction'
+      )
+    })
+
+    it('should provide env correctly for SSR', async () => {
+      const data = await getEnvFromHtml('/some-ssp')
+      expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
+        isDev ? undefined : 'localproduction'
+      )
+    })
+
+    it('should provide env correctly for API routes', async () => {
+      const data = await renderViaHTTP(appPort, '/api/all')
+      expect(JSON.parse(data).LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
+        isDev ? undefined : 'localproduction'
+      )
+    })
+
+    it('should provide env correctly through next.config.js', async () => {
+      const data = await getEnvFromHtml('/next-config-loaded-env')
+      expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
+        isDev ? undefined : 'localproduction'
+      )
+    })
+  })
+
+  // it('should provide specific env correctly for SSG routes', async () => {
+  //   const data = await getEnvFromHtml('/some-ssg')
+  //   expect(data).toEqual({
+  //     NOTION_KEY: expectedEnv.NOTION_KEY,
+  //     DATABASE_SECRET: expectedEnv.DATABASE_SECRET,
+  //     LOCAL_ENV_FILE_KEY: 'hello-world'
+  //   })
+  // })
+
+  // it('should provide specific env correctly for SSR routes', async () => {
+  //   const data = await getEnvFromHtml('/some-ssp')
+  //   expect(data).toEqual({
+  //     NOTION_KEY: expectedEnv.NOTION_KEY,
+  //     DATABASE_SECRET: expectedEnv.DATABASE_SECRET,
+  //     LOCAL_ENV_FILE_KEY: 'hello-world'
+  //   })
+  // })
+
+  // it('should provide env correctly for getServerProps', async () => {
+  //   expect(await getEnvFromHtml('/ssp')).toEqual(expectedEnv)
+  // })
+
+  // it('should provide env correctly for API routes', async () => {
+  //   const data = await renderViaHTTP(appPort, '/api/all')
+  //   expect(JSON.parse(data)).toEqual(expectedEnv)
+  // })
+
+  // it('should provide env correctly for API routes specific item', async () => {
+  //   const data = await renderViaHTTP(appPort, '/api/notion')
+  //   expect(JSON.parse(data)).toEqual({ NOTION_KEY: expectedProdEnv.NOTION_KEY })
+  // })
+
+  // it('should provide env correctly for API routes specific items', async () => {
+  //   const data = await renderViaHTTP(appPort, '/api/some')
+  //   expect(JSON.parse(data)).toEqual({
+  //     NOTION_KEY: expectedEnv.NOTION_KEY,
+  //     SENTRY_DSN: expectedEnv.SENTRY_DSN,
+  //   })
+  // })
 }
 
 describe('Env Config', () => {
@@ -104,20 +262,13 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { env: { TEST_ENV_LOADING_IN_NEXT_CONFIG_APP_TITLE: process.env.APP_TITLE } }`
+        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
       appPort = await findPort()
-      await fs.writeFile(
-        dotenvFile,
-        Object.keys(neededDevEnv)
-          .map(key => `${key}=${neededDevEnv[key]}`)
-          .join('\n')
-      )
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
-      await fs.remove(dotenvFile)
       await killApp(app)
     })
 
@@ -128,37 +279,45 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { env: { TEST_ENV_LOADING_IN_NEXT_CONFIG_APP_TITLE: process.env.APP_TITLE } }`
+        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
-      const { code } = await nextBuild(appDir, [], { env: neededProdEnv })
+      const { code } = await nextBuild(appDir, [], {
+        /* env: neededProdEnv */
+      })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, { env: neededProdEnv })
+      app = await nextStart(appDir, appPort, {
+        /* env: neededProdEnv */
+      })
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
       await killApp(app)
     })
 
-    runTests()
+    runTests(false)
   })
 
   describe('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace', env: { TEST_ENV_LOADING_IN_NEXT_CONFIG_APP_TITLE: process.env.APP_TITLE } }`
+        `module.exports = { target: 'experimental-serverless-trace', env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
-      const { code } = await nextBuild(appDir, [], { env: neededProdEnv })
+      const { code } = await nextBuild(appDir, [], {
+        /* env: neededProdEnv */
+      })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, { env: neededProdEnv })
+      app = await nextStart(appDir, appPort, {
+        /* env: neededProdEnv */
+      })
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
       await killApp(app)
     })
 
-    runTests()
+    runTests(false)
   })
 })
