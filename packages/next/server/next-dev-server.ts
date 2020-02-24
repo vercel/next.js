@@ -83,8 +83,8 @@ export default class DevServer extends Server {
     this.staticPathsWorker = new Worker(
       require.resolve('./static-paths-worker'),
       {
-        numWorkers: 1,
         maxRetries: 0,
+        numWorkers: this.nextConfig.experimental.cpus,
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
