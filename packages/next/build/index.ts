@@ -113,21 +113,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const headers: Header[] = []
   const rewrites: Rewrite[] = []
   const redirects: Redirect[] = []
-  const headers: Header[] = []
 
   if (typeof config.experimental.redirects === 'function') {
-    redirects.push(...(await config.experimental.redirects()))
-    checkCustomRoutes(redirects, 'redirect')
+    const _redirects = await config.experimental.redirects()
+    checkCustomRoutes(_redirects, 'redirect')
+    redirects.push(..._redirects)
   }
   if (typeof config.experimental.rewrites === 'function') {
-    rewrites.push(...(await config.experimental.rewrites()))
-    checkCustomRoutes(rewrites, 'rewrite')
+    const _rewrites = await config.experimental.rewrites()
+    checkCustomRoutes(_rewrites, 'rewrite')
+    rewrites.push(..._rewrites)
   }
   if (typeof config.experimental.headers === 'function') {
-    headers.push(...(await config.experimental.headers()))
-    checkCustomRoutes(headers, 'header')
+    const _headers = await config.experimental.headers()
+    checkCustomRoutes(_headers, 'header')
+    headers.push(..._headers)
   }
 
   if (ciEnvironment.isCI) {
