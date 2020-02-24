@@ -32,7 +32,7 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
-import { ResponseLike } from './utils'
+import { ResponseLike } from './response-utils'
 
 function noRouter() {
   const message =

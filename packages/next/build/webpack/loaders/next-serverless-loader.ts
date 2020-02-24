@@ -145,8 +145,8 @@ const nextServerlessLoader: loader.Loader = function() {
       ${runtimeConfigImports}
       ${
         /*
-        this needs to be called first so its available for any other imports
-      */
+      this needs to be called first so its available for any other imports
+    */
         runtimeConfigSetter
       }
       ${dynamicRouteImports}
@@ -209,6 +209,7 @@ const nextServerlessLoader: loader.Loader = function() {
     const {renderToHTML} = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
+    const {PassthroughResponse} = require('next/dist/next-server/server/response-utils')
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
@@ -377,7 +378,7 @@ const nextServerlessLoader: loader.Loader = function() {
     export async function render (req, res) {
       try {
         await initServer()
-        const html = await renderReqToHTML(req, res)
+        const html = await renderReqToHTML(req, new PassthroughResponse(res))
         if (html) {
           sendHTML(req, res, html, {generateEtags: ${generateEtags}})
         }

@@ -1,7 +1,7 @@
 import { IncomingMessage } from 'http'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import { ResponseLike } from './utils'
+import { ResponseLike } from './response-utils'
 
 export function sendHTML(
   req: IncomingMessage,

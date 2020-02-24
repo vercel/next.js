@@ -1,4 +1,3 @@
-import { ServerResponse } from 'http'
 import { BLOCKED_PAGES } from '../lib/constants'
 
 export function isBlockedPage(pathname: string): boolean {
@@ -14,15 +13,4 @@ export function cleanAmpPath(pathname: string): string {
   }
   pathname = pathname.replace(/\?$/, '')
   return pathname
-}
-
-export interface ResponseLike {
-  rawResponse: ServerResponse
-
-  end(chunk?: any): void
-  getHeader(name: string): string | number | string[] | undefined
-  getStatusCode(): number
-  hasSent(): boolean
-  set(name: string, value: number | string | string[]): ResponseLike
-  status(statusCode: number): ResponseLike
 }

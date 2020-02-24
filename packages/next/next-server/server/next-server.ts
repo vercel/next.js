@@ -33,7 +33,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
@@ -58,7 +58,8 @@ import {
   initializeSprCache,
   setSprCache,
 } from './spr-cache'
-import { isBlockedPage, ResponseLike } from './utils'
+import { isBlockedPage } from './utils'
+import { PassthroughResponse, ResponseLike } from './response-utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1319,40 +1320,6 @@ export default class Server {
 
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
-  }
-}
-
-class PassthroughResponse implements ResponseLike {
-  rawResponse: ServerResponse
-
-  constructor(res: ServerResponse) {
-    this.rawResponse = res
-  }
-
-  end(chunk: any): void {
-    this.rawResponse.end(chunk)
-  }
-
-  getHeader(name: string): string | number | string[] | undefined {
-    return this.rawResponse.getHeader(name)
-  }
-
-  getStatusCode(): number {
-    return this.rawResponse.statusCode
-  }
-
-  hasSent(): boolean {
-    return isResSent(this.rawResponse)
-  }
-
-  set(name: string, value: number | string | string[]): ResponseLike {
-    this.rawResponse.setHeader(name, value)
-    return this
-  }
-
-  status(statusCode: number): ResponseLike {
-    this.rawResponse.statusCode = statusCode
-    return this
   }
 }
 

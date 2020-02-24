@@ -25,6 +25,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
+import { ResponseLike } from '../next-server/server/response-utils'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
@@ -512,9 +513,9 @@ export default class DevServer extends Server {
     }
   }
 
-  sendHTML(req: IncomingMessage, res: ServerResponse, html: string) {
+  sendHTML(req: IncomingMessage, res: ResponseLike, html: string) {
     // In dev, we should not cache pages for any reason.
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
+    res.set('Cache-Control', 'no-store, must-revalidate')
     return super.sendHTML(req, res, html)
   }
 
