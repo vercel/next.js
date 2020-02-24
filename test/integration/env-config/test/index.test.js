@@ -28,7 +28,16 @@ const getEnvFromHtml = async path => {
   )
 }
 
-const runTests = isDev => {
+const runTests = (isDev, isServerless) => {
+  // TODO: support runtime overrides in serverless output
+  if (!isServerless) {
+    describe('Process environment', () => {
+      it('should override .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.PROCESS_ENV_KEY).toEqual('processenvironment')
+      })
+    })
+  }
   describe('Loads .env', () => {
     it('should provide env for SSG', async () => {
       const data = await getEnvFromHtml('/some-ssg')
@@ -260,14 +269,18 @@ describe('Env Config', () => {
         `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        env: {
+          PROCESS_ENV_KEY: 'processenvironment',
+        },
+      })
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
       await killApp(app)
     })
 
-    runTests(true)
+    runTests(true, false)
   })
 
   describe('server mode', () => {
@@ -276,7 +289,11 @@ describe('Env Config', () => {
         nextConfig,
         `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
-      const { code } = await nextBuild(appDir, [], {})
+      const { code } = await nextBuild(appDir, [], {
+        env: {
+          PROCESS_ENV_KEY: 'processenvironment',
+        },
+      })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {})
@@ -286,7 +303,7 @@ describe('Env Config', () => {
       await killApp(app)
     })
 
-    runTests(false)
+    runTests(false, false)
   })
 
   describe('serverless mode', () => {
@@ -298,13 +315,17 @@ describe('Env Config', () => {
       const { code } = await nextBuild(appDir, [], {})
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, {})
+      app = await nextStart(appDir, appPort, {
+        env: {
+          PROCESS_ENV_KEY: 'processenvironment',
+        },
+      })
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
       await killApp(app)
     })
 
-    runTests(false)
+    runTests(false, true)
   })
 })

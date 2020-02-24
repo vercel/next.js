@@ -1,5 +1,6 @@
 export const config = {
   env: [
+    'PROCESS_ENV_KEY',
     'ENV_FILE_KEY',
     'LOCAL_ENV_FILE_KEY',
     'ENV_FILE_LOCAL_OVERRIDE_TEST',
