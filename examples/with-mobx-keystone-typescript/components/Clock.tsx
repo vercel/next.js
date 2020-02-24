@@ -16,9 +16,7 @@ const Clock: FC<Props> = props => {
     font: '50px menlo, monaco, monospace',
     padding: '15px',
   }
-  return (
-    <div style={divStyle}>{format(new Date(props.lastUpdate as number))}</div>
-  )
+  return <div style={divStyle}>{format(props.lastUpdate)}</div>
 }
 
 export { Clock }
