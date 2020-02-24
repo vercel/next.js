@@ -35,7 +35,7 @@ export function collectEnv(page: string, pageEnv?: string[]): Env {
         ...missingEnvKeys,
       ].join(', ')} for ${page}.\n` +
         `Make sure to supply this value in either your .env file or in your environment.\n` +
-        `See here for more info: https://err.sh/zeit/next.js/missing-env-value`
+        `See here for more info: https://err.sh/next.js/missing-env-value`
     )
   }
   return collected

@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-On one of your pages' config you requested an env value that wasn't populated.
+One of your pages' config requested an env value that wasn't populated.
 
 ```js
 export const config = {
@@ -12,7 +12,7 @@ export const config = {
 
 #### Possible Ways to Fix It
 
-Either remove the requested env value from the page's config or populate it in your `.env` file or manually populate it in your environment before starting `next`
+Either remove the requested env value from the page's config, populate it in your `.env` file, or manually populate it in your environment before running `next dev` or `next build`.
 
 ### Useful Links
 
