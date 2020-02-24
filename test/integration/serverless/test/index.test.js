@@ -251,10 +251,30 @@ describe('Serverless', () => {
     expect(data.query).toEqual({ slug: paramRaw })
   })
 
-  it('should have the correct query string for a spr route', async () => {
+  it('should have the correct query string for a now route', async () => {
     const paramRaw = 'test % 123'
     const html = await fetchViaHTTP(appPort, `/dr/[slug]`, '', {
-      headers: { 'x-now-route-matches': qs.stringify({ 1: paramRaw }) },
+      headers: {
+        'x-now-route-matches': qs.stringify({
+          1: encodeURIComponent(paramRaw),
+        }),
+      },
+    }).then(res => res.text())
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should have the correct query string for a catch all now route', async () => {
+    const paramRaw = ['nested % 1', 'nested/2']
+
+    const html = await fetchViaHTTP(appPort, `/catchall/[...slug]`, '', {
+      headers: {
+        'x-now-route-matches': qs.stringify({
+          1: paramRaw.map(e => encodeURIComponent(e)).join('/'),
+        }),
+      },
     }).then(res => res.text())
     const $ = cheerio.load(html)
     const data = JSON.parse($('#__NEXT_DATA__').html())
