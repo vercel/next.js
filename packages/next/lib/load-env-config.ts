@@ -1,7 +1,6 @@
 import path from 'path'
 import chalk from 'chalk'
 import dotenv from 'next/dist/compiled/dotenv'
-import { ENV_FILE } from '../next-server/lib/constants'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 
 export type Env = { [key: string]: string }
@@ -10,13 +9,13 @@ export function loadEnvConfig(dir: string, dev?: boolean): void {
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
   const dotenvFiles = [
-    `${ENV_FILE}.${mode}.local`,
-    `${ENV_FILE}.${mode}`,
+    `.env.${mode}.local`,
+    `.env.${mode}`,
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
     // results for everyone
-    mode !== 'test' && `${ENV_FILE}.local`,
-    ENV_FILE,
+    mode !== 'test' && `.env.local`,
+    '.env',
   ].filter(Boolean) as string[]
 
   for (const envFile of dotenvFiles) {
