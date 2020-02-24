@@ -747,7 +747,7 @@ export default class Server {
 
   protected async sendHTML(
     req: IncomingMessage,
-    res: ServerResponse,
+    res: ResponseLike,
     html: string
   ) {
     const { generateEtags, poweredByHeader } = this.renderOpts
@@ -774,13 +774,13 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {})
-    // Request was ended by the user
-    if (html === null) {
-      return
-    }
-
-    return this.sendHTML(req, res, html)
+    return await this.renderToResponse(
+      req,
+      new PassthroughResponse(res),
+      pathname,
+      query,
+      {}
+    )
   }
 
   private async findPageComponents(
@@ -864,7 +864,7 @@ export default class Server {
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: any
-  ): Promise<string | null> {
+  ): Promise<void> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.status(404)
@@ -917,7 +917,7 @@ export default class Server {
               private: false, // Leave to user-land caching
             }
           )
-          return null
+          return
         }
         this.prepareServerlessUrl(req, query)
         return (components.Component as any).renderReqToHTML(req, res)
@@ -933,13 +933,14 @@ export default class Server {
           revalidate: -1,
           private: false, // Leave to user-land caching
         })
-        return null
+        return
       }
 
-      return renderToHTML(req, res, pathname, query, {
+      const html = await renderToHTML(req, res, pathname, query, {
         ...components,
         ...opts,
       })
+      this.sendHTML(req, res, html ? html : '')
     }
 
     const previewProps = this.getPreviewProps()
@@ -974,7 +975,7 @@ export default class Server {
 
       // Stop the request chain here if the data we sent was up-to-date
       if (!cachedData.isStale) {
-        return null
+        return
       }
     }
 
@@ -1087,13 +1088,11 @@ export default class Server {
         await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
       }
     }
-
-    return null
   }
 
-  public async renderToHTML(
+  private async renderToResponse(
     req: IncomingMessage,
-    res: ServerResponse,
+    res: ResponseLike,
     pathname: string,
     query: ParsedUrlQuery = {},
     {
@@ -1103,13 +1102,13 @@ export default class Server {
       amphtml?: boolean
       hasAmp?: boolean
     } = {}
-  ): Promise<string | null> {
+  ): Promise<void> {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
         return await this.renderToHTMLWithComponents(
           req,
-          new ResponseWrapper(res),
+          res,
           pathname,
           result,
           { ...this.renderOpts, amphtml, hasAmp }
@@ -1131,7 +1130,7 @@ export default class Server {
           if (result) {
             return await this.renderToHTMLWithComponents(
               req,
-              new ResponseWrapper(res),
+              res,
               dynamicRoute.page,
               result,
               {
@@ -1146,42 +1145,50 @@ export default class Server {
       }
     } catch (err) {
       this.logError(err)
-      res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
+      return await this.renderErrorToResponse(
+        err,
+        req,
+        res.status(500),
+        pathname,
+        query
+      )
     }
 
-    res.statusCode = 404
-    return await this.renderErrorToHTML(null, req, res, pathname, query)
+    return await this.renderErrorToResponse(
+      null,
+      req,
+      res.status(404),
+      pathname,
+      query
+    )
   }
 
-  public async renderError(
+  public async renderToHTML(
+    req: IncomingMessage,
+    _res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {},
+    opts: {
+      amphtml?: boolean
+      hasAmp?: boolean
+    } = {}
+  ): Promise<string | null> {
+    const res = new BufferedResponse(_res)
+    await this.renderToResponse(req, res, pathname, query, opts)
+    return res.getBuffer().toString('utf-8')
+  }
+
+  private async renderErrorToResponse(
     err: Error | null,
     req: IncomingMessage,
-    res: ServerResponse,
+    res: ResponseLike,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<void> {
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
-    const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    if (html === null) {
-      return
-    }
-    return this.sendHTML(req, res, html)
-  }
-
-  public async renderErrorToHTML(
-    err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
-    _pathname: string,
-    query: ParsedUrlQuery = {}
-  ) {
+    res.set('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     let result: null | FindComponentsResult = null
 
-    const is404 = res.statusCode === 404
+    const is404 = res.getStatusCode() === 404
     let using404Page = false
 
     // use static 404 page if available and is 404 response
@@ -1194,11 +1201,10 @@ export default class Server {
       result = await this.findPageComponents('/_error', query)
     }
 
-    let html
     try {
-      html = await this.renderToHTMLWithComponents(
+      let html = await this.renderToHTMLWithComponents(
         req,
-        new ResponseWrapper(res),
+        res,
         using404Page ? '/404' : '/_error',
         result!,
         {
@@ -1206,12 +1212,39 @@ export default class Server {
           err,
         }
       )
+      return res.end(html)
     } catch (err) {
       console.error(err)
-      res.statusCode = 500
-      html = 'Internal Server Error'
+      return res.status(500).end('Internal Server Error')
     }
-    return html
+  }
+
+  public async renderError(
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<void> {
+    return await this.renderErrorToResponse(
+      err,
+      req,
+      new PassthroughResponse(res),
+      pathname,
+      query
+    )
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    req: IncomingMessage,
+    _res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
+    const res = new BufferedResponse(_res)
+    await this.renderErrorToResponse(err, req, res, pathname, query)
+    return res.getBuffer().toString('utf-8')
   }
 
   public async render404(
@@ -1289,7 +1322,7 @@ export default class Server {
   }
 }
 
-class ResponseWrapper implements ResponseLike {
+class PassthroughResponse implements ResponseLike {
   rawResponse: ServerResponse
 
   constructor(res: ServerResponse) {
@@ -1298,6 +1331,14 @@ class ResponseWrapper implements ResponseLike {
 
   end(chunk: any): void {
     this.rawResponse.end(chunk)
+  }
+
+  getHeader(name: string): string | number | string[] | undefined {
+    return this.rawResponse.getHeader(name)
+  }
+
+  getStatusCode(): number {
+    return this.rawResponse.statusCode
   }
 
   hasSent(): boolean {
@@ -1311,6 +1352,50 @@ class ResponseWrapper implements ResponseLike {
 
   status(statusCode: number): ResponseLike {
     this.rawResponse.statusCode = statusCode
+    return this
+  }
+}
+
+class BufferedResponse implements ResponseLike {
+  buffer: Buffer | null
+  headers: { [name: string]: string | number | string[] }
+  rawResponse: ServerResponse
+  statusCode: number
+
+  constructor(res: ServerResponse) {
+    this.buffer = null
+    this.headers = {}
+    this.rawResponse = res
+    this.statusCode = 200
+  }
+
+  end(chunk: any): void {
+    this.buffer = Buffer.from(chunk)
+  }
+
+  getHeader(name: string): string | number | string[] | undefined {
+    return this.headers[name]
+  }
+
+  getStatusCode(): number {
+    return this.statusCode
+  }
+
+  getBuffer(): Buffer {
+    return this.buffer === null ? Buffer.from([]) : this.buffer
+  }
+
+  hasSent(): boolean {
+    return this.buffer === null
+  }
+
+  set(name: string, value: number | string | string[]): ResponseLike {
+    this.headers[name] = value
+    return this
+  }
+
+  status(statusCode: number): ResponseLike {
+    this.statusCode = statusCode
     return this
   }
 }

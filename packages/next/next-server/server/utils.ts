@@ -19,7 +19,9 @@ export function cleanAmpPath(pathname: string): string {
 export interface ResponseLike {
   rawResponse: ServerResponse
 
-  end(chunk: any): void
+  end(chunk?: any): void
+  getHeader(name: string): string | number | string[] | undefined
+  getStatusCode(): number
   hasSent(): boolean
   set(name: string, value: number | string | string[]): ResponseLike
   status(statusCode: number): ResponseLike
