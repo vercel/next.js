@@ -54,6 +54,12 @@ const runTests = (isDev = false) => {
     expect(await getEnvFromHtml('/')).toEqual(expectedEnv)
   })
 
+  it('should provide env correctly through next.config.js', async () => {
+    expect(await getEnvFromHtml('/next-config-loaded-env')).toEqual({
+      APP_TITLE: expectedDevEnv.APP_TITLE,
+    })
+  })
+
   it('should provide specific env correctly for SSG routes', async () => {
     const data = await getEnvFromHtml('/some-ssg')
     expect(data).toEqual({
@@ -96,6 +102,10 @@ const runTests = (isDev = false) => {
 describe('Env Config', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { env: { TEST_ENV_LOADING_IN_NEXT_CONFIG_APP_TITLE: process.env.APP_TITLE } }`
+      )
       appPort = await findPort()
       await fs.writeFile(
         dotenvFile,
@@ -106,6 +116,7 @@ describe('Env Config', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
+      await fs.remove(nextConfig)
       await fs.remove(dotenvFile)
       await killApp(app)
     })
@@ -115,12 +126,19 @@ describe('Env Config', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { env: { TEST_ENV_LOADING_IN_NEXT_CONFIG_APP_TITLE: process.env.APP_TITLE } }`
+      )
       const { code } = await nextBuild(appDir, [], { env: neededProdEnv })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
       app = await nextStart(appDir, appPort, { env: neededProdEnv })
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.remove(nextConfig)
+      await killApp(app)
+    })
 
     runTests()
   })
@@ -129,7 +147,7 @@ describe('Env Config', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'experimental-serverless-trace' }`
+        `module.exports = { target: 'experimental-serverless-trace', env: { TEST_ENV_LOADING_IN_NEXT_CONFIG_APP_TITLE: process.env.APP_TITLE } }`
       )
       const { code } = await nextBuild(appDir, [], { env: neededProdEnv })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)

@@ -134,6 +134,7 @@ export default class Server {
     dev = false,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
+    loadEnvConfig(this.dir, dev)
     this.quiet = quiet
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
@@ -163,8 +164,6 @@ export default class Server {
       buildId: this.buildId,
       generateEtags,
     }
-
-    loadEnvConfig(dir, dev)
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side

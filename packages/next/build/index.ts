@@ -110,6 +110,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  // load env values from current .env files
+  loadEnvConfig(dir)
+
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
@@ -207,8 +210,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
     previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
   }
-  // load env values from current .env files
-  loadEnvConfig(dir)
 
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
