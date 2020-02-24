@@ -18,27 +18,6 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
-// const dotenvFile = join(appDir, '.env')
-
-// const neededDevEnv = { NOTION_KEY: 'hello-notion' }
-// const expectedDevEnv = {
-//   NOTION_KEY: 'hello-notion',
-//   DATABASE_SECRET: 'abc',
-//   APP_TITLE: 'hello',
-//   LOCAL_ENV_FILE_KEY: 'hello-world'
-// }
-
-// const neededProdEnv = {
-//   SENTRY_DSN: 'bug-catcher',
-//   NOTION_KEY: 'hello-notion',
-// }
-// const expectedProdEnv = {
-//   APP_TITLE: 'hello',
-//   SENTRY_DSN: 'bug-catcher',
-//   NOTION_KEY: 'hello-notion',
-//   DATABASE_SECRET: 'cba',
-//   LOCAL_ENV_FILE_KEY: 'hello-world'
-// }
 
 const getEnvFromHtml = async path => {
   const html = await renderViaHTTP(appPort, path)
@@ -50,8 +29,6 @@ const getEnvFromHtml = async path => {
 }
 
 const runTests = isDev => {
-  // const expectedEnv = isDev ? expectedDevEnv : expectedProdEnv
-
   describe('Loads .env', () => {
     it('should provide env for SSG', async () => {
       const data = await getEnvFromHtml('/some-ssg')
@@ -215,46 +192,6 @@ const runTests = isDev => {
       )
     })
   })
-
-  // it('should provide specific env correctly for SSG routes', async () => {
-  //   const data = await getEnvFromHtml('/some-ssg')
-  //   expect(data).toEqual({
-  //     NOTION_KEY: expectedEnv.NOTION_KEY,
-  //     DATABASE_SECRET: expectedEnv.DATABASE_SECRET,
-  //     LOCAL_ENV_FILE_KEY: 'hello-world'
-  //   })
-  // })
-
-  // it('should provide specific env correctly for SSR routes', async () => {
-  //   const data = await getEnvFromHtml('/some-ssp')
-  //   expect(data).toEqual({
-  //     NOTION_KEY: expectedEnv.NOTION_KEY,
-  //     DATABASE_SECRET: expectedEnv.DATABASE_SECRET,
-  //     LOCAL_ENV_FILE_KEY: 'hello-world'
-  //   })
-  // })
-
-  // it('should provide env correctly for getServerProps', async () => {
-  //   expect(await getEnvFromHtml('/ssp')).toEqual(expectedEnv)
-  // })
-
-  // it('should provide env correctly for API routes', async () => {
-  //   const data = await renderViaHTTP(appPort, '/api/all')
-  //   expect(JSON.parse(data)).toEqual(expectedEnv)
-  // })
-
-  // it('should provide env correctly for API routes specific item', async () => {
-  //   const data = await renderViaHTTP(appPort, '/api/notion')
-  //   expect(JSON.parse(data)).toEqual({ NOTION_KEY: expectedProdEnv.NOTION_KEY })
-  // })
-
-  // it('should provide env correctly for API routes specific items', async () => {
-  //   const data = await renderViaHTTP(appPort, '/api/some')
-  //   expect(JSON.parse(data)).toEqual({
-  //     NOTION_KEY: expectedEnv.NOTION_KEY,
-  //     SENTRY_DSN: expectedEnv.SENTRY_DSN,
-  //   })
-  // })
 }
 
 describe('Env Config', () => {
@@ -281,14 +218,10 @@ describe('Env Config', () => {
         nextConfig,
         `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
-      const { code } = await nextBuild(appDir, [], {
-        /* env: neededProdEnv */
-      })
+      const { code } = await nextBuild(appDir, [], {})
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        /* env: neededProdEnv */
-      })
+      app = await nextStart(appDir, appPort, {})
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
@@ -304,14 +237,10 @@ describe('Env Config', () => {
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace', env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY } }`
       )
-      const { code } = await nextBuild(appDir, [], {
-        /* env: neededProdEnv */
-      })
+      const { code } = await nextBuild(appDir, [], {})
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        /* env: neededProdEnv */
-      })
+      app = await nextStart(appDir, appPort, {})
     })
     afterAll(async () => {
       await fs.remove(nextConfig)
