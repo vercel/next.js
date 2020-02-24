@@ -110,6 +110,7 @@ const runTests = (isDev = false) => {
 describe('Env Config', () => {
   afterEach(async () => {
     await fs.remove(envFile)
+    await fs.remove(nextConfig)
     try {
       await killApp(app)
     } catch (_) {}
