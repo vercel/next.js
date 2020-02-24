@@ -497,6 +497,113 @@ export async function getPageSizeInKb(
   return [-1, -1]
 }
 
+export async function buildStaticPaths(
+  page: string,
+  unstable_getStaticPaths: Unstable_getStaticPaths
+): Promise<Array<string>> {
+  const prerenderPaths = new Set<string>()
+  const _routeRegex = getRouteRegex(page)
+  const _routeMatcher = getRouteMatcher(_routeRegex)
+
+  // Get the default list of allowed params.
+  const _validParamKeys = Object.keys(_routeMatcher(page))
+
+  const staticPathsResult = await unstable_getStaticPaths()
+
+  const expectedReturnVal =
+    `Expected: { paths: [] }\n` +
+    `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+
+  if (
+    !staticPathsResult ||
+    typeof staticPathsResult !== 'object' ||
+    Array.isArray(staticPathsResult)
+  ) {
+    throw new Error(
+      `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
+    )
+  }
+
+  const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
+    key => key !== 'paths'
+  )
+
+  if (invalidStaticPathKeys.length > 0) {
+    throw new Error(
+      `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+        ', '
+      )}) ${expectedReturnVal}`
+    )
+  }
+
+  const toPrerender = staticPathsResult.paths
+
+  if (!Array.isArray(toPrerender)) {
+    throw new Error(
+      `Invalid \`paths\` value returned from unstable_getStaticProps in ${page}.\n` +
+        `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
+    )
+  }
+
+  toPrerender.forEach(entry => {
+    // For a string-provided path, we must make sure it matches the dynamic
+    // route.
+    if (typeof entry === 'string') {
+      const result = _routeMatcher(entry)
+      if (!result) {
+        throw new Error(
+          `The provided path \`${entry}\` does not match the page: \`${page}\`.`
+        )
+      }
+
+      prerenderPaths?.add(entry)
+    }
+    // For the object-provided path, we must make sure it specifies all
+    // required keys.
+    else {
+      const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+      if (invalidKeys.length) {
+        throw new Error(
+          `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
+            `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
+            `\n\n\treturn { params: { ${_validParamKeys
+              .map(k => `${k}: ...`)
+              .join(', ')} } }` +
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
+        )
+      }
+
+      const { params = {} } = entry
+      let builtPage = page
+      _validParamKeys.forEach(validParamKey => {
+        const { repeat } = _routeRegex.groups[validParamKey]
+        const paramValue = params[validParamKey]
+        if (
+          (repeat && !Array.isArray(paramValue)) ||
+          (!repeat && typeof paramValue !== 'string')
+        ) {
+          throw new Error(
+            `A required parameter (${validParamKey}) was not provided as ${
+              repeat ? 'an array' : 'a string'
+            } in unstable_getStaticPaths for ${page}`
+          )
+        }
+
+        builtPage = builtPage.replace(
+          `[${repeat ? '...' : ''}${validParamKey}]`,
+          repeat
+            ? (paramValue as string[]).map(encodeURIComponent).join('/')
+            : encodeURIComponent(paramValue as string)
+        )
+      })
+
+      prerenderPaths?.add(builtPage)
+    }
+  })
+
+  return [...prerenderPaths]
+}
+
 export async function isPageStatic(
   page: string,
   serverBundle: string,
@@ -559,115 +666,19 @@ export async function isPageStatic(
       )
     }
 
-    let prerenderPaths: Set<string> | undefined
+    let prerenderRoutes: Array<string> | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderPaths = new Set()
-
-      const _routeRegex = getRouteRegex(page)
-      const _routeMatcher = getRouteMatcher(_routeRegex)
-
-      // Get the default list of allowed params.
-      const _validParamKeys = Object.keys(_routeMatcher(page))
-
-      const staticPathsResult = await (mod.unstable_getStaticPaths as Unstable_getStaticPaths)()
-
-      const expectedReturnVal =
-        `Expected: { paths: [] }\n` +
-        `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
-
-      if (
-        !staticPathsResult ||
-        typeof staticPathsResult !== 'object' ||
-        Array.isArray(staticPathsResult)
-      ) {
-        throw new Error(
-          `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
-        )
-      }
-
-      const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
-        key => key !== 'paths'
+      prerenderRoutes = await buildStaticPaths(
+        page,
+        mod.unstable_getStaticPaths
       )
-
-      if (invalidStaticPathKeys.length > 0) {
-        throw new Error(
-          `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
-            ', '
-          )}) ${expectedReturnVal}`
-        )
-      }
-
-      const toPrerender = staticPathsResult.paths
-
-      if (!Array.isArray(toPrerender)) {
-        throw new Error(
-          `Invalid \`paths\` value returned from unstable_getStaticProps in ${page}.\n` +
-            `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
-        )
-      }
-
-      toPrerender.forEach(entry => {
-        // For a string-provided path, we must make sure it matches the dynamic
-        // route.
-        if (typeof entry === 'string') {
-          const result = _routeMatcher(entry)
-          if (!result) {
-            throw new Error(
-              `The provided path \`${entry}\` does not match the page: \`${page}\`.`
-            )
-          }
-
-          prerenderPaths?.add(entry)
-        }
-        // For the object-provided path, we must make sure it specifies all
-        // required keys.
-        else {
-          const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
-          if (invalidKeys.length) {
-            throw new Error(
-              `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
-                `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
-                `\n\n\treturn { params: { ${_validParamKeys
-                  .map(k => `${k}: ...`)
-                  .join(', ')} } }` +
-                `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
-            )
-          }
-
-          const { params = {} } = entry
-          let builtPage = page
-          _validParamKeys.forEach(validParamKey => {
-            const { repeat } = _routeRegex.groups[validParamKey]
-            const paramValue = params[validParamKey]
-            if (
-              (repeat && !Array.isArray(paramValue)) ||
-              (!repeat && typeof paramValue !== 'string')
-            ) {
-              throw new Error(
-                `A required parameter (${validParamKey}) was not provided as ${
-                  repeat ? 'an array' : 'a string'
-                } in unstable_getStaticPaths for ${page}`
-              )
-            }
-
-            builtPage = builtPage.replace(
-              `[${repeat ? '...' : ''}${validParamKey}]`,
-              repeat
-                ? (paramValue as string[]).map(encodeURIComponent).join('/')
-                : encodeURIComponent(paramValue as string)
-            )
-          })
-
-          prerenderPaths?.add(builtPage)
-        }
-      })
     }
 
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes: prerenderPaths && [...prerenderPaths],
+      prerenderRoutes,
       hasStaticProps,
       hasServerProps,
     }
