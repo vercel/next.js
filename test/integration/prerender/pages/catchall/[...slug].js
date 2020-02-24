@@ -29,5 +29,5 @@ export default ({ slug }) => {
   if (isFallback) {
     return <p id="catchall">fallback</p>
   }
-  return <p id="catchall">Hi {slug.join('/')}</p>
+  return <p id="catchall">Hi {slug.join(' ')}</p>
 }
