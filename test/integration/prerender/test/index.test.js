@@ -730,6 +730,7 @@ describe('SSG Prerender', () => {
         `module.exports = { target: 'serverless' }`,
         'utf8'
       )
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       stderr = ''
       appPort = await findPort()
@@ -772,6 +773,7 @@ describe('SSG Prerender', () => {
         export default () => 'hello world'
       `
       )
+      await fs.remove(join(appDir, '.next'))
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
       await fs.remove(brokenPage)
       expect(stderr).toContain(
@@ -800,6 +802,7 @@ describe('SSG Prerender', () => {
         `module.exports = { target: 'experimental-serverless-trace' }`,
         'utf8'
       )
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
 
       distPagesDir = join(appDir, '.next/serverless/pages')
@@ -818,6 +821,7 @@ describe('SSG Prerender', () => {
     let buildOutput = ''
     beforeAll(async () => {
       await fs.remove(nextConfig)
+      await fs.remove(join(appDir, '.next'))
       const { stdout } = await nextBuild(appDir, [], { stdout: true })
       buildOutput = stdout
 
@@ -857,6 +861,7 @@ describe('SSG Prerender', () => {
           },
         }`
       )
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       await nextExport(appDir, { outdir: exportDir })
       app = await startStaticServer(exportDir)
