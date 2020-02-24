@@ -20,7 +20,7 @@ export function collectEnv(page: string, pageEnv?: string[]): Env {
   const missingEnvKeys = new Set()
   const collected = pageEnv
     ? pageEnv.reduce((prev: Env, key): Env => {
-        if (process.env[key]) {
+        if (typeof process.env[key] !== 'undefined') {
           prev[key] = process.env[key]!
         } else {
           missingEnvKeys.add(key)
