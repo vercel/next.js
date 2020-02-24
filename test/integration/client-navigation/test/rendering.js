@@ -361,7 +361,7 @@ export default function(render, fetch) {
       it('should show error when url prop is passed', async () => {
         const html = await render('/url-prop-override')
         expect(html).toMatch(
-          /The prop `url` can not be passed to pages as this is a reserved prop for Next.js/
+          /The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons/
         )
       })
     })

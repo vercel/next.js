@@ -342,7 +342,7 @@ const runTests = (dev = false) => {
       const html = await renderViaHTTP(appPort, '/bad')
       await fs.remove(badPage)
       expect(html).toMatch(
-        /The prop `url` can not be passed to pages as this is a reserved prop for Next.js/
+        /The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons/
       )
     })
 
