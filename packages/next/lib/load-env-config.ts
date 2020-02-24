@@ -1,4 +1,5 @@
 import path from 'path'
+import chalk from 'chalk'
 import dotenv from 'next/dist/compiled/dotenv'
 import { ENV_FILE } from '../next-server/lib/constants'
 import dotenvExpand from 'next/dist/compiled/dotenv-expand'
@@ -24,7 +25,7 @@ export function loadEnvConfig(dir: string, dev?: boolean): void {
     const result = dotenvExpand(dotenv.config({ path: dotEnvPath }))
 
     if (result.parsed) {
-      console.log(`Loaded env from ${envFile}`)
+      console.log(`> ${chalk.cyan.bold('Info:')} Loaded env from ${envFile}`)
     }
   }
 }
