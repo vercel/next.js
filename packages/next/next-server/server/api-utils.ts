@@ -263,7 +263,7 @@ export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
 
 export function tryGetPreviewData(
   req: IncomingMessage,
-  res: ServerResponse,
+  res: HasHeaderMethods,
   options: __ApiPreviewProps
 ): object | string | false {
   // Read cached preview data if present
@@ -290,13 +290,13 @@ export function tryGetPreviewData(
 
   // Case: one cookie is set, but not the other.
   if (hasBypass !== hasData) {
-    clearPreviewData(res as NextApiResponse)
+    clearPreviewData(res)
     return false
   }
 
   // Case: preview session is for an old build.
   if (cookies[COOKIE_NAME_PRERENDER_BYPASS] !== options.previewModeId) {
-    clearPreviewData(res as NextApiResponse)
+    clearPreviewData(res)
     return false
   }
 
@@ -311,7 +311,7 @@ export function tryGetPreviewData(
     ) as string
   } catch {
     // TODO: warn
-    clearPreviewData(res as NextApiResponse)
+    clearPreviewData(res)
     return false
   }
 
@@ -404,7 +404,12 @@ function setPreviewData<T>(
   return res
 }
 
-function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
+interface HasHeaderMethods {
+  getHeader(name: string): string | number | string[] | undefined
+  setHeader(name: string, value: string | number | string[]): void
+}
+
+function clearPreviewData<T extends HasHeaderMethods>(res: T): T {
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [

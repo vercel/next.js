@@ -33,7 +33,7 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
 import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
@@ -59,6 +59,7 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
+import { createPassthroughResponse, NextResponse } from './response-utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -818,7 +819,7 @@ export default class Server {
   }
 
   private __sendPayload(
-    res: ServerResponse,
+    res: NextResponse,
     payload: any,
     type: string,
     options?: { revalidate: number | false; private: boolean }
@@ -863,7 +864,7 @@ export default class Server {
 
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
-    res: ServerResponse,
+    res: NextResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: any
@@ -1019,7 +1020,7 @@ export default class Server {
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
-    const didRespond = isResSent(res)
+    const didRespond = res.isSent()
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
@@ -1072,7 +1073,7 @@ export default class Server {
       isOrigin,
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
-    if (!isResSent(res)) {
+    if (!res.isSent()) {
       this.__sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
@@ -1110,7 +1111,7 @@ export default class Server {
       if (result) {
         return await this.renderToHTMLWithComponents(
           req,
-          res,
+          createPassthroughResponse(res),
           pathname,
           result,
           { ...this.renderOpts, amphtml, hasAmp }
@@ -1132,7 +1133,7 @@ export default class Server {
           if (result) {
             return await this.renderToHTMLWithComponents(
               req,
-              res,
+              createPassthroughResponse(res),
               dynamicRoute.page,
               result,
               {
@@ -1199,7 +1200,7 @@ export default class Server {
     try {
       html = await this.renderToHTMLWithComponents(
         req,
-        res,
+        createPassthroughResponse(res),
         using404Page ? '/404' : '/_error',
         result!,
         {
