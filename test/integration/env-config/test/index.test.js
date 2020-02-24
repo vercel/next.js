@@ -71,6 +71,16 @@ const runTests = isDev => {
       const data = await getEnvFromHtml('/next-config-loaded-env')
       expect(data.LOCAL_ENV_FILE_KEY).toEqual('localenv')
     })
+
+    it('should load env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_KEY).toEqual('env')
+    })
+
+    it('should override env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_LOCAL_OVERRIDE_TEST).toEqual('localenv')
+    })
   })
 
   describe('Loads .env.development', () => {
@@ -99,6 +109,18 @@ const runTests = isDev => {
       const data = await getEnvFromHtml('/next-config-loaded-env')
       expect(data.DEVELOPMENT_ENV_FILE_KEY).toEqual(
         isDev ? 'development' : undefined
+      )
+    })
+
+    it('should load env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_KEY).toEqual('env')
+    })
+
+    it('should override env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_DEVELOPMENT_OVERRIDE_TEST).toEqual(
+        isDev ? 'development' : 'env'
       )
     })
   })
@@ -131,6 +153,18 @@ const runTests = isDev => {
         isDev ? 'localdevelopment' : undefined
       )
     })
+
+    it('should load env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_KEY).toEqual('env')
+    })
+
+    it('should override env from .env and .env.development', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_DEVELOPMENT_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
+        isDev ? 'localdevelopment' : 'env'
+      )
+    })
   })
 
   describe('Loads .env.production', () => {
@@ -161,6 +195,18 @@ const runTests = isDev => {
         isDev ? undefined : 'production'
       )
     })
+
+    it('should load env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_KEY).toEqual('env')
+    })
+
+    it('should override env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_PRODUCTION_OVERRIDEOVERRIDE_TEST).toEqual(
+        isDev ? 'env' : 'production'
+      )
+    })
   })
 
   describe('Loads .env.production.local', () => {
@@ -189,6 +235,18 @@ const runTests = isDev => {
       const data = await getEnvFromHtml('/next-config-loaded-env')
       expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
         isDev ? undefined : 'localproduction'
+      )
+    })
+
+    it('should load env from .env', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_KEY).toEqual('env')
+    })
+
+    it('should override env from .env and .env.production', async () => {
+      const data = await getEnvFromHtml('/')
+      expect(data.ENV_FILE_PRODUCTION_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
+        isDev ? 'env' : 'localproduction'
       )
     })
   })
