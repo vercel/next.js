@@ -873,13 +873,14 @@ export default async function getBaseWebpackConfig(
               new MinificationConformanceCheck(),
             conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
               new ReactSyncScriptsConformanceCheck(),
-            conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
+            !isServer &&
+              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
               new DuplicatePolyfillsConformanceCheck({
                 BlockedAPIToBePolyfilled:
                   conformanceConfig.DuplicatePolyfillsConformanceCheck
                     .BlockedAPIToBePolyfilled,
               }),
-          ],
+          ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
