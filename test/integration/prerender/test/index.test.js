@@ -376,7 +376,7 @@ const runTests = (dev = false) => {
           .text()
       ).isFallback
     ).toBe(false)
-    expect($('#catchall').text()).toMatch(/Hi.*?another\/value/)
+    expect($('#catchall').text()).toMatch(/Hi.*?another value/)
   })
 
   it('should support lazy catchall route', async () => {
@@ -402,6 +402,38 @@ const runTests = (dev = false) => {
 
       const text2 = await browser.elementByCss('#catchall').text()
       expect(text2).toMatch(/Hi.*?delayby3s/)
+    }
+  })
+
+  it('should support nested lazy catchall route', async () => {
+    // Dev doesn't support fallback yet
+    if (dev) {
+      const html = await renderViaHTTP(
+        appPort,
+        '/catchall/notreturnedinpaths/nested'
+      )
+      const $ = cheerio.load(html)
+      expect($('#catchall').text()).toMatch(/Hi.*?notreturnedinpaths nested/)
+    }
+    // Production will render fallback for a "lazy" route
+    else {
+      const html = await renderViaHTTP(
+        appPort,
+        '/catchall/notreturnedinpaths/nested'
+      )
+      const $ = cheerio.load(html)
+      expect($('#catchall').text()).toBe('fallback')
+
+      // hydration
+      const browser = await webdriver(appPort, '/catchall/delayby3s/nested')
+
+      const text1 = await browser.elementByCss('#catchall').text()
+      expect(text1).toBe('fallback')
+
+      await new Promise(resolve => setTimeout(resolve, 4000))
+
+      const text2 = await browser.elementByCss('#catchall').text()
+      expect(text2).toMatch(/Hi.*?delayby3s nested/)
     }
   })
 
