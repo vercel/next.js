@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import { IncomingMessage } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
@@ -24,7 +24,6 @@ import {
   DocumentInitialProps,
   DocumentType,
   getDisplayName,
-  isResSent,
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
@@ -33,6 +32,7 @@ import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
 import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
+import { ResponseLike } from './utils'
 
 function noRouter() {
   const message =
@@ -253,7 +253,7 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
 
 export async function renderToHTML(
   req: IncomingMessage,
-  res: ServerResponse,
+  res: ResponseLike,
   pathname: string,
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
@@ -416,7 +416,7 @@ export async function renderToHTML(
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
-    res: isAutoExport ? undefined : res,
+    res: isAutoExport ? undefined : res.rawResponse,
     pathname,
     query,
     asPath,
@@ -466,7 +466,7 @@ export async function renderToHTML(
       // Reads of this are cached on the `req` object, so this should resolve
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
-      const previewData = tryGetPreviewData(req, res, previewProps)
+      const previewData = tryGetPreviewData(req, res.rawResponse, previewProps)
       const data = await unstable_getStaticProps!({
         ...(pageIsDynamic
           ? {
@@ -534,7 +534,7 @@ export async function renderToHTML(
       params,
       query,
       req,
-      res,
+      res: res.rawResponse,
     })
 
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
@@ -557,7 +557,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSpr) return null
+  if (res.hasSent() && !isSpr) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -613,7 +613,7 @@ export async function renderToHTML(
     documentCtx
   )
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSpr) return null
+  if (res.hasSent() && !isSpr) return null
 
   if (!docProps || typeof docProps.html !== 'string') {
     const message = `"${getDisplayName(

@@ -58,7 +58,7 @@ import {
   initializeSprCache,
   setSprCache,
 } from './spr-cache'
-import { isBlockedPage } from './utils'
+import { isBlockedPage, ResponseLike } from './utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -818,32 +818,29 @@ export default class Server {
   }
 
   private __sendPayload(
-    res: ServerResponse,
+    res: ResponseLike,
     payload: any,
     type: string,
     options?: { revalidate: number | false; private: boolean }
   ) {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', type)
-    res.setHeader('Content-Length', Buffer.byteLength(payload))
+    res.set('Content-Type', type)
+    res.set('Content-Length', Buffer.byteLength(payload))
     if (!this.renderOpts.dev) {
       if (options?.private) {
-        res.setHeader(
+        res.set(
           'Cache-Control',
           `private, no-cache, no-store, max-age=0, must-revalidate`
         )
       } else if (options?.revalidate) {
-        res.setHeader(
+        res.set(
           'Cache-Control',
           options.revalidate < 0
             ? `no-cache, no-store, must-revalidate`
             : `s-maxage=${options.revalidate}, stale-while-revalidate`
         )
       } else if (options?.revalidate === false) {
-        res.setHeader(
-          'Cache-Control',
-          `s-maxage=31536000, stale-while-revalidate`
-        )
+        res.set('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
       }
     }
     res.end(payload)
@@ -863,14 +860,14 @@ export default class Server {
 
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
-    res: ServerResponse,
+    res: ResponseLike,
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: any
   ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
-      res.statusCode = 404
+      res.status(404)
     }
 
     // handle static page
@@ -946,7 +943,9 @@ export default class Server {
     }
 
     const previewProps = this.getPreviewProps()
-    const previewData = tryGetPreviewData(req, res, { ...previewProps })
+    const previewData = tryGetPreviewData(req, res.rawResponse, {
+      ...previewProps,
+    })
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
@@ -1019,7 +1018,7 @@ export default class Server {
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
-    const didRespond = isResSent(res)
+    const didRespond = res.hasSent()
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
@@ -1072,7 +1071,7 @@ export default class Server {
       isOrigin,
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
-    if (!isResSent(res)) {
+    if (!res.hasSent()) {
       this.__sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
@@ -1110,7 +1109,7 @@ export default class Server {
       if (result) {
         return await this.renderToHTMLWithComponents(
           req,
-          res,
+          new ResponseWrapper(res),
           pathname,
           result,
           { ...this.renderOpts, amphtml, hasAmp }
@@ -1132,7 +1131,7 @@ export default class Server {
           if (result) {
             return await this.renderToHTMLWithComponents(
               req,
-              res,
+              new ResponseWrapper(res),
               dynamicRoute.page,
               result,
               {
@@ -1199,7 +1198,7 @@ export default class Server {
     try {
       html = await this.renderToHTMLWithComponents(
         req,
-        res,
+        new ResponseWrapper(res),
         using404Page ? '/404' : '/_error',
         result!,
         {
@@ -1287,5 +1286,31 @@ export default class Server {
 
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
+  }
+}
+
+class ResponseWrapper implements ResponseLike {
+  rawResponse: ServerResponse
+
+  constructor(res: ServerResponse) {
+    this.rawResponse = res
+  }
+
+  end(chunk: any): void {
+    this.rawResponse.end(chunk)
+  }
+
+  hasSent(): boolean {
+    return isResSent(this.rawResponse)
+  }
+
+  set(name: string, value: number | string | string[]): ResponseLike {
+    this.rawResponse.setHeader(name, value)
+    return this
+  }
+
+  status(statusCode: number): ResponseLike {
+    this.rawResponse.statusCode = statusCode
+    return this
   }
 }

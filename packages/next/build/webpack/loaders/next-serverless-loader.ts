@@ -145,8 +145,8 @@ const nextServerlessLoader: loader.Loader = function() {
       ${runtimeConfigImports}
       ${
         /*
-          this needs to be called first so its available for any other imports
-        */
+        this needs to be called first so its available for any other imports
+      */
         runtimeConfigSetter
       }
       ${dynamicRouteImports}
@@ -276,7 +276,7 @@ const nextServerlessLoader: loader.Loader = function() {
         options,
       )
       try {
-        ${page === '/_error' ? `res.statusCode = 404` : ''}
+        ${page === '/_error' ? `res.status(404)` : ''}
         ${
           pageIsDynamicRoute
             ? `const params = fromExport && !unstable_getStaticProps && !unstable_getServerProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
@@ -328,10 +328,10 @@ const nextServerlessLoader: loader.Loader = function() {
 
         if (_nextData && !fromExport) {
           const payload = JSON.stringify(renderOpts.pageData)
-          res.setHeader('Content-Type', 'application/json')
-          res.setHeader('Content-Length', Buffer.byteLength(payload))
+          res.set('Content-Type', 'application/json')
+          res.set('Content-Length', Buffer.byteLength(payload))
 
-          res.setHeader(
+          res.set(
             'Cache-Control',
             isPreviewMode
               ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
@@ -342,7 +342,7 @@ const nextServerlessLoader: loader.Loader = function() {
           res.end(payload)
           return null
         } else if (isPreviewMode) {
-          res.setHeader(
+          res.set(
             'Cache-Control',
             'private, no-cache, no-store, max-age=0, must-revalidate'
           )
@@ -352,7 +352,7 @@ const nextServerlessLoader: loader.Loader = function() {
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
-          res.statusCode = 404
+          res.status(404)
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
@@ -362,7 +362,7 @@ const nextServerlessLoader: loader.Loader = function() {
           return result
         } else {
           console.error(err)
-          res.statusCode = 500
+          res.status(500)
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             unstable_getStaticProps: undefined,
             unstable_getStaticPaths: undefined,
