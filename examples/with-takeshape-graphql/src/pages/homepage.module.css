@@ -1,0 +1,79 @@
+/* Hero */
+.hero {
+  position: relative;
+  background-size: cover;
+  background-position: center center;
+  height: 64.5rem;
+}
+
+.heroText {
+  color: #fff;
+}
+
+.heroText::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #442ab9;
+  opacity: 0.9;
+}
+
+.heroContainer {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+}
+
+.heroContent {
+  max-width: 56rem;
+}
+
+.hero h1 {
+  margin-bottom: 2.4rem;
+}
+
+.hero .button {
+  margin-top: 2.4rem;
+}
+
+/* Feature */
+.feature {
+  display: block;
+  background-color: rgba(255, 255, 255, 0.9);
+  position: relative;
+  padding: 3rem 3rem 4rem;
+  border: 1px solid #442ab9;
+  max-width: 40rem;
+}
+
+.feature:after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #442ab9;
+  top: 1rem;
+  left: 1rem;
+  z-index: -1;
+}
+
+.feature img {
+  margin-top: 1.6rem;
+}
+
+.feature p {
+  font-weight: 600;
+}
+
+.feature p:first-child {
+  text-transform: uppercase;
+}
+
+.feature h1 {
+  margin: 1.4rem 0 0.4rem;
+}

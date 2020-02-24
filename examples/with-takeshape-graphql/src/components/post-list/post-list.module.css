@@ -1,0 +1,53 @@
+/* Post List */
+.postList {
+  margin: 8rem 0;
+}
+
+.postList li + li {
+  margin-top: 6rem;
+}
+
+/* Pagination */
+.pagination {
+  padding: 8rem 0 3rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.paginationList {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.pagination .posts {
+  display: flex;
+}
+
+.pagination a {
+  width: 48px;
+  height: 48px;
+  background-color: #e4f8ee;
+  display: flex;
+  font-size: 1.6rem;
+  font-weight: 600;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease-in-out;
+  margin: 0 0.2rem;
+}
+
+.pagination a:not(.isDisabled):not(.isCurrent):hover {
+  box-shadow: inset 0 0 0 3px #442ab9;
+}
+
+.pagination a.isCurrent {
+  border-bottom: 3px solid #442ab9;
+}
+
+.pagination a.isDisabled {
+  background-color: transparent;
+  pointer-events: none;
+  opacity: 0.2;
+}

@@ -1,0 +1,3 @@
+[build]
+	publish = "out"
+	command = "yarn export"

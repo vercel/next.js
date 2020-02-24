@@ -1,0 +1,64 @@
+/* Containers */
+.main {
+  flex: 1 1 auto;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.main {
+  flex: 1 1 auto;
+}
+
+.container {
+  max-width: 92rem;
+  margin: 0 auto;
+  position: relative;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  z-index: 10;
+}
+
+.image-container {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-container img {
+  flex-shrink: 0;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.buttonContainer {
+  text-align: center;
+  margin: 0 auto;
+  padding: 4rem 0;
+}
+
+/* Buttons */
+.button {
+  background-color: #e4f8ee;
+  padding: 2rem 3rem;
+  display: inline-block;
+  position: relative;
+  font-size: 1.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.button--dark {
+  background-color: #442ab9;
+  color: #fff;
+}
+
+/* Header */
+.header {
+  margin-top: 6.4rem;
+  text-align: center;
+}

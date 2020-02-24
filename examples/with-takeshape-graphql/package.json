@@ -1,0 +1,21 @@
+{
+  "name": "shape-blog-nextjs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "classnames": "^2.2.6",
+    "date-fns": "^2.9.0",
+    "dotenv": "^8.2.0",
+    "isomorphic-fetch": "^2.2.1",
+    "next": "^9.2.1",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "takeshape-routing": "^4.86.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }
+}

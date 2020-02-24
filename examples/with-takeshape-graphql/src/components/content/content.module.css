@@ -1,0 +1,122 @@
+/* Content */
+.content {
+  padding: 0 0 8rem;
+  max-width: 70rem;
+  margin: 0 auto;
+}
+
+.content :global(.oembed) {
+  width: 100%;
+  height: 0;
+  padding-top: 56.25%;
+  position: relative;
+}
+
+.content :global(.oembed) iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.content .container > * + * {
+  margin-top: 3rem;
+}
+
+.content :global(.caption) p,
+.content :global(.credit) p {
+  font-size: 1.4rem;
+}
+
+.content .credit {
+  font-weight: 600;
+  text-align: right;
+}
+
+.content figure:global(.center) img {
+  margin: 0 auto;
+  display: block;
+}
+
+.content figure figcaption {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 1rem;
+}
+
+.content :global(.pullquote) {
+  font-size: 2.4rem;
+  font-weight: 700;
+  position: relative;
+  text-align: center;
+  width: calc(100% - 1rem);
+  margin-top: 8rem;
+  margin-bottom: 8rem;
+  line-height: 1.4;
+}
+
+.content :global(.pullquote:before),
+.content :global(.pullquote:after) {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #442ab9;
+  background-color: #fff;
+  z-index: -1;
+}
+
+.content :global(.pullquote:after) {
+  left: 1rem;
+  top: 1rem;
+  z-index: -2;
+  background-color: #e4f8ee;
+}
+
+.content :global(.pullquote blockquote) {
+  padding: 4rem;
+  position: relative;
+}
+
+.content :global(.pullquote blockquote:before),
+.content :global(.pullquote blockquote:after) {
+  position: absolute;
+  font-size: 10rem;
+  line-height: 1;
+  font-weight: 300;
+}
+
+.content :global(.pullquote blockquote:before) {
+  content: '“';
+  top: 0;
+  left: -2rem;
+}
+
+.content :global(.pullquote blockquote:after) {
+  content: '”';
+  bottom: -2rem;
+  right: -2rem;
+}
+
+.content ul {
+  padding-left: 2rem;
+  list-style: disc;
+}
+
+.content li {
+  font-size: 1.6rem;
+  padding-left: 0.4rem;
+}
+
+.content li + li {
+  margin-top: 1.6rem;
+}
+
+.content hr {
+  border: none;
+  height: 1px;
+  background-color: #442ab9;
+}

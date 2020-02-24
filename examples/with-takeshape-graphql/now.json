@@ -1,0 +1,12 @@
+{
+  "env": {
+    "TAKESHAPE_API_KEY": "@takeshape-api-key",
+    "TAKESHAPE_PROJECT": "@takeshape-project"
+  },
+  "build": {
+    "env": {
+      "TAKESHAPE_API_KEY": "@takeshape-api-key",
+      "TAKESHAPE_PROJECT": "@takeshape-project"
+    }
+  }
+}

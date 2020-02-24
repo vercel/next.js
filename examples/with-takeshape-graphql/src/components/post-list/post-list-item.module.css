@@ -1,0 +1,17 @@
+.tout {
+  display: flex;
+}
+
+.tout > :first-child {
+  flex: 0 0 40%;
+}
+
+.tout > :last-child {
+  flex: 1 1 60%;
+  padding-left: 4rem;
+}
+
+.tout > :last-child p:first-of-type {
+  margin: 0.5rem 0 2rem;
+  font-weight: 600;
+}

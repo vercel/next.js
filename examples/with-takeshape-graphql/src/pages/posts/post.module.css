@@ -1,0 +1,25 @@
+/* Post Header */
+.postHeader {
+  margin: 8rem 0 4.8rem;
+}
+
+.postHeaderContent {
+  position: relative;
+  padding-bottom: 2.4rem;
+}
+
+.postHeaderContent::after {
+  content: '';
+  position: absolute;
+  bottom: -0.4rem;
+  left: 0;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 0.4rem;
+  border-top: 1px solid #442ab9;
+  border-bottom: 1px solid #442ab9;
+}
+
+.postHeaderContent h2 {
+  max-width: 56rem;
+}
