@@ -127,7 +127,6 @@ export default class Server {
   protected staticPathsWorker?: import('jest-worker').default & {
     loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
   }
-  private staticPathsCache: { [pathname: string]: string[] }
 
   public constructor({
     dir = '.',
@@ -143,7 +142,6 @@ export default class Server {
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
-    this.staticPathsCache = {}
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
