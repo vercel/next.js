@@ -6,14 +6,15 @@ import dotenvExpand from 'next/dist/compiled/dotenv-expand'
 export type Env = { [key: string]: string }
 
 export function loadEnvConfig(dir: string, dev?: boolean): void {
-  const mode = dev ? 'development' : 'production'
+  const isTest = process.env.NODE_ENV === 'test'
+  const mode = isTest ? 'test' : dev ? 'development' : 'production'
   const dotenvFiles = [
     `${ENV_FILE}.${mode}.local`,
     `${ENV_FILE}.${mode}`,
     // Don't include `.env.local` for `test` environment
     // since normally you expect tests to produce the same
     // results for everyone
-    process.env.NODE_ENV !== 'test' && `${ENV_FILE}.local`,
+    mode !== 'test' && `${ENV_FILE}.local`,
     ENV_FILE,
   ].filter(Boolean) as string[]
 

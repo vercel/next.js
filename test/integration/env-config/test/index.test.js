@@ -28,7 +28,7 @@ const getEnvFromHtml = async path => {
   )
 }
 
-const runTests = (isDev, isServerless) => {
+const runTests = (isDev, isServerless, isTestEnv) => {
   // TODO: support runtime overrides in serverless output
   if (!isServerless) {
     describe('Process environment', () => {
@@ -38,6 +38,7 @@ const runTests = (isDev, isServerless) => {
       })
     })
   }
+
   describe('Loads .env', () => {
     it('should provide env for SSG', async () => {
       const data = await getEnvFromHtml('/some-ssg')
@@ -60,205 +61,290 @@ const runTests = (isDev, isServerless) => {
     })
   })
 
-  describe('Loads .env.local', () => {
-    it('should provide env for SSG', async () => {
-      const data = await getEnvFromHtml('/some-ssg')
-      expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
+  if (!isTestEnv) {
+    describe('Loads .env.local', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
+      })
+
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
+      })
+
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).LOCAL_ENV_FILE_KEY).toEqual('localenv')
+      })
+
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.LOCAL_ENV_FILE_KEY).toEqual('localenv')
+      })
+
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
+
+      it('should override env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_LOCAL_OVERRIDE_TEST).toEqual('localenv')
+      })
     })
 
-    it('should provide env correctly for SSR', async () => {
-      const data = await getEnvFromHtml('/some-ssp')
-      expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
+    describe('Loads .env.development', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
+          isDev ? 'development' : undefined
+        )
+      })
+
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
+          isDev ? 'development' : undefined
+        )
+      })
+
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).DEVELOPMENT_ENV_FILE_KEY).toEqual(
+          isDev ? 'development' : undefined
+        )
+      })
+
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.DEVELOPMENT_ENV_FILE_KEY).toEqual(
+          isDev ? 'development' : undefined
+        )
+      })
+
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
+
+      it('should override env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_DEVELOPMENT_OVERRIDE_TEST).toEqual(
+          isDev ? 'development' : 'env'
+        )
+      })
     })
 
-    it('should provide env correctly for API routes', async () => {
-      const data = await renderViaHTTP(appPort, '/api/all')
-      expect(JSON.parse(data).LOCAL_ENV_FILE_KEY).toEqual('localenv')
+    describe('Loads .env.development.local', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
+          isDev ? 'localdevelopment' : undefined
+        )
+      })
+
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
+          isDev ? 'localdevelopment' : undefined
+        )
+      })
+
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).LOCAL_DEVELOPMENT_ENV_FILE_KEY).toEqual(
+          isDev ? 'localdevelopment' : undefined
+        )
+      })
+
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toEqual(
+          isDev ? 'localdevelopment' : undefined
+        )
+      })
+
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
+
+      it('should override env from .env and .env.development', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_DEVELOPMENT_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
+          isDev ? 'localdevelopment' : 'env'
+        )
+      })
     })
 
-    it('should provide env correctly through next.config.js', async () => {
-      const data = await getEnvFromHtml('/next-config-loaded-env')
-      expect(data.LOCAL_ENV_FILE_KEY).toEqual('localenv')
+    describe('Loads .env.production', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
+          isDev ? undefined : 'production'
+        )
+      })
+
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
+          isDev ? undefined : 'production'
+        )
+      })
+
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).PRODUCTION_ENV_FILE_KEY).toEqual(
+          isDev ? undefined : 'production'
+        )
+      })
+
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.PRODUCTION_ENV_FILE_KEY).toEqual(
+          isDev ? undefined : 'production'
+        )
+      })
+
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
+
+      it('should override env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_PRODUCTION_OVERRIDEOVERRIDE_TEST).toEqual(
+          isDev ? 'env' : 'production'
+        )
+      })
     })
 
-    it('should load env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_KEY).toEqual('env')
+    describe('Loads .env.production.local', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
+          isDev ? undefined : 'localproduction'
+        )
+      })
+
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
+          isDev ? undefined : 'localproduction'
+        )
+      })
+
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
+          isDev ? undefined : 'localproduction'
+        )
+      })
+
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
+          isDev ? undefined : 'localproduction'
+        )
+      })
+
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
+
+      it('should override env from .env and .env.production', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_PRODUCTION_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
+          isDev ? 'env' : 'localproduction'
+        )
+      })
+    })
+  }
+
+  if (isTestEnv) {
+    describe('Loads .env.test', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.TEST_ENV_FILE_KEY).toBe(isDev ? 'test' : undefined)
+      })
+
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.TEST_ENV_FILE_KEY).toBe(isDev ? 'test' : undefined)
+      })
+
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).TEST_ENV_FILE_KEY).toEqual(
+          isDev ? 'test' : undefined
+        )
+      })
+
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.TEST_ENV_FILE_KEY).toEqual(isDev ? 'test' : undefined)
+      })
+
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
+
+      it('should override env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_TEST_OVERRIDE_TEST).toEqual(isDev ? 'test' : 'env')
+      })
     })
 
-    it('should override env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_LOCAL_OVERRIDE_TEST).toEqual('localenv')
-    })
-  })
+    describe('Loads .env.test.local', () => {
+      it('should provide env for SSG', async () => {
+        const data = await getEnvFromHtml('/some-ssg')
+        expect(data.LOCAL_TEST_ENV_FILE_KEY).toBe(
+          isDev ? 'localtest' : undefined
+        )
+      })
 
-  describe('Loads .env.development', () => {
-    it('should provide env for SSG', async () => {
-      const data = await getEnvFromHtml('/some-ssg')
-      expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
-        isDev ? 'development' : undefined
-      )
-    })
+      it('should provide env correctly for SSR', async () => {
+        const data = await getEnvFromHtml('/some-ssp')
+        expect(data.LOCAL_TEST_ENV_FILE_KEY).toBe(
+          isDev ? 'localtest' : undefined
+        )
+      })
 
-    it('should provide env correctly for SSR', async () => {
-      const data = await getEnvFromHtml('/some-ssp')
-      expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
-        isDev ? 'development' : undefined
-      )
-    })
+      it('should provide env correctly for API routes', async () => {
+        const data = await renderViaHTTP(appPort, '/api/all')
+        expect(JSON.parse(data).LOCAL_TEST_ENV_FILE_KEY).toEqual(
+          isDev ? 'localtest' : undefined
+        )
+      })
 
-    it('should provide env correctly for API routes', async () => {
-      const data = await renderViaHTTP(appPort, '/api/all')
-      expect(JSON.parse(data).DEVELOPMENT_ENV_FILE_KEY).toEqual(
-        isDev ? 'development' : undefined
-      )
-    })
+      it('should provide env correctly through next.config.js', async () => {
+        const data = await getEnvFromHtml('/next-config-loaded-env')
+        expect(data.LOCAL_TEST_ENV_FILE_KEY).toEqual(
+          isDev ? 'localtest' : undefined
+        )
+      })
 
-    it('should provide env correctly through next.config.js', async () => {
-      const data = await getEnvFromHtml('/next-config-loaded-env')
-      expect(data.DEVELOPMENT_ENV_FILE_KEY).toEqual(
-        isDev ? 'development' : undefined
-      )
-    })
+      it('should load env from .env', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_KEY).toEqual('env')
+      })
 
-    it('should load env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_KEY).toEqual('env')
-    })
+      it('should override env from .env and .env.test', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.ENV_FILE_TEST_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
+          isDev ? 'localtest' : 'env'
+        )
+      })
 
-    it('should override env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_DEVELOPMENT_OVERRIDE_TEST).toEqual(
-        isDev ? 'development' : 'env'
-      )
+      it('should not load .env.local', async () => {
+        const data = await getEnvFromHtml('/')
+        expect(data.LOCAL_ENV_FILE_KEY).toEqual(undefined)
+      })
     })
-  })
-
-  describe('Loads .env.development.local', () => {
-    it('should provide env for SSG', async () => {
-      const data = await getEnvFromHtml('/some-ssg')
-      expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
-        isDev ? 'localdevelopment' : undefined
-      )
-    })
-
-    it('should provide env correctly for SSR', async () => {
-      const data = await getEnvFromHtml('/some-ssp')
-      expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
-        isDev ? 'localdevelopment' : undefined
-      )
-    })
-
-    it('should provide env correctly for API routes', async () => {
-      const data = await renderViaHTTP(appPort, '/api/all')
-      expect(JSON.parse(data).LOCAL_DEVELOPMENT_ENV_FILE_KEY).toEqual(
-        isDev ? 'localdevelopment' : undefined
-      )
-    })
-
-    it('should provide env correctly through next.config.js', async () => {
-      const data = await getEnvFromHtml('/next-config-loaded-env')
-      expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toEqual(
-        isDev ? 'localdevelopment' : undefined
-      )
-    })
-
-    it('should load env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_KEY).toEqual('env')
-    })
-
-    it('should override env from .env and .env.development', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_DEVELOPMENT_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
-        isDev ? 'localdevelopment' : 'env'
-      )
-    })
-  })
-
-  describe('Loads .env.production', () => {
-    it('should provide env for SSG', async () => {
-      const data = await getEnvFromHtml('/some-ssg')
-      expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
-        isDev ? undefined : 'production'
-      )
-    })
-
-    it('should provide env correctly for SSR', async () => {
-      const data = await getEnvFromHtml('/some-ssp')
-      expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
-        isDev ? undefined : 'production'
-      )
-    })
-
-    it('should provide env correctly for API routes', async () => {
-      const data = await renderViaHTTP(appPort, '/api/all')
-      expect(JSON.parse(data).PRODUCTION_ENV_FILE_KEY).toEqual(
-        isDev ? undefined : 'production'
-      )
-    })
-
-    it('should provide env correctly through next.config.js', async () => {
-      const data = await getEnvFromHtml('/next-config-loaded-env')
-      expect(data.PRODUCTION_ENV_FILE_KEY).toEqual(
-        isDev ? undefined : 'production'
-      )
-    })
-
-    it('should load env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_KEY).toEqual('env')
-    })
-
-    it('should override env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_PRODUCTION_OVERRIDEOVERRIDE_TEST).toEqual(
-        isDev ? 'env' : 'production'
-      )
-    })
-  })
-
-  describe('Loads .env.production.local', () => {
-    it('should provide env for SSG', async () => {
-      const data = await getEnvFromHtml('/some-ssg')
-      expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
-        isDev ? undefined : 'localproduction'
-      )
-    })
-
-    it('should provide env correctly for SSR', async () => {
-      const data = await getEnvFromHtml('/some-ssp')
-      expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
-        isDev ? undefined : 'localproduction'
-      )
-    })
-
-    it('should provide env correctly for API routes', async () => {
-      const data = await renderViaHTTP(appPort, '/api/all')
-      expect(JSON.parse(data).LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
-        isDev ? undefined : 'localproduction'
-      )
-    })
-
-    it('should provide env correctly through next.config.js', async () => {
-      const data = await getEnvFromHtml('/next-config-loaded-env')
-      expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toEqual(
-        isDev ? undefined : 'localproduction'
-      )
-    })
-
-    it('should load env from .env', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_KEY).toEqual('env')
-    })
-
-    it('should override env from .env and .env.production', async () => {
-      const data = await getEnvFromHtml('/')
-      expect(data.ENV_FILE_PRODUCTION_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
-        isDev ? 'env' : 'localproduction'
-      )
-    })
-  })
+  }
 }
 
 describe('Env Config', () => {
@@ -280,7 +366,29 @@ describe('Env Config', () => {
       await killApp(app)
     })
 
-    runTests(true, false)
+    runTests(true, false, false)
+  })
+
+  describe('test environment', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `module.exports = { env: { NC_ENV_FILE_KEY: process.env.ENV_FILE_KEY, NC_LOCAL_ENV_FILE_KEY: process.env.LOCAL_ENV_FILE_KEY, NC_PRODUCTION_ENV_FILE_KEY: process.env.PRODUCTION_ENV_FILE_KEY, NC_LOCAL_PRODUCTION_ENV_FILE_KEY: process.env.LOCAL_PRODUCTION_ENV_FILE_KEY, NC_DEVELOPMENT_ENV_FILE_KEY: process.env.DEVELOPMENT_ENV_FILE_KEY, NC_LOCAL_DEVELOPMENT_ENV_FILE_KEY: process.env.LOCAL_DEVELOPMENT_ENV_FILE_KEY, NC_TEST_ENV_FILE_KEY: process.env.TEST_ENV_FILE_KEY, NC_LOCAL_TEST_ENV_FILE_KEY: process.env.LOCAL_TEST_ENV_FILE_KEY } }`
+      )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        env: {
+          PROCESS_ENV_KEY: 'processenvironment',
+          NODE_ENV: 'test',
+        },
+      })
+    })
+    afterAll(async () => {
+      await fs.remove(nextConfig)
+      await killApp(app)
+    })
+
+    runTests(true, false, true)
   })
 
   describe('server mode', () => {
@@ -303,7 +411,7 @@ describe('Env Config', () => {
       await killApp(app)
     })
 
-    runTests(false, false)
+    runTests(false, false, false)
   })
 
   describe('serverless mode', () => {
@@ -326,6 +434,6 @@ describe('Env Config', () => {
       await killApp(app)
     })
 
-    runTests(false, true)
+    runTests(false, true, false)
   })
 })
