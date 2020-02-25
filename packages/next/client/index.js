@@ -226,24 +226,25 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 }
 
 export async function render(props) {
-  await doRender(async () => {
-    if (props.err) {
-      return await renderError(props)
-    }
+  if (props.err) {
+    await renderError(props)
+    return
+  }
 
-    try {
+  try {
+    return doRender(async () => {
       return await getElemToRender(props)
-    } catch (err) {
-      return await renderError({ ...props, err })
-    }
-  })
+    })
+  } catch (err) {
+    await renderError({ ...props, err })
+  }
 }
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError(props) {
-  await doRender(async () => {
+export function renderError(props) {
+  return doRender(async () => {
     const { App, err } = props
 
     // In development runtime errors are caught by react-error-overlay
@@ -461,6 +462,9 @@ async function doRender(getElem) {
   let status = {
     state: 'PENDING',
     promise: new Promise(async resolve => {
+      // We use a promise object instead of async here because
+      // we don't want loading errors to be thrown to React,
+      // but instead to the caller of `doRender`.
       resolveWith = value => {
         status = { state: 'RESOLVED', value }
         resolve()
@@ -494,8 +498,7 @@ async function doRender(getElem) {
   )
 
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    // In Concurrent or Blocking Mode, `useElem` should suspend. We still want
-    // any loading errors in this stackframe.
+    // In Concurrent or Blocking Mode, `useElem` should suspend.
     await waitForLoad()
   }
 }
