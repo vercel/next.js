@@ -159,8 +159,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     webpackHMR = passedWebpackHMR
   }
 
-  let renderCtx
-  const doRender = await getRenderFn(async () => {
+  const renderCtx = async () => {
     const { page: app, mod } = await pageLoader.loadPageScript('/_app')
     App = app
     if (mod && mod.unstable_onPerformanceData) {
@@ -216,23 +215,21 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
         })
     }
 
-    renderCtx = { App, Component, props, err: initialErr }
-    return renderCtx
-  })
+    return { App, Component, props, err: initialErr }
+  }
 
   if (process.env.NODE_ENV === 'production') {
-    doRender()
+    doRender(renderCtx)
     return emitter
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    return { emitter, render, renderCtx }
+    return { emitter, render: doRender, renderCtx }
   }
 }
 
-export async function render(props) {
-  const doRender = await getRenderFn(() => renderToElem(props))
-  await doRender()
+export function render(props) {
+  return doRender(() => renderToElem(props))
 }
 
 async function renderToElem(props) {
@@ -296,9 +293,8 @@ async function renderErrorToElem(props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError(props) {
-  const doRender = await getRenderFn(() => renderErrorToElem(props))
-  await doRender()
+export function renderError(props) {
+  return doRender(() => renderErrorToElem(props))
 }
 
 // If hydrate does not exist, eg in preact.
@@ -466,7 +462,7 @@ async function getElemToRender({ App, Component, props, err }) {
   }
 }
 
-async function getRenderFn(getElem) {
+async function doRender(getElem) {
   let resolveWith
   let status = {
     state: 'PENDING',
