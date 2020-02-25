@@ -70,7 +70,6 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
-import { loadEnvConfig } from '../lib/load-env-config'
 
 const fsAccess = promisify(fs.access)
 const fsUnlink = promisify(fs.unlink)
@@ -110,9 +109,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  // load env values from current .env files
-  loadEnvConfig(dir)
-
+  // TODO: load env and provide it to next.config.js
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)

@@ -185,6 +185,7 @@ const nextServerlessLoader: loader.Loader = function() {
             Object.assign({}, parsedUrl.query, params ),
             resolver,
             ${encodedPreviewProps},
+            process.env || {},
             onError
           )
         } catch (err) {
@@ -254,6 +255,7 @@ const nextServerlessLoader: loader.Loader = function() {
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
         previewProps: ${encodedPreviewProps},
+        env: process.env || {},
         ..._renderOpts
       }
       let _nextData = false

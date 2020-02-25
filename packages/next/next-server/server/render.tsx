@@ -34,6 +34,7 @@ import { getPageFiles } from './get-page-files'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import optimizeAmp from './optimize-amp'
 import { collectEnv } from './utils'
+import { Env } from '../../lib/load-env-config'
 
 function noRouter() {
   const message =
@@ -147,6 +148,7 @@ type RenderOpts = LoadComponentsReturnType & {
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  env: Env
 }
 
 function renderDocument(
@@ -267,6 +269,7 @@ export async function renderToHTML(
     staticMarkup = false,
     ampPath = '',
     App,
+    env = {},
     Document,
     pageConfig = {},
     DocumentMiddleware,
@@ -282,7 +285,7 @@ export async function renderToHTML(
     previewProps,
   } = renderOpts
 
-  const curEnv = collectEnv(pathname, pageConfig.env)
+  const curEnv = collectEnv(pathname, env, pageConfig.env)
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []

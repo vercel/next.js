@@ -59,7 +59,7 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
-import { loadEnvConfig } from '../../lib/load-env-config'
+import { loadEnvConfig, Env } from '../../lib/load-env-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -115,6 +115,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
+    env: Env
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -137,9 +138,11 @@ export default class Server {
     dev = false,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
-    loadEnvConfig(this.dir, dev)
     this.quiet = quiet
     const phase = this.currentPhase()
+    const env = loadEnvConfig(this.dir, dev)
+
+    // TODO: provide env to next.config.js
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
@@ -166,6 +169,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      env,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -674,6 +678,7 @@ export default class Server {
       query,
       pageModule,
       { ...previewProps },
+      this.renderOpts.env,
       this.onErrorMiddleware
     )
     return true

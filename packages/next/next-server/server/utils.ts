@@ -16,12 +16,12 @@ export function cleanAmpPath(pathname: string): string {
   return pathname
 }
 
-export function collectEnv(page: string, pageEnv?: string[]): Env {
+export function collectEnv(page: string, env: Env, pageEnv?: string[]): Env {
   const missingEnvKeys = new Set()
   const collected = pageEnv
     ? pageEnv.reduce((prev: Env, key): Env => {
-        if (typeof process.env[key] !== 'undefined') {
-          prev[key] = process.env[key]!
+        if (typeof env[key] !== 'undefined') {
+          prev[key] = env[key]!
         } else {
           missingEnvKeys.add(key)
         }
