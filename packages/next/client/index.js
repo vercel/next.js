@@ -239,7 +239,7 @@ async function renderToElem(props) {
   try {
     return await getElemToRender(props)
   } catch (err) {
-    await renderError({ ...props, err })
+    return await renderErrorToElem({ ...props, err })
   }
 }
 
