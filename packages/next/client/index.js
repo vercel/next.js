@@ -215,7 +215,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
         })
     }
 
-    return { App, Component, props, err: initialErr }
+    return await renderToElem({ App, Component, props, err: initialErr })
   }
 
   if (process.env.NODE_ENV === 'production') {
