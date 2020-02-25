@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-In a page's data method `getStaticProps`, `getServerProps`, or `getInitialProps` a reserved prop was returned. Currently the only reserved page prop is `url`.
+In a page's `getInitialProps` a reserved prop was returned. Currently the only reserved page prop is `url`.
 
 #### Possible Ways to Fix It
 
