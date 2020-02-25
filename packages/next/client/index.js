@@ -457,11 +457,47 @@ async function getElemToRender({ App, Component, props, err }) {
 }
 
 async function doRender(getElem) {
-  const elem = await getElem()
-  let useElem = () => elem
+  let resolveWith
+  let status = {
+    state: 'PENDING',
+    promise: new Promise(async resolve => {
+      resolveWith = value => {
+        status = { state: 'RESOLVED', value }
+        resolve()
+      }
+    }),
+  }
+  const waitForLoad = async () => {
+    if (status.state === 'PENDING') {
+      const elem = await getElem()
+      resolveWith(elem)
+    }
+  }
+
+  if (process.env.__NEXT_REACT_MODE === 'legacy') {
+    // In legacy mode, `useElem` should always return without suspending,
+    // so we wait for it here instead.
+    await waitForLoad()
+  }
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(<NextRoot useElem={useElem} />, appElement)
+  renderReactElement(
+    <NextRoot
+      useElem={() => {
+        if (status.state === 'PENDING') {
+          throw status.promise
+        }
+        return status.value
+      }}
+    />,
+    appElement
+  )
+
+  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+    // In Concurrent or Blocking Mode, `useElem` should suspend. We still want
+    // any loading errors in this stackframe.
+    await waitForLoad()
+  }
 }
 
 function NextRoot({ useElem }) {
