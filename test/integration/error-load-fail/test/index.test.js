@@ -1,17 +1,22 @@
 /* eslint-env jest */
 /* global jasmine */
-import path from 'path'
+import { join } from 'path'
+import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { nextBuild, nextStart, findPort, killApp, check } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
-const appDir = path.join(__dirname, '..')
+const appDir = join(__dirname, '..')
+let app
 
 describe('Failing to load _error', () => {
+  afterAll(() => killApp(app))
+
   it('handles failing to load _error correctly', async () => {
     await nextBuild(appDir)
+    const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     const appPort = await findPort()
-    const app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort)
 
     const browser = await webdriver(appPort, '/')
     await browser.eval(`window.beforeNavigate = true`)
@@ -19,8 +24,8 @@ describe('Failing to load _error', () => {
     await browser.elementByCss('#to-broken').moveTo()
     await browser.waitForElementByCss('script[src*="broken.js"')
 
-    // stop app so that _error can't be loaded
-    await killApp(app)
+    // remove _error client bundle so that it can't be loaded
+    await fs.remove(join(appDir, '.next/static/', buildId, 'pages/_error.js'))
 
     await browser.elementByCss('#to-broken').click()
 
