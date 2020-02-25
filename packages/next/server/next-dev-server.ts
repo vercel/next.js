@@ -30,6 +30,7 @@ import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
+import Worker from 'jest-worker'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -79,6 +80,18 @@ export default class DevServer extends Server {
     }
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
+    this.staticPathsWorker = new Worker(
+      require.resolve('./static-paths-worker'),
+      {
+        maxRetries: 0,
+        numWorkers: this.nextConfig.experimental.cpus,
+      }
+    ) as Worker & {
+      loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+    }
+
+    this.staticPathsWorker.getStdout().pipe(process.stdout)
+    this.staticPathsWorker.getStderr().pipe(process.stderr)
   }
 
   protected currentPhase() {
