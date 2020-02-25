@@ -489,24 +489,22 @@ async function doRender(getElem) {
     await waitForLoad()
   }
 
-  return async () => {
-    // We catch runtime errors using componentDidCatch which will trigger renderError
-    renderReactElement(
-      <NextRoot
-        useElem={() => {
-          if (status.state === 'PENDING') {
-            throw status.promise
-          }
-          return status.value
-        }}
-      />,
-      appElement
-    )
+  // We catch runtime errors using componentDidCatch which will trigger renderError
+  renderReactElement(
+    <NextRoot
+      useElem={() => {
+        if (status.state === 'PENDING') {
+          throw status.promise
+        }
+        return status.value
+      }}
+    />,
+    appElement
+  )
 
-    if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-      // In Concurrent or Blocking Mode, `useElem` should suspend.
-      await waitForLoad()
-    }
+  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+    // In Concurrent or Blocking Mode, `useElem` should suspend.
+    await waitForLoad()
   }
 }
 
