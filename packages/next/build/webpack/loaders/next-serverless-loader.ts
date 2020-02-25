@@ -93,6 +93,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
+    const {prepareDestination} = require('next/dist/next-server/server/router')
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -100,19 +101,14 @@ const nextServerlessLoader: loader.Loader = function() {
         const params = matcher(parsedUrl.pathname)
 
         if (params) {
-          parsedUrl.query = {
-            ...parsedUrl.query,
-            ...params
-          }
-          const parsedDest = parse(rewrite.destination)
-          const destCompiler = pathToRegexp.compile(
-            \`\${parsedDest.pathname}\${parsedDest.hash || ''}\`
+          const { parsedDestination } = prepareDestination(
+            rewrite.destination,
+            params
           )
-          const newUrl = destCompiler(params)
-          const parsedNewUrl = parse(newUrl)
+          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          delete parsedDestination.query
 
-          parsedUrl.pathname = parsedNewUrl.pathname
-          parsedUrl.hash = parsedNewUrl.hash
+          Object.assign(parsedUrl, parsedDestination)
 
           if (parsedUrl.pathname === '${page}'){
             break
@@ -170,7 +166,7 @@ const nextServerlessLoader: loader.Loader = function() {
           `
               : ''
           }
-          const parsedUrl = parse(req.url, true)
+          const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
             pageIsDynamicRoute
