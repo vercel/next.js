@@ -5,12 +5,10 @@ import { join } from 'path'
 import { check } from 'next-test-utils'
 
 export default (context, render) => {
-  let appFile
-  let documentFile
-  beforeAll(() => {
-    appFile = createFile(join(__dirname, '../', 'pages', '_app.js'))
-    documentFile = createFile(join(__dirname, '../', 'pages', '_document.js'))
-  })
+  const appFile = createFile(join(__dirname, '../', 'pages', '_app.js'))
+  const documentFile = createFile(
+    join(__dirname, '../', 'pages', '_document.js')
+  )
   describe('Client side', () => {
     it('should detect the changes to pages/_app.js and display it', async () => {
       let browser
