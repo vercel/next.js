@@ -1,40 +1,31 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { check } from 'next-test-utils'
+import { check, File } from 'next-test-utils'
 
 export default (context, render) => {
-  const appFile = createFile(join(__dirname, '../', 'pages', '_app.js'))
-  const documentFile = createFile(
-    join(__dirname, '../', 'pages', '_document.js')
-  )
+  const app = new File(join(__dirname, '../', 'pages', '_app.js'))
+  const document = new File(join(__dirname, '../', 'pages', '_document.js'))
   describe('Client side', () => {
     it('should detect the changes to pages/_app.js and display it', async () => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/')
-        writeFileSync(appFile.path, appFile.originalContent, 'utf8')
+        app.restore()
         await check(
           () => browser.elementByCss('#hello-hmr').text(),
           /Hello HMR/
         )
 
         // change the content
-        const editedContent = appFile.originalContent.replace(
-          'Hello HMR',
-          'Hi HMR'
-        )
-        writeFileSync(appFile.path, editedContent, 'utf8')
-
+        app.replace('Hello HMR', 'Hi HMR')
         await check(() => browser.elementByCss('body').text(), /Hi HMR/)
 
         // add the original content
-        writeFileSync(appFile.path, appFile.originalContent, 'utf8')
-
+        app.restore()
         await check(() => browser.elementByCss('body').text(), /Hello HMR/)
       } finally {
-        writeFileSync(appFile.path, appFile.originalContent, 'utf8')
+        app.restore()
         if (browser) {
           await browser.close()
         }
@@ -45,34 +36,27 @@ export default (context, render) => {
       let browser
       try {
         browser = await webdriver(context.appPort, '/')
-        writeFileSync(documentFile.path, documentFile.originalContent, 'utf8')
+        document.restore()
         await check(
           () => browser.elementByCss('#hello-hmr').text(),
           /Hello HMR/
         )
 
-        const editedContent = documentFile.originalContent.replace(
-          'Hello Document HMR',
-          'Hi Document HMR'
-        )
-
         // change the content
-        writeFileSync(documentFile.file, editedContent, 'utf8')
-
+        document.replace('Hello Document HMR', 'Hi Document HMR')
         await check(
           () => browser.elementByCss('body').text(),
           /Hi Document HMR/
         )
 
         // add the original content
-        writeFileSync(documentFile.file, documentFile.originalContent, 'utf8')
-
+        document.restore()
         await check(
           () => browser.elementByCss('body').text(),
           /Hello Document HMR/
         )
       } finally {
-        writeFileSync(documentFile.file, documentFile.originalContent, 'utf8')
+        document.restore()
         if (browser) {
           await browser.close()
         }
@@ -103,11 +87,4 @@ export default (context, render) => {
       await browser.close()
     })
   })
-}
-
-function createFile(path) {
-  return {
-    path,
-    originalContent: readFileSync(path, 'utf8'),
-  }
 }
