@@ -64,8 +64,7 @@ let lastAppProps
 let webpackHMR
 export let router
 let ErrorComponent
-let Component
-let App, onPerfEntry
+let onPerfEntry
 
 class Container extends React.Component {
   componentDidCatch(err, info) {
@@ -90,6 +89,7 @@ class Container extends React.Component {
     // - the page was (auto) exported and has a query string or search (hash)
     // - it was auto exported and is a dynamic route (to provide params)
     // - if it is a client-side skeleton (fallback render)
+    const Component = this.props.component
     if (
       router.isSsr &&
       (isFallback ||
@@ -161,7 +161,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 
   const renderCtx = async () => {
     const { page: app, mod } = await pageLoader.loadPageScript('/_app')
-    App = app
+    let App = app
     if (mod && mod.unstable_onPerformanceData) {
       onPerfEntry = function({ name, startTime, value, duration }) {
         mod.unstable_onPerformanceData({ name, startTime, value, duration })
@@ -169,6 +169,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     }
 
     let initialErr = err
+    let Component
 
     try {
       Component = await pageLoader.loadPage(page)
@@ -229,7 +230,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 }
 
 export function render(props) {
-  return doRender(() => renderToElem(props))
+  return doRender(async () => await renderToElem(props))
 }
 
 async function renderToElem(props) {
@@ -270,7 +271,7 @@ async function renderErrorToElem(props) {
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-  const AppTree = wrapApp(App)
+  const AppTree = wrapApp(App, ErrorComponent)
   const appCtx = {
     Component: ErrorComponent,
     AppTree,
@@ -294,7 +295,7 @@ async function renderErrorToElem(props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export function renderError(props) {
-  return doRender(() => renderErrorToElem(props))
+  return doRender(async () => await renderErrorToElem(props))
 }
 
 // If hydrate does not exist, eg in preact.
@@ -401,9 +402,10 @@ function clearMarks() {
   ].forEach(measure => performance.clearMeasures(measure))
 }
 
-function AppContainer({ children }) {
+function AppContainer({ App, children, Component }) {
   return (
     <Container
+      component={Component}
       fn={error =>
         renderError({ App, err: error }).catch(err =>
           console.error('Error rendering page: ', err)
@@ -419,10 +421,10 @@ function AppContainer({ children }) {
   )
 }
 
-const wrapApp = App => props => {
+const wrapApp = (App, Component) => props => {
   const appProps = { ...props, Component, err, router }
   return (
-    <AppContainer>
+    <AppContainer App={App} Component={Component}>
       <App {...appProps} />
     </AppContainer>
   )
@@ -438,7 +440,7 @@ async function getElemToRender({ App, Component, props, err }) {
     lastAppProps.Component === ErrorComponent
   ) {
     const { pathname, query, asPath } = router
-    const AppTree = wrapApp(App)
+    const AppTree = wrapApp(App, Component)
     const appCtx = {
       router,
       AppTree,
@@ -456,6 +458,7 @@ async function getElemToRender({ App, Component, props, err }) {
   lastAppProps = appProps
 
   return {
+    App,
     Component,
     ErrorComponent,
     appProps,
@@ -509,7 +512,7 @@ async function doRender(getElem) {
 }
 
 function NextRoot({ useElem }) {
-  const { Component, ErrorComponent, appProps } = useElem()
+  const { App, Component, ErrorComponent, appProps } = useElem()
 
   React.useLayoutEffect(() => {
     emitter.emit('before-reactdom-render', {
@@ -528,7 +531,7 @@ function NextRoot({ useElem }) {
   }, [Component, ErrorComponent, appProps])
 
   const elem = (
-    <AppContainer>
+    <AppContainer App={App} Component={Component}>
       <App {...appProps} />
     </AppContainer>
   )
