@@ -548,6 +548,8 @@ export async function renderToHTML(
   }
 
   if (
+    !isSpr && // we only show this error for legacy pages
+    !unstable_getServerProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
   ) {

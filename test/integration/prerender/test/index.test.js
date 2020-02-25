@@ -428,10 +428,10 @@ const runTests = (dev = false, looseMode = false) => {
     //   )
     // })
 
-    it('should show error from url prop being returned', async () => {
-      const badPage = join(appDir, 'pages/bad.js')
+    it('should not show error from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
       await fs.writeFile(
-        badPage,
+        urlPropPage,
         `
         export async function unstable_getStaticProps() {
           return {
@@ -445,11 +445,12 @@ const runTests = (dev = false, looseMode = false) => {
       `
       )
 
-      const html = await renderViaHTTP(appPort, '/bad')
-      await fs.remove(badPage)
-      expect(html).toMatch(
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(html).not.toMatch(
         /The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons/
       )
+      expect(html).toContain('hi')
     })
 
     it('should always show fallback for page not in getStaticPaths', async () => {

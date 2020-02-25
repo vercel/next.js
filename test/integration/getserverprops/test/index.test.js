@@ -322,10 +322,10 @@ const runTests = (dev = false) => {
   })
 
   if (dev) {
-    it('should show error from url prop being returned', async () => {
-      const badPage = join(appDir, 'pages/bad.js')
+    it('should not show error from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
       await fs.writeFile(
-        badPage,
+        urlPropPage,
         `
         export async function unstable_getServerProps() {
           return {
@@ -339,11 +339,12 @@ const runTests = (dev = false) => {
       `
       )
 
-      const html = await renderViaHTTP(appPort, '/bad')
-      await fs.remove(badPage)
-      expect(html).toMatch(
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(html).not.toMatch(
         /The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons/
       )
+      expect(html).toContain('hi')
     })
 
     it('should show error for extra keys returned from getServerProps', async () => {
