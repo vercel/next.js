@@ -9,7 +9,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
-const writeConfig = async (routes = [], type = 'redirects') => {
+const writeConfig = async (routes, type = 'redirects') => {
   await fs.writeFile(
     nextConfigPath,
     `
@@ -321,6 +321,36 @@ const runTests = () => {
     )
     expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
     expect(stderr).toContain(`/learning/?`)
+  })
+
+  it('should show valid error when non-array is returned from rewrites', async () => {
+    await writeConfig(
+      {
+        source: '/feedback/(?!general)',
+        destination: '/feedback/general',
+      },
+      'rewrites'
+    )
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(`rewrites must return an array, received object`)
+  })
+
+  it('should show valid error when non-array is returned from redirects', async () => {
+    await writeConfig(false, 'redirects')
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(`redirects must return an array, received boolean`)
+  })
+
+  it('should show valid error when non-array is returned from headers', async () => {
+    await writeConfig(undefined, 'headers')
+
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(`headers must return an array, received undefined`)
   })
 }
 

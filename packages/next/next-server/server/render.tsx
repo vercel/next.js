@@ -145,7 +145,6 @@ type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
-  pages404?: boolean
   previewProps: __ApiPreviewProps
 }
 
@@ -247,7 +246,8 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   return (
     `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
     `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
-    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.`
+    `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
+    `\nRead more: https://err.sh/next.js/invalid-getstaticprops-value`
   )
 }
 
@@ -278,7 +278,6 @@ export async function renderToHTML(
     unstable_getServerProps,
     isDataReq,
     params,
-    pages404,
     previewProps,
   } = renderOpts
 
@@ -318,6 +317,8 @@ export async function renderToHTML(
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
 
+  const pageIsDynamic = isDynamicRoute(pathname)
+
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
@@ -327,7 +328,7 @@ export async function renderToHTML(
   if (
     process.env.NODE_ENV !== 'production' &&
     (isAutoExport || isFallback) &&
-    isDynamicRoute(pathname) &&
+    pageIsDynamic &&
     didRewrite
   ) {
     // TODO: add err.sh when rewrites go stable
@@ -362,6 +363,13 @@ export async function renderToHTML(
     )
   }
 
+  if (isSpr && pageIsDynamic && !unstable_getStaticPaths) {
+    throw new Error(
+      `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
+        `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+    )
+  }
+
   if (dev) {
     const { isValidElementType } = require('react-is')
     if (!isValidElementType(Component)) {
@@ -391,7 +399,7 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
 
-    if (pages404 && pathname === '/404' && !isAutoExport) {
+    if (pathname === '/404' && !isAutoExport) {
       throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }
@@ -460,7 +468,7 @@ export async function renderToHTML(
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await unstable_getStaticProps!({
-        ...(isDynamicRoute(pathname)
+        ...(pageIsDynamic
           ? {
               params: query as ParsedUrlQuery,
             }
@@ -518,6 +526,7 @@ export async function renderToHTML(
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
+    console.error(err)
   }
 
   if (unstable_getServerProps && !isFallback) {
