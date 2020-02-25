@@ -226,61 +226,69 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 }
 
 export async function render(props) {
-  if (props.err) {
-    await renderError(props)
-    return
-  }
+  await doRender(async () => {
+    if (props.err) {
+      return await renderError(props)
+    }
 
-  try {
-    await doRender(props)
-  } catch (err) {
-    await renderError({ ...props, err })
-  }
+    try {
+      return await getElemToRender(props)
+    } catch (err) {
+      return await renderError({ ...props, err })
+    }
+  })
 }
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError(props) {
-  const { App, err } = props
+  await doRender(async () => {
+    const { App, err } = props
 
-  // In development runtime errors are caught by react-error-overlay
-  // In production we catch runtime errors using componentDidCatch which will trigger renderError
-  if (process.env.NODE_ENV !== 'production') {
-    return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
-  }
-  if (process.env.__NEXT_PLUGINS) {
-    // eslint-disable-next-line
-    import('next-plugin-loader?middleware=on-error-client!')
-      .then(mod => {
-        return mod.default({ err })
-      })
-      .catch(err => {
-        console.error('error calling on-error-client for plugins', err)
-      })
-  }
+    // In development runtime errors are caught by react-error-overlay
+    // In production we catch runtime errors using componentDidCatch which will trigger renderError
+    if (process.env.NODE_ENV !== 'production') {
+      return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+    }
+    if (process.env.__NEXT_PLUGINS) {
+      // eslint-disable-next-line
+      import('next-plugin-loader?middleware=on-error-client!')
+        .then(mod => {
+          return mod.default({ err })
+        })
+        .catch(err => {
+          console.error('error calling on-error-client for plugins', err)
+        })
+    }
 
-  // Make sure we log the error to the console, otherwise users can't track down issues.
-  console.error(err)
+    // Make sure we log the error to the console, otherwise users can't track down issues.
+    console.error(err)
 
-  ErrorComponent = await pageLoader.loadPage('/_error')
+    ErrorComponent = await pageLoader.loadPage('/_error')
 
-  // In production we do a normal render with the `ErrorComponent` as component.
-  // If we've gotten here upon initial render, we can use the props from the server.
-  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-  const AppTree = wrapApp(App)
-  const appCtx = {
-    Component: ErrorComponent,
-    AppTree,
-    router,
-    ctx: { err, pathname: page, query, asPath, AppTree },
-  }
+    // In production we do a normal render with the `ErrorComponent` as component.
+    // If we've gotten here upon initial render, we can use the props from the server.
+    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+    const AppTree = wrapApp(App)
+    const appCtx = {
+      Component: ErrorComponent,
+      AppTree,
+      router,
+      ctx: { err, pathname: page, query, asPath, AppTree },
+    }
 
-  const initProps = props.props
-    ? props.props
-    : await loadGetInitialProps(App, appCtx)
+    const initProps = props.props
+      ? props.props
+      : await loadGetInitialProps(App, appCtx)
 
-  await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
+    return await getElemToRender({
+      ...props,
+      err,
+      Component: ErrorComponent,
+      props: initProps,
+    })
+  })
 }
 
 // If hydrate does not exist, eg in preact.
@@ -414,7 +422,7 @@ const wrapApp = App => props => {
   )
 }
 
-async function doRender({ App, Component, props, err }) {
+async function getElemToRender({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (
@@ -441,11 +449,39 @@ async function doRender({ App, Component, props, err }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitter.emit('before-reactdom-render', {
+  return {
     Component,
     ErrorComponent,
     appProps,
-  })
+  }
+}
+
+async function doRender(getElem) {
+  const elem = await getElem()
+  let useElem = () => elem
+
+  // We catch runtime errors using componentDidCatch which will trigger renderError
+  renderReactElement(<NextRoot useElem={useElem} />, appElement)
+}
+
+function NextRoot({ useElem }) {
+  const { Component, ErrorComponent, appProps } = useElem()
+
+  React.useLayoutEffect(() => {
+    emitter.emit('before-reactdom-render', {
+      Component,
+      ErrorComponent,
+      appProps,
+    })
+  }, [Component, ErrorComponent, appProps])
+
+  React.useEffect(() => {
+    emitter.emit('after-reactdom-render', {
+      Component,
+      ErrorComponent,
+      appProps,
+    })
+  }, [Component, ErrorComponent, appProps])
 
   const elem = (
     <AppContainer>
@@ -453,15 +489,9 @@ async function doRender({ App, Component, props, err }) {
     </AppContainer>
   )
 
-  // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement
+  return process.env.__NEXT_STRICT_MODE ? (
+    <React.StrictMode>{elem}</React.StrictMode>
+  ) : (
+    elem
   )
-
-  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
