@@ -15,8 +15,8 @@ If you haven’t already done so, push your Next.js app to a Git provider of you
 Then, follow these steps:
 
 1. [Sign up to ZEIT Now](https://zeit.co/signup) (no credit card is required).
-2. After signing up, you’ll arrive on the [“Create a new project”](https://zeit.co/new) page. Under “From your existing code”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://zeit.co/docs/v2/git-integrations/zeit-now-for-github) / [GitLab](https://zeit.co/docs/v2/git-integrations/zeit-now-for-gitlab) / [BitBucket](https://zeit.co/docs/v2/git-integrations/zeit-now-for-bitbucket)).
-3. Once that’s set up, click “New Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything just works!
+2. After signing up, you’ll arrive on the [“Import Project”](https://zeit.co/import) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://zeit.co/docs/v2/git-integrations/zeit-now-for-github) / [GitLab](https://zeit.co/docs/v2/git-integrations/zeit-now-for-gitlab) / [BitBucket](https://zeit.co/docs/v2/git-integrations/zeit-now-for-bitbucket)).
+3. Once that’s set up, click “Import Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything just works!
 4. After importing, it’ll deploy your Next.js app and provide you with a deployment URL. Click “Visit” to see your app in production.
 
 Congratulations! You’ve just deployed your Next.js app! If you have questions, take a look at the [ZEIT Now documentation](https://zeit.co/docs).

@@ -8,7 +8,7 @@ exports[`renders homepage unchanged 1`] = `
     <h1
       className="title"
     >
-      Welcome to 
+      Welcome to
       <a
         href="https://nextjs.org"
       >
@@ -18,7 +18,7 @@ exports[`renders homepage unchanged 1`] = `
     <p
       className="description"
     >
-      Get started by editing 
+      Get started by editing
       <code>
         pages/index.js
       </code>
@@ -61,7 +61,7 @@ exports[`renders homepage unchanged 1`] = `
       </a>
       <a
         className="card"
-        href="https://zeit.co/new/nextjs"
+        href="https://zeit.co/import/nextjs"
       >
         <h3>
           Deploy →
@@ -78,7 +78,7 @@ exports[`renders homepage unchanged 1`] = `
       rel="noopener noreferrer"
       target="_blank"
     >
-      Powered by 
+      Powered by
       <img
         alt="ZEIT Logo"
         src="/zeit.svg"
