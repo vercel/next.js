@@ -232,7 +232,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 
 export async function render(props) {
   const doRender = await getRenderFn(() => renderToElem(props))
-  await doRender
+  await doRender()
 }
 
 async function renderToElem(props) {
@@ -298,7 +298,7 @@ async function renderErrorToElem(props) {
 // and they are still handle via the main render method.
 export async function renderError(props) {
   const doRender = await getRenderFn(() => renderErrorToElem(props))
-  await doRender
+  await doRender()
 }
 
 // If hydrate does not exist, eg in preact.
