@@ -6,6 +6,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@indent/browser": "0.0.11",
+    "@indent/node": "0.0.11",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"

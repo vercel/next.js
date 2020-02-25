@@ -1,10 +1,17 @@
 import React, { Component } from 'react'
 import Page from '../components/Page'
-
-import * as indent from '../lib/indent'
+import { audit } from '@indent/node'
 
 export default class extends Component {
   state = { sessionId: '' }
+
+  static getInitialProps = () => {
+    audit.write({
+      event: 'server_side_event'
+    })
+
+    return {}
+  }
 
   handleInput = e => {
     this.setState({ sessionId: e.target.value })
@@ -13,22 +20,9 @@ export default class extends Component {
   handleSubmit = e => {
     e.preventDefault()
 
-    if (!window.localStorage['$viewer.email']) {
-      let email = prompt(`What's your email?`)
-
-      if (!email) {
-        return
-      }
-
-      indent.setActor({ email })
-      window.localStorage['$viewer.email'] = email
-    } else {
-      indent.setActor({ email: window.localStorage['$viewer.email'] })
-    }
-
     let { sessionId } = this.state
 
-    indent.write({
+    audit.write({
       event: 'session/find',
       resources: [{
         id: sessionId,
