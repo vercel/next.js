@@ -158,65 +158,70 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  const { page: app, mod } = await pageLoader.loadPageScript('/_app')
-  App = app
-  if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value, duration }) {
-      mod.unstable_onPerformanceData({ name, startTime, value, duration })
-    }
-  }
 
-  let initialErr = err
-
-  try {
-    Component = await pageLoader.loadPage(page)
-
-    if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('react-is')
-      if (!isValidElementType(Component)) {
-        throw new Error(
-          `The default export is not a React Component in page: "${page}"`
-        )
+  let renderCtx
+  const doRender = await getRenderFn(async () => {
+    const { page: app, mod } = await pageLoader.loadPageScript('/_app')
+    App = app
+    if (mod && mod.unstable_onPerformanceData) {
+      onPerfEntry = function({ name, startTime, value, duration }) {
+        mod.unstable_onPerformanceData({ name, startTime, value, duration })
       }
     }
-  } catch (error) {
-    // This catches errors like throwing in the top level of a module
-    initialErr = error
-  }
 
-  if (window.__NEXT_PRELOADREADY) {
-    await window.__NEXT_PRELOADREADY(dynamicIds)
-  }
+    let initialErr = err
 
-  router = createRouter(page, query, asPath, {
-    initialProps: props,
-    pageLoader,
-    App,
-    Component,
-    wrapApp,
-    err: initialErr,
-    isFallback,
-    subscription: ({ Component, props, err }, App) => {
-      render({ App, Component, props, err })
-    },
+    try {
+      Component = await pageLoader.loadPage(page)
+
+      if (process.env.NODE_ENV !== 'production') {
+        const { isValidElementType } = require('react-is')
+        if (!isValidElementType(Component)) {
+          throw new Error(
+            `The default export is not a React Component in page: "${page}"`
+          )
+        }
+      }
+    } catch (error) {
+      // This catches errors like throwing in the top level of a module
+      initialErr = error
+    }
+
+    if (window.__NEXT_PRELOADREADY) {
+      await window.__NEXT_PRELOADREADY(dynamicIds)
+    }
+
+    router = createRouter(page, query, asPath, {
+      initialProps: props,
+      pageLoader,
+      App,
+      Component,
+      wrapApp,
+      err: initialErr,
+      isFallback,
+      subscription: ({ Component, props, err }, App) => {
+        render({ App, Component, props, err })
+      },
+    })
+
+    // call init-client middleware
+    if (process.env.__NEXT_PLUGINS) {
+      // eslint-disable-next-line
+      import('next-plugin-loader?middleware=on-init-client!')
+        .then(mod => {
+          return mod.default({ router })
+        })
+        .catch(err => {
+          console.error('Error calling client-init for plugins', err)
+        })
+    }
+
+    renderCtx = { App, Component, props, err: initialErr }
+    return renderCtx
   })
 
-  // call init-client middleware
-  if (process.env.__NEXT_PLUGINS) {
-    // eslint-disable-next-line
-    import('next-plugin-loader?middleware=on-init-client!')
-      .then(mod => {
-        return mod.default({ router })
-      })
-      .catch(err => {
-        console.error('Error calling client-init for plugins', err)
-      })
-  }
-
-  const renderCtx = { App, Component, props, err: initialErr }
-
   if (process.env.NODE_ENV === 'production') {
-    render(renderCtx)
+    doRender()
     return emitter
   }
 
@@ -226,70 +231,74 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
 }
 
 export async function render(props) {
-  if (props.err) {
-    await renderError(props)
-    return
-  }
+  const doRender = await getRenderFn(() => renderToElem(props))
+  await doRender
+}
 
+async function renderToElem(props) {
+  if (props.err) {
+    return await renderErrorToElem(props)
+  }
   try {
-    return doRender(async () => {
-      return await getElemToRender(props)
-    })
+    return await getElemToRender(props)
   } catch (err) {
     await renderError({ ...props, err })
   }
 }
 
+async function renderErrorToElem(props) {
+  const { App, err } = props
+
+  // In development runtime errors are caught by react-error-overlay
+  // In production we catch runtime errors using componentDidCatch which will trigger renderError
+  if (process.env.NODE_ENV !== 'production') {
+    return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
+  }
+  if (process.env.__NEXT_PLUGINS) {
+    // eslint-disable-next-line
+    import('next-plugin-loader?middleware=on-error-client!')
+      .then(mod => {
+        return mod.default({ err })
+      })
+      .catch(err => {
+        console.error('error calling on-error-client for plugins', err)
+      })
+  }
+
+  // Make sure we log the error to the console, otherwise users can't track down issues.
+  console.error(err)
+
+  ErrorComponent = await pageLoader.loadPage('/_error')
+
+  // In production we do a normal render with the `ErrorComponent` as component.
+  // If we've gotten here upon initial render, we can use the props from the server.
+  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const AppTree = wrapApp(App)
+  const appCtx = {
+    Component: ErrorComponent,
+    AppTree,
+    router,
+    ctx: { err, pathname: page, query, asPath, AppTree },
+  }
+
+  const initProps = props.props
+    ? props.props
+    : await loadGetInitialProps(App, appCtx)
+
+  return await getElemToRender({
+    ...props,
+    err,
+    Component: ErrorComponent,
+    props: initProps,
+  })
+}
+
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(props) {
-  return doRender(async () => {
-    const { App, err } = props
-
-    // In development runtime errors are caught by react-error-overlay
-    // In production we catch runtime errors using componentDidCatch which will trigger renderError
-    if (process.env.NODE_ENV !== 'production') {
-      return webpackHMR.reportRuntimeError(webpackHMR.prepareError(err))
-    }
-    if (process.env.__NEXT_PLUGINS) {
-      // eslint-disable-next-line
-      import('next-plugin-loader?middleware=on-error-client!')
-        .then(mod => {
-          return mod.default({ err })
-        })
-        .catch(err => {
-          console.error('error calling on-error-client for plugins', err)
-        })
-    }
-
-    // Make sure we log the error to the console, otherwise users can't track down issues.
-    console.error(err)
-
-    ErrorComponent = await pageLoader.loadPage('/_error')
-
-    // In production we do a normal render with the `ErrorComponent` as component.
-    // If we've gotten here upon initial render, we can use the props from the server.
-    // Otherwise, we need to call `getInitialProps` on `App` before mounting.
-    const AppTree = wrapApp(App)
-    const appCtx = {
-      Component: ErrorComponent,
-      AppTree,
-      router,
-      ctx: { err, pathname: page, query, asPath, AppTree },
-    }
-
-    const initProps = props.props
-      ? props.props
-      : await loadGetInitialProps(App, appCtx)
-
-    return await getElemToRender({
-      ...props,
-      err,
-      Component: ErrorComponent,
-      props: initProps,
-    })
-  })
+export async function renderError(props) {
+  const doRender = await getRenderFn(() => renderErrorToElem(props))
+  await doRender
 }
 
 // If hydrate does not exist, eg in preact.
@@ -457,7 +466,7 @@ async function getElemToRender({ App, Component, props, err }) {
   }
 }
 
-async function doRender(getElem) {
+async function getRenderFn(getElem) {
   let resolveWith
   let status = {
     state: 'PENDING',
@@ -484,22 +493,24 @@ async function doRender(getElem) {
     await waitForLoad()
   }
 
-  // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(
-    <NextRoot
-      useElem={() => {
-        if (status.state === 'PENDING') {
-          throw status.promise
-        }
-        return status.value
-      }}
-    />,
-    appElement
-  )
+  return async () => {
+    // We catch runtime errors using componentDidCatch which will trigger renderError
+    renderReactElement(
+      <NextRoot
+        useElem={() => {
+          if (status.state === 'PENDING') {
+            throw status.promise
+          }
+          return status.value
+        }}
+      />,
+      appElement
+    )
 
-  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    // In Concurrent or Blocking Mode, `useElem` should suspend.
-    await waitForLoad()
+    if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+      // In Concurrent or Blocking Mode, `useElem` should suspend.
+      await waitForLoad()
+    }
   }
 }
 
