@@ -478,6 +478,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       let isStatic = false
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
+      let hasSsgFallback: boolean = false
 
       pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
@@ -533,6 +534,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
               additionalSsgPaths.set(page, result.prerenderRoutes)
               ssgPageRoutes = result.prerenderRoutes
             }
+            if (result.prerenderFallback) {
+              hasSsgFallback = true
+            }
           } else if (result.hasServerProps) {
             serverPropsPages.add(page)
           } else if (result.isStatic && customAppGetInitialProps === false) {
@@ -564,6 +568,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         isSsg,
         isHybridAmp,
         ssgPageRoutes,
+        hasSsgFallback,
       })
     })
   )

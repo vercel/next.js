@@ -870,7 +870,7 @@ export default class Server {
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: any
-  ): Promise<string | null> {
+  ): Promise<string | false | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
@@ -1029,6 +1029,7 @@ export default class Server {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
     let staticPaths: string[] | undefined
+    let hasStaticFallback = false
 
     if (!isProduction && hasStaticPaths) {
       const __getStaticPaths = async () => {
@@ -1040,13 +1041,12 @@ export default class Server {
         )
         return paths
       }
-
-      staticPaths = (
+      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
         await withCoalescedInvoke(__getStaticPaths)(
           `staticPaths-${pathname}`,
           []
         )
-      ).value
+      ).value)
     }
 
     // const isForcedBlocking =
@@ -1074,6 +1074,10 @@ export default class Server {
       // `getStaticPaths`
       (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
     ) {
+      if (!hasStaticFallback) {
+        return false
+      }
+
       let html: string
 
       // Production already emitted the fallback as static HTML.
@@ -1137,13 +1141,16 @@ export default class Server {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
-        return await this.renderToHTMLWithComponents(
+        const result2 = await this.renderToHTMLWithComponents(
           req,
           res,
           pathname,
           result,
           { ...this.renderOpts, amphtml, hasAmp }
         )
+        if (result2 !== false) {
+          return result2
+        }
       }
 
       if (this.dynamicRoutes) {
@@ -1159,7 +1166,7 @@ export default class Server {
             params
           )
           if (result) {
-            return await this.renderToHTMLWithComponents(
+            const result2 = await this.renderToHTMLWithComponents(
               req,
               res,
               dynamicRoute.page,
@@ -1171,6 +1178,9 @@ export default class Server {
                 hasAmp,
               }
             )
+            if (result2 !== false) {
+              return result2
+            }
           }
         }
       }
@@ -1224,9 +1234,9 @@ export default class Server {
       result = await this.findPageComponents('/_error', query)
     }
 
-    let html
+    let html: string | null
     try {
-      html = await this.renderToHTMLWithComponents(
+      const result2 = await this.renderToHTMLWithComponents(
         req,
         res,
         using404Page ? '/404' : '/_error',
@@ -1236,6 +1246,10 @@ export default class Server {
           err,
         }
       )
+      if (result2 === false) {
+        throw new Error('invariant: failed to render error page')
+      }
+      html = result2
     } catch (err) {
       console.error(err)
       res.statusCode = 500

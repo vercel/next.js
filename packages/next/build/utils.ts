@@ -42,6 +42,7 @@ export interface PageInfo {
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
+  hasSsgFallback: boolean
   serverBundle: string
 }
 
@@ -500,7 +501,7 @@ export async function getPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   unstable_getStaticPaths: Unstable_getStaticPaths
-): Promise<Array<string>> {
+): Promise<{ paths: string[]; fallback: boolean }> {
   const prerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
@@ -525,7 +526,7 @@ export async function buildStaticPaths(
   }
 
   const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
-    key => key !== 'paths'
+    key => !(key === 'paths' || key === 'fallback')
   )
 
   if (invalidStaticPathKeys.length > 0) {
@@ -601,7 +602,7 @@ export async function buildStaticPaths(
     }
   })
 
-  return [...prerenderPaths]
+  return { paths: [...prerenderPaths], fallback: staticPathsResult.fallback }
 }
 
 export async function isPageStatic(
@@ -614,6 +615,7 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
+  prerenderFallback?: boolean | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -667,11 +669,12 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
+    let prerenderFallback: boolean | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderRoutes = await buildStaticPaths(
-        page,
-        mod.unstable_getStaticPaths
-      )
+      ;({
+        paths: prerenderRoutes,
+        fallback: prerenderFallback,
+      } = await buildStaticPaths(page, mod.unstable_getStaticPaths))
     }
 
     const config = mod.config || {}
@@ -679,6 +682,7 @@ export async function isPageStatic(
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
       prerenderRoutes,
+      prerenderFallback,
       hasStaticProps,
       hasServerProps,
     }
