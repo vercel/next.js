@@ -23,6 +23,7 @@ const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 let buildId
+let stderr
 
 const expectedManifestRoutes = () => ({
   '/something': {
@@ -322,6 +323,31 @@ const runTests = (dev = false) => {
   })
 
   if (dev) {
+    it('should not show warning from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
+      await fs.writeFile(
+        urlPropPage,
+        `
+        export async function unstable_getServerProps() {
+          return {
+            props: {
+              url: 'something'
+            }
+          }
+        }
+
+        export default ({ url }) => <p>url: {url}</p>
+      `
+      )
+
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(stderr).not.toMatch(
+        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+      )
+      expect(html).toMatch(/url:.*?something/)
+    })
+
     it('should show error for extra keys returned from getServerProps', async () => {
       const html = await renderViaHTTP(appPort, '/invalid-keys')
       expect(html).toContain(
@@ -365,8 +391,13 @@ const runTests = (dev = false) => {
 describe('unstable_getServerProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
@@ -382,8 +413,13 @@ describe('unstable_getServerProps', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))

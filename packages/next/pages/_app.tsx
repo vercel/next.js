@@ -42,8 +42,19 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
 
   render() {
     const { router, Component, pageProps } = this.props as AppProps<CP>
-    const url = createUrl(router)
-    return <Component {...pageProps} url={url} />
+
+    return (
+      <Component
+        {...pageProps}
+        {
+          // we don't add the legacy URL prop if it's using non-legacy
+          // methods like getStaticProps and getServerProps
+          ...(!((Component as any).__N_SSG || (Component as any).__N_SSP)
+            ? { url: createUrl(router) }
+            : {})
+        }
+      />
+    )
   }
 }
 

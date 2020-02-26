@@ -1,10 +1,12 @@
 import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
+import {
+  STATIC_PROPS_ID,
+  SERVER_PROPS_ID,
+} from '../../../next-server/lib/constants'
 
 const pageComponentVar = '__NEXT_COMP'
-const prerenderId = '__N_SSG'
-const serverPropsId = '__N_SSP'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
@@ -53,7 +55,7 @@ function decorateSsgExport(
           '=',
           t.memberExpression(
             t.identifier(pageComponentVar),
-            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
+            t.identifier(state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID)
           ),
           t.booleanLiteral(true)
         ),
@@ -80,7 +82,7 @@ function decorateSsgExport(
           '=',
           t.memberExpression(
             t.identifier((defaultSpecifier as any).local.name),
-            t.identifier(state.isPrerender ? prerenderId : serverPropsId)
+            t.identifier(state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID)
           ),
           t.booleanLiteral(true)
         ),

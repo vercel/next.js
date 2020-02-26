@@ -5,6 +5,8 @@ import {
   CLIENT_STATIC_FILES_PATH,
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
+  STATIC_PROPS_ID,
+  SERVER_PROPS_ID,
 } from '../lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -14,6 +16,20 @@ import { PageConfig, NextPageContext } from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
+}
+
+function addComponentPropsId(
+  Component: any,
+  getStaticProps: any,
+  getServerProps: any
+) {
+  // Mark the component with the SSG or SSP id here since we don't run
+  // the SSG babel transform for server mode
+  if (getStaticProps) {
+    Component[STATIC_PROPS_ID] = true
+  } else if (getServerProps) {
+    Component[SERVER_PROPS_ID] = true
+  }
 }
 
 export type ManifestItem = {
@@ -66,11 +82,24 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
+    const {
+      unstable_getStaticProps,
+      unstable_getStaticPaths,
+      unstable_getServerProps,
+    } = Component
+
+    addComponentPropsId(
+      Component,
+      unstable_getStaticProps,
+      unstable_getServerProps
+    )
+
     return {
       Component,
       pageConfig: Component.config || {},
-      unstable_getStaticProps: Component.unstable_getStaticProps,
-      unstable_getStaticPaths: Component.unstable_getStaticPaths,
+      unstable_getStaticProps,
+      unstable_getStaticPaths,
+      unstable_getServerProps,
     } as LoadComponentsReturnType
   }
   const documentPath = join(
@@ -111,6 +140,18 @@ export async function loadComponents(
     interopDefault(AppMod),
   ])
 
+  const {
+    unstable_getServerProps,
+    unstable_getStaticProps,
+    unstable_getStaticPaths,
+  } = ComponentMod
+
+  addComponentPropsId(
+    Component,
+    unstable_getStaticProps,
+    unstable_getServerProps
+  )
+
   return {
     App,
     Document,
@@ -119,8 +160,8 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
-    unstable_getServerProps: ComponentMod.unstable_getServerProps,
-    unstable_getStaticProps: ComponentMod.unstable_getStaticProps,
-    unstable_getStaticPaths: ComponentMod.unstable_getStaticPaths,
+    unstable_getServerProps,
+    unstable_getStaticProps,
+    unstable_getStaticPaths,
   }
 }
