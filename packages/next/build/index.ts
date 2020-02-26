@@ -576,12 +576,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
   )
   staticCheckWorkers.end()
 
-  if (serverPropsPages.size > 0) {
+  if (serverPropsPages.size > 0 || ssgPages.size > 0) {
     // We update the routes manifest after the build with the
-    // serverProps routes since we can't determine this until after build
-    routesManifest.serverPropsRoutes = {}
-
-    for (const page of serverPropsPages) {
+    // data routes since we can't determine these until after build
+    routesManifest.dataRoutes = getSortedRoutes([
+      ...serverPropsPages,
+      ...ssgPages,
+    ]).map(page => {
       const pagePath = normalizePagePath(page)
       const dataRoute = path.posix.join(
         '/_next/data',
@@ -589,7 +590,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         `${pagePath}.json`
       )
 
-      routesManifest.serverPropsRoutes[page] = {
+      return {
         page,
         dataRouteRegex: isDynamicRoute(page)
           ? getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
@@ -604,7 +605,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
               )}$`
             ).source,
       }
-    }
+    })
 
     await fsWriteFile(
       routesManifestPath,

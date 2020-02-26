@@ -15,6 +15,7 @@ import {
   normalizeRegEx,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
+import escapeRegex from 'escape-string-regexp'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -485,6 +486,10 @@ function runTests(dev) {
         route.regex = normalizeRegEx(route.regex)
       }
 
+      for (const route of manifest.dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+      }
+
       expect(manifest).toEqual({
         version: 1,
         pages404: true,
@@ -492,6 +497,32 @@ function runTests(dev) {
         headers: [],
         rewrites: [],
         redirects: [],
+        dataRoutes: [
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
+            ),
+            page: '/p1/p2/all-ssg/[...rest]',
+          },
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
+            ),
+            page: '/p1/p2/nested-all-ssg/[...rest]',
+          },
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
+            ),
+            page: '/p1/p2/predefined-ssg/[...rest]',
+          },
+        ],
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',
