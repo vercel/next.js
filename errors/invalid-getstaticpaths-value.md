@@ -11,7 +11,8 @@ Make sure to return the following shape from `unstable_getStaticPaths`:
 ```js
 export async function unstable_getStaticPaths() {
   return {
-    paths: Array<string | { params: { [key: string]: string } }>
+    paths: Array<string | { params: { [key: string]: string } }>,
+    fallback: boolean
   }
 }
 ```

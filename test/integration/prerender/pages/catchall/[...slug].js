@@ -21,6 +21,7 @@ export async function unstable_getStaticPaths() {
       { params: { slug: ['another', 'value'] } },
       '/catchall/hello/another',
     ],
+    fallback: true,
   }
 }
 
