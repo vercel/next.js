@@ -554,7 +554,7 @@ export async function renderToHTML(
     Object.keys(props?.pageProps || {}).includes('url')
   ) {
     console.warn(
-      'The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons. See more info here: https://err.sh/zeit/next.js/reserved-page-prop'
+      'The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden. See more info here: https://err.sh/zeit/next.js/reserved-page-prop'
     )
   }
 
