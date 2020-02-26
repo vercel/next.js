@@ -683,7 +683,7 @@ const runTests = (dev = false, looseMode = false) => {
         }
       })
 
-      expect(manifest.version).toBe(1)
+      expect(manifest.version).toBe(2)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
