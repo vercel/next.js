@@ -74,7 +74,7 @@ export function initializeSprCache({
 
   if (dev) {
     prerenderManifest = {
-      version: -1,
+      version: -1 as any, // letting us know this doesn't conform to spec
       routes: {},
       dynamicRoutes: {},
       preview: null as any, // `preview` is special case read in next-dev-server
