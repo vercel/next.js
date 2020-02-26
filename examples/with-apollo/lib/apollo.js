@@ -1,5 +1,6 @@
 import React from 'react'
 import App from 'next/app'
+import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
 import createApolloClient from '../apolloClient'
 
@@ -153,6 +154,10 @@ export const withApollo = ({ ssr = false } = {}) => PageComponent => {
             // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
             console.error('Error while running `getDataFromTree`', error)
           }
+
+          // getDataFromTree does not call componentWillUnmount
+          // head side effect therefore need to be cleared manually
+          Head.rewind()
         }
       }
 

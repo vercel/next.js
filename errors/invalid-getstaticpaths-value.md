@@ -9,7 +9,7 @@ In one of the page's `unstable_getStaticPaths` the return value had the incorrec
 Make sure to return the following shape from `unstable_getStaticPaths`:
 
 ```js
-export async function unstable_getStaticProps() {
+export async function unstable_getStaticPaths() {
   return {
     paths: Array<string | { params: { [key: string]: string } }>
   }

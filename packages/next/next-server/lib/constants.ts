@@ -34,3 +34,5 @@ export const ROUTE_NAME_REGEX = /^static[/\\][^/\\]+[/\\]pages[/\\](.*)\.js$/
 export const SERVERLESS_ROUTE_NAME_REGEX = /^pages[/\\](.*)\.js$/
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
+export const STATIC_PROPS_ID = '__N_SSG'
+export const SERVER_PROPS_ID = '__N_SSP'

@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "mobx": "^5.15.1",
-    "mobx-keystone": "^0.30.0",
+    "mobx-keystone": "^0.41.0",
     "mobx-react-lite": "^1.5.2",
     "next": "latest",
     "react": "^16.12.0",

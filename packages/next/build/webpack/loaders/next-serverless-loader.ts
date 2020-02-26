@@ -93,6 +93,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
+    const {prepareDestination} = require('next/dist/next-server/server/router')
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -100,19 +101,14 @@ const nextServerlessLoader: loader.Loader = function() {
         const params = matcher(parsedUrl.pathname)
 
         if (params) {
-          parsedUrl.query = {
-            ...parsedUrl.query,
-            ...params
-          }
-          const parsedDest = parse(rewrite.destination)
-          const destCompiler = pathToRegexp.compile(
-            \`\${parsedDest.pathname}\${parsedDest.hash || ''}\`
+          const { parsedDestination } = prepareDestination(
+            rewrite.destination,
+            params
           )
-          const newUrl = destCompiler(params)
-          const parsedNewUrl = parse(newUrl)
+          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          delete parsedDestination.query
 
-          parsedUrl.pathname = parsedNewUrl.pathname
-          parsedUrl.hash = parsedNewUrl.hash
+          Object.assign(parsedUrl, parsedDestination)
 
           if (parsedUrl.pathname === '${page}'){
             break
@@ -170,7 +166,7 @@ const nextServerlessLoader: loader.Loader = function() {
           `
               : ''
           }
-          const parsedUrl = parse(req.url, true)
+          const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
             pageIsDynamicRoute
@@ -206,7 +202,8 @@ const nextServerlessLoader: loader.Loader = function() {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} =require('next/dist/next-server/server/render');
+    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -300,7 +297,7 @@ const nextServerlessLoader: loader.Loader = function() {
                           return Object.keys(obj).reduce(
                             (prev, key) =>
                               Object.assign(prev, {
-                                [key]: encodeURIComponent(obj[key])
+                                [key]: obj[key]
                               }),
                             {}
                           );
@@ -320,6 +317,9 @@ const nextServerlessLoader: loader.Loader = function() {
 
         const isFallback = parsedUrl.query.__nextFallback
 
+        const previewData = tryGetPreviewData(req, res, options.previewProps)
+        const isPreviewMode = previewData !== false
+
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (_nextData && !fromExport) {
@@ -329,12 +329,19 @@ const nextServerlessLoader: loader.Loader = function() {
 
           res.setHeader(
             'Cache-Control',
-            unstable_getServerProps
+            isPreviewMode
+              ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
+              : unstable_getServerProps
               ? \`no-cache, no-store, must-revalidate\`
               : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )
           res.end(payload)
           return null
+        } else if (isPreviewMode) {
+          res.setHeader(
+            'Cache-Control',
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
         }
 
         if (fromExport) return { html: result, renderOpts }
