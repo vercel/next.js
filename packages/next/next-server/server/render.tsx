@@ -142,6 +142,8 @@ type RenderOpts = LoadComponentsReturnType & {
   hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
+  ampSkipValidation: boolean
+  ampOptimizerConfig?: { [key: string]: any }
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
@@ -673,9 +675,9 @@ export async function renderToHTML(
       html.substring(0, ampRenderIndex) +
       `<!-- __NEXT_DATA__ -->${docProps.html}` +
       html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
-    html = await optimizeAmp(html)
+    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
 
-    if (renderOpts.ampValidator) {
+    if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
     }
   }

@@ -214,38 +214,40 @@ export default async function({
       }
     }
 
-    if (curRenderOpts.inAmpMode) {
-      await validateAmp(html, path, curRenderOpts.ampValidatorPath)
-    } else if (curRenderOpts.hybridAmp) {
-      // we need to render the AMP version
-      let ampHtmlFilename = `${ampPath}${sep}index.html`
-      if (!subFolders) {
-        ampHtmlFilename = `${ampPath}.html`
-      }
-      const ampBaseDir = join(outDir, dirname(ampHtmlFilename))
-      const ampHtmlFilepath = join(outDir, ampHtmlFilename)
-
-      try {
-        await accessP(ampHtmlFilepath)
-      } catch (_) {
-        // make sure it doesn't exist from manual mapping
-        let ampHtml
-        if (serverless) {
-          req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
-          ampHtml = (await renderMethod(req, res, true)).html
-        } else {
-          ampHtml = await renderMethod(
-            req,
-            res,
-            page,
-            { ...query, amp: 1 },
-            curRenderOpts
-          )
+    if (!curRenderOpts.ampSkipValidation) {
+      if (curRenderOpts.inAmpMode) {
+        await validateAmp(html, path, curRenderOpts.ampValidatorPath)
+      } else if (curRenderOpts.hybridAmp) {
+        // we need to render the AMP version
+        let ampHtmlFilename = `${ampPath}${sep}index.html`
+        if (!subFolders) {
+          ampHtmlFilename = `${ampPath}.html`
         }
+        const ampBaseDir = join(outDir, dirname(ampHtmlFilename))
+        const ampHtmlFilepath = join(outDir, ampHtmlFilename)
 
-        await validateAmp(ampHtml, page + '?amp=1')
-        await mkdirp(ampBaseDir)
-        await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
+        try {
+          await accessP(ampHtmlFilepath)
+        } catch (_) {
+          // make sure it doesn't exist from manual mapping
+          let ampHtml
+          if (serverless) {
+            req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
+            ampHtml = (await renderMethod(req, res, true)).html
+          } else {
+            ampHtml = await renderMethod(
+              req,
+              res,
+              page,
+              { ...query, amp: 1 },
+              curRenderOpts
+            )
+          }
+
+          await validateAmp(ampHtml, page + '?amp=1')
+          await mkdirp(ampBaseDir)
+          await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
+        }
       }
     }
 

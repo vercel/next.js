@@ -114,6 +114,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
+    ampOptimizerConfig?: { [key: string]: any }
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -161,6 +162,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

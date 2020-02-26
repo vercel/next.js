@@ -234,6 +234,8 @@ export default async function(
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
+    ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
+    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
