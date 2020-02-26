@@ -512,7 +512,7 @@ export async function buildStaticPaths(
   const staticPathsResult = await unstable_getStaticPaths()
 
   const expectedReturnVal =
-    `Expected: { paths: [] }\n` +
+    `Expected: { paths: [], fallback: boolean }\n` +
     `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
 
   if (
@@ -534,6 +534,13 @@ export async function buildStaticPaths(
       `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
         ', '
       )}) ${expectedReturnVal}`
+    )
+  }
+
+  if (typeof staticPathsResult.fallback !== 'boolean') {
+    throw new Error(
+      `The \`fallback\` key must be returned from unstable_getStaticProps in ${page}.\n` +
+        expectedReturnVal
     )
   }
 
