@@ -114,7 +114,6 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
-    pages404?: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -124,6 +123,9 @@ export default class Server {
     rewrites: Rewrite[]
     redirects: Redirect[]
     headers: Header[]
+  }
+  protected staticPathsWorker?: import('jest-worker').default & {
+    loadStaticPaths: typeof import('../../server/static-paths-worker').loadStaticPaths
   }
 
   public constructor({
@@ -162,7 +164,6 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      pages404: this.nextConfig.experimental.pages404,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -823,20 +824,25 @@ export default class Server {
     res: ServerResponse,
     payload: any,
     type: string,
-    revalidate?: number | false
+    options?: { revalidate: number | false; private: boolean }
   ) {
     // TODO: ETag? Cache-Control headers? Next-specific headers?
     res.setHeader('Content-Type', type)
     res.setHeader('Content-Length', Buffer.byteLength(payload))
     if (!this.renderOpts.dev) {
-      if (revalidate) {
+      if (options?.private) {
         res.setHeader(
           'Cache-Control',
-          revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${revalidate}, stale-while-revalidate`
+          `private, no-cache, no-store, max-age=0, must-revalidate`
         )
-      } else if (revalidate === false) {
+      } else if (options?.revalidate) {
+        res.setHeader(
+          'Cache-Control',
+          options.revalidate < 0
+            ? `no-cache, no-store, must-revalidate`
+            : `s-maxage=${options.revalidate}, stale-while-revalidate`
+        )
+      } else if (options?.revalidate === false) {
         res.setHeader(
           'Cache-Control',
           `s-maxage=31536000, stale-while-revalidate`
@@ -866,7 +872,7 @@ export default class Server {
     opts: any
   ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
-    if (this.nextConfig.experimental.pages404 && pathname === '/404') {
+    if (pathname === '/404') {
       res.statusCode = 404
     }
 
@@ -881,6 +887,7 @@ export default class Server {
       typeof (components.Component as any).renderReqToHTML === 'function'
     const isSSG = !!components.unstable_getStaticProps
     const isServerProps = !!components.unstable_getServerProps
+    const hasStaticPaths = !!components.unstable_getStaticPaths
 
     // Toggle whether or not this is a Data request
     const isDataReq = query._nextDataReq
@@ -912,7 +919,10 @@ export default class Server {
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
             'application/json',
-            -1
+            {
+              revalidate: -1,
+              private: false, // Leave to user-land caching
+            }
           )
           return null
         }
@@ -926,7 +936,10 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', -1)
+        this.__sendPayload(res, JSON.stringify(props), 'application/json', {
+          revalidate: -1,
+          private: false, // Leave to user-land caching
+        })
         return null
       }
 
@@ -941,9 +954,10 @@ export default class Server {
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
+    const urlPathname = parseUrl(req.url || '').pathname!
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
-      : parseUrl(req.url || '').pathname!
+      : urlPathname
 
     // Complete the response with cached data if its present
     const cachedData = isPreviewMode
@@ -959,7 +973,9 @@ export default class Server {
         res,
         data,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate
+        cachedData.curRevalidate !== undefined
+          ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
+          : undefined
       )
 
       // Stop the request chain here if the data we sent was up-to-date
@@ -1009,6 +1025,30 @@ export default class Server {
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
+
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+    let staticPaths: string[] | undefined
+
+    if (!isProduction && hasStaticPaths) {
+      const __getStaticPaths = async () => {
+        const paths = await this.staticPathsWorker!.loadStaticPaths(
+          this.distDir,
+          this.buildId,
+          pathname,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+        return paths
+      }
+
+      staticPaths = (
+        await withCoalescedInvoke(__getStaticPaths)(
+          `staticPaths-${pathname}`,
+          []
+        )
+      ).value
+    }
+
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
 
@@ -1019,20 +1059,20 @@ export default class Server {
     //
     // * Preview mode toggles all pages to be resolved in a blocking manner.
     //
-    // * Non-dynamic pages should block (though this is an be an impossible
+    // * Non-dynamic pages should block (though this is an impossible
     //   case in production).
     //
-    // * Dynamic pages should return their skeleton, then finish the data
-    //   request on the client-side.
+    // * Dynamic pages should return their skeleton if not defined in
+    //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
       !didRespond &&
       !isDataReq &&
       !isPreviewMode &&
       isDynamicPathname &&
-      // TODO: development should trigger fallback when the path is not in
-      // `getStaticPaths`, for now, let's assume it is.
-      isProduction
+      // Development should trigger fallback when the path is not in
+      // `getStaticPaths`
+      (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
     ) {
       let html: string
 
@@ -1066,7 +1106,7 @@ export default class Server {
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        sprRevalidate
+        { revalidate: sprRevalidate, private: isPreviewMode }
       )
     }
 
@@ -1171,22 +1211,13 @@ export default class Server {
   ) {
     let result: null | FindComponentsResult = null
 
-    const { static404, pages404 } = this.nextConfig.experimental
     const is404 = res.statusCode === 404
     let using404Page = false
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      if (static404) {
-        result = await this.findPageComponents('/_errors/404')
-      }
-
-      // use 404 if /_errors/404 isn't available which occurs
-      // during development and when _app has getInitialProps
-      if (!result && pages404) {
-        result = await this.findPageComponents('/404')
-        using404Page = result !== null
-      }
+      result = await this.findPageComponents('/404')
+      using404Page = result !== null
     }
 
     if (!result) {
@@ -1220,11 +1251,8 @@ export default class Server {
   ): Promise<void> {
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
-    if (!pathname) {
-      throw new Error('pathname is undefined')
-    }
     res.statusCode = 404
-    return this.renderError(null, req, res, pathname, query)
+    return this.renderError(null, req, res, pathname!, query)
   }
 
   public async serveStatic(

@@ -50,8 +50,8 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import {
   eventBuildCompleted,
   eventBuildOptimize,
+  eventCliSession,
   eventNextPlugins,
-  eventVersion,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -113,21 +113,24 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const { target } = config
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
+  const headers: Header[] = []
   const rewrites: Rewrite[] = []
   const redirects: Redirect[] = []
-  const headers: Header[] = []
 
   if (typeof config.experimental.redirects === 'function') {
-    redirects.push(...(await config.experimental.redirects()))
-    checkCustomRoutes(redirects, 'redirect')
+    const _redirects = await config.experimental.redirects()
+    checkCustomRoutes(_redirects, 'redirect')
+    redirects.push(..._redirects)
   }
   if (typeof config.experimental.rewrites === 'function') {
-    rewrites.push(...(await config.experimental.rewrites()))
-    checkCustomRoutes(rewrites, 'rewrite')
+    const _rewrites = await config.experimental.rewrites()
+    checkCustomRoutes(_rewrites, 'rewrite')
+    rewrites.push(..._rewrites)
   }
   if (typeof config.experimental.headers === 'function') {
-    headers.push(...(await config.experimental.headers()))
-    checkCustomRoutes(headers, 'header')
+    const _headers = await config.experimental.headers()
+    checkCustomRoutes(_headers, 'header')
+    headers.push(..._headers)
   }
 
   if (ciEnvironment.isCI) {
@@ -161,7 +164,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let hasPublicDir = false
 
   telemetry.record(
-    eventVersion({
+    eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
       cliCommand: 'build',
       isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
       hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -221,10 +224,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const hasCustomErrorPage = mappedPages['/_error'].startsWith(
     'private-next-pages'
   )
-  const hasPages404 =
-    config.experimental.pages404 &&
-    mappedPages['/404'] &&
-    mappedPages['/404'].startsWith('private-next-pages')
+  const hasPages404 = Boolean(
+    mappedPages['/404'] && mappedPages['/404'].startsWith('private-next-pages')
+  )
 
   if (hasPublicDir) {
     try {
@@ -285,7 +287,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: any = {
     version: 1,
-    pages404: !!hasPages404,
+    pages404: true,
     basePath: config.experimental.basePath,
     redirects: redirects.map(r => buildCustomRoute(r, 'redirect')),
     rewrites: rewrites.map(r => buildCustomRoute(r, 'rewrite')),
@@ -606,8 +608,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
-    !customAppGetInitialProps &&
-    ((!hasCustomErrorPage && config.experimental.static404) || hasPages404)
+    !customAppGetInitialProps && (!hasCustomErrorPage || hasPages404)
 
   if (invalidPages.size > 0) {
     throw new Error(
@@ -681,7 +682,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         })
 
         if (useStatic404) {
-          defaultMap['/_errors/404'] = {
+          defaultMap['/404'] = {
             page: hasPages404 ? '/404' : '/_error',
           }
         }
@@ -690,6 +691,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       },
       exportTrailingSlash: false,
     }
+
     await exportApp(dir, exportOptions, exportConfig)
 
     // remove server bundles that were exported
@@ -726,8 +728,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsMove(orig, dest)
     }
 
-    if (useStatic404) {
-      await moveExportedPage('/_errors/404', '/_errors/404', false, 'html')
+    // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+    if (!hasPages404 && useStatic404) {
+      await moveExportedPage('/404', '/404', false, 'html')
     }
 
     for (const page of combinedPages) {

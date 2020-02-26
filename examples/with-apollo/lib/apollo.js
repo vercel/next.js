@@ -1,14 +1,15 @@
 import React from 'react'
 import App from 'next/app'
+import Head from 'next/head'
 import { ApolloProvider } from '@apollo/react-hooks'
 import createApolloClient from '../apolloClient'
 
-// On the client we store the apollo client in the following variable
-// this prevents the client from reinitializing between page transitions.
+// On the client, we store the Apollo Client in the following variable.
+// This prevents the client from reinitializing between page transitions.
 let globalApolloClient = null
 
 /**
- * Installes the apollo client on NextPageContext
+ * Installs the Apollo Client on NextPageContext
  * or NextAppContext. Useful if you want to use apolloClient
  * inside getStaticProps, getStaticPaths or getServerProps
  * @param {NextPageContext | NextAppContext} ctx
@@ -32,13 +33,13 @@ export const initOnContext = ctx => {
     ctx.apolloClient ||
     initApolloClient(ctx.apolloState || {}, inAppContext ? ctx.ctx : ctx)
 
-  // To avoid calling initApollo() twice in the server we send the Apollo Client as a prop
-  // to the component, otherwise the component would have to call initApollo() again but this
-  // time without the context, once that happens the following code will make sure we send
-  // the prop as `null` to the browser
+  // We send the Apollo Client as a prop to the component to avoid calling initApollo() twice in the server.
+  // Otherwise, the component would have to call initApollo() again but this
+  // time without the context. Once that happens, the following code will make sure we send
+  // the prop as `null` to the browser.
   apolloClient.toJSON = () => null
 
-  // Add apolloClient to NextPageContext & NextAppContext
+  // Add apolloClient to NextPageContext & NextAppContext.
   // This allows us to consume the apolloClient inside our
   // custom `getInitialProps({ apolloClient })`.
   ctx.apolloClient = apolloClient
@@ -153,6 +154,10 @@ export const withApollo = ({ ssr = false } = {}) => PageComponent => {
             // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
             console.error('Error while running `getDataFromTree`', error)
           }
+
+          // getDataFromTree does not call componentWillUnmount
+          // head side effect therefore need to be cleared manually
+          Head.rewind()
         }
       }
 

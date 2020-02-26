@@ -414,13 +414,19 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       ? previous
       : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, '', {
-      maxAge: 0,
+      // To delete a cookie, set `expires` to a date in the past:
+      // https://tools.ietf.org/html/rfc6265#section-4.1.1
+      // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+      expires: new Date(0),
       httpOnly: true,
       sameSite: 'strict',
       path: '/',
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, '', {
-      maxAge: 0,
+      // To delete a cookie, set `expires` to a date in the past:
+      // https://tools.ietf.org/html/rfc6265#section-4.1.1
+      // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+      expires: new Date(0),
       httpOnly: true,
       sameSite: 'strict',
       path: '/',

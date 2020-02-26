@@ -112,6 +112,11 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/only-amp')
       await validateAMP(html)
     })
+
+    it('should auto import extensions', async () => {
+      const html = await renderViaHTTP(appPort, '/auto-import')
+      await validateAMP(html)
+    })
   })
 
   describe('With AMP context', () => {
