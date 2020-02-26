@@ -6,6 +6,7 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { PrerenderManifest } from '../../build'
 import {
   getRedirectStatus,
   Header,
@@ -292,15 +293,17 @@ export default class Server {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  private _cachedPreviewProps: __ApiPreviewProps | undefined
-  protected getPreviewProps(): __ApiPreviewProps {
-    if (this._cachedPreviewProps) {
-      return this._cachedPreviewProps
+  private _cachedPreviewManifest: PrerenderManifest | undefined
+  protected getPrerenderManifest(): PrerenderManifest {
+    if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
     }
-    return (this._cachedPreviewProps = require(join(
-      this.distDir,
-      PRERENDER_MANIFEST
-    )).preview)
+    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+    return (this._cachedPreviewManifest = manifest)
+  }
+
+  protected getPreviewProps(): __ApiPreviewProps {
+    return this.getPrerenderManifest().preview
   }
 
   protected generateRoutes(): {
@@ -1031,22 +1034,33 @@ export default class Server {
     let staticPaths: string[] | undefined
     let hasStaticFallback = false
 
-    if (!isProduction && hasStaticPaths) {
-      const __getStaticPaths = async () => {
-        const paths = await this.staticPathsWorker!.loadStaticPaths(
-          this.distDir,
-          this.buildId,
-          pathname,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return paths
+    if (hasStaticPaths) {
+      if (isProduction) {
+        // `staticPaths` is intentionally set to `undefined` as it should've
+        // been caught above when checking disk data.
+        staticPaths = undefined
+
+        // Read whether or not fallback should exist from the manifest.
+        hasStaticFallback =
+          typeof this.getPrerenderManifest().dynamicRoutes[pathname]
+            .fallback === 'string'
+      } else {
+        const __getStaticPaths = async () => {
+          const paths = await this.staticPathsWorker!.loadStaticPaths(
+            this.distDir,
+            this.buildId,
+            pathname,
+            !this.renderOpts.dev && this._isLikeServerless
+          )
+          return paths
+        }
+        ;({ paths: staticPaths, fallback: hasStaticFallback } = (
+          await withCoalescedInvoke(__getStaticPaths)(
+            `staticPaths-${pathname}`,
+            []
+          )
+        ).value)
       }
-      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-        await withCoalescedInvoke(__getStaticPaths)(
-          `staticPaths-${pathname}`,
-          []
-        )
-      ).value)
     }
 
     // const isForcedBlocking =

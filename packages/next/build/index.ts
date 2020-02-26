@@ -90,13 +90,13 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-  fallback: string
+  fallback: string | false
   dataRoute: string
   dataRouteRegex: string
 }
 
 export type PrerenderManifest = {
-  version: number
+  version: 2
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   preview: __ApiPreviewProps
@@ -830,14 +830,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
       finalDynamicRoutes[tbdRoute] = {
         routeRegex: getRouteRegex(tbdRoute).re.source,
         dataRoute,
-        fallback: `${normalizedRoute}.html`,
+        fallback: ssgFallbackPages.has(tbdRoute)
+          ? `${normalizedRoute}.html`
+          : false,
         dataRouteRegex: getRouteRegex(
           dataRoute.replace(/\.json$/, '')
         ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$'),
       }
     })
     const prerenderManifest: PrerenderManifest = {
-      version: 1,
+      version: 2,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
       preview: previewProps,
@@ -850,7 +852,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   } else {
     const prerenderManifest: PrerenderManifest = {
-      version: 1,
+      version: 2,
       routes: {},
       dynamicRoutes: {},
       preview: previewProps,
