@@ -448,7 +448,7 @@ const runTests = (dev = false, looseMode = false) => {
       const html = await renderViaHTTP(appPort, '/url-prop')
       await fs.remove(urlPropPage)
       expect(stderr).not.toMatch(
-        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden/
+        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
       )
       expect(html).toMatch(/url:.*?something/)
     })
