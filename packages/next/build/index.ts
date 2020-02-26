@@ -432,6 +432,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()
+  const ssgFallbackPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
@@ -536,6 +537,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
             }
             if (result.prerenderFallback) {
               hasSsgFallback = true
+              ssgFallbackPages.add(page)
             }
           } else if (result.hasServerProps) {
             serverPropsPages.add(page)
@@ -673,9 +675,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
 
-            // Override the rendering for the dynamic page to be treated as a
-            // fallback render.
-            defaultMap[page] = { page, query: { __nextFallback: true } }
+            if (ssgFallbackPages.has(page)) {
+              // Override the rendering for the dynamic page to be treated as a
+              // fallback render.
+              defaultMap[page] = { page, query: { __nextFallback: true } }
+            } else {
+              // Remove dynamically routed pages from the default path map when
+              // fallback behavior is disabled.
+              delete defaultMap[page]
+            }
           }
         })
         // Append the "well-known" routes we should prerender for, e.g. blog
@@ -740,12 +748,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
+      const isSsgFallback = ssgFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
       let file = normalizePagePath(page)
 
-      // We should always have an HTML file to move for each page
-      await moveExportedPage(page, file, isSsg, 'html')
+      // The dynamic version of SSG pages are only prerendered if the fallback
+      // is enabled. Below, we handle the specific prerenders of these.
+      if (!(isSsg && isDynamic && !isSsgFallback)) {
+        await moveExportedPage(page, file, isSsg, 'html')
+      }
 
       if (hasAmp) {
         await moveExportedPage(`${page}.amp`, `${file}.amp`, isSsg, 'html')
@@ -764,7 +776,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
         } else {
           // For a dynamic SSG page, we did not copy its data exports and only
-          // copy the fallback HTML file.
+          // copy the fallback HTML file (if present).
           // We must also copy specific versions of this page as defined by
           // `unstable_getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
