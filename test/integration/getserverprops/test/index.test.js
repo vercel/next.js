@@ -23,6 +23,7 @@ const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 let buildId
+let stderr
 
 const expectedManifestRoutes = () => ({
   '/something': {
@@ -322,7 +323,7 @@ const runTests = (dev = false) => {
   })
 
   if (dev) {
-    it('should not show error from url prop being returned', async () => {
+    it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
       await fs.writeFile(
         urlPropPage,
@@ -335,16 +336,16 @@ const runTests = (dev = false) => {
           }
         }
 
-        export default () => 'hi'
+        export default ({ url }) => <p>url: {url}</p>
       `
       )
 
       const html = await renderViaHTTP(appPort, '/url-prop')
       await fs.remove(urlPropPage)
-      expect(html).not.toMatch(
+      expect(stderr).not.toMatch(
         /The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons/
       )
-      expect(html).toContain('hi')
+      expect(html).toMatch(/url:.*?something/)
     })
 
     it('should show error for extra keys returned from getServerProps', async () => {
@@ -390,8 +391,13 @@ const runTests = (dev = false) => {
 describe('unstable_getServerProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
@@ -407,8 +413,13 @@ describe('unstable_getServerProps', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))

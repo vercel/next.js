@@ -548,12 +548,12 @@ export async function renderToHTML(
   }
 
   if (
-    !isSpr && // we only show this error for legacy pages
+    !isSpr && // we only show this warning for legacy pages
     !unstable_getServerProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
   ) {
-    throw new Error(
+    console.warn(
       'The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons. See more info here: https://err.sh/zeit/next.js/reserved-page-prop'
     )
   }

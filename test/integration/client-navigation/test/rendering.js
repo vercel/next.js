@@ -358,11 +358,11 @@ export default function(render, fetch) {
         expect($('#aspath').text()).toBe('/url-prop')
       })
 
-      it('should show error when url prop is passed', async () => {
-        const html = await render('/url-prop-override')
-        expect(html).toMatch(
-          /The prop `url` can not be passed to pages as this is a reserved prop in Next.js for legacy reasons/
-        )
+      it('should override props.url, even when getInitialProps returns url as property', async () => {
+        const $ = await get$('/url-prop-override')
+        expect($('#pathname').text()).toBe('/url-prop-override')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop-override')
       })
     })
 
