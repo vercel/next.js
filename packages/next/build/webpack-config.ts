@@ -17,6 +17,7 @@ import { fileExists } from '../lib/file-exists'
 import { resolveRequest } from '../lib/resolve-request'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
@@ -214,6 +215,10 @@ export default async function getBaseWebpackConfig(
               dev ? `next-dev.js` : 'next.js'
             )
           ),
+        [CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP]: path.join(
+          NEXT_PROJECT_ROOT_DIST_CLIENT,
+          'bootstrap.js'
+        ),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
           'polyfills.js'
@@ -326,6 +331,18 @@ export default async function getBaseWebpackConfig(
       module.type === `css/extract-css-chunks`
     )
   }
+  // TODO: This is a stub used instead of webpack.compilation.Module. There is currently
+  // an issue where the DefinitelyTyped type definition for compilation Modules
+  // doesn't quite match the module API that we rely on throughout this section. Once
+  // that type definition is corrected, we can use it instead of the partial one below.
+  interface webpackModule {
+    _chunks: { values(): Array<{ name: string }> }
+  }
+
+  const isRequiredBy = (module: webpackModule, requiredBy: string) =>
+    !!Array.from(module._chunks.values()).find(
+      chunk => chunk.name === requiredBy
+    )
 
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
@@ -359,13 +376,21 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
+        bootstrap: {
+          chunks: 'all',
+          name: 'bootstrap',
+          test: (module: webpackModule) =>
+            isRequiredBy(module, 'static/runtime/bootstrap.js'),
+          priority: 50,
+          // Don't let webpack eliminate this chunk (prevents this chunk from
+          // becoming a part of the commons chunk)
+          enforce: true,
+        },
         framework: {
           chunks: 'all',
           name: 'framework',
-          // This regex ignores nested copies of framework libraries so they're
-          // bundled with their issuer.
-          // https://github.com/zeit/next.js/pull/9012
-          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+          test: (module: webpackModule) =>
+            isRequiredBy(module, 'static/runtime/main.js'),
           priority: 40,
           // Don't let webpack eliminate this chunk (prevents this chunk from
           // becoming a part of the commons chunk)
@@ -686,6 +711,7 @@ export default async function getBaseWebpackConfig(
         if (
           !dev &&
           (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN ||
+            chunk.name === CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP ||
             chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK ||
             chunk.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
         ) {
