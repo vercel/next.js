@@ -186,7 +186,7 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR getServerProps page correctly', async () => {
+  it('should SSR getServerSideProps page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
     expect(html).toMatch(/Post:.*?post-1/)
   })
@@ -298,7 +298,7 @@ const runTests = (dev = false) => {
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
 
-  it('should always call getServerProps without caching', async () => {
+  it('should always call getServerSideProps without caching', async () => {
     const initialRes = await fetchViaHTTP(appPort, '/something')
     const initialHtml = await initialRes.text()
     expect(initialHtml).toMatch(/hello.*?world/)
@@ -314,7 +314,7 @@ const runTests = (dev = false) => {
     expect(newHtml !== newerHtml).toBe(true)
   })
 
-  it('should not re-call getServerProps when updating query', async () => {
+  it('should not re-call getServerSideProps when updating query', async () => {
     const browser = await webdriver(appPort, '/something?hello=world')
     await waitFor(2000)
 
@@ -337,7 +337,7 @@ const runTests = (dev = false) => {
       await fs.writeFile(
         urlPropPage,
         `
-        export async function unstable_getServerProps() {
+        export async function unstable_getServerSideProps() {
           return {
             props: {
               url: 'something'
@@ -357,10 +357,10 @@ const runTests = (dev = false) => {
       expect(html).toMatch(/url:.*?something/)
     })
 
-    it('should show error for extra keys returned from getServerProps', async () => {
+    it('should show error for extra keys returned from getServerSideProps', async () => {
       const html = await renderViaHTTP(appPort, '/invalid-keys')
       expect(html).toContain(
-        `Additional keys were returned from \`getServerProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
+        `Additional keys were returned from \`getServerSideProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
       )
       expect(html).toContain(
         `Keys that need to be moved: world, query, params, time, random`
@@ -396,7 +396,7 @@ const runTests = (dev = false) => {
   }
 }
 
-describe('unstable_getServerProps', () => {
+describe('unstable_getServerSideProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       stderr = ''

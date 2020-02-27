@@ -3,7 +3,7 @@ import fs from 'fs'
 import findUp from 'find-up'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerProps() {
+export async function unstable_getServerSideProps() {
   const text = fs
     .readFileSync(
       findUp.sync('world.txt', {

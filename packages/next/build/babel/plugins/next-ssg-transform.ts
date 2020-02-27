@@ -10,7 +10,7 @@ const pageComponentVar = '__NEXT_COMP'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
-export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerProps'
+export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerSideProps'
 
 const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,

@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerProps({ params }) {
+export async function unstable_getServerSideProps({ params, query }) {
   return {
     props: {
       world: 'world',
+      query: query || {},
       params: params || {},
       time: new Date().getTime(),
       random: Math.random(),
@@ -14,13 +15,14 @@ export async function unstable_getServerProps({ params }) {
   }
 }
 
-export default ({ world, time, params, random }) => {
+export default ({ world, time, params, random, query }) => {
   return (
     <>
       <p>hello: {world}</p>
       <span>time: {time}</span>
       <div id="random">{random}</div>
       <div id="params">{JSON.stringify(params)}</div>
+      <div id="initial-query">{JSON.stringify(query)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
       <Link href="/">
         <a id="home">to home</a>
