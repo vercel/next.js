@@ -1,6 +1,6 @@
 import App from 'next/app'
 import Router from 'next/router'
-import { audit } from '@indent/node'
+import audit from '@indent/audit'
 
 audit.init({
   debug: true,

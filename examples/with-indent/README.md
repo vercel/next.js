@@ -43,3 +43,5 @@ now
 ## About this example
 
 This example shows how to use [Next.js](https://github.com/zeit/next.js) along with [Indent](https://indent.com/?ref=nextjs).
+
+Follow the [Indent Quickstart](https://indent.com/docs/getting-started/quickstart?ref=nextjs) for step by step instructions.
