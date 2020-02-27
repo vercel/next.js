@@ -149,7 +149,7 @@ describe('404 Page Support', () => {
     await fs.move(`${pages404}.bak`, pages404)
 
     expect(stderr).toContain(
-      `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
+      `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/zeit/next.js/404-get-initial-props`
     )
     expect(code).toBe(1)
   })
@@ -180,7 +180,7 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    const error = `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
+    const error = `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/zeit/next.js/404-get-initial-props`
 
     expect(stderr).toContain(error)
   })

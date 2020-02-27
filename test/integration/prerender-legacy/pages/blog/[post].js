@@ -6,7 +6,7 @@ export async function unstable_getStaticParams() {
 }
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
   return {
     props: {
       post: params.post,
