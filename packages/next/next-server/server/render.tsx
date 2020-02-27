@@ -273,9 +273,9 @@ export async function renderToHTML(
     buildManifest,
     reactLoadableManifest,
     ErrorDebug,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
-    unstable_getServerSideProps,
+    getStaticProps,
+    getStaticPaths,
+    getServerSideProps,
     isDataReq,
     params,
     previewProps,
@@ -311,7 +311,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
-  const isSpr = !!unstable_getStaticProps
+  const isSpr = !!getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -323,7 +323,7 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSpr &&
-    !unstable_getServerSideProps
+    !getServerSideProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -349,23 +349,23 @@ export async function renderToHTML(
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (hasPageGetInitialProps && unstable_getServerSideProps) {
+  if (hasPageGetInitialProps && getServerSideProps) {
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (unstable_getServerSideProps && isSpr) {
+  if (getServerSideProps && isSpr) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!unstable_getStaticPaths && !isSpr) {
+  if (!!getStaticPaths && !isSpr) {
     throw new Error(
-      `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
+      `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
     )
   }
 
-  if (isSpr && pageIsDynamic && !unstable_getStaticPaths) {
+  if (isSpr && pageIsDynamic && !getStaticPaths) {
     throw new Error(
-      `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
+      `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
         `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
     )
   }
@@ -467,7 +467,7 @@ export async function renderToHTML(
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
-      const data = await unstable_getStaticProps!({
+      const data = await getStaticProps!({
         ...(pageIsDynamic
           ? {
               params: query as ParsedUrlQuery,
@@ -529,8 +529,8 @@ export async function renderToHTML(
     console.error(err)
   }
 
-  if (unstable_getServerSideProps && !isFallback) {
-    const data = await unstable_getServerSideProps({
+  if (getServerSideProps && !isFallback) {
+    const data = await getServerSideProps({
       params,
       query,
       req,
@@ -549,7 +549,7 @@ export async function renderToHTML(
 
   if (
     !isSpr && // we only show this warning for legacy pages
-    !unstable_getServerSideProps &&
+    !getServerSideProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
   ) {

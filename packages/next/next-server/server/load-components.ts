@@ -1,5 +1,3 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -12,7 +10,13 @@ import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
-import { PageConfig, NextPageContext } from 'next/types'
+import {
+  PageConfig,
+  NextPageContext,
+  GetStaticPaths,
+  GetServerSideProps,
+  GetStaticProps,
+} from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
@@ -41,27 +45,6 @@ export type ManifestItem = {
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
-type Unstable_getStaticProps = (ctx: {
-  params: ParsedUrlQuery | undefined
-  preview?: boolean
-  previewData?: any
-}) => Promise<{
-  props: { [key: string]: any }
-  revalidate?: number | boolean
-}>
-
-export type Unstable_getStaticPaths = () => Promise<{
-  paths: Array<string | { params: ParsedUrlQuery }>
-  fallback: boolean
-}>
-
-type Unstable_getServerSideProps = (context: {
-  params: ParsedUrlQuery | undefined
-  req: IncomingMessage
-  res: ServerResponse
-  query: ParsedUrlQuery
-}) => Promise<{ [key: string]: any }>
-
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
   pageConfig?: PageConfig
@@ -70,9 +53,9 @@ export type LoadComponentsReturnType = {
   Document: DocumentType
   DocumentMiddleware?: (ctx: NextPageContext) => void
   App: AppType
-  unstable_getStaticProps?: Unstable_getStaticProps
-  unstable_getStaticPaths?: Unstable_getStaticPaths
-  unstable_getServerSideProps?: Unstable_getServerSideProps
+  getStaticProps?: GetStaticProps
+  getStaticPaths?: GetStaticPaths
+  getServerSideProps?: GetServerSideProps
 }
 
 export async function loadComponents(
@@ -83,24 +66,16 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    const {
-      unstable_getStaticProps,
-      unstable_getStaticPaths,
-      unstable_getServerSideProps,
-    } = Component
+    const { getStaticProps, getStaticPaths, getServerSideProps } = Component
 
-    addComponentPropsId(
-      Component,
-      unstable_getStaticProps,
-      unstable_getServerSideProps
-    )
+    addComponentPropsId(Component, getStaticProps, getServerSideProps)
 
     return {
       Component,
       pageConfig: Component.config || {},
-      unstable_getStaticProps,
-      unstable_getStaticPaths,
-      unstable_getServerSideProps,
+      getStaticProps,
+      getStaticPaths,
+      getServerSideProps,
     } as LoadComponentsReturnType
   }
   const documentPath = join(
@@ -141,17 +116,9 @@ export async function loadComponents(
     interopDefault(AppMod),
   ])
 
-  const {
-    unstable_getServerSideProps,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
-  } = ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  addComponentPropsId(
-    Component,
-    unstable_getStaticProps,
-    unstable_getServerSideProps
-  )
+  addComponentPropsId(Component, getStaticProps, getServerSideProps)
 
   return {
     App,
@@ -161,8 +128,8 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
-    unstable_getServerSideProps,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
+    getServerSideProps,
+    getStaticProps,
+    getStaticPaths,
   }
 }

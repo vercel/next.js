@@ -337,7 +337,7 @@ const runTests = (dev = false) => {
       await fs.writeFile(
         urlPropPage,
         `
-        export async function unstable_getServerSideProps() {
+        export async function getServerSideProps() {
           return {
             props: {
               url: 'something'
@@ -396,7 +396,7 @@ const runTests = (dev = false) => {
   }
 }
 
-describe('unstable_getServerSideProps', () => {
+describe('getServerSideProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       stderr = ''

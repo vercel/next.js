@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerSideProps({ params, query }) {
+export async function getServerSideProps({ params, query }) {
   return {
     world: 'world',
     query: query || {},

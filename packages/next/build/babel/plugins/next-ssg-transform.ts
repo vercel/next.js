@@ -8,14 +8,21 @@ import {
 
 const pageComponentVar = '__NEXT_COMP'
 
-export const EXPORT_NAME_GET_STATIC_PROPS = 'unstable_getStaticProps'
-export const EXPORT_NAME_GET_STATIC_PATHS = 'unstable_getStaticPaths'
-export const EXPORT_NAME_GET_SERVER_PROPS = 'unstable_getServerSideProps'
+export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
+export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
+export const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps'
 
 const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
   EXPORT_NAME_GET_SERVER_PROPS,
+
+  // legacy methods added so build doesn't fail from importing
+  // server-side only methods
+  `unstable_getStaticProps`,
+  `unstable_getStaticPaths`,
+  `unstable_getServerProps`,
+  `unstable_getServerSideProps`,
 ])
 
 type PluginState = {

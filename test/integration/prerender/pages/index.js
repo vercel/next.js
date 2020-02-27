@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
   // throw new Error('oops from getStaticProps')
   return {
     props: { world: 'world', time: new Date().getTime() },

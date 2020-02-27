@@ -15,7 +15,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
-import { Unstable_getStaticPaths } from '../next-server/server/load-components'
+import { GetStaticPaths } from 'next/types'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -500,7 +500,7 @@ export async function getPageSizeInKb(
 
 export async function buildStaticPaths(
   page: string,
-  unstable_getStaticPaths: Unstable_getStaticPaths
+  getStaticPaths: GetStaticPaths
 ): Promise<{ paths: string[]; fallback: boolean }> {
   const prerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
@@ -509,7 +509,7 @@ export async function buildStaticPaths(
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await unstable_getStaticPaths()
+  const staticPathsResult = await getStaticPaths()
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
@@ -521,7 +521,7 @@ export async function buildStaticPaths(
     Array.isArray(staticPathsResult)
   ) {
     throw new Error(
-      `Invalid value returned from unstable_getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
+      `Invalid value returned from getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
     )
   }
 
@@ -531,7 +531,7 @@ export async function buildStaticPaths(
 
   if (invalidStaticPathKeys.length > 0) {
     throw new Error(
-      `Extra keys returned from unstable_getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+      `Extra keys returned from getStaticPaths in ${page} (${invalidStaticPathKeys.join(
         ', '
       )}) ${expectedReturnVal}`
     )
@@ -539,7 +539,7 @@ export async function buildStaticPaths(
 
   if (typeof staticPathsResult.fallback !== 'boolean') {
     throw new Error(
-      `The \`fallback\` key must be returned from unstable_getStaticPaths in ${page}.\n` +
+      `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
         expectedReturnVal
     )
   }
@@ -548,7 +548,7 @@ export async function buildStaticPaths(
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from unstable_getStaticProps in ${page}.\n` +
+      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
@@ -572,7 +572,7 @@ export async function buildStaticPaths(
       const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
       if (invalidKeys.length) {
         throw new Error(
-          `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
+          `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
             `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
             `\n\n\treturn { params: { ${_validParamKeys
               .map(k => `${k}: ...`)
@@ -593,7 +593,7 @@ export async function buildStaticPaths(
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in unstable_getStaticPaths for ${page}`
+            } in getStaticPaths for ${page}`
           )
         }
 
@@ -634,14 +634,35 @@ export async function isPageStatic(
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.unstable_getStaticProps
-    const hasStaticPaths = !!mod.unstable_getStaticPaths
-    const hasServerProps = !!mod.unstable_getServerSideProps
+    const hasStaticProps = !!mod.getStaticProps
+    const hasStaticPaths = !!mod.getStaticPaths
+    const hasServerProps = !!mod.getServerSideProps
+    const hasLegacyServerProps = !!mod.unstable_getServerProps
+    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
+    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
       throw new Error(
-        `unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.`
+        `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticPaths) {
+      throw new Error(
+        `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticProps) {
+      throw new Error(
+        `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
+      )
+    }
+
+    if (hasLegacyServerProps) {
+      throw new Error(
+        `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
       )
     }
 
@@ -663,14 +684,14 @@ export async function isPageStatic(
     // A page cannot have static parameters if it is not a dynamic page.
     if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
-        `unstable_getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+        `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
           `\nLearn more: https://nextjs.org/docs#dynamic-routing`
       )
     }
 
     if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
       throw new Error(
-        `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+        `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
           `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
       )
     }
@@ -681,7 +702,7 @@ export async function isPageStatic(
       ;({
         paths: prerenderRoutes,
         fallback: prerenderFallback,
-      } = await buildStaticPaths(page, mod.unstable_getStaticPaths))
+      } = await buildStaticPaths(page, mod.getStaticPaths))
     }
 
     const config = mod.config || {}
