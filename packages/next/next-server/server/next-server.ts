@@ -1088,7 +1088,13 @@ export default class Server {
       // `getStaticPaths`
       (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
     ) {
-      if (!hasStaticFallback) {
+      if (
+        // In development, fall through to render to handle missing
+        // getStaticPaths.
+        (isProduction || staticPaths) &&
+        // When fallback isn't present, abort this render so we 404
+        !hasStaticFallback
+      ) {
         return false
       }
 

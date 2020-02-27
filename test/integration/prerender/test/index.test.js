@@ -753,7 +753,7 @@ const runTests = (dev = false, looseMode = false) => {
         '/catchall-explicit/[...slug]': {
           dataRoute: `/_next/data/${buildId}/catchall-explicit/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
-            `^\\/_next\\/data\\/${buildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
           ),
           fallback: false,
           routeRegex: normalizeRegEx(
