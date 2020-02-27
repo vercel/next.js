@@ -1,4 +1,4 @@
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   return { paths: ['/hello', '/world'], fallback: true }
 }
 

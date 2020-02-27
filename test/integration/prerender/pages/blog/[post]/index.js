@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   return {
     paths: [
       '/blog/post-1',
@@ -20,7 +20,7 @@ export async function unstable_getStaticPaths() {
 let counter = 0
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
   if (params.post === 'post-10') {
     await new Promise(resolve => {
       setTimeout(() => resolve(), 1000)

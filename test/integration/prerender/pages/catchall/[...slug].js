@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router'
 
-export async function unstable_getStaticProps({ params: { slug } }) {
+export async function getStaticProps({ params: { slug } }) {
   if (slug[0] === 'delayby3s') {
     await new Promise(resolve => setTimeout(resolve, 3000))
   }
@@ -13,7 +13,7 @@ export async function unstable_getStaticProps({ params: { slug } }) {
   }
 }
 
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   return {
     paths: [
       { params: { slug: ['first'] } },

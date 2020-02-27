@@ -779,7 +779,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           // For a dynamic SSG page, we did not copy its data exports and only
           // copy the fallback HTML file (if present).
           // We must also copy specific versions of this page as defined by
-          // `unstable_getStaticPaths` (additionalSsgPaths).
+          // `getStaticPaths` (additionalSsgPaths).
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
             await moveExportedPage(route, route, true, 'html')

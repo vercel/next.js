@@ -810,7 +810,7 @@ export default class Server {
         return {
           components,
           query: {
-            ...(components.unstable_getStaticProps
+            ...(components.getStaticProps
               ? { _nextDataReq: query._nextDataReq }
               : query),
             ...(params || {}),
@@ -888,9 +888,9 @@ export default class Server {
     const isLikeServerless =
       typeof components.Component === 'object' &&
       typeof (components.Component as any).renderReqToHTML === 'function'
-    const isSSG = !!components.unstable_getStaticProps
-    const isServerProps = !!components.unstable_getServerSideProps
-    const hasStaticPaths = !!components.unstable_getStaticPaths
+    const isSSG = !!components.getStaticProps
+    const isServerProps = !!components.getServerSideProps
+    const hasStaticPaths = !!components.getStaticPaths
 
     // Toggle whether or not this is a Data request
     const isDataReq = query._nextDataReq
