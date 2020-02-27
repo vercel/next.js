@@ -45,7 +45,7 @@ import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
   ReactSyncScriptsConformanceCheck,
-  DuplicatePolyfillsConformanceTest,
+  DuplicatePolyfillsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -428,6 +428,26 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
+  const conformanceConfig = Object.assign(
+    {
+      ReactSyncScriptsConformanceCheck: {
+        enabled: true,
+      },
+      MinificationConformanceCheck: {
+        enabled: true,
+      },
+      DuplicatePolyfillsConformanceCheck: {
+        enabled: true,
+        BlockedAPIToBePolyfilled: Object.assign(
+          [],
+          ['fetch'],
+          config.conformance?.DuplicatePolyfillsConformanceCheck
+            ?.BlockedAPIToBePolyfilled || []
+        ),
+      },
+    },
+    config.conformance
+  )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? undefined
@@ -848,12 +868,23 @@ export default async function getBaseWebpackConfig(
         !dev &&
         new WebpackConformancePlugin({
           tests: [
-            new MinificationConformanceCheck(),
-            new ReactSyncScriptsConformanceCheck(),
-            new DuplicatePolyfillsConformanceTest({
-              BlockedAPIToBePolyfilled: ['fetch'],
-            }),
-          ],
+            !isServer &&
+              conformanceConfig.MinificationConformanceCheck.enabled &&
+              new MinificationConformanceCheck(),
+            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
+              new ReactSyncScriptsConformanceCheck({
+                AllowedSources:
+                  conformanceConfig.ReactSyncScriptsConformanceCheck
+                    .allowedSources || [],
+              }),
+            !isServer &&
+              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
+              new DuplicatePolyfillsConformanceCheck({
+                BlockedAPIToBePolyfilled:
+                  conformanceConfig.DuplicatePolyfillsConformanceCheck
+                    .BlockedAPIToBePolyfilled,
+              }),
+          ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
