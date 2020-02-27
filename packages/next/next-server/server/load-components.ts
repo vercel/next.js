@@ -16,7 +16,7 @@ import {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from '../../types/index'
+} from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
