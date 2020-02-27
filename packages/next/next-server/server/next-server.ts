@@ -889,7 +889,7 @@ export default class Server {
       typeof components.Component === 'object' &&
       typeof (components.Component as any).renderReqToHTML === 'function'
     const isSSG = !!components.unstable_getStaticProps
-    const isServerProps = !!components.unstable_getServerProps
+    const isServerProps = !!components.unstable_getServerSideProps
     const hasStaticPaths = !!components.unstable_getStaticPaths
 
     // Toggle whether or not this is a Data request

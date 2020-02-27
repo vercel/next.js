@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerProps({ query }) {
+export async function unstable_getServerSideProps({ query }) {
   return {
     props: {
       user: query.user,

@@ -202,7 +202,7 @@ export async function printTreeView(
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
-          )} or ${chalk.cyan('getServerProps')})`,
+          )} or ${chalk.cyan('getServerSideProps')})`,
         ],
         [
           '○',
@@ -636,7 +636,7 @@ export async function isPageStatic(
     const hasGetInitialProps = !!(Comp as any).getInitialProps
     const hasStaticProps = !!mod.unstable_getStaticProps
     const hasStaticPaths = !!mod.unstable_getStaticPaths
-    const hasServerProps = !!mod.unstable_getServerProps
+    const hasServerProps = !!mod.unstable_getServerSideProps
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {

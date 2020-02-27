@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerProps() {
+export async function unstable_getServerSideProps() {
   return {
     props: {
       world: 'world',
