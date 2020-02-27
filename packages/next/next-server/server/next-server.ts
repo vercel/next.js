@@ -6,6 +6,7 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { PrerenderManifest } from '../../build'
 import {
   getRedirectStatus,
   Header,
@@ -292,15 +293,17 @@ export default class Server {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  private _cachedPreviewProps: __ApiPreviewProps | undefined
-  protected getPreviewProps(): __ApiPreviewProps {
-    if (this._cachedPreviewProps) {
-      return this._cachedPreviewProps
+  private _cachedPreviewManifest: PrerenderManifest | undefined
+  protected getPrerenderManifest(): PrerenderManifest {
+    if (this._cachedPreviewManifest) {
+      return this._cachedPreviewManifest
     }
-    return (this._cachedPreviewProps = require(join(
-      this.distDir,
-      PRERENDER_MANIFEST
-    )).preview)
+    const manifest = require(join(this.distDir, PRERENDER_MANIFEST))
+    return (this._cachedPreviewManifest = manifest)
+  }
+
+  protected getPreviewProps(): __ApiPreviewProps {
+    return this.getPrerenderManifest().preview
   }
 
   protected generateRoutes(): {
@@ -870,7 +873,7 @@ export default class Server {
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: any
-  ): Promise<string | null> {
+  ): Promise<string | false | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
@@ -1029,24 +1032,35 @@ export default class Server {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
     let staticPaths: string[] | undefined
+    let hasStaticFallback = false
 
-    if (!isProduction && hasStaticPaths) {
-      const __getStaticPaths = async () => {
-        const paths = await this.staticPathsWorker!.loadStaticPaths(
-          this.distDir,
-          this.buildId,
-          pathname,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return paths
+    if (hasStaticPaths) {
+      if (isProduction) {
+        // `staticPaths` is intentionally set to `undefined` as it should've
+        // been caught above when checking disk data.
+        staticPaths = undefined
+
+        // Read whether or not fallback should exist from the manifest.
+        hasStaticFallback =
+          typeof this.getPrerenderManifest().dynamicRoutes[pathname]
+            .fallback === 'string'
+      } else {
+        const __getStaticPaths = async () => {
+          const paths = await this.staticPathsWorker!.loadStaticPaths(
+            this.distDir,
+            this.buildId,
+            pathname,
+            !this.renderOpts.dev && this._isLikeServerless
+          )
+          return paths
+        }
+        ;({ paths: staticPaths, fallback: hasStaticFallback } = (
+          await withCoalescedInvoke(__getStaticPaths)(
+            `staticPaths-${pathname}`,
+            []
+          )
+        ).value)
       }
-
-      staticPaths = (
-        await withCoalescedInvoke(__getStaticPaths)(
-          `staticPaths-${pathname}`,
-          []
-        )
-      ).value
     }
 
     // const isForcedBlocking =
@@ -1074,6 +1088,16 @@ export default class Server {
       // `getStaticPaths`
       (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
     ) {
+      if (
+        // In development, fall through to render to handle missing
+        // getStaticPaths.
+        (isProduction || staticPaths) &&
+        // When fallback isn't present, abort this render so we 404
+        !hasStaticFallback
+      ) {
+        return false
+      }
+
       let html: string
 
       // Production already emitted the fallback as static HTML.
@@ -1137,13 +1161,16 @@ export default class Server {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
-        return await this.renderToHTMLWithComponents(
+        const result2 = await this.renderToHTMLWithComponents(
           req,
           res,
           pathname,
           result,
           { ...this.renderOpts, amphtml, hasAmp }
         )
+        if (result2 !== false) {
+          return result2
+        }
       }
 
       if (this.dynamicRoutes) {
@@ -1159,7 +1186,7 @@ export default class Server {
             params
           )
           if (result) {
-            return await this.renderToHTMLWithComponents(
+            const result2 = await this.renderToHTMLWithComponents(
               req,
               res,
               dynamicRoute.page,
@@ -1171,6 +1198,9 @@ export default class Server {
                 hasAmp,
               }
             )
+            if (result2 !== false) {
+              return result2
+            }
           }
         }
       }
@@ -1224,9 +1254,9 @@ export default class Server {
       result = await this.findPageComponents('/_error', query)
     }
 
-    let html
+    let html: string | null
     try {
-      html = await this.renderToHTMLWithComponents(
+      const result2 = await this.renderToHTMLWithComponents(
         req,
         res,
         using404Page ? '/404' : '/_error',
@@ -1236,6 +1266,10 @@ export default class Server {
           err,
         }
       )
+      if (result2 === false) {
+        throw new Error('invariant: failed to render error page')
+      }
+      html = result2
     } catch (err) {
       console.error(err)
       res.statusCode = 500

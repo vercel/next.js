@@ -92,6 +92,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]',
   },
+  '/catchall-explicit/another/value': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/another/value.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/first': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/first.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/hello/another': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/hello/another.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/second': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/second.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
@@ -418,6 +438,49 @@ const runTests = (dev = false, looseMode = false) => {
     )
   })
 
+  it('should support prerendered catchall-explicit route (nested)', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/another/value'
+    )
+    const $ = cheerio.load(html)
+
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?another value/)
+  })
+
+  it('should support prerendered catchall-explicit route (single)', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall-explicit/second')
+    const $ = cheerio.load(html)
+
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?second/)
+  })
+
+  if (!looseMode) {
+    it('should 404 for a missing catchall explicit route', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/catchall-explicit/notreturnedinpaths'
+      )
+      expect(res.status).toBe(404)
+      const html = await res.text()
+      expect(html).toMatch(/This page could not be found/)
+    })
+  }
+
   if (dev) {
     // TODO: re-enable when this is supported in dev
     // it('should show error when rewriting to dynamic SSG page', async () => {
@@ -561,6 +624,36 @@ const runTests = (dev = false, looseMode = false) => {
       }
     })
 
+    it('should error on dynamic page without getStaticPaths returning fallback property', async () => {
+      const curPage = join(__dirname, '../pages/temp2/[slug].js')
+      await fs.mkdirp(dirname(curPage))
+      await fs.writeFile(
+        curPage,
+        `
+          export async function unstable_getStaticPaths() {
+            return {
+              paths: []
+            }
+          }
+          export async function unstable_getStaticProps() {
+            return {
+              props: {
+                hello: 'world'
+              }
+            }
+          }
+          export default () => 'oops'
+        `
+      )
+      await waitFor(1000)
+      try {
+        const html = await renderViaHTTP(appPort, '/temp2/hello')
+        expect(html).toMatch(/`fallback` key must be returned from/)
+      } finally {
+        await fs.remove(curPage)
+      }
+    })
+
     it('should not re-call getStaticProps when updating query', async () => {
       const browser = await webdriver(appPort, '/something?hello=world')
       await waitFor(2000)
@@ -645,6 +738,14 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
+            )}\\/catchall\\-explicit\\/(.+?)\\.json$`
+          ),
+          page: '/catchall-explicit/[...slug]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
             )}\\/default-revalidate.json$`
           ),
           page: '/default-revalidate',
@@ -683,7 +784,7 @@ const runTests = (dev = false, looseMode = false) => {
         }
       })
 
-      expect(manifest.version).toBe(1)
+      expect(manifest.version).toBe(2)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
@@ -720,6 +821,16 @@ const runTests = (dev = false, looseMode = false) => {
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+          ),
+        },
+        '/catchall-explicit/[...slug]': {
+          dataRoute: `/_next/data/${buildId}/catchall-explicit/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(
+            '^\\/catchall\\-explicit\\/(.+?)(?:\\/)?$'
           ),
         },
       })

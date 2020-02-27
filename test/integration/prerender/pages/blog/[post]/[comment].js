@@ -8,6 +8,7 @@ export async function unstable_getStaticPaths() {
       '/blog/post-1/comment-1',
       { params: { post: 'post-2', comment: 'comment-2' } },
     ],
+    fallback: true,
   }
 }
 

@@ -52,6 +52,7 @@ type Unstable_getStaticProps = (ctx: {
 
 export type Unstable_getStaticPaths = () => Promise<{
   paths: Array<string | { params: ParsedUrlQuery }>
+  fallback: boolean
 }>
 
 type Unstable_getServerProps = (context: {

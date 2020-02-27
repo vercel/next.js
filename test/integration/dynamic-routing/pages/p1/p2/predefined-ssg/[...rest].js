@@ -12,6 +12,7 @@ export function unstable_getStaticPaths() {
       `/p1/p2/predefined-ssg/one-level`,
       `/p1/p2/predefined-ssg/1st-level/2nd-level`,
     ],
+    fallback: true,
   }
 }
 
