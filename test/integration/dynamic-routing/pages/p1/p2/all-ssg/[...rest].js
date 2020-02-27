@@ -9,6 +9,7 @@ export function unstable_getStaticProps({ params }) {
 export function unstable_getStaticPaths() {
   return {
     paths: [],
+    fallback: true,
   }
 }
 
