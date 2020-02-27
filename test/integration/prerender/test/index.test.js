@@ -438,6 +438,49 @@ const runTests = (dev = false, looseMode = false) => {
     )
   })
 
+  it('should support prerendered catchall-explicit route (nested)', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/another/value'
+    )
+    const $ = cheerio.load(html)
+
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?another value/)
+  })
+
+  it('should support prerendered catchall-explicit route (single)', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall-explicit/second')
+    const $ = cheerio.load(html)
+
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?second/)
+  })
+
+  if (!looseMode) {
+    it('should 404 for a missing catchall explicit route', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/catchall-explicit/notreturnedinpaths'
+      )
+      expect(res.status).toBe(404)
+      const html = await res.text()
+      expect(html).toMatch(/This page could not be found/)
+    })
+  }
+
   if (dev) {
     // TODO: re-enable when this is supported in dev
     // it('should show error when rewriting to dynamic SSG page', async () => {
