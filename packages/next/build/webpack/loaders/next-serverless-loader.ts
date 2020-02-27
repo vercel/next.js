@@ -217,10 +217,15 @@ const nextServerlessLoader: loader.Loader = function() {
 
     const Component = ComponentInfo.default
     export default Component
-    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
+    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
     export const getStaticPaths = ComponentInfo['getStaticPath' + 's']
     export const getServerSideProps = ComponentInfo['getServerSideProp' + 's']
+
+    // kept for detecting legacy exports
+    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
+    export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
+    export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
     ${handleRewrites}

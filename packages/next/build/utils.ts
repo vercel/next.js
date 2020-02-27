@@ -637,11 +637,32 @@ export async function isPageStatic(
     const hasStaticProps = !!mod.getStaticProps
     const hasStaticPaths = !!mod.getStaticPaths
     const hasServerProps = !!mod.getServerSideProps
+    const hasLegacyServerProps = !!mod.unstable_getServerProps
+    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
+    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
       throw new Error(
         `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticPaths) {
+      throw new Error(
+        `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticProps) {
+      throw new Error(
+        `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
+      )
+    }
+
+    if (hasLegacyServerProps) {
+      throw new Error(
+        `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
       )
     }
 
