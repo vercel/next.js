@@ -22,6 +22,7 @@ const ssgExports = new Set([
   `unstable_getStaticProps`,
   `unstable_getStaticPaths`,
   `unstable_getServerProps`,
+  `unstable_getServerSideProps`,
 ])
 
 type PluginState = {
