@@ -539,7 +539,7 @@ export async function buildStaticPaths(
 
   if (typeof staticPathsResult.fallback !== 'boolean') {
     throw new Error(
-      `The \`fallback\` key must be returned from unstable_getStaticProps in ${page}.\n` +
+      `The \`fallback\` key must be returned from unstable_getStaticPaths in ${page}.\n` +
         expectedReturnVal
     )
   }
