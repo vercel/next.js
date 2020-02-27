@@ -624,6 +624,36 @@ const runTests = (dev = false, looseMode = false) => {
       }
     })
 
+    it('should error on dynamic page without getStaticPaths returning fallback property', async () => {
+      const curPage = join(__dirname, '../pages/temp2/[slug].js')
+      await fs.mkdirp(dirname(curPage))
+      await fs.writeFile(
+        curPage,
+        `
+          export async function unstable_getStaticPaths() {
+            return {
+              paths: []
+            }
+          }
+          export async function unstable_getStaticProps() {
+            return {
+              props: {
+                hello: 'world'
+              }
+            }
+          }
+          export default () => 'oops'
+        `
+      )
+      await waitFor(1000)
+      try {
+        const html = await renderViaHTTP(appPort, '/temp2/hello')
+        expect(html).toMatch(/`fallback` key must be returned from/)
+      } finally {
+        await fs.remove(curPage)
+      }
+    })
+
     it('should not re-call getStaticProps when updating query', async () => {
       const browser = await webdriver(appPort, '/something?hello=world')
       await waitFor(2000)
