@@ -16,6 +16,12 @@ const ssgExports = new Set([
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
   EXPORT_NAME_GET_SERVER_PROPS,
+
+  // legacy methods added so build doesn't fail from importing
+  // server-side only methods
+  `unstable_getStaticProps`,
+  `unstable_getStaticPaths`,
+  `unstable_getServerProps`,
 ])
 
 type PluginState = {
