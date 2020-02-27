@@ -18,6 +18,7 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
+  initNextServerScript,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -308,7 +309,9 @@ const runTests = (isDev = false) => {
 
   it('should handle api rewrite with param successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello-param/hello')
-    expect(JSON.parse(data)).toEqual({ query: { name: 'hello' } })
+    expect(JSON.parse(data)).toEqual({
+      query: { name: 'hello', hello: 'hello' },
+    })
   })
 
   it('should handle encoded value in the pathname correctly', async () => {
@@ -593,9 +596,14 @@ const runTests = (isDev = false) => {
             source: '/api-hello-regex/(.*)',
           },
           {
-            destination: '/api/hello?name=:name',
+            destination: '/api/hello?hello=:name',
             regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
             source: '/api-hello-param/:name',
+          },
+          {
+            destination: '/api/dynamic/:name?hello=:name',
+            regex: normalizeRegEx('^\\/api-dynamic-param(?:\\/([^\\/]+?))$'),
+            source: '/api-dynamic-param/:name',
           },
           {
             destination: '/with-params',
@@ -607,6 +615,10 @@ const runTests = (isDev = false) => {
           {
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          {
+            page: '/api/dynamic/[slug]',
+            regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
           },
           {
             page: '/blog/[post]',
@@ -723,10 +735,77 @@ describe('Custom routes', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
-      await killApp(app)
       await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
+      await killApp(app)
     })
 
     runTests()
+  })
+
+  describe('raw serverless mode', () => {
+    beforeAll(async () => {
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace(/\/\/ target/, 'target'),
+        'utf8'
+      )
+      await nextBuild(appDir)
+
+      appPort = await findPort()
+      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
+        ...process.env,
+        PORT: appPort,
+      })
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
+      await killApp(app)
+    })
+
+    it('should apply rewrites in lambda correctly for page route', async () => {
+      const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
+      const data = JSON.parse(
+        cheerio
+          .load(html)('p')
+          .text()
+      )
+      expect(data).toEqual({
+        first: 'first',
+        second: 'second',
+        section: 'first',
+        name: 'second',
+      })
+    })
+
+    it('should apply rewrites in lambda correctly for dynamic route', async () => {
+      const html = await renderViaHTTP(appPort, '/blog/post-1')
+      expect(html).toContain('post-2')
+    })
+
+    it('should apply rewrites in lambda correctly for API route', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(appPort, '/api-hello-param/first')
+      )
+      expect(data).toEqual({
+        query: {
+          name: 'first',
+          hello: 'first',
+        },
+      })
+    })
+
+    it('should apply rewrites in lambda correctly for dynamic API route', async () => {
+      const data = JSON.parse(
+        await renderViaHTTP(appPort, '/api-dynamic-param/first')
+      )
+      expect(data).toEqual({
+        query: {
+          slug: 'first',
+          name: 'first',
+          hello: 'first',
+        },
+      })
+    })
   })
 })

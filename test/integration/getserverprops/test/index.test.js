@@ -23,73 +23,74 @@ const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 let buildId
+let stderr
 
-const expectedManifestRoutes = () => ({
-  '/something': {
-    page: '/something',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
-    ),
-  },
-  '/blog/[post]': {
-    page: '/blog/[post]',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^/]+?)\\.json$`
-    ),
-  },
-  '/': {
-    page: '/',
+const expectedManifestRoutes = () => [
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
     ),
+    page: '/',
   },
-  '/default-revalidate': {
-    page: '/default-revalidate',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
-    ),
-  },
-  '/catchall/[...path]': {
-    page: '/catchall/[...path]',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
-    ),
-  },
-  '/blog': {
-    page: '/blog',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
-    ),
-  },
-  '/blog/[post]/[comment]': {
-    page: '/blog/[post]/[comment]',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/blog\\/([^/]+?)\\/([^/]+?)\\.json$`
-    ),
-  },
-  '/user/[user]/profile': {
-    page: '/user/[user]/profile',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/user\\/([^/]+?)\\/profile\\.json$`
-    ),
-  },
-  '/another': {
-    page: '/another',
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
     ),
+    page: '/another',
   },
-  '/invalid-keys': {
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
+    ),
+    page: '/blog',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
+    ),
+    page: '/blog/[post]',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
+    ),
+    page: '/blog/[post]/[comment]',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
+    ),
+    page: '/catchall/[...path]',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
+    ),
+    page: '/default-revalidate',
+  },
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys.json$`
     ),
     page: '/invalid-keys',
   },
-})
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
+    ),
+    page: '/something',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
+    ),
+    page: '/user/[user]/profile',
+  },
+]
 
 const navigateTest = (dev = false) => {
   it('should navigate between pages successfully', async () => {
@@ -208,7 +209,10 @@ const runTests = (dev = false) => {
     expect(JSON.parse(query)).toEqual({ path: ['first'] })
 
     const data = JSON.parse(
-      await renderViaHTTP(appPort, `/_next/data/${buildId}/catchall/first.json`)
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${escapeRegex(buildId)}/catchall/first.json`
+      )
     )
 
     expect(data.pageProps.params).toEqual({ path: ['first'] })
@@ -216,7 +220,10 @@ const runTests = (dev = false) => {
 
   it('should return data correctly', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, `/_next/data/${buildId}/something.json`)
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${escapeRegex(buildId)}/something.json`
+      )
     )
     expect(data.pageProps.world).toBe('world')
   })
@@ -225,7 +232,7 @@ const runTests = (dev = false) => {
     const data = JSON.parse(
       await renderViaHTTP(
         appPort,
-        `/_next/data/${buildId}/something.json?another=thing`
+        `/_next/data/${escapeRegex(buildId)}/something.json?another=thing`
       )
     )
     expect(data.pageProps.query.another).toBe('thing')
@@ -233,7 +240,10 @@ const runTests = (dev = false) => {
 
   it('should return data correctly for dynamic page', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-1.json`)
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${escapeRegex(buildId)}/blog/post-1.json`
+      )
     )
     expect(data.pageProps.post).toBe('post-1')
   })
@@ -322,6 +332,31 @@ const runTests = (dev = false) => {
   })
 
   if (dev) {
+    it('should not show warning from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
+      await fs.writeFile(
+        urlPropPage,
+        `
+        export async function unstable_getServerProps() {
+          return {
+            props: {
+              url: 'something'
+            }
+          }
+        }
+
+        export default ({ url }) => <p>url: {url}</p>
+      `
+      )
+
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(stderr).not.toMatch(
+        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+      )
+      expect(html).toMatch(/url:.*?something/)
+    })
+
     it('should show error for extra keys returned from getServerProps', async () => {
       const html = await renderViaHTTP(appPort, '/invalid-keys')
       expect(html).toContain(
@@ -341,15 +376,14 @@ const runTests = (dev = false) => {
     })
 
     it('should output routes-manifest correctly', async () => {
-      const { serverPropsRoutes } = await fs.readJSON(
+      const { dataRoutes } = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
-      for (const key of Object.keys(serverPropsRoutes)) {
-        const val = serverPropsRoutes[key].dataRouteRegex
-        serverPropsRoutes[key].dataRouteRegex = normalizeRegEx(val)
+      for (const route of dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
       }
 
-      expect(serverPropsRoutes).toEqual(expectedManifestRoutes())
+      expect(dataRoutes).toEqual(expectedManifestRoutes())
     })
 
     it('should set no-cache, no-store, must-revalidate header', async () => {
@@ -365,8 +399,13 @@ const runTests = (dev = false) => {
 describe('unstable_getServerProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
@@ -382,8 +421,13 @@ describe('unstable_getServerProps', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
