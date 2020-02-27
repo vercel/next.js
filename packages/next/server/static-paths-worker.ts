@@ -28,13 +28,13 @@ export async function loadStaticPaths(
     serverless
   )
 
-  if (!components.unstable_getStaticPaths) {
+  if (!components.getStaticPaths) {
     // we shouldn't get to this point since the worker should
     // only be called for SSG pages with getStaticPaths
     throw new Error(
-      `Invariant: failed to load page with unstable_getStaticPaths for ${pathname}`
+      `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
 
-  return buildStaticPaths(pathname, components.unstable_getStaticPaths)
+  return buildStaticPaths(pathname, components.getStaticPaths)
 }

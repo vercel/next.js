@@ -496,7 +496,7 @@ const runTests = (dev = false, looseMode = false) => {
       await fs.writeFile(
         urlPropPage,
         `
-        export async function unstable_getStaticProps() {
+        export async function getStaticProps() {
           return {
             props: {
               url: 'something'
@@ -603,7 +603,7 @@ const runTests = (dev = false, looseMode = false) => {
       await fs.writeFile(
         curPage,
         `
-          export async function unstable_getStaticProps() {
+          export async function getStaticProps() {
             return {
               props: {
                 hello: 'world'
@@ -617,7 +617,7 @@ const runTests = (dev = false, looseMode = false) => {
       try {
         const html = await renderViaHTTP(appPort, '/temp/hello')
         expect(html).toMatch(
-          /unstable_getStaticPaths is required for dynamic SSG pages and is missing for/
+          /getStaticPaths is required for dynamic SSG pages and is missing for/
         )
       } finally {
         await fs.remove(curPage)
@@ -630,12 +630,12 @@ const runTests = (dev = false, looseMode = false) => {
       await fs.writeFile(
         curPage,
         `
-          export async function unstable_getStaticPaths() {
+          export async function getStaticPaths() {
             return {
               paths: []
             }
           }
-          export async function unstable_getStaticProps() {
+          export async function getStaticProps() {
             return {
               props: {
                 hello: 'world'
@@ -1013,7 +1013,7 @@ describe('SSG Prerender', () => {
       await fs.writeFile(
         brokenPage,
         `
-        export async function unstable_getStaticProps() {
+        export async function getStaticProps() {
           return {
             hello: 'world'
           }
@@ -1028,7 +1028,7 @@ describe('SSG Prerender', () => {
         'Additional keys were returned from `getStaticProps`'
       )
       expect(stderr).not.toContain(
-        'You can not use getInitialProps with unstable_getStaticProps'
+        'You can not use getInitialProps with getStaticProps'
       )
     })
   })

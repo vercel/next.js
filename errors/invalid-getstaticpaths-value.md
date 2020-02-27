@@ -1,15 +1,15 @@
-# Invalid unstable_getStaticPaths Return Value
+# Invalid getStaticPaths Return Value
 
 #### Why This Error Occurred
 
-In one of the page's `unstable_getStaticPaths` the return value had the incorrect shape.
+In one of the page's `getStaticPaths` the return value had the incorrect shape.
 
 #### Possible Ways to Fix It
 
-Make sure to return the following shape from `unstable_getStaticPaths`:
+Make sure to return the following shape from `getStaticPaths`:
 
 ```js
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   return {
     paths: Array<string | { params: { [key: string]: string } }>,
     fallback: boolean
@@ -23,7 +23,7 @@ There are two required properties:
    - You may return a [String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String) or an [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) that explicitly defines all URL `params`.
      ```js
      // pages/blog/[slug].js
-     export async function unstable_getStaticPaths() {
+     export async function getStaticPaths() {
        return {
          paths: [
            // String variant:

@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
   return {
     props: {
       slugs: ['post-1', 'post-2'],

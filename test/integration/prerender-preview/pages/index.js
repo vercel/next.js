@@ -1,4 +1,4 @@
-export function unstable_getStaticProps({ preview, previewData }) {
+export function getStaticProps({ preview, previewData }) {
   return { props: { hasProps: true, preview, previewData } }
 }
 
