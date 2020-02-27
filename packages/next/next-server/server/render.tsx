@@ -275,7 +275,7 @@ export async function renderToHTML(
     ErrorDebug,
     unstable_getStaticProps,
     unstable_getStaticPaths,
-    unstable_getServerProps,
+    unstable_getServerSideProps,
     isDataReq,
     params,
     previewProps,
@@ -323,7 +323,7 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSpr &&
-    !unstable_getServerProps
+    !unstable_getServerSideProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -349,11 +349,11 @@ export async function renderToHTML(
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (hasPageGetInitialProps && unstable_getServerProps) {
+  if (hasPageGetInitialProps && unstable_getServerSideProps) {
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (unstable_getServerProps && isSpr) {
+  if (unstable_getServerSideProps && isSpr) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
@@ -529,8 +529,8 @@ export async function renderToHTML(
     console.error(err)
   }
 
-  if (unstable_getServerProps && !isFallback) {
-    const data = await unstable_getServerProps({
+  if (unstable_getServerSideProps && !isFallback) {
+    const data = await unstable_getServerSideProps({
       params,
       query,
       req,
@@ -540,7 +540,7 @@ export async function renderToHTML(
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
     if (invalidKeys.length) {
-      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
+      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
     }
 
     props.pageProps = data.props
@@ -549,7 +549,7 @@ export async function renderToHTML(
 
   if (
     !isSpr && // we only show this warning for legacy pages
-    !unstable_getServerProps &&
+    !unstable_getServerSideProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
   ) {
@@ -560,10 +560,10 @@ export async function renderToHTML(
   }
 
   // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerProps if not this can be removed
+  // _app's getInitialProps for getServerSideProps if not this can be removed
   if (isDataReq) return props
 
-  // We don't call getStaticProps or getServerProps while generating
+  // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
   if (isFallback) {
     props.pageProps = {}

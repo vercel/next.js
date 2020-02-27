@@ -48,7 +48,7 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
         {...pageProps}
         {
           // we don't add the legacy URL prop if it's using non-legacy
-          // methods like getStaticProps and getServerProps
+          // methods like getStaticProps and getServerSideProps
           ...(!((Component as any).__N_SSG || (Component as any).__N_SSP)
             ? { url: createUrl(router) }
             : {})

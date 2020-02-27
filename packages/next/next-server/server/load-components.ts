@@ -21,13 +21,13 @@ export function interopDefault(mod: any) {
 function addComponentPropsId(
   Component: any,
   getStaticProps: any,
-  getServerProps: any
+  getServerSideProps: any
 ) {
   // Mark the component with the SSG or SSP id here since we don't run
   // the SSG babel transform for server mode
   if (getStaticProps) {
     Component[STATIC_PROPS_ID] = true
-  } else if (getServerProps) {
+  } else if (getServerSideProps) {
     Component[SERVER_PROPS_ID] = true
   }
 }
@@ -55,7 +55,7 @@ export type Unstable_getStaticPaths = () => Promise<{
   fallback: boolean
 }>
 
-type Unstable_getServerProps = (context: {
+type Unstable_getServerSideProps = (context: {
   params: ParsedUrlQuery | undefined
   req: IncomingMessage
   res: ServerResponse
@@ -72,7 +72,7 @@ export type LoadComponentsReturnType = {
   App: AppType
   unstable_getStaticProps?: Unstable_getStaticProps
   unstable_getStaticPaths?: Unstable_getStaticPaths
-  unstable_getServerProps?: Unstable_getServerProps
+  unstable_getServerSideProps?: Unstable_getServerSideProps
 }
 
 export async function loadComponents(
@@ -86,13 +86,13 @@ export async function loadComponents(
     const {
       unstable_getStaticProps,
       unstable_getStaticPaths,
-      unstable_getServerProps,
+      unstable_getServerSideProps,
     } = Component
 
     addComponentPropsId(
       Component,
       unstable_getStaticProps,
-      unstable_getServerProps
+      unstable_getServerSideProps
     )
 
     return {
@@ -100,7 +100,7 @@ export async function loadComponents(
       pageConfig: Component.config || {},
       unstable_getStaticProps,
       unstable_getStaticPaths,
-      unstable_getServerProps,
+      unstable_getServerSideProps,
     } as LoadComponentsReturnType
   }
   const documentPath = join(
@@ -142,7 +142,7 @@ export async function loadComponents(
   ])
 
   const {
-    unstable_getServerProps,
+    unstable_getServerSideProps,
     unstable_getStaticProps,
     unstable_getStaticPaths,
   } = ComponentMod
@@ -150,7 +150,7 @@ export async function loadComponents(
   addComponentPropsId(
     Component,
     unstable_getStaticProps,
-    unstable_getServerProps
+    unstable_getServerSideProps
   )
 
   return {
@@ -161,7 +161,7 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
-    unstable_getServerProps,
+    unstable_getServerSideProps,
     unstable_getStaticProps,
     unstable_getStaticPaths,
   }

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 
 // eslint-disable-next-line camelcase
-export async function unstable_getServerProps({ params }) {
+export async function unstable_getServerSideProps({ params }) {
   if (params.post === 'post-10') {
     await new Promise(resolve => {
       setTimeout(() => resolve(), 1000)
