@@ -546,6 +546,19 @@ export async function renderToHTML(
     props.pageProps = data.props
     ;(renderOpts as any).pageData = props
   }
+
+  if (
+    !isSpr && // we only show this warning for legacy pages
+    !unstable_getServerProps &&
+    process.env.NODE_ENV !== 'production' &&
+    Object.keys(props?.pageProps || {}).includes('url')
+  ) {
+    console.warn(
+      `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
+        `See more info here: https://err.sh/zeit/next.js/reserved-page-prop`
+    )
+  }
+
   // We only need to do this if we want to support calling
   // _app's getInitialProps for getServerProps if not this can be removed
   if (isDataReq) return props

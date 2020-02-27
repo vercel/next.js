@@ -428,6 +428,31 @@ const runTests = (dev = false, looseMode = false) => {
     //   )
     // })
 
+    it('should not show warning from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
+      await fs.writeFile(
+        urlPropPage,
+        `
+        export async function unstable_getStaticProps() {
+          return {
+            props: {
+              url: 'something'
+            }
+          }
+        }
+
+        export default ({ url }) => <p>url: {url}</p>
+      `
+      )
+
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(stderr).not.toMatch(
+        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+      )
+      expect(html).toMatch(/url:.*?something/)
+    })
+
     it('should always show fallback for page not in getStaticPaths', async () => {
       const html = await renderViaHTTP(appPort, '/blog/post-321')
       const $ = cheerio.load(html)
@@ -563,6 +588,83 @@ const runTests = (dev = false, looseMode = false) => {
         expect(initialHtml).toMatch(/hello.*?world/)
       })
     }
+
+    it('outputs dataRoutes in routes-manifest correctly', async () => {
+      const { dataRoutes } = JSON.parse(
+        await fs.readFile(join(appDir, '.next/routes-manifest.json'), 'utf8')
+      )
+
+      for (const route of dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+      }
+
+      expect(dataRoutes).toEqual([
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
+          ),
+          page: '/',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
+          ),
+          page: '/another',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
+          ),
+          page: '/blog',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blog\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/blog/[post]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/blog/[post]/[comment]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/catchall\\/(.+?)\\.json$`
+          ),
+          page: '/catchall/[...slug]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/default-revalidate.json$`
+          ),
+          page: '/default-revalidate',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
+          ),
+          page: '/something',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
+          ),
+          page: '/user/[user]/profile',
+        },
+      ])
+    })
 
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = JSON.parse(
