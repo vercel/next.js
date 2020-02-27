@@ -92,6 +92,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]',
   },
+  '/catchall-explicit/another/value': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/another/value.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/first': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/first.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/hello/another': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/hello/another.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/second': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/second.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
@@ -645,6 +665,14 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
+            )}\\/catchall\\-explicit\\/(.+?)\\.json$`
+          ),
+          page: '/catchall-explicit/[...slug]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
             )}\\/default-revalidate.json$`
           ),
           page: '/default-revalidate',
@@ -720,6 +748,16 @@ const runTests = (dev = false, looseMode = false) => {
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+          ),
+        },
+        '/catchall-explicit/[...slug]': {
+          dataRoute: `/_next/data/${buildId}/catchall-explicit/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${buildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(
+            '^\\/catchall\\-explicit\\/(.+?)(?:\\/)?$'
           ),
         },
       })
