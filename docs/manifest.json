@@ -149,12 +149,7 @@
         },
         {
           "title": "Upgrade Guide",
-          "routes": [
-            {
-              "title": "From Version 8",
-              "path": "/docs/upgrading/from-v8.md"
-            }
-          ]
+          "path": "/docs/faq.md"
         },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]

@@ -1,10 +1,12 @@
 ---
-description: Learn how to upgrade Next.js from version 8 to 9.0.x.
+description: Learn how to upgrade Next.js.
 ---
 
-# Upgrading Next.js from version 8 to 9.0.x
+# Upgrade Guide
 
-## Preamble
+## Upgrading from version 8 to 9.0.x
+
+### Preamble
 
 #### Production Deployment on ZEIT Now v2
 
@@ -41,7 +43,7 @@ class MyApp extends App {
 }
 ```
 
-## Breaking Changes
+### Breaking Changes
 
 #### `@zeit/next-typescript` is no longer necessary
 
