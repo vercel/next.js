@@ -13,7 +13,7 @@ https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-apollo-server-and-client)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-apollo-server-and-client-typescript)
 
 ## How to use
 
@@ -22,7 +22,7 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example api-routes-apollo-server-and-client-typescript api-routes-apollo-server-and-client-app-typescript
+npm init next-app --example api-routes-apollo-server-and-client-typescript api-routes-apollo-server-and-client-typescript-app
 # or
 yarn create next-app --example api-routes-apollo-server-and-client-typescript api-routes-apollo-server-and-client-typescript-app
 ```
