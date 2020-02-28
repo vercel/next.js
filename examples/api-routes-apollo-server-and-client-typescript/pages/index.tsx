@@ -15,14 +15,15 @@ const ViewerQuery = gql`
 
 const Index = () => {
   const {
-    data: { viewer }, loading, error,
+    data, loading, error,
   } = useQuery(ViewerQuery)
 
   if (loading || error) {
     return null;
   }
 
-  if (viewer) {
+  if (data) {
+    const { viewer } = data;
     return (
       <div>
         You're signed in as {viewer.name} and you're {viewer.status} goto{' '}
