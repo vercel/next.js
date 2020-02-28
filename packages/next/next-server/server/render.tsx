@@ -144,7 +144,7 @@ export type RenderOpts = LoadComponentsReturnType & {
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
   params?: ParsedUrlQuery
-  previewProps?: __ApiPreviewProps
+  previewProps: __ApiPreviewProps
   pageData?: any
   revalidate?: any
 }
@@ -467,10 +467,7 @@ export async function renderToHTML(
       // Reads of this are cached on the `req` object, so this should resolve
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
-      if (!previewProps) {
-        throw new Error('`previewProps` should have been passed for SPR')
-      }
-      const previewData = tryGetPreviewData(req, res, previewProps)
+      const previewData = tryGetPreviewData(req, res, previewProps!)
       const data = await getStaticProps!({
         ...(pageIsDynamic
           ? {

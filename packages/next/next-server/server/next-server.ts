@@ -54,7 +54,6 @@ import { isBlockedPage } from './utils'
 import {
   getRequestHandler,
   prepareServerlessUrl,
-  PartialRenderOpts,
   RequestHandler,
 } from './request-handler'
 
@@ -67,6 +66,19 @@ type Middleware = (
   res: ServerResponse,
   next: (err?: Error) => void
 ) => void
+
+type PartialRenderOpts = {
+  poweredByHeader: boolean
+  staticMarkup: boolean
+  buildId: string
+  generateEtags: boolean
+  runtimeConfig?: { [key: string]: any }
+  assetPrefix?: string
+  canonicalBase: string
+  documentMiddlewareEnabled: boolean
+  hasCssMode: boolean
+  dev?: boolean
+}
 
 export type ServerConstructor = {
   /**
@@ -786,14 +798,16 @@ export default class Server {
         buildId: this.buildId,
         distDir: this.distDir,
         isLikeServerless: this._isLikeServerless,
-        getPreviewProps: this.getPreviewProps.bind(this),
-        getStaticPaths: this.getStaticPaths.bind(this),
+        getStaticPaths: pathname => this.getStaticPaths(pathname),
       },
       {
         params: params || {},
         pathname,
         query: query || {},
-        renderOpts,
+        renderOpts: {
+          ...renderOpts,
+          previewProps: this.getPreviewProps(),
+        },
       }
     )
   }
