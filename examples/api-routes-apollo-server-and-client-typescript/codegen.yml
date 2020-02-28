@@ -1,0 +1,9 @@
+overwrite: true
+schema: "./apollo/type-defs.ts"
+documents: "pages/**/*.tsx"
+generates:
+  generated/graphql.ts:
+    plugins:
+      - "typescript"
+      - "typescript-operations"
+      - "typescript-resolvers"

@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "codegen": "graphql-codegen --config codegen.yml"
   },
   "dependencies": {
     "@apollo/react-common": "3.1.3",
@@ -26,7 +27,11 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@graphql-codegen/cli": "^1.12.2",
+    "@graphql-codegen/typescript": "1.12.2",
+    "@graphql-codegen/typescript-operations": "1.12.2",
     "@types/react": "^16.9.23",
-    "typescript": "^3.8.2"
+    "typescript": "^3.8.2",
+    "@graphql-codegen/typescript-resolvers": "1.12.2"
   }
 }

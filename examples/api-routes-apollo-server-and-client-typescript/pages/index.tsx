@@ -2,9 +2,10 @@ import { withApollo } from '../apollo/client'
 import gql from 'graphql-tag'
 import Link from 'next/link'
 import { useQuery } from '@apollo/react-hooks'
+import { ViewerQuery } from '../generated/graphql'
 
 const ViewerQuery = gql`
-  query ViewerQuery {
+  query Viewer {
     viewer {
       id
       name
@@ -14,16 +15,14 @@ const ViewerQuery = gql`
 `
 
 const Index = () => {
-  const {
-    data, loading, error,
-  } = useQuery(ViewerQuery)
+  const { data, loading, error } = useQuery<ViewerQuery>(ViewerQuery)
 
   if (loading || error) {
-    return null;
+    return null
   }
 
   if (data) {
-    const { viewer } = data;
+    const { viewer } = data
     return (
       <div>
         You're signed in as {viewer.name} and you're {viewer.status} goto{' '}
