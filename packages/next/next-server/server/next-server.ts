@@ -54,9 +54,9 @@ import { isBlockedPage } from './utils'
 import {
   getRequestHandler,
   prepareServerlessUrl,
+  PartialRenderOpts,
   RequestHandler,
 } from './request-handler'
-import { RenderOpts } from './render'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -790,7 +790,7 @@ export default class Server {
     params?: Params
     pathname: string
     query?: ParsedUrlQuery
-    renderOpts: RenderOpts
+    renderOpts: PartialRenderOpts
   }): Promise<RequestHandler | null> {
     return await getRequestHandler(
       {

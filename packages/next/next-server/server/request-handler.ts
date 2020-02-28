@@ -6,18 +6,31 @@ import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { isDynamicRoute } from '../lib/router/utils'
 import { isResSent } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
+import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
 import { Params } from './router'
 import { getFallback, getSprCache, setSprCache } from './spr-cache'
 import { RenderOpts } from './render'
 
+export type PartialRenderOpts = {
+  poweredByHeader: boolean
+  staticMarkup: boolean
+  buildId: string
+  generateEtags: boolean
+  runtimeConfig?: { [key: string]: any }
+  assetPrefix?: string
+  canonicalBase: string
+  documentMiddlewareEnabled: boolean
+  hasCssMode: boolean
+  dev?: boolean
+}
+
 export type RequestContext = {
   pathname: string
   query: ParsedUrlQuery
   params: Params
-  renderOpts: RenderOpts
+  renderOpts: PartialRenderOpts
 }
 
 export type ServerContext = {
@@ -58,25 +71,20 @@ export async function getRequestHandler(
         !renderOpts.dev && isLikeServerless
       )
       return async (req, res) =>
-        await renderToHTMLWithComponents(
-          req,
-          res,
-          serverCtx,
-          {
-            ...requestCtx,
-            query: {
-              ...(components.getStaticProps
-                ? { _nextDataReq: query._nextDataReq }
-                : query),
-              ...params,
-            },
-            renderOpts: {
-              ...renderOpts,
-              params,
-            },
+        await renderToHTMLWithComponents(req, res, serverCtx, {
+          ...requestCtx,
+          query: {
+            ...(components.getStaticProps
+              ? { _nextDataReq: query._nextDataReq }
+              : query),
+            ...params,
           },
-          components
-        )
+          renderOpts: {
+            ...renderOpts,
+            ...components,
+            params,
+          },
+        })
     } catch (err) {
       if (err.code !== 'ENOENT') throw err
     }
@@ -87,27 +95,42 @@ export async function getRequestHandler(
 async function renderToHTMLWithComponents(
   req: IncomingMessage,
   res: ServerResponse,
-  { buildId, getPreviewProps, getStaticPaths }: ServerContext,
-  { pathname, query, renderOpts }: RequestContext,
-  components: LoadComponentsReturnType
+  {
+    buildId,
+    getPreviewProps,
+    getStaticPaths: getStaticPathsHelper,
+  }: ServerContext,
+  {
+    pathname,
+    query,
+    renderOpts,
+  }: RequestContext & {
+    renderOpts: RenderOpts
+  }
 ): Promise<string | false | null> {
   // we need to ensure the status code if /404 is visited directly
   if (pathname === '/404') {
     res.statusCode = 404
   }
 
+  const {
+    getStaticProps,
+    getServerSideProps,
+    getStaticPaths,
+    Component,
+  } = renderOpts
   // handle static page
-  if (typeof components.Component === 'string') {
-    return components.Component
+  if (typeof Component === 'string') {
+    return Component
   }
 
   // check request state
   const isLikeServerless =
-    typeof components.Component === 'object' &&
-    typeof (components.Component as any).renderReqToHTML === 'function'
-  const isSSG = !!components.getStaticProps
-  const isServerProps = !!components.getServerSideProps
-  const hasStaticPaths = !!components.getStaticPaths
+    typeof Component === 'object' &&
+    typeof (Component as any).renderReqToHTML === 'function'
+  const isSSG = !!getStaticProps
+  const isServerProps = !!getServerSideProps
+  const hasStaticPaths = !!getStaticPaths
 
   // Toggle whether or not this is a Data request
   const isDataReq = !!query._nextDataReq
@@ -129,7 +152,7 @@ async function renderToHTMLWithComponents(
     // handle serverless
     if (isLikeServerless) {
       if (isDataReq) {
-        const renderResult = await (components.Component as any).renderReqToHTML(
+        const renderResult = await (Component as any).renderReqToHTML(
           req,
           res,
           true
@@ -149,12 +172,11 @@ async function renderToHTMLWithComponents(
         return null
       }
       prepareServerlessUrl(req, query)
-      return (components.Component as any).renderReqToHTML(req, res)
+      return (Component as any).renderReqToHTML(req, res)
     }
 
     if (isDataReq && isServerProps) {
       const props = await renderToHTML(req, res, pathname, query, {
-        ...components,
         ...renderOpts,
         isDataReq,
       })
@@ -173,7 +195,6 @@ async function renderToHTMLWithComponents(
     }
 
     return renderToHTML(req, res, pathname, query, {
-      ...components,
       ...renderOpts,
     })
   }
@@ -227,18 +248,13 @@ async function renderToHTMLWithComponents(
     let renderResult
     // handle serverless
     if (isLikeServerless) {
-      renderResult = await (components.Component as any).renderReqToHTML(
-        req,
-        res,
-        true
-      )
+      renderResult = await (Component as any).renderReqToHTML(req, res, true)
 
       html = renderResult.html
       pageData = renderResult.renderOpts.pageData
       sprRevalidate = renderResult.renderOpts.revalidate
     } else {
       const _renderOpts = {
-        ...components,
         ...renderOpts,
       }
       renderResult = await renderToHTML(req, res, pathname, query, _renderOpts)
@@ -256,7 +272,7 @@ async function renderToHTMLWithComponents(
   const didRespond = isResSent(res)
 
   const { staticPaths, hasStaticFallback } = hasStaticPaths
-    ? await getStaticPaths(pathname)
+    ? await getStaticPathsHelper(pathname)
     : { staticPaths: undefined, hasStaticFallback: false }
 
   // const isForcedBlocking =
@@ -305,10 +321,9 @@ async function renderToHTMLWithComponents(
       query.__nextFallback = 'true'
       if (isLikeServerless) {
         prepareServerlessUrl(req, query)
-        html = await (components.Component as any).renderReqToHTML(req, res)
+        html = await (Component as any).renderReqToHTML(req, res)
       } else {
         html = (await renderToHTML(req, res, pathname, query, {
-          ...components,
           ...renderOpts,
         })) as string
       }
