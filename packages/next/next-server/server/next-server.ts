@@ -823,6 +823,47 @@ export default class Server {
     return null
   }
 
+  private async getStaticPaths(
+    pathname: string
+  ): Promise<{
+    staticPaths: string[] | undefined
+    hasStaticFallback: boolean
+  }> {
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+    let staticPaths: string[] | undefined
+    let hasStaticFallback = false
+
+    if (!this.renderOpts.dev) {
+      // `staticPaths` is intentionally set to `undefined` as it should've
+      // been caught when checking disk data.
+      staticPaths = undefined
+
+      // Read whether or not fallback should exist from the manifest.
+      hasStaticFallback =
+        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
+        'string'
+    } else {
+      const __getStaticPaths = async () => {
+        const paths = await this.staticPathsWorker!.loadStaticPaths(
+          this.distDir,
+          this.buildId,
+          pathname,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+        return paths
+      }
+      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
+        await withCoalescedInvoke(__getStaticPaths)(
+          `staticPaths-${pathname}`,
+          []
+        )
+      ).value)
+    }
+
+    return { staticPaths, hasStaticFallback }
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -994,39 +1035,9 @@ export default class Server {
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
 
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-    let staticPaths: string[] | undefined
-    let hasStaticFallback = false
-
-    if (hasStaticPaths) {
-      if (isProduction) {
-        // `staticPaths` is intentionally set to `undefined` as it should've
-        // been caught above when checking disk data.
-        staticPaths = undefined
-
-        // Read whether or not fallback should exist from the manifest.
-        hasStaticFallback =
-          typeof this.getPrerenderManifest().dynamicRoutes[pathname]
-            .fallback === 'string'
-      } else {
-        const __getStaticPaths = async () => {
-          const paths = await this.staticPathsWorker!.loadStaticPaths(
-            this.distDir,
-            this.buildId,
-            pathname,
-            !this.renderOpts.dev && this._isLikeServerless
-          )
-          return paths
-        }
-        ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-          await withCoalescedInvoke(__getStaticPaths)(
-            `staticPaths-${pathname}`,
-            []
-          )
-        ).value)
-      }
-    }
+    const { staticPaths, hasStaticFallback } = hasStaticPaths
+      ? await this.getStaticPaths(pathname)
+      : { staticPaths: undefined, hasStaticFallback: false }
 
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
