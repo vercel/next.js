@@ -17,8 +17,8 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
 function addBasePath(path: string): string {
-  // @ts-ignore variable is always a string
-  const p: string = process.env.__NEXT_ROUTER_BASEPATH
+  // variable is always a string
+  const p = process.env.__NEXT_ROUTER_BASEPATH as string
   return path.indexOf(p) !== 0 ? p + path : path
 }
 
@@ -51,6 +51,10 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
   >
 
+export type PrefetchOptions = {
+  priority?: boolean
+}
+
 type RouteInfo = {
   Component: ComponentType
   props?: any
@@ -63,6 +67,8 @@ type Subscription = (data: RouteInfo, App?: ComponentType) => void
 type BeforePopStateCallback = (state: any) => boolean
 
 type ComponentLoadCancel = (() => void) | null
+
+type HistoryMethod = 'replaceState' | 'pushState'
 
 function fetchNextData(
   pathname: string,
@@ -234,8 +240,8 @@ export default class Router implements BaseRouter {
     if (
       e.state &&
       this.isSsr &&
-      e.state.url === this.pathname &&
-      e.state.as === this.asPath
+      e.state.as === this.asPath &&
+      parse(e.state.url).pathname === this.pathname
     ) {
       return
     }
@@ -309,7 +315,12 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  change(method: string, _url: Url, _as: Url, options: any): Promise<boolean> {
+  change(
+    method: HistoryMethod,
+    _url: Url,
+    _as: Url,
+    options: any
+  ): Promise<boolean> {
     return new Promise((resolve, reject) => {
       if (!options._h) {
         this.isSsr = false
@@ -440,13 +451,18 @@ export default class Router implements BaseRouter {
     })
   }
 
-  changeState(method: string, url: string, as: string, options = {}): void {
+  changeState(
+    method: HistoryMethod,
+    url: string,
+    as: string,
+    options = {}
+  ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
         console.error(`Warning: window.history is not available.`)
         return
       }
-      // @ts-ignore method should always exist on history
+
       if (typeof window.history[method] === 'undefined') {
         console.error(`Warning: window.history.${method} is not available`)
         return
@@ -454,14 +470,16 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
-      // @ts-ignore method should always exist on history
       window.history[method](
         {
           url,
           as,
           options,
         },
-        null,
+        // Most browsers currently ignores this parameter, although they may use it in the future.
+        // Passing the empty string here should be safe against future changes to the method.
+        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        '',
         as
       )
     }
@@ -480,6 +498,64 @@ export default class Router implements BaseRouter {
     // If the route is already rendered on the screen.
     if (shallow && cachedRouteInfo && this.route === route) {
       return Promise.resolve(cachedRouteInfo)
+    }
+
+    const handleError = (
+      err: Error & { code: any; cancelled: boolean },
+      loadErrorFail?: boolean
+    ) => {
+      return new Promise(resolve => {
+        if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
+          // If we can't load the page it could be one of following reasons
+          //  1. Page doesn't exists
+          //  2. Page does exist in a different zone
+          //  3. Internal error while loading the page
+
+          // So, doing a hard reload is the proper way to deal with this.
+          window.location.href = as
+
+          // Changing the URL doesn't block executing the current code path.
+          // So, we need to mark it as a cancelled error and stop the routing logic.
+          err.cancelled = true
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
+
+        if (err.cancelled) {
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
+
+        resolve(
+          this.fetchComponent('/_error')
+            .then(Component => {
+              const routeInfo: RouteInfo = { Component, err }
+              return new Promise(resolve => {
+                this.getInitialProps(Component, {
+                  err,
+                  pathname,
+                  query,
+                } as any).then(
+                  props => {
+                    routeInfo.props = props
+                    routeInfo.error = err
+                    resolve(routeInfo)
+                  },
+                  gipErr => {
+                    console.error(
+                      'Error in error page `getInitialProps`: ',
+                      gipErr
+                    )
+                    routeInfo.error = err
+                    routeInfo.props = {}
+                    resolve(routeInfo)
+                  }
+                )
+              }) as Promise<RouteInfo>
+            })
+            .catch(err => handleError(err, true))
+        )
+      }) as Promise<RouteInfo>
     }
 
     return (new Promise((resolve, reject) => {
@@ -524,58 +600,7 @@ export default class Router implements BaseRouter {
           return routeInfo
         })
       })
-      .catch(err => {
-        return new Promise(resolve => {
-          if (err.code === 'PAGE_LOAD_ERROR') {
-            // If we can't load the page it could be one of following reasons
-            //  1. Page doesn't exists
-            //  2. Page does exist in a different zone
-            //  3. Internal error while loading the page
-
-            // So, doing a hard reload is the proper way to deal with this.
-            window.location.href = as
-
-            // Changing the URL doesn't block executing the current code path.
-            // So, we need to mark it as a cancelled error and stop the routing logic.
-            err.cancelled = true
-            // @ts-ignore TODO: fix the control flow here
-            return resolve({ error: err })
-          }
-
-          if (err.cancelled) {
-            // @ts-ignore TODO: fix the control flow here
-            return resolve({ error: err })
-          }
-
-          resolve(
-            this.fetchComponent('/_error').then(Component => {
-              const routeInfo: RouteInfo = { Component, err }
-              return new Promise(resolve => {
-                this.getInitialProps(Component, {
-                  err,
-                  pathname,
-                  query,
-                } as any).then(
-                  props => {
-                    routeInfo.props = props
-                    routeInfo.error = err
-                    resolve(routeInfo)
-                  },
-                  gipErr => {
-                    console.error(
-                      'Error in error page `getInitialProps`: ',
-                      gipErr
-                    )
-                    routeInfo.error = err
-                    routeInfo.props = {}
-                    resolve(routeInfo)
-                  }
-                )
-              }) as Promise<RouteInfo>
-            })
-          )
-        }) as Promise<RouteInfo>
-      })
+      .catch(handleError)
   }
 
   set(
@@ -659,7 +684,7 @@ export default class Router implements BaseRouter {
   prefetch(
     url: string,
     asPath: string = url,
-    options: { priority?: boolean } = {}
+    options: PrefetchOptions = {}
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const { pathname, protocol } = parse(url)

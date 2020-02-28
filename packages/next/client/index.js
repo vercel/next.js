@@ -1,7 +1,7 @@
 /* global location */
 import React from 'react'
 import ReactDOM from 'react-dom'
-import HeadManager from './head-manager'
+import initHeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
 import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
@@ -14,20 +14,9 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 
 /// <reference types="react-dom/experimental" />
 
-if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
-  if (!('finally' in Promise.prototype)) {
-    // eslint-disable-next-line no-extend-native
-    Promise.prototype.finally = require('finally-polyfill')
-  }
-} else {
-  // Polyfill Promise globally
-  // This is needed because Webpack's dynamic loading(common chunks) code
-  // depends on Promise.
-  // So, we need to polyfill it.
-  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-  if (!self.Promise) {
-    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
-  }
+if (!('finally' in Promise.prototype)) {
+  // eslint-disable-next-line no-extend-native
+  Promise.prototype.finally = require('finally-polyfill')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -68,7 +57,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 window.__NEXT_P.push = register
 
-const headManager = new HeadManager()
+const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
@@ -408,7 +397,7 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager.updateHead}>
+        <HeadManagerContext.Provider value={updateHead}>
           {children}
         </HeadManagerContext.Provider>
       </RouterContext.Provider>

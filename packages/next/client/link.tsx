@@ -1,13 +1,14 @@
 declare const __NEXT_DATA__: any
 
-import { resolve, parse, UrlObject } from 'url'
-import React, { Component, Children } from 'react'
-import Router from './router'
+import React, { Children, Component } from 'react'
+import { parse, resolve, UrlObject } from 'url'
+import { PrefetchOptions } from '../next-server/lib/router/router'
 import {
   execOnce,
   formatWithValidation,
   getLocationOrigin,
 } from '../next-server/lib/utils'
+import Router from './router'
 
 function isLocal(href: string) {
   const url = parse(href, false, true)
@@ -160,8 +161,7 @@ class Link extends Component<LinkProps> {
   })
 
   linkClicked = (e: React.MouseEvent) => {
-    // @ts-ignore target exists on currentTarget
-    const { nodeName, target } = e.currentTarget
+    const { nodeName, target } = e.currentTarget as HTMLAnchorElement
     if (
       nodeName === 'A' &&
       ((target && target !== '_self') ||
@@ -205,11 +205,19 @@ class Link extends Component<LinkProps> {
     })
   }
 
-  prefetch(options: { priority?: boolean } = {}) {
+  prefetch(options?: PrefetchOptions) {
     if (!this.p || typeof window === 'undefined') return
     // Prefetch the JSON page if asked (only in the client)
     const [href, asPath] = this.getPaths()
-    Router.prefetch(href, asPath, { priority: options.priority })
+    // We need to handle a prefetch error here since we may be
+    // loading with priority which can reject but we don't
+    // want to force navigation since this is only a prefetch
+    Router.prefetch(href, asPath, options).catch(err => {
+      if (process.env.NODE_ENV !== 'production') {
+        // rethrow to show invalid URL errors
+        throw err
+      }
+    })
     prefetched[href] = true
   }
 
