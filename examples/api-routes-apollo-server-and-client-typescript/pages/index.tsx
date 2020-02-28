@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@apollo/react-hooks'
 import { ViewerQuery } from '../generated/graphql'
 
-const ViewerQuery = gql`
+const viewerQuery = gql`
   query Viewer {
     viewer {
       id
@@ -15,7 +15,7 @@ const ViewerQuery = gql`
 `
 
 const Index = () => {
-  const { data, loading, error } = useQuery<ViewerQuery>(ViewerQuery)
+  const { data, loading, error } = useQuery<ViewerQuery>(viewerQuery)
 
   if (loading || error) {
     return null
