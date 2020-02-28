@@ -149,7 +149,7 @@
         },
         {
           "title": "Upgrade Guide",
-          "path": "/docs/faq.md"
+          "path": "/docs/upgrading.md"
         },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
