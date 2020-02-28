@@ -25,12 +25,12 @@ export type PartialRenderOpts = {
   hasCssMode: boolean
   dev?: boolean
   previewProps: __ApiPreviewProps
+  params: Params
 }
 
 export type RequestContext = {
   pathname: string
   query: ParsedUrlQuery
-  params: Params
   renderOpts: PartialRenderOpts
 }
 
@@ -56,7 +56,7 @@ export async function getRequestHandler(
   requestCtx: RequestContext
 ): Promise<RequestHandler | null> {
   const { buildId, distDir, isLikeServerless } = serverCtx
-  const { params, pathname, query, renderOpts } = requestCtx
+  const { pathname, query, renderOpts } = requestCtx
   const paths = [
     // try serving a static AMP version first
     query.amp ? normalizePagePath(pathname) + '.amp' : null,
@@ -77,7 +77,7 @@ export async function getRequestHandler(
             ...(components.getStaticProps
               ? { _nextDataReq: query._nextDataReq }
               : query),
-            ...params,
+            ...renderOpts.params,
           },
           renderOpts: {
             ...components,

@@ -801,11 +801,11 @@ export default class Server {
         getStaticPaths: pathname => this.getStaticPaths(pathname),
       },
       {
-        params: params || {},
         pathname,
         query: query || {},
         renderOpts: {
           ...renderOpts,
+          params: params || {},
           previewProps: this.getPreviewProps(),
         },
       }
