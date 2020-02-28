@@ -74,7 +74,7 @@ const styles: { [k: string]: React.CSSProperties } = {
     textAlign: 'left',
     lineHeight: '49px',
     height: '49px',
-    verticalAlign: 'middle',
+    verticalAlign: 'baseline',
   },
 
   h1: {
@@ -85,7 +85,7 @@ const styles: { [k: string]: React.CSSProperties } = {
     padding: '10px 23px 10px 0',
     fontSize: '24px',
     fontWeight: 500,
-    verticalAlign: 'top',
+    verticalAlign: 'baseline',
   },
 
   h2: {
