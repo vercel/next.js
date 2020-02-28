@@ -17,7 +17,7 @@ export type RenderOpts = any
 export type RequestContext = {
   pathname: string
   query: ParsedUrlQuery
-  params: Params | null
+  params: Params
   renderOpts: RenderOpts
 }
 
@@ -43,8 +43,8 @@ export async function getRequestHandler(
   serverCtx: ServerContext,
   requestCtx: RequestContext
 ): Promise<RequestHandler | null> {
-  const { params, pathname, query, renderOpts } = requestCtx
   const { buildId, distDir, isLikeServerless } = serverCtx
+  const { params, pathname, query, renderOpts } = requestCtx
   const paths = [
     // try serving a static AMP version first
     query.amp ? normalizePagePath(pathname) + '.amp' : null,
@@ -69,7 +69,11 @@ export async function getRequestHandler(
               ...(components.getStaticProps
                 ? { _nextDataReq: query._nextDataReq }
                 : query),
-              ...(params || {}),
+              ...params,
+            },
+            renderOpts: {
+              ...renderOpts,
+              params,
             },
           },
           components

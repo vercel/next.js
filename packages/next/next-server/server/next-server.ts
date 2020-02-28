@@ -780,12 +780,17 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async findRequestHandler(
-    pathname: string,
-    opts: any,
-    query: ParsedUrlQuery = {},
-    params: Params | null = null
-  ): Promise<RequestHandler | null> {
+  private async findRequestHandler({
+    params,
+    pathname,
+    query,
+    renderOpts,
+  }: {
+    params?: Params
+    pathname: string
+    query?: ParsedUrlQuery
+    renderOpts: any
+  }): Promise<RequestHandler | null> {
     return await getRequestHandler(
       {
         buildId: this.buildId,
@@ -795,10 +800,10 @@ export default class Server {
         getStaticPaths: this.getStaticPaths.bind(this),
       },
       {
-        params,
+        params: params ?? {},
         pathname,
-        query,
-        renderOpts: opts,
+        query: query ?? {},
+        renderOpts,
       }
     )
   }
@@ -859,11 +864,11 @@ export default class Server {
   ): Promise<string | null> {
     const renderOpts = { ...this.renderOpts, amphtml, hasAmp }
     try {
-      const requestHandler = await this.findRequestHandler(
+      const requestHandler = await this.findRequestHandler({
         pathname,
         renderOpts,
-        query
-      )
+        query,
+      })
       if (requestHandler) {
         const result = await requestHandler(req, res)
         if (result !== false) {
@@ -878,12 +883,12 @@ export default class Server {
             continue
           }
 
-          const requestHandler = await this.findRequestHandler(
-            dynamicRoute.page,
+          const requestHandler = await this.findRequestHandler({
+            pathname: dynamicRoute.page,
             renderOpts,
             query,
-            params
-          )
+            params,
+          })
           if (requestHandler) {
             const result = await requestHandler(req, res)
             if (result !== false) {
@@ -937,15 +942,18 @@ export default class Server {
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      requestHandler = await this.findRequestHandler('/404', renderOpts)
+      requestHandler = await this.findRequestHandler({
+        pathname: '/404',
+        renderOpts,
+      })
     }
 
     if (!requestHandler) {
-      requestHandler = await this.findRequestHandler(
-        '/_error',
+      requestHandler = await this.findRequestHandler({
+        pathname: '/_error',
         renderOpts,
-        query
-      )
+        query,
+      })
     }
 
     let html: string | null
