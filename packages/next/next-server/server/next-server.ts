@@ -2,7 +2,6 @@ import compression from 'compression'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'http-proxy'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
 import { join, resolve, sep } from 'path'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
@@ -34,14 +33,11 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
-import { apiResolver, tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { apiResolver, __ApiPreviewProps } from './api-utils'
 import loadConfig, { isTargetLikeServerless } from './config'
 import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
-import { normalizePagePath } from './normalize-page-path'
-import { renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
   DynamicRoutes,
@@ -53,13 +49,13 @@ import Router, {
 } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
-import {
-  getFallback,
-  getSprCache,
-  initializeSprCache,
-  setSprCache,
-} from './spr-cache'
+import { initializeSprCache } from './spr-cache'
 import { isBlockedPage } from './utils'
+import {
+  getRequestHandler,
+  prepareServerlessUrl,
+  RequestHandler,
+} from './request-handler'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -70,11 +66,6 @@ type Middleware = (
   res: ServerResponse,
   next: (err?: Error) => void
 ) => void
-
-type FindComponentsResult = {
-  components: LoadComponentsReturnType
-  query: ParsedUrlQuery
-}
 
 export type ServerConstructor = {
   /**
@@ -662,7 +653,7 @@ export default class Server {
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
         return true
       }
@@ -789,360 +780,68 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async findPageComponents(
+  private async findRequestHandler(
     pathname: string,
+    opts: any,
     query: ParsedUrlQuery = {},
     params: Params | null = null
-  ): Promise<FindComponentsResult | null> {
-    const paths = [
-      // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
-      pathname,
-    ].filter(Boolean)
-    for (const pagePath of paths) {
-      try {
-        const components = await loadComponents(
-          this.distDir,
-          this.buildId,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq }
-              : query),
-            ...(params || {}),
-          },
-        }
-      } catch (err) {
-        if (err.code !== 'ENOENT') throw err
-      }
-    }
-    return null
-  }
-
-  private __sendPayload(
-    res: ServerResponse,
-    payload: any,
-    type: string,
-    options?: { revalidate: number | false; private: boolean }
-  ) {
-    // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', type)
-    res.setHeader('Content-Length', Buffer.byteLength(payload))
-    if (!this.renderOpts.dev) {
-      if (options?.private) {
-        res.setHeader(
-          'Cache-Control',
-          `private, no-cache, no-store, max-age=0, must-revalidate`
-        )
-      } else if (options?.revalidate) {
-        res.setHeader(
-          'Cache-Control',
-          options.revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${options.revalidate}, stale-while-revalidate`
-        )
-      } else if (options?.revalidate === false) {
-        res.setHeader(
-          'Cache-Control',
-          `s-maxage=31536000, stale-while-revalidate`
-        )
-      }
-    }
-    res.end(payload)
-  }
-
-  private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
-    const curUrl = parseUrl(req.url!, true)
-    req.url = formatUrl({
-      ...curUrl,
-      search: undefined,
-      query: {
-        ...curUrl.query,
-        ...query,
+  ): Promise<RequestHandler | null> {
+    return await getRequestHandler(
+      {
+        buildId: this.buildId,
+        distDir: this.distDir,
+        isLikeServerless: this._isLikeServerless,
+        getPreviewProps: this.getPreviewProps.bind(this),
+        getStaticPaths: this.getStaticPaths.bind(this),
       },
-    })
+      {
+        params,
+        pathname,
+        query,
+        renderOpts: opts,
+      }
+    )
   }
 
-  private async renderToHTMLWithComponents(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    { components, query }: FindComponentsResult,
-    opts: any
-  ): Promise<string | false | null> {
-    // we need to ensure the status code if /404 is visited directly
-    if (pathname === '/404') {
-      res.statusCode = 404
-    }
-
-    // handle static page
-    if (typeof components.Component === 'string') {
-      return components.Component
-    }
-
-    // check request state
-    const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
-    const isServerProps = !!components.getServerSideProps
-    const hasStaticPaths = !!components.getStaticPaths
-
-    // Toggle whether or not this is a Data request
-    const isDataReq = query._nextDataReq
-    delete query._nextDataReq
-
-    // Serverless requests need its URL transformed back into the original
-    // request path (to emulate lambda behavior in production)
-    if (isLikeServerless && isDataReq) {
-      let { pathname } = parseUrl(req.url || '', true)
-      pathname = !pathname || pathname === '/' ? '/index' : pathname
-      req.url = formatUrl({
-        pathname: `/_next/data/${this.buildId}${pathname}.json`,
-        query,
-      })
-    }
-
-    // non-spr requests should render like normal
-    if (!isSSG) {
-      // handle serverless
-      if (isLikeServerless) {
-        if (isDataReq) {
-          const renderResult = await (components.Component as any).renderReqToHTML(
-            req,
-            res,
-            true
-          )
-
-          this.__sendPayload(
-            res,
-            JSON.stringify(renderResult?.renderOpts?.pageData),
-            'application/json',
-            {
-              revalidate: -1,
-              private: false, // Leave to user-land caching
-            }
-          )
-          return null
-        }
-        this.prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
-      }
-
-      if (isDataReq && isServerProps) {
-        const props = await renderToHTML(req, res, pathname, query, {
-          ...components,
-          ...opts,
-          isDataReq,
-        })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', {
-          revalidate: -1,
-          private: false, // Leave to user-land caching
-        })
-        return null
-      }
-
-      return renderToHTML(req, res, pathname, query, {
-        ...components,
-        ...opts,
-      })
-    }
-
-    const previewProps = this.getPreviewProps()
-    const previewData = tryGetPreviewData(req, res, { ...previewProps })
-    const isPreviewMode = previewData !== false
-
-    // Compute the SPR cache key
-    const urlPathname = parseUrl(req.url || '').pathname!
-    const ssgCacheKey = isPreviewMode
-      ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
-      : urlPathname
-
-    // Complete the response with cached data if its present
-    const cachedData = isPreviewMode
-      ? // Preview data bypasses the cache
-        undefined
-      : await getSprCache(ssgCacheKey)
-    if (cachedData) {
-      const data = isDataReq
-        ? JSON.stringify(cachedData.pageData)
-        : cachedData.html
-
-      this.__sendPayload(
-        res,
-        data,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate !== undefined
-          ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
-          : undefined
-      )
-
-      // Stop the request chain here if the data we sent was up-to-date
-      if (!cachedData.isStale) {
-        return null
-      }
-    }
-
-    // If we're here, that means data is missing or it's stale.
-
-    const doRender = withCoalescedInvoke(async function(): Promise<{
-      html: string | null
-      pageData: any
-      sprRevalidate: number | false
-    }> {
-      let pageData: any
-      let html: string | null
-      let sprRevalidate: number | false
-
-      let renderResult
-      // handle serverless
-      if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          true
-        )
-
-        html = renderResult.html
-        pageData = renderResult.renderOpts.pageData
-        sprRevalidate = renderResult.renderOpts.revalidate
-      } else {
-        const renderOpts = {
-          ...components,
-          ...opts,
-        }
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
-
-        html = renderResult
-        pageData = renderOpts.pageData
-        sprRevalidate = renderOpts.revalidate
-      }
-
-      return { html, pageData, sprRevalidate }
-    })
-
-    const isProduction = !this.renderOpts.dev
-    const isDynamicPathname = isDynamicRoute(pathname)
-    const didRespond = isResSent(res)
-
+  private async getStaticPaths(
+    pathname: string
+  ): Promise<{
+    staticPaths: string[] | undefined
+    hasStaticFallback: boolean
+  }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
     let staticPaths: string[] | undefined
     let hasStaticFallback = false
 
-    if (hasStaticPaths) {
-      if (isProduction) {
-        // `staticPaths` is intentionally set to `undefined` as it should've
-        // been caught above when checking disk data.
-        staticPaths = undefined
+    if (!this.renderOpts.dev) {
+      // `staticPaths` is intentionally set to `undefined` as it should've
+      // been caught when checking disk data.
+      staticPaths = undefined
 
-        // Read whether or not fallback should exist from the manifest.
-        hasStaticFallback =
-          typeof this.getPrerenderManifest().dynamicRoutes[pathname]
-            .fallback === 'string'
-      } else {
-        const __getStaticPaths = async () => {
-          const paths = await this.staticPathsWorker!.loadStaticPaths(
-            this.distDir,
-            this.buildId,
-            pathname,
-            !this.renderOpts.dev && this._isLikeServerless
-          )
-          return paths
-        }
-        ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-          await withCoalescedInvoke(__getStaticPaths)(
-            `staticPaths-${pathname}`,
-            []
-          )
-        ).value)
+      // Read whether or not fallback should exist from the manifest.
+      hasStaticFallback =
+        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
+        'string'
+    } else {
+      const __getStaticPaths = async () => {
+        const paths = await this.staticPathsWorker!.loadStaticPaths(
+          this.distDir,
+          this.buildId,
+          pathname,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+        return paths
       }
+      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
+        await withCoalescedInvoke(__getStaticPaths)(
+          `staticPaths-${pathname}`,
+          []
+        )
+      ).value)
     }
 
-    // const isForcedBlocking =
-    //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
-
-    // When we did not respond from cache, we need to choose to block on
-    // rendering or return a skeleton.
-    //
-    // * Data requests always block.
-    //
-    // * Preview mode toggles all pages to be resolved in a blocking manner.
-    //
-    // * Non-dynamic pages should block (though this is an impossible
-    //   case in production).
-    //
-    // * Dynamic pages should return their skeleton if not defined in
-    //   getStaticPaths, then finish the data request on the client-side.
-    //
-    if (
-      !didRespond &&
-      !isDataReq &&
-      !isPreviewMode &&
-      isDynamicPathname &&
-      // Development should trigger fallback when the path is not in
-      // `getStaticPaths`
-      (isProduction || !staticPaths || !staticPaths.includes(urlPathname))
-    ) {
-      if (
-        // In development, fall through to render to handle missing
-        // getStaticPaths.
-        (isProduction || staticPaths) &&
-        // When fallback isn't present, abort this render so we 404
-        !hasStaticFallback
-      ) {
-        return false
-      }
-
-      let html: string
-
-      // Production already emitted the fallback as static HTML.
-      if (isProduction) {
-        html = await getFallback(pathname)
-      }
-      // We need to generate the fallback on-demand for development.
-      else {
-        query.__nextFallback = 'true'
-        if (isLikeServerless) {
-          this.prepareServerlessUrl(req, query)
-          html = await (components.Component as any).renderReqToHTML(req, res)
-        } else {
-          html = (await renderToHTML(req, res, pathname, query, {
-            ...components,
-            ...opts,
-          })) as string
-        }
-      }
-
-      this.__sendPayload(res, html, 'text/html; charset=utf-8')
-    }
-
-    const {
-      isOrigin,
-      value: { html, pageData, sprRevalidate },
-    } = await doRender(ssgCacheKey, [])
-    if (!isResSent(res)) {
-      this.__sendPayload(
-        res,
-        isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        { revalidate: sprRevalidate, private: isPreviewMode }
-      )
-    }
-
-    // Update the SPR cache if the head request
-    if (isOrigin) {
-      // Preview mode should not be stored in cache
-      if (!isPreviewMode) {
-        await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
-      }
-    }
-
-    return null
+    return { staticPaths, hasStaticFallback }
   }
 
   public async renderToHTML(
@@ -1158,18 +857,17 @@ export default class Server {
       hasAmp?: boolean
     } = {}
   ): Promise<string | null> {
+    const renderOpts = { ...this.renderOpts, amphtml, hasAmp }
     try {
-      const result = await this.findPageComponents(pathname, query)
-      if (result) {
-        const result2 = await this.renderToHTMLWithComponents(
-          req,
-          res,
-          pathname,
-          result,
-          { ...this.renderOpts, amphtml, hasAmp }
-        )
-        if (result2 !== false) {
-          return result2
+      const requestHandler = await this.findRequestHandler(
+        pathname,
+        renderOpts,
+        query
+      )
+      if (requestHandler) {
+        const result = await requestHandler(req, res)
+        if (result !== false) {
+          return result
         }
       }
 
@@ -1180,26 +878,16 @@ export default class Server {
             continue
           }
 
-          const result = await this.findPageComponents(
+          const requestHandler = await this.findRequestHandler(
             dynamicRoute.page,
+            renderOpts,
             query,
             params
           )
-          if (result) {
-            const result2 = await this.renderToHTMLWithComponents(
-              req,
-              res,
-              dynamicRoute.page,
-              result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
-              }
-            )
-            if (result2 !== false) {
-              return result2
+          if (requestHandler) {
+            const result = await requestHandler(req, res)
+            if (result !== false) {
+              return result
             }
           }
         }
@@ -1239,37 +927,34 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | FindComponentsResult = null
+    let requestHandler: null | RequestHandler = null
 
     const is404 = res.statusCode === 404
-    let using404Page = false
+    const renderOpts = {
+      ...this.renderOpts,
+      err,
+    }
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      result = await this.findPageComponents('/404')
-      using404Page = result !== null
+      requestHandler = await this.findRequestHandler('/404', renderOpts)
     }
 
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
+    if (!requestHandler) {
+      requestHandler = await this.findRequestHandler(
+        '/_error',
+        renderOpts,
+        query
+      )
     }
 
     let html: string | null
     try {
-      const result2 = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
-          err,
-        }
-      )
-      if (result2 === false) {
+      const result = await requestHandler!(req, res)
+      if (result === false) {
         throw new Error('invariant: failed to render error page')
       }
-      html = result2
+      html = result
     } catch (err) {
       console.error(err)
       res.statusCode = 500
