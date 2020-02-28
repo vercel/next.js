@@ -186,7 +186,7 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR getServerProps page correctly', async () => {
+  it('should SSR getServerSideProps page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
     expect(html).toMatch(/Post:.*?post-1/)
   })
@@ -209,10 +209,7 @@ const runTests = (dev = false) => {
     expect(JSON.parse(query)).toEqual({ path: ['first'] })
 
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/catchall/first.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/catchall/first.json`)
     )
 
     expect(data.pageProps.params).toEqual({ path: ['first'] })
@@ -220,10 +217,7 @@ const runTests = (dev = false) => {
 
   it('should return data correctly', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/something.json`)
     )
     expect(data.pageProps.world).toBe('world')
   })
@@ -232,7 +226,7 @@ const runTests = (dev = false) => {
     const data = JSON.parse(
       await renderViaHTTP(
         appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json?another=thing`
+        `/_next/data/${buildId}/something.json?another=thing`
       )
     )
     expect(data.pageProps.query.another).toBe('thing')
@@ -240,10 +234,7 @@ const runTests = (dev = false) => {
 
   it('should return data correctly for dynamic page', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/blog/post-1.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-1.json`)
     )
     expect(data.pageProps.post).toBe('post-1')
   })
@@ -298,7 +289,7 @@ const runTests = (dev = false) => {
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
 
-  it('should always call getServerProps without caching', async () => {
+  it('should always call getServerSideProps without caching', async () => {
     const initialRes = await fetchViaHTTP(appPort, '/something')
     const initialHtml = await initialRes.text()
     expect(initialHtml).toMatch(/hello.*?world/)
@@ -314,7 +305,7 @@ const runTests = (dev = false) => {
     expect(newHtml !== newerHtml).toBe(true)
   })
 
-  it('should not re-call getServerProps when updating query', async () => {
+  it('should not re-call getServerSideProps when updating query', async () => {
     const browser = await webdriver(appPort, '/something?hello=world')
     await waitFor(2000)
 
@@ -337,7 +328,7 @@ const runTests = (dev = false) => {
       await fs.writeFile(
         urlPropPage,
         `
-        export async function unstable_getServerProps() {
+        export async function getServerSideProps() {
           return {
             props: {
               url: 'something'
@@ -357,10 +348,10 @@ const runTests = (dev = false) => {
       expect(html).toMatch(/url:.*?something/)
     })
 
-    it('should show error for extra keys returned from getServerProps', async () => {
+    it('should show error for extra keys returned from getServerSideProps', async () => {
       const html = await renderViaHTTP(appPort, '/invalid-keys')
       expect(html).toContain(
-        `Additional keys were returned from \`getServerProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
+        `Additional keys were returned from \`getServerSideProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
       )
       expect(html).toContain(
         `Keys that need to be moved: world, query, params, time, random`
@@ -389,14 +380,14 @@ const runTests = (dev = false) => {
     it('should set no-cache, no-store, must-revalidate header', async () => {
       const res = await fetchViaHTTP(
         appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json`
+        `/_next/data/${buildId}/something.json`
       )
       expect(res.headers.get('cache-control')).toContain('no-cache')
     })
   }
 }
 
-describe('unstable_getServerProps', () => {
+describe('getServerSideProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       stderr = ''

@@ -1,8 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 
-// eslint-disable-next-line camelcase
-export async function unstable_getServerProps({ query }) {
+export async function getServerSideProps({ query }) {
   return {
     props: {
       post: query.post,

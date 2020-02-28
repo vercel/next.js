@@ -273,9 +273,9 @@ export async function renderToHTML(
     buildManifest,
     reactLoadableManifest,
     ErrorDebug,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
-    unstable_getServerProps,
+    getStaticProps,
+    getStaticPaths,
+    getServerSideProps,
     isDataReq,
     params,
     previewProps,
@@ -311,7 +311,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
-  const isSpr = !!unstable_getStaticProps
+  const isSpr = !!getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -323,7 +323,7 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSpr &&
-    !unstable_getServerProps
+    !getServerSideProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -349,23 +349,23 @@ export async function renderToHTML(
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (hasPageGetInitialProps && unstable_getServerProps) {
+  if (hasPageGetInitialProps && getServerSideProps) {
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (unstable_getServerProps && isSpr) {
+  if (getServerSideProps && isSpr) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!unstable_getStaticPaths && !isSpr) {
+  if (!!getStaticPaths && !isSpr) {
     throw new Error(
-      `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
+      `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
     )
   }
 
-  if (isSpr && pageIsDynamic && !unstable_getStaticPaths) {
+  if (isSpr && pageIsDynamic && !getStaticPaths) {
     throw new Error(
-      `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
+      `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
         `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
     )
   }
@@ -467,7 +467,7 @@ export async function renderToHTML(
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
-      const data = await unstable_getStaticProps!({
+      const data = await getStaticProps!({
         ...(pageIsDynamic
           ? {
               params: query as ParsedUrlQuery,
@@ -529,8 +529,8 @@ export async function renderToHTML(
     console.error(err)
   }
 
-  if (unstable_getServerProps && !isFallback) {
-    const data = await unstable_getServerProps({
+  if (getServerSideProps && !isFallback) {
+    const data = await getServerSideProps({
       params,
       query,
       req,
@@ -540,7 +540,7 @@ export async function renderToHTML(
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
     if (invalidKeys.length) {
-      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
+      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
     }
 
     props.pageProps = data.props
@@ -549,7 +549,7 @@ export async function renderToHTML(
 
   if (
     !isSpr && // we only show this warning for legacy pages
-    !unstable_getServerProps &&
+    !getServerSideProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
   ) {
@@ -560,10 +560,10 @@ export async function renderToHTML(
   }
 
   // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerProps if not this can be removed
+  // _app's getInitialProps for getServerSideProps if not this can be removed
   if (isDataReq) return props
 
-  // We don't call getStaticProps or getServerProps while generating
+  // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
   if (isFallback) {
     props.pageProps = {}
