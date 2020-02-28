@@ -1,5 +1,3 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -12,8 +10,13 @@ import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { AppType, DocumentType } from '../lib/utils'
-import { PageConfig, NextPageContext } from 'next/types'
-import { Env } from '../../lib/load-env-config'
+import {
+  PageConfig,
+  NextPageContext,
+  GetStaticPaths,
+  GetServerSideProps,
+  GetStaticProps,
+} from 'next/types'
 
 export function interopDefault(mod: any) {
   return mod.default || mod
@@ -22,13 +25,13 @@ export function interopDefault(mod: any) {
 function addComponentPropsId(
   Component: any,
   getStaticProps: any,
-  getServerProps: any
+  getServerSideProps: any
 ) {
   // Mark the component with the SSG or SSP id here since we don't run
   // the SSG babel transform for server mode
   if (getStaticProps) {
     Component[STATIC_PROPS_ID] = true
-  } else if (getServerProps) {
+  } else if (getServerSideProps) {
     Component[SERVER_PROPS_ID] = true
   }
 }
@@ -42,28 +45,6 @@ export type ManifestItem = {
 
 type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
 
-type Unstable_getStaticProps = (ctx: {
-  env: Env
-  params: ParsedUrlQuery | undefined
-  preview?: boolean
-  previewData?: any
-}) => Promise<{
-  props: { [key: string]: any }
-  revalidate?: number | boolean
-}>
-
-export type Unstable_getStaticPaths = () => Promise<{
-  paths: Array<string | { params: ParsedUrlQuery }>
-}>
-
-type Unstable_getServerProps = (context: {
-  env: Env
-  params: ParsedUrlQuery | undefined
-  req: IncomingMessage
-  res: ServerResponse
-  query: ParsedUrlQuery
-}) => Promise<{ [key: string]: any }>
-
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
   pageConfig?: PageConfig
@@ -72,9 +53,9 @@ export type LoadComponentsReturnType = {
   Document: DocumentType
   DocumentMiddleware?: (ctx: NextPageContext) => void
   App: AppType
-  unstable_getStaticProps?: Unstable_getStaticProps
-  unstable_getStaticPaths?: Unstable_getStaticPaths
-  unstable_getServerProps?: Unstable_getServerProps
+  getStaticProps?: GetStaticProps
+  getStaticPaths?: GetStaticPaths
+  getServerSideProps?: GetServerSideProps
 }
 
 export async function loadComponents(
@@ -85,24 +66,16 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    const {
-      unstable_getStaticProps,
-      unstable_getStaticPaths,
-      unstable_getServerProps,
-    } = Component
+    const { getStaticProps, getStaticPaths, getServerSideProps } = Component
 
-    addComponentPropsId(
-      Component,
-      unstable_getStaticProps,
-      unstable_getServerProps
-    )
+    addComponentPropsId(Component, getStaticProps, getServerSideProps)
 
     return {
       Component,
       pageConfig: Component.config || {},
-      unstable_getStaticProps,
-      unstable_getStaticPaths,
-      unstable_getServerProps,
+      getStaticProps,
+      getStaticPaths,
+      getServerSideProps,
     } as LoadComponentsReturnType
   }
   const documentPath = join(
@@ -143,17 +116,9 @@ export async function loadComponents(
     interopDefault(AppMod),
   ])
 
-  const {
-    unstable_getServerProps,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
-  } = ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  addComponentPropsId(
-    Component,
-    unstable_getStaticProps,
-    unstable_getServerProps
-  )
+  addComponentPropsId(Component, getStaticProps, getServerSideProps)
 
   return {
     App,
@@ -163,8 +128,8 @@ export async function loadComponents(
     DocumentMiddleware,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
-    unstable_getServerProps,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
+    getServerSideProps,
+    getStaticProps,
+    getStaticPaths,
   }
 }

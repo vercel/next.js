@@ -1,15 +1,15 @@
-# Invalid unstable_getStaticProps Return Value
+# Invalid getStaticProps Return Value
 
 #### Why This Error Occurred
 
-In one of the page's `unstable_getStaticProps` the return value had the incorrect shape.
+In one of the page's `getStaticProps` the return value had the incorrect shape.
 
 #### Possible Ways to Fix It
 
-Make sure to return the following shape from `unstable_getStaticProps`:
+Make sure to return the following shape from `getStaticProps`:
 
 ```js
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
   return {
     props: { [key: string]: any }
   }

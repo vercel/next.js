@@ -11,7 +11,7 @@ let globalApolloClient = null
 /**
  * Installs the Apollo Client on NextPageContext
  * or NextAppContext. Useful if you want to use apolloClient
- * inside getStaticProps, getStaticPaths or getServerProps
+ * inside getStaticProps, getStaticPaths or getServerSideProps
  * @param {NextPageContext | NextAppContext} ctx
  */
 export const initOnContext = ctx => {
