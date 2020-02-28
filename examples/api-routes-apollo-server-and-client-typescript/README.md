@@ -22,9 +22,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example api-routes-apollo-server-and-client api-routes-apollo-server-and-client-app
+npm init next-app --example api-routes-apollo-server-and-client-typescript api-routes-apollo-server-and-client-app-typescript
 # or
-yarn create next-app --example api-routes-apollo-server-and-client api-routes-apollo-server-and-client-app
+yarn create next-app --example api-routes-apollo-server-and-client-typescript api-routes-apollo-server-and-client-typescript-app
 ```
 
 ### Download manually
@@ -32,8 +32,8 @@ yarn create next-app --example api-routes-apollo-server-and-client api-routes-ap
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/api-routes-apollo-server-and-client
-cd api-routes-apollo-server-and-client
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/api-routes-apollo-server-and-client-typescript
+cd api-routes-apollo-server-and-client-typescript
 ```
 
 Install it and run:
