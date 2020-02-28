@@ -96,18 +96,7 @@ export default class Server {
   serverBuildDir: string
   pagesManifest?: { [name: string]: string }
   buildId: string
-  renderOpts: {
-    poweredByHeader: boolean
-    staticMarkup: boolean
-    buildId: string
-    generateEtags: boolean
-    runtimeConfig?: { [key: string]: any }
-    assetPrefix?: string
-    canonicalBase: string
-    documentMiddlewareEnabled: boolean
-    hasCssMode: boolean
-    dev?: boolean
-  }
+  renderOpts: PartialRenderOpts
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   router: Router
