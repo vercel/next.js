@@ -1,4 +1,8 @@
-# Migrating from v8 to v9
+---
+description: Learn how to upgrade Next.js from version 8 to 9.0.x.
+---
+
+# Upgrading Next.js from version 8 to 9.0.x
 
 ## Preamble
 
