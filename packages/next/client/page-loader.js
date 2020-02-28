@@ -91,13 +91,17 @@ export default class PageLoader {
     asPath = normalizeRoute(asPath)
     return this.promisedSsgManifest.then(
       (m, _href) =>
+        // Check if `asPath` requires a data file
         m.some(r => r.test(asPath)) &&
+        // Assemble `href` for data file
         ((_href = `${this.assetPrefix}/_next/data/${this.buildId}${
           asPath === '/' ? '/index' : asPath
         }.json`),
+        // noop when data has already been prefetched (dedupe)
         !document.querySelector(
           `link[rel="${relPrefetch}"][href^="${_href}"]`
         )) &&
+        // Inject the `<link rel=prefetch>` tag for above computed `href`.
         appendLink(_href, relPrefetch, 'fetch')
     )
   }
