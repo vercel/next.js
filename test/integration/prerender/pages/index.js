@@ -1,6 +1,5 @@
 import Link from 'next/link'
 
-// eslint-disable-next-line camelcase
 export async function getStaticProps() {
   // throw new Error('oops from getStaticProps')
   return {

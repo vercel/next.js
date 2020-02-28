@@ -2,7 +2,6 @@ import Link from 'next/link'
 import fs from 'fs'
 import findUp from 'find-up'
 
-// eslint-disable-next-line camelcase
 export async function getStaticProps() {
   const text = fs
     .readFileSync(
