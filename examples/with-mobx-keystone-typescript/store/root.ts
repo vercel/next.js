@@ -1,15 +1,18 @@
-import { Model, model, prop, modelAction, timestampAsDate } from 'mobx-keystone'
+import {
+  Model,
+  model,
+  prop,
+  modelAction,
+  prop_dateTimestamp,
+} from 'mobx-keystone'
 
 @model('store/root')
 class RootStore extends Model({
   foo: prop<number | null>(0),
-  lastUpdate: prop<number | null>(new Date().getTime()),
+  lastUpdate: prop_dateTimestamp(() => new Date()),
   light: prop(false),
 }) {
   timer!: ReturnType<typeof setInterval>
-
-  @timestampAsDate('lastUpdate')
-  lastUpdateDate!: Date
 
   @modelAction
   start() {
@@ -19,7 +22,7 @@ class RootStore extends Model({
   }
   @modelAction
   update() {
-    this.lastUpdate = Date.now()
+    this.lastUpdate = new Date()
     this.light = true
   }
 

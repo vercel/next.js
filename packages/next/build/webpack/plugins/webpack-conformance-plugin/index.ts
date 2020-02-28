@@ -88,7 +88,7 @@ export default class WebpackConformancePlugin {
   private parserHandler = (factory: compilation.NormalModuleFactory): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     const collectedVisitors: Map<string, [NodeInspector?]> = new Map()
-    // Collect all intereseted visitors from all tests.
+    // Collect all interested visitors from all tests.
     this.tests.forEach(test => {
       if (test.getAstNode) {
         const getAstNodeCallbacks: IGetAstNodeResult[] = test.getAstNode()
@@ -96,8 +96,9 @@ export default class WebpackConformancePlugin {
           if (!collectedVisitors.has(result.visitor)) {
             collectedVisitors.set(result.visitor, [])
           }
-          // @ts-ignore
-          collectedVisitors.get(result.visitor).push(result.inspectNode)
+          ;(collectedVisitors.get(result.visitor) as NodeInspector[]).push(
+            result.inspectNode
+          )
         })
       }
     })
