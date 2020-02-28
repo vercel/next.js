@@ -11,8 +11,7 @@ import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
 import { Params } from './router'
 import { getFallback, getSprCache, setSprCache } from './spr-cache'
-
-export type RenderOpts = any
+import { RenderOpts } from './render'
 
 export type RequestContext = {
   pathname: string
@@ -111,7 +110,7 @@ async function renderToHTMLWithComponents(
   const hasStaticPaths = !!components.getStaticPaths
 
   // Toggle whether or not this is a Data request
-  const isDataReq = query._nextDataReq
+  const isDataReq = !!query._nextDataReq
   delete query._nextDataReq
 
   // Serverless requests need its URL transformed back into the original

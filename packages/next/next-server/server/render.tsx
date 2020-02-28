@@ -124,7 +124,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = LoadComponentsReturnType & {
+export type RenderOpts = LoadComponentsReturnType & {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
@@ -146,6 +146,8 @@ type RenderOpts = LoadComponentsReturnType & {
   isDataReq?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
+  pageData?: any
+  revalidate?: any
 }
 
 function renderDocument(

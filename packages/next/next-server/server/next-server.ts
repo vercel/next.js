@@ -56,6 +56,7 @@ import {
   prepareServerlessUrl,
   RequestHandler,
 } from './request-handler'
+import { RenderOpts } from './render'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -789,7 +790,7 @@ export default class Server {
     params?: Params
     pathname: string
     query?: ParsedUrlQuery
-    renderOpts: any
+    renderOpts: RenderOpts
   }): Promise<RequestHandler | null> {
     return await getRequestHandler(
       {
