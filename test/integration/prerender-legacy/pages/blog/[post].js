@@ -1,11 +1,9 @@
 import React from 'react'
 
-// eslint-disable-next-line camelcase
 export async function unstable_getStaticParams() {
   return ['/blog/post-1']
 }
 
-// eslint-disable-next-line camelcase
 export async function getStaticProps({ params }) {
   return {
     props: {
