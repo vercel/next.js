@@ -1,1 +1,1 @@
-This document has been moved to [docs/upgrading.md](docs/upgrading.md). It can also be viewed on [our documentation page](https://nextjs.org/docs/upgrading).
+This document has been moved to [nextjs.org/docs/upgrading](https://nextjs.org/docs/upgrading)
