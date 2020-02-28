@@ -147,6 +147,15 @@
             }
           ]
         },
+        {
+          "title": "Upgrading",
+          "routes": [
+            {
+              "title": "From Version 8",
+              "path": "/docs/upgrading/from-v8.md"
+            }
+          ]
+        },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },
