@@ -662,7 +662,7 @@ export default class Server {
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
         return true
       }
@@ -823,50 +823,6 @@ export default class Server {
     return null
   }
 
-  private __sendPayload(
-    res: ServerResponse,
-    payload: any,
-    type: string,
-    options?: { revalidate: number | false; private: boolean }
-  ) {
-    // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', type)
-    res.setHeader('Content-Length', Buffer.byteLength(payload))
-    if (!this.renderOpts.dev) {
-      if (options?.private) {
-        res.setHeader(
-          'Cache-Control',
-          `private, no-cache, no-store, max-age=0, must-revalidate`
-        )
-      } else if (options?.revalidate) {
-        res.setHeader(
-          'Cache-Control',
-          options.revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${options.revalidate}, stale-while-revalidate`
-        )
-      } else if (options?.revalidate === false) {
-        res.setHeader(
-          'Cache-Control',
-          `s-maxage=31536000, stale-while-revalidate`
-        )
-      }
-    }
-    res.end(payload)
-  }
-
-  private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
-    const curUrl = parseUrl(req.url!, true)
-    req.url = formatUrl({
-      ...curUrl,
-      search: undefined,
-      query: {
-        ...curUrl.query,
-        ...query,
-      },
-    })
-  }
-
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -918,18 +874,20 @@ export default class Server {
             true
           )
 
-          this.__sendPayload(
+          sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
             'application/json',
-            {
-              revalidate: -1,
-              private: false, // Leave to user-land caching
-            }
+            !this.renderOpts.dev
+              ? {
+                  revalidate: -1,
+                  private: false, // Leave to user-land caching
+                }
+              : undefined
           )
           return null
         }
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         return (components.Component as any).renderReqToHTML(req, res)
       }
 
@@ -939,10 +897,17 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', {
-          revalidate: -1,
-          private: false, // Leave to user-land caching
-        })
+        sendPayload(
+          res,
+          JSON.stringify(props),
+          'application/json',
+          !this.renderOpts.dev
+            ? {
+                revalidate: -1,
+                private: false, // Leave to user-land caching
+              }
+            : undefined
+        )
         return null
       }
 
@@ -972,11 +937,11 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      this.__sendPayload(
+      sendPayload(
         res,
         data,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate !== undefined
+        cachedData.curRevalidate !== undefined && !this.renderOpts.dev
           ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
           : undefined
       )
@@ -1108,7 +1073,7 @@ export default class Server {
       else {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
-          this.prepareServerlessUrl(req, query)
+          prepareServerlessUrl(req, query)
           html = await (components.Component as any).renderReqToHTML(req, res)
         } else {
           html = (await renderToHTML(req, res, pathname, query, {
@@ -1118,7 +1083,7 @@ export default class Server {
         }
       }
 
-      this.__sendPayload(res, html, 'text/html; charset=utf-8')
+      sendPayload(res, html, 'text/html; charset=utf-8')
     }
 
     const {
@@ -1126,11 +1091,13 @@ export default class Server {
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
     if (!isResSent(res)) {
-      this.__sendPayload(
+      sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        { revalidate: sprRevalidate, private: isPreviewMode }
+        !this.renderOpts.dev
+          ? { revalidate: sprRevalidate, private: isPreviewMode }
+          : undefined
       )
     }
 
@@ -1351,4 +1318,48 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
+}
+
+function sendPayload(
+  res: ServerResponse,
+  payload: any,
+  type: string,
+  options?: { revalidate: number | false; private: boolean }
+) {
+  // TODO: ETag? Cache-Control headers? Next-specific headers?
+  res.setHeader('Content-Type', type)
+  res.setHeader('Content-Length', Buffer.byteLength(payload))
+  if (options != null) {
+    if (options?.private) {
+      res.setHeader(
+        'Cache-Control',
+        `private, no-cache, no-store, max-age=0, must-revalidate`
+      )
+    } else if (options?.revalidate) {
+      res.setHeader(
+        'Cache-Control',
+        options.revalidate < 0
+          ? `no-cache, no-store, must-revalidate`
+          : `s-maxage=${options.revalidate}, stale-while-revalidate`
+      )
+    } else if (options?.revalidate === false) {
+      res.setHeader(
+        'Cache-Control',
+        `s-maxage=31536000, stale-while-revalidate`
+      )
+    }
+  }
+  res.end(payload)
+}
+
+function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
+  const curUrl = parseUrl(req.url!, true)
+  req.url = formatUrl({
+    ...curUrl,
+    search: undefined,
+    query: {
+      ...curUrl.query,
+      ...query,
+    },
+  })
 }
