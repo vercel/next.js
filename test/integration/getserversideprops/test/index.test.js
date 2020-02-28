@@ -209,10 +209,7 @@ const runTests = (dev = false) => {
     expect(JSON.parse(query)).toEqual({ path: ['first'] })
 
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/catchall/first.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/catchall/first.json`)
     )
 
     expect(data.pageProps.params).toEqual({ path: ['first'] })
@@ -220,10 +217,7 @@ const runTests = (dev = false) => {
 
   it('should return data correctly', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/something.json`)
     )
     expect(data.pageProps.world).toBe('world')
   })
@@ -232,7 +226,7 @@ const runTests = (dev = false) => {
     const data = JSON.parse(
       await renderViaHTTP(
         appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json?another=thing`
+        `/_next/data/${buildId}/something.json?another=thing`
       )
     )
     expect(data.pageProps.query.another).toBe('thing')
@@ -240,10 +234,7 @@ const runTests = (dev = false) => {
 
   it('should return data correctly for dynamic page', async () => {
     const data = JSON.parse(
-      await renderViaHTTP(
-        appPort,
-        `/_next/data/${escapeRegex(buildId)}/blog/post-1.json`
-      )
+      await renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-1.json`)
     )
     expect(data.pageProps.post).toBe('post-1')
   })
@@ -389,7 +380,7 @@ const runTests = (dev = false) => {
     it('should set no-cache, no-store, must-revalidate header', async () => {
       const res = await fetchViaHTTP(
         appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json`
+        `/_next/data/${buildId}/something.json`
       )
       expect(res.headers.get('cache-control')).toContain('no-cache')
     })
