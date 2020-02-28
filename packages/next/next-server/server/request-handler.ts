@@ -6,7 +6,7 @@ import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { isDynamicRoute } from '../lib/router/utils'
 import { isResSent } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
-import { loadComponents } from './load-components'
+import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
 import { Params } from './router'
@@ -71,20 +71,21 @@ export async function getRequestHandler(
         !renderOpts.dev && isLikeServerless
       )
       return async (req, res) =>
-        await renderToHTMLWithComponents(req, res, serverCtx, {
-          ...requestCtx,
-          query: {
-            ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq }
-              : query),
-            ...params,
+        await renderToHTMLWithComponents(
+          req,
+          res,
+          serverCtx,
+          {
+            ...requestCtx,
+            query: {
+              ...(components.getStaticProps
+                ? { _nextDataReq: query._nextDataReq }
+                : query),
+              ...params,
+            },
           },
-          renderOpts: {
-            ...renderOpts,
-            ...components,
-            params,
-          },
-        })
+          components
+        )
     } catch (err) {
       if (err.code !== 'ENOENT') throw err
     }
@@ -95,42 +96,27 @@ export async function getRequestHandler(
 async function renderToHTMLWithComponents(
   req: IncomingMessage,
   res: ServerResponse,
-  {
-    buildId,
-    getPreviewProps,
-    getStaticPaths: getStaticPathsHelper,
-  }: ServerContext,
-  {
-    pathname,
-    query,
-    renderOpts,
-  }: RequestContext & {
-    renderOpts: RenderOpts
-  }
+  { buildId, getPreviewProps, getStaticPaths }: ServerContext,
+  { pathname, query, renderOpts }: RequestContext,
+  components: LoadComponentsReturnType
 ): Promise<string | false | null> {
   // we need to ensure the status code if /404 is visited directly
   if (pathname === '/404') {
     res.statusCode = 404
   }
 
-  const {
-    getStaticProps,
-    getServerSideProps,
-    getStaticPaths,
-    Component,
-  } = renderOpts
   // handle static page
-  if (typeof Component === 'string') {
-    return Component
+  if (typeof components.Component === 'string') {
+    return components.Component
   }
 
   // check request state
   const isLikeServerless =
-    typeof Component === 'object' &&
-    typeof (Component as any).renderReqToHTML === 'function'
-  const isSSG = !!getStaticProps
-  const isServerProps = !!getServerSideProps
-  const hasStaticPaths = !!getStaticPaths
+    typeof components.Component === 'object' &&
+    typeof (components.Component as any).renderReqToHTML === 'function'
+  const isSSG = !!components.getStaticProps
+  const isServerProps = !!components.getServerSideProps
+  const hasStaticPaths = !!components.getStaticPaths
 
   // Toggle whether or not this is a Data request
   const isDataReq = !!query._nextDataReq
@@ -152,7 +138,7 @@ async function renderToHTMLWithComponents(
     // handle serverless
     if (isLikeServerless) {
       if (isDataReq) {
-        const renderResult = await (Component as any).renderReqToHTML(
+        const renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
           true
@@ -172,11 +158,12 @@ async function renderToHTMLWithComponents(
         return null
       }
       prepareServerlessUrl(req, query)
-      return (Component as any).renderReqToHTML(req, res)
+      return (components.Component as any).renderReqToHTML(req, res)
     }
 
     if (isDataReq && isServerProps) {
       const props = await renderToHTML(req, res, pathname, query, {
+        ...components,
         ...renderOpts,
         isDataReq,
       })
@@ -195,6 +182,7 @@ async function renderToHTMLWithComponents(
     }
 
     return renderToHTML(req, res, pathname, query, {
+      ...components,
       ...renderOpts,
     })
   }
@@ -248,20 +236,25 @@ async function renderToHTMLWithComponents(
     let renderResult
     // handle serverless
     if (isLikeServerless) {
-      renderResult = await (Component as any).renderReqToHTML(req, res, true)
+      renderResult = await (components.Component as any).renderReqToHTML(
+        req,
+        res,
+        true
+      )
 
       html = renderResult.html
       pageData = renderResult.renderOpts.pageData
       sprRevalidate = renderResult.renderOpts.revalidate
     } else {
-      const _renderOpts = {
+      const _renderOpts: RenderOpts = {
+        ...components,
         ...renderOpts,
       }
       renderResult = await renderToHTML(req, res, pathname, query, _renderOpts)
 
       html = renderResult
-      pageData = _renderOpts.pageData
-      sprRevalidate = _renderOpts.revalidate
+      pageData = _renderOpts.pageData!
+      sprRevalidate = _renderOpts.revalidate!
     }
 
     return { html, pageData, sprRevalidate }
@@ -272,7 +265,7 @@ async function renderToHTMLWithComponents(
   const didRespond = isResSent(res)
 
   const { staticPaths, hasStaticFallback } = hasStaticPaths
-    ? await getStaticPathsHelper(pathname)
+    ? await getStaticPaths(pathname)
     : { staticPaths: undefined, hasStaticFallback: false }
 
   // const isForcedBlocking =
@@ -321,9 +314,10 @@ async function renderToHTMLWithComponents(
       query.__nextFallback = 'true'
       if (isLikeServerless) {
         prepareServerlessUrl(req, query)
-        html = await (Component as any).renderReqToHTML(req, res)
+        html = await (components.Component as any).renderReqToHTML(req, res)
       } else {
         html = (await renderToHTML(req, res, pathname, query, {
+          ...components,
           ...renderOpts,
         })) as string
       }

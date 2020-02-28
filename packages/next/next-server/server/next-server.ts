@@ -790,9 +790,9 @@ export default class Server {
         getStaticPaths: this.getStaticPaths.bind(this),
       },
       {
-        params: params ?? {},
+        params: params || {},
         pathname,
-        query: query ?? {},
+        query: query || {},
         renderOpts,
       }
     )
