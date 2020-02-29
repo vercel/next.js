@@ -957,7 +957,6 @@ export default class Server {
           pathname: '/404',
         })
       }
-
       if (!html) {
         html = await this.executeRequest({
           ...params,
@@ -965,7 +964,6 @@ export default class Server {
           query,
         })
       }
-
       if (!html) {
         throw new Error('invariant: failed to render error page')
       }
@@ -974,7 +972,6 @@ export default class Server {
       res.statusCode = 500
       html = 'Internal Server Error'
     }
-
     return html
   }
 

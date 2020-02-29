@@ -13,6 +13,27 @@ import { Params } from './router'
 import { getFallback, getSprCache, setSprCache } from './spr-cache'
 import { RenderOpts } from './render'
 
+/**
+ * `NextRequest` is an internal interface. Don't expose it to any public APIs.
+ */
+export type NextRequest = {
+  getStaticPaths: (
+    pathname: string
+  ) => Promise<{
+    staticPaths: string[] | undefined
+    hasStaticFallback: boolean
+  }>
+  pathname: string
+  query: ParsedUrlQuery
+  renderOpts: PartialRenderOpts
+  req: IncomingMessage
+  res: ServerResponse
+}
+
+export type NextRequestHandler = (request: NextRequest) => Promise<NextResponse>
+
+export type NextResponse = string | false | null
+
 export type PartialRenderOpts = {
   poweredByHeader: boolean
   staticMarkup: boolean
@@ -28,24 +49,6 @@ export type PartialRenderOpts = {
   params: Params
 }
 
-export type NextRequest = {
-  getStaticPaths: (
-    pathname: string
-  ) => Promise<{
-    staticPaths: string[] | undefined
-    hasStaticFallback: boolean
-  }>
-  pathname: string
-  query: ParsedUrlQuery
-  renderOpts: PartialRenderOpts
-  req: IncomingMessage
-  res: ServerResponse
-}
-
-export type RequestHandler = (
-  request: NextRequest
-) => Promise<string | false | null>
-
 export async function getRequestHandler({
   buildId,
   dev,
@@ -60,7 +63,7 @@ export async function getRequestHandler({
   isLikeServerless: boolean
   pathname: string
   query: ParsedUrlQuery
-}): Promise<RequestHandler | null> {
+}): Promise<NextRequestHandler | null> {
   const paths = [
     // try serving a static AMP version first
     query.amp ? normalizePagePath(pathname) + '.amp' : null,
@@ -107,7 +110,7 @@ async function renderToHTMLWithComponents(
   }: NextRequest & {
     renderOpts: RenderOpts
   }
-): Promise<string | false | null> {
+): Promise<NextResponse> {
   // we need to ensure the status code if /404 is visited directly
   if (pathname === '/404') {
     res.statusCode = 404
