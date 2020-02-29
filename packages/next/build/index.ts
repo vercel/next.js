@@ -982,9 +982,9 @@ function generateClientSsgManifest(
     '_ssgManifest.js',
     '_ssgManifest.module.js',
   ].map(f => path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f))
-  const clientSsgManifestContent = `self.__SSG_MANIFEST = ${devalue(
+  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgMatchers
-  )};self.__SSG_MANIFEST_CB && self.__SSG_MANIFEST_CB()`
+  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
   clientSsgManifestPaths.forEach(clientSsgManifestPath =>
     fs.writeFileSync(
       path.join(distDir, clientSsgManifestPath),
