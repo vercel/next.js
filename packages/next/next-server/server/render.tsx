@@ -471,11 +471,7 @@ export async function renderToHTML(
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await getStaticProps!({
-        ...(pageIsDynamic
-          ? {
-              params: query as ParsedUrlQuery,
-            }
-          : { params: undefined }),
+        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(previewData !== false
           ? { preview: true, previewData: previewData }
           : undefined),
@@ -534,10 +530,10 @@ export async function renderToHTML(
 
   if (getServerSideProps && !isFallback) {
     const data = await getServerSideProps({
-      params,
-      query,
       req,
       res,
+      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+      query,
     })
 
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
