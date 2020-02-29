@@ -1,7 +1,6 @@
 import devalue from 'devalue'
 import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
-
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -10,19 +9,12 @@ import {
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
-
-interface AssetMap {
-  devFiles: string[]
-  pages: {
-    '/_app': string[]
-    [s: string]: string[]
-  }
-}
+import { BuildManifest } from '../../../next-server/server/get-page-files'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 const generateClientManifest = (
-  assetMap: AssetMap,
+  assetMap: BuildManifest,
   isModern: boolean
 ): string => {
   const clientManifest: { [s: string]: string[] } = {}
@@ -68,7 +60,11 @@ export default class BuildManifestPlugin {
       'NextJsBuildManifest',
       (compilation, callback) => {
         const { chunks } = compilation
-        const assetMap: AssetMap = { devFiles: [], pages: { '/_app': [] } }
+        const assetMap: BuildManifest = {
+          devFiles: [],
+          lazyFiles: [],
+          pages: { '/_app': [] },
+        }
 
         const mainJsChunk = chunks.find(
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
@@ -141,24 +137,28 @@ export default class BuildManifestPlugin {
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
         if (this.clientManifest) {
-          assetMap.pages['/_app'].push(
+          assetMap.lazyFiles.push(
             `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
           )
           if (this.modern) {
-            assetMap.pages['/_app'].push(
+            assetMap.lazyFiles.push(
               `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
             )
           }
         }
 
-        // Add the runtime ssg manifest file (generated later in the build) as
-        // a dependency for the app.
-        assetMap.pages['/_app'].push(
-          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
-        )
+        // Add the runtime ssg manifest file as a lazy-loaded file dependency.
+        // We also stub this file out for development mode (when it is not
+        // generated).
+        const srcEmptySsgManifest = `self.__SSG_MANIFEST={};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+        const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+        assetMap.lazyFiles.push(ssgManifestPath)
+        compilation.assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
         if (this.modern) {
-          assetMap.pages['/_app'].push(
-            `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
+          const ssgManifestPathModern = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
+          assetMap.lazyFiles.push(ssgManifestPathModern)
+          compilation.assets[ssgManifestPathModern] = new RawSource(
+            srcEmptySsgManifest
           )
         }
 

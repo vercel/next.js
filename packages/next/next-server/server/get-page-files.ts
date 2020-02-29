@@ -2,7 +2,9 @@ import { normalizePagePath } from './normalize-page-path'
 
 export type BuildManifest = {
   devFiles: string[]
+  lazyFiles: string[]
   pages: {
+    '/_app': string[]
     [page: string]: string[]
   }
 }
