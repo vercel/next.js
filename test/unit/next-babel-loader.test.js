@@ -255,7 +255,7 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo;bar;baz;cats;baz2;ff; return { props: {} } }`,
+          `export function getStaticProps() {foo;bar;baz;cats;baz2;ff; return { props: {} } }`,
         { resourcePath: pageFile }
       )
       expect(code).toMatchInlineSnapshot(
@@ -276,12 +276,12 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
+          `export function getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
           `export default function () { return bar(); }`,
         { resourcePath: pageFile, isServer: true }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import ooo from\\"ooo\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";export function unstable_getStaticProps(){foo();baz2();ff();ooo();return{props:{}};}export default function(){return bar();}"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import ooo from\\"ooo\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";export function getStaticProps(){foo();baz2();ff();ooo();return{props:{}};}export default function(){return bar();}"`
       )
     })
 
@@ -298,7 +298,7 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo();baz2();ff();ooo();cats; return { props: {} }}` +
+          `export function getStaticProps() {foo();baz2();ff();ooo();cats; return { props: {} }}` +
           `export default function () { return cats + bar(); }`,
         { resourcePath: pageFile, isServer: false }
       )
@@ -320,7 +320,7 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
+          `export function getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
           `export default function () { return <div>{cats + bar()}</div> }`,
         { resourcePath: pageFile, isServer: false }
       )
