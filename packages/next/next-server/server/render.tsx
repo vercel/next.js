@@ -174,6 +174,7 @@ function renderDocument(
     staticMarkup,
     devFiles,
     files,
+    lowPriorityFiles,
     polyfillFiles,
     dynamicImports,
     htmlProps,
@@ -191,8 +192,9 @@ function renderDocument(
     hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
-    files: string[]
     devFiles: string[]
+    files: string[]
+    lowPriorityFiles: string[]
     polyfillFiles: string[]
     htmlProps: any
     bodyTags: any
@@ -229,6 +231,7 @@ function renderDocument(
           staticMarkup,
           devFiles,
           files,
+          lowPriorityFiles,
           polyfillFiles,
           dynamicImports,
           assetPrefix,
@@ -579,6 +582,7 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, pathname),
     ]),
   ]
+  const lowPriorityFiles = buildManifest.lowPriorityFiles
   const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
 
   const renderElementToString = staticMarkup
@@ -674,8 +678,9 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImportsIds,
     dynamicImports,
-    files,
     devFiles,
+    files,
+    lowPriorityFiles,
     polyfillFiles,
   })
 
