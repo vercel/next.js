@@ -1,12 +1,12 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
+import cheerio from 'cheerio'
 import express from 'express'
+import { access, readdir, readFile, unlink } from 'fs-extra'
 import http from 'http'
 import { nextBuild, nextServer, promiseCall, stopApp } from 'next-test-utils'
-import { readdir, readFile, unlink, access } from 'fs-extra'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
 
@@ -86,6 +86,20 @@ describe('Chunking', () => {
       [].slice
         .call($('link[rel="preload"][as="script"]'))
         .map(e => e.attribs.href)
+        .some(entry => entry.includes('_buildManifest'))
+    ).toBe(false)
+  })
+
+  it('should execute the build manifest', async () => {
+    const indexPage = await readFile(
+      join(appDir, '.next', 'server', 'static', buildId, 'pages', 'index.html')
+    )
+
+    const $ = cheerio.load(indexPage)
+    expect(
+      [].slice
+        .call($('script'))
+        .map(e => e.attribs.src)
         .some(entry => entry.includes('_buildManifest'))
     ).toBe(false)
   })

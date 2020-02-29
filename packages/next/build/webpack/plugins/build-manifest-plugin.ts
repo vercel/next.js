@@ -1,7 +1,6 @@
 import devalue from 'devalue'
 import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
-
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -10,19 +9,12 @@ import {
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX,
 } from '../../../next-server/lib/constants'
-
-interface AssetMap {
-  devFiles: string[]
-  pages: {
-    '/_app': string[]
-    [s: string]: string[]
-  }
-}
+import { BuildManifest } from '../../../next-server/server/get-page-files'
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 const generateClientManifest = (
-  assetMap: AssetMap,
+  assetMap: BuildManifest,
   isModern: boolean
 ): string => {
   const clientManifest: { [s: string]: string[] } = {}
@@ -68,7 +60,11 @@ export default class BuildManifestPlugin {
       'NextJsBuildManifest',
       (compilation, callback) => {
         const { chunks } = compilation
-        const assetMap: AssetMap = { devFiles: [], pages: { '/_app': [] } }
+        const assetMap: BuildManifest = {
+          devFiles: [],
+          lowPriorityFiles: [],
+          pages: { '/_app': [] },
+        }
 
         const mainJsChunk = chunks.find(
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
@@ -141,11 +137,11 @@ export default class BuildManifestPlugin {
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
         if (this.clientManifest) {
-          assetMap.pages['/_app'].push(
+          assetMap.lowPriorityFiles.push(
             `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
           )
           if (this.modern) {
-            assetMap.pages['/_app'].push(
+            assetMap.lowPriorityFiles.push(
               `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
             )
           }
