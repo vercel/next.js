@@ -153,7 +153,7 @@ export type DocumentProps = DocumentInitialProps & {
   hasCssMode: boolean
   devFiles: string[]
   files: string[]
-  lazyFiles: string[]
+  lowPriorityFiles: string[]
   polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string

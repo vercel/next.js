@@ -62,7 +62,7 @@ export default class BuildManifestPlugin {
         const { chunks } = compilation
         const assetMap: BuildManifest = {
           devFiles: [],
-          lazyFiles: [],
+          lowPriorityFiles: [],
           pages: { '/_app': [] },
         }
 
@@ -137,11 +137,11 @@ export default class BuildManifestPlugin {
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
         if (this.clientManifest) {
-          assetMap.lazyFiles.push(
+          assetMap.lowPriorityFiles.push(
             `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
           )
           if (this.modern) {
-            assetMap.lazyFiles.push(
+            assetMap.lowPriorityFiles.push(
               `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
             )
           }
@@ -152,11 +152,11 @@ export default class BuildManifestPlugin {
         // generated).
         const srcEmptySsgManifest = `self.__SSG_MANIFEST={};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
-        assetMap.lazyFiles.push(ssgManifestPath)
+        assetMap.lowPriorityFiles.push(ssgManifestPath)
         compilation.assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
         if (this.modern) {
           const ssgManifestPathModern = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
-          assetMap.lazyFiles.push(ssgManifestPathModern)
+          assetMap.lowPriorityFiles.push(ssgManifestPathModern)
           compilation.assets[ssgManifestPathModern] = new RawSource(
             srcEmptySsgManifest
           )

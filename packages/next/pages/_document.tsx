@@ -579,11 +579,14 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files, lazyFiles } = this.context._documentProps
+    const { assetPrefix, files, lowPriorityFiles } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     const normalScripts = files?.filter(file => file.endsWith('.js'))
-    const lowPriorityScripts = lazyFiles?.filter(file => file.endsWith('.js'))
+    const lowPriorityScripts = lowPriorityFiles?.filter(file =>
+      file.endsWith('.js')
+    )
+
     return [...normalScripts, ...lowPriorityScripts].map(file => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {

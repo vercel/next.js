@@ -2,7 +2,6 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-// eslint-disable-next-line camelcase
 export async function getServerSideProps({ params }) {
   return {
     props: {
