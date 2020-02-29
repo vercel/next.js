@@ -1,4 +1,6 @@
+import { parse } from 'url'
 import mitt from '../next-server/lib/mitt'
+import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
 
 function hasRel(rel, link) {
   try {
@@ -18,6 +20,7 @@ const relPrefetch =
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
+/** @param {string} route */
 function normalizeRoute(route) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
@@ -62,7 +65,7 @@ export default class PageLoader {
         }
       })
     }
-    /** @type {Promise<RegExp[]>} */
+    /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise(resolve => {
       if (window.__SSG_MANIFEST) {
         resolve(window.__SSG_MANIFEST)
@@ -86,23 +89,32 @@ export default class PageLoader {
     )
   }
 
-  /** @param {string} asPath */
-  prefetchAs(asPath) {
-    asPath = normalizeRoute(asPath)
+  /**
+   * @param {string} href the route href (file-system path)
+   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
+   */
+  prefetchData(href, asPath) {
+    const { pathname: hrefPathname } = parse(href, true)
+
+    const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest.then(
-      (m, _href) =>
-        // Check if `asPath` requires a data file
-        m.some(r => r.test(asPath)) &&
-        // Assemble `href` for data file
-        ((_href = `${this.assetPrefix}/_next/data/${this.buildId}${
-          asPath === '/' ? '/index' : asPath
-        }.json`),
+      (s, _dataHref) =>
+        // Check if the route requires a data file
+        s.has(route) &&
+        (isDynamicRoute(route)
+          ? void 0
+          : // Create `href` for normal (non-dynamic) data file
+            (_dataHref = `${this.assetPrefix}/_next/data/${this.buildId}${
+              route === '/' ? '/index' : route
+            }.json`),
+        // noop when we could not generate a data href
+        _dataHref) &&
         // noop when data has already been prefetched (dedupe)
         !document.querySelector(
-          `link[rel="${relPrefetch}"][href^="${_href}"]`
-        )) &&
+          `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
+        ) &&
         // Inject the `<link rel=prefetch>` tag for above computed `href`.
-        appendLink(_href, relPrefetch, 'fetch')
+        appendLink(_dataHref, relPrefetch, 'fetch')
     )
   }
 

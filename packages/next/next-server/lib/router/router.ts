@@ -704,7 +704,7 @@ export default class Router implements BaseRouter {
       }
 
       Promise.all([
-        this.pageLoader.prefetchAs(toRoute(asPath)),
+        this.pageLoader.prefetchData(url, asPath),
         this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
           toRoute(pathname)
         ),

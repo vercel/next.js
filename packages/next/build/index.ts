@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import ciEnvironment from 'ci-info'
-import devalue from 'devalue'
 import crypto from 'crypto'
+import devalue from 'devalue'
 import escapeStringRegexp from 'escape-string-regexp'
 import findUp from 'find-up'
 import fs from 'fs'
@@ -970,20 +970,17 @@ function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   { buildId, distDir }: { buildId: string; distDir: string }
 ) {
-  const ssgMatchers: RegExp[] = []
-  Object.keys(prerenderManifest.routes).forEach(route =>
-    ssgMatchers.push(new RegExp('^' + escapeStringRegexp(route) + '$'))
-  )
-  Object.values(prerenderManifest.dynamicRoutes).forEach(entry =>
-    ssgMatchers.push(new RegExp(entry.routeRegex))
-  )
+  const ssgPages: Set<string> = new Set<string>([
+    ...Object.keys(prerenderManifest.routes),
+    ...Object.keys(prerenderManifest.dynamicRoutes),
+  ])
 
   const clientSsgManifestPaths = [
     '_ssgManifest.js',
     '_ssgManifest.module.js',
   ].map(f => path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f))
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
-    ssgMatchers
+    ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
   clientSsgManifestPaths.forEach(clientSsgManifestPath =>
     fs.writeFileSync(
