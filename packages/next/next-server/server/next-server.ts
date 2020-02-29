@@ -51,11 +51,7 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { initializeSprCache } from './spr-cache'
 import { isBlockedPage } from './utils'
-import {
-  getRequestHandler,
-  prepareServerlessUrl,
-  RequestHandler,
-} from './request-handler'
+import { getRequestHandler, prepareServerlessUrl } from './request-handler'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -782,34 +778,45 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async findRequestHandler({
+  private async executeRequest({
     params,
     pathname,
-    query,
     renderOpts,
+    query: _query,
+    req,
+    res,
   }: {
     params?: Params
     pathname: string
     query?: ParsedUrlQuery
     renderOpts: PartialRenderOpts
-  }): Promise<RequestHandler | null> {
-    return await getRequestHandler(
-      {
-        buildId: this.buildId,
-        distDir: this.distDir,
-        isLikeServerless: this._isLikeServerless,
-        getStaticPaths: pathname => this.getStaticPaths(pathname),
+    req: IncomingMessage
+    res: ServerResponse
+  }): Promise<string | false | null> {
+    const query = _query ?? {}
+    const requestHandler = await getRequestHandler({
+      buildId: this.buildId,
+      dev: this.renderOpts.dev === true,
+      distDir: this.distDir,
+      isLikeServerless: this._isLikeServerless,
+      pathname,
+      query,
+    })
+    if (!requestHandler) {
+      return false
+    }
+    return await requestHandler({
+      getStaticPaths: pathname => this.getStaticPaths(pathname),
+      pathname,
+      query,
+      renderOpts: {
+        ...renderOpts,
+        params: params || {},
+        previewProps: this.getPreviewProps(),
       },
-      {
-        pathname,
-        query: query || {},
-        renderOpts: {
-          ...renderOpts,
-          params: params || {},
-          previewProps: this.getPreviewProps(),
-        },
-      }
-    )
+      req,
+      res,
+    })
   }
 
   private async getStaticPaths(
@@ -868,16 +875,15 @@ export default class Server {
   ): Promise<string | null> {
     const renderOpts = { ...this.renderOpts, amphtml, hasAmp }
     try {
-      const requestHandler = await this.findRequestHandler({
+      const result = await this.executeRequest({
         pathname,
-        renderOpts,
         query,
+        renderOpts,
+        req,
+        res,
       })
-      if (requestHandler) {
-        const result = await requestHandler(req, res)
-        if (result !== false) {
-          return result
-        }
+      if (result !== false) {
+        return result
       }
 
       if (this.dynamicRoutes) {
@@ -886,18 +892,16 @@ export default class Server {
           if (!params) {
             continue
           }
-
-          const requestHandler = await this.findRequestHandler({
-            pathname: dynamicRoute.page,
-            renderOpts,
-            query,
+          const result = await this.executeRequest({
             params,
+            pathname: dynamicRoute.page,
+            query,
+            renderOpts,
+            req,
+            res,
           })
-          if (requestHandler) {
-            const result = await requestHandler(req, res)
-            if (result !== false) {
-              return result
-            }
+          if (result !== false) {
+            return result
           }
         }
       }
@@ -936,42 +940,41 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let requestHandler: null | RequestHandler = null
-
-    const is404 = res.statusCode === 404
-    const renderOpts = {
-      ...this.renderOpts,
-      err,
+    const params = {
+      renderOpts: {
+        ...this.renderOpts,
+        err,
+      },
+      req,
+      res,
     }
-
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      requestHandler = await this.findRequestHandler({
-        pathname: '/404',
-        renderOpts,
-      })
-    }
-
-    if (!requestHandler) {
-      requestHandler = await this.findRequestHandler({
-        pathname: '/_error',
-        renderOpts,
-        query,
-      })
-    }
-
-    let html: string | null
+    let html: string | false | null = null
     try {
-      const result = await requestHandler!(req, res)
-      if (result === false) {
+      // use static 404 page if available and is 404 response
+      if (res.statusCode === 404) {
+        html = await this.executeRequest({
+          ...params,
+          pathname: '/404',
+        })
+      }
+
+      if (!html) {
+        html = await this.executeRequest({
+          ...params,
+          pathname: '/_error',
+          query,
+        })
+      }
+
+      if (!html) {
         throw new Error('invariant: failed to render error page')
       }
-      html = result
     } catch (err) {
       console.error(err)
       res.statusCode = 500
       html = 'Internal Server Error'
     }
+
     return html
   }
 

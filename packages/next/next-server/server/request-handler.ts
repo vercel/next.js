@@ -28,35 +28,39 @@ export type PartialRenderOpts = {
   params: Params
 }
 
-export type RequestContext = {
-  pathname: string
-  query: ParsedUrlQuery
-  renderOpts: PartialRenderOpts
-}
-
-export type ServerContext = {
-  buildId: string
-  distDir: string
-  isLikeServerless: boolean
+export type NextRequest = {
   getStaticPaths: (
     pathname: string
   ) => Promise<{
     staticPaths: string[] | undefined
     hasStaticFallback: boolean
   }>
+  pathname: string
+  query: ParsedUrlQuery
+  renderOpts: PartialRenderOpts
+  req: IncomingMessage
+  res: ServerResponse
 }
 
 export type RequestHandler = (
-  req: IncomingMessage,
-  res: ServerResponse
+  request: NextRequest
 ) => Promise<string | false | null>
 
-export async function getRequestHandler(
-  serverCtx: ServerContext,
-  requestCtx: RequestContext
-): Promise<RequestHandler | null> {
-  const { buildId, distDir, isLikeServerless } = serverCtx
-  const { pathname, query, renderOpts } = requestCtx
+export async function getRequestHandler({
+  buildId,
+  dev,
+  distDir,
+  isLikeServerless,
+  pathname,
+  query,
+}: {
+  buildId: string
+  dev: boolean
+  distDir: string
+  isLikeServerless: boolean
+  pathname: string
+  query: ParsedUrlQuery
+}): Promise<RequestHandler | null> {
   const paths = [
     // try serving a static AMP version first
     query.amp ? normalizePagePath(pathname) + '.amp' : null,
@@ -68,20 +72,20 @@ export async function getRequestHandler(
         distDir,
         buildId,
         pagePath!,
-        !renderOpts.dev && isLikeServerless
+        !dev && isLikeServerless
       )
-      return async (req, res) =>
-        await renderToHTMLWithComponents(req, res, serverCtx, {
-          ...requestCtx,
+      return async request =>
+        await renderToHTMLWithComponents(buildId, {
+          ...request,
           query: {
             ...(components.getStaticProps
               ? { _nextDataReq: query._nextDataReq }
               : query),
-            ...renderOpts.params,
+            ...request.renderOpts.params,
           },
           renderOpts: {
             ...components,
-            ...renderOpts,
+            ...request.renderOpts,
           },
         })
     } catch (err) {
@@ -92,14 +96,15 @@ export async function getRequestHandler(
 }
 
 async function renderToHTMLWithComponents(
-  req: IncomingMessage,
-  res: ServerResponse,
-  { buildId, getStaticPaths }: ServerContext,
+  buildId: string,
   {
+    getStaticPaths,
     pathname,
     query,
     renderOpts,
-  }: RequestContext & {
+    req,
+    res,
+  }: NextRequest & {
     renderOpts: RenderOpts
   }
 ): Promise<string | false | null> {
