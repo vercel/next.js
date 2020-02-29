@@ -97,11 +97,10 @@ describe('Chunking', () => {
 
     const $ = cheerio.load(indexPage)
     expect(
-      [].slice
-        .call($('script'))
+      Array.from($('script'))
         .map(e => e.attribs.src)
-        .some(entry => entry.includes('_buildManifest'))
-    ).toBe(false)
+        .some(entry => entry && entry.includes('_buildManifest'))
+    ).toBe(true)
   })
 
   it('should not include more than one instance of react-dom', async () => {
