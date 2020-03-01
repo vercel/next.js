@@ -129,7 +129,6 @@ type RenderOpts = LoadComponentsReturnType & {
   buildId: string
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
-  dangerousAsPath: string
   assetPrefix?: string
   hasCssMode: boolean
   err?: Error | null
