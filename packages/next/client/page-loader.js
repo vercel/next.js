@@ -100,40 +100,57 @@ export default class PageLoader {
     const { pathname: asPathname } = parse(asPath)
 
     const route = normalizeRoute(hrefPathname)
+
+    let isDynamic = isDynamicRoute(route),
+      interpolatedRoute
+    if (isDynamic) {
+      const dynamicRegex = getRouteRegex(route)
+      const dynamicGroups = dynamicRegex.groups
+      const dynamicMatches =
+        // Try to match the dynamic route against the asPath
+        getRouteMatcher(dynamicRegex)(asPathname) ||
+        // Fall back to reading the values from the href
+        // TODO: should this take priority; also need to change in the router.
+        query
+
+      interpolatedRoute = route
+      if (
+        !Object.keys(dynamicGroups).every(param => {
+          const value = dynamicMatches[param]
+          const repeat = dynamicGroups[param].repeat
+          return (
+            param in dynamicMatches &&
+            (!repeat || Array.isArray(value)) &&
+            // Interpolate group into data URL if present
+            (interpolatedRoute = interpolatedRoute.replace(
+              `[${repeat ? '...' : ''}${param}]`,
+              repeat
+                ? value.map(encodeURIComponent).join('/')
+                : encodeURIComponent(value)
+            ))
+          )
+        })
+      ) {
+        interpolatedRoute = '' // did not satisfy all requirements
+
+        // n.b. We handle warning for this case in development in the `<Link>`
+        // component directly.
+      }
+    }
+
+    const getHrefForSlug = path =>
+      `${this.assetPrefix}/_next/data/${this.buildId}${
+        path === '/' ? '/index' : path
+      }.json`
+
     return this.promisedSsgManifest.then(
-      (
-        s,
-        _dataHref,
-        _dynamic_regex,
-        _dynamic_groups,
-        _dynamic_matches,
-        _dynamic_built_route
-      ) =>
+      (s, _dataHref) =>
         // Check if the route requires a data file
         s.has(route) &&
-        (isDynamicRoute(route)
-          ? ((_dynamic_regex = getRouteRegex(route)),
-            (_dynamic_groups = _dynamic_regex.groups),
-            (_dynamic_matches =
-              getRouteMatcher(_dynamic_regex)(asPathname) || query),
-            (_dynamic_built_route = route),
-            Object.keys(_dynamic_groups).every(
-              param =>
-                param in _dynamic_matches &&
-                // Interpolate group into data URL if present
-                (_dynamic_built_route = _dynamic_built_route.replace(
-                  `[${_dynamic_groups[param].repeat ? '...' : ''}${param}]`,
-                  _dynamic_groups[param].repeat
-                    ? // FIXME: assuming `_matches` is an array
-                      _dynamic_matches[param].map(encodeURIComponent).join('/')
-                    : encodeURIComponent(_dynamic_matches[param])
-                ))
-            ) &&
-              (_dataHref = `${this.assetPrefix}/_next/data/${this.buildId}${_dynamic_built_route}.json`))
+        ((_dataHref = isDynamic
+          ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
           : // Create `href` for normal (non-dynamic) data file
-            (_dataHref = `${this.assetPrefix}/_next/data/${this.buildId}${
-              route === '/' ? '/index' : route
-            }.json`),
+            getHrefForSlug(route)),
         // noop when we could not generate a data href
         _dataHref) &&
         // noop when data has already been prefetched (dedupe)
