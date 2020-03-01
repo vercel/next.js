@@ -17,7 +17,7 @@ module.exports = (
         loaders = [],
     }
 ) => {
-    // We have to keep a list of extensions for the splitchunk config
+
     for (const extension of extensions) {
         fileExtensions.add(extension)
     }
@@ -67,7 +67,7 @@ module.exports = (
     let postcssLoader
 
     if (postcssConfigPath) {
-        // Copy the postcss-loader config options first.
+
         const postcssOptionsConfig = Object.assign(
             {},
             postcssLoaderOptions.config,
@@ -96,12 +96,10 @@ module.exports = (
         )
     };
 
-    // When not using css modules we don't transpile on the server
     if (isServer && !cssLoader.options.modules) {
         return ['ignore-loader']
     }
 
-    // When on the server and using css modules we transpile the css
     if (isServer && cssLoader.options.modules) {
         return [cssLoader, postcssLoader, ...loaders].filter(Boolean)
     }
@@ -112,11 +110,7 @@ module.exports = (
             loader: MiniCssExtractPlugin.loader,
             options: {
                 hmr: dev,
-                // if hmr does not work, this is a forceful method.
                 reloadAll: true,
-                // publicPath: (resourcePath, context) => {
-                //   return path.relative(path.dirname(resourcePath), context) + '/';
-                // },
             }
         },
         cssLoader,
