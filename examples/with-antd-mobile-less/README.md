@@ -8,7 +8,7 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-antd-mobile with-antd-mobile-less-app
+npx create-next-app --example with-antd-mobile-less with-antd-mobile-less-app
 # or
 yarn create next-app --example with-antd-mobile-less with-antd-mobile-less-app
 ```
