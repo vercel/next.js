@@ -228,4 +228,20 @@ describe('Prefetching Links in viewport', () => {
     const calledPrefetch = await browser.eval(`window.calledPrefetch`)
     expect(calledPrefetch).toBe(false)
   })
+
+  it('should prefetch with a different asPath for a prefetched page', async () => {
+    // info: both `/` and `/not-de-duped` ref the `/first` page, which we want
+    // to see prefetched twice.
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.calledPrefetch = false
+      window.next.router.prefetch = function() {
+        window.calledPrefetch = true
+      }
+      window.next.router.push('/not-de-duped')
+    })()`)
+    await waitFor(2 * 1000)
+    const calledPrefetch = await browser.eval(`window.calledPrefetch`)
+    expect(calledPrefetch).toBe(true)
+  })
 })
