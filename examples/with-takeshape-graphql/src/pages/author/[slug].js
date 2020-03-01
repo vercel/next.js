@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import Error from 'next/error'
 import cx from 'classnames'
 import { getImageUrl } from 'takeshape-routing'
 import { graphqlFetch } from '../../lib/takeshape-api'
@@ -37,29 +36,28 @@ export const authorSlugsQuery = `
   }
 `
 
-export async function unstable_getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
   const data = await graphqlFetch({ query: authorQuery(params.slug) })
   return { props: { data } }
 }
 
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   const data = await graphqlFetch({ query: authorSlugsQuery })
   const authors = data.authors.items
 
-  return authors.reduce(
-    (pages, author) =>
-      pages.concat({
-        params: { slug: author.slug },
-      }),
-    []
-  )
+  return {
+    paths: authors.reduce(
+      (pages, author) =>
+        pages.concat({
+          params: { slug: author.slug },
+        }),
+      []
+    ),
+    fallback: false,
+  }
 }
 
 export default function Author({ data }) {
-  if (!data || data.authors.total < 1) {
-    return <Error statusCode={404} />
-  }
-
   const { name, photo, biographyHtml } = data.authors.items[0]
 
   return (

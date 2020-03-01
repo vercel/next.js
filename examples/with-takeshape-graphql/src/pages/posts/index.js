@@ -29,7 +29,7 @@ export const postListQuery = `
   }
 `
 
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
   const data = await graphqlFetch({ query: postListQuery })
   return { props: { data } }
 }

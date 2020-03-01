@@ -1,6 +1,5 @@
 import Head from 'next/head'
 import Link from 'next/link'
-import Error from 'next/error'
 import format from 'date-fns/format'
 import { graphqlFetch } from '../../lib/takeshape-api'
 import Content from '../../components/content'
@@ -44,29 +43,28 @@ export const postSlugsQuery = `
   }
 `
 
-export async function unstable_getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
   const data = await graphqlFetch({ query: postQuery(params.slug) })
   return { props: { data } }
 }
 
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   const data = await graphqlFetch({ query: postSlugsQuery })
   const posts = data.posts.items
 
-  return posts.reduce(
-    (pages, post) =>
-      pages.concat({
-        params: { slug: post.slug },
-      }),
-    []
-  )
+  return {
+    paths: posts.reduce(
+      (pages, post) =>
+        pages.concat({
+          params: { slug: post.slug },
+        }),
+      []
+    ),
+    fallback: false,
+  }
 }
 
 export default function Post({ data }) {
-  if (!data || data.posts.total < 1) {
-    return <Error statusCode={404} />
-  }
-
   const {
     _enabledAt,
     title,

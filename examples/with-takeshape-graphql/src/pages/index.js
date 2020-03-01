@@ -42,7 +42,7 @@ export const homePageQuery = `
 	}
 `
 
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
   const data = await graphqlFetch({ query: homePageQuery })
 
   return {
