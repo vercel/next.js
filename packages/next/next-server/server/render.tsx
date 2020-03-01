@@ -124,12 +124,11 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = LoadComponentsReturnType & {
+export type RenderOptsPartial = {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
-  dangerousAsPath: string
   assetPrefix?: string
   hasCssMode: boolean
   err?: Error | null
@@ -147,6 +146,8 @@ type RenderOpts = LoadComponentsReturnType & {
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
 }
+
+export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 function renderDocument(
   Document: DocumentType,
@@ -469,7 +470,7 @@ export async function renderToHTML(
       // Reads of this are cached on the `req` object, so this should resolve
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
-      const previewData = tryGetPreviewData(req, res, previewProps)
+      const previewData = tryGetPreviewData(req, res, previewProps) // TODO: null check
       const data = await getStaticProps!({
         ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(previewData !== false

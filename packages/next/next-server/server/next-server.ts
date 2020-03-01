@@ -41,7 +41,7 @@ import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { renderToHTML } from './render'
+import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
   DynamicRoutes,
@@ -115,6 +115,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
+    previewProps: __ApiPreviewProps
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -165,6 +166,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      previewProps: this.getPreviewProps(),
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -668,13 +670,12 @@ export default class Server {
       }
     }
 
-    const previewProps = this.getPreviewProps()
     await apiResolver(
       req,
       res,
       query,
       pageModule,
-      { ...previewProps },
+      this.renderOpts.previewProps,
       this.onErrorMiddleware
     )
     return true
@@ -780,7 +781,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {})
+    const html = await this.renderToHTML(req, res, pathname, query)
     // Request was ended by the user
     if (html === null) {
       return
@@ -869,7 +870,7 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
-    opts: any
+    opts: RenderOptsPartial
   ): Promise<string | false | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
@@ -890,7 +891,7 @@ export default class Server {
     const hasStaticPaths = !!components.getStaticPaths
 
     // Toggle whether or not this is a Data request
-    const isDataReq = query._nextDataReq
+    const isDataReq = !!query._nextDataReq
     delete query._nextDataReq
 
     // Serverless requests need its URL transformed back into the original
@@ -958,8 +959,11 @@ export default class Server {
       })
     }
 
-    const previewProps = this.getPreviewProps()
-    const previewData = tryGetPreviewData(req, res, { ...previewProps })
+    const previewData = tryGetPreviewData(
+      req,
+      res,
+      this.renderOpts.previewProps
+    )
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
@@ -1017,7 +1021,7 @@ export default class Server {
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
       } else {
-        const renderOpts = {
+        const renderOpts: RenderOpts = {
           ...components,
           ...opts,
         }
@@ -1127,14 +1131,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
-    {
-      amphtml,
-      hasAmp,
-    }: {
-      amphtml?: boolean
-      hasAmp?: boolean
-    } = {}
+    query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     try {
       const result = await this.findPageComponents(pathname, query)
@@ -1144,7 +1141,7 @@ export default class Server {
           res,
           pathname,
           result,
-          { ...this.renderOpts, amphtml, hasAmp }
+          { ...this.renderOpts }
         )
         if (result2 !== false) {
           return result2
@@ -1169,12 +1166,7 @@ export default class Server {
               res,
               dynamicRoute.page,
               result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
-              }
+              { ...this.renderOpts, params }
             )
             if (result2 !== false) {
               return result2
@@ -1239,10 +1231,7 @@ export default class Server {
         res,
         using404Page ? '/404' : '/_error',
         result!,
-        {
-          ...this.renderOpts,
-          err,
-        }
+        { ...this.renderOpts, err }
       )
       if (result2 === false) {
         throw new Error('invariant: failed to render error page')
