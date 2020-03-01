@@ -1,6 +1,5 @@
-import React, { Fragment } from 'react'
 import Head from 'next/head'
-import TakeShape from '../../providers/takeshape'
+import { graphqlFetch } from '../../lib/takeshape-api'
 import PostList from '../../components/post-list'
 import baseTheme from '../../base.module.css'
 
@@ -30,10 +29,14 @@ export const postListQuery = `
   }
 `
 
-const PostListPage = props => {
-  const { data } = props
+export async function unstable_getStaticProps() {
+  const data = await graphqlFetch({ query: postListQuery })
+  return { props: { data } }
+}
+
+export default function Posts({ data }) {
   return (
-    <Fragment>
+    <>
       <Head>
         <title key="title">Posts / Shape Blog</title>
         <meta
@@ -46,25 +49,6 @@ const PostListPage = props => {
         <h1>All Posts</h1>
       </header>
       <PostList posts={data.posts.items} />
-    </Fragment>
+    </>
   )
 }
-
-export async function unstable_getStaticProps() {
-  try {
-    const res = await TakeShape.graphql({ query: postListQuery })
-    const json = await res.json()
-    if (json.errors) throw json.errors
-    const data = json.data
-    return {
-      props: {
-        data,
-      },
-    }
-  } catch (error) {
-    console.error(error)
-    return error
-  }
-}
-
-export default PostListPage

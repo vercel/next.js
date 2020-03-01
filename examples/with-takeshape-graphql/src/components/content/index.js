@@ -1,3 +1,3 @@
-import { default as HtmlContent } from './content'
+import Content from './content'
 
-export default HtmlContent
+export default Content
