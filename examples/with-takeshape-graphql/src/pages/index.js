@@ -1,6 +1,7 @@
 import Error from 'next/error'
 import Link from 'next/link'
 import cn from 'classnames'
+import { graphqlFetch } from '../lib/takeshape-api'
 import TakeShape from '../providers/takeshape'
 import PostList from '../components/post-list'
 import baseTheme from '../base.module.css'
@@ -42,20 +43,13 @@ export const homePageQuery = `
 `
 
 export async function unstable_getStaticProps() {
-  try {
-    const res = await TakeShape.graphql({ query: homePageQuery })
-    const json = await res.json()
-    if (json.errors) throw json.errors
-    const data = json.data
-    return {
-      props: {
-        hero: data.page.hero,
-        posts: data.posts.items.slice(0, 3),
-      },
-    }
-  } catch (error) {
-    console.error(error)
-    return error
+  const data = await graphqlFetch({ query: homePageQuery })
+
+  return {
+    props: {
+      hero: data.page.hero,
+      posts: data.posts.items.slice(0, 3),
+    },
   }
 }
 

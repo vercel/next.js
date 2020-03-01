@@ -10,8 +10,8 @@ export class Client {
     this.getImageUrl = getImageUrl
     this.formatPath = formatPath
   }
-  async graphql(params) {
-    const res = await fetch(this.endpoint, {
+  graphql(params) {
+    return fetch(this.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,7 +19,6 @@ export class Client {
       },
       body: JSON.stringify(params),
     })
-    return res
   }
 }
 

@@ -9,6 +9,7 @@
     "dotenv": "^8.2.0",
     "isomorphic-fetch": "^2.2.1",
     "next": "^9.2.1",
+    "node-fetch": "2.6.0",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "takeshape-routing": "^4.86.0"
