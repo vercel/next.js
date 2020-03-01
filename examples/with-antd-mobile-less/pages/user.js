@@ -3,17 +3,17 @@ import { List, InputItem, WhiteSpace } from 'antd-mobile'
 import Layout from '../components/layout'
 
 class UserPage extends React.Component {
-  render () {
+  render() {
     return (
-      <Layout active='User'>
-                <>
-                  <h3>Next Page </h3>
+      <Layout active="User">
+        <>
+          <h3>Next Page </h3>
 
-                  <WhiteSpace />
-                  <List>
-                    <InputItem placeholder='input something'>Input Item</InputItem>
-                  </List>
-                </>
+          <WhiteSpace />
+          <List>
+            <InputItem placeholder="input something">Input Item</InputItem>
+          </List>
+        </>
       </Layout>
     )
   }

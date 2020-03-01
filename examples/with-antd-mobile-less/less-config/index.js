@@ -2,7 +2,7 @@ const cssLoaderConfig = require('./css-loader')
 
 module.exports = (nextConfig = {}) => {
   return Object.assign({}, nextConfig, {
-    webpack (config, options) {
+    webpack(config, options) {
       if (!options.defaultLoaders) {
         throw new Error(
           'This plugin is not compatible with Next.js versions below 5.0.0 https://err.sh/next-plugins/upgrade'
@@ -15,7 +15,7 @@ module.exports = (nextConfig = {}) => {
         cssModules,
         cssLoaderOptions,
         postcssLoaderOptions,
-        lessLoaderOptions = {}
+        lessLoaderOptions = {},
       } = nextConfig
 
       options.defaultLoaders.less = cssLoaderConfig(config, {
@@ -28,9 +28,9 @@ module.exports = (nextConfig = {}) => {
         loaders: [
           {
             loader: 'less-loader',
-            options: lessLoaderOptions
-          }
-        ]
+            options: lessLoaderOptions,
+          },
+        ],
       })
 
       // disable antd cssModules
@@ -46,17 +46,17 @@ module.exports = (nextConfig = {}) => {
           loaders: [
             {
               loader: 'less-loader',
-              options: lessLoaderOptions
-            }
-          ]
-        })
+              options: lessLoaderOptions,
+            },
+          ],
+        }),
       })
 
       // local style using less-loader
       config.module.rules.push({
         test: /\.less$/,
         exclude: /node_modules/,
-        use: options.defaultLoaders.less
+        use: options.defaultLoaders.less,
       })
 
       // css loader
@@ -67,8 +67,8 @@ module.exports = (nextConfig = {}) => {
           cssModules: false,
           cssLoaderOptions: {},
           dev,
-          isServer
-        })
+          isServer,
+        }),
       })
 
       config.module.rules.push({
@@ -77,8 +77,8 @@ module.exports = (nextConfig = {}) => {
         use: cssLoaderConfig(config, {
           cssModules: false,
           dev,
-          isServer
-        })
+          isServer,
+        }),
       })
 
       if (typeof nextConfig.webpack === 'function') {
@@ -86,6 +86,6 @@ module.exports = (nextConfig = {}) => {
       }
 
       return config
-    }
+    },
   })
 }

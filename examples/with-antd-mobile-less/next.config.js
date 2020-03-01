@@ -20,13 +20,13 @@ module.exports = withLess({
   cssLoaderOptions: {
     url: false,
     modules: {
-      localIdentName: '[local]-[hash:base64:4]'
+      localIdentName: '[local]-[hash:base64:4]',
     },
-    import: true
+    import: true,
   },
   lessLoaderOptions: {
     javascriptEnabled: true,
-    modifyVars: themeVariables
+    modifyVars: themeVariables,
   },
   webpack: (config, options) => {
     const { isServer, dir } = options
@@ -42,7 +42,7 @@ module.exports = withLess({
             'next/link',
             'next/error',
             'string-hash',
-            'next/constants'
+            'next/constants',
           ]
 
           if (notExternalModules.indexOf(request) !== -1) {
@@ -91,15 +91,15 @@ module.exports = withLess({
               callback()
             }
           )
-        }
+        },
       ]
 
       config.module.rules.unshift({
         test: antStyles,
-        use: 'null-loader'
+        use: 'null-loader',
       })
     }
 
     return config
-  }
+  },
 })

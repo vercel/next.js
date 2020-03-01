@@ -14,7 +14,7 @@ module.exports = (
     dev,
     isServer,
     postcssLoaderOptions = {},
-    loaders = []
+    loaders = [],
   }
 ) => {
   for (const extension of extensions) {
@@ -26,21 +26,23 @@ module.exports = (
       name: 'styles',
       test: new RegExp(`\\.+(${[...fileExtensions].join('|')})$`),
       chunks: 'all',
-      enforce: true
+      enforce: true,
     }
   }
 
   if (!isServer && !extractCssInitialized) {
-    config.plugins.push(new MiniCssExtractPlugin({
-      filename: dev
-        ? 'static/chunks/[name].css'
-        : 'static/chunks/[name].[contenthash:8].css',
-      chunkFilename: dev
-        ? 'static/chunks/[name].chunk.css'
-        : 'static/chunks/[name].[contenthash:8].chunk.css',
-      hot: dev,
-      ignoreOrder: true
-    }))
+    config.plugins.push(
+      new MiniCssExtractPlugin({
+        filename: dev
+          ? 'static/chunks/[name].css'
+          : 'static/chunks/[name].[contenthash:8].css',
+        chunkFilename: dev
+          ? 'static/chunks/[name].chunk.css'
+          : 'static/chunks/[name].[contenthash:8].chunk.css',
+        hot: dev,
+        ignoreOrder: true,
+      })
+    )
 
     if (!dev) {
       if (!Array.isArray(config.optimization.minimizer)) {
@@ -50,8 +52,8 @@ module.exports = (
       config.optimization.minimizer.push(
         new OptimizeCssAssetsWebpackPlugin({
           cssProcessorOptions: {
-            discardComments: { removeAll: true }
-          }
+            discardComments: { removeAll: true },
+          },
         })
       )
     }
@@ -60,7 +62,7 @@ module.exports = (
   }
 
   const postcssConfigPath = findUp.sync('postcss.config.js', {
-    cwd: config.context
+    cwd: config.context,
   })
   let postcssLoader
 
@@ -74,8 +76,8 @@ module.exports = (
     postcssLoader = {
       loader: 'postcss-loader',
       options: Object.assign({}, postcssLoaderOptions, {
-        config: postcssOptionsConfig
-      })
+        config: postcssOptionsConfig,
+      }),
     }
   }
 
@@ -87,10 +89,10 @@ module.exports = (
         modules: cssModules,
         sourceMap: dev,
         importLoaders: loaders.length + (postcssLoader ? 1 : 0),
-        onlyLocals: isServer
+        onlyLocals: isServer,
       },
       cssLoaderOptions
-    )
+    ),
   }
 
   if (isServer && !cssLoader.options.modules) {
@@ -107,11 +109,11 @@ module.exports = (
       loader: MiniCssExtractPlugin.loader,
       options: {
         hmr: dev,
-        reloadAll: true
-      }
+        reloadAll: true,
+      },
     },
     cssLoader,
     postcssLoader,
-    ...loaders
+    ...loaders,
   ].filter(Boolean)
 }
