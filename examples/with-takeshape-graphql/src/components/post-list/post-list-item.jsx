@@ -1,7 +1,6 @@
-import React from 'react'
 import Link from 'next/link'
 import format from 'date-fns/format'
-import TakeShape from '../../providers/takeshape'
+import { getImageUrl } from 'takeshape-routing'
 import theme from './post-list-item.module.css'
 
 export default function PostListItem({
@@ -17,10 +16,7 @@ export default function PostListItem({
         <a className={theme.tout}>
           <div>
             {featureImage && (
-              <img
-                src={TakeShape.getImageUrl(featureImage.path, { w: 350 })}
-                alt={''}
-              />
+              <img src={getImageUrl(featureImage.path, { w: 350 })} alt={''} />
             )}
           </div>
           <div>
