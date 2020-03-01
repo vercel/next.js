@@ -32,7 +32,7 @@ import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
-// import { importAutoDllPlugin } from './webpack/plugins/dll-import'
+import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 // import NextEsmPlugin from './webpack/plugins/next-esm-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -595,7 +595,6 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
-      // futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
     performance: false,

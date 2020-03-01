@@ -279,7 +279,6 @@ export async function renderToHTML(
     params,
     previewProps,
   } = renderOpts
-
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
 
@@ -315,7 +314,7 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
-
+console.log(Component);
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&

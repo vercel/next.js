@@ -227,7 +227,7 @@ export const css = curry(async function css(
             regexCssGlobal,
             (scssEnabled && regexSassGlobal) as RegExp,
           ].filter(Boolean),
-          issuer: [/node_modules/],
+          issuer: /node_modules/,
           use: {
             loader: 'error-loader',
             options: {

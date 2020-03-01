@@ -36,7 +36,7 @@ export default async function({
   let results = {
     ampValidations: [],
   }
-
+console.log('render worker');
   try {
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
@@ -117,13 +117,12 @@ export default async function({
     let html
     let curRenderOpts = {}
     let renderMethod = renderToHTML
-
     // eslint-disable-next-line camelcase
     const renderedDuringBuild = unstable_getStaticProps => {
       // eslint-disable-next-line camelcase
       return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
     }
-
+console.log('before serverless')
     if (serverless) {
       const curUrl = url.parse(req.url, true)
       req.url = url.format({
@@ -165,18 +164,20 @@ export default async function({
         throw new Error(`Failed to render serverless page`)
       }
     } else {
+      console.log('not serverless')
       const components = await loadComponents(
         distDir,
         buildId,
         page,
         serverless
       )
-
+console.log('components',components)
       // for non-dynamic SSG pages we should have already
       // prerendered the file
       if (renderedDuringBuild(components.unstable_getStaticProps)) {
         return results
       }
+    console.log('after renderedDuringBuild')
 
       // TODO: de-dupe the logic here between serverless and server mode
       if (
@@ -191,9 +192,13 @@ export default async function({
       if (typeof components.Component === 'string') {
         html = components.Component
         queryWithAutoExportWarn()
+        console.log('component is string')
       } else {
+        console.log('before renderMethod')
         curRenderOpts = { ...components, ...renderOpts, ampPath, params }
+        console.log({curRenderOpts})
         html = await renderMethod(req, res, page, query, curRenderOpts)
+        console.log('html',html)
       }
     }
 
@@ -213,6 +218,7 @@ export default async function({
         })
       }
     }
+
 
     if (curRenderOpts.inAmpMode) {
       await validateAmp(html, path, curRenderOpts.ampValidatorPath)
