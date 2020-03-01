@@ -36,7 +36,6 @@ export default async function({
   let results = {
     ampValidations: [],
   }
-console.log('render worker');
   try {
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
@@ -122,7 +121,7 @@ console.log('render worker');
       // eslint-disable-next-line camelcase
       return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
     }
-console.log('before serverless')
+
     if (serverless) {
       const curUrl = url.parse(req.url, true)
       req.url = url.format({
@@ -164,7 +163,6 @@ console.log('before serverless')
         throw new Error(`Failed to render serverless page`)
       }
     } else {
-      console.log('not serverless')
       const components = await loadComponents(
         distDir,
         buildId,
@@ -192,13 +190,9 @@ console.log('components',components)
       if (typeof components.Component === 'string') {
         html = components.Component
         queryWithAutoExportWarn()
-        console.log('component is string')
       } else {
-        console.log('before renderMethod')
         curRenderOpts = { ...components, ...renderOpts, ampPath, params }
-        console.log({curRenderOpts})
         html = await renderMethod(req, res, page, query, curRenderOpts)
-        console.log('html',html)
       }
     }
 
@@ -218,7 +212,6 @@ console.log('components',components)
         })
       }
     }
-
 
     if (curRenderOpts.inAmpMode) {
       await validateAmp(html, path, curRenderOpts.ampValidatorPath)

@@ -64,6 +64,12 @@ export async function loadComponents(
   pathname: string,
   serverless: boolean
 ): Promise<LoadComponentsReturnType> {
+  console.log({
+    distDir,
+    buildId,
+    pathname,
+    serverless,
+  })
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
     return {
@@ -81,6 +87,7 @@ export async function loadComponents(
     'pages',
     '_document'
   )
+
   const appPath = join(
     distDir,
     SERVER_DIRECTORY,
@@ -89,8 +96,10 @@ export async function loadComponents(
     'pages',
     '_app'
   )
-
+  console.log({ documentPath, appPath })
   const DocumentMod = require(documentPath)
+  console.log('document',require(documentPath))
+
   const { middleware: DocumentMiddleware } = DocumentMod
 
   const AppMod = require(appPath)
