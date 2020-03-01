@@ -2,17 +2,17 @@ import Document, { Head, Main, NextScript } from 'next/document'
 import { getStyles } from 'typestyle'
 
 export default class MyDocument extends Document {
-  static getInitialProps ({ renderPage }) {
+  static getInitialProps({ renderPage }) {
     const page = renderPage()
     const styleTags = getStyles()
     return { ...page, styleTags }
   }
 
-  render () {
+  render() {
     return (
       <html>
         <Head>
-          <style id='styles-target'>{this.props.styleTags}</style>
+          <style id="styles-target">{this.props.styleTags}</style>
         </Head>
         <body>
           <Main />

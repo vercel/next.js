@@ -1,20 +1,20 @@
 import React from 'react'
 
 export default class extends React.Component {
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = { response: '' }
   }
 
-  static async getInitialProps ({ pathname, query }) {
+  static async getInitialProps({ pathname, query }) {
     return {
       pathname,
       query,
-      queryString: Object.keys(query).join('')
+      queryString: Object.keys(query).join(''),
     }
   }
 
-  async componentDidMount () {
+  async componentDidMount() {
     const response = JSON.stringify(
       await window
         .fetch(`/api/${this.props.queryString}`)
@@ -25,7 +25,7 @@ export default class extends React.Component {
     this.setState({ response })
   }
 
-  render () {
+  render() {
     return (
       <content>
         <p>
@@ -33,9 +33,9 @@ export default class extends React.Component {
           {this.props.queryString}
         </p>
         <p>
-          <a href='?people/2'>Try</a>
+          <a href="?people/2">Try</a>
           &nbsp;
-          <a href='/'>Reset</a>
+          <a href="/">Reset</a>
         </p>
         <pre>{this.state.response ? this.state.response : 'Loading...'}</pre>
       </content>

@@ -1,5 +1,5 @@
 export default {
   color: {
-    primary: 'salmon'
-  }
+    primary: 'salmon',
+  },
 }

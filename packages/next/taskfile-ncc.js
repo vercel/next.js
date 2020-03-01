@@ -1,21 +1,21 @@
-'use strict'
-
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, relative } = require('path')
 
-module.exports = function (task) {
-  task.plugin('ncc', {}, function * (file, options) {
+module.exports = function(task) {
+  // eslint-disable-next-line require-yield
+  task.plugin('ncc', {}, function*(file, options) {
     return ncc(join(__dirname, file.dir, file.base), {
       // cannot bundle
       externals: ['chokidar'],
-      ...options
+      minify: true,
+      ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach(key =>
         this._.files.push({
           dir: join(file.dir, dirname(key)),
           base: basename(key),
-          data: assets[key].source
+          data: assets[key].source,
         })
       )
 
@@ -31,7 +31,7 @@ module.exports = function (task) {
 // This function writes a minimal `package.json` file for a compiled package.
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
-function writePackageManifest (packageName) {
+function writePackageManifest(packageName) {
   const packagePath = require.resolve(packageName + '/package.json')
   let { name, main, author, license, types, typings } = require(packagePath)
   if (!main) {
@@ -41,6 +41,22 @@ function writePackageManifest (packageName) {
   let typesFile = types || typings
   if (typesFile) {
     typesFile = require.resolve(join(packageName, typesFile))
+  } else {
+    try {
+      const typesPackage = `@types/${packageName}`
+
+      const { types, typings } = require(join(typesPackage, `package.json`))
+      typesFile = types || typings
+      if (typesFile) {
+        if (!typesFile.endsWith('.d.ts')) {
+          typesFile += '.d.ts'
+        }
+
+        typesFile = require.resolve(join(typesPackage, typesFile))
+      }
+    } catch (_) {
+      typesFile = undefined
+    }
   }
 
   const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
@@ -50,7 +66,7 @@ function writePackageManifest (packageName) {
     this._.files.push({
       dir: compiledPackagePath,
       base: 'LICENSE',
-      data: readFileSync(potentialLicensePath, 'utf8')
+      data: readFileSync(potentialLicensePath, 'utf8'),
     })
   }
 
@@ -66,10 +82,10 @@ function writePackageManifest (packageName) {
           license ? { license } : undefined,
           typesFile
             ? {
-              types: relative(compiledPackagePath, typesFile)
-            }
+                types: relative(compiledPackagePath, typesFile),
+              }
             : undefined
         )
-      ) + '\n'
+      ) + '\n',
   })
 }

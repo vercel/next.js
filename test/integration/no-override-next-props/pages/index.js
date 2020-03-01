@@ -1,3 +1,1 @@
-export default () => (
-  <p>Hello there 👋</p>
-)
+export default () => <p>Hello there 👋</p>

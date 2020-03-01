@@ -13,6 +13,7 @@
     "less": "3.0.4",
     "less-vars-to-js": "1.3.0",
     "next": "latest",
+    "null-loader": "2.0.0",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },

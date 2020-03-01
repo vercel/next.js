@@ -16,10 +16,10 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "@storybook/addon-actions": "^4.1.7",
-    "@storybook/addon-links": "^4.1.7",
-    "@storybook/addons": "^4.1.7",
-    "@storybook/react": "^4.1.7",
+    "@storybook/addon-actions": "5.2.3",
+    "@storybook/addon-links": "5.2.3",
+    "@storybook/addons": "5.2.3",
+    "@storybook/react": "5.2.3",
     "babel-loader": "^8.0.5"
   }
 }

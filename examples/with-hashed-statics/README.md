@@ -1,13 +1,23 @@
 # Example app with imported and hashed statics
 
+This example shows how to import images, videos, etc. from `/static` and get the URL with a hash query allowing to use better cache without problems.
+
+This example supports `.svg`, `.png` and `.txt` extensions, but it can be configured to support any possible extension changing the `extensions` array in the `next.config.js` [file](https://github.com/zeit/next.js/blob/canary/examples/with-hashed-statics/next.config.js#L4).
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-hashed-statics)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-hashed-statics with-hashed-statics-app
+npm init next-app --example with-hashed-statics with-hashed-statics-app
 # or
 yarn create next-app --example with-hashed-statics with-hashed-statics-app
 ```
@@ -31,14 +41,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-This example shows how to import images, videos, etc. from `/static` and get the URL with a hash query allowing to use better cache without problems.
-
-This example supports `.svg`, `.png` and `.txt` extensions, but it can be configured to support any possible extension changing the `extensions` array in the `next.config.js` [file](https://github.com/zeit/next.js/blob/canary/examples/with-hashed-statics/next.config.js#L4).
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

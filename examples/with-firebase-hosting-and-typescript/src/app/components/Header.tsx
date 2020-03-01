@@ -1,12 +1,12 @@
-import Link from 'next/link';
+import Link from 'next/link'
 
 export default ({ pathname }: { pathname?: any }) => (
   <header>
-    <Link href='/'>
+    <Link href="/">
       <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
     </Link>
-    <Link href='/about'>
+    <Link href="/about">
       <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
     </Link>
   </header>
-);
+)

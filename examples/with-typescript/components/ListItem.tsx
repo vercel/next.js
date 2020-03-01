@@ -1,16 +1,18 @@
 import * as React from 'react'
-import Link from 'next/link';
+import Link from 'next/link'
 
-import IDataObject from '../interfaces'
+import { User } from '../interfaces'
 
 type Props = {
-  data: IDataObject,
+  data: User
 }
 
 const ListItem: React.FunctionComponent<Props> = ({ data }) => (
-  <Link href={`/detail?id=${data.id}`}>
-    <a>{data.id}: {data.name}</a>
+  <Link href="/users/[id]" as={`/users/${data.id}`}>
+    <a>
+      {data.id}: {data.name}
+    </a>
   </Link>
-);
+)
 
 export default ListItem

@@ -1,0 +1,16 @@
+{
+  "name": "with-framer-motion",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "framer-motion": "latest",
+    "next": "latest",
+    "react": "16.11.0",
+    "react-dom": "16.11.0"
+  },
+  "license": "ISC"
+}

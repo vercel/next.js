@@ -1,63 +1,105 @@
-/* global document */
-import mitt from 'next-server/dist/lib/mitt'
-import unfetch from 'unfetch'
+import mitt from '../next-server/lib/mitt'
 
-// smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
-function supportsPreload (list) {
-  if (!list || !list.supports) {
-    return false
-  }
+function hasRel(rel, link) {
   try {
-    return list.supports('preload')
-  } catch (e) {
-    return false
-  }
+    link = document.createElement('link')
+    return link.relList.supports(rel)
+  } catch {}
 }
 
-const hasPreload = supportsPreload(document.createElement('link').relList)
+const relPrefetch =
+  hasRel('preload') && !hasRel('prefetch')
+    ? // https://caniuse.com/#feat=link-rel-preload
+      // macOS and iOS (Safari does not support prefetch)
+      'preload'
+    : // https://caniuse.com/#feat=link-rel-prefetch
+      // IE 11, Edge 12+, nearly all evergreen
+      'prefetch'
+
+const hasNoModule = 'noModule' in document.createElement('script')
+
+function normalizeRoute(route) {
+  if (route[0] !== '/') {
+    throw new Error(`Route name should start with a "/", got "${route}"`)
+  }
+  route = route.replace(/\/index$/, '/')
+
+  if (route === '/') return route
+  return route.replace(/\/$/, '')
+}
+
+function appendLink(href, rel, as) {
+  return new Promise((res, rej, link) => {
+    link = document.createElement('link')
+    link.crossOrigin = process.crossOrigin
+    link.href = href
+    link.rel = rel
+    if (as) link.as = as
+
+    link.onload = res
+    link.onerror = rej
+
+    document.head.appendChild(link)
+  })
+}
 
 export default class PageLoader {
-  constructor (buildId, assetPrefix) {
+  constructor(buildId, assetPrefix) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.prefetchCache = new Set()
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
-    this.promisedBuildId = Promise.resolve()
-  }
-
-  normalizeRoute (route) {
-    if (route[0] !== '/') {
-      throw new Error(`Route name should start with a "/", got "${route}"`)
+    if (process.env.__NEXT_GRANULAR_CHUNKS) {
+      this.promisedBuildManifest = new Promise(resolve => {
+        if (window.__BUILD_MANIFEST) {
+          resolve(window.__BUILD_MANIFEST)
+        } else {
+          window.__BUILD_MANIFEST_CB = () => {
+            resolve(window.__BUILD_MANIFEST)
+          }
+        }
+      })
     }
-    route = route.replace(/\/index$/, '/')
-
-    if (route === '/') return route
-    return route.replace(/\/$/, '')
   }
 
-  loadPage (route) {
-    route = this.normalizeRoute(route)
+  // Returns a promise for the dependencies for a particular route
+  getDependencies(route) {
+    return this.promisedBuildManifest.then(
+      man =>
+        (man[route] &&
+          man[route].map(
+            url => `${this.assetPrefix}/_next/${encodeURI(url)}`
+          )) ||
+        []
+    )
+  }
+
+  loadPage(route) {
+    return this.loadPageScript(route).then(v => v.page)
+  }
+
+  loadPageScript(route) {
+    route = normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
-      const fire = ({ error, page }) => {
+      const fire = ({ error, page, mod }) => {
         this.pageRegisterEvents.off(route, fire)
         delete this.loadingRoutes[route]
 
         if (error) {
           reject(error)
         } else {
-          resolve(page)
+          resolve({ page, mod })
         }
       }
 
       // If there's a cached version of the page, let's use it.
       const cachedPage = this.pageCache[route]
       if (cachedPage) {
-        const { error, page } = cachedPage
-        error ? reject(error) : resolve(page)
+        const { error, page, mod } = cachedPage
+        error ? reject(error) : resolve({ page, mod })
         return
       }
 
@@ -66,73 +108,76 @@ export default class PageLoader {
 
       // If the page is loading via SSR, we need to wait for it
       // rather downloading it again.
-      if (document.getElementById(`__NEXT_PAGE__${route}`)) {
+      if (document.querySelector(`script[data-next-page="${route}"]`)) {
         return
       }
 
-      // Load the script if not asked to load yet.
       if (!this.loadingRoutes[route]) {
-        this.loadScript(route)
         this.loadingRoutes[route] = true
+        if (process.env.__NEXT_GRANULAR_CHUNKS) {
+          this.getDependencies(route).then(deps => {
+            deps.forEach(d => {
+              if (
+                /\.js$/.test(d) &&
+                !document.querySelector(`script[src^="${d}"]`)
+              ) {
+                this.loadScript(d, route, false)
+              }
+              if (
+                /\.css$/.test(d) &&
+                !document.querySelector(`link[rel=stylesheet][href^="${d}"]`)
+              ) {
+                appendLink(d, 'stylesheet').catch(() => {
+                  // FIXME: handle failure
+                  // Right now, this is needed to prevent an unhandled rejection.
+                })
+              }
+            })
+            this.loadRoute(route)
+          })
+        } else {
+          this.loadRoute(route)
+        }
       }
     })
   }
 
-  onDynamicBuildId () {
-    this.promisedBuildId = new Promise(resolve => {
-      unfetch(`${this.assetPrefix}/_next/static/HEAD_BUILD_ID`)
-        .then(res => {
-          if (res.ok) {
-            return res
-          }
+  loadRoute(route) {
+    route = normalizeRoute(route)
+    let scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
-          const err = new Error('Failed to fetch HEAD buildId')
-          err.res = res
-          throw err
-        })
-        .then(res => res.text())
-        .then(buildId => {
-          this.buildId = buildId.trim()
-        })
-        .catch(() => {
-          // When this fails it's not a _huge_ deal, preload wont work and page
-          // navigation will 404, triggering a SSR refresh
-          console.warn(
-            'Failed to load BUILD_ID from server. ' +
-              'The following client-side page transition will likely 404 and cause a SSR.\n' +
-              'http://err.sh/zeit/next.js/head-build-id'
-          )
-        })
-        .then(resolve, resolve)
-    })
+    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+      this.buildId
+    )}/pages${encodeURI(scriptRoute)}`
+    this.loadScript(url, route, true)
   }
 
-  async loadScript (route) {
-    await this.promisedBuildId
-
-    route = this.normalizeRoute(route)
-    const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
-
+  loadScript(url, route, isPage) {
     const script = document.createElement('script')
-    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
+      script.type = 'module'
+      // Only page bundle scripts need to have .module added to url,
+      // dependencies already have it added during build manifest creation
+      if (isPage) url = url.replace(/\.js$/, '.module.js')
+    }
     script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
-      const error = new Error(`Error when loading route: ${route}`)
+      const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
       this.pageRegisterEvents.emit(route, { error })
     }
-
     document.body.appendChild(script)
   }
 
   // This method if called by the route code.
-  registerPage (route, regFn) {
+  registerPage(route, regFn) {
     const register = () => {
       try {
-        const { error, page } = regFn()
-        this.pageCache[route] = { error, page }
-        this.pageRegisterEvents.emit(route, { error, page })
+        const mod = regFn()
+        const pageData = { page: mod.default || mod, mod }
+        this.pageCache[route] = pageData
+        this.pageRegisterEvents.emit(route, pageData)
       } catch (error) {
         this.pageCache[route] = { error }
         this.pageRegisterEvents.emit(route, { error })
@@ -143,9 +188,11 @@ export default class PageLoader {
       // Wait for webpack to become idle if it's not.
       // More info: https://github.com/zeit/next.js/pull/1511
       if (module.hot && module.hot.status() !== 'idle') {
-        console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
+        console.log(
+          `Waiting for webpack to become "idle" to initialize the page: "${route}"`
+        )
 
-        const check = (status) => {
+        const check = status => {
           if (status === 'idle') {
             module.hot.removeStatusHandler(check)
             register()
@@ -159,56 +206,53 @@ export default class PageLoader {
     register()
   }
 
-  async prefetch (route) {
-    route = this.normalizeRoute(route)
-    const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
-    if (this.prefetchCache.has(scriptRoute)) {
-      return
-    }
-    this.prefetchCache.add(scriptRoute)
-
-    // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
-    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
-    if ('connection' in navigator) {
-      if ((navigator.connection.effectiveType || '').indexOf('2g') !== -1 || navigator.connection.saveData) {
-        return
-      }
+  prefetch(route, isDependency) {
+    // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
+    // License: Apache 2.0
+    let cn
+    if ((cn = navigator.connection)) {
+      // Don't prefetch if using 2G or if Save-Data is enabled.
+      if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
     }
 
-    // Feature detection is used to see if preload is supported
-    // If not fall back to loading script tags before the page is loaded
-    // https://caniuse.com/#feat=link-rel-preload
-    if (hasPreload) {
-      await this.promisedBuildId
-
-      const link = document.createElement('link')
-      link.rel = 'preload'
-      link.crossOrigin = process.crossOrigin
-      link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
-      link.as = 'script'
-      document.head.appendChild(link)
-      return
-    }
-
-    if (document.readyState === 'complete') {
-      return this.loadPage(route).catch(() => {})
+    let url
+    if (isDependency) {
+      url = route
     } else {
-      return new Promise((resolve) => {
-        window.addEventListener('load', () => {
-          this.loadPage(route).then(() => resolve(), () => resolve())
-        })
-      })
-    }
-  }
+      route = normalizeRoute(route)
 
-  clearCache (route) {
-    route = this.normalizeRoute(route)
-    delete this.pageCache[route]
-    delete this.loadingRoutes[route]
+      let scriptRoute = `${route === '/' ? '/index' : route}.js`
+      if (process.env.__NEXT_MODERN_BUILD && hasNoModule) {
+        scriptRoute = scriptRoute.replace(/\.js$/, '.module.js')
+      }
 
-    const script = document.getElementById(`__NEXT_PAGE__${route}`)
-    if (script) {
-      script.parentNode.removeChild(script)
+      url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+        this.buildId
+      )}/pages${encodeURI(scriptRoute)}`
     }
+
+    return Promise.all(
+      document.querySelector(
+        `link[rel="${relPrefetch}"][href^="${url}"], script[data-next-page="${route}"]`
+      )
+        ? []
+        : [
+            appendLink(
+              url,
+              relPrefetch,
+              url.match(/\.css$/) ? 'style' : 'script'
+            ),
+            process.env.__NEXT_GRANULAR_CHUNKS &&
+              !isDependency &&
+              this.getDependencies(route).then(urls =>
+                Promise.all(urls.map(url => this.prefetch(url, true)))
+              ),
+          ]
+    ).then(
+      // do not return any data
+      () => {},
+      // swallow prefetch errors
+      () => {}
+    )
   }
 }

@@ -1,17 +1,21 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-typescript-styled-components)
-
 # TypeScript & Styled Components Next.js example
 
 This is a really simple project that show the usage of Next.js with TypeScript and Styled Components.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-typescript-styled-components)
 
 ## How to use it?
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-typescript-styled-components with-typescript-app
+npm init next-app --example with-typescript-styled-components with-typescript-app
 # or
 yarn create next-app --example with-typescript-styled-components with-typescript-app
 ```
@@ -35,9 +39,11 @@ yarn
 yarn dev
 ```
 
-## The idea behind the example
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+## Notes
 
 This is an amalgamation of the 2 existing examples:
 
-* [with-typescript](https://github.com/zeit/next.js/tree/canary/examples/with-typescript)
-* [with-styled-components](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)
+- [with-typescript](https://github.com/zeit/next.js/tree/canary/examples/with-typescript)
+- [with-styled-components](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)

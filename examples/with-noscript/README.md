@@ -1,15 +1,21 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-noscript)
-
 # Noscript example
+
+This example show you how to use `<noscript></noscript>` with image resource in next.js.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-noscript)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-noscript with-noscript-app
+npm init next-app --example with-noscript with-noscript-app
 # or
 yarn create next-app --example with-noscript with-noscript-app
 ```
@@ -19,9 +25,11 @@ yarn create next-app --example with-noscript with-noscript-app
 Download the example:
 
 ## Development
+
 Install it and run:
 
 **npm**
+
 ```bash
 npm install
 npm run dev
@@ -31,13 +39,16 @@ yarn dev
 ```
 
 **yarn**
+
 ```bash
 yarn install
 yarn run dev
 ```
 
 ## Production
+
 **npm**
+
 ```bash
 npm install
 npm run build
@@ -45,18 +56,11 @@ npm start
 ```
 
 **yarn**
+
 ```bash
 yarn install
 yarn run build
 yarn start
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## About example
-
-This example show you how to use `<noscript></noscript>` with image resource in next.js
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

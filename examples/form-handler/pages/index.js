@@ -5,7 +5,7 @@ import { connect } from 'react-redux'
 import Main from '../components'
 
 class Index extends Component {
-  render () {
+  render() {
     return <Main />
   }
 }

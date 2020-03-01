@@ -1,7 +1,8 @@
 {
-  "env": {
-    "SECRET": "@my-secret-key",
-    "ANOTHER_SECRET": "@my-other-secret-key",
-    "SECRET_FAIL": "@this-is-not-defined"
+  "build": {
+    "env": {
+      "SECRET": "@my-secret-key",
+      "ANOTHER_SECRET": "@my-other-secret-key"
+    }
   }
 }

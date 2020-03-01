@@ -1,19 +1,15 @@
-import App, { Container } from 'next/app'
 import React from 'react'
+import App from 'next/app'
 import { Provider as StyletronProvider } from 'styletron-react'
-import getStyletron from '../styletron'
+import { styletron, debug } from '../styletron'
 
-class MyApp extends App {
-  render () {
-    const { Component } = this.props
+export default class MyApp extends App {
+  render() {
+    const { Component, pageProps } = this.props
     return (
-      <Container>
-        <StyletronProvider value={getStyletron()}>
-          <Component />
-        </StyletronProvider>
-      </Container>
+      <StyletronProvider value={styletron} debug={debug} debugAfterHydration>
+        <Component {...pageProps} />
+      </StyletronProvider>
     )
   }
 }
-
-export default MyApp

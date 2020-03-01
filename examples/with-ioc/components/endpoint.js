@@ -4,12 +4,12 @@ import PropTypes from 'prop-types'
 
 @inject({
   // keep it `isRequired`-free to allow mock injection via props
-  Link: PropTypes.func
+  Link: PropTypes.func,
 })
 export default class extends React.Component {
   static propTypes = {
     // you can add `isRequired` to the component's propTypes definition
-    Link: PropTypes.func.isRequired
+    Link: PropTypes.func.isRequired,
   }
 
   render() {
@@ -20,7 +20,7 @@ export default class extends React.Component {
         style={{
           marginTop: '5px',
           border: '1px dashed #00ff00',
-          padding: '10px'
+          padding: '10px',
         }}
       >
         <h3>Endpoint</h3>

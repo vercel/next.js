@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "express": "^4.15.2",
-    "isomorphic-unfetch": "^2.0.0",
+    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",

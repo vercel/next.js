@@ -5,9 +5,9 @@ module.exports = withCSS({
   webpack: config => {
     config.module.rules.push({
       test: /\.js$/,
-      use: ['astroturf/loader']
+      use: ['astroturf/loader'],
     })
 
     return config
-  }
+  },
 })

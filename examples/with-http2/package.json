@@ -7,7 +7,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "next": "8.0.4",
+    "next": "latest",
     "react": "16.8.6",
     "react-dom": "16.8.6"
   },

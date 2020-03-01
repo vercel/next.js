@@ -5,7 +5,7 @@ import Header from '../components/Header'
 import Items from '../components/Items'
 
 class Index extends React.Component {
-  static async getInitialProps () {
+  static async getInitialProps() {
     // If we want to produce some mutations we do so by instantiating
     // an Overmind SSR instance, do whatever datafetching is needed and
     // change the state directly. We return the mutations performed with
@@ -16,19 +16,19 @@ class Index extends React.Component {
     overmind.state.items = [
       {
         id: 0,
-        title: 'foo'
+        title: 'foo',
       },
       {
         id: 1,
-        title: 'bar'
-      }
+        title: 'bar',
+      },
     ]
 
     return {
-      mutations: overmind.hydrate()
+      mutations: overmind.hydrate(),
     }
   }
-  render () {
+  render() {
     return (
       <div>
         <Header />

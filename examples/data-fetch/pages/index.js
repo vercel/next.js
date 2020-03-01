@@ -1,23 +1,22 @@
 import React from 'react'
 import Link from 'next/link'
-import 'isomorphic-unfetch'
+import fetch from 'isomorphic-unfetch'
 
-export default class Index extends React.Component {
-  static async getInitialProps () {
-    // eslint-disable-next-line no-undef
-    const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const json = await res.json()
-    return { stars: json.stargazers_count }
-  }
-
-  render () {
-    return (
-      <div>
-        <p>Next.js has {this.props.stars} ⭐️</p>
-        <Link prefetch href='/preact'>
-          <a>How about preact?</a>
-        </Link>
-      </div>
-    )
-  }
+function Index(props) {
+  return (
+    <div>
+      <p>Next.js has {props.stars} ⭐️</p>
+      <Link href="/preact">
+        <a>How about preact?</a>
+      </Link>
+    </div>
+  )
 }
+
+Index.getInitialProps = async () => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const json = await res.json() // better use it inside try .. catch
+  return { stars: json.stargazers_count }
+}
+
+export default Index

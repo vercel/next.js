@@ -1,11 +1,11 @@
 import React, { Component } from 'react'
 
 export default class extends Component {
-  static getInitialProps ({ query: { id } }) {
+  static getInitialProps({ query: { id } }) {
     return { postId: id }
   }
 
-  render () {
+  render() {
     return (
       <div>
         <h1>My blog post #{this.props.postId}</h1>

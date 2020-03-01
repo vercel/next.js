@@ -1,15 +1,23 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-shallow-routing)
-
 # Shallow Routing Example
+
+With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
+
+We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-shallow-routing)
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-shallow-routing with-shallow-routing-app
+npm init next-app --example with-shallow-routing with-shallow-routing-app
 # or
 yarn create next-app --example with-shallow-routing with-shallow-routing-app
 ```
@@ -33,14 +41,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
-
-We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

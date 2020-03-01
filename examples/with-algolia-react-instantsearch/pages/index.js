@@ -12,10 +12,10 @@ const searchStateToUrl = searchState =>
 export default class extends React.Component {
   static propTypes = {
     resultsState: PropTypes.object,
-    searchState: PropTypes.object
+    searchState: PropTypes.object,
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.onSearchStateChange = this.onSearchStateChange.bind(this)
   }
@@ -25,7 +25,7 @@ export default class extends React.Component {
      once it does, params.query could be used directly here, but also inside the constructor
      to initialize the searchState.
   */
-  static async getInitialProps (params) {
+  static async getInitialProps(params) {
     const searchState = qs.parse(
       params.asPath.substring(params.asPath.indexOf('?') + 1)
     )
@@ -38,24 +38,24 @@ export default class extends React.Component {
     this.debouncedSetState = setTimeout(() => {
       const href = searchStateToUrl(searchState)
       Router.push(href, href, {
-        shallow: true
+        shallow: true,
       })
     }, updateAfter)
     this.setState({ searchState })
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.setState({ searchState: qs.parse(window.location.search.slice(1)) })
   }
 
-  componentWillReceiveProps () {
+  UNSAFE_componentWillReceiveProps() {
     this.setState({ searchState: qs.parse(window.location.search.slice(1)) })
   }
 
-  render () {
+  render() {
     return (
       <div>
-        <Head title='Home' />
+        <Head title="Home" />
         <div>
           <App
             resultsState={this.props.resultsState}

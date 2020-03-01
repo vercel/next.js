@@ -13,7 +13,6 @@ const handle = app.getRequestHandler()
 const firebase = admin.initializeApp(
   {
     credential: admin.credential.cert(require('./credentials/server')),
-    databaseURL: '' // TODO database URL goes here
   },
   'server'
 )
@@ -26,11 +25,10 @@ app.prepare().then(() => {
     session({
       secret: 'geheimnis',
       saveUninitialized: true,
-      store: new FileStore({ path: '/tmp/sessions', secret: 'geheimnis' }),
+      store: new FileStore({ secret: 'geheimnis' }),
       resave: false,
       rolling: true,
-      httpOnly: true,
-      cookie: { maxAge: 604800000 } // week
+      cookie: { maxAge: 604800000, httpOnly: true }, // week
     })
   )
 

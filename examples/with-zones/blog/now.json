@@ -1,13 +1,13 @@
 {
-    "version": 2,
-    "name": "with-zones-blog",
-    "alias": "with-zones-blog.nextjs.org",
-    "build": {
-        "env": {
-            "DEPLOY": "true"
-        }
-    },
-    "builds": [
-        { "src": "package.json", "use": "@now/next" }
-    ]
+  "build": {
+    "env": {
+      "BUILDING_FOR_NOW": "true"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/blog/_next$1",
+      "destination": "/_next$1"
+    }
+  ]
 }

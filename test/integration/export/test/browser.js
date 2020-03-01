@@ -2,12 +2,11 @@
 import webdriver from 'next-webdriver'
 import { check, getBrowserBodyText } from 'next-test-utils'
 
-export default function (context) {
+export default function(context) {
   describe('Render via browser', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#home-page p').text()
+      const text = await browser.elementByCss('#home-page p').text()
 
       expect(text).toBe('This is the home page')
       await browser.close()
@@ -22,6 +21,13 @@ export default function (context) {
       expect(link.substr(link.length - 1)).toBe('/')
     })
 
+    it('should not add any slash on hash Link', async () => {
+      const browser = await webdriver(context.port, '/hash-link')
+      const link = await browser.elementByCss('#hash-link').getAttribute('href')
+
+      expect(link).toMatch(/\/hash-link\/#hash$/)
+    })
+
     it('should not add trailing slash on Link when disabled', async () => {
       const browser = await webdriver(context.portNoTrailSlash, '/')
       const link = await browser
@@ -34,9 +40,11 @@ export default function (context) {
     it('should do navigations via Link', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
-        .elementByCss('#about-via-link').click()
+        .elementByCss('#about-via-link')
+        .click()
         .waitForElementByCss('#about-page')
-        .elementByCss('#about-page p').text()
+        .elementByCss('#about-page p')
+        .text()
 
       expect(text).toBe('This is the About page foo')
       await browser.close()
@@ -45,9 +53,11 @@ export default function (context) {
     it('should do navigations via Router', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
-        .elementByCss('#about-via-router').click()
+        .elementByCss('#about-via-router')
+        .click()
         .waitForElementByCss('#about-page')
-        .elementByCss('#about-page p').text()
+        .elementByCss('#about-page p')
+        .text()
 
       expect(text).toBe('This is the About page foo')
       await browser.close()
@@ -56,11 +66,15 @@ export default function (context) {
     it('should do run client side javascript', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
-        .elementByCss('#counter').click()
+        .elementByCss('#counter')
+        .click()
         .waitForElementByCss('#counter-page')
-        .elementByCss('#counter-increase').click()
-        .elementByCss('#counter-increase').click()
-        .elementByCss('#counter-page p').text()
+        .elementByCss('#counter-increase')
+        .click()
+        .elementByCss('#counter-increase')
+        .click()
+        .elementByCss('#counter-page p')
+        .text()
 
       expect(text).toBe('Counter: 2')
       await browser.close()
@@ -69,9 +83,11 @@ export default function (context) {
     it('should render pages using getInitialProps', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
-        .elementByCss('#get-initial-props').click()
+        .elementByCss('#get-initial-props')
+        .click()
         .waitForElementByCss('#dynamic-page')
-        .elementByCss('#dynamic-page p').text()
+        .elementByCss('#dynamic-page p')
+        .text()
 
       expect(text).toBe('cool dynamic text')
       await browser.close()
@@ -80,9 +96,11 @@ export default function (context) {
     it('should render dynamic pages with custom urls', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
-        .elementByCss('#dynamic-1').click()
+        .elementByCss('#dynamic-1')
+        .click()
         .waitForElementByCss('#dynamic-page')
-        .elementByCss('#dynamic-page p').text()
+        .elementByCss('#dynamic-page p')
+        .text()
 
       expect(text).toBe('next export is nice')
       await browser.close()
@@ -91,21 +109,28 @@ export default function (context) {
     it('should support client side naviagtion', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
-        .elementByCss('#counter').click()
+        .elementByCss('#counter')
+        .click()
         .waitForElementByCss('#counter-page')
-        .elementByCss('#counter-increase').click()
-        .elementByCss('#counter-increase').click()
-        .elementByCss('#counter-page p').text()
+        .elementByCss('#counter-increase')
+        .click()
+        .elementByCss('#counter-increase')
+        .click()
+        .elementByCss('#counter-page p')
+        .text()
 
       expect(text).toBe('Counter: 2')
 
       // let's go back and come again to this page:
       const textNow = await browser
-        .elementByCss('#go-back').click()
+        .elementByCss('#go-back')
+        .click()
         .waitForElementByCss('#home-page')
-        .elementByCss('#counter').click()
+        .elementByCss('#counter')
+        .click()
         .waitForElementByCss('#counter-page')
-        .elementByCss('#counter-page p').text()
+        .elementByCss('#counter-page p')
+        .text()
 
       expect(textNow).toBe('Counter: 2')
 
@@ -115,11 +140,12 @@ export default function (context) {
     it('should render dynamic import components in the client', async () => {
       const browser = await webdriver(context.port, '/')
       await browser
-        .elementByCss('#dynamic-imports-page').click()
+        .elementByCss('#dynamic-imports-link')
+        .click()
         .waitForElementByCss('#dynamic-imports-page')
 
       await check(
-        () => browser.elementByCss('#dynamic-imports-page p').text(),
+        () => getBrowserBodyText(browser),
         /Welcome to dynamic imports/
       )
 
@@ -133,16 +159,15 @@ export default function (context) {
 
         // Check for the query string content
         const text = await browser
-          .elementByCss('#with-hash').click()
+          .elementByCss('#with-hash')
+          .click()
           .waitForElementByCss('#dynamic-page')
-          .elementByCss('#dynamic-page p').text()
+          .elementByCss('#dynamic-page p')
+          .text()
 
         expect(text).toBe('zeit is awesome')
 
-        await check(
-          () => browser.elementByCss('#hash').text(),
-          /cool/
-        )
+        await check(() => browser.elementByCss('#hash').text(), /cool/)
       } finally {
         if (browser) {
           await browser.close()
@@ -154,11 +179,20 @@ export default function (context) {
       const browser = await webdriver(context.port, '/button-link')
 
       const text = await browser
-        .elementByCss('button').click()
+        .elementByCss('button')
+        .click()
         .waitForElementByCss('#home-page')
-        .elementByCss('#home-page p').text()
+        .elementByCss('#home-page p')
+        .text()
 
       expect(text).toBe('This is the home page')
+      await browser.close()
+    })
+
+    it('should update query after mount', async () => {
+      const browser = await webdriver(context.port, '/query-update?hello=world')
+      const query = await browser.elementByCss('#query').text()
+      expect(JSON.parse(query)).toEqual({ hello: 'world', a: 'blue' })
       await browser.close()
     })
 
@@ -166,9 +200,14 @@ export default function (context) {
       it('should render the home page', async () => {
         const browser = await webdriver(context.port, '/')
 
-        await browser.eval('document.getElementById("level1-home-page").click()')
+        await browser.eval(
+          'document.getElementById("level1-home-page").click()'
+        )
 
-        await check(() => getBrowserBodyText(browser), /This is the Level1 home page/)
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the Level1 home page/
+        )
 
         await browser.close()
       })
@@ -176,9 +215,14 @@ export default function (context) {
       it('should render the about page', async () => {
         const browser = await webdriver(context.port, '/')
 
-        await browser.eval('document.getElementById("level1-about-page").click()')
+        await browser.eval(
+          'document.getElementById("level1-about-page").click()'
+        )
 
-        await check(() => getBrowserBodyText(browser), /This is the Level1 about page/)
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the Level1 about page/
+        )
 
         await browser.close()
       })

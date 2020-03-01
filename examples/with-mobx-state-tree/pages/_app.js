@@ -1,11 +1,11 @@
 import React from 'react'
 import { Provider } from 'mobx-react'
 import { getSnapshot } from 'mobx-state-tree'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import { initializeStore } from '../stores/store'
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     //
     // Use getInitialProps as a step in the lifecycle when
     // we can initialize our store
@@ -23,23 +23,21 @@ export default class MyApp extends App {
     return {
       initialState: getSnapshot(store),
       isServer,
-      pageProps
+      pageProps,
     }
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.store = initializeStore(props.isServer, props.initialState)
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Provider store={this.store}>
-          <Component {...pageProps} />
-        </Provider>
-      </Container>
+      <Provider store={this.store}>
+        <Component {...pageProps} />
+      </Provider>
     )
   }
 }

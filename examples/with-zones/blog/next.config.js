@@ -1,7 +1,8 @@
-const { DEPLOY } = process.env
-const alias = 'with-zones-blog.nextjs.org'
+const assetPrefix = process.env.BUILDING_FOR_NOW ? '/blog' : ''
 
 module.exports = {
-  target: 'serverless',
-  assetPrefix: DEPLOY ? `https://${alias}` : 'http://localhost:5000'
+  assetPrefix,
+  env: {
+    ASSET_PREFIX: assetPrefix,
+  },
 }

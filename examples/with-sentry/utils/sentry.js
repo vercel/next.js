@@ -1,5 +1,5 @@
-// NOTE: This require will be replaced with `@sentry/browser` when
-// process.browser === true thanks to the webpack config in next.config.js
+// NOTE: This require will be replaced with `@sentry/browser`
+// client side thanks to the webpack config in next.config.js
 const Sentry = require('@sentry/node')
 const SentryIntegrations = require('@sentry/integrations')
 const Cookie = require('js-cookie')
@@ -9,24 +9,20 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
     dsn: process.env.SENTRY_DSN,
     release,
     maxBreadcrumbs: 50,
-    attachStacktrace: true
+    attachStacktrace: true,
   }
 
   // When we're developing locally
   if (process.env.NODE_ENV !== 'production') {
-    /* eslint-disable-next-line global-require */
-    const sentryTestkit = require('sentry-testkit')
-    const { sentryTransport } = sentryTestkit()
-
     // Don't actually send the errors to Sentry
-    sentryOptions.transport = sentryTransport
+    sentryOptions.beforeSend = () => null
 
     // Instead, dump the errors to the console
     sentryOptions.integrations = [
       new SentryIntegrations.Debug({
         // Trigger DevTools debugger instead of using console.log
-        debugger: false
-      })
+        debugger: false,
+      }),
     ]
   }
 
@@ -53,7 +49,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
             scope.setExtra('statusCode', res.statusCode)
           }
 
-          if (process.browser) {
+          if (typeof window !== 'undefined') {
             scope.setTag('ssr', false)
             scope.setExtra('query', query)
             scope.setExtra('pathname', pathname)
@@ -86,6 +82,6 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
       })
 
       return Sentry.captureException(err)
-    }
+    },
   }
 }

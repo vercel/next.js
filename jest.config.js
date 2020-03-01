@@ -1,5 +1,3 @@
-'use strict'
-
 module.exports = {
   testMatch: ['**/*.test.js'],
   verbose: true,
@@ -9,5 +7,4 @@ module.exports = {
   globalSetup: '<rootDir>/jest-global-setup.js',
   globalTeardown: '<rootDir>/jest-global-teardown.js',
   testEnvironment: '<rootDir>/jest-environment.js',
-  coverageReporters: ['text', 'lcov', 'cobertura']
 }

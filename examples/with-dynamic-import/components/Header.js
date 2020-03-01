@@ -2,11 +2,11 @@ import Link from 'next/link'
 
 export default () => (
   <div>
-    <Link href='/'>
+    <Link href="/">
       <a style={styles.a}>Home</a>
     </Link>
 
-    <Link href='/about'>
+    <Link href="/about">
       <a style={styles.a}>About</a>
     </Link>
   </div>
@@ -14,6 +14,6 @@ export default () => (
 
 const styles = {
   a: {
-    marginRight: 10
-  }
+    marginRight: 10,
+  },
 }

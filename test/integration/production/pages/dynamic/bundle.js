@@ -8,7 +8,7 @@ const HelloBundle = dynamic({
     const components = {
       HelloContext: import('../../components/hello-context'),
       Hello1: import('../../components/hello1'),
-      Hello2: import('../../components/hello2')
+      Hello2: import('../../components/hello2'),
     }
     return components
   },
@@ -19,25 +19,25 @@ const HelloBundle = dynamic({
       <Hello1 />
       {props.showMore ? <Hello2 /> : null}
     </div>
-  )
+  ),
 })
 
 export default class Bundle extends React.Component {
   static childContextTypes = {
-    data: PropTypes.object
+    data: PropTypes.object,
   }
 
-  static getInitialProps ({ query }) {
+  static getInitialProps({ query }) {
     return { showMore: Boolean(query.showMore) }
   }
 
-  getChildContext () {
+  getChildContext() {
     return {
-      data: { title: 'ZEIT Rocks' }
+      data: { title: 'ZEIT Rocks' },
     }
   }
 
-  toggleShowMore () {
+  toggleShowMore() {
     if (this.props.showMore) {
       Router.push('/dynamic/bundle')
       return
@@ -46,16 +46,13 @@ export default class Bundle extends React.Component {
     Router.push('/dynamic/bundle?showMore=1')
   }
 
-  render () {
+  render() {
     const { showMore } = this.props
 
     return (
       <div>
-        <HelloBundle showMore={showMore} title="Dynamic Bundle"/>
-        <button
-          id="toggle-show-more"
-          onClick={() => this.toggleShowMore()}
-        >
+        <HelloBundle showMore={showMore} title="Dynamic Bundle" />
+        <button id="toggle-show-more" onClick={() => this.toggleShowMore()}>
           Toggle Show More
         </button>
       </div>

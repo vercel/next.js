@@ -1,5 +1,4 @@
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
+import { NodePath, PluginObj } from '@babel/core'
 import { JSXOpeningElement } from '@babel/types'
 
 export default function AmpAttributePatcher(...args: any): PluginObj {

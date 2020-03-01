@@ -1,5 +1,0 @@
-{
-  "version": 2,
-  "name": "with-semantic-ui",
-  "builds": [{ "src": "package.json", "use": "@now/next" }]
-}

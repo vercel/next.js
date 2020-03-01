@@ -1,23 +1,122 @@
 // taskr babel plugin with Babel 7 support
 // https://github.com/lukeed/taskr/pull/305
-'use strict'
 
+const extname = require('path').extname
 const transform = require('@babel/core').transform
 
-module.exports = function (task) {
-  task.plugin('babel', {}, function * (file, opts) {
+const babelClientOpts = {
+  presets: [
+    '@babel/preset-typescript',
+    [
+      '@babel/preset-env',
+      {
+        modules: 'commonjs',
+        targets: {
+          esmodules: true,
+        },
+        loose: true,
+        // This is handled by the Next.js webpack config that will run next/babel over the same code.
+        exclude: [
+          'transform-typeof-symbol',
+          'transform-async-to-generator',
+          'transform-spread',
+        ],
+      },
+    ],
+    ['@babel/preset-react', { useBuiltIns: true }],
+  ],
+  plugins: [
+    // workaround for @taskr/esnext bug replacing `-import` with `-require(`
+    // eslint-disable-next-line no-useless-concat
+    '@babel/plugin-syntax-dynamic-impor' + 't',
+    ['@babel/plugin-proposal-class-properties', { loose: true }],
+  ],
+}
+
+const babelServerOpts = {
+  presets: [
+    '@babel/preset-typescript',
+    ['@babel/preset-react', { useBuiltIns: true }],
+    [
+      '@babel/preset-env',
+      {
+        modules: 'commonjs',
+        targets: {
+          node: '8.3',
+        },
+        loose: true,
+        exclude: ['transform-typeof-symbol'],
+      },
+    ],
+  ],
+  plugins: [
+    '@babel/plugin-proposal-optional-chaining',
+    '@babel/plugin-proposal-nullish-coalescing-operator',
+    'babel-plugin-dynamic-import-node',
+    ['@babel/plugin-proposal-class-properties', { loose: true }],
+  ],
+}
+
+module.exports = function(task) {
+  // eslint-disable-next-line require-yield
+  task.plugin('babel', {}, function*(
+    file,
+    serverOrClient,
+    { stripExtension } = {}
+  ) {
+    // Don't compile .d.ts
+    if (file.base.endsWith('.d.ts')) return
+
+    const babelOpts =
+      serverOrClient === 'client' ? babelClientOpts : babelServerOpts
+
     const options = {
-      ...opts
+      ...babelOpts,
+      plugins: [
+        ...babelOpts.plugins,
+        // pages dir doesn't need core-js
+        serverOrClient === 'client'
+          ? [
+              '@babel/plugin-transform-runtime',
+              {
+                corejs: false,
+                helpers: true,
+                regenerator: false,
+                useESModules: false,
+              },
+            ]
+          : false,
+      ].filter(Boolean),
+      compact: true,
+      babelrc: false,
+      configFile: false,
+      filename: file.base,
     }
-    options.filename = file.base
-    options.plugins = [
-      require('@babel/plugin-syntax-dynamic-import'),
-      ...(options.plugins || [])
-    ]
-    options.babelrc = false
-    options.configFile = false
-    options.babelrcRoots = false
     const output = transform(file.data, options)
-    file.data = Buffer.from(output.code)
+    const ext = extname(file.base)
+
+    // Replace `.ts|.tsx` with `.js` in files with an extension
+    if (ext) {
+      const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
+      // Remove the extension if stripExtension is enabled or replace it with `.js`
+      file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
+    }
+
+    // Workaround for noop.js loading
+    if (file.base === 'next-dev.js') {
+      output.code = output.code.replace(
+        /__REPLACE_NOOP_IMPORT__/g,
+        `import('./dev/noop');`
+      )
+    }
+
+    file.data = Buffer.from(setNextVersion(output.code))
   })
+}
+
+function setNextVersion(code) {
+  return code.replace(
+    /process\.env\.__NEXT_VERSION/g,
+    `"${require('./package.json').version}"`
+  )
 }

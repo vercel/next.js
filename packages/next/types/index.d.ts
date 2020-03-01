@@ -1,73 +1,88 @@
-declare module '@babel/plugin-transform-modules-commonjs';
-declare module 'next-server/next-config';
-declare module 'next-server/constants';
-declare module 'webpack/lib/GraphHelpers';
-declare module 'unfetch'
+/// <reference types="node" />
+/// <reference types="react" />
+/// <reference types="react-dom" />
 
-declare module 'next-server/dist/lib/data-manager-context' {
-  import * as all from 'next-server/lib/data-manager-context'
-  export = all
-}
+import React from 'react'
+import { ParsedUrlQuery } from 'querystring'
+import { IncomingMessage, ServerResponse } from 'http'
 
-declare module 'next-server/dist/lib/router-context' {
-  import * as all from 'next-server/lib/router-context'
-  export = all
-}
+import {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  NextApiHandler,
+  // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/next-server/lib/utils'
 
+// @ts-ignore This path is generated at build time and conflicts otherwise
+import next from '../dist/server/next'
 
-declare module 'next/dist/compiled/nanoid/index.js' {
-  function nanoid(size?: number): string;
-
-  export = nanoid;
-}
-
-declare module 'next/dist/compiled/resolve/index.js' {
-  import resolve from 'resolve'
-
-  export = resolve;
-}
-
-declare module 'next/dist/compiled/arg/index.js' {
-  function arg<T extends arg.Spec>(spec: T, options?: {argv?: string[], permissive?: boolean}): arg.Result<T>;
-
-  namespace arg {
-    export type Handler = (value: string) => any;
-
-    export interface Spec {
-      [key: string]: string | Handler | [Handler];
-    }
-
-    export type Result<T extends Spec> = { _: string[] } & {
-      [K in keyof T]: T[K] extends string
-        ? never
-        : T[K] extends Handler
-        ? ReturnType<T[K]>
-        : T[K] extends [Handler]
-        ? Array<ReturnType<T[K][0]>>
-        : never
-    };
+// Extend the React types with missing properties
+declare module 'react' {
+  // <html amp=""> support
+  interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
+    amp?: string
   }
 
-  export = arg;
-}
-
-declare module 'autodll-webpack-plugin' {
-  import webpack from 'webpack'
-  class AutoDllPlugin implements webpack.Plugin {
-    constructor(settings?: {
-      inject?: boolean,
-      plugins?: webpack.Configuration["plugins"],
-      context?: string,
-      debug?: boolean,
-      filename?: string,
-      path?: string,
-      inherit?: boolean,
-      entry?: webpack.Entry,
-      config?: webpack.Configuration
-    })
-    apply: webpack.Plugin["apply"]
-    [k: string]: any
+  // <link nonce=""> support
+  interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
+    nonce?: string
   }
 
-  export = AutoDllPlugin
+  // <style jsx> and <style jsx global> support for styled-jsx
+  interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
+    jsx?: boolean
+    global?: boolean
+  }
 }
+
+/**
+ * `Page` type, use it as a guide to create `pages`.
+ */
+export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
+
+/**
+ * `Config` type, use it for export const config
+ */
+export type PageConfig = {
+  amp?: boolean | 'hybrid'
+  api?: {
+    /**
+     * The byte limit of the body. This is the number of bytes or any string
+     * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
+     */
+    bodyParser?: { sizeLimit?: number | string } | false
+  }
+}
+
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  NextApiHandler,
+}
+
+export type GetStaticProps = (ctx: {
+  params?: ParsedUrlQuery
+  preview?: boolean
+  previewData?: any
+}) => Promise<{
+  props: { [key: string]: any }
+  revalidate?: number | boolean
+}>
+
+export type GetStaticPaths = () => Promise<{
+  paths: Array<string | { params: ParsedUrlQuery }>
+  fallback: boolean
+}>
+
+export type GetServerSideProps = (context: {
+  req: IncomingMessage
+  res: ServerResponse
+  params?: ParsedUrlQuery
+  query: ParsedUrlQuery
+}) => Promise<{ [key: string]: any }>
+
+export default next
