@@ -62,7 +62,7 @@ export async function unstable_getStaticPaths() {
   )
 }
 
-export default function PostPage({ data }) {
+export default function Post({ data }) {
   if (!data || data.posts.total < 1) {
     return <Error statusCode={404} />
   }
