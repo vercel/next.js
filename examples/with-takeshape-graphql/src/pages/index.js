@@ -1,8 +1,8 @@
 import Error from 'next/error'
 import Link from 'next/link'
 import cn from 'classnames'
+import { getImageUrl } from 'takeshape-routing'
 import { graphqlFetch } from '../lib/takeshape-api'
-import TakeShape from '../providers/takeshape'
 import PostList from '../components/post-list'
 import baseTheme from '../base.module.css'
 import theme from './homepage.module.css'
@@ -64,7 +64,7 @@ export default function Home({ hero, posts }) {
     w: 1000,
     fit: 'crop',
   }
-  const heroImageSrc = TakeShape.getImageUrl(hero.image.path, heroImageOptions)
+  const heroImageSrc = getImageUrl(hero.image.path, heroImageOptions)
 
   return (
     <>
