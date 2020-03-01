@@ -780,7 +780,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {})
+    const html = await this.renderToHTML(req, res, pathname, query)
     // Request was ended by the user
     if (html === null) {
       return
@@ -1127,14 +1127,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
-    {
-      amphtml,
-      hasAmp,
-    }: {
-      amphtml?: boolean
-      hasAmp?: boolean
-    } = {}
+    query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     try {
       const result = await this.findPageComponents(pathname, query)
@@ -1144,7 +1137,7 @@ export default class Server {
           res,
           pathname,
           result,
-          { ...this.renderOpts, amphtml, hasAmp }
+          { ...this.renderOpts }
         )
         if (result2 !== false) {
           return result2
@@ -1169,12 +1162,7 @@ export default class Server {
               res,
               dynamicRoute.page,
               result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
-              }
+              { ...this.renderOpts, params }
             )
             if (result2 !== false) {
               return result2
