@@ -116,11 +116,14 @@ export default class PageLoader {
       interpolatedRoute = route
       if (
         !Object.keys(dynamicGroups).every(param => {
-          const value = dynamicMatches[param]
+          let value = dynamicMatches[param]
           const repeat = dynamicGroups[param].repeat
+
+          // support single-level catch-all
+          if (repeat && !Array.isArray(value)) value = [value]
+
           return (
             param in dynamicMatches &&
-            (!repeat || Array.isArray(value)) &&
             // Interpolate group into data URL if present
             (interpolatedRoute = interpolatedRoute.replace(
               `[${repeat ? '...' : ''}${param}]`,
