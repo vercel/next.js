@@ -1,10 +1,9 @@
-import React, { Fragment } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import Error from 'next/error'
 import format from 'date-fns/format'
-import TakeShape from '../../providers/takeshape'
-import HtmlContent from '../../components/content'
+import { graphqlFetch } from '../../lib/takeshape-api'
+import Content from '../../components/content'
 import baseTheme from '../../base.module.css'
 import theme from './post.module.css'
 
@@ -45,12 +44,29 @@ export const postSlugsQuery = `
   }
 `
 
-const PostPage = ({ data }) => {
-  if (!data || data.errors) {
-    return <Error statusCode={500} />
-  } else if (data.posts.total < 1) {
+export async function unstable_getStaticProps({ params }) {
+  const data = await graphqlFetch({ query: postQuery(params.slug) })
+  return { props: { data } }
+}
+
+export async function unstable_getStaticPaths() {
+  const data = await graphqlFetch({ query: postSlugsQuery })
+  const posts = data.posts.items
+
+  return posts.reduce(
+    (pages, post) =>
+      pages.concat({
+        params: { slug: post.slug },
+      }),
+    []
+  )
+}
+
+export default function PostPage({ data }) {
+  if (!data || data.posts.total < 1) {
     return <Error statusCode={404} />
   }
+
   const {
     _enabledAt,
     title,
@@ -59,9 +75,9 @@ const PostPage = ({ data }) => {
     author,
     bodyHtml,
   } = data.posts.items[0]
-  const date = new Date(_enabledAt)
+
   return (
-    <Fragment>
+    <>
       <Head>
         <title key="title">{title} / Posts / Shape Blog</title>
         <meta key="description" name="description" content={deck} />
@@ -75,52 +91,12 @@ const PostPage = ({ data }) => {
                 <a>By {author.name}</a>
               </Link>
             </p>
-            <p>{format(date, 'MMMM d, yyyy')}</p>
+            <p>{format(new Date(_enabledAt), 'MMMM d, yyyy')}</p>
             {tags.length && <p>Tags: {tags.map(t => t.name).join(', ')}</p>}
           </div>
         </div>
       </header>
-      <HtmlContent bodyHtml={bodyHtml} />
-    </Fragment>
+      <Content bodyHtml={bodyHtml} />
+    </>
   )
 }
-
-export async function unstable_getStaticProps({ params }) {
-  try {
-    const { slug } = params
-    const res = await TakeShape.graphql({ query: postQuery(slug) })
-    const json = await res.json()
-    if (json.errors) throw json.errors
-    const data = json.data
-    return {
-      props: {
-        data,
-      },
-    }
-  } catch (error) {
-    console.error(error)
-    return error
-  }
-}
-
-export async function unstable_getStaticPaths() {
-  try {
-    const res = await TakeShape.graphql({ query: postSlugsQuery })
-    const json = await res.json()
-    if (json.errors) throw json.errors
-    const data = json.data
-    const posts = data.posts.items
-    return posts.reduce(
-      (pages, post) =>
-        pages.concat({
-          params: { slug: post.slug },
-        }),
-      []
-    )
-  } catch (error) {
-    console.error(error)
-    return error
-  }
-}
-
-export default PostPage
