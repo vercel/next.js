@@ -41,7 +41,7 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-// import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
@@ -534,28 +534,28 @@ export default async function getBaseWebpackConfig(
       runtimeChunk: isServer
         ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
-      minimize: false,
-      // minimizer: [
-      //   // Minify JavaScript
-      //   new TerserPlugin({
-      //     ...terserPluginConfig,
-      //     terserOptions,
-      //   }),
-      //   // Minify CSS
-      //   config.experimental.css &&
-      //     new CssMinimizerPlugin({
-      //       postcssOptions: {
-      //         map: {
-      //           // `inline: false` generates the source map in a separate file.
-      //           // Otherwise, the CSS file is needlessly large.
-      //           inline: false,
-      //           // `annotation: false` skips appending the `sourceMappingURL`
-      //           // to the end of the CSS file. Webpack already handles this.
-      //           annotation: false,
-      //         },
-      //       },
-      //     }),
-      // ].filter(Boolean),
+      minimize: !(dev || isServer),
+      minimizer: [
+        // Minify JavaScript
+        new TerserPlugin({
+          ...terserPluginConfig,
+          terserOptions,
+        }),
+        // Minify CSS
+        config.experimental.css &&
+          new CssMinimizerPlugin({
+            postcssOptions: {
+              map: {
+                // `inline: false` generates the source map in a separate file.
+                // Otherwise, the CSS file is needlessly large.
+                inline: false,
+                // `annotation: false` skips appending the `sourceMappingURL`
+                // to the end of the CSS file. Webpack already handles this.
+                annotation: false,
+              },
+            },
+          }),
+      ].filter(Boolean),
     },
     context: dir,
     // Kept as function to be backwards compatible
@@ -586,7 +586,7 @@ export default async function getBaseWebpackConfig(
         }
         return '[name]'
       },
-      library: isServer ? 'commonjs2' : 'var',
+      libraryTarget: isServer ? 'commonjs2' : 'var',
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
@@ -831,11 +831,11 @@ export default async function getBaseWebpackConfig(
       //     chunkFilename: (inputChunkName: string) =>
       //       inputChunkName.replace(/\.js$/, '.module.js'),
       //   }),
-      // config.experimental.conformance &&
-      //   !dev &&
-      //   new WebpackConformancePlugin({
-      //     tests: [new MinificationConformanceCheck()],
-      //   }),
+      config.experimental.conformance &&
+        !dev &&
+        new WebpackConformancePlugin({
+          tests: [new MinificationConformanceCheck()],
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
@@ -848,6 +848,8 @@ export default async function getBaseWebpackConfig(
     hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
   })
+
+  if (!isServer) webpackConfig.output.library = 'nextapp'
 
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {

@@ -81,7 +81,9 @@ export default class BuildManifestPlugin {
         const polyfillChunk = chunks.find(
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
         )
-        const polyfillFiles: string[] = polyfillChunk ? polyfillChunk.files : []
+        const polyfillFiles: string[] = polyfillChunk
+          ? Array.from(polyfillChunk.files)
+          : []
 
         for (const filePath of Object.keys(compilation.assets)) {
           const path = filePath.replace(/\\/g, '/')
