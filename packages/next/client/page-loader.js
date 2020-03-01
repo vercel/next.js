@@ -1,6 +1,8 @@
 import { parse } from 'url'
 import mitt from '../next-server/lib/mitt'
 import { isDynamicRoute } from './../next-server/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from './../next-server/lib/router/utils/route-matcher'
+import { getRouteRegex } from './../next-server/lib/router/utils/route-regex'
 
 function hasRel(rel, link) {
   try {
@@ -94,15 +96,40 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
   prefetchData(href, asPath) {
-    const { pathname: hrefPathname } = parse(href, true)
+    const { pathname: hrefPathname, query } = parse(href, true)
+    const { pathname: asPathname } = parse(asPath)
 
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest.then(
-      (s, _dataHref) =>
+      (
+        s,
+        _dataHref,
+        _dynamic_regex,
+        _dynamic_groups,
+        _dynamic_matches,
+        _dynamic_built_route
+      ) =>
         // Check if the route requires a data file
         s.has(route) &&
         (isDynamicRoute(route)
-          ? void 0
+          ? ((_dynamic_regex = getRouteRegex(route)),
+            (_dynamic_groups = _dynamic_regex.groups),
+            (_dynamic_matches =
+              getRouteMatcher(_dynamic_regex)(asPathname) || query),
+            (_dynamic_built_route = route),
+            Object.keys(_dynamic_groups).every(
+              param =>
+                param in _dynamic_matches &&
+                // Interpolate group into data URL if present
+                (_dynamic_built_route = _dynamic_built_route.replace(
+                  `[${_dynamic_groups[param].repeat ? '...' : ''}${param}]`,
+                  _dynamic_groups[param].repeat
+                    ? // FIXME: assuming `_matches` is an array
+                      _dynamic_matches[param].map(encodeURIComponent).join('/')
+                    : encodeURIComponent(_dynamic_matches[param])
+                ))
+            ) &&
+              (_dataHref = `${this.assetPrefix}/_next/data/${this.buildId}${_dynamic_built_route}.json`))
           : // Create `href` for normal (non-dynamic) data file
             (_dataHref = `${this.assetPrefix}/_next/data/${this.buildId}${
               route === '/' ? '/index' : route
