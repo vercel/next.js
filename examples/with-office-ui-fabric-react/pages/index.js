@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { Fabric } from 'office-ui-fabric-react/lib-commonjs/Fabric'
 import {
   DefaultButton,
-  PrimaryButton
+  PrimaryButton,
 } from 'office-ui-fabric-react/lib-commonjs/Button'
 import {
   Dialog,
   DialogType,
-  DialogFooter
+  DialogFooter,
 } from 'office-ui-fabric-react/lib-commonjs/Dialog'
 
 export default () => {
@@ -25,16 +25,16 @@ export default () => {
         onDismiss={closeDialog}
         dialogContentProps={{
           type: DialogType.normal,
-          title: 'Test Dialog'
+          title: 'Test Dialog',
         }}
         modalProps={{
-          isBlocking: true
+          isBlocking: true,
         }}
       >
         <p>This is a test dialog.</p>
         <DialogFooter>
-          <PrimaryButton onClick={closeDialog} text='OK' />
-          <DefaultButton onClick={closeDialog} text='Cancel' />
+          <PrimaryButton onClick={closeDialog} text="OK" />
+          <DefaultButton onClick={closeDialog} text="Cancel" />
         </DialogFooter>
       </Dialog>
     </Fabric>

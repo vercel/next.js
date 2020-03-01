@@ -5,7 +5,7 @@ export default (state = {}, action) => {
     case INPUT_VALUE:
       return {
         ...state,
-        [action.title]: { ...state[action.title], [action.name]: action.val }
+        [action.title]: { ...state[action.title], [action.name]: action.val },
       }
     default:
       return state

@@ -1,4 +1,3 @@
-import React from 'react'
 import PropTypes from 'prop-types'
 import { compose, setDisplayName, pure, setPropTypes } from 'recompose'
 
@@ -20,7 +19,7 @@ export default compose(
   setDisplayName('AddCount'),
   setPropTypes({
     count: PropTypes.number,
-    addCount: PropTypes.func
+    addCount: PropTypes.func,
   }),
   pure
 )(AddCount)

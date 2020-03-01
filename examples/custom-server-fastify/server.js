@@ -29,7 +29,7 @@ fastify.register((fastify, opts, next) => {
         })
       })
 
-      fastify.get('/*', (req, reply) => {
+      fastify.all('/*', (req, reply) => {
         return app.handleRequest(req.req, reply.res).then(() => {
           reply.sent = true
         })

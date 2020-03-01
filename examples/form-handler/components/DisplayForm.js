@@ -3,7 +3,7 @@ import { Col, Row } from 'react-bootstrap'
 import { connect } from 'react-redux'
 
 class DisplayForm extends Component {
-  render () {
+  render() {
     const { state } = this.props
     return (
       <div>
@@ -19,7 +19,7 @@ class DisplayForm extends Component {
 
 const mapStateToProps = state => {
   return {
-    state
+    state,
   }
 }
 

@@ -1,4 +1,4 @@
-# `<title>` should not be used in _document.js's `<Head>`
+# `<title>` should not be used in \_document.js's `<Head>`
 
 #### Why This Error Occurred
 
@@ -10,12 +10,12 @@ Set `<title>` in `pages/_app.js` instead:
 
 ```js
 // pages/_app.js
-import App, {Container} from 'next/app'
+import App from 'next/app'
 import Head from 'next/head'
 import React from 'react'
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -25,21 +25,20 @@ export default class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
 
     return (
-      <Container>
+      <>
         <Head>
           <title>My new cool app</title>
         </Head>
         <Component {...pageProps} />
-      </Container>
+      </>
     )
   }
 }
 ```
-
 
 ### Useful Links
 

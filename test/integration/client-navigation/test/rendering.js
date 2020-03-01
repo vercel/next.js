@@ -1,11 +1,11 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 
-export default function (render, fetch) {
-  async function get$ (path, query) {
+export default function(render, fetch) {
+  async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }
@@ -13,8 +13,16 @@ export default function (render, fetch) {
   describe('Rendering via HTTP', () => {
     test('renders a stateless component', async () => {
       const html = await render('/stateless')
-      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
       expect(html.includes('My component!')).toBeTruthy()
+    })
+
+    it('should handle undefined prop in head server-side', async () => {
+      const html = await render('/head')
+      const $ = cheerio.load(html)
+      const value = 'content' in $('meta[name="empty-content"]').attr()
+
+      expect(value).toBe(false)
     })
 
     test('renders with fragment syntax', async () => {
@@ -24,7 +32,9 @@ export default function (render, fetch) {
 
     test('renders when component is a forwardRef instance', async () => {
       const html = await render('/forwardRef-component')
-      expect(html.includes('This is a component with a forwarded ref')).toBeTruthy()
+      expect(
+        html.includes('This is a component with a forwarded ref')
+      ).toBeTruthy()
     })
 
     test('renders when component is a memo instance', async () => {
@@ -34,64 +44,121 @@ export default function (render, fetch) {
 
     // default-head contains an empty <Head />.
     test('header renders default charset', async () => {
-      const html = await (render('/default-head'))
-      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
+      const html = await render('/default-head')
+      expect(html.includes('<meta charSet="utf-8"/>')).toBeTruthy()
       expect(html.includes('next-head, but only once.')).toBeTruthy()
     })
 
     test('header renders default viewport', async () => {
-      const html = await (render('/default-head'))
-      expect(html).toContain('<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" class="next-head"/>')
+      const html = await render('/default-head')
+      expect(html).toContain(
+        '<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>'
+      )
     })
 
     test('header helper renders header information', async () => {
-      const html = await (render('/head'))
-      expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
-      expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
-      expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1" class="next-head"/>')
+      const html = await render('/head')
+      expect(html.includes('<meta charSet="iso-8859-5"/>')).toBeTruthy()
+      expect(html.includes('<meta content="my meta"/>')).toBeTruthy()
+      expect(html).toContain(
+        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+      )
       expect(html.includes('I can have meta tags')).toBeTruthy()
     })
 
     test('header helper dedupes tags', async () => {
-      const html = await (render('/head'))
-      expect(html).toContain('<meta charSet="iso-8859-5" class="next-head"/>')
-      expect(html).not.toContain('<meta charSet="utf-8" class="next-head"/>')
-      expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1" class="next-head"/>')
-      expect(html.match(/<meta name="viewport" /g).length).toBe(1, 'Should contain only one viewport')
-      expect(html).not.toContain('<meta name="viewport" content="width=device-width"/>')
-      expect(html).toContain('<meta content="my meta" class="next-head"/>')
-      expect(html).toContain('<link rel="stylesheet" href="/dup-style.css" class="next-head"/><link rel="stylesheet" href="/dup-style.css" class="next-head"/>')
-      expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
-      expect(html).not.toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
+      const html = await render('/head')
+      expect(html).toContain('<meta charSet="iso-8859-5"/>')
+      expect(html).not.toContain('<meta charSet="utf-8"/>')
+      expect(html).toContain(
+        '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
+      )
+      expect(html.match(/<meta name="viewport" /g).length).toBe(
+        1,
+        'Should contain only one viewport'
+      )
+      expect(html).not.toContain(
+        '<meta name="viewport" content="width=device-width"/>'
+      )
+      expect(html).toContain('<meta content="my meta"/>')
+      expect(html).toContain(
+        '<link rel="stylesheet" href="/dup-style.css"/><link rel="stylesheet" href="/dup-style.css"/>'
+      )
+      expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css"/>')
+      expect(html).not.toContain(
+        '<link rel="stylesheet" href="dedupe-style.css"/><link rel="stylesheet" href="dedupe-style.css"/>'
+      )
+      expect(html).toContain(
+        '<link rel="alternate" hrefLang="en" href="/last/en"/>'
+      )
+      expect(html).not.toContain(
+        '<link rel="alternate" hrefLang="en" href="/first/en"/>'
+      )
+    })
+
+    test('header helper dedupes tags with the same key as the default', async () => {
+      const html = await render('/head-duplicate-default-keys')
+      // Expect exactly one `charSet`
+      expect((html.match(/charSet=/g) || []).length).toBe(1)
+      // Expect exactly one `viewport`
+      expect((html.match(/name="viewport"/g) || []).length).toBe(1)
+      expect(html).toContain('<meta charSet="iso-8859-1"/>')
+      expect(html).toContain('<meta name="viewport" content="width=500"/>')
     })
 
     test('header helper avoids dedupe of specific tags', async () => {
-      const html = await (render('/head'))
-      expect(html).toContain('<meta property="article:tag" content="tag1" class="next-head"/>')
-      expect(html).toContain('<meta property="article:tag" content="tag2" class="next-head"/>')
-      expect(html).not.toContain('<meta property="dedupe:tag" content="tag3" class="next-head"/>')
-      expect(html).toContain('<meta property="dedupe:tag" content="tag4" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image" content="ogImageTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image" content="ogImageTag2" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:alt" content="ogImageAltTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:alt" content="ogImageAltTag2" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:width" content="ogImageWidthTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:width" content="ogImageWidthTag2" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:height" content="ogImageHeightTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:height" content="ogImageHeightTag2" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:type" content="ogImageTypeTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:type" content="ogImageTypeTag2" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag2" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="fb:pages" content="fbpages1" class="next-head"/>')
-      expect(html).toContain('<meta property="fb:pages" content="fbpages2" class="next-head"/>')
+      const html = await render('/head')
+      expect(html).toContain('<meta property="article:tag" content="tag1"/>')
+      expect(html).toContain('<meta property="article:tag" content="tag2"/>')
+      expect(html).not.toContain('<meta property="dedupe:tag" content="tag3"/>')
+      expect(html).toContain('<meta property="dedupe:tag" content="tag4"/>')
+      expect(html).toContain(
+        '<meta property="og:image" content="ogImageTag1"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image" content="ogImageTag2"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:alt" content="ogImageAltTag1"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:alt" content="ogImageAltTag2"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:width" content="ogImageWidthTag1"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:width" content="ogImageWidthTag2"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:height" content="ogImageHeightTag1"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:height" content="ogImageHeightTag2"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:type" content="ogImageTypeTag1"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:type" content="ogImageTypeTag2"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:secure_url" content="ogImageSecureUrlTag1"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:secure_url" content="ogImageSecureUrlTag2"/>'
+      )
+      expect(html).toContain(
+        '<meta property="og:image:url" content="ogImageUrlTag1"/>'
+      )
+      expect(html).toContain('<meta property="fb:pages" content="fbpages1"/>')
+      expect(html).toContain('<meta property="fb:pages" content="fbpages2"/>')
     })
 
     test('header helper renders Fragment children', async () => {
-      const html = await (render('/head'))
-      expect(html).toContain('<title class="next-head">Fragment title</title>')
-      expect(html).toContain('<meta content="meta fragment" class="next-head"/>')
+      const html = await render('/head')
+      expect(html).toContain('<title>Fragment title</title>')
+      expect(html).toContain('<meta content="meta fragment"/>')
     })
 
     it('should render the page with custom extension', async () => {
@@ -105,8 +172,13 @@ export default function (render, fetch) {
       expect(html).not.toContain('"err"')
     })
 
-    it('should render the page without `nextExport` property', async () => {
+    it('should render the page with `nextExport` property', async () => {
       const html = await render('/')
+      expect(html).toContain('"nextExport"')
+    })
+
+    it('should render the page without `nextExport` property', async () => {
+      const html = await render('/url-prop')
       expect(html).not.toContain('"nextExport"')
     })
 
@@ -131,30 +203,49 @@ export default function (render, fetch) {
 
     test('getInitialProps circular structure', async () => {
       const $ = await get$('/circular-json-error')
-      const expectedErrorMessage = 'Circular structure in "getInitialProps" result of page "/circular-json-error".'
-      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+      const expectedErrorMessage =
+        'Circular structure in "getInitialProps" result of page "/circular-json-error".'
+      expect(
+        $('pre')
+          .text()
+          .includes(expectedErrorMessage)
+      ).toBeTruthy()
     })
 
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
-      const expectedErrorMessage = '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
-      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+      const expectedErrorMessage =
+        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+      expect(
+        $('pre')
+          .text()
+          .includes(expectedErrorMessage)
+      ).toBeTruthy()
     })
 
     test('getInitialProps resolves to null', async () => {
       const $ = await get$('/empty-get-initial-props')
-      const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+      const expectedErrorMessage =
+        '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
+      expect(
+        $('pre')
+          .text()
+          .includes(expectedErrorMessage)
+      ).toBeTruthy()
     })
 
     test('default Content-Type', async () => {
       const res = await fetch('/stateless')
-      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
+      expect(res.headers.get('Content-Type')).toMatch(
+        'text/html; charset=utf-8'
+      )
     })
 
     test('setting Content-Type in getInitialProps', async () => {
       const res = await fetch('/custom-encoding')
-      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
+      expect(res.headers.get('Content-Type')).toMatch(
+        'text/html; charset=iso-8859-2'
+      )
     })
 
     test('should render 404 for _next routes that do not exist', async () => {
@@ -169,12 +260,16 @@ export default function (render, fetch) {
 
     test('should expose the compiled page file in development', async () => {
       await fetch('/stateless') // make sure the stateless page is built
-      const clientSideJsRes = await fetch('/_next/development/static/development/pages/stateless.js')
+      const clientSideJsRes = await fetch(
+        '/_next/development/static/development/pages/stateless.js'
+      )
       expect(clientSideJsRes.status).toBe(200)
       const clientSideJsBody = await clientSideJsRes.text()
       expect(clientSideJsBody).toMatch(/My component!/)
 
-      const serverSideJsRes = await fetch('/_next/development/server/static/development/pages/stateless.js')
+      const serverSideJsRes = await fetch(
+        '/_next/development/server/static/development/pages/stateless.js'
+      )
       expect(serverSideJsRes.status).toBe(200)
       const serverSideJsBody = await serverSideJsRes.text()
       expect(serverSideJsBody).toMatch(/My component!/)
@@ -210,14 +305,20 @@ export default function (render, fetch) {
       await fetch('/dynamic/ssr')
 
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
-      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const reactLoadableManifest = require(join(
+        '../.next',
+        REACT_LOADABLE_MANIFEST
+      ))
       const resources = []
 
       // test a regular page
       resources.push(`/_next/static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push('/_next/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      resources.push(
+        '/_next/' +
+          reactLoadableManifest['../../components/hello1'][0].publicPath
+      )
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/dynamic/ssr']) {
@@ -228,11 +329,15 @@ export default function (render, fetch) {
         resources.push('/_next/' + item)
       }
 
-      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+      const responses = await Promise.all(
+        resources.map(resource => fetch(resource))
+      )
 
-      responses.forEach((res) => {
+      responses.forEach(res => {
         try {
-          expect(res.headers.get('Cache-Control')).toBe('no-store, must-revalidate')
+          expect(res.headers.get('Cache-Control')).toBe(
+            'no-store, must-revalidate'
+          )
         } catch (err) {
           err.message = res.url + ' ' + err.message
           throw err
@@ -301,7 +406,9 @@ export default function (render, fetch) {
 
     it('should show a valid error when undefined is thrown', async () => {
       const $ = await get$('/throw-undefined')
-      expect($('body').text()).toMatch('An undefined error was thrown sometime during render...')
+      expect($('body').text()).toMatch(
+        'An undefined error was thrown sometime during render...'
+      )
     })
   })
 }

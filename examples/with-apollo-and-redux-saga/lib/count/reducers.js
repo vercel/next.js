@@ -2,7 +2,7 @@ import { actionTypes } from './actions'
 
 const initialState = 0
 
-function reducer (state = initialState, action) {
+function reducer(state = initialState, action) {
   switch (action.type) {
     case actionTypes.COUNT_INCREASE:
       return state + 1

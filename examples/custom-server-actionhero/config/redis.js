@@ -16,7 +16,7 @@ exports['default'] = {
     // args: The arguments to pass to the constructor
     // buildNew: is it `new konstructor()` or just `konstructor()`?
 
-    function retryStrategy (times) {
+    function retryStrategy(times) {
       if (times === 1) {
         const error =
           'Unable to connect to Redis - please check your Redis config!'
@@ -42,10 +42,10 @@ exports['default'] = {
             host: host,
             password: password,
             db: db,
-            retryStrategy: retryStrategy
-          }
+            retryStrategy: retryStrategy,
+          },
         ],
-        buildNew: true
+        buildNew: true,
       },
       subscriber: {
         konstructor: require('ioredis'),
@@ -55,10 +55,10 @@ exports['default'] = {
             host: host,
             password: password,
             db: db,
-            retryStrategy: retryStrategy
-          }
+            retryStrategy: retryStrategy,
+          },
         ],
-        buildNew: true
+        buildNew: true,
       },
       tasks: {
         konstructor: require('ioredis'),
@@ -68,11 +68,11 @@ exports['default'] = {
             host: host,
             password: password,
             db: db,
-            retryStrategy: retryStrategy
-          }
+            retryStrategy: retryStrategy,
+          },
         ],
-        buildNew: true
-      }
+        buildNew: true,
+      },
     }
-  }
+  },
 }

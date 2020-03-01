@@ -1,5 +1,5 @@
 import { useAmp } from 'next/amp'
 
-export default () => (
-  <p>I'm an {useAmp() ? 'AMP' : 'normal'} page</p>
-)
+export const config = { amp: 'hybrid' }
+
+export default () => <p>I'm an {useAmp() ? 'AMP' : 'normal'} page</p>

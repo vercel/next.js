@@ -1,12 +1,12 @@
-import App, { Container } from 'next/app'
+import App from 'next/app'
 import React from 'react'
 import { Provider } from 'unstated'
 import { counterStore } from '../containers/CounterContainer'
 
 class MyApp extends App {
-  static async getInitialProps () {
+  static async getInitialProps() {
     // do your server state here
-    if (!process.browser) {
+    if (typeof window === 'undefined') {
       // reset state for each request
       counterStore.resetState()
       // process state, in this case counter start with 999
@@ -16,22 +16,20 @@ class MyApp extends App {
       return {}
     }
   }
-  constructor (props) {
+  constructor(props) {
     super(props)
     // pass the state to client store
     // serverState will be reset when client navigate with Link
-    if (process.browser) {
+    if (typeof window !== 'undefined') {
       counterStore.initState(props.serverState.count)
     }
   }
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
-      <Container>
-        <Provider inject={[counterStore]}>
-          <Component {...pageProps} />
-        </Provider>
-      </Container>
+      <Provider inject={[counterStore]}>
+        <Component {...pageProps} />
+      </Provider>
     )
   }
 }

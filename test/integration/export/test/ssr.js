@@ -2,7 +2,7 @@
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-export default function (context) {
+export default function(context) {
   describe('Render via SSR', () => {
     it('should render the home page', async () => {
       const html = await renderViaHTTP(context.port, '/')
@@ -44,18 +44,46 @@ export default function (context) {
     })
 
     it('should give empty object for query if there is no query', async () => {
-      const html = await renderViaHTTP(context.port, '/get-initial-props-with-no-query')
+      const html = await renderViaHTTP(
+        context.port,
+        '/get-initial-props-with-no-query'
+      )
       expect(html).toMatch(/Query is: {}/)
     })
 
-    it('should render _error on 404', async () => {
-      const html = await renderViaHTTP(context.port, '/404')
-      expect(html).toMatch(/404/)
+    it('should render _error on 404.html even if not provided in exportPathMap', async () => {
+      const html = await renderViaHTTP(context.port, '/404.html')
+      // The default error page from the test server
+      // contains "404", so need to be specific here
+      expect(html).toMatch(/404.*page.*not.*found/i)
     })
 
-    it('should export 404.html instead of 404/index.html', async () => {
-      const html = await renderViaHTTP(context.port, '/404.html')
-      expect(html).toMatch(/404/)
+    // since exportTrailingSlash is enabled we should allow this
+    it('should render _error on /404/index.html', async () => {
+      const html = await renderViaHTTP(context.port, '/404/index.html')
+      // The default error page from the test server
+      // contains "404", so need to be specific here
+      expect(html).toMatch(/404.*page.*not.*found/i)
+    })
+
+    it('Should serve static files', async () => {
+      const data = await renderViaHTTP(context.port, '/static/data/item.txt')
+      expect(data).toBe('item')
+    })
+
+    it('Should serve public files', async () => {
+      const html = await renderViaHTTP(context.port, '/about')
+      const data = await renderViaHTTP(context.port, '/about/data.txt')
+      expect(html).toMatch(/This is the About page foobar/)
+      expect(data).toBe('data')
+    })
+
+    it('Should render dynamic files with query', async () => {
+      const html = await renderViaHTTP(
+        context.port,
+        '/blog/nextjs/comment/test'
+      )
+      expect(html).toMatch(/Blog post nextjs comment test/)
     })
   })
 }

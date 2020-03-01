@@ -28,10 +28,18 @@ app.prepare().then(() => {
       return app.render(req, res, '/index')
     }
 
+    if (/dashboard/.test(req.url)) {
+      return app.render(req, res, '/dashboard/index')
+    }
+
+    if (/static\/hello\.text/.test(req.url)) {
+      return app.render(req, res, '/static/hello.text')
+    }
+
     handleNextRequests(req, res)
   })
 
-  server.listen(port, (err) => {
+  server.listen(port, err => {
     if (err) {
       throw err
     }

@@ -1,19 +1,24 @@
 import React, { Component } from 'react'
 
 export default class extends Component {
-  constructor (props) {
+  constructor(props) {
     super(props)
 
     this.state = {
-      mounted: false
+      mounted: false,
     }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.setState({ mounted: true })
   }
 
-  render () {
-    return <p>ComponentDidMount {this.state.mounted ? 'executed on client' : 'not executed'}.</p>
+  render() {
+    return (
+      <p>
+        ComponentDidMount{' '}
+        {this.state.mounted ? 'executed on client' : 'not executed'}.
+      </p>
+    )
   }
 }

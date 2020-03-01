@@ -5,7 +5,7 @@ import AddCount from './AddCount'
 
 export default connect(state => ({
   lastUpdate: state.get('lastUpdate'),
-  light: state.get('light')
+  light: state.get('light'),
 }))(({ title, linkTo, lastUpdate, light }) => {
   return (
     <div>

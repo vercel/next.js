@@ -11,7 +11,7 @@ const { actionCreator, getState: getAboutState } = namespaceConfig(
   DEFAULT_STATE
 )
 
-const bumpVersion = actionCreator('bumpVersion', function (state, increment) {
+const bumpVersion = actionCreator('bumpVersion', function(state, increment) {
   return { ...state, version: state.version + increment }
 })
 
@@ -22,21 +22,18 @@ const About = ({ version, bumpVersion }) => (
     <p>
       <button onClick={e => bumpVersion(1)}>Bump version!</button>
     </p>
-    <Link href='/'>
+    <Link href="/">
       <a>Homepage</a>
     </Link>
   </div>
 )
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   return getAboutState(state, 'version')
 }
 
-function mapDispatchToProps (dispatch) {
+function mapDispatchToProps(dispatch) {
   return bindActionCreators({ bumpVersion }, dispatch)
 }
 
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(About)
+export default connect(mapStateToProps, mapDispatchToProps)(About)

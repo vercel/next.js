@@ -10,7 +10,7 @@
     "preserve": "npm run build-public && npm run build-funcs && npm run build-app && npm run copy-deps && npm run install-deps",
     "serve": "cross-env NODE_ENV=production firebase serve",
     "predeploy": "npm run build-public && npm run build-funcs && npm run build-app && npm run copy-deps",
-    "deploy": "firebase deploy",
+    "deploy": "NODE_ENV=production firebase deploy",
     "clean": "rimraf \"dist/functions/**\" && rimraf \"dist/public\"",
     "build-public": "cpx \"src/public/**/*.*\" \"dist/public\" -C",
     "build-funcs": "babel \"src/functions\" --out-dir \"dist/functions\"",
@@ -19,9 +19,10 @@
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "firebase-admin": "^6.3.0",
+    "firebase-admin": "^8.9.0",
     "firebase-functions": "^2.1.0",
-    "next": "^7.0.0",
+    "grpc": "^1.22.2",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
@@ -29,6 +30,7 @@
     "@babel/cli": "^7.2.0",
     "cpx": "^1.5.0",
     "cross-env": "^5.2.0",
+    "firebase-functions-test": "^0.1.6",
     "firebase-tools": "^6.1.0",
     "rimraf": "^2.6.0"
   }

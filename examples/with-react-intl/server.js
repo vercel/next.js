@@ -27,7 +27,9 @@ const localeDataCache = new Map()
 const getLocaleDataScript = locale => {
   const lang = locale.split('-')[0]
   if (!localeDataCache.has(lang)) {
-    const localeDataFile = require.resolve(`react-intl/locale-data/${lang}`)
+    const localeDataFile = require.resolve(
+      `@formatjs/intl-relativetimeformat/dist/locale-data/${lang}`
+    )
     const localeDataScript = readFileSync(localeDataFile, 'utf8')
     localeDataCache.set(lang, localeDataScript)
   }
@@ -44,7 +46,7 @@ const getMessages = locale => {
 app.prepare().then(() => {
   createServer((req, res) => {
     const accept = accepts(req)
-    const locale = accept.language(accept.languages(supportedLanguages)) || 'en'
+    const locale = accept.language(supportedLanguages) || 'en'
     req.locale = locale
     req.localeDataScript = getLocaleDataScript(locale)
     req.messages = dev ? {} : getMessages(locale)

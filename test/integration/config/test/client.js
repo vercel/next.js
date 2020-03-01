@@ -8,11 +8,11 @@ export default (context, render) => {
   describe('Configuration', () => {
     it('should have config available on the client', async () => {
       const browser = await webdriver(context.appPort, '/next-config')
-      // Wait for client side to load
-      await waitFor(10000)
 
       const serverText = await browser.elementByCss('#server-only').text()
-      const serverClientText = await browser.elementByCss('#server-and-client').text()
+      const serverClientText = await browser
+        .elementByCss('#server-and-client')
+        .text()
       const envValue = await browser.elementByCss('#env').text()
 
       expect(serverText).toBe('')
@@ -30,7 +30,12 @@ export default (context, render) => {
 
         expect(initialFontSize).toBe('100px')
 
-        const pagePath = join(__dirname, '../', 'components', 'hello-webpack-css.css')
+        const pagePath = join(
+          __dirname,
+          '../',
+          'components',
+          'hello-webpack-css.css'
+        )
 
         const originalContent = readFileSync(pagePath, 'utf8')
         const editedContent = originalContent.replace('100px', '200px')

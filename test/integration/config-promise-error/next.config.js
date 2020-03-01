@@ -1,5 +1,5 @@
 module.exports = (phase, { isServer }) => {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     resolve({ target: 'serverless' })
   })
 }

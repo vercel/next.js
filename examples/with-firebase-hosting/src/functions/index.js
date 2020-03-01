@@ -5,7 +5,7 @@ const next = require('next')
 var dev = process.env.NODE_ENV !== 'production'
 var app = next({
   dev,
-  conf: { distDir: `${path.relative(process.cwd(), __dirname)}/next` }
+  conf: { distDir: `${path.relative(process.cwd(), __dirname)}/next` },
 })
 var handle = app.getRequestHandler()
 

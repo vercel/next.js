@@ -1,4 +1,3 @@
-import React from 'react'
 import PropTypes from 'prop-types'
 import { compose, pure, setDisplayName, setPropTypes } from 'recompose'
 
@@ -30,7 +29,7 @@ export default compose(
   setDisplayName('Clock'),
   setPropTypes({
     lastUpdate: PropTypes.number,
-    light: PropTypes.bool
+    light: PropTypes.bool,
   }),
   pure
 )(Clock)

@@ -1,12 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  launchApp,
-  findPort,
-  killApp
-} from 'next-test-utils'
+import { renderViaHTTP, launchApp, findPort, killApp } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
 

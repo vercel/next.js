@@ -1,0 +1,16 @@
+{
+  "name": "with-cookie-auth",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "isomorphic-unfetch": "latest",
+    "js-cookie": "latest",
+    "next": "latest",
+    "next-cookies": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  }
+}

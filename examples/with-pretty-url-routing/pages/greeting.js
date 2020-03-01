@@ -4,11 +4,11 @@ import { Link } from 'next-url-prettifier'
 import { Router } from '../routes'
 
 export default class GreetingPage extends React.Component {
-  static getInitialProps ({ query: { lang, name } }) {
+  static getInitialProps({ query: { lang, name } }) {
     return { lang, name }
   }
 
-  renderSwitchLanguageLink () {
+  renderSwitchLanguageLink() {
     const { lang, name } = this.props
     const switchLang = lang === 'fr' ? 'en' : 'fr'
     return (
@@ -18,7 +18,7 @@ export default class GreetingPage extends React.Component {
     )
   }
 
-  render () {
+  render() {
     const { lang, name } = this.props
     return (
       <div>
@@ -33,5 +33,5 @@ export default class GreetingPage extends React.Component {
 
 GreetingPage.propTypes = {
   lang: PropTypes.string,
-  name: PropTypes.string
+  name: PropTypes.string,
 }

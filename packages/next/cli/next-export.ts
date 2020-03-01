@@ -6,20 +6,22 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextExport: cliCommand = (argv) => {
-  const args = arg({
-    // Types
-    '--help': Boolean,
-    '--silent': Boolean,
-    '--outdir': String,
-    '--threads': Number,
-    '--concurrency': Number,
+const nextExport: cliCommand = argv => {
+  const args = arg(
+    {
+      // Types
+      '--help': Boolean,
+      '--silent': Boolean,
+      '--outdir': String,
+      '--threads': Number,
 
-    // Aliases
-    '-h': '--help',
-    '-s': '--silent',
-    '-o': '--outdir',
-  }, { argv })
+      // Aliases
+      '-h': '--help',
+      '-s': '--silent',
+      '-o': '--outdir',
+    },
+    { argv }
+  )
 
   if (args['--help']) {
     // tslint:disable-next-line
@@ -48,18 +50,9 @@ const nextExport: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (!existsSync(join(dir, 'pages'))) {
-    if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
-    }
-
-    printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
-  }
-
   const options = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
-    concurrency: args['--concurrency'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
   }
 
@@ -67,7 +60,7 @@ const nextExport: cliCommand = (argv) => {
     .then(() => {
       printAndExit('Export successful', 0)
     })
-    .catch((err) => {
+    .catch(err => {
       printAndExit(err)
     })
 }

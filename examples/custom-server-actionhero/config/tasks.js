@@ -16,7 +16,7 @@ exports['default'] = {
         job: 'debug',
         pause: 'debug',
         internalError: 'error',
-        multiWorkerAction: 'debug'
+        multiWorkerAction: 'debug',
       },
       // Logging levels of the task scheduler
       schedulerLogging: {
@@ -26,7 +26,7 @@ exports['default'] = {
         enqueue: 'debug',
         reEnqueue: 'debug',
         working_timestamp: 'debug',
-        transferred_job: 'debug'
+        transferred_job: 'debug',
       },
       // how long to sleep between jobs / scheduler checks
       timeout: 5000,
@@ -45,17 +45,17 @@ exports['default'] = {
       resque_overrides: {
         queue: null,
         multiWorker: null,
-        scheduler: null
-      }
+        scheduler: null,
+      },
     }
-  }
+  },
 }
 
 exports.test = {
   tasks: api => {
     return {
       timeout: 100,
-      checkTimeout: 50
+      checkTimeout: 50,
     }
-  }
+  },
 }

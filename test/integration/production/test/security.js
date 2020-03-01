@@ -1,15 +1,21 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
+import url from 'url'
 import { join, resolve as resolvePath } from 'path'
-import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  getBrowserBodyText,
+  waitFor,
+  fetchViaHTTP,
+} from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
-// Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
-async function checkInjected (browser) {
+// Does the same evaluation checking for INJECTED for 5 seconds after hydration, triggering every 500ms
+async function checkInjected(browser) {
   const start = Date.now()
-  while (Date.now() - start < 15000) {
+  while (Date.now() - start < 5000) {
     const bodyText = await getBrowserBodyText(browser)
     if (/INJECTED/.test(bodyText)) {
       throw new Error('Vulnerable to XSS attacks')
@@ -18,7 +24,7 @@ async function checkInjected (browser) {
   }
 }
 
-module.exports = (context) => {
+module.exports = context => {
   describe('With Security Related Issues', () => {
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
@@ -30,7 +36,12 @@ module.exports = (context) => {
         `/_next/:buildId/webpack/chunks/../../../info.json`,
         `/_next/:buildId/webpack/../../../info.json`,
         `/_next/../../../info.json`,
-        `/static/../../../info.json`
+        `/static/../../../info.json`,
+        `/static/../info.json`,
+        `/../../../info.json`,
+        `/../../info.json`,
+        `/../info.json`,
+        `/info.json`,
       ]
 
       for (const path of pathsToCheck) {
@@ -72,56 +83,116 @@ module.exports = (context) => {
     })
 
     it('should prevent URI based XSS attacks', async () => {
-      const browser = await webdriver(context.appPort, '/\',document.body.innerHTML="INJECTED",\'')
+      const browser = await webdriver(
+        context.appPort,
+        '/\',document.body.innerHTML="INJECTED",\''
+      )
       await checkInjected(browser)
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
-      const browser = await webdriver(context.appPort, `/'-(document.body.innerHTML='INJECTED')-'`)
+      const browser = await webdriver(
+        context.appPort,
+        `/'-(document.body.innerHTML='INJECTED')-'`
+      )
       await checkInjected(browser)
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
-      const browser = await webdriver(context.appPort, `/"-(document.body.innerHTML='INJECTED')-"`)
+      const browser = await webdriver(
+        context.appPort,
+        `/"-(document.body.innerHTML='INJECTED')-"`
+      )
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
-      const browser = await webdriver(context.appPort, `/;"-(document.body.innerHTML='INJECTED')-"`)
+      const browser = await webdriver(
+        context.appPort,
+        `/;"-(document.body.innerHTML='INJECTED')-"`
+      )
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
-      const browser = await webdriver(context.appPort, `/;'-(document.body.innerHTML='INJECTED')-'`)
+      const browser = await webdriver(
+        context.appPort,
+        `/;'-(document.body.innerHTML='INJECTED')-'`
+      )
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using src', async () => {
-      const browser = await webdriver(context.appPort, `/javascript:(document.body.innerHTML='INJECTED')`)
+      const browser = await webdriver(
+        context.appPort,
+        `/javascript:(document.body.innerHTML='INJECTED')`
+      )
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using querystring', async () => {
-      const browser = await webdriver(context.appPort, `/?javascript=(document.body.innerHTML='INJECTED')`)
+      const browser = await webdriver(
+        context.appPort,
+        `/?javascript=(document.body.innerHTML='INJECTED')`
+      )
       await checkInjected(browser)
 
       await browser.close()
     })
 
     it('should prevent URI based XSS attacks using querystring and quotes', async () => {
-      const browser = await webdriver(context.appPort, `/?javascript="(document.body.innerHTML='INJECTED')"`)
+      const browser = await webdriver(
+        context.appPort,
+        `/?javascript="(document.body.innerHTML='INJECTED')"`
+      )
       await checkInjected(browser)
       await browser.close()
+    })
+
+    it('should handle encoded value in the pathname correctly \\', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/' + encodeURI('\\google.com'),
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe(encodeURI('/\\google.com/about'))
+      expect(hostname).not.toBe('google.com')
+    })
+
+    it('should handle encoded value in the pathname correctly %', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/%25google.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/%25google.com/about')
+      expect(hostname).not.toBe('google.com')
     })
   })
 }

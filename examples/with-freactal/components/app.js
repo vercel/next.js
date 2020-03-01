@@ -20,9 +20,9 @@ export default Page => {
         githubReposList: {
           username,
           page,
-          repos
-        }
-      }
+          repos,
+        },
+      },
     }
   }
 

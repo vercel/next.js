@@ -15,17 +15,17 @@ const Article = () => (
     <main>This a specific article of the website!</main>
 
     {/* TODO: introduce a layout */}
-    <TopArticlesESI from='the article page' />
+    <TopArticlesESI from="the article page" />
     <BreakingNewsESI />
     <WeatherESI />
 
-    <Link href='/'>
+    <Link href="/">
       <a>Go back to the homepage</a>
     </Link>
   </div>
 )
 
-Article.getInitialProps = async function ({ res }) {
+Article.getInitialProps = async function({ res }) {
   if (res) res.set('Cache-Control', 's-maxage: 10, maxage: 0')
   return {}
 }

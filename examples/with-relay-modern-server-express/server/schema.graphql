@@ -3,7 +3,8 @@ type Query {
   node(id: ID!): Node
 }
 
-type Viewer {
+type Viewer implements Node {
+  id: ID!
   allBlogPosts(after: String, before: String, first: Int, last: Int): BlogPostConnection!
 }
 

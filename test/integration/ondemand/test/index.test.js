@@ -12,7 +12,7 @@ import {
   killApp,
   waitFor,
   check,
-  getBrowserBodyText
+  getBrowserBodyText,
 } from 'next-test-utils'
 
 const context = {}
@@ -20,17 +20,21 @@ const context = {}
 const doPing = page => {
   const controller = new AbortController()
   const signal = controller.signal
-  return fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping', { page }, { signal })
-    .then(res => {
-      res.body.on('data', chunk => {
-        try {
-          const payload = JSON.parse(chunk.toString().split('data:')[1])
-          if (payload.success || payload.invalid) {
-            controller.abort()
-          }
-        } catch (_) {}
-      })
+  return fetchViaHTTP(
+    context.appPort,
+    '/_next/webpack-hmr',
+    { page },
+    { signal }
+  ).then(res => {
+    res.body.on('data', chunk => {
+      try {
+        const payload = JSON.parse(chunk.toString().split('data:')[1])
+        if (payload.success || payload.invalid) {
+          controller.abort()
+        }
+      } catch (_) {}
     })
+  })
 }
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -42,7 +46,6 @@ describe('On Demand Entries', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
   afterAll(() => {
-    context.ws.close()
     killApp(context.server)
   })
 
@@ -63,17 +66,26 @@ describe('On Demand Entries', () => {
   })
 
   it('should dispose inactive pages', async () => {
-    const indexPagePath = resolve(__dirname, '../.next/static/development/pages/index.js')
+    const indexPagePath = resolve(
+      __dirname,
+      '../.next/static/development/pages/index.js'
+    )
     expect(existsSync(indexPagePath)).toBeTruthy()
 
     // Render two pages after the index, since the server keeps at least two pages
     await renderViaHTTP(context.appPort, '/about')
     await doPing('/about')
-    const aboutPagePath = resolve(__dirname, '../.next/static/development/pages/about.js')
+    const aboutPagePath = resolve(
+      __dirname,
+      '../.next/static/development/pages/about.js'
+    )
 
     await renderViaHTTP(context.appPort, '/third')
     await doPing('/third')
-    const thirdPagePath = resolve(__dirname, '../.next/static/development/pages/third.js')
+    const thirdPagePath = resolve(
+      __dirname,
+      '../.next/static/development/pages/third.js'
+    )
 
     // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
     // for disposing /about

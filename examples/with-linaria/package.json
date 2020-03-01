@@ -9,7 +9,7 @@
   "dependencies": {
     "@zeit/next-css": "1.0.1",
     "linaria": "1.2.4",
-    "next": "8.0.3",
+    "next": "latest",
     "react": "16.8.3",
     "react-dom": "16.8.3"
   },

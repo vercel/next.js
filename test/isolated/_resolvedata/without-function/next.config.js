@@ -1,3 +1,3 @@
 module.exports = {
-  customConfig: true
+  customConfig: true,
 }

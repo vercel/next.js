@@ -6,6 +6,7 @@
     "start": "cross-env NODE_ENV=production micro"
   },
   "dependencies": {
+    "cross-env": "^5.2.0",
     "micro": "^9.3.3",
     "micro-route": "^2.5.0",
     "next": "latest",
@@ -13,7 +14,6 @@
     "react-dom": "^16.8.4"
   },
   "devDependencies": {
-    "cross-env": "^5.2.0",
     "micro-dev": "^3.0.0"
   }
 }

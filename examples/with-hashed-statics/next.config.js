@@ -9,12 +9,12 @@ module.exports = {
             context: '',
             outputPath: 'static',
             publicPath: '_next/static',
-            name: '[path][name].[hash].[ext]'
-          }
-        }
-      ]
+            name: '[path][name].[hash].[ext]',
+          },
+        },
+      ],
     })
 
     return config
-  }
+  },
 }

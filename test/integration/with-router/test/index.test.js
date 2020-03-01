@@ -10,7 +10,7 @@ import {
   killApp,
   nextBuild,
   startApp,
-  stopApp
+  stopApp,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -26,7 +26,7 @@ describe('withRouter', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -55,7 +55,9 @@ describe('withRouter', () => {
     const browser = await webdriver(appPort, '/a')
     await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser.elementByCss('.active-top-level-router').text()
+    let activePage = await browser
+      .elementByCss('.active-top-level-router')
+      .text()
     expect(activePage).toBe('Foo')
 
     await browser.elementByCss('button').click()
@@ -71,20 +73,24 @@ describe('withRouter', () => {
     const browser = await webdriver(appPort, '/a')
     await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
+    let activePage = await browser
+      .elementByCss('.active-top-level-router-deprecated-behavior')
+      .text()
     expect(activePage).toBe('Foo')
 
     await browser.elementByCss('button').click()
     await browser.waitForElementByCss('#page-b')
 
-    activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
+    activePage = await browser
+      .elementByCss('.active-top-level-router-deprecated-behavior')
+      .text()
     expect(activePage).toBe('Bar')
 
     await browser.close()
   })
 })
 
-describe('withRouter SSR', async () => {
+describe('withRouter SSR', () => {
   let server
   let port
 
@@ -98,7 +104,9 @@ describe('withRouter SSR', async () => {
 
   it('should show an error when trying to use router methods during SSR', async () => {
     const browser = await webdriver(port, '/router-method-ssr')
-    expect(await getReactErrorOverlayContent(browser)).toMatch(`No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`)
+    expect(await getReactErrorOverlayContent(browser)).toMatch(
+      `No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`
+    )
     await browser.close()
   })
 })

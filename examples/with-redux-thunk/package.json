@@ -8,12 +8,12 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "redux-devtools-extension": "^2.13.2",
-    "react-dom": "^16.7.0",
-    "react-redux": "^5.0.1",
-    "redux": "^3.6.0",
-    "redux-thunk": "^2.1.0"
+    "react": "^16.9.0",
+    "redux-devtools-extension": "^2.13.8",
+    "react-dom": "^16.9.0",
+    "react-redux": "^7.1.0",
+    "redux": "^4.0.4",
+    "redux-thunk": "^2.3.0"
   },
   "license": "ISC"
 }

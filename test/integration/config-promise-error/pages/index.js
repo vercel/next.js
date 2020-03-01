@@ -1,5 +1,3 @@
-export default function Index (props) {
-  return (
-    <div>Index Page</div>
-  )
+export default function Index(props) {
+  return <div>Index Page</div>
 }

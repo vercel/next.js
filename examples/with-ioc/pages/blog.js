@@ -5,7 +5,7 @@ import Component1 from '../components/component1'
 
 const posts = [
   { slug: 'hello-world', title: 'Hello world' },
-  { slug: 'another-blog-post', title: 'Another blog post' }
+  { slug: 'another-blog-post', title: 'Another blog post' },
 ]
 
 @provide({
@@ -13,7 +13,7 @@ const posts = [
   Link,
 
   @types.object
-  Router
+  Router,
 })
 export default class extends React.Component {
   static async getInitialProps({ query, res }) {

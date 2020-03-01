@@ -11,22 +11,22 @@ import Header from '../components/Header'
 import Page from '../components/Page'
 
 class PageIndex extends React.Component {
-  static async getInitialProps ({ ctx: { store } }) {
+  static async getInitialProps({ ctx: { store } }) {
     store.dispatch(countIncrease())
     if (!store.getState().placeholder.data) {
       store.dispatch(loadData())
     }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.props.dispatch(startClock())
   }
 
-  render () {
+  render() {
     return (
       <App>
         <Header />
-        <Page title='Home Page' />
+        <Page title="Home Page" />
       </App>
     )
   }
