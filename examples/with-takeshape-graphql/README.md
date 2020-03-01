@@ -5,45 +5,33 @@
 This is a sample project to get you started building a static website with [TakeShape](https://www.takeshape.io) (TS) and [Next.js](https://nextjs.org/).
 This project references the same Shape Blog content template as the [shape-blog sample project](https://github.com/takeshape/takeshape-samples/tree/master/shape-blog) but instead of directly generating the page source using the TakeShape Static Site Generator (SSG), it uses the Next.js framework to create a statically-generated React application.
 
-## Deploy your own
-
-### [ZEIT Now](https://zeit.co/home)
-
-An easy way to deploy Next.js to production is with ZEIT Now, a platform from the creators of Next.js.
-
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=template=https://github.com/zeit/next.js/tree/canary/examples/with-takeshape-graphql)
-
-Alternatively you can use the `now` CLI.
-
-```bash
-npm install -g now
-```
-
-You may need to use the `now login` command to authenticate your CLI.
-
-Next, add your TakeShape credentials to Now so that it can use them when running your site:
-
-```bash
-now secrets add takeshape-api-key YOUR-API-KEY
-now secrets add takeshape-project YOUR-PROJECT-ID
-```
-
-Then you can deploy using the `now` command from the project root:
-
-```bash
-now
-```
-
 ## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
+```bash
+npm init next-app --example with-takeshape-graphql with-takeshape-graphql-app
+# or
+yarn create next-app --example with-takeshape-graphql with-takeshape-graphql-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-takeshape-graphql
+cd with-takeshape-graphql
+```
+
+Now, you have to connect your TakeShape project with the example, follow these steps:
 
 1. [Signup](https://app.takeshape.io/signup) or [login](https://app.takeshape.io/login) at TakeShape.
 1. Create a new project and select the "Shape Blog" template
-1. `git clone https://github.com/zeit/next-js && cd next-js/examples/with-takeshape-graphql`
 1. `yarn` - This will install all dependencies
-
-### Connect your project
-
-1. In your "Shape Blog" TakeShape project, create a new API Key
+1. In your "Shape Blog" project, create a new API Key
 1. Create a `.env` file in the project root containing values for your `TAKESHAPE_PROJECT` and `TAKESHAPE_API_KEY`, such as:
 
 ```bash
@@ -51,12 +39,26 @@ TAKESHAPE_PROJECT="YOUR PROJECT ID HERE"
 TAKESHAPE_API_KEY="YOUR API KEY HERE"
 ```
 
-1. `yarn dev` - The server runs on [http://localhost:3000](http://localhost:3000) by default
-1. Have fun playing around with the sample site!
-   - Change some markup a template file and the site will regenerate automatically
-   - Try adding a new field to an existing content type then add it to the corresponding GraphQL query and template
+Install dependencies and run it:
 
-See the [shape-blog README for additional documentation](https://github.com/takeshape/takeshape-samples/tree/master/shape-blog)
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
+
+Have fun playing around with the sample site! See the [shape-blog README for additional documentation](https://github.com/takeshape/takeshape-samples/tree/master/shape-blog).
+
+### Hosting on ZEIT Now
+
+Before making a deployment to [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) add your TakeShape credentials first:
+
+```bash
+now secrets add takeshape-api-key YOUR-API-KEY
+now secrets add takeshape-project YOUR-PROJECT-ID
+```
 
 ## Reach out
 
