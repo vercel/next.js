@@ -143,8 +143,8 @@
     "url-polyfill": "1.1.7",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
-    "webpack": "4.41.2",
-    "webpack-dev-middleware": "3.7.0",
+    "webpack": "git://github.com/webpack/webpack.git#dev-1",
+    "webpack-dev-middleware": "4.0.0-rc.1",
     "webpack-hot-middleware": "2.25.0",
     "webpack-sources": "1.4.3"
   },

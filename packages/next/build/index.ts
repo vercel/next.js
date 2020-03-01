@@ -366,7 +366,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
   console.log()
 
-  result = formatWebpackMessages(result)
+  // result = formatWebpackMessages(result)
 
   if (result.errors.length > 0) {
     // Only keep the first error. Others are often indicative
@@ -377,18 +377,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const error = result.errors.join('\n\n')
 
     console.error(chalk.red('Failed to compile.\n'))
-
-    if (
-      error.indexOf('private-next-pages') > -1 &&
-      error.indexOf('does not contain a default export') > -1
-    ) {
-      const page_name_regex = /'private-next-pages\/(?<page_name>[^']*)'/
-      const parsed = page_name_regex.exec(error)
-      const page_name = parsed && parsed.groups && parsed.groups.page_name
-      throw new Error(
-        `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
-      )
-    }
+    // if (
+    //   error.indexOf('private-next-pages') > -1 &&
+    //   error.indexOf('does not contain a default export') > -1
+    // ) {
+    //   const page_name_regex = /'private-next-pages\/(?<page_name>[^']*)'/
+    //   const parsed = page_name_regex.exec(error)
+    //   const page_name = parsed && parsed.groups && parsed.groups.page_name
+    //   throw new Error(
+    //     `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.`
+    //   )
+    // }
 
     console.error(error)
     console.error()
@@ -427,7 +426,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
     PAGES_MANIFEST
   )
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
-
   const ssgPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
@@ -437,7 +435,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   const buildManifest = JSON.parse(await fsReadFile(buildManifestPath, 'utf8'))
-
   let customAppGetInitialProps: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
@@ -607,17 +604,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const useStatic404 =
     !customAppGetInitialProps && (!hasCustomErrorPage || hasPages404)
 
-  if (invalidPages.size > 0) {
-    throw new Error(
-      `Build optimization failed: found page${
-        invalidPages.size === 1 ? '' : 's'
-      } without a React Component as default export in \n${[...invalidPages]
-        .map(pg => `pages${pg}`)
-        .join(
-          '\n'
-        )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
-    )
-  }
+  // if (invalidPages.size > 0) {
+  //   throw new Error(
+  //     `Build optimization failed: found page${
+  //       invalidPages.size === 1 ? '' : 's'
+  //     } without a React Component as default export in \n${[...invalidPages]
+  //       .map(pg => `pages${pg}`)
+  //       .join(
+  //         '\n'
+  //       )}\n\nSee https://err.sh/zeit/next.js/page-without-valid-component for more info.\n`
+  //   )
+  // }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
@@ -639,6 +636,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
+    console.log(combinedPages)
     const exportApp = require('../export').default
     const exportOptions = {
       silent: true,
@@ -785,7 +783,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-  console.log()
 
   const analysisEnd = process.hrtime(analysisBegin)
   telemetry.record(

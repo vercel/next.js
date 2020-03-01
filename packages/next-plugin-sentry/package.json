@@ -12,7 +12,7 @@
     "next": "*"
   },
   "dependencies": {
-    "@sentry/browser": "5.7.1",
-    "@sentry/node": "5.7.1"
+    "@sentry/browser": "5.12.4",
+    "@sentry/node": "5.12.4"
   }
 }

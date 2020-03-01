@@ -26,7 +26,7 @@ SOFTWARE.
 // It's been edited to rely on webpack-hot-middleware and to be more compatible with SSR / Next.js
 
 import { getEventSourceWrapper } from './eventsource'
-import formatWebpackMessages from './format-webpack-messages'
+// import formatWebpackMessages from './format-webpack-messages'
 import * as ErrorOverlay from 'react-error-overlay'
 import stripAnsi from 'strip-ansi'
 import { rewriteStacktrace } from './source-map-support'
@@ -186,20 +186,20 @@ function handleErrors(errors) {
   hasCompileErrors = true
 
   // "Massage" webpack messages.
-  var formatted = formatWebpackMessages({
-    errors: errors,
-    warnings: [],
-  })
+  // var formatted = formatWebpackMessages({
+  //   errors: errors,
+  //   warnings: [],
+  // })
 
   // Only show the first error.
-  ErrorOverlay.reportBuildError(formatted.errors[0])
+  // ErrorOverlay.reportBuildError(formatted.errors[0])
 
   // Also log them to the console.
-  if (typeof console !== 'undefined' && typeof console.error === 'function') {
-    for (var i = 0; i < formatted.errors.length; i++) {
-      console.error(stripAnsi(formatted.errors[i]))
-    }
-  }
+  // if (typeof console !== 'undefined' && typeof console.error === 'function') {
+  //   for (var i = 0; i < formatted.errors.length; i++) {
+  //     console.error(stripAnsi(formatted.errors[i]))
+  //   }
+  // }
 }
 
 // There is a newer version of the code available.

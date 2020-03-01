@@ -13,7 +13,7 @@
     "microbundle": "0.11.0",
     "object-assign": "4.1.1",
     "promise-polyfill": "8.1.3",
-    "url-polyfill": "1.1.7",
+    "url-polyfill": "1.1.8",
     "whatwg-fetch": "3.0.0"
   }
 }

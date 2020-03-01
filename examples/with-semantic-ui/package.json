@@ -16,7 +16,7 @@
   "devDependencies": {
     "file-loader": "^3.0.1",
     "url-loader": "^1.1.2",
-    "webpack": "^4.29.0"
+    "webpack": "git://github.com/webpack/webpack.git#dev-1"
   },
   "license": "ISC"
 }

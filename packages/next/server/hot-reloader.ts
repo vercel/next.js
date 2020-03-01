@@ -451,9 +451,9 @@ export default class HotReloader {
 
     let webpackDevMiddlewareConfig = {
       publicPath: `/_next/static/webpack`,
-      noInfo: true,
-      logLevel: 'silent',
-      watchOptions: { ignored },
+      // noInfo: true,
+      // logLevel: 'silent',
+      // watchOptions: { ignored },
       writeToDisk: true,
     }
 
