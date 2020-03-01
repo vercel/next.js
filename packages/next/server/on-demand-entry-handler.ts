@@ -91,7 +91,10 @@ export default function onDemandEntryHandler(
                   page,
                   absolutePagePath,
                 })}!`
-              : absolutePagePath,
+              : `next-server-pages-loader?${stringify({
+                  page,
+                  absolutePagePath,
+                })}!`,
           ])
         })
 

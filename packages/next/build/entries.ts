@@ -111,7 +111,10 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      server[bundlePath] = [absolutePagePath]
+      server[bundlePath] = `next-server-pages-loader?${stringify({
+        absolutePagePath,
+        page,
+      })}!`
     } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
