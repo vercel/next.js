@@ -4,9 +4,13 @@ import format from 'date-fns/format'
 import TakeShape from '../../providers/takeshape'
 import theme from './post-list-item.module.css'
 
-const PostListItem = props => {
-  const { featureImage, title, slug, _enabledAt, deck } = props
-  const date = new Date(_enabledAt)
+export default function PostListItem({
+  featureImage,
+  title,
+  slug,
+  _enabledAt,
+  deck,
+}) {
   return (
     <li>
       <Link href="/posts/[slug]" as={`/posts/${slug}`}>
@@ -22,7 +26,7 @@ const PostListItem = props => {
           <div>
             <h3>{title}</h3>
             <p>
-              <time>{format(date, 'MMMM d, yyyy')}</time>
+              <time>{format(new Date(_enabledAt), 'MMMM d, yyyy')}</time>
             </p>
             <p>{deck}</p>
           </div>
@@ -31,5 +35,3 @@ const PostListItem = props => {
     </li>
   )
 }
-
-export default PostListItem
