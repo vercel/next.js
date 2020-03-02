@@ -9,6 +9,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { readFile } from 'fs-extra'
 import { parse } from 'url'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -244,6 +245,25 @@ describe('Prefetching Links in viewport', () => {
     await waitFor(2 * 1000)
     const calledPrefetch = await browser.eval(`window.calledPrefetch`)
     expect(calledPrefetch).toBe(true)
+  })
+
+  it('should correctly omit pre-generaged dynamic pages from SSG manifest', async () => {
+    const content = await readFile(
+      join(appDir, '.next', 'static', 'test-build', '_ssgManifest.js'),
+      'utf8'
+    )
+
+    let self = {}
+    // eslint-disable-next-line no-eval
+    eval(content)
+    expect([...self.__SSG_MANIFEST].sort()).toMatchInlineSnapshot(`
+      Array [
+        "/ssg/basic",
+        "/ssg/catch-all/[...slug]",
+        "/ssg/dynamic-nested/[slug1]/[slug2]",
+        "/ssg/dynamic/[slug]",
+      ]
+    `)
   })
 
   it('should prefetch data files', async () => {
