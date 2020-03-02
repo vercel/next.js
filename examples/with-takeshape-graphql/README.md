@@ -5,6 +5,12 @@
 This is a sample project to get you started building a static website with [TakeShape](https://www.takeshape.io) (TS) and [Next.js](https://nextjs.org/).
 This project references the same Shape Blog content template as the [shape-blog sample project](https://github.com/takeshape/takeshape-samples/tree/master/shape-blog) but instead of directly generating the page source using the TakeShape Static Site Generator (SSG), it uses the Next.js framework to create a statically-generated React application.
 
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-takeshape-graphql)
+
 ## How to use
 
 ### Using `create-next-app`
