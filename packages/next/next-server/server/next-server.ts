@@ -788,13 +788,7 @@ export default class Server {
         return this.render404(req, res, parsedUrl)
       }
 
-      const html = await this.renderToHTML(req, res, pathname, query)
-      // Request was ended by the user
-      if (html === null) {
-        return
-      }
-
-      return this.sendHTML(req, res, html)
+      return await this.renderInternal(req, res, pathname, query)
     })
   }
 
@@ -1143,70 +1137,79 @@ export default class Server {
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     const buffer = await withBufferedRequest(_req, _res, async (req, res) => {
-      try {
-        const result = await this.findPageComponents(pathname, query)
-        if (result) {
-          try {
-            return await this.renderToHTMLWithComponents(
-              req,
-              res,
-              pathname,
-              result,
-              { ...this.renderOpts }
-            )
-          } catch (err) {
-            if (!(err instanceof NoFallbackError)) {
-              throw err
-            }
+      return await this.renderInternal(req, res, pathname, query)
+    })
+    return buffer.toString('utf-8')
+  }
+
+  private async renderInternal(
+    req: NextHttpRequest,
+    res: NextHttpResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<void> {
+    try {
+      const result = await this.findPageComponents(pathname, query)
+      if (result) {
+        try {
+          return await this.renderToHTMLWithComponents(
+            req,
+            res,
+            pathname,
+            result,
+            { ...this.renderOpts }
+          )
+        } catch (err) {
+          if (!(err instanceof NoFallbackError)) {
+            throw err
           }
         }
+      }
 
-        if (this.dynamicRoutes) {
-          for (const dynamicRoute of this.dynamicRoutes) {
-            const params = dynamicRoute.match(pathname)
-            if (!params) {
-              continue
-            }
+      if (this.dynamicRoutes) {
+        for (const dynamicRoute of this.dynamicRoutes) {
+          const params = dynamicRoute.match(pathname)
+          if (!params) {
+            continue
+          }
 
-            const result = await this.findPageComponents(
-              dynamicRoute.page,
-              query,
-              params
-            )
-            if (result) {
-              try {
-                return await this.renderToHTMLWithComponents(
-                  req,
-                  res,
-                  dynamicRoute.page,
-                  result,
-                  { ...this.renderOpts, params }
-                )
-              } catch (err) {
-                if (!(err instanceof NoFallbackError)) {
-                  throw err
-                }
+          const result = await this.findPageComponents(
+            dynamicRoute.page,
+            query,
+            params
+          )
+          if (result) {
+            try {
+              return await this.renderToHTMLWithComponents(
+                req,
+                res,
+                dynamicRoute.page,
+                result,
+                { ...this.renderOpts, params }
+              )
+            } catch (err) {
+              if (!(err instanceof NoFallbackError)) {
+                throw err
               }
             }
           }
         }
-      } catch (err) {
-        this.logError(err)
-        res.statusCode = 500
-        return await this.renderError(err, req, res, pathname, query)
       }
+    } catch (err) {
+      this.logError(err)
+      res.statusCode = 500
+      return await this.renderError(err, req, res, pathname, query)
+    }
 
-      res.statusCode = 404
-      return await this.renderError(null, req, res, pathname, query)
-    })
-    return buffer.toString('utf-8')
+    res.statusCode = 404
+    return await this.renderError(null, req, res, pathname, query)
   }
 
   public async renderError(
     err: Error | null,
     _req: IncomingMessage,
     _res: ServerResponse,
-    pathname: string,
+    _pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<void> {
     return await withUnbufferedRequest(_req, _res, async (req, res) => {
@@ -1214,22 +1217,6 @@ export default class Server {
         'Cache-Control',
         'no-cache, no-store, max-age=0, must-revalidate'
       )
-      const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-      if (html === null) {
-        return
-      }
-      return this.sendHTML(req, res, html)
-    })
-  }
-
-  public async renderErrorToHTML(
-    err: Error | null,
-    _req: IncomingMessage,
-    _res: ServerResponse,
-    _pathname: string,
-    query: ParsedUrlQuery = {}
-  ): Promise<string | null> {
-    const buffer = await withBufferedRequest(_req, _res, async (req, res) => {
       let result: null | FindComponentsResult = null
 
       const is404 = res.statusCode === 404
@@ -1263,6 +1250,18 @@ export default class Server {
         html = 'Internal Server Error'
       }
       return sendPayload(res, html, 'text/html; charset=utf-8')
+    })
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    _req: IncomingMessage,
+    _res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
+    const buffer = await withBufferedRequest(_req, _res, async (req, res) => {
+      return await this.renderError(err, req, res, pathname, query)
     })
     return buffer.toString('utf-8')
   }
