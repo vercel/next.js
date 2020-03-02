@@ -23,9 +23,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-cookie-auth with-cookie-auth-app
+npm init next-app --example with-cookie-auth
 # or
-yarn create next-app --example with-cookie-auth with-cookie-auth-app
+yarn create next-app --example with-cookie-auth
 ```
 
 ### Download manually
