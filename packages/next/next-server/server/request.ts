@@ -28,15 +28,7 @@ export async function withBufferedRequest(
   res: ServerResponse,
   callback: (req: NextHttpRequest, res: NextHttpResponse) => Promise<void>
 ): Promise<Buffer> {
-  const {
-    end: oldEnd,
-    finished: oldFinished,
-    headersSent: oldHeadersSent,
-    write: oldWrite,
-  } = res
-  const state: ResponseState = {
-    sent: false,
-  }
+  const { end: oldEnd, write: oldWrite } = res
   const chunks: Buffer[] = []
   const stream = new PassThrough({
     transform(chunk, _encoding, callback) {
@@ -45,6 +37,9 @@ export async function withBufferedRequest(
     },
   })
   try {
+    const state: ResponseState = {
+      sent: false,
+    }
     ;(res as any).end = (...args: any) => {
       stream.end(...args)
       state.sent = true
@@ -60,8 +55,6 @@ export async function withBufferedRequest(
     delete (res as any)[SYMBOL_NEXT_REQUEST]
     res.end = oldEnd
     res.write = oldWrite
-    res.finished = oldFinished
-    res.headersSent = oldHeadersSent
   }
 }
 
