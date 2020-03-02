@@ -853,7 +853,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       JSON.stringify(prerenderManifest),
       'utf8'
     )
-    await generateClientSsgManifest(prerenderManifest, { distDir, buildId })
+    await generateClientSsgManifest(prerenderManifest, {
+      distDir,
+      buildId,
+      isModern: !!config.experimental.modern,
+    })
   } else {
     const prerenderManifest: PrerenderManifest = {
       version: 2,
@@ -969,7 +973,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
-  { buildId, distDir }: { buildId: string; distDir: string }
+  {
+    buildId,
+    distDir,
+    isModern,
+  }: { buildId: string; distDir: string; isModern: boolean }
 ) {
   const ssgPages: Set<string> = new Set<string>([
     ...Object.keys(prerenderManifest.routes),
@@ -978,8 +986,10 @@ function generateClientSsgManifest(
 
   const clientSsgManifestPaths = [
     '_ssgManifest.js',
-    '_ssgManifest.module.js',
-  ].map(f => path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f))
+    isModern && '_ssgManifest.module.js',
+  ]
+    .filter(Boolean)
+    .map(f => path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f as string))
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
