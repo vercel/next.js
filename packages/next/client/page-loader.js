@@ -125,6 +125,7 @@ export default class PageLoader {
           const repeat = dynamicGroups[param].repeat
 
           // support single-level catch-all
+          // TODO: more robust handling for user-error (passing `/`)
           if (repeat && !Array.isArray(value)) value = [value]
 
           return (
@@ -141,8 +142,8 @@ export default class PageLoader {
       ) {
         interpolatedRoute = '' // did not satisfy all requirements
 
-        // n.b. We handle warning for this case in development in the `<Link>`
-        // component directly.
+        // n.b. We ignore this error because we handle warning for this case in
+        // development in the `<Link>` component directly.
       }
     }
 
