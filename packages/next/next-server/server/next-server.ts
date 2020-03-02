@@ -1231,7 +1231,10 @@ export default class Server {
         res,
         using404Page ? '/404' : '/_error',
         result!,
-        { ...this.renderOpts, err }
+        {
+          ...this.renderOpts,
+          err,
+        }
       )
       if (result2 === false) {
         throw new Error('invariant: failed to render error page')
