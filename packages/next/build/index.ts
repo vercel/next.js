@@ -980,7 +980,10 @@ function generateClientSsgManifest(
   }: { buildId: string; distDir: string; isModern: boolean }
 ) {
   const ssgPages: Set<string> = new Set<string>([
-    ...Object.keys(prerenderManifest.routes),
+    ...Object.entries(prerenderManifest.routes)
+      // Filter out dynamic routes
+      .filter(([, { srcRoute }]) => srcRoute == null)
+      .map(([route]) => route),
     ...Object.keys(prerenderManifest.dynamicRoutes),
   ])
 
