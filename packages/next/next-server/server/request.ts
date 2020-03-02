@@ -8,7 +8,11 @@ export interface NextHttpRequest extends IncomingMessage {
 }
 
 export interface NextHttpResponse extends ServerResponse {
-  readonly [SYMBOL_NEXT_REQUEST]: boolean
+  readonly [SYMBOL_NEXT_REQUEST]: ResponseState | null
+}
+
+type ResponseState = {
+  sent: boolean
 }
 
 export async function withUnbufferedRequest(
@@ -30,6 +34,9 @@ export async function withBufferedRequest(
     headersSent: oldHeadersSent,
     write: oldWrite,
   } = res
+  const state: ResponseState = {
+    sent: false,
+  }
   const chunks: Buffer[] = []
   const stream = new PassThrough({
     transform(chunk, _encoding, callback) {
@@ -40,18 +47,28 @@ export async function withBufferedRequest(
   try {
     ;(res as any).end = (...args: any) => {
       stream.end(...args)
-      res.finished = true
+      state.sent = true
     }
     ;(res as any).write = (...args: any) => {
       ;(stream as any).write(...args)
-      res.headersSent = true
+      state.sent = true
     }
+    ;(res as any)[SYMBOL_NEXT_REQUEST] = state
     await callback(req as any, res as any)
     return Buffer.concat(chunks)
   } finally {
+    delete (res as any)[SYMBOL_NEXT_REQUEST]
     res.end = oldEnd
     res.write = oldWrite
     res.finished = oldFinished
     res.headersSent = oldHeadersSent
   }
+}
+
+export function isResSent(res: NextHttpResponse) {
+  const state = res[SYMBOL_NEXT_REQUEST]
+  if (state) {
+    return state.sent
+  }
+  return res.finished || res.headersSent
 }

@@ -4,6 +4,7 @@ import { ComponentType } from 'react'
 import { format, URLFormatOptions, UrlObject } from 'url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
+import { isResSent as _isResSent } from '../server/request'
 
 /**
  * Types used by both next and next-server
@@ -262,7 +263,7 @@ export function getDisplayName(Component: ComponentType<any>) {
 }
 
 export function isResSent(res: ServerResponse) {
-  return res.finished || res.headersSent
+  return _isResSent(res as any)
 }
 
 export async function loadGetInitialProps<
