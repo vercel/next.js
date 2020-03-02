@@ -60,6 +60,12 @@ import {
   setSprCache,
 } from './spr-cache'
 import { isBlockedPage } from './utils'
+import {
+  withBufferedRequest,
+  withUnbuffedRequest,
+  NextHttpRequest,
+  NextHttpResponse,
+} from './request'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -762,32 +768,34 @@ export default class Server {
   }
 
   public async render(
-    req: IncomingMessage,
-    res: ServerResponse,
+    _req: IncomingMessage,
+    _res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    const url: any = req.url
+    return await withUnbuffedRequest(_req, _res, async (req, res) => {
+      const url: any = req.url
 
-    if (
-      url.match(/^\/_next\//) ||
-      (this.hasStaticDir && url.match(/^\/static\//))
-    ) {
-      return this.handleRequest(req, res, parsedUrl)
-    }
+      if (
+        url.match(/^\/_next\//) ||
+        (this.hasStaticDir && url.match(/^\/static\//))
+      ) {
+        return this.handleRequest(req, res, parsedUrl)
+      }
 
-    if (isBlockedPage(pathname)) {
-      return this.render404(req, res, parsedUrl)
-    }
+      if (isBlockedPage(pathname)) {
+        return this.render404(req, res, parsedUrl)
+      }
 
-    const html = await this.renderToHTML(req, res, pathname, query)
-    // Request was ended by the user
-    if (html === null) {
-      return
-    }
+      const html = await this.renderToHTML(req, res, pathname, query)
+      // Request was ended by the user
+      if (html === null) {
+        return
+      }
 
-    return this.sendHTML(req, res, html)
+      return this.sendHTML(req, res, html)
+    })
   }
 
   private async findPageComponents(
@@ -866,12 +874,12 @@ export default class Server {
   }
 
   private async renderToHTMLWithComponents(
-    req: IncomingMessage,
-    res: ServerResponse,
+    req: NextHttpRequest,
+    res: NextHttpResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
-  ): Promise<string | null> {
+  ): Promise<void> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
@@ -879,7 +887,7 @@ export default class Server {
 
     // handle static page
     if (typeof components.Component === 'string') {
-      return components.Component
+      return sendPayload(res, components.Component, 'text/html; charset=utf-8')
     }
 
     // check request state
@@ -915,8 +923,7 @@ export default class Server {
             res,
             true
           )
-
-          sendPayload(
+          return sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
             'application/json',
@@ -927,10 +934,13 @@ export default class Server {
                 }
               : undefined
           )
-          return null
         }
         prepareServerlessUrl(req, query)
-        return (components.Component as any).renderReqToHTML(req, res)
+        const html = await (components.Component as any).renderReqToHTML(
+          req,
+          res
+        )
+        return sendPayload(res, html, 'text/html; charset=utf-8')
       }
 
       if (isDataReq && isServerProps) {
@@ -939,7 +949,7 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        sendPayload(
+        return sendPayload(
           res,
           JSON.stringify(props),
           'application/json',
@@ -950,13 +960,13 @@ export default class Server {
               }
             : undefined
         )
-        return null
       }
 
-      return renderToHTML(req, res, pathname, query, {
+      const html = await renderToHTML(req, res, pathname, query, {
         ...components,
         ...opts,
       })
+      return sendPayload(res, html, 'text/html; charset=utf-8')
     }
 
     const previewData = tryGetPreviewData(
@@ -993,7 +1003,7 @@ export default class Server {
 
       // Stop the request chain here if the data we sent was up-to-date
       if (!cachedData.isStale) {
-        return null
+        return
       }
     }
 
@@ -1124,131 +1134,137 @@ export default class Server {
         await setSprCache(ssgCacheKey, { html: html!, pageData }, sprRevalidate)
       }
     }
-
-    return null
   }
 
   public async renderToHTML(
-    req: IncomingMessage,
-    res: ServerResponse,
+    _req: IncomingMessage,
+    _res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    try {
-      const result = await this.findPageComponents(pathname, query)
-      if (result) {
-        try {
-          return await this.renderToHTMLWithComponents(
-            req,
-            res,
-            pathname,
-            result,
-            { ...this.renderOpts }
-          )
-        } catch (err) {
-          if (!(err instanceof NoFallbackError)) {
-            throw err
+    const buffer = await withBufferedRequest(_req, _res, async (req, res) => {
+      try {
+        const result = await this.findPageComponents(pathname, query)
+        if (result) {
+          try {
+            return await this.renderToHTMLWithComponents(
+              req,
+              res,
+              pathname,
+              result,
+              { ...this.renderOpts }
+            )
+          } catch (err) {
+            if (!(err instanceof NoFallbackError)) {
+              throw err
+            }
           }
         }
-      }
 
-      if (this.dynamicRoutes) {
-        for (const dynamicRoute of this.dynamicRoutes) {
-          const params = dynamicRoute.match(pathname)
-          if (!params) {
-            continue
-          }
+        if (this.dynamicRoutes) {
+          for (const dynamicRoute of this.dynamicRoutes) {
+            const params = dynamicRoute.match(pathname)
+            if (!params) {
+              continue
+            }
 
-          const result = await this.findPageComponents(
-            dynamicRoute.page,
-            query,
-            params
-          )
-          if (result) {
-            try {
-              return await this.renderToHTMLWithComponents(
-                req,
-                res,
-                dynamicRoute.page,
-                result,
-                { ...this.renderOpts, params }
-              )
-            } catch (err) {
-              if (!(err instanceof NoFallbackError)) {
-                throw err
+            const result = await this.findPageComponents(
+              dynamicRoute.page,
+              query,
+              params
+            )
+            if (result) {
+              try {
+                return await this.renderToHTMLWithComponents(
+                  req,
+                  res,
+                  dynamicRoute.page,
+                  result,
+                  { ...this.renderOpts, params }
+                )
+              } catch (err) {
+                if (!(err instanceof NoFallbackError)) {
+                  throw err
+                }
               }
             }
           }
         }
+      } catch (err) {
+        this.logError(err)
+        res.statusCode = 500
+        return await this.renderError(err, req, res, pathname, query)
       }
-    } catch (err) {
-      this.logError(err)
-      res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
-    }
 
-    res.statusCode = 404
-    return await this.renderErrorToHTML(null, req, res, pathname, query)
+      res.statusCode = 404
+      return await this.renderError(null, req, res, pathname, query)
+    })
+    return buffer.toString('utf-8')
   }
 
   public async renderError(
     err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
+    _req: IncomingMessage,
+    _res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<void> {
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
-    const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    if (html === null) {
-      return
-    }
-    return this.sendHTML(req, res, html)
+    return await withUnbuffedRequest(_req, _res, async (req, res) => {
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+      const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+      if (html === null) {
+        return
+      }
+      return this.sendHTML(req, res, html)
+    })
   }
 
   public async renderErrorToHTML(
     err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
+    _req: IncomingMessage,
+    _res: ServerResponse,
     _pathname: string,
     query: ParsedUrlQuery = {}
-  ) {
-    let result: null | FindComponentsResult = null
+  ): Promise<string | null> {
+    const buffer = await withBufferedRequest(_req, _res, async (req, res) => {
+      let result: null | FindComponentsResult = null
 
-    const is404 = res.statusCode === 404
-    let using404Page = false
+      const is404 = res.statusCode === 404
+      let using404Page = false
 
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      result = await this.findPageComponents('/404')
-      using404Page = result !== null
-    }
+      // use static 404 page if available and is 404 response
+      if (is404) {
+        result = await this.findPageComponents('/404')
+        using404Page = result !== null
+      }
 
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
-    }
+      if (!result) {
+        result = await this.findPageComponents('/_error', query)
+      }
 
-    let html: string | null
-    try {
-      html = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
-          err,
-        }
-      )
-    } catch (err) {
-      console.error(err)
-      res.statusCode = 500
-      html = 'Internal Server Error'
-    }
-    return html
+      let html: string | null
+      try {
+        return await this.renderToHTMLWithComponents(
+          req,
+          res,
+          using404Page ? '/404' : '/_error',
+          result!,
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      } catch (err) {
+        console.error(err)
+        res.statusCode = 500
+        html = 'Internal Server Error'
+      }
+      return sendPayload(res, html, 'text/html; charset=utf-8')
+    })
+    return buffer.toString('utf-8')
   }
 
   public async render404(
