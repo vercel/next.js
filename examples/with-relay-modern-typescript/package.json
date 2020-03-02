@@ -1,0 +1,38 @@
+{
+  "name": "with-relay-modern-typescript",
+  "version": "3.0.4",
+  "description": "Example of Next.js with Relay Modern SSR and Typescript",
+  "scripts": {
+    "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "relay": "relay-compiler --language typescript --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
+    "schema": "graphql get-schema -e dev"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "dotenv-webpack": "^1.7.0",
+    "graphql": "^14.5.8",
+    "isomorphic-unfetch": "^3.0.0",
+    "next": "latest",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "react-relay": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "13.7.7",
+    "@types/react": "16.9.23",
+    "@types/react-dom": "16.9.5",
+    "@types/react-relay": "7.0.3",
+    "@types/relay-runtime": "8.0.6",
+    "babel-plugin-relay": "^8.0.0",
+    "graphcool": "^1.4.0",
+    "graphql-cli": "^3.0.14",
+    "relay-compiler": "^8.0.0",
+    "relay-compiler-language-typescript": "^12.0.0",
+    "typescript": "3.8.3"
+  }
+}
