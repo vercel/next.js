@@ -38,12 +38,12 @@ export async function withBufferedRequest(
     },
   })
   try {
-    ;(res as any).end = () => {
-      stream.end(...arguments)
+    ;(res as any).end = (...args: any) => {
+      stream.end(...args)
       res.finished = true
     }
-    ;(res as any).write = () => {
-      ;(stream as any).write(...arguments)
+    ;(res as any).write = (...args: any) => {
+      ;(stream as any).write(...args)
       res.headersSent = true
     }
     await callback(req as any, res as any)
