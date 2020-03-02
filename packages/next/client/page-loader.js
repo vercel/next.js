@@ -95,7 +95,12 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href, asPath) {
+  getDataHref(href, asPath) {
+    const getHrefForSlug = (/** @type string */ path) =>
+      `${this.assetPrefix}/_next/data/${this.buildId}${
+        path === '/' ? '/index' : path
+      }.json`
+
     const { pathname: hrefPathname, query } = parse(href, true)
     const { pathname: asPathname } = parse(asPath)
 
@@ -141,21 +146,24 @@ export default class PageLoader {
       }
     }
 
-    const getHrefForSlug = path =>
-      `${this.assetPrefix}/_next/data/${this.buildId}${
-        path === '/' ? '/index' : path
-      }.json`
+    return isDynamic
+      ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
+      : getHrefForSlug(route)
+  }
 
+  /**
+   * @param {string} href the route href (file-system path)
+   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
+   */
+  prefetchData(href, asPath) {
+    const { pathname: hrefPathname } = parse(href, true)
+    const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest.then(
       (s, _dataHref) =>
         // Check if the route requires a data file
         s.has(route) &&
-        ((_dataHref = isDynamic
-          ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
-          : // Create `href` for normal (non-dynamic) data file
-            getHrefForSlug(route)),
-        // noop when we could not generate a data href
-        _dataHref) &&
+        // Try to generate data href, noop when falsy
+        (_dataHref = this.getDataHref(href, asPath)) &&
         // noop when data has already been prefetched (dedupe)
         !document.querySelector(
           `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
