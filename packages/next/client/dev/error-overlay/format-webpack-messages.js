@@ -90,7 +90,8 @@ function formatMessage(message, isError) {
       lines[1]
         .replace('Error: ', '')
         .replace('Module not found: Cannot find file:', 'Cannot find file:'),
-    ]
+    ],
+    ...lines.slice(2)
   }
 
   message = lines.join('\n')
