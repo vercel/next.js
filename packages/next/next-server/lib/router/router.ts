@@ -703,9 +703,12 @@ export default class Router implements BaseRouter {
         return
       }
 
-      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
-        toRoute(pathname)
-      ).then(() => resolve(), reject)
+      Promise.all([
+        this.pageLoader.prefetchData(url, asPath),
+        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
+          toRoute(pathname)
+        ),
+      ]).then(() => resolve(), reject)
     })
   }
 
