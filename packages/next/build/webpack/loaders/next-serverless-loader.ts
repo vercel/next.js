@@ -93,6 +93,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
+    const {prepareDestination} = require('next/dist/next-server/server/router')
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -100,19 +101,14 @@ const nextServerlessLoader: loader.Loader = function() {
         const params = matcher(parsedUrl.pathname)
 
         if (params) {
-          parsedUrl.query = {
-            ...parsedUrl.query,
-            ...params
-          }
-          const parsedDest = parse(rewrite.destination)
-          const destCompiler = pathToRegexp.compile(
-            \`\${parsedDest.pathname}\${parsedDest.hash || ''}\`
+          const { parsedDestination } = prepareDestination(
+            rewrite.destination,
+            params
           )
-          const newUrl = destCompiler(params)
-          const parsedNewUrl = parse(newUrl)
+          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          delete parsedDestination.query
 
-          parsedUrl.pathname = parsedNewUrl.pathname
-          parsedUrl.hash = parsedNewUrl.hash
+          Object.assign(parsedUrl, parsedDestination)
 
           if (parsedUrl.pathname === '${page}'){
             break
@@ -170,7 +166,7 @@ const nextServerlessLoader: loader.Loader = function() {
           `
               : ''
           }
-          const parsedUrl = parse(req.url, true)
+          const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
             pageIsDynamicRoute
@@ -221,8 +217,13 @@ const nextServerlessLoader: loader.Loader = function() {
 
     const Component = ComponentInfo.default
     export default Component
-    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
+    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
+    export const getStaticPaths = ComponentInfo['getStaticPath' + 's']
+    export const getServerSideProps = ComponentInfo['getServerSideProp' + 's']
+
+    // kept for detecting legacy exports
+    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
@@ -245,9 +246,9 @@ const nextServerlessLoader: loader.Loader = function() {
         App,
         Document,
         buildManifest,
-        unstable_getStaticProps,
-        unstable_getServerProps,
-        unstable_getStaticPaths,
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
@@ -279,7 +280,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !unstable_getStaticProps && !unstable_getServerProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -324,7 +325,7 @@ const nextServerlessLoader: loader.Loader = function() {
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
         if (_nextData && !fromExport) {
           const payload = JSON.stringify(renderOpts.pageData)
@@ -335,7 +336,7 @@ const nextServerlessLoader: loader.Loader = function() {
             'Cache-Control',
             isPreviewMode
               ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
-              : unstable_getServerProps
+              : getServerSideProps
               ? \`no-cache, no-store, must-revalidate\`
               : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )
@@ -354,9 +355,9 @@ const nextServerlessLoader: loader.Loader = function() {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            unstable_getStaticProps: undefined,
-            unstable_getStaticPaths: undefined,
-            unstable_getServerProps: undefined,
+            getStaticProps: undefined,
+            getStaticPaths: undefined,
+            getServerSideProps: undefined,
             Component: Error
           }))
           return result
@@ -364,9 +365,9 @@ const nextServerlessLoader: loader.Loader = function() {
           console.error(err)
           res.statusCode = 500
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            unstable_getStaticProps: undefined,
-            unstable_getStaticPaths: undefined,
-            unstable_getServerProps: undefined,
+            getStaticProps: undefined,
+            getStaticPaths: undefined,
+            getServerSideProps: undefined,
             Component: Error,
             err
           }))

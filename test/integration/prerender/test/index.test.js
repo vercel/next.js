@@ -92,6 +92,26 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: 10,
     srcRoute: '/blog/[post]',
   },
+  '/catchall-explicit/another/value': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/another/value.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/first': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/first.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/hello/another': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/hello/another.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
+  '/catchall-explicit/second': {
+    dataRoute: `/_next/data/${buildId}/catchall-explicit/second.json`,
+    initialRevalidateSeconds: 1,
+    srcRoute: '/catchall-explicit/[...slug]',
+  },
   '/another': {
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
@@ -418,6 +438,49 @@ const runTests = (dev = false, looseMode = false) => {
     )
   })
 
+  it('should support prerendered catchall-explicit route (nested)', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-explicit/another/value'
+    )
+    const $ = cheerio.load(html)
+
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?another value/)
+  })
+
+  it('should support prerendered catchall-explicit route (single)', async () => {
+    const html = await renderViaHTTP(appPort, '/catchall-explicit/second')
+    const $ = cheerio.load(html)
+
+    expect(
+      JSON.parse(
+        cheerio
+          .load(html)('#__NEXT_DATA__')
+          .text()
+      ).isFallback
+    ).toBe(false)
+    expect($('#catchall').text()).toMatch(/Hi.*?second/)
+  })
+
+  if (!looseMode) {
+    it('should 404 for a missing catchall explicit route', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/catchall-explicit/notreturnedinpaths'
+      )
+      expect(res.status).toBe(404)
+      const html = await res.text()
+      expect(html).toMatch(/This page could not be found/)
+    })
+  }
+
   if (dev) {
     // TODO: re-enable when this is supported in dev
     // it('should show error when rewriting to dynamic SSG page', async () => {
@@ -427,6 +490,31 @@ const runTests = (dev = false, looseMode = false) => {
     //     `Rewrites don't support dynamic pages with getStaticProps yet. Using this will cause the page to fail to parse the params on the client for the fallback page`
     //   )
     // })
+
+    it('should not show warning from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
+      await fs.writeFile(
+        urlPropPage,
+        `
+        export async function getStaticProps() {
+          return {
+            props: {
+              url: 'something'
+            }
+          }
+        }
+
+        export default ({ url }) => <p>url: {url}</p>
+      `
+      )
+
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(stderr).not.toMatch(
+        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+      )
+      expect(html).toMatch(/url:.*?something/)
+    })
 
     it('should always show fallback for page not in getStaticPaths', async () => {
       const html = await renderViaHTTP(appPort, '/blog/post-321')
@@ -515,7 +603,7 @@ const runTests = (dev = false, looseMode = false) => {
       await fs.writeFile(
         curPage,
         `
-          export async function unstable_getStaticProps() {
+          export async function getStaticProps() {
             return {
               props: {
                 hello: 'world'
@@ -529,8 +617,38 @@ const runTests = (dev = false, looseMode = false) => {
       try {
         const html = await renderViaHTTP(appPort, '/temp/hello')
         expect(html).toMatch(
-          /unstable_getStaticPaths is required for dynamic SSG pages and is missing for/
+          /getStaticPaths is required for dynamic SSG pages and is missing for/
         )
+      } finally {
+        await fs.remove(curPage)
+      }
+    })
+
+    it('should error on dynamic page without getStaticPaths returning fallback property', async () => {
+      const curPage = join(__dirname, '../pages/temp2/[slug].js')
+      await fs.mkdirp(dirname(curPage))
+      await fs.writeFile(
+        curPage,
+        `
+          export async function getStaticPaths() {
+            return {
+              paths: []
+            }
+          }
+          export async function getStaticProps() {
+            return {
+              props: {
+                hello: 'world'
+              }
+            }
+          }
+          export default () => 'oops'
+        `
+      )
+      await waitFor(1000)
+      try {
+        const html = await renderViaHTTP(appPort, '/temp2/hello')
+        expect(html).toMatch(/`fallback` key must be returned from/)
       } finally {
         await fs.remove(curPage)
       }
@@ -564,6 +682,91 @@ const runTests = (dev = false, looseMode = false) => {
       })
     }
 
+    it('outputs dataRoutes in routes-manifest correctly', async () => {
+      const { dataRoutes } = JSON.parse(
+        await fs.readFile(join(appDir, '.next/routes-manifest.json'), 'utf8')
+      )
+
+      for (const route of dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+      }
+
+      expect(dataRoutes).toEqual([
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
+          ),
+          page: '/',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
+          ),
+          page: '/another',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
+          ),
+          page: '/blog',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blog\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/blog/[post]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/blog/[post]/[comment]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/catchall\\/(.+?)\\.json$`
+          ),
+          page: '/catchall/[...slug]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/catchall\\-explicit\\/(.+?)\\.json$`
+          ),
+          page: '/catchall-explicit/[...slug]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/default-revalidate.json$`
+          ),
+          page: '/default-revalidate',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
+          ),
+          page: '/something',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
+          ),
+          page: '/user/[user]/profile',
+        },
+      ])
+    })
+
     it('outputs a prerender-manifest correctly', async () => {
       const manifest = JSON.parse(
         await fs.readFile(join(appDir, '.next/prerender-manifest.json'), 'utf8')
@@ -581,7 +784,7 @@ const runTests = (dev = false, looseMode = false) => {
         }
       })
 
-      expect(manifest.version).toBe(1)
+      expect(manifest.version).toBe(2)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[post]': {
@@ -618,6 +821,16 @@ const runTests = (dev = false, looseMode = false) => {
           dataRoute: `/_next/data/${buildId}/catchall/[...slug].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
+          ),
+        },
+        '/catchall-explicit/[...slug]': {
+          dataRoute: `/_next/data/${buildId}/catchall-explicit/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx(
+            '^\\/catchall\\-explicit\\/(.+?)(?:\\/)?$'
           ),
         },
       })
@@ -800,7 +1013,7 @@ describe('SSG Prerender', () => {
       await fs.writeFile(
         brokenPage,
         `
-        export async function unstable_getStaticProps() {
+        export async function getStaticProps() {
           return {
             hello: 'world'
           }
@@ -815,7 +1028,7 @@ describe('SSG Prerender', () => {
         'Additional keys were returned from `getStaticProps`'
       )
       expect(stderr).not.toContain(
-        'You can not use getInitialProps with unstable_getStaticProps'
+        'You can not use getInitialProps with getStaticProps'
       )
     })
   })

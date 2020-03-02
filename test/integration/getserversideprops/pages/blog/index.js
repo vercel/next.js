@@ -1,20 +1,19 @@
 import React from 'react'
 import Link from 'next/link'
 
-// eslint-disable-next-line camelcase
-export async function unstable_getServerProps({ query }) {
+export async function getServerSideProps() {
   return {
     props: {
-      user: query.user,
+      slugs: ['post-1', 'post-2'],
       time: (await import('perf_hooks')).performance.now(),
     },
   }
 }
 
-export default ({ user, time }) => {
+export default ({ slugs, time }) => {
   return (
     <>
-      <p>User: {user}</p>
+      <p>Posts: {JSON.stringify(slugs)}</p>
       <span>time: {time}</span>
       <Link href="/">
         <a id="home">to home</a>

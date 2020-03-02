@@ -4,7 +4,7 @@ import Item from '../../components/item'
 import getItem from '../../lib/get-item'
 import getComments from '../../lib/get-comments'
 
-export async function unstable_getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
   const story = await getItem(params.id)
   return { props: { story } }
 }

@@ -23,73 +23,74 @@ const nextConfig = join(appDir, 'next.config.js')
 let app
 let appPort
 let buildId
+let stderr
 
-const expectedManifestRoutes = () => ({
-  '/something': {
-    page: '/something',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
-    ),
-  },
-  '/blog/[post]': {
-    page: '/blog/[post]',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^/]+?)\\.json$`
-    ),
-  },
-  '/': {
-    page: '/',
+const expectedManifestRoutes = () => [
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/index.json$`
     ),
+    page: '/',
   },
-  '/default-revalidate': {
-    page: '/default-revalidate',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
-    ),
-  },
-  '/catchall/[...path]': {
-    page: '/catchall/[...path]',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
-    ),
-  },
-  '/blog': {
-    page: '/blog',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
-    ),
-  },
-  '/blog/[post]/[comment]': {
-    page: '/blog/[post]/[comment]',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/blog\\/([^/]+?)\\/([^/]+?)\\.json$`
-    ),
-  },
-  '/user/[user]/profile': {
-    page: '/user/[user]/profile',
-    dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(
-        buildId
-      )}\\/user\\/([^/]+?)\\/profile\\.json$`
-    ),
-  },
-  '/another': {
-    page: '/another',
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
     ),
+    page: '/another',
   },
-  '/invalid-keys': {
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog.json$`
+    ),
+    page: '/blog',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/blog\\/([^\\/]+?)\\.json$`
+    ),
+    page: '/blog/[post]',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
+    ),
+    page: '/blog/[post]/[comment]',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/catchall\\/(.+?)\\.json$`
+    ),
+    page: '/catchall/[...path]',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
+    ),
+    page: '/default-revalidate',
+  },
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/invalid-keys.json$`
     ),
     page: '/invalid-keys',
   },
-})
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
+    ),
+    page: '/something',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/user\\/([^\\/]+?)\\/profile\\.json$`
+    ),
+    page: '/user/[user]/profile',
+  },
+]
 
 const navigateTest = (dev = false) => {
   it('should navigate between pages successfully', async () => {
@@ -185,7 +186,7 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/hello.*?world/)
   })
 
-  it('should SSR getServerProps page correctly', async () => {
+  it('should SSR getServerSideProps page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1')
     expect(html).toMatch(/Post:.*?post-1/)
   })
@@ -288,7 +289,7 @@ const runTests = (dev = false) => {
     expect(await browser.eval('window.beforeClick')).not.toBe('true')
   })
 
-  it('should always call getServerProps without caching', async () => {
+  it('should always call getServerSideProps without caching', async () => {
     const initialRes = await fetchViaHTTP(appPort, '/something')
     const initialHtml = await initialRes.text()
     expect(initialHtml).toMatch(/hello.*?world/)
@@ -304,7 +305,7 @@ const runTests = (dev = false) => {
     expect(newHtml !== newerHtml).toBe(true)
   })
 
-  it('should not re-call getServerProps when updating query', async () => {
+  it('should not re-call getServerSideProps when updating query', async () => {
     const browser = await webdriver(appPort, '/something?hello=world')
     await waitFor(2000)
 
@@ -322,10 +323,35 @@ const runTests = (dev = false) => {
   })
 
   if (dev) {
-    it('should show error for extra keys returned from getServerProps', async () => {
+    it('should not show warning from url prop being returned', async () => {
+      const urlPropPage = join(appDir, 'pages/url-prop.js')
+      await fs.writeFile(
+        urlPropPage,
+        `
+        export async function getServerSideProps() {
+          return {
+            props: {
+              url: 'something'
+            }
+          }
+        }
+
+        export default ({ url }) => <p>url: {url}</p>
+      `
+      )
+
+      const html = await renderViaHTTP(appPort, '/url-prop')
+      await fs.remove(urlPropPage)
+      expect(stderr).not.toMatch(
+        /The prop `url` is a reserved prop in Next.js for legacy reasons and will be overridden on page \/url-prop/
+      )
+      expect(html).toMatch(/url:.*?something/)
+    })
+
+    it('should show error for extra keys returned from getServerSideProps', async () => {
       const html = await renderViaHTTP(appPort, '/invalid-keys')
       expect(html).toContain(
-        `Additional keys were returned from \`getServerProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
+        `Additional keys were returned from \`getServerSideProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:`
       )
       expect(html).toContain(
         `Keys that need to be moved: world, query, params, time, random`
@@ -341,32 +367,36 @@ const runTests = (dev = false) => {
     })
 
     it('should output routes-manifest correctly', async () => {
-      const { serverPropsRoutes } = await fs.readJSON(
+      const { dataRoutes } = await fs.readJSON(
         join(appDir, '.next/routes-manifest.json')
       )
-      for (const key of Object.keys(serverPropsRoutes)) {
-        const val = serverPropsRoutes[key].dataRouteRegex
-        serverPropsRoutes[key].dataRouteRegex = normalizeRegEx(val)
+      for (const route of dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
       }
 
-      expect(serverPropsRoutes).toEqual(expectedManifestRoutes())
+      expect(dataRoutes).toEqual(expectedManifestRoutes())
     })
 
     it('should set no-cache, no-store, must-revalidate header', async () => {
       const res = await fetchViaHTTP(
         appPort,
-        `/_next/data/${escapeRegex(buildId)}/something.json`
+        `/_next/data/${buildId}/something.json`
       )
       expect(res.headers.get('cache-control')).toContain('no-cache')
     })
   }
 }
 
-describe('unstable_getServerProps', () => {
+describe('getServerSideProps', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      stderr = ''
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = 'development'
     })
     afterAll(() => killApp(app))
@@ -382,8 +412,13 @@ describe('unstable_getServerProps', () => {
         'utf8'
       )
       await nextBuild(appDir)
+      stderr = ''
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))

@@ -147,6 +147,10 @@
             }
           ]
         },
+        {
+          "title": "Upgrade Guide",
+          "path": "/docs/upgrading.md"
+        },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },

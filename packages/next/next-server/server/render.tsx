@@ -129,7 +129,6 @@ type RenderOpts = LoadComponentsReturnType & {
   buildId: string
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
-  dangerousAsPath: string
   assetPrefix?: string
   hasCssMode: boolean
   err?: Error | null
@@ -176,6 +175,7 @@ function renderDocument(
     staticMarkup,
     devFiles,
     files,
+    lowPriorityFiles,
     polyfillFiles,
     dynamicImports,
     htmlProps,
@@ -193,8 +193,9 @@ function renderDocument(
     hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
-    files: string[]
     devFiles: string[]
+    files: string[]
+    lowPriorityFiles: string[]
     polyfillFiles: string[]
     htmlProps: any
     bodyTags: any
@@ -231,6 +232,7 @@ function renderDocument(
           staticMarkup,
           devFiles,
           files,
+          lowPriorityFiles,
           polyfillFiles,
           dynamicImports,
           assetPrefix,
@@ -275,9 +277,9 @@ export async function renderToHTML(
     buildManifest,
     reactLoadableManifest,
     ErrorDebug,
-    unstable_getStaticProps,
-    unstable_getStaticPaths,
-    unstable_getServerProps,
+    getStaticProps,
+    getStaticPaths,
+    getServerSideProps,
     isDataReq,
     params,
     previewProps,
@@ -313,7 +315,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
-  const isSpr = !!unstable_getStaticProps
+  const isSpr = !!getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -325,7 +327,7 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSpr &&
-    !unstable_getServerProps
+    !getServerSideProps
 
   if (
     process.env.NODE_ENV !== 'production' &&
@@ -351,23 +353,23 @@ export async function renderToHTML(
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (hasPageGetInitialProps && unstable_getServerProps) {
+  if (hasPageGetInitialProps && getServerSideProps) {
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (unstable_getServerProps && isSpr) {
+  if (getServerSideProps && isSpr) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!unstable_getStaticPaths && !isSpr) {
+  if (!!getStaticPaths && !isSpr) {
     throw new Error(
-      `unstable_getStaticPaths was added without a unstable_getStaticProps in ${pathname}. Without unstable_getStaticProps, unstable_getStaticPaths does nothing`
+      `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
     )
   }
 
-  if (isSpr && pageIsDynamic && !unstable_getStaticPaths) {
+  if (isSpr && pageIsDynamic && !getStaticPaths) {
     throw new Error(
-      `unstable_getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
+      `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
         `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
     )
   }
@@ -469,12 +471,8 @@ export async function renderToHTML(
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
       const previewData = tryGetPreviewData(req, res, previewProps)
-      const data = await unstable_getStaticProps!({
-        ...(pageIsDynamic
-          ? {
-              params: query as ParsedUrlQuery,
-            }
-          : { params: undefined }),
+      const data = await getStaticProps!({
+        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(previewData !== false
           ? { preview: true, previewData: previewData }
           : undefined),
@@ -531,28 +529,41 @@ export async function renderToHTML(
     console.error(err)
   }
 
-  if (unstable_getServerProps && !isFallback) {
-    const data = await unstable_getServerProps({
-      params,
-      query,
+  if (getServerSideProps && !isFallback) {
+    const data = await getServerSideProps({
       req,
       res,
+      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+      query,
     })
 
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
 
     if (invalidKeys.length) {
-      throw new Error(invalidKeysMsg('getServerProps', invalidKeys))
+      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
     }
 
     props.pageProps = data.props
     ;(renderOpts as any).pageData = props
   }
+
+  if (
+    !isSpr && // we only show this warning for legacy pages
+    !getServerSideProps &&
+    process.env.NODE_ENV !== 'production' &&
+    Object.keys(props?.pageProps || {}).includes('url')
+  ) {
+    console.warn(
+      `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
+        `See more info here: https://err.sh/zeit/next.js/reserved-page-prop`
+    )
+  }
+
   // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerProps if not this can be removed
+  // _app's getInitialProps for getServerSideProps if not this can be removed
   if (isDataReq) return props
 
-  // We don't call getStaticProps or getServerProps while generating
+  // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
   if (isFallback) {
     props.pageProps = {}
@@ -568,6 +579,7 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, pathname),
     ]),
   ]
+  const lowPriorityFiles = buildManifest.lowPriorityFiles
   const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
 
   const renderElementToString = staticMarkup
@@ -663,8 +675,9 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImportsIds,
     dynamicImports,
-    files,
     devFiles,
+    files,
+    lowPriorityFiles,
     polyfillFiles,
   })
 
