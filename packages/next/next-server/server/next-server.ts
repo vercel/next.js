@@ -62,7 +62,7 @@ import {
 import { isBlockedPage } from './utils'
 import {
   withBufferedRequest,
-  withUnbuffedRequest,
+  withUnbufferedRequest,
   NextHttpRequest,
   NextHttpResponse,
 } from './request'
@@ -774,7 +774,7 @@ export default class Server {
     query: ParsedUrlQuery = {},
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    return await withUnbuffedRequest(_req, _res, async (req, res) => {
+    return await withUnbufferedRequest(_req, _res, async (req, res) => {
       const url: any = req.url
 
       if (
@@ -1209,7 +1209,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<void> {
-    return await withUnbuffedRequest(_req, _res, async (req, res) => {
+    return await withUnbufferedRequest(_req, _res, async (req, res) => {
       res.setHeader(
         'Cache-Control',
         'no-cache, no-store, max-age=0, must-revalidate'

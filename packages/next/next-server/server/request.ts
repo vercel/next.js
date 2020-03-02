@@ -11,7 +11,7 @@ export interface NextHttpResponse extends ServerResponse {
   readonly [SYMBOL_NEXT_REQUEST]: boolean
 }
 
-export async function withUnbuffedRequest(
+export async function withUnbufferedRequest(
   req: IncomingMessage,
   res: ServerResponse,
   callback: (req: NextHttpRequest, res: NextHttpResponse) => Promise<void>
@@ -24,7 +24,12 @@ export async function withBufferedRequest(
   res: ServerResponse,
   callback: (req: NextHttpRequest, res: NextHttpResponse) => Promise<void>
 ): Promise<Buffer> {
-  const { end: oldEnd, write: oldWrite } = res
+  const {
+    end: oldEnd,
+    finished: oldFinished,
+    headersSent: oldHeadersSent,
+    write: oldWrite,
+  } = res
   const chunks: Buffer[] = []
   const stream = new PassThrough({
     transform(chunk, _encoding, callback) {
@@ -33,13 +38,20 @@ export async function withBufferedRequest(
     },
   })
   try {
-    res.end = stream.end.bind(stream)
-    res.write = stream.write.bind(stream)
-
+    ;(res as any).end = () => {
+      stream.end(...arguments)
+      res.finished = true
+    }
+    ;(res as any).write = () => {
+      ;(stream as any).write(...arguments)
+      res.headersSent = true
+    }
     await callback(req as any, res as any)
     return Buffer.concat(chunks)
   } finally {
     res.end = oldEnd
     res.write = oldWrite
+    res.finished = oldFinished
+    res.headersSent = oldHeadersSent
   }
 }
