@@ -2,7 +2,6 @@ import React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-// eslint-disable-next-line camelcase
 export async function getStaticPaths() {
   return {
     paths: [
@@ -19,7 +18,6 @@ export async function getStaticPaths() {
 
 let counter = 0
 
-// eslint-disable-next-line camelcase
 export async function getStaticProps({ params }) {
   if (params.post === 'post-10') {
     await new Promise(resolve => {

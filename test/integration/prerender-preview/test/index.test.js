@@ -8,6 +8,7 @@ import {
   findPort,
   initNextServerScript,
   killApp,
+  launchApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
@@ -201,6 +202,66 @@ const startServerlessEmulator = async (dir, port) => {
 }
 
 describe('Prerender Preview Mode', () => {
+  describe('Development Mode', () => {
+    beforeAll(async () => {
+      await fs.remove(nextConfigPath)
+    })
+
+    let appPort, app
+    it('should start development application', async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+
+    let previewCookieString
+    it('should enable preview mode', async () => {
+      const res = await fetchViaHTTP(appPort, '/api/preview', { lets: 'goooo' })
+      expect(res.status).toBe(200)
+
+      const cookies = res.headers
+        .get('set-cookie')
+        .split(',')
+        .map(cookie.parse)
+
+      expect(cookies.length).toBe(2)
+      previewCookieString =
+        cookie.serialize('__prerender_bypass', cookies[0].__prerender_bypass) +
+        '; ' +
+        cookie.serialize('__next_preview_data', cookies[1].__next_preview_data)
+    })
+
+    it('should return cookies to be expired after dev server reboot', async () => {
+      await killApp(app)
+      app = await launchApp(appDir, appPort)
+
+      const res = await fetchViaHTTP(
+        appPort,
+        '/',
+        {},
+        { headers: { Cookie: previewCookieString } }
+      )
+      expect(res.status).toBe(200)
+
+      const body = await res.text()
+      // "err":{"name":"TypeError","message":"Cannot read property 'previewModeId' of undefined"
+      expect(body).not.toContain('err')
+      expect(body).not.toContain('TypeError')
+      expect(body).not.toContain('previewModeId')
+
+      const cookies = res.headers
+        .get('set-cookie')
+        .replace(/(=\w{3}),/g, '$1')
+        .split(',')
+        .map(cookie.parse)
+
+      expect(cookies.length).toBe(2)
+    })
+
+    afterAll(async () => {
+      await killApp(app)
+    })
+  })
+
   describe('Server Mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfigPath)

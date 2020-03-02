@@ -41,7 +41,7 @@ import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { renderToHTML } from './render'
+import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
   DynamicRoutes,
@@ -115,6 +115,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
+    previewProps: __ApiPreviewProps
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -165,6 +166,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      previewProps: this.getPreviewProps(),
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -662,19 +664,18 @@ export default class Server {
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         await pageModule.default(req, res)
         return true
       }
     }
 
-    const previewProps = this.getPreviewProps()
     await apiResolver(
       req,
       res,
       query,
       pageModule,
-      { ...previewProps },
+      this.renderOpts.previewProps,
       this.onErrorMiddleware
     )
     return true
@@ -780,7 +781,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {})
+    const html = await this.renderToHTML(req, res, pathname, query)
     // Request was ended by the user
     if (html === null) {
       return
@@ -823,48 +824,45 @@ export default class Server {
     return null
   }
 
-  private __sendPayload(
-    res: ServerResponse,
-    payload: any,
-    type: string,
-    options?: { revalidate: number | false; private: boolean }
-  ) {
-    // TODO: ETag? Cache-Control headers? Next-specific headers?
-    res.setHeader('Content-Type', type)
-    res.setHeader('Content-Length', Buffer.byteLength(payload))
-    if (!this.renderOpts.dev) {
-      if (options?.private) {
-        res.setHeader(
-          'Cache-Control',
-          `private, no-cache, no-store, max-age=0, must-revalidate`
-        )
-      } else if (options?.revalidate) {
-        res.setHeader(
-          'Cache-Control',
-          options.revalidate < 0
-            ? `no-cache, no-store, must-revalidate`
-            : `s-maxage=${options.revalidate}, stale-while-revalidate`
-        )
-      } else if (options?.revalidate === false) {
-        res.setHeader(
-          'Cache-Control',
-          `s-maxage=31536000, stale-while-revalidate`
-        )
-      }
-    }
-    res.end(payload)
-  }
+  private async getStaticPaths(
+    pathname: string
+  ): Promise<{
+    staticPaths: string[] | undefined
+    hasStaticFallback: boolean
+  }> {
+    // we lazy load the staticPaths to prevent the user
+    // from waiting on them for the page to load in dev mode
+    let staticPaths: string[] | undefined
+    let hasStaticFallback = false
 
-  private prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
-    const curUrl = parseUrl(req.url!, true)
-    req.url = formatUrl({
-      ...curUrl,
-      search: undefined,
-      query: {
-        ...curUrl.query,
-        ...query,
-      },
-    })
+    if (!this.renderOpts.dev) {
+      // `staticPaths` is intentionally set to `undefined` as it should've
+      // been caught when checking disk data.
+      staticPaths = undefined
+
+      // Read whether or not fallback should exist from the manifest.
+      hasStaticFallback =
+        typeof this.getPrerenderManifest().dynamicRoutes[pathname].fallback ===
+        'string'
+    } else {
+      const __getStaticPaths = async () => {
+        const paths = await this.staticPathsWorker!.loadStaticPaths(
+          this.distDir,
+          this.buildId,
+          pathname,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+        return paths
+      }
+      ;({ paths: staticPaths, fallback: hasStaticFallback } = (
+        await withCoalescedInvoke(__getStaticPaths)(
+          `staticPaths-${pathname}`,
+          []
+        )
+      ).value)
+    }
+
+    return { staticPaths, hasStaticFallback }
   }
 
   private async renderToHTMLWithComponents(
@@ -872,7 +870,7 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
-    opts: any
+    opts: RenderOptsPartial
   ): Promise<string | false | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
@@ -893,7 +891,7 @@ export default class Server {
     const hasStaticPaths = !!components.getStaticPaths
 
     // Toggle whether or not this is a Data request
-    const isDataReq = query._nextDataReq
+    const isDataReq = !!query._nextDataReq
     delete query._nextDataReq
 
     // Serverless requests need its URL transformed back into the original
@@ -918,18 +916,20 @@ export default class Server {
             true
           )
 
-          this.__sendPayload(
+          sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
             'application/json',
-            {
-              revalidate: -1,
-              private: false, // Leave to user-land caching
-            }
+            !this.renderOpts.dev
+              ? {
+                  revalidate: -1,
+                  private: false, // Leave to user-land caching
+                }
+              : undefined
           )
           return null
         }
-        this.prepareServerlessUrl(req, query)
+        prepareServerlessUrl(req, query)
         return (components.Component as any).renderReqToHTML(req, res)
       }
 
@@ -939,10 +939,17 @@ export default class Server {
           ...opts,
           isDataReq,
         })
-        this.__sendPayload(res, JSON.stringify(props), 'application/json', {
-          revalidate: -1,
-          private: false, // Leave to user-land caching
-        })
+        sendPayload(
+          res,
+          JSON.stringify(props),
+          'application/json',
+          !this.renderOpts.dev
+            ? {
+                revalidate: -1,
+                private: false, // Leave to user-land caching
+              }
+            : undefined
+        )
         return null
       }
 
@@ -952,8 +959,11 @@ export default class Server {
       })
     }
 
-    const previewProps = this.getPreviewProps()
-    const previewData = tryGetPreviewData(req, res, { ...previewProps })
+    const previewData = tryGetPreviewData(
+      req,
+      res,
+      this.renderOpts.previewProps
+    )
     const isPreviewMode = previewData !== false
 
     // Compute the SPR cache key
@@ -972,11 +982,11 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      this.__sendPayload(
+      sendPayload(
         res,
         data,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate !== undefined
+        cachedData.curRevalidate !== undefined && !this.renderOpts.dev
           ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
           : undefined
       )
@@ -1011,15 +1021,16 @@ export default class Server {
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
       } else {
-        const renderOpts = {
+        const renderOpts: RenderOpts = {
           ...components,
           ...opts,
         }
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
         html = renderResult
-        pageData = renderOpts.pageData
-        sprRevalidate = renderOpts.revalidate
+        // TODO: change this to a different passing mechanism
+        pageData = (renderOpts as any).pageData
+        sprRevalidate = (renderOpts as any).revalidate
       }
 
       return { html, pageData, sprRevalidate }
@@ -1029,39 +1040,9 @@ export default class Server {
     const isDynamicPathname = isDynamicRoute(pathname)
     const didRespond = isResSent(res)
 
-    // we lazy load the staticPaths to prevent the user
-    // from waiting on them for the page to load in dev mode
-    let staticPaths: string[] | undefined
-    let hasStaticFallback = false
-
-    if (hasStaticPaths) {
-      if (isProduction) {
-        // `staticPaths` is intentionally set to `undefined` as it should've
-        // been caught above when checking disk data.
-        staticPaths = undefined
-
-        // Read whether or not fallback should exist from the manifest.
-        hasStaticFallback =
-          typeof this.getPrerenderManifest().dynamicRoutes[pathname]
-            .fallback === 'string'
-      } else {
-        const __getStaticPaths = async () => {
-          const paths = await this.staticPathsWorker!.loadStaticPaths(
-            this.distDir,
-            this.buildId,
-            pathname,
-            !this.renderOpts.dev && this._isLikeServerless
-          )
-          return paths
-        }
-        ;({ paths: staticPaths, fallback: hasStaticFallback } = (
-          await withCoalescedInvoke(__getStaticPaths)(
-            `staticPaths-${pathname}`,
-            []
-          )
-        ).value)
-      }
-    }
+    const { staticPaths, hasStaticFallback } = hasStaticPaths
+      ? await this.getStaticPaths(pathname)
+      : { staticPaths: undefined, hasStaticFallback: false }
 
     // const isForcedBlocking =
     //   req.headers['X-Prerender-Bypass-Mode'] !== 'Blocking'
@@ -1108,7 +1089,7 @@ export default class Server {
       else {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
-          this.prepareServerlessUrl(req, query)
+          prepareServerlessUrl(req, query)
           html = await (components.Component as any).renderReqToHTML(req, res)
         } else {
           html = (await renderToHTML(req, res, pathname, query, {
@@ -1118,7 +1099,7 @@ export default class Server {
         }
       }
 
-      this.__sendPayload(res, html, 'text/html; charset=utf-8')
+      sendPayload(res, html, 'text/html; charset=utf-8')
     }
 
     const {
@@ -1126,11 +1107,13 @@ export default class Server {
       value: { html, pageData, sprRevalidate },
     } = await doRender(ssgCacheKey, [])
     if (!isResSent(res)) {
-      this.__sendPayload(
+      sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
         isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        { revalidate: sprRevalidate, private: isPreviewMode }
+        !this.renderOpts.dev
+          ? { revalidate: sprRevalidate, private: isPreviewMode }
+          : undefined
       )
     }
 
@@ -1149,14 +1132,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
-    {
-      amphtml,
-      hasAmp,
-    }: {
-      amphtml?: boolean
-      hasAmp?: boolean
-    } = {}
+    query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     try {
       const result = await this.findPageComponents(pathname, query)
@@ -1166,7 +1142,7 @@ export default class Server {
           res,
           pathname,
           result,
-          { ...this.renderOpts, amphtml, hasAmp }
+          { ...this.renderOpts }
         )
         if (result2 !== false) {
           return result2
@@ -1191,12 +1167,7 @@ export default class Server {
               res,
               dynamicRoute.page,
               result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
-              }
+              { ...this.renderOpts, params }
             )
             if (result2 !== false) {
               return result2
@@ -1351,4 +1322,48 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
+}
+
+function sendPayload(
+  res: ServerResponse,
+  payload: any,
+  type: string,
+  options?: { revalidate: number | false; private: boolean }
+) {
+  // TODO: ETag? Cache-Control headers? Next-specific headers?
+  res.setHeader('Content-Type', type)
+  res.setHeader('Content-Length', Buffer.byteLength(payload))
+  if (options != null) {
+    if (options?.private) {
+      res.setHeader(
+        'Cache-Control',
+        `private, no-cache, no-store, max-age=0, must-revalidate`
+      )
+    } else if (options?.revalidate) {
+      res.setHeader(
+        'Cache-Control',
+        options.revalidate < 0
+          ? `no-cache, no-store, must-revalidate`
+          : `s-maxage=${options.revalidate}, stale-while-revalidate`
+      )
+    } else if (options?.revalidate === false) {
+      res.setHeader(
+        'Cache-Control',
+        `s-maxage=31536000, stale-while-revalidate`
+      )
+    }
+  }
+  res.end(payload)
+}
+
+function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
+  const curUrl = parseUrl(req.url!, true)
+  req.url = formatUrl({
+    ...curUrl,
+    search: undefined,
+    query: {
+      ...curUrl.query,
+      ...query,
+    },
+  })
 }
