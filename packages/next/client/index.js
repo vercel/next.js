@@ -11,6 +11,11 @@ import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import {
+  observeLayoutShift,
+  observeLargestContentfulPaint,
+  observePaint,
+} from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
@@ -161,8 +166,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
   if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value, duration }) {
-      mod.unstable_onPerformanceData({ name, startTime, value, duration })
+    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
+      mod.unstable_onPerformanceData({
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+      })
     }
   }
 
@@ -313,14 +324,9 @@ function renderReactElement(reactEl, domEl) {
 
   if (onPerfEntry && ST) {
     try {
-      const observer = new PerformanceObserver(list => {
-        list.getEntries().forEach(onPerfEntry)
-      })
-      // Start observing paint entry types.
-      observer.observe({
-        type: 'paint',
-        buffered: true,
-      })
+      observeLayoutShift(onPerfEntry)
+      observeLargestContentfulPaint(onPerfEntry)
+      observePaint(onPerfEntry)
     } catch (e) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)

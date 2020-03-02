@@ -118,9 +118,7 @@ export default async function({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
-    // eslint-disable-next-line camelcase
     const renderedDuringBuild = getStaticProps => {
-      // eslint-disable-next-line camelcase
       return !buildExport && getStaticProps && !isDynamicRoute(path)
     }
 

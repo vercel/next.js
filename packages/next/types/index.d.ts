@@ -65,7 +65,7 @@ export {
 }
 
 export type GetStaticProps = (ctx: {
-  params: ParsedUrlQuery | undefined
+  params?: ParsedUrlQuery
   preview?: boolean
   previewData?: any
 }) => Promise<{
@@ -79,9 +79,9 @@ export type GetStaticPaths = () => Promise<{
 }>
 
 export type GetServerSideProps = (context: {
-  params: ParsedUrlQuery | undefined
   req: IncomingMessage
   res: ServerResponse
+  params?: ParsedUrlQuery
   query: ParsedUrlQuery
 }) => Promise<{ [key: string]: any }>
 
