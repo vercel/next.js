@@ -36,7 +36,6 @@ Now, you have to connect your TakeShape project with the example, follow these s
 
 1. [Signup](https://app.takeshape.io/signup) or [login](https://app.takeshape.io/login) at TakeShape.
 1. Create a new project and select the "Shape Blog" template
-1. `yarn` - This will install all dependencies
 1. In your "Shape Blog" project, create a new API Key
 1. Create a `.env` file in the project root containing values for your `TAKESHAPE_PROJECT` and `TAKESHAPE_API_KEY`, such as:
 
