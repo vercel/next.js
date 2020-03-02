@@ -871,7 +871,7 @@ export default class Server {
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
-  ): Promise<string | false | null> {
+  ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
@@ -1076,7 +1076,7 @@ export default class Server {
         // When fallback isn't present, abort this render so we 404
         !hasStaticFallback
       ) {
-        return false
+        throw new NoFallbackError()
       }
 
       let html: string
@@ -1137,15 +1137,18 @@ export default class Server {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
-        const result2 = await this.renderToHTMLWithComponents(
-          req,
-          res,
-          pathname,
-          result,
-          { ...this.renderOpts }
-        )
-        if (result2 !== false) {
-          return result2
+        try {
+          return await this.renderToHTMLWithComponents(
+            req,
+            res,
+            pathname,
+            result,
+            { ...this.renderOpts }
+          )
+        } catch (err) {
+          if (!(err instanceof NoFallbackError)) {
+            throw err
+          }
         }
       }
 
@@ -1162,15 +1165,18 @@ export default class Server {
             params
           )
           if (result) {
-            const result2 = await this.renderToHTMLWithComponents(
-              req,
-              res,
-              dynamicRoute.page,
-              result,
-              { ...this.renderOpts, params }
-            )
-            if (result2 !== false) {
-              return result2
+            try {
+              return await this.renderToHTMLWithComponents(
+                req,
+                res,
+                dynamicRoute.page,
+                result,
+                { ...this.renderOpts, params }
+              )
+            } catch (err) {
+              if (!(err instanceof NoFallbackError)) {
+                throw err
+              }
             }
           }
         }
@@ -1227,7 +1233,7 @@ export default class Server {
 
     let html: string | null
     try {
-      const result2 = await this.renderToHTMLWithComponents(
+      html = await this.renderToHTMLWithComponents(
         req,
         res,
         using404Page ? '/404' : '/_error',
@@ -1237,10 +1243,6 @@ export default class Server {
           err,
         }
       )
-      if (result2 === false) {
-        throw new Error('invariant: failed to render error page')
-      }
-      html = result2
     } catch (err) {
       console.error(err)
       res.statusCode = 500
@@ -1367,3 +1369,5 @@ function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
     },
   })
 }
+
+class NoFallbackError extends Error {}
