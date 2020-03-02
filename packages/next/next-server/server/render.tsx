@@ -124,7 +124,7 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = LoadComponentsReturnType & {
+export type RenderOptsPartial = {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
@@ -146,6 +146,8 @@ type RenderOpts = LoadComponentsReturnType & {
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps
 }
+
+export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 function renderDocument(
   Document: DocumentType,
@@ -517,6 +519,7 @@ export async function renderToHTML(
 
       props.pageProps = data.props
       // pass up revalidate and props for export
+      // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
