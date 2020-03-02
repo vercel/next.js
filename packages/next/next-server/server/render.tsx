@@ -519,6 +519,7 @@ export async function renderToHTML(
 
       props.pageProps = data.props
       // pass up revalidate and props for export
+      // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
