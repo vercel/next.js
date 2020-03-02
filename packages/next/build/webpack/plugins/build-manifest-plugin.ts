@@ -147,6 +147,23 @@ export default class BuildManifestPlugin {
           }
         }
 
+        // Add the runtime ssg manifest file as a lazy-loaded file dependency.
+        // We also stub this file out for development mode (when it is not
+        // generated).
+        const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
+        const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+        assetMap.lowPriorityFiles.push(ssgManifestPath)
+        compilation.assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
+
+        if (this.modern) {
+          const ssgManifestPathModern = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
+          assetMap.lowPriorityFiles.push(ssgManifestPathModern)
+          compilation.assets[ssgManifestPathModern] = new RawSource(
+            srcEmptySsgManifest
+          )
+        }
+
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
