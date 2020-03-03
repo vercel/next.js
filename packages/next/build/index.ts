@@ -815,7 +815,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     eventBuildOptimize(pagePaths, {
       durationInSeconds: analysisEnd[0],
       staticPageCount: staticPages.size,
-      ssrPageCount: pagePaths.length - staticPages.size,
+      staticPropsPageCount: ssgPages.size,
+      serverPropsPageCount: serverPropsPages.size,
+      ssrPageCount:
+        pagePaths.length -
+        (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
     })
   )
