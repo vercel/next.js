@@ -10,7 +10,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const timings = []
-const NUM_RETRIES = 0
+const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
