@@ -1233,16 +1233,23 @@ export default class Server {
 
     let html: string | null
     try {
-      html = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
-          err,
+      try {
+        html = await this.renderToHTMLWithComponents(
+          req,
+          res,
+          using404Page ? '/404' : '/_error',
+          result!,
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      } catch (err) {
+        if (err instanceof NoFallbackError) {
+          throw new Error('invariant: failed to render error page')
         }
-      )
+        throw err
+      }
     } catch (err) {
       console.error(err)
       res.statusCode = 500
