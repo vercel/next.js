@@ -38,6 +38,7 @@ jobs:
     needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
       HEADLESS: true
     strategy:
       fail-fast: false
