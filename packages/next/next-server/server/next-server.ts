@@ -905,12 +905,13 @@ export default class Server {
       })
     }
 
-    const previewData = tryGetPreviewData(
-      req,
-      res,
-      this.renderOpts.previewProps
-    )
-    const isPreviewMode = previewData !== false
+    let previewData: string | false | object | undefined
+    let isPreviewMode = false
+
+    if (isServerProps || isSSG) {
+      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+      isPreviewMode = previewData !== false
+    }
 
     // non-spr requests should render like normal
     if (!isSSG) {
@@ -965,14 +966,14 @@ export default class Server {
         ...opts,
       })
 
-      if (html) {
+      if (html && isServerProps && isPreviewMode) {
         sendPayload(res, html, 'text/html; charset=utf-8', {
           revalidate: -1,
           private: isPreviewMode,
         })
       }
 
-      return null
+      return html
     }
 
     // Compute the SPR cache key
