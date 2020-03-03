@@ -62,7 +62,7 @@ When you don't need to create a custom `_error` page and would prefer to use the
 
 ## Static `pages/404`
 
-For the cases where you do want a custom `_error` page but still want the benefits of a static 404 page we have added a new convention of a `pages/404` file that takes priority over `_error` for 404s specifically. This new 404 page is specifically meant for creating a static 404 page and strictly does not allow `getInitialProps` or `getServerSideProps` to be used.
+For the cases where you do want a custom `_error` page but still want the benefits of a static 404 page we have added a convention of a `pages/404` file that takes priority over `_error` for 404s specifically. This 404 page is specifically meant for creating a static 404 page and strictly does not allow `getInitialProps` or `getServerSideProps` to be used.
 
 In the case where you want to use the default 404 page provided by Next.js but still need a custom `_error` page to report any errors, you can achieve this with:
 
