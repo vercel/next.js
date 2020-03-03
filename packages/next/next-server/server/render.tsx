@@ -141,7 +141,7 @@ export type RenderOptsPartial = {
   hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
-  ampSkipValidation: boolean
+  ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
   documentMiddlewareEnabled?: boolean
   isDataReq?: boolean
