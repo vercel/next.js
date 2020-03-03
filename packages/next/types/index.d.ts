@@ -83,6 +83,8 @@ export type GetServerSideProps = (context: {
   res: ServerResponse
   params?: ParsedUrlQuery
   query: ParsedUrlQuery
+  preview?: boolean
+  previewData?: any
 }) => Promise<{ [key: string]: any }>
 
 export default next

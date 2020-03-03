@@ -465,12 +465,12 @@ export async function renderToHTML(
       router,
       ctx,
     })
+    // Reads of this are cached on the `req` object, so this should resolve
+    // instantly. There's no need to pass this data down from a previous
+    // invoke, where we'd have to consider server & serverless.
+    const previewData = tryGetPreviewData(req, res, previewProps)
 
     if (isSpr && !isFallback) {
-      // Reads of this are cached on the `req` object, so this should resolve
-      // instantly. There's no need to pass this data down from a previous
-      // invoke, where we'd have to consider server & serverless.
-      const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await getStaticProps!({
         ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(previewData !== false
@@ -523,29 +523,32 @@ export async function renderToHTML(
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
+
+    if (getServerSideProps && !isFallback) {
+      const data = await getServerSideProps({
+        req,
+        res,
+        query,
+        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
+      })
+
+      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+      if (invalidKeys.length) {
+        throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      props.pageProps = data.props
+      ;(renderOpts as any).pageData = props
+    }
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
     console.error(err)
-  }
-
-  if (getServerSideProps && !isFallback) {
-    const data = await getServerSideProps({
-      req,
-      res,
-      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-      query,
-    })
-
-    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
-
-    if (invalidKeys.length) {
-      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
-    }
-
-    props.pageProps = data.props
-    ;(renderOpts as any).pageData = props
   }
 
   if (
