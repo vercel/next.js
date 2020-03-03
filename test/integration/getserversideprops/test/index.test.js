@@ -191,6 +191,18 @@ const runTests = (dev = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should have gssp in __NEXT_DATA__', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).gssp).toBe(true)
+  })
+
+  it('should not have gssp in __NEXT_DATA__ for non-GSSP page', async () => {
+    const html = await renderViaHTTP(appPort, '/normal')
+    const $ = cheerio.load(html)
+    expect('gssp' in JSON.parse($('#__NEXT_DATA__').text())).toBe(false)
+  })
+
   it('should supply query values SSR', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)
