@@ -62,7 +62,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const runtimeConfigImports = runtimeConfig
     ? `
-      const { setConfig } = require('next/dist/next-server/lib/runtime-config')
+      const { setConfig } = require('next/config')
     `
     : ''
 

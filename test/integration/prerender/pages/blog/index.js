@@ -1,7 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
 
-// eslint-disable-next-line camelcase
 export async function getStaticProps() {
   return {
     props: {

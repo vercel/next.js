@@ -126,12 +126,11 @@ function render(
   return { html, head }
 }
 
-type RenderOpts = LoadComponentsReturnType & {
+export type RenderOptsPartial = {
   staticMarkup: boolean
   buildId: string
   canonicalBase: string
   runtimeConfig?: { [key: string]: any }
-  dangerousAsPath: string
   assetPrefix?: string
   hasCssMode: boolean
   err?: Error | null
@@ -150,6 +149,8 @@ type RenderOpts = LoadComponentsReturnType & {
   previewProps: __ApiPreviewProps
   env: Env
 }
+
+export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 function renderDocument(
   Document: DocumentType,
@@ -177,6 +178,7 @@ function renderDocument(
     staticMarkup,
     devFiles,
     files,
+    lowPriorityFiles,
     polyfillFiles,
     dynamicImports,
     htmlProps,
@@ -194,8 +196,9 @@ function renderDocument(
     hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
-    files: string[]
     devFiles: string[]
+    files: string[]
+    lowPriorityFiles: string[]
     polyfillFiles: string[]
     htmlProps: any
     bodyTags: any
@@ -232,6 +235,7 @@ function renderDocument(
           staticMarkup,
           devFiles,
           files,
+          lowPriorityFiles,
           polyfillFiles,
           dynamicImports,
           assetPrefix,
@@ -475,11 +479,7 @@ export async function renderToHTML(
       const previewData = tryGetPreviewData(req, res, previewProps)
       const data = await getStaticProps!({
         env: curEnv,
-        ...(pageIsDynamic
-          ? {
-              params: query as ParsedUrlQuery,
-            }
-          : { params: undefined }),
+        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(previewData !== false
           ? { preview: true, previewData: previewData }
           : undefined),
@@ -526,6 +526,7 @@ export async function renderToHTML(
 
       props.pageProps = data.props
       // pass up revalidate and props for export
+      // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
@@ -539,10 +540,10 @@ export async function renderToHTML(
   if (getServerSideProps && !isFallback) {
     const data = await getServerSideProps({
       env: curEnv,
-      params,
-      query,
       req,
       res,
+      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+      query,
     })
 
     const invalidKeys = Object.keys(data).filter(key => key !== 'props')
@@ -587,6 +588,7 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, pathname),
     ]),
   ]
+  const lowPriorityFiles = buildManifest.lowPriorityFiles
   const polyfillFiles = getPageFiles(buildManifest, '/_polyfills')
 
   const renderElementToString = staticMarkup
@@ -682,8 +684,9 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImportsIds,
     dynamicImports,
-    files,
     devFiles,
+    files,
+    lowPriorityFiles,
     polyfillFiles,
   })
 
