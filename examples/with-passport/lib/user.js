@@ -2,7 +2,7 @@
 
 /**
  * User methods. The example doesn't contain a DB, but for real applications you must use a
- * db here, like Mongodb, Fauna, SQL, e.t.c
+ * db here, such as MongoDB, Fauna, SQL, etc.
  */
 
 export async function createUser({ username, password }) {
