@@ -74,4 +74,4 @@ export default () => <Error statusCode={404} />
 
 If you have a custom `_app` with `getInitialProps`, the automatic static optimization will not be able to be applied since you are defining a global data dependency. A `pages/404` file can still be added in this case even though the optimization will not be applied.
 
-A 404 page can end up being visited very often, this means rendering the `_error` page every time it is visited which increases the load on your server or increases the invocations for serverless functions. This additional load on your infrastructure is not ideal as it costs more and is a slower experience. Using the two above strategies to ensure the 404 page is static allows you to achieve the above benefits and have a more optimal 404 page.
+A 404 page may be accessed very often. Rendering the `_error` page for every visit increases the load for your server or the invocations for serverless functions. This can result in increased costs and slow experiences. You can avoid this by making 404 pages static.
