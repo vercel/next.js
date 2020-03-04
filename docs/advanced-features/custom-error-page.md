@@ -14,7 +14,7 @@ To create a custom 404 page you can create a `pages/404.js` file.  This file is 
 
 ```jsx
 // pages/404.js
-export default function custom404() {
+export default function Custom404() {
   return <h1>404 - Page Not Found</h1>
 }
 ```
