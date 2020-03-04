@@ -78,6 +78,8 @@ export type NEXT_DATA = {
   isFallback?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
+  gsp?: boolean
+  gssp?: boolean
 }
 
 /**
