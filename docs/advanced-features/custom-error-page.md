@@ -2,9 +2,34 @@
 description: Override and extend the built-in Error page to handle custom errors.
 ---
 
-# Custom Error Page
+## 404 Page
 
-**404** or **500** errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
+A 404 page may be accessed very often. Rendering the `_error` page for every visit increases the load for your server or the invocations for serverless functions. This can result in increased costs and slow experiences.
+
+To avoid the above pitfalls, Next.js provides a static 404 page by default without having to add any additional files.
+
+The static 404 page is automatically statically optimized at build time and used with `next start` and when deploying on [ZEIT Now](https://zeit.co).
+
+If you have a custom `pages/_app.js` with `getInitialProps`, the automatic static optimization will not be able to be applied since you are defining a global data dependency.
+
+### Customizing The 404 Page
+
+To create a custom 404 page you can create a `pages/404.js` file. This file is meant to allow customizing the 404 page while keeping the page static and doesn't allow using any data-fetching methods like `getStaticProps`, `getServerSideProps`, or `getInitialProps`.
+
+```jsx
+// pages/404.js
+export default function custom404() {
+  return <h1>404 - Page Not Found</h1>
+}
+```
+
+## 500 Page
+
+By default Next.js provides an error page that matches the default 404 page's style. This page is not statically optimized like the 404 page and is why we allow creating a separate `pages/404.js` file to enable you to report 500 errors without de-optimizing your 404 page.
+
+### Customizing The Error Page
+
+**500** errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
 
 ```jsx
 function Error({ statusCode }) {
@@ -25,9 +50,9 @@ Error.getInitialProps = ({ res, err }) => {
 export default Error
 ```
 
-> `pages/_error.js` is only used in production for non-404 errors. In development you'll get an error with the call stack to know where the error originated from.
+> `pages/_error.js` is only used in production. In development you'll get an error with the call stack to know where the error originated from.
 
-## Reusing the built-in error page
+### Reusing the built-in error page
 
 If you want to render the built-in error page you can by importing the `Error` component:
 
@@ -55,23 +80,3 @@ export default Page
 ```
 
 The `Error` component also takes `title` as a property if you want to pass in a text message along with a `statusCode`.
-
-## Default Static 404 Page
-
-When you don't need to create a custom `_error` page and would prefer to use the default Next.js provided one, we will automatically apply the static optimization to this file during a production build and use it when deploying on [Now](https://zeit.co) or with `next start`.
-
-## Static `pages/404`
-
-For the cases where you do want a custom `_error` page but still want the benefits of a static 404 page we have added a convention of a `pages/404` file that takes priority over `_error` for 404s specifically. This 404 page is specifically meant for creating a static 404 page and strictly does not allow `getInitialProps` or `getServerSideProps` to be used.
-
-In the case where you want to use the default 404 page provided by Next.js but still need a custom `_error` page to report any errors, you can achieve this with:
-
-```jsx
-// pages/404.js
-import Error from 'next/error'
-export default () => <Error statusCode={404} />
-```
-
-If you have a custom `_app` with `getInitialProps`, the automatic static optimization will not be able to be applied since you are defining a global data dependency. A `pages/404` file can still be added in this case even though the optimization will not be applied.
-
-A 404 page may be accessed very often. Rendering the `_error` page for every visit increases the load for your server or the invocations for serverless functions. This can result in increased costs and slow experiences. You can avoid this by making 404 pages static.
