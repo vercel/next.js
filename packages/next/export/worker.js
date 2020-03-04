@@ -55,7 +55,6 @@ export default async function({
         )
       }
     }
-
     // Check if the page is a specified dynamic route
     if (isDynamicRoute(page) && page !== path) {
       params = getRouteMatcher(getRouteRegex(page))(path)
@@ -117,7 +116,7 @@ export default async function({
     let html
     let curRenderOpts = {}
     let renderMethod = renderToHTML
-
+    console.log(path)
     const renderedDuringBuild = getStaticProps => {
       return !buildExport && getStaticProps && !isDynamicRoute(path)
     }

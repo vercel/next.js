@@ -200,7 +200,6 @@ export default async function(
     }),
     'utf8'
   )
-
   // Copy static directory
   if (!options.buildExport && existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')

@@ -15,7 +15,10 @@ export function pageNotFoundError(page: string): Error {
   err.code = 'ENOENT'
   return err
 }
-
+function requireUncached(module) {
+  delete require.cache[require.resolve(module)]
+  return require(module)
+}
 export function getPagePath(
   page: string,
   distDir: string,
