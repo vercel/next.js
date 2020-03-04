@@ -920,6 +920,14 @@ export default class Server {
       })
     }
 
+    let previewData: string | false | object | undefined
+    let isPreviewMode = false
+
+    if (isServerProps || isSSG) {
+      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+      isPreviewMode = previewData !== false
+    }
+
     // non-spr requests should render like normal
     if (!isSSG) {
       // handle serverless
@@ -938,7 +946,7 @@ export default class Server {
             !this.renderOpts.dev
               ? {
                   revalidate: -1,
-                  private: false, // Leave to user-land caching
+                  private: isPreviewMode, // Leave to user-land caching
                 }
               : undefined
           )
@@ -961,25 +969,27 @@ export default class Server {
           !this.renderOpts.dev
             ? {
                 revalidate: -1,
-                private: false, // Leave to user-land caching
+                private: isPreviewMode, // Leave to user-land caching
               }
             : undefined
         )
         return null
       }
 
-      return renderToHTML(req, res, pathname, query, {
+      const html = await renderToHTML(req, res, pathname, query, {
         ...components,
         ...opts,
       })
-    }
 
-    const previewData = tryGetPreviewData(
-      req,
-      res,
-      this.renderOpts.previewProps
-    )
-    const isPreviewMode = previewData !== false
+      if (html && isServerProps && isPreviewMode) {
+        sendPayload(res, html, 'text/html; charset=utf-8', {
+          revalidate: -1,
+          private: isPreviewMode,
+        })
+      }
+
+      return html
+    }
 
     // Compute the SPR cache key
     const urlPathname = parseUrl(req.url || '').pathname!
