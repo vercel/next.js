@@ -2,7 +2,6 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { format, URLFormatOptions, UrlObject } from 'url'
-
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 
@@ -79,6 +78,8 @@ export type NEXT_DATA = {
   isFallback?: boolean
   dynamicIds?: string[]
   err?: Error & { statusCode?: number }
+  gsp?: boolean
+  gssp?: boolean
 }
 
 /**
@@ -154,6 +155,7 @@ export type DocumentProps = DocumentInitialProps & {
   hasCssMode: boolean
   devFiles: string[]
   files: string[]
+  lowPriorityFiles: string[]
   polyfillFiles: string[]
   dynamicImports: ManifestItem[]
   assetPrefix?: string
@@ -201,7 +203,32 @@ export type NextApiResponse<T = any> = ServerResponse & {
    */
   json: Send<T>
   status: (statusCode: number) => NextApiResponse<T>
+
+  /**
+   * Set preview data for Next.js' prerender mode
+   */
+  setPreviewData: (
+    data: object | string,
+    options?: {
+      /**
+       * Specifies the number (in seconds) for the preview session to last for.
+       * The given number will be converted to an integer by rounding down.
+       * By default, no maximum age is set and the preview session finishes
+       * when the client shuts down (browser is closed).
+       */
+      maxAge?: number
+    }
+  ) => NextApiResponse<T>
+  clearPreviewData: () => NextApiResponse<T>
 }
+
+/**
+ * Next `API` route handler
+ */
+export type NextApiHandler<T = any> = (
+  req: NextApiRequest,
+  res: NextApiResponse<T>
+) => void
 
 /**
  * Utils

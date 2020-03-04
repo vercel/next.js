@@ -1,7 +1,7 @@
 /* global location */
 import React from 'react'
 import ReactDOM from 'react-dom'
-import HeadManager from './head-manager'
+import initHeadManager from './head-manager'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from '../next-server/lib/mitt'
 import { loadGetInitialProps, getURL, ST } from '../next-server/lib/utils'
@@ -11,23 +11,17 @@ import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import { RouterContext } from '../next-server/lib/router-context'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import {
+  observeLayoutShift,
+  observeLargestContentfulPaint,
+  observePaint,
+} from './performance-relayer'
 
 /// <reference types="react-dom/experimental" />
 
-if (process.env.__NEXT_POLYFILLS_OPTIMIZATION) {
-  if (!('finally' in Promise.prototype)) {
-    // eslint-disable-next-line no-extend-native
-    Promise.prototype.finally = require('finally-polyfill')
-  }
-} else {
-  // Polyfill Promise globally
-  // This is needed because Webpack's dynamic loading(common chunks) code
-  // depends on Promise.
-  // So, we need to polyfill it.
-  // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
-  if (!self.Promise) {
-    self.Promise = require('@babel/runtime-corejs2/core-js/promise')
-  }
+if (!('finally' in Promise.prototype)) {
+  // eslint-disable-next-line no-extend-native
+  Promise.prototype.finally = require('finally-polyfill')
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
@@ -68,7 +62,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 window.__NEXT_P.push = register
 
-const headManager = new HeadManager()
+const updateHead = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps
@@ -97,9 +91,10 @@ class Container extends React.Component {
         })
     }
 
-    // If page was exported and has a querystring
-    // If it's a dynamic route or has a querystring
-    // if it's a fallback page
+    // We need to replace the router state if:
+    // - the page was (auto) exported and has a query string or search (hash)
+    // - it was auto exported and is a dynamic route (to provide params)
+    // - if it is a client-side skeleton (fallback render)
     if (
       router.isSsr &&
       (isFallback ||
@@ -121,6 +116,10 @@ class Container extends React.Component {
           // client-side hydration. Your app should _never_ use this property.
           // It may change at any time without notice.
           _h: 1,
+          // Fallback pages must trigger the data fetch, so the transition is
+          // not shallow.
+          // Other pages (strictly updating query) happens shallowly, as data
+          // requirements would already be present.
           shallow: !isFallback,
         }
       )
@@ -167,8 +166,14 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
   const { page: app, mod } = await pageLoader.loadPageScript('/_app')
   App = app
   if (mod && mod.unstable_onPerformanceData) {
-    onPerfEntry = function({ name, startTime, value, duration }) {
-      mod.unstable_onPerformanceData({ name, startTime, value, duration })
+    onPerfEntry = function({ name, startTime, value, duration, entryType }) {
+      mod.unstable_onPerformanceData({
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+      })
     }
   }
 
@@ -201,6 +206,7 @@ export default async ({ webpackHMR: passedWebpackHMR } = {}) => {
     Component,
     wrapApp,
     err: initialErr,
+    isFallback,
     subscription: ({ Component, props, err }, App) => {
       render({ App, Component, props, err })
     },
@@ -318,14 +324,9 @@ function renderReactElement(reactEl, domEl) {
 
   if (onPerfEntry && ST) {
     try {
-      const observer = new PerformanceObserver(list => {
-        list.getEntries().forEach(onPerfEntry)
-      })
-      // Start observing paint entry types.
-      observer.observe({
-        type: 'paint',
-        buffered: true,
-      })
+      observeLayoutShift(onPerfEntry)
+      observeLargestContentfulPaint(onPerfEntry)
+      observePaint(onPerfEntry)
     } catch (e) {
       window.addEventListener('load', () => {
         performance.getEntriesByType('paint').forEach(onPerfEntry)
@@ -402,7 +403,7 @@ function AppContainer({ children }) {
       }
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager.updateHead}>
+        <HeadManagerContext.Provider value={updateHead}>
           {children}
         </HeadManagerContext.Provider>
       </RouterContext.Provider>

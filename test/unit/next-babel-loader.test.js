@@ -255,7 +255,7 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo;bar;baz;cats;baz2;ff; return { props: {} } }`,
+          `export function getStaticProps() {foo;bar;baz;cats;baz2;ff; return { props: {} } }`,
         { resourcePath: pageFile }
       )
       expect(code).toMatchInlineSnapshot(
@@ -276,12 +276,12 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
+          `export function getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
           `export default function () { return bar(); }`,
         { resourcePath: pageFile, isServer: true }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import ooo from\\"ooo\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";export function unstable_getStaticProps(){foo();baz2();ff();ooo();return{props:{}};}export default function(){return bar();}"`
+        `"import\\"core-js\\";import{foo,bar}from\\"a\\";import baz from\\"b\\";import ooo from\\"ooo\\";import*as React from\\"react\\";import baz2,{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee,f as ff}from\\"f\\";export function getStaticProps(){foo();baz2();ff();ooo();return{props:{}};}export default function(){return bar();}"`
       )
     })
 
@@ -298,12 +298,12 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo();baz2();ff();ooo();cats; return { props: {} }}` +
+          `export function getStaticProps() {foo();baz2();ff();ooo();cats; return { props: {} }}` +
           `export default function () { return cats + bar(); }`,
         { resourcePath: pageFile, isServer: false }
       )
       expect(code).toMatchInlineSnapshot(
-        `"import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";var __NEXT_COMP=function(){return cats+bar();};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 
@@ -320,12 +320,12 @@ describe('next-babel-loader', () => {
           `import{c,d}from"e";` +
           `import{e as ee,f as ff}from"f";` +
           `` +
-          `export function unstable_getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
+          `export function getStaticProps() {foo();baz2();ff();ooo(); return { props: {} }}` +
           `export default function () { return <div>{cats + bar()}</div> }`,
         { resourcePath: pageFile, isServer: false }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";const __NEXT_COMP=function(){return __jsx(\\"div\\",null,cats+bar());};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
+        `"var __jsx=React.createElement;import\\"core-js\\";import{bar}from\\"a\\";import baz from\\"b\\";import*as React from\\"react\\";import{yeet}from\\"c\\";import baz3,{cats}from\\"d\\";import{c,d}from\\"e\\";import{e as ee}from\\"f\\";var __NEXT_COMP=function(){return __jsx(\\"div\\",null,cats+bar());};__NEXT_COMP.__N_SSG=true export default __NEXT_COMP;"`
       )
     })
 

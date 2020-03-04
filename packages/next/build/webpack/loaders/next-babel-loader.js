@@ -59,7 +59,6 @@ module.exports = babelLoader.custom(babel => {
         hasModern: opts.hasModern,
         babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
-        polyfillsOptimization: opts.polyfillsOptimization,
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign(
@@ -72,7 +71,7 @@ module.exports = babelLoader.custom(babel => {
                 (opts.isServer ? '-server' : '') +
                 (opts.isModern ? '-modern' : '') +
                 (opts.hasModern ? '-has-modern' : '') +
-                (opts.polyfillsOptimization ? '-new-polyfills' : '') +
+                '-new-polyfills' +
                 (opts.development ? '-development' : '-production') +
                 JSON.stringify(
                   babel.loadPartialConfig({
@@ -95,7 +94,6 @@ module.exports = babelLoader.custom(babel => {
       delete loader.hasModern
       delete loader.pagesDir
       delete loader.babelPresetPlugins
-      delete loader.polyfillsOptimization
       delete loader.development
       return { loader, custom }
     },
@@ -110,7 +108,6 @@ module.exports = babelLoader.custom(babel => {
           pagesDir,
           babelPresetPlugins,
           development,
-          polyfillsOptimization,
         },
       }
     ) {
@@ -134,7 +131,6 @@ module.exports = babelLoader.custom(babel => {
 
       options.caller.isServer = isServer
       options.caller.isModern = isModern
-      options.caller.polyfillsOptimization = polyfillsOptimization
       options.caller.isDev = development
 
       options.plugins = options.plugins || []
