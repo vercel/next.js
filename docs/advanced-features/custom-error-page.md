@@ -4,17 +4,13 @@ description: Override and extend the built-in Error page to handle custom errors
 
 ## 404 Page
 
-A 404 page may be accessed very often. Server-rendering an error page for every visit increases the load for your server or the invocations for serverless functions. This can result in increased costs and slow experiences.
+A 404 page may be accessed very often. Server-rendering an error page for every visit increases the load of the Next.js server.. This can result in increased costs and slow experiences.
 
 To avoid the above pitfalls, Next.js provides a static 404 page by default without having to add any additional files.
 
-The static 404 page is automatically statically optimized at build time and used with `next start` and when deploying on [ZEIT Now](https://zeit.co).
-
-If you have a custom `pages/_app.js` with `getInitialProps`, the automatic static optimization will not be able to be applied since you are defining a global data dependency.
-
 ### Customizing The 404 Page
 
-To create a custom 404 page you can create a `pages/404.js` file. This file is meant to allow customizing the 404 page while keeping the page static and doesn't allow using any data-fetching methods like `getStaticProps`, `getServerSideProps`, or `getInitialProps`.
+To create a custom 404 page you can create a `pages/404.js` file.  This file is statically generated at build time.
 
 ```jsx
 // pages/404.js
@@ -23,13 +19,13 @@ export default function custom404() {
 }
 ```
 
-## 500 Page
 
-By default Next.js provides a 500 error page that matches the default 404 page's style. Unlike the 404 page, the 500 page is not statically optimized because 500 errors happen dynamically. This is why we separate error handling for the 404 page and the 500 page.
+## 500 Page
+By default Next.js provides a 500 error page that matches the default 404 page’s style. This page is not statically optimized as it allows server-side errors to be reported. This is why 404 and 500 (other errors) are separated.
 
 ### Customizing The Error Page
 
-**500** errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
+500 errors are handled both client-side and server-side by the `Error` component. If you wish to override it, define the file `pages/_error.js` and add the following code:
 
 ```jsx
 function Error({ statusCode }) {
@@ -50,7 +46,7 @@ Error.getInitialProps = ({ res, err }) => {
 export default Error
 ```
 
-> `pages/_error.js` is only used in production. In development you'll get an error with the call stack to know where the error originated from.
+> `pages/_error.js` is only used in production. In development you’ll get an error with the call stack to know where the error originated from.
 
 ### Reusing the built-in error page
 
