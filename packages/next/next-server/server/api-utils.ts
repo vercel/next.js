@@ -361,21 +361,12 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
-  const stringifiedData = JSON.stringify(data)
-
-  // preview mode cookie can't exceed 4KB or else the browser will drop it
-  if (stringifiedData.length > 4000) {
-    throw new Error(
-      `Preview data can not exceed 4KB as this exceeds the cookie limit`
-    )
-  }
-
   const jsonwebtoken = require('jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
     encryptWithSecret(
       Buffer.from(options.previewModeEncryptionKey),
-      stringifiedData
+      JSON.stringify(data)
     ),
     options.previewModeSigningKey,
     {
@@ -385,6 +376,14 @@ function setPreviewData<T>(
         : undefined),
     }
   )
+
+  // limit preview mode cookie to 2KB since we shouldn't store too much
+  // data here and browsers drop cookies over 4KB
+  if (payload.length > 2048) {
+    throw new Error(
+      `Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue`
+    )
+  }
 
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
