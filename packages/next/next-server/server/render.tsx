@@ -183,6 +183,8 @@ function renderDocument(
     htmlProps,
     bodyTags,
     headTags,
+    gsp,
+    gssp,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -203,6 +205,8 @@ function renderDocument(
     bodyTags: any
     headTags: any
     isFallback?: boolean
+    gsp?: boolean
+    gssp?: boolean
   }
 ): string {
   return (
@@ -223,6 +227,8 @@ function renderDocument(
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+            gsp, // whether the page is getStaticProps
+            gssp, // whether the page is getServerSideProps
           },
           dangerousAsPath,
           canonicalBase,
@@ -682,6 +688,8 @@ export async function renderToHTML(
     files,
     lowPriorityFiles,
     polyfillFiles,
+    gsp: !!getStaticProps ? true : undefined,
+    gssp: !!getServerSideProps ? true : undefined,
   })
 
   if (inAmpMode && html) {
