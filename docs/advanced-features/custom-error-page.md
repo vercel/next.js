@@ -4,7 +4,7 @@ description: Override and extend the built-in Error page to handle custom errors
 
 ## 404 Page
 
-A 404 page may be accessed very often. Server-rendering an error page for every visit increases the load of the Next.js server.. This can result in increased costs and slow experiences.
+A 404 page may be accessed very often. Server-rendering an error page for every visit increases the load of the Next.js server. This can result in increased costs and slow experiences.
 
 To avoid the above pitfalls, Next.js provides a static 404 page by default without having to add any additional files.
 
