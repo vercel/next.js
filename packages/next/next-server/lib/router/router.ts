@@ -83,7 +83,21 @@ function fetchNextData(
         // @ts-ignore __NEXT_DATA__
         pathname: `/_next/data/${__NEXT_DATA__.buildId}${pathname}.json`,
         query,
-      })
+      }),
+      {
+        // Cookies are required to be present for Next.js' SSG "Preview Mode".
+        // Cookies may also be required for `getServerSideProps`.
+        //
+        // > `fetch` won’t send cookies, unless you set the credentials init
+        // > option.
+        // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+        //
+        // > For maximum browser compatibility when it comes to sending &
+        // > receiving cookies, always supply the `credentials: 'same-origin'`
+        // > option instead of relying on the default.
+        // https://github.com/github/fetch#caveats
+        credentials: 'same-origin',
+      }
     ).then(res => {
       if (!res.ok) {
         if (--attempts > 0 && res.status >= 500) {
