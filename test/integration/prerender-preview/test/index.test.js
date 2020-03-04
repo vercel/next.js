@@ -63,6 +63,12 @@ function runTests(startServer = nextStart) {
     expect(pre).toBe('undefined and undefined')
   })
 
+  it('should throw error when setting too large of preview data', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/preview?tooBig=true')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('too big')
+  })
+
   let previewCookieString
   it('should enable preview mode', async () => {
     const res = await fetchViaHTTP(appPort, '/api/preview', { lets: 'goooo' })
