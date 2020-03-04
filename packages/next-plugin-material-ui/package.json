@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-material-ui",
-  "version": "9.2.3-canary.22",
+  "version": "9.2.3-canary.23",
   "nextjs": {
     "name": "Material UI",
     "required-env": []
