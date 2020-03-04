@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export function getServerProps() {
+export function getServerSideProps() {
   return { props: {} }
 }
 
