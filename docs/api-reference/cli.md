@@ -25,17 +25,16 @@ Available commands
 
 Options
   --version, -v   Version number
-  --inspect       Enable the Node.js inspector
   --help, -h      Displays this message
 
 For more information run a command with the --help flag
   $ next build --help
 ```
 
-You can pass any node arguments to `next` commands:
+You can pass any [node arguments](https://nodejs.org/api/cli.html#cli_node_options_options) to `next` commands:
 
 ```bash
-NODE_OPTIONS="--throw-deprecation" next
-NODE_OPTIONS="-r esm" next
-NODE_OPTIONS="--inspect" next
+NODE_OPTIONS='--throw-deprecation' next
+NODE_OPTIONS='-r esm' next
+NODE_OPTIONS='--inspect' next
 ```
