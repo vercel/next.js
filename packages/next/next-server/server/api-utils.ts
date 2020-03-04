@@ -24,7 +24,15 @@ export async function apiResolver(
   params: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  onError?: ({ err }: { err: any }) => Promise<void>
+  onError?: ({
+    err,
+    req,
+    res,
+  }: {
+    err: any
+    req: IncomingMessage
+    res: ServerResponse
+  }) => Promise<void>
 ) {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -86,7 +94,7 @@ export async function apiResolver(
       sendError(apiRes, err.statusCode, err.message)
     } else {
       console.error(err)
-      if (onError) await onError({ err })
+      if (onError) await onError({ err, req, res })
       sendError(apiRes, 500, 'Internal Server Error')
     }
   }

@@ -118,7 +118,15 @@ export default class Server {
     previewProps: __ApiPreviewProps
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
+  private onErrorMiddleware?: ({
+    err,
+    req,
+    res,
+  }: {
+    err: Error
+    req: IncomingMessage
+    res: ServerResponse
+  }) => Promise<void>
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes?: {
@@ -228,9 +236,13 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  private logError(err: Error): void {
+  private logError(
+    err: Error,
+    req: IncomingMessage,
+    res: ServerResponse
+  ): void {
     if (this.onErrorMiddleware) {
-      this.onErrorMiddleware({ err })
+      this.onErrorMiddleware({ err, req, res })
     }
     if (this.quiet) return
     // tslint:disable-next-line
@@ -267,9 +279,12 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
-      this.logError(err)
-      res.statusCode = 500
-      res.end('Internal Server Error')
+      this.logError(err, req, res)
+
+      if (!isResSent(res)) {
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
     }
   }
 
@@ -1182,9 +1197,12 @@ export default class Server {
         }
       }
     } catch (err) {
-      this.logError(err)
-      res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
+      this.logError(err, req, res)
+
+      if (!isResSent(res)) {
+        res.statusCode = 500
+        return await this.renderErrorToHTML(err, req, res, pathname, query)
+      }
     }
 
     res.statusCode = 404
