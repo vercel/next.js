@@ -23,6 +23,7 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
+const webpack5Experiential = parseInt(require('webpack').version) === 5
 
 export const css = curry(async function css(
   enabled: boolean,
@@ -92,7 +93,10 @@ export const css = curry(async function css(
           test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
-          issuer: { test: /pages[\\/]_document\./ },
+          // issuer only accepts a request in webpack 5, not an object
+          issuer: webpack5Experiential
+            ? /pages[\\/]_document\./
+            : { test: /pages[\\/]_document\./ },
           use: {
             loader: 'error-loader',
             options: {
@@ -119,10 +123,13 @@ export const css = curry(async function css(
           test: regexCssModules,
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
-          issuer: {
-            include: [ctx.rootDirectory],
-            exclude: /node_modules/,
-          },
+          issuer: webpack5Experiential
+            ? // webpack 5 only takes a request, not include/exclude object
+              ctx.rootDirectory
+            : {
+                include: [ctx.rootDirectory],
+                exclude: /node_modules/,
+              },
           use: getCssModuleLoader(ctx, postCssPlugins),
         },
       ],
@@ -143,10 +150,13 @@ export const css = curry(async function css(
             test: regexSassModules,
             // Sass Modules are only supported in the user's application. We're
             // not yet allowing Sass imports _within_ `node_modules`.
-            issuer: {
-              include: [ctx.rootDirectory],
-              exclude: /node_modules/,
-            },
+            issuer: webpack5Experiential
+              ? ctx.rootDirectory
+              : // webpack 5 only accepts a request, not include,exclude objects
+                {
+                  include: [ctx.rootDirectory],
+                  exclude: /node_modules/,
+                },
             use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
           },
         ],
@@ -199,7 +209,10 @@ export const css = curry(async function css(
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
             test: regexCssGlobal,
-            issuer: { include: ctx.customAppFile },
+            issuer: webpack5Experiential
+              ? ctx.customAppFile
+              : // webpack 5 only accepts a request, not include exclude
+                { include: ctx.customAppFile },
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
@@ -216,7 +229,10 @@ export const css = curry(async function css(
               // See https://github.com/webpack/webpack/issues/6571
               sideEffects: true,
               test: regexSassGlobal,
-              issuer: { include: ctx.customAppFile },
+              issuer: webpack5Experiential
+                ? ctx.customAppFile
+                : // webpack 5 only accepts a request, not include exclude
+                  { include: ctx.customAppFile },
               use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
             },
           ],
@@ -234,7 +250,9 @@ export const css = curry(async function css(
             regexCssGlobal,
             (scssEnabled && regexSassGlobal) as RegExp,
           ].filter(Boolean),
-          issuer: { include: [/node_modules/] },
+          issuer: webpack5Experiential
+            ? /node_modules/
+            : { include: [/node_modules/] },
           use: {
             loader: 'error-loader',
             options: {
@@ -277,7 +295,10 @@ export const css = curry(async function css(
         oneOf: [
           {
             // This should only be applied to CSS files
-            issuer: { test: regexLikeCss },
+            issuer: webpack5Experiential
+              ? regexLikeCss
+              : // only accepts a request in webpack 5, not test
+                { test: regexLikeCss },
             // Exclude extensions that webpack handles by default
             exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
             use: {

@@ -46,7 +46,8 @@
     "build": "taskr",
     "release": "taskr release",
     "prepublish": "npm run release && yarn types",
-    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
+    "types": "echo 0",
+    "typesReal": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration"
   },
   "taskr": {
@@ -114,7 +115,8 @@
     "loader-utils": "2.0.0",
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
-    "mini-css-extract-plugin": "0.8.0",
+    "mini-css-extract-plugin": "0.9.0",
+    "mkdirp": "0.5.1",
     "native-url": "0.2.6",
     "node-fetch": "2.6.0",
     "ora": "3.4.0",
@@ -143,8 +145,8 @@
     "url": "0.11.0",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
-    "webpack": "4.42.0",
-    "webpack-dev-middleware": "3.7.0",
+    "webpack": "git://github.com/webpack/webpack.git#dev-1",
+    "webpack-dev-middleware": "4.0.0-rc.1",
     "webpack-hot-middleware": "2.25.0",
     "webpack-sources": "1.4.3"
   },

@@ -27,11 +27,13 @@ SOFTWARE.
 const friendlySyntaxErrorLabel = 'Syntax error:'
 
 function isLikelyASyntaxError(message) {
+  return false
   return message.indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
 // Cleans up webpack error messages.
 function formatMessage(message) {
+  if (!message.split) return
   let lines = message.split('\n')
 
   // Strip Webpack-added headers off errors/warnings
@@ -70,7 +72,9 @@ function formatMessage(message) {
     /^.*export '(.+?)' \(imported as '(.+?)'\) was not found in '(.+?)'.*$/gm,
     `Attempted import error: '$1' is not exported from '$3' (imported as '$2').`
   )
-  lines = message.split('\n')
+  if (message.split) {
+    lines = message.split('\n')
+  }
 
   // Remove leading newline
   if (lines.length > 2 && lines[1].trim() === '') {
@@ -132,6 +136,7 @@ function formatWebpackMessages(json) {
   })
   const result = { errors: formattedErrors, warnings: formattedWarnings }
   if (result.errors.some(isLikelyASyntaxError)) {
+    console.log(result);
     // If there are any syntax errors, show just them.
     result.errors = result.errors.filter(isLikelyASyntaxError)
   }

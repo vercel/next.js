@@ -22,6 +22,8 @@ const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
+const IS_WEBPACK_5 = true
+
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
 function addEntry(
   compilation: webpack.compilation.Compilation,
@@ -37,6 +39,36 @@ function addEntry(
     })
   })
 }
+
+const getAllEntries = (entries, compiler) =>
+  Object.keys(entries).map(async page => {
+    if (compiler.name === 'client' && page.match(API_ROUTE)) {
+      return
+    }
+
+    const { name, absolutePagePath } = entries[page]
+    const pageExists = await isWriteable(absolutePagePath)
+    if (!pageExists) {
+      // page was removed
+      delete entries[page]
+      return
+    }
+    console.log('adding page', JSON.stringify(page))
+    entries[page].status = BUILDING
+
+    return {
+      name,
+      absolutePagePath,
+      page,
+      loadAs:
+        compiler.name === 'client'
+          ? `next-client-pages-loader?${stringify({
+              page,
+              absolutePagePath,
+            })}!`
+          : absolutePagePath,
+    }
+  })
 
 export default function onDemandEntryHandler(
   devMiddleware: WebpackDevMiddleware.WebpackDevMiddleware,
@@ -67,37 +99,55 @@ export default function onDemandEntryHandler(
   let reloadCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
-    compiler.hooks.make.tapPromise(
-      'NextJsOnDemandEntries',
-      (compilation: webpack.compilation.Compilation) => {
-        invalidator.startBuilding()
+    IS_WEBPACK_5 &&
+      new DynamicEntryPlugin(compiler.context, async () => {
+        const theEntries = await Promise.all(getAllEntries(entries, compiler))
+        const allEntries = theEntries
+          .filter(Boolean)
+          .reduce((result, { name, loadAs, absolutePagePath, page }) => {
+            console.log('w5 loading ', { name, loadAs, absolutePagePath, page })
 
-        const allEntries = Object.keys(entries).map(async page => {
-          if (compiler.name === 'client' && page.match(API_ROUTE)) {
-            return
+            return {
+              ...result,
+              [name]: {
+                import: [loadAs],
+              },
+            }
+          }, {})
+
+        console.log('adding entry for ', { allEntries })
+
+        return allEntries
+      }).apply(compiler)
+
+    IS_WEBPACK_5 &&
+      compiler.hooks.make.intercept({
+        tap(name, type, fn) {
+          return (compilation, context) => {
+            console.log('running tap for ', name, { IS_WEBPACK_5 })
+            if (name === 'DynamicEntryPlugin') {
+              invalidator.startBuilding()
+            }
+            return fn(compilation, context)
           }
-          const { name, absolutePagePath } = entries[page]
-          const pageExists = await isWriteable(absolutePagePath)
-          if (!pageExists) {
-            // page was removed
-            delete entries[page]
-            return
-          }
+        },
+      })
 
-          entries[page].status = BUILDING
-          return addEntry(compilation, compiler.context, name, [
-            compiler.name === 'client'
-              ? `next-client-pages-loader?${stringify({
-                  page,
-                  absolutePagePath,
-                })}!`
-              : absolutePagePath,
-          ])
-        })
+    !IS_WEBPACK_5 &&
+      compiler.hooks.make.tapPromise(
+        'NextJsOnDemandEntries',
+        (compilation: webpack.compilation.Compilation) => {
+          invalidator.startBuilding()
 
-        return Promise.all(allEntries).catch(err => console.error(err))
-      }
-    )
+          return Promise.all(getAllEntries(entries, compiler))
+            .then(entries => {
+              return entries.filter(Boolean).map(({ name, loadAs }) => {
+                return addEntry(compilation, compiler.context, name, [loadAs])
+              })
+            })
+            .catch(err => console.error(err))
+        }
+      )
   }
 
   function findHardFailedPages(errors: any[]) {

@@ -9,13 +9,18 @@ import {
 import { normalizePagePath } from './normalize-page-path'
 
 const readFile = promisify(fs.readFile)
+const webpack5Experiential = parseInt(require('webpack').version) === 5
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
   err.code = 'ENOENT'
   return err
 }
-
+// hack for webpack 5 dev
+// function require(module) {
+//   delete require.cache[require.resolve(module)]
+//   return require(module)
+// }
 export function getPagePath(
   page: string,
   distDir: string,
@@ -26,7 +31,9 @@ export function getPagePath(
     distDir,
     serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
-  const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
+  const pagesManifest = webpack5Experiential
+    ? require(join(serverBuildPath, PAGES_MANIFEST))
+    : require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
     page = normalizePagePath(page)
@@ -56,5 +63,5 @@ export function requirePage(
   if (pagePath.endsWith('.html')) {
     return readFile(pagePath, 'utf8')
   }
-  return require(pagePath)
+  return webpack5Experiential ? require(pagePath) : require(pagePath)
 }
