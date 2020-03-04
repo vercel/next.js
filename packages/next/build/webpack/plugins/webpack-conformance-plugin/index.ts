@@ -11,7 +11,8 @@ import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'recast'
 
 export { MinificationConformanceCheck } from './checks/minification-conformance-check'
-// export { ReactSyncScriptsConformanceTest } from './tests/react-sync-scripts-conformance';
+export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
+export { DuplicatePolyfillsConformanceCheck } from './checks/duplicate-polyfills-conformance-check'
 
 export interface IWebpackConformancePluginOptions {
   tests: IWebpackConformanceTest[]
