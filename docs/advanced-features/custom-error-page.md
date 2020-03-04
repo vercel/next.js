@@ -4,7 +4,7 @@ description: Override and extend the built-in Error page to handle custom errors
 
 ## 404 Page
 
-A 404 page may be accessed very often. Rendering the `_error` page for every visit increases the load for your server or the invocations for serverless functions. This can result in increased costs and slow experiences.
+A 404 page may be accessed very often. Server-rendering an error page for every visit increases the load for your server or the invocations for serverless functions. This can result in increased costs and slow experiences.
 
 To avoid the above pitfalls, Next.js provides a static 404 page by default without having to add any additional files.
 
@@ -25,7 +25,7 @@ export default function custom404() {
 
 ## 500 Page
 
-By default Next.js provides an error page that matches the default 404 page's style. This page is not statically optimized like the 404 page and is why we allow creating a separate `pages/404.js` file to enable you to report 500 errors without de-optimizing your 404 page.
+By default Next.js provides a 500 error page that matches the default 404 page's style. Unlike the 404 page, the 500 page is not statically optimized because 500 errors happen dynamically. This is why we separate error handling for the 404 page and the 500 page.
 
 ### Customizing The Error Page
 
