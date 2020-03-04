@@ -10,7 +10,7 @@ To avoid the above pitfalls, Next.js provides a static 404 page by default witho
 
 ### Customizing The 404 Page
 
-To create a custom 404 page you can create a `pages/404.js` file.  This file is statically generated at build time.
+To create a custom 404 page you can create a `pages/404.js` file. This file is statically generated at build time.
 
 ```jsx
 // pages/404.js
@@ -19,8 +19,8 @@ export default function Custom404() {
 }
 ```
 
-
 ## 500 Page
+
 By default Next.js provides a 500 error page that matches the default 404 page’s style. This page is not statically optimized as it allows server-side errors to be reported. This is why 404 and 500 (other errors) are separated.
 
 ### Customizing The Error Page
