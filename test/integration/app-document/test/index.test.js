@@ -38,7 +38,7 @@ describe('Document and App', () => {
 
   it('should not have any missing key warnings', async () => {
     await renderViaHTTP(context.appPort, '/')
-    expect(context.output).toMatch(
+    expect(context.output).not.toMatch(
       /Each child in a list should have a unique "key" prop/
     )
   })
