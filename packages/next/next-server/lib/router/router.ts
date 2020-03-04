@@ -708,6 +708,9 @@ export default class Router implements BaseRouter {
 
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          'Prefetch is not supported in development mode because it would trigger on-demand-entries'
+        )
         return
       }
 
