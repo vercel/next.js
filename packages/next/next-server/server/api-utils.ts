@@ -377,6 +377,14 @@ function setPreviewData<T>(
     }
   )
 
+  // limit preview mode cookie to 2KB since we shouldn't store too much
+  // data here and browsers drop cookies over 4KB
+  if (payload.length > 2048) {
+    throw new Error(
+      `Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue`
+    )
+  }
+
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
