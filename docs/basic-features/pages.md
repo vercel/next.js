@@ -22,7 +22,7 @@ export default About
 
 Next.js supports pages with dynamic routes. For example, if you create a file called `pages/posts/[id].js`, then it will be accessible at `posts/1`, `posts/2`, etc.
 
-> To learn more about dynamic routing, check the [routing documentation](/docs/routing/dynamic-routes.md).
+> To learn more about dynamic routing, check the [Routing documentation](/docs/routing/dynamic-routes.md).
 
 ## Pre-rendering
 
@@ -124,7 +124,7 @@ To learn more about how `getStaticProps` works, check out the [Data Fetching doc
 
 Next.js allows you to create pages with **dynamic routes**. For example, you can create a file called `pages/posts/[id].js` to show a single blog post based on `id`. This will allow you to show a blog post with `id: 1` when you access `posts/1`.
 
-> To learn more about dynamic routing, check the [routing documentation](/docs/routing/dynamic-routes.md).
+> To learn more about dynamic routing, check the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
 
 However, which `id` you want to pre-render at build time might depend on external data.
 
@@ -198,7 +198,7 @@ On the other hand, Static Generation is **not** a good idea if you cannot pre-re
 
 In cases like this, you can do one of the following:
 
-- Use Static Generation with **Client-side Rendering:** You can skip pre-rendering some parts of a page and then use client-side JavaScript to populate them. To learn more about this approach, check out the [Data Fetching documentation](/docs/basic-features/data-fetching#fetching-data-on-the-client-side.md).
+- Use Static Generation with **Client-side Rendering:** You can skip pre-rendering some parts of a page and then use client-side JavaScript to populate them. To learn more about this approach, check out the [Data Fetching documentation](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side).
 - Use **Server-Side Rendering:** Next.js pre-renders a page on each request. It will be slower because the page cannot be cached by a CDN, but the pre-rendered page will always be up-to-date. We'll talk about this approach below.
 
 ## Server-side Rendering
