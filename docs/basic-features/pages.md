@@ -41,7 +41,7 @@ Importantly, Next.js lets you **choose** which pre-rendering form you'd like to 
 
 We **recommend** using **Static Generation** over Server-side Rendering for performance reasons. Statically generated pages can be cached by CDN to boost performance. However, in some cases, Server-side Rendering might be the only option.
 
-Finally, you can always use **Client-side Rendering** along with Static Generation or Server-side Rendering. That means some parts of a page can be rendered entirely by client side JavaScript. To learn more, take a look at the [data fetching](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side) documentation.
+Finally, you can always use **Client-side Rendering** along with Static Generation or Server-side Rendering. That means some parts of a page can be rendered entirely by client side JavaScript. To learn more, take a look at the [Data Fetching](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side) documentation.
 
 ## Static Generation (Recommended)
 
