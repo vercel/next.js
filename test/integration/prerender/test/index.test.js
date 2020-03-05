@@ -983,6 +983,46 @@ describe('SSG Prerender', () => {
     runTests(true)
   })
 
+  describe('dev mode getStaticPaths', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        // we set cpus to 1 so that we make sure the requests
+        // aren't being cached at the jest-worker level
+        `module.exports = { experimental: { cpus: 1 } }`,
+        'utf8'
+      )
+      await fs.remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await fs.remove(nextConfig)
+      await killApp(app)
+    })
+
+    it('should not cache getStaticPaths errors', async () => {
+      const errMsg = /The `fallback` key must be returned from getStaticPaths/
+      await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+
+      const blogPage = join(appDir, 'pages/blog/[post]/index.js')
+      const origContent = await fs.readFile(blogPage, 'utf8')
+      await fs.writeFile(
+        blogPage,
+        origContent.replace('fallback: true,', '/* fallback: true, */')
+      )
+
+      try {
+        await check(() => renderViaHTTP(appPort, '/blog/post-1'), errMsg)
+
+        await fs.writeFile(blogPage, origContent)
+        await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+      } finally {
+        await fs.writeFile(blogPage, origContent)
+      }
+    })
+  })
+
   describe('serverless mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
