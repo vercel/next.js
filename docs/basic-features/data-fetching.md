@@ -4,7 +4,7 @@ description: Next.js can handle data fetching in multiple ways for server-render
 
 # Data Fetching
 
-> This document is for Next.js versions 9.3 and up. If you're using older versions of Next.js, refer to our [previous documentation](/docs/tag/v9.2.2/basic-features/data-fetching).
+> This document is for Next.js versions 9.3 and up. If you're using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
 In the [Pages documentation](/docs/basic-features/pages.md), we've explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we'll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](<(/docs/basic-features/pages.md)>) first if you haven't done so.
 
