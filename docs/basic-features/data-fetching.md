@@ -110,7 +110,7 @@ In development (`next dev`), `getStaticProps` will be called on every request.
 
 ## `getStaticPaths` (Static Generation)
 
-If a page has dynamic routes ([documentation](https://nextjs.org/docs/routing/dynamic-routes)) and uses `getStaticProps` it needs to define a list of paths that have to be rendered to HTML at build time.
+If a page has dynamic routes ([documentation](/docs/routing/dynamic-routes.md)) and uses `getStaticProps` it needs to define a list of paths that have to be rendered to HTML at build time.
 
 If you export an `async` function called `getStaticPaths` from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
