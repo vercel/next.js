@@ -102,7 +102,7 @@ This JSON file will be used in client-side routing through `next/link` ([documen
 
 One of the reasons for this restriction is that React needs to have all the required data before the page is rendered.
 
-Also, you must use  `export async function getStaticProps() {}` — it will **not** work if you add `getStaticProps` as a property of the page component.
+Also, you must use `export async function getStaticProps() {}` — it will **not** work if you add `getStaticProps` as a property of the page component.
 
 #### Runs on every request in development
 
@@ -341,7 +341,7 @@ If you don’t need to pre-render the data, then you should consider fetching da
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps` , then:
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
-- When you request this page on client-side page transitions through  `next/link` ([documentation](/docs/api-reference/next/link.md)), Next.js sends an API request to server, which runs `getServerSideProps`. It’ll return a JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
+- When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)), Next.js sends an API request to server, which runs `getServerSideProps`. It’ll return a JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
 #### Only allowed in a page
 
@@ -350,6 +350,7 @@ If you don’t need to pre-render the data, then you should consider fetching da
 Also, you must use `export async function getServerSideProps() {}` — it will **not** work if you add `getServerSideProps` as a property of the page component.
 
 ## Fetching data on the client side
+
 If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the client side. An example of this is user-specific data. Here’s how it works:
 
 - First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data.
