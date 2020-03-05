@@ -192,7 +192,7 @@ export async function getStaticProps({ params }) {
 export default Post
 ```
 
-#### `**fallback: true**`
+#### `fallback: true`
 
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
