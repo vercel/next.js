@@ -380,15 +380,15 @@ function Profile() {
 
 We recommend you to read the following sections next:
 
-<div class=“card”>
-  <a href=“/docs/routing/introduction.md”>
+<div class="card">
+  <a href="/docs/routing/introduction.md">
     <b>Routing:</b>
     <small>Learn more about routing in Next.js.</small>
   </a>
 </div>
 
-<div class=“card”>
-  <a href=“/docs/basic-features/typescript.md#pages”>
+<div class="card">
+  <a href="/docs/basic-features/typescript.md#pages">
     <b>TypeScript:</b>
     <small>Add TypeScript to your pages.</small>
   </a>
