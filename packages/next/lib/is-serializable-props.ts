@@ -23,6 +23,21 @@ export function isSerializableProps(
     )
   }
 
+  const visited = new WeakSet()
+
+  function visit(value: any, path: string) {
+    if (visited.has(value)) {
+      throw new SerializableError(
+        page,
+        method,
+        path,
+        'Circular references cannot be expressed in JSON.'
+      )
+    }
+
+    visited.add(value)
+  }
+
   function isSerializable(value: any, path: string): true {
     const type = typeof value
     if (
@@ -50,6 +65,8 @@ export function isSerializableProps(
     }
 
     if (isPlainObject(value)) {
+      visit(value, path)
+
       if (
         Object.entries(value).every(([key, value]) => {
           const nextPath = regexpPlainIdentifier.test(key)
@@ -73,6 +90,8 @@ export function isSerializableProps(
     }
 
     if (Array.isArray(value)) {
+      visit(value, path)
+
       if (
         value.every((value, index) =>
           isSerializable(value, `${path}[${index}]`)
@@ -95,7 +114,9 @@ export function isSerializableProps(
       page,
       method,
       path,
-      type +
+      '`' +
+        type +
+        '`' +
         (type === 'object'
           ? ` ("${Object.prototype.toString.call(value)}")`
           : '') +
