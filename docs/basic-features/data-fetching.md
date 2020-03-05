@@ -4,17 +4,17 @@ description: Next.js can handle data fetching in multiple ways for server-render
 
 # Data fetching
 
-> This document is for Next.js versions 9.3 and up. If you're using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
+> This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
-In the [Pages documentation](/docs/basic-features/pages.md), we've explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we'll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven't done so.
+In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained that Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. In this page, we’ll talk in depths about data fetching strategies for each case. We recommend you to [read through the Pages documentation](/docs/basic-features/pages.md) first if you haven’t done so.
 
-We'll talk about the three special Next.js functions you can use to fetch data for pre-rendering:
+We’ll talk about the three special Next.js functions you can use to fetch data for pre-rendering:
 
 - `getStaticProps` (Static Generation): Fetch data at **build time**.
 - `getStaticPaths` (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
 - `getServerSideProps` (Server-side Rendering): Fetch data on **each request**.
 
-In addition, we'll talk briefly about how to do fetch data on the client side.
+In addition, we’ll talk briefly about how to do fetch data on the client side.
 
 ## `getStaticProps` (Static Generation)
 
@@ -30,11 +30,11 @@ export async function getStaticProps(context) {
 
 The `context` parameter is an object containing the following keys:
 
-- `params`: `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we'll explain later.
+- `params`: `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
 
 ### Simple Example
 
-Here's an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
+Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
 // You can use any data fetching library
@@ -75,7 +75,7 @@ export default Blog
 
 You should use `getStaticProps` if:
 
-- The data required to render the page is available at build time ahead of a user's request.
+- The data required to render the page is available at build time ahead of a user’s request.
 - The data comes from headless CMS.
 - The data can be publicly cached (not user-specific).
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
@@ -84,25 +84,25 @@ You should use `getStaticProps` if:
 
 #### Only runs at build time
 
-Because `getStaticProps` runs at build time, it does **not** receive data that's only available during request time, such as query parameters or HTTP headers as it generates static HTML.
+Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or HTTP headers as it generates static HTML.
 
 #### Write server-side code directly
 
-Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won't even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers. You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
+Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers. You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
 
 #### Statically Generates both HTML and JSON
 
 When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
 
-This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that's pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
+This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
 
 #### Only allowed in a page
 
-`getStaticProps` can only be exported from a **page**. You can't export it from non-page files.
+`getStaticProps` can only be exported from a **page**. You can’t export it from non-page files.
 
 One of the reasons for this restriction is that React needs to have all the required data before the page is rendered.
 
-Also, you must use `export` — it will **not** work if you add `getStaticProps` as a property of the page component.
+Also, you must use  `export async function getStaticProps() {}` — it will **not** work if you add `getStaticProps` as a property of the page component.
 
 #### Runs on every request in development
 
@@ -152,9 +152,9 @@ The object returned by `getStaticPaths` must contain a boolean `fallback` key.
 
 #### `fallback: false`
 
-If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. You can do this if you have a small number of paths to pre-render - so they are all statically generated during build time. It's also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you'd need to run the build again.
+If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. You can do this if you have a small number of paths to pre-render - so they are all statically generated during build time. It’s also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you’d need to run the build again.
 
-Here's an example which pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths` . Then, for each page, it fetches the post data from a CMS using `getStaticProps`. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
+Here’s an example which pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths` . Then, for each page, it fetches the post data from a CMS using `getStaticProps`. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
 // pages/posts/[id].js
@@ -197,19 +197,19 @@ export default Post
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time.
-- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a "fallback" version of the page on the first request to such a path (see ["Fallback pages"](#fallback-pages) below for details).
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
-- When that's done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user's perspective, the page will be swapped from the fallback page to the full page.
+- When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
 #### Fallback pages
 
-In the "fallback" version of a page:
+In the “fallback” version of a page:
 
-- The page's props will be empty.
-- If you use the [router](/docs/api-reference/next/router.md)), `router.isFallback` will be `true`. Learn more about the router [here](/docs/api-reference/next/router.md).
+- The page’s props will be empty.
+- Using the [router](/docs/api-reference/next/router.md)), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
 
-Here's an example that uses `isFallback`:
+Here’s an example that uses `isFallback`:
 
 ```jsx
 // pages/posts/[id].js
@@ -257,13 +257,13 @@ export default Post
 
 `fallback: true` is useful if your app has a very large number of static pages that depend on data (think: a very large e-commerce site). You want to pre-render all product pages, but then your builds would take forever.
 
-Instead, you may statically generate a small subset of pages and use `fallback: true` for the rest. When someone requests a page that's not generated yet, the user will see the page with a loading indicator. Shortly after, `getStaticProps` finishes and the page will be rendered with the requested data. From now on, everyone who requests the same page will get the statically pre-rendered page.
+Instead, you may statically generate a small subset of pages and use `fallback: true` for the rest. When someone requests a page that’s not generated yet, the user will see the page with a loading indicator. Shortly after, `getStaticProps` finishes and the page will be rendered with the requested data. From now on, everyone who requests the same page will get the statically pre-rendered page.
 
 This ensures that users always have a fast experience while preserving fast builds and the benefits of Static Generation.
 
 ### When should I use `getStaticPaths`?
 
-You should use `getStaticPaths` if you're statically pre-rendering pages that use dynamic routes.
+You should use `getStaticPaths` if you’re statically pre-rendering pages that use dynamic routes.
 
 ### Technical details
 
@@ -279,9 +279,9 @@ You cannot use `getStaticPaths` with `getServerSideProps`.
 
 #### Only allowed in a page
 
-`getStaticPaths` can only be exported from a **page**. You can't export it from non-page files.
+`getStaticPaths` can only be exported from a **page**. You can’t export it from non-page files.
 
-Also, you must use `export` — it will **not** work if you add `getStaticPaths` as a property of the page component.
+Also, you must use `export async function getStaticPaths() {}` — it will **not** work if you add `getStaticPaths` as a property of the page component.
 
 #### Runs on every request in development
 
@@ -308,7 +308,7 @@ The `context` parameter is an object containing the following keys:
 
 ### Simple example
 
-Here's an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
+Here’s an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
 function Page({ data }) {
@@ -330,9 +330,9 @@ export default Page
 
 ### When should I use `getServerSideProps`?
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched on the request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by CDN.
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra .
 
-If you don't need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
+If you don’t need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
 
 ### Technical details
 
@@ -341,26 +341,25 @@ If you don't need to pre-render the data, then you should consider fetching data
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps` , then:
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
-- When you request this page on client-side page transitions, the browser sends an API request to Next.js, which runs `getServerSideProps`. It'll return a JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don't need to do anything extra as long as you have `getServerSideProps` defined.
+- When you request this page on client-side page transitions through  `next/link` ([documentation](/docs/api-reference/next/link.md)), Next.js sends an API request to server, which runs `getServerSideProps`. It’ll return a JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
 #### Only allowed in a page
 
-`getServerSideProps` can only be exported from a **page**. You can't export it from non-page files.
+`getServerSideProps` can only be exported from a **page**. You can’t export it from non-page files.
 
-Also, you must use `export` — it will **not** work if you add `getServerSideProps` as a property of the page component.
+Also, you must use `export async function getServerSideProps() {}` — it will **not** work if you add `getServerSideProps` as a property of the page component.
 
 ## Fetching data on the client side
+If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the client side. An example of this is user-specific data. Here’s how it works:
 
-If your page contains frequently updating data, and you don't need to pre-render the data, you can fetch the data on the client side. Here's how it works:
-
-- First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation (without data). You can show loading states for missing data.
+- First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data.
 - Then, fetch the data on the client side and display it when ready.
 
-This approach works well for user dashboard pages, for example. Because a dashboard is a private, user-specific page, SEO is irrelevant and the page doesn't need to be pre-rendered. And the data is frequently updated, which requires request-time data fetching.
+This approach works well for user dashboard pages, for example. Because a dashboard is a private, user-specific page, SEO is not relevant and the page doesn’t need to be pre-rendered. The data is frequently updated, which requires request-time data fetching.
 
 ### SWR
 
-ZEIT, the team behind Next.js, has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you're fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
+The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
 
 ```jsx
 import useSWR from 'swr'
@@ -380,15 +379,15 @@ function Profile() {
 
 We recommend you to read the following sections next:
 
-<div class="card">
-  <a href="/docs/routing/introduction.md">
+<div class=“card”>
+  <a href=“/docs/routing/introduction.md”>
     <b>Routing:</b>
     <small>Learn more about routing in Next.js.</small>
   </a>
 </div>
 
-<div class="card">
-  <a href="/docs/basic-features/typescript.md#pages">
+<div class=“card”>
+  <a href=“/docs/basic-features/typescript.md#pages”>
     <b>TypeScript:</b>
     <small>Add TypeScript to your pages.</small>
   </a>
