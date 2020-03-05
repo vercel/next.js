@@ -94,7 +94,7 @@ Note that `getStaticProps` runs only on the server-side. It will never be run on
 
 When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
 
-This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link)) or `next/router` ([documentation](/docs/api-reference/next/router)). When you navigate to a page that's pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
+This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that's pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
 
 #### Only allowed in a page
 
