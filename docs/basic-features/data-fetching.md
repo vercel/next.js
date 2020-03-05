@@ -362,15 +362,17 @@ This approach works well for user dashboard pages, for example. Because a dashbo
 
 ZEIT, the team behind Next.js, has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you're fetching data on the client side. It handles caching and revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
 
-    import useSWR from 'swr'
+```jsx
+import useSWR from 'swr'
 
-    function Profile () {
-      const { data, error } = useSWR('/api/user', fetch)
+function Profile() {
+  const { data, error } = useSWR('/api/user', fetch)
 
-      if (error) return <div>failed to load</div>
-      if (!data) return <div>loading...</div>
-      return <div>hello {data.name}!</div>
-    }
+  if (error) return <div>failed to load</div>
+  if (!data) return <div>loading...</div>
+  return <div>hello {data.name}!</div>
+}
+```
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
 
