@@ -52,7 +52,7 @@ export default function(render, fetch) {
     test('header renders default viewport', async () => {
       const html = await render('/default-head')
       expect(html).toContain(
-        '<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>'
+        '<meta name="viewport" content="width=device-width"/>'
       )
     })
 
