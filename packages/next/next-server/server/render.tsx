@@ -8,6 +8,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
 } from '../../lib/constants'
+import { isSerializableProps } from '../../lib/is-serializable-props'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import { AMP_RENDER_TARGET } from '../lib/constants'
@@ -496,6 +497,13 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
+      if (!isSerializableProps(pathname, 'getStaticProps', data.props)) {
+        // this fn should throw an error instead of ever returning `false`
+        throw new Error(
+          'invariant: getStaticProps did not return valid props. Please report this.'
+        )
+      }
+
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
@@ -549,6 +557,13 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      if (!isSerializableProps(pathname, 'getServerSideProps', data.props)) {
+        // this fn should throw an error instead of ever returning `false`
+        throw new Error(
+          'invariant: getServerSideProps did not return valid props. Please report this.'
+        )
       }
 
       props.pageProps = data.props
