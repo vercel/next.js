@@ -260,6 +260,7 @@ const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
 const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 
 export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
+const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function tryGetPreviewData(
   req: IncomingMessage,
@@ -376,6 +377,14 @@ function setPreviewData<T>(
     }
   )
 
+  // limit preview mode cookie to 2KB since we shouldn't store too much
+  // data here and browsers drop cookies over 4KB
+  if (payload.length > 2048) {
+    throw new Error(
+      `Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue`
+    )
+  }
+
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
@@ -405,6 +414,10 @@ function setPreviewData<T>(
 }
 
 function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
+  if (SYMBOL_CLEARED_COOKIES in res) {
+    return res
+  }
+
   const { serialize } = require('cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
@@ -432,6 +445,11 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
       path: '/',
     }),
   ])
+
+  Object.defineProperty(res, SYMBOL_CLEARED_COOKIES, {
+    value: true,
+    enumerable: false,
+  })
   return res
 }
 

@@ -41,7 +41,7 @@ import pathMatch from './lib/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { renderToHTML } from './render'
+import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath } from './require'
 import Router, {
   DynamicRoutes,
@@ -115,6 +115,7 @@ export default class Server {
     documentMiddlewareEnabled: boolean
     hasCssMode: boolean
     dev?: boolean
+    previewProps: __ApiPreviewProps
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -165,6 +166,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      previewProps: this.getPreviewProps(),
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -668,13 +670,12 @@ export default class Server {
       }
     }
 
-    const previewProps = this.getPreviewProps()
     await apiResolver(
       req,
       res,
       query,
       pageModule,
-      { ...previewProps },
+      this.renderOpts.previewProps,
       this.onErrorMiddleware
     )
     return true
@@ -780,7 +781,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {})
+    const html = await this.renderToHTML(req, res, pathname, query)
     // Request was ended by the user
     if (html === null) {
       return
@@ -869,8 +870,8 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     { components, query }: FindComponentsResult,
-    opts: any
-  ): Promise<string | false | null> {
+    opts: RenderOptsPartial
+  ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
@@ -890,7 +891,7 @@ export default class Server {
     const hasStaticPaths = !!components.getStaticPaths
 
     // Toggle whether or not this is a Data request
-    const isDataReq = query._nextDataReq
+    const isDataReq = !!query._nextDataReq
     delete query._nextDataReq
 
     // Serverless requests need its URL transformed back into the original
@@ -902,6 +903,14 @@ export default class Server {
         pathname: `/_next/data/${this.buildId}${pathname}.json`,
         query,
       })
+    }
+
+    let previewData: string | false | object | undefined
+    let isPreviewMode = false
+
+    if (isServerProps || isSSG) {
+      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+      isPreviewMode = previewData !== false
     }
 
     // non-spr requests should render like normal
@@ -922,7 +931,7 @@ export default class Server {
             !this.renderOpts.dev
               ? {
                   revalidate: -1,
-                  private: false, // Leave to user-land caching
+                  private: isPreviewMode, // Leave to user-land caching
                 }
               : undefined
           )
@@ -945,22 +954,27 @@ export default class Server {
           !this.renderOpts.dev
             ? {
                 revalidate: -1,
-                private: false, // Leave to user-land caching
+                private: isPreviewMode, // Leave to user-land caching
               }
             : undefined
         )
         return null
       }
 
-      return renderToHTML(req, res, pathname, query, {
+      const html = await renderToHTML(req, res, pathname, query, {
         ...components,
         ...opts,
       })
-    }
 
-    const previewProps = this.getPreviewProps()
-    const previewData = tryGetPreviewData(req, res, { ...previewProps })
-    const isPreviewMode = previewData !== false
+      if (html && isServerProps && isPreviewMode) {
+        sendPayload(res, html, 'text/html; charset=utf-8', {
+          revalidate: -1,
+          private: isPreviewMode,
+        })
+      }
+
+      return html
+    }
 
     // Compute the SPR cache key
     const urlPathname = parseUrl(req.url || '').pathname!
@@ -1017,15 +1031,16 @@ export default class Server {
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
       } else {
-        const renderOpts = {
+        const renderOpts: RenderOpts = {
           ...components,
           ...opts,
         }
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
         html = renderResult
-        pageData = renderOpts.pageData
-        sprRevalidate = renderOpts.revalidate
+        // TODO: change this to a different passing mechanism
+        pageData = (renderOpts as any).pageData
+        sprRevalidate = (renderOpts as any).revalidate
       }
 
       return { html, pageData, sprRevalidate }
@@ -1071,7 +1086,7 @@ export default class Server {
         // When fallback isn't present, abort this render so we 404
         !hasStaticFallback
       ) {
-        return false
+        throw new NoFallbackError()
       }
 
       let html: string
@@ -1127,27 +1142,23 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
-    {
-      amphtml,
-      hasAmp,
-    }: {
-      amphtml?: boolean
-      hasAmp?: boolean
-    } = {}
+    query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
-        const result2 = await this.renderToHTMLWithComponents(
-          req,
-          res,
-          pathname,
-          result,
-          { ...this.renderOpts, amphtml, hasAmp }
-        )
-        if (result2 !== false) {
-          return result2
+        try {
+          return await this.renderToHTMLWithComponents(
+            req,
+            res,
+            pathname,
+            result,
+            { ...this.renderOpts }
+          )
+        } catch (err) {
+          if (!(err instanceof NoFallbackError)) {
+            throw err
+          }
         }
       }
 
@@ -1164,20 +1175,18 @@ export default class Server {
             params
           )
           if (result) {
-            const result2 = await this.renderToHTMLWithComponents(
-              req,
-              res,
-              dynamicRoute.page,
-              result,
-              {
-                ...this.renderOpts,
-                params,
-                amphtml,
-                hasAmp,
+            try {
+              return await this.renderToHTMLWithComponents(
+                req,
+                res,
+                dynamicRoute.page,
+                result,
+                { ...this.renderOpts, params }
+              )
+            } catch (err) {
+              if (!(err instanceof NoFallbackError)) {
+                throw err
               }
-            )
-            if (result2 !== false) {
-              return result2
             }
           }
         }
@@ -1234,20 +1243,23 @@ export default class Server {
 
     let html: string | null
     try {
-      const result2 = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
-          err,
+      try {
+        html = await this.renderToHTMLWithComponents(
+          req,
+          res,
+          using404Page ? '/404' : '/_error',
+          result!,
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      } catch (err) {
+        if (err instanceof NoFallbackError) {
+          throw new Error('invariant: failed to render error page')
         }
-      )
-      if (result2 === false) {
-        throw new Error('invariant: failed to render error page')
+        throw err
       }
-      html = result2
     } catch (err) {
       console.error(err)
       res.statusCode = 500
@@ -1374,3 +1386,5 @@ function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
     },
   })
 }
+
+class NoFallbackError extends Error {}
