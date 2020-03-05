@@ -154,7 +154,7 @@ The object returned by `getStaticPaths` must contain a boolean `fallback` key.
 
 If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. You can do this if you have a small number of paths to pre-render - so they are all statically generated during build time. It's also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you'd need to run the build again.
 
-Here's an example which pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths` . Then, for each page, it fetches the post data from a CMS using `getStaticProps`. This example is also in the **Pages** documentation.
+Here's an example which pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths` . Then, for each page, it fetches the post data from a CMS using `getStaticProps`. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
 // pages/posts/[id].js
