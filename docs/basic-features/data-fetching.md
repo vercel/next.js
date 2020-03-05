@@ -1,5 +1,5 @@
 ---
-description: Next.js can handle data fetching in multiple ways for server-rendered and static pages. Learn how it works here.
+description: Next.js has 2 pre-rendering modes: Static Generation and Server-side rendering. Learn how they work here.
 ---
 
 # Data fetching
