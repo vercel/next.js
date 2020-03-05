@@ -22,7 +22,7 @@ export default About
 
 Next.js supports pages with dynamic routes. For example, if you create a file called `pages/posts/[id].js`, then it will be accessible at `posts/1`, `posts/2`, etc.
 
-> To learn more about dynamic routing, check the [Routing documentation](/docs/routing/dynamic-routes.md).
+> To learn more about dynamic routing, check the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
 
 ## Pre-rendering
 
