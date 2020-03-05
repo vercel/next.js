@@ -308,7 +308,7 @@ The `context` parameter is an object containing the following keys:
 
 ### Simple example
 
-Here's an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages](/docs/basic-features/pages.md) documentation.
+Here's an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
 ```jsx
 function Page({ data }) {
