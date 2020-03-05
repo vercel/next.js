@@ -64,7 +64,7 @@ export {
   NextApiHandler,
 }
 
-export type GetStaticProps = <P = { [key: string]: any }>(ctx: {
+export type GetStaticProps<P = { [key: string]: any }> = (ctx: {
   params?: ParsedUrlQuery
   preview?: boolean
   previewData?: any
@@ -78,7 +78,7 @@ export type GetStaticPaths = () => Promise<{
   fallback: boolean
 }>
 
-export type GetServerSideProps = <P = { [key: string]: any }>(context: {
+export type GetServerSideProps<P = { [key: string]: any }> = (context: {
   req: IncomingMessage
   res: ServerResponse
   params?: ParsedUrlQuery
