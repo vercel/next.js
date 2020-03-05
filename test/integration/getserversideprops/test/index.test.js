@@ -1,21 +1,23 @@
 /* eslint-env jest */
 /* global jasmine */
-import fs from 'fs-extra'
-import { join } from 'path'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
+import fs from 'fs-extra'
 import {
-  renderViaHTTP,
+  check,
   fetchViaHTTP,
   findPort,
-  launchApp,
+  getBrowserBodyText,
   killApp,
-  waitFor,
+  launchApp,
   nextBuild,
   nextStart,
   normalizeRegEx,
+  renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 const appDir = join(__dirname, '..')
@@ -367,6 +369,23 @@ const runTests = (dev = false) => {
       )
       expect(html).toContain(
         `Keys that need to be moved: world, query, params, time, random`
+      )
+    })
+
+    it('should show error for invalid JSON returned from getServerSideProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json')
+      expect(html).toContain(
+        'Error serializing `.time` returned from `getServerSideProps`'
+      )
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#non-json').click()
+
+      await check(
+        () => getBrowserBodyText(browser),
+        /Error serializing `.time` returned from `getServerSideProps`/
       )
     })
   } else {

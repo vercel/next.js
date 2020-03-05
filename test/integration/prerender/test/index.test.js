@@ -7,6 +7,7 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getBrowserBodyText,
   getReactErrorOverlayContent,
   initNextServerScript,
   killApp,
@@ -681,6 +682,23 @@ const runTests = (dev = false, looseMode = false) => {
 
       const curRandom = await browser.elementByCss('#random').text()
       expect(curRandom).toBe(initialRandom + '')
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json')
+      expect(html).toContain(
+        'Error serializing `.time` returned from `getStaticProps`'
+      )
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#non-json').click()
+
+      await check(
+        () => getBrowserBodyText(browser),
+        /Error serializing `.time` returned from `getStaticProps`/
+      )
     })
   } else {
     if (!looseMode) {
