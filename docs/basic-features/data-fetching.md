@@ -360,7 +360,7 @@ This approach works well for user dashboard pages, for example. Because a dashbo
 
 ### SWR
 
-ZEIT, the team behind Next.js, has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you're fetching data on the client side. It handles caching and revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
+ZEIT, the team behind Next.js, has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it If you're fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And the usage is very simple:
 
 ```jsx
 import useSWR from 'swr'
