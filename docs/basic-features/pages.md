@@ -30,7 +30,7 @@ By default, Next.js **pre-renders** every page. This means that Next.js generate
 
 Each generated HTML is associated with minimal JavaScript code necessary for that page. When a page is loaded by the browser, its JavaScript code runs and makes the page fully interactive. (This process is called _hydration_.)
 
-### Two Forms of Pre-rendering
+### Two forms of Pre-rendering
 
 Next.js has two forms of pre-rendering: **Static Generation** and **Server-side Rendering**. The difference is in **when** it generates the HTML for a page.
 
@@ -242,7 +242,7 @@ We've discussed two forms of pre-rendering for Next.js.
 - **Static Generation (Recommended):** The HTML is generated at **build time** and will be reused on each request. To make a page use Static Generation, just export the page component, or export `getStaticProps` (and `getStaticPaths` if necessary). It's great for pages that can be pre-rendered ahead of a user's request. You can also use it with Client-side Rendering to bring in additional data.
 - **Server-side Rendering:** The HTML is generated on **each request**. To make a page use Server-side Rendering, export `getServerSideProps`. Because Server-side Rendering results in slower performance than Static Generation, use this only if absolutely necessary.
 
-## Learn More
+## Learn more
 
 We recommend you to read the following sections next:
 

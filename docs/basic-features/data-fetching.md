@@ -2,7 +2,7 @@
 description: Next.js can handle data fetching in multiple ways for server-rendered and static pages. Learn how it works here.
 ---
 
-# Data Fetching
+# Data fetching
 
 > This document is for Next.js versions 9.3 and up. If you're using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
@@ -53,7 +53,7 @@ function Blog({ posts }) {
 
 // This function gets called at build time on server-side.
 // It won't be called on client-side, so you can even do
-// direct database queries. See the "Technical Details" section.
+// direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
   // Call an external API endpoint to get posts.
   const res = await fetch('https://.../posts')
@@ -80,7 +80,7 @@ You should use `getStaticProps` if:
 - The data can be publicly cached (not user-specific).
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
 
-### Technical Details
+### Technical details
 
 #### Only runs at build time
 
@@ -202,7 +202,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 - When that's done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user's perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
-#### Fallback Pages
+#### Fallback pages
 
 In the "fallback" version of a page:
 
@@ -265,7 +265,7 @@ This ensures that users always have a fast experience while preserving fast buil
 
 You should use `getStaticPaths` if you're statically pre-rendering pages that use dynamic routes.
 
-### Technical Details
+### Technical details
 
 #### Use together with `getStaticProps`
 
@@ -306,7 +306,7 @@ The `context` parameter is an object containing the following keys:
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: The query string.
 
-### Simple Example
+### Simple example
 
 Here's an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages](/docs/basic-features/pages.md) documentation.
 
@@ -334,7 +334,7 @@ You should use `getServerSideProps` only if you need to pre-render a page whose 
 
 If you don't need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
 
-### Technical Details
+### Technical details
 
 #### Only runs on server-side
 
@@ -376,7 +376,7 @@ function Profile() {
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
 
-## Learn More
+## Learn more
 
 We recommend you to read the following sections next:
 
