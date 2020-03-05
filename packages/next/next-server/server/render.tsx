@@ -184,6 +184,8 @@ function renderDocument(
     htmlProps,
     bodyTags,
     headTags,
+    gsp,
+    gssp,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -204,6 +206,8 @@ function renderDocument(
     bodyTags: any
     headTags: any
     isFallback?: boolean
+    gsp?: boolean
+    gssp?: boolean
   }
 ): string {
   return (
@@ -224,6 +228,8 @@ function renderDocument(
             dynamicIds:
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+            gsp, // whether the page is getStaticProps
+            gssp, // whether the page is getServerSideProps
           },
           dangerousAsPath,
           canonicalBase,
@@ -321,7 +327,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
 
-  const isSpr = !!getStaticProps
+  const isSSG = !!getStaticProps
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -332,7 +338,7 @@ export async function renderToHTML(
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
-    !isSpr &&
+    !isSSG &&
     !getServerSideProps
 
   if (
@@ -355,7 +361,7 @@ export async function renderToHTML(
     )
   }
 
-  if (hasPageGetInitialProps && isSpr) {
+  if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
 
@@ -363,17 +369,17 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
   }
 
-  if (getServerSideProps && isSpr) {
+  if (getServerSideProps && isSSG) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
-  if (!!getStaticPaths && !isSpr) {
+  if (!!getStaticPaths && !isSSG) {
     throw new Error(
       `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
     )
   }
 
-  if (isSpr && pageIsDynamic && !getStaticPaths) {
+  if (isSSG && pageIsDynamic && !getStaticPaths) {
     throw new Error(
       `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
         `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
@@ -414,7 +420,7 @@ export async function renderToHTML(
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
-  if (isSpr) renderOpts.nextExport = false
+  if (isSSG) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -471,12 +477,16 @@ export async function renderToHTML(
       router,
       ctx,
     })
+    let previewData: string | false | object | undefined
 
-    if (isSpr && !isFallback) {
+    if ((isSSG || getServerSideProps) && !isFallback) {
       // Reads of this are cached on the `req` object, so this should resolve
       // instantly. There's no need to pass this data down from a previous
       // invoke, where we'd have to consider server & serverless.
-      const previewData = tryGetPreviewData(req, res, previewProps)
+      previewData = tryGetPreviewData(req, res, previewProps)
+    }
+
+    if (isSSG && !isFallback) {
       const data = await getStaticProps!({
         env: curEnv,
         ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
@@ -530,6 +540,28 @@ export async function renderToHTML(
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
     }
+
+    if (getServerSideProps && !isFallback) {
+      const data = await getServerSideProps({
+        req,
+        res,
+        query,
+        env: curEnv,
+        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
+      })
+
+      const invalidKeys = Object.keys(data).filter(key => key !== 'props')
+
+      if (invalidKeys.length) {
+        throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      props.pageProps = data.props
+      ;(renderOpts as any).pageData = props
+    }
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -537,27 +569,8 @@ export async function renderToHTML(
     console.error(err)
   }
 
-  if (getServerSideProps && !isFallback) {
-    const data = await getServerSideProps({
-      env: curEnv,
-      req,
-      res,
-      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-      query,
-    })
-
-    const invalidKeys = Object.keys(data).filter(key => key !== 'props')
-
-    if (invalidKeys.length) {
-      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
-    }
-
-    props.pageProps = data.props
-    ;(renderOpts as any).pageData = props
-  }
-
   if (
-    !isSpr && // we only show this warning for legacy pages
+    !isSSG && // we only show this warning for legacy pages
     !getServerSideProps &&
     process.env.NODE_ENV !== 'production' &&
     Object.keys(props?.pageProps || {}).includes('url')
@@ -579,7 +592,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSpr) return null
+  if (isResSent(res) && !isSSG) return null
 
   const devFiles = buildManifest.devFiles
   const files = [
@@ -636,7 +649,7 @@ export async function renderToHTML(
     documentCtx
   )
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSpr) return null
+  if (isResSent(res) && !isSSG) return null
 
   if (!docProps || typeof docProps.html !== 'string') {
     const message = `"${getDisplayName(
@@ -688,6 +701,8 @@ export async function renderToHTML(
     files,
     lowPriorityFiles,
     polyfillFiles,
+    gsp: !!getStaticProps ? true : undefined,
+    gssp: !!getServerSideProps ? true : undefined,
   })
 
   if (inAmpMode && html) {

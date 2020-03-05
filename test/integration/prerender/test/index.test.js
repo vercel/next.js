@@ -282,6 +282,18 @@ const runTests = (dev = false, looseMode = false) => {
     expect(html).toMatch(/Post:.*?post-1/)
   })
 
+  it('should have gsp in __NEXT_DATA__', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').text()).gsp).toBe(true)
+  })
+
+  it('should not have gsp in __NEXT_DATA__ for non-GSP page', async () => {
+    const html = await renderViaHTTP(appPort, '/normal')
+    const $ = cheerio.load(html)
+    expect('gsp' in JSON.parse($('#__NEXT_DATA__').text())).toBe(false)
+  })
+
   it('should not supply query values to params or useRouter non-dynamic page SSR', async () => {
     const html = await renderViaHTTP(appPort, '/something?hello=world')
     const $ = cheerio.load(html)

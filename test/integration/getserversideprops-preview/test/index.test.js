@@ -49,24 +49,18 @@ function runTests(startServer = nextStart) {
     app = await startServer(appDir, appPort)
   })
 
-  it('should return prerendered page on first request', async () => {
+  it('should return page on first request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
     expect(pre).toBe('undefined and undefined')
   })
 
-  it('should return prerendered page on second request', async () => {
+  it('should return page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
     expect(pre).toBe('undefined and undefined')
-  })
-
-  it('should throw error when setting too large of preview data', async () => {
-    const res = await fetchViaHTTP(appPort, '/api/preview?tooBig=true')
-    expect(res.status).toBe(500)
-    expect(await res.text()).toBe('too big')
   })
 
   let previewCookieString
@@ -160,6 +154,12 @@ function runTests(startServer = nextStart) {
     })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
+  })
+
+  it('should throw error when setting too large of preview data', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/preview?tooBig=true')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('too big')
   })
 
   /** @type import('next-webdriver').Chain */
