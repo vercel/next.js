@@ -568,7 +568,7 @@ export async function renderToHTML(
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
-    if (!dev || !err) throw err
+    if (isDataReq || !dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
     console.error(err)

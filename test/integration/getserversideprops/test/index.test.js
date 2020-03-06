@@ -295,10 +295,10 @@ const runTests = (dev = false) => {
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
     await waitFor(500)
-    await browser.eval('window.beforeClick = true')
+    await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('true')
+    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
   })
 
   it('should always call getServerSideProps without caching', async () => {
