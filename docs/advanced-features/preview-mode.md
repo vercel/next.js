@@ -193,7 +193,7 @@ The following pages might also be useful.
 </div>
 
 <div class="card">
-  <a href="/docs/next.config.js/environment-variables.md">
+  <a href="/docs/api-reference/next.config.js/environment-variables.md">
     <b>Environment Variables:</b>
     <small>Learn more about environment variables in Next.js.</small>
   </a>
