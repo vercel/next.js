@@ -7,7 +7,6 @@ import {
   check,
   fetchViaHTTP,
   findPort,
-  getBrowserBodyText,
   getReactErrorOverlayContent,
   initNextServerScript,
   killApp,
@@ -684,10 +683,15 @@ const runTests = (dev = false, looseMode = false) => {
       expect(curRandom).toBe(initialRandom + '')
     })
 
-    it('should show error for invalid JSON returned from getStaticProps', async () => {
-      const html = await renderViaHTTP(appPort, '/non-json')
-      expect(html).toContain(
-        'Error serializing `.time` returned from `getStaticProps`'
+    it('should show fallback before invalid JSON is returned from getStaticProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json/foobar')
+      expect(html).toContain('"isFallback":true')
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps on SSR', async () => {
+      const browser = await webdriver(appPort, '/non-json/direct')
+      expect(await getReactErrorOverlayContent(browser)).toMatch(
+        /Error serializing `.time` returned from `getStaticProps`/
       )
     })
 
@@ -695,8 +699,7 @@ const runTests = (dev = false, looseMode = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.elementByCss('#non-json').click()
 
-      await check(
-        () => getBrowserBodyText(browser),
+      expect(await getReactErrorOverlayContent(browser)).toMatch(
         /Error serializing `.time` returned from `getStaticProps`/
       )
     })

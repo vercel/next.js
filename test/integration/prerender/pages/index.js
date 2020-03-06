@@ -15,7 +15,7 @@ const Page = ({ world, time }) => {
       {/* <div id='after-change'>idk</div> */}
       <p>hello {world}</p>
       <span>time: {time}</span>
-      <Link href="/non-json">
+      <Link href="/non-json/[p]" as="/non-json/1">
         <a id="non-json">to non-json</a>
       </Link>
       <br />
