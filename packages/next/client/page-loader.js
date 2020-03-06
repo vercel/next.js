@@ -175,7 +175,7 @@ export default class PageLoader {
   }
 
   loadPage(route) {
-    return this.loadPageScript(route).then(v => v.page)
+    return this.loadPageScript(route)
   }
 
   loadPageScript(route) {

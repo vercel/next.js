@@ -10,7 +10,11 @@ import {
 } from '../../lib/constants'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
-import { AMP_RENDER_TARGET } from '../lib/constants'
+import {
+  AMP_RENDER_TARGET,
+  STATIC_PROPS_ID,
+  SERVER_PROPS_ID,
+} from '../lib/constants'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
@@ -471,6 +475,11 @@ export async function renderToHTML(
       router,
       ctx,
     })
+
+    if (isSSG) {
+      props[STATIC_PROPS_ID] = true
+    }
+
     let previewData: string | false | object | undefined
 
     if ((isSSG || getServerSideProps) && !isFallback) {
@@ -532,6 +541,10 @@ export async function renderToHTML(
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate = data.revalidate
       ;(renderOpts as any).pageData = props
+    }
+
+    if (getServerSideProps) {
+      props[SERVER_PROPS_ID] = true
     }
 
     if (getServerSideProps && !isFallback) {
