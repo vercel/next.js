@@ -82,6 +82,18 @@ You should use `getStaticProps` if:
 - The data can be publicly cached (not user-specific).
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
 
+### TypeScript: Use `GetStaticProps`
+
+For TypeScript, you can use the `GetStaticProps` type from `next`:
+
+```ts
+import { GetStaticProps } from 'next'
+
+export const getStaticProps: GetStaticProps = async context => {
+  // ...
+}
+```
+
 ### Technical details
 
 #### Only runs at build time
@@ -273,6 +285,18 @@ This ensures that users always have a fast experience while preserving fast buil
 
 You should use `getStaticPaths` if you’re statically pre-rendering pages that use dynamic routes.
 
+### TypeScript: Use `GetStaticPaths`
+
+For TypeScript, you can use the `GetStaticPaths` type from `next`:
+
+```ts
+import { GetStaticPaths } from 'next'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  // ...
+}
+```
+
 ### Technical details
 
 #### Use together with `getStaticProps`
@@ -343,6 +367,18 @@ export default Page
 You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra .
 
 If you don’t need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
+
+### TypeScript: Use `GetServerSideProps`
+
+For TypeScript, you can use the `GetServerSideProps` type from `next`:
+
+```ts
+import { GetServerSideProps } from 'next'
+
+export const getServerSideProps: GetServerSideProps = async context => {
+  // ...
+}
+```
 
 ### Technical details
 
