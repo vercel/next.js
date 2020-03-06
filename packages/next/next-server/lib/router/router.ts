@@ -31,6 +31,8 @@ const prepareRoute = (path: string) =>
 
 type Url = UrlObject | string
 
+type ComponentRes = { page: ComponentType; mod: any }
+
 export type BaseRouter = {
   route: string
   pathname: string
@@ -57,6 +59,8 @@ export type PrefetchOptions = {
 
 type RouteInfo = {
   Component: ComponentType
+  __N_SSG?: boolean
+  __N_SSP?: boolean
   props?: any
   err?: Error
   error?: any
@@ -179,7 +183,13 @@ export default class Router implements BaseRouter {
     // Otherwise, this cause issues when when going back and
     // come again to the errored page.
     if (pathname !== '/_error') {
-      this.components[this.route] = { Component, props: initialProps, err }
+      this.components[this.route] = {
+        Component,
+        props: initialProps,
+        err,
+        __N_SSG: initialProps && initialProps.__N_SSG,
+        __N_SSP: initialProps && initialProps.__N_SSP,
+      }
     }
 
     this.components['/_app'] = { Component: App }
@@ -284,7 +294,12 @@ export default class Router implements BaseRouter {
       throw new Error(`Cannot update unavailable route: ${route}`)
     }
 
-    const newData = { ...data, Component }
+    const newData = {
+      ...data,
+      Component,
+      __N_SSG: mod.__N_SSG,
+      __N_SSP: mod.__N_SSP,
+    }
     this.components[route] = newData
 
     // pages/_app.js updated
@@ -542,7 +557,8 @@ export default class Router implements BaseRouter {
 
         resolve(
           this.fetchComponent('/_error')
-            .then(Component => {
+            .then(res => {
+              const { page: Component } = res
               const routeInfo: RouteInfo = { Component, err }
               return new Promise(resolve => {
                 this.getInitialProps(Component, {
@@ -578,12 +594,17 @@ export default class Router implements BaseRouter {
       }
 
       this.fetchComponent(route).then(
-        Component => resolve({ Component }),
+        res =>
+          resolve({
+            Component: res.page,
+            __N_SSG: res.mod.__N_SSG,
+            __N_SSP: res.mod.__N_SSP,
+          }),
         reject
       )
     }) as Promise<RouteInfo>)
       .then((routeInfo: RouteInfo) => {
-        const { Component } = routeInfo
+        const { Component, __N_SSG, __N_SSP } = routeInfo
 
         if (process.env.NODE_ENV !== 'production') {
           const { isValidElementType } = require('react-is')
@@ -595,9 +616,9 @@ export default class Router implements BaseRouter {
         }
 
         return this._getData<RouteInfo>(() =>
-          (Component as any).__N_SSG
+          __N_SSG
             ? this._getStaticData(as)
-            : (Component as any).__N_SSP
+            : __N_SSP
             ? this._getServerData(as)
             : this.getInitialProps(
                 Component,
@@ -726,13 +747,13 @@ export default class Router implements BaseRouter {
     })
   }
 
-  async fetchComponent(route: string): Promise<ComponentType> {
+  async fetchComponent(route: string): Promise<ComponentRes> {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
     })
 
-    const Component = await this.pageLoader.loadPage(route)
+    const componentResult = await this.pageLoader.loadPage(route)
 
     if (cancelled) {
       const error: any = new Error(
@@ -746,7 +767,7 @@ export default class Router implements BaseRouter {
       this.clc = null
     }
 
-    return Component
+    return componentResult
   }
 
   _getData<T>(fn: () => Promise<T>): Promise<T> {
