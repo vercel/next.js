@@ -187,8 +187,8 @@ export default class Router implements BaseRouter {
         Component,
         props: initialProps,
         err,
-        __N_SSG: initialProps.__N_SSG,
-        __N_SSP: initialProps.__N_SSP,
+        __N_SSG: initialProps && initialProps.__N_SSG,
+        __N_SSP: initialProps && initialProps.__N_SSP,
       }
     }
 
