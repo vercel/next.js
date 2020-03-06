@@ -41,7 +41,8 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   }
 
   render() {
-    const { router, Component, pageProps } = this.props as AppProps<CP>
+    const { router, Component, pageProps, __N_SSG, __N_SSP } = this
+      .props as AppProps<CP>
 
     return (
       <Component
@@ -49,9 +50,7 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
         {
           // we don't add the legacy URL prop if it's using non-legacy
           // methods like getStaticProps and getServerSideProps
-          ...(!((Component as any).__N_SSG || (Component as any).__N_SSP)
-            ? { url: createUrl(router) }
-            : {})
+          ...(!(__N_SSG || __N_SSP) ? { url: createUrl(router) } : {})
         }
       />
     )

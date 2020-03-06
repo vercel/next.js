@@ -91,6 +91,7 @@ export type ServerConstructor = {
    */
   conf?: NextConfig
   dev?: boolean
+  customServer?: boolean
 }
 
 export default class Server {
@@ -116,6 +117,7 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
+    customServer?: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -136,6 +138,7 @@ export default class Server {
     quiet = false,
     conf = null,
     dev = false,
+    customServer = true,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
@@ -167,6 +170,7 @@ export default class Server {
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),
+      customServer: customServer === true ? true : undefined,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -871,7 +875,7 @@ export default class Server {
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
-  ): Promise<string | false | null> {
+  ): Promise<string | null> {
     // we need to ensure the status code if /404 is visited directly
     if (pathname === '/404') {
       res.statusCode = 404
@@ -905,6 +909,14 @@ export default class Server {
       })
     }
 
+    let previewData: string | false | object | undefined
+    let isPreviewMode = false
+
+    if (isServerProps || isSSG) {
+      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+      isPreviewMode = previewData !== false
+    }
+
     // non-spr requests should render like normal
     if (!isSSG) {
       // handle serverless
@@ -923,7 +935,7 @@ export default class Server {
             !this.renderOpts.dev
               ? {
                   revalidate: -1,
-                  private: false, // Leave to user-land caching
+                  private: isPreviewMode, // Leave to user-land caching
                 }
               : undefined
           )
@@ -946,25 +958,27 @@ export default class Server {
           !this.renderOpts.dev
             ? {
                 revalidate: -1,
-                private: false, // Leave to user-land caching
+                private: isPreviewMode, // Leave to user-land caching
               }
             : undefined
         )
         return null
       }
 
-      return renderToHTML(req, res, pathname, query, {
+      const html = await renderToHTML(req, res, pathname, query, {
         ...components,
         ...opts,
       })
-    }
 
-    const previewData = tryGetPreviewData(
-      req,
-      res,
-      this.renderOpts.previewProps
-    )
-    const isPreviewMode = previewData !== false
+      if (html && isServerProps && isPreviewMode) {
+        sendPayload(res, html, 'text/html; charset=utf-8', {
+          revalidate: -1,
+          private: isPreviewMode,
+        })
+      }
+
+      return html
+    }
 
     // Compute the SPR cache key
     const urlPathname = parseUrl(req.url || '').pathname!
@@ -1076,7 +1090,7 @@ export default class Server {
         // When fallback isn't present, abort this render so we 404
         !hasStaticFallback
       ) {
-        return false
+        throw new NoFallbackError()
       }
 
       let html: string
@@ -1137,15 +1151,18 @@ export default class Server {
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
-        const result2 = await this.renderToHTMLWithComponents(
-          req,
-          res,
-          pathname,
-          result,
-          { ...this.renderOpts }
-        )
-        if (result2 !== false) {
-          return result2
+        try {
+          return await this.renderToHTMLWithComponents(
+            req,
+            res,
+            pathname,
+            result,
+            { ...this.renderOpts }
+          )
+        } catch (err) {
+          if (!(err instanceof NoFallbackError)) {
+            throw err
+          }
         }
       }
 
@@ -1162,15 +1179,18 @@ export default class Server {
             params
           )
           if (result) {
-            const result2 = await this.renderToHTMLWithComponents(
-              req,
-              res,
-              dynamicRoute.page,
-              result,
-              { ...this.renderOpts, params }
-            )
-            if (result2 !== false) {
-              return result2
+            try {
+              return await this.renderToHTMLWithComponents(
+                req,
+                res,
+                dynamicRoute.page,
+                result,
+                { ...this.renderOpts, params }
+              )
+            } catch (err) {
+              if (!(err instanceof NoFallbackError)) {
+                throw err
+              }
             }
           }
         }
@@ -1227,20 +1247,23 @@ export default class Server {
 
     let html: string | null
     try {
-      const result2 = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        using404Page ? '/404' : '/_error',
-        result!,
-        {
-          ...this.renderOpts,
-          err,
+      try {
+        html = await this.renderToHTMLWithComponents(
+          req,
+          res,
+          using404Page ? '/404' : '/_error',
+          result!,
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      } catch (err) {
+        if (err instanceof NoFallbackError) {
+          throw new Error('invariant: failed to render error page')
         }
-      )
-      if (result2 === false) {
-        throw new Error('invariant: failed to render error page')
+        throw err
       }
-      html = result2
     } catch (err) {
       console.error(err)
       res.statusCode = 500
@@ -1367,3 +1390,5 @@ function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {
     },
   })
 }
+
+class NoFallbackError extends Error {}
