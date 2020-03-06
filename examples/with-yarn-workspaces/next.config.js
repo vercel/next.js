@@ -2,4 +2,6 @@
 // https://www.npmjs.com/package/next-transpile-modules
 const withTM = require('next-transpile-modules')(['bar'])
 
-module.exports = withTM()
+module.exports = withTM({
+  distDir: '../../.next', // Point the output directory to the root of the repo (for deploying with next with no additional config)
+})

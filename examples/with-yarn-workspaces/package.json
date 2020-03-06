@@ -1,11 +1,16 @@
 {
+  "name": "withyarn",
   "private": true,
+  "dependencies": {
+    "next": "latest",
+    "next-transpile-modules": "^3.0.2"
+  },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "yarn --cwd packages/web-app dev",
-    "build": "yarn --cwd packages/web-app build",
-    "start": "yarn --cwd packages/web-app start"
+    "dev": "next dev packages/web-app",
+    "build": "next build packages/web-app",
+    "start": "next start packages/web-app"
   }
 }

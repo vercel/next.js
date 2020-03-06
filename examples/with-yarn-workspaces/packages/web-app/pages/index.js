@@ -1,5 +1,5 @@
-import foo from 'foo'
-import Bar from 'bar'
+import foo from '@withyarn/foo'
+import Bar from '@withyarn/bar'
 
 export default () => (
   <div>
