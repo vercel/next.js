@@ -134,6 +134,8 @@ export type AppPropsType<
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
   router: R
+  __N_SSG?: boolean
+  __N_SSP?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
