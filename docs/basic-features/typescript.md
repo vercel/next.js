@@ -54,15 +54,15 @@ For `getStaticProps`, `getStaticPaths`, and `getServerSideProps`, you can use th
 ```ts
 import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
-export async function getStaticProps(context): GetStaticProps {
+export const getStaticProps: GetStaticProps = async context => {
   // ...
 }
 
-export async function getStaticPaths(): GetStaticPaths {
+export const getStaticPaths: GetStaticPaths = async () => {
   // ...
 }
 
-export async function getServerSideProps(context): GetServerSideProps {
+export const getServerSideProps: GetServerSideProps = async context => {
   // ...
 }
 ```

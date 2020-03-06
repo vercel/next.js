@@ -87,7 +87,7 @@ For TypeScript, you can use the `GetStaticProps` type from `next`:
 ```ts
 import { GetStaticProps } from 'next'
 
-export async function getStaticProps(context): GetStaticProps {
+export const getStaticProps: GetStaticProps = async context => {
   // ...
 }
 ```
@@ -284,7 +284,7 @@ For TypeScript, you can use the `GetStaticPaths` type from `next`:
 ```ts
 import { GetStaticPaths } from 'next'
 
-export async function getStaticPaths(): GetStaticPaths {
+export const getStaticPaths: GetStaticPaths = async () => {
   // ...
 }
 ```
@@ -365,7 +365,7 @@ For TypeScript, you can use the `GetServerSideProps` type from `next`:
 ```ts
 import { GetServerSideProps } from 'next'
 
-export async function getServerSideProps(context): GetServerSideProps {
+export const getServerSideProps: GetServerSideProps = async context => {
   // ...
 }
 ```
