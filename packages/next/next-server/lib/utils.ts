@@ -80,6 +80,7 @@ export type NEXT_DATA = {
   err?: Error & { statusCode?: number }
   gsp?: boolean
   gssp?: boolean
+  customServer?: boolean
 }
 
 /**
