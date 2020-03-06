@@ -429,5 +429,15 @@ describe('babel plugin (next-ssg-transform)', () => {
         `"class El extends React.Component{render(){return __jsx(\\"div\\",null);}}const a=5;export var __N_SSG=true;export{El as default,a};"`
       )
     })
+
+    it('should support full re-export', () => {
+      const output = babel(trim`
+        export { getStaticProps, default } from 'a'
+      `)
+
+      expect(output).toMatchInlineSnapshot(
+        `"export var __N_SSG=true;export{default}from'a';"`
+      )
+    })
   })
 })
