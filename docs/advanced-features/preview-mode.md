@@ -68,7 +68,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 
 - Check that the secret matches and that the `next` parameter exists (if not, the request should fail).
 - Call `res.setPreviewData`.
-- Then redirect the browser to the path specified by `next`. (The following example uses the [307 redirect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307)).
+- Then redirect the browser to the path specified by `next`. (The following example uses a [307 redirect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307)).
 
 ```js
 export default (req, res) => {
