@@ -81,6 +81,10 @@
           "title": "Advanced Features",
           "routes": [
             {
+              "title": "Preview Mode",
+              "path": "/docs/advanced-features/preview-mode.md"
+            },
+            {
               "title": "Dynamic Import",
               "path": "/docs/advanced-features/dynamic-import.md"
             },

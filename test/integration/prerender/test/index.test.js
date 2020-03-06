@@ -377,10 +377,10 @@ const runTests = (dev = false, looseMode = false) => {
 
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
-    await browser.eval('window.beforeClick = true')
+    await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('true')
+    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -388,10 +388,10 @@ const runTests = (dev = false, looseMode = false) => {
   if (!dev) {
     it('should reload page on failed data request, and retry', async () => {
       const browser = await webdriver(appPort, '/')
-      await browser.eval('window.beforeClick = true')
+      await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-at-first-post').click()
       await waitFor(3000)
-      expect(await browser.eval('window.beforeClick')).not.toBe('true')
+      expect(await browser.eval('window.beforeClick')).not.toBe('abc')
 
       const text = await browser.elementByCss('#params').text()
       expect(text).toMatch(/post.*?post-999/)
