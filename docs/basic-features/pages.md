@@ -254,6 +254,13 @@ We recommend you to read the following sections next:
 </div>
 
 <div class="card">
+  <a href="/docs/advanced-features/preview-mode.md">
+    <b>Preview Mode:</b>
+    <small>Learn more about the preview mode in Next.js.</small>
+  </a>
+</div>
+
+<div class="card">
   <a href="/docs/routing/introduction.md">
     <b>Routing:</b>
     <small>Learn more about routing in Next.js.</small>

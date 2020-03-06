@@ -1,5 +1,5 @@
 ---
-description: Next.js can handle data fetching in multiple ways for server-rendered and static pages. Learn how it works here.
+description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-side rendering. Learn how they work here.'
 ---
 
 # Data fetching
@@ -30,7 +30,9 @@ export async function getStaticProps(context) {
 
 The `context` parameter is an object containing the following keys:
 
-- `params`: `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
+- `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
+- `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ### Simple Example
 
@@ -107,6 +109,12 @@ Also, you must use `export async function getStaticProps() {}` — it will **not
 #### Runs on every request in development
 
 In development (`next dev`), `getStaticProps` will be called on every request.
+
+#### Preview Mode
+
+In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
+
+This use case is supported by Next.js by the feature called **Preview Mode**. Learn more on the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ## `getStaticPaths` (Static Generation)
 
@@ -305,6 +313,8 @@ The `context` parameter is an object containing the following keys:
 - `req`: [The HTTP request object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: The query string.
+- `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ### Simple example
 
@@ -379,6 +389,13 @@ function Profile() {
 ## Learn more
 
 We recommend you to read the following sections next:
+
+<div class="card">
+  <a href="/docs/advanced-features/preview-mode.md">
+    <b>Preview Mode:</b>
+    <small>Learn more about the preview mode in Next.js.</small>
+  </a>
+</div>
 
 <div class="card">
   <a href="/docs/routing/introduction.md">
