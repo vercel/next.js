@@ -188,6 +188,7 @@ function renderDocument(
     headTags,
     gsp,
     gssp,
+    customServer,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -210,6 +211,7 @@ function renderDocument(
     isFallback?: boolean
     gsp?: boolean
     gssp?: boolean
+    customServer?: boolean
   }
 ): string {
   return (
@@ -232,6 +234,7 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
+            customServer, // whether the user is using a custom server
           },
           dangerousAsPath,
           canonicalBase,
