@@ -15,10 +15,10 @@ export default () => {
       </div>
       <div className="container mx-auto px-5 mt-16">
         <div className="flex items-center justify-between mb-12">
-          <h1 className="text-7xl font-bold tracking-tighter leading-tight">
+          <h1 className="text-7xl font-bold tracking-tighter leading-tight pr-8">
             Blog.
           </h1>
-          <h4 className="text-lg mt-5">
+          <h4 className="text-lg mt-5 pl-8">
             A statically generated blog example using{' '}
             <a
               href="https://nextjs.org/"
@@ -39,9 +39,9 @@ export default () => {
         <div className="mb-16">
           <img src="/images/image.jpg" className="shadow-magical" />
         </div>
-        <div className="grid grid-cols-2 col-gap-8 mb-28">
+        <div className="grid grid-cols-2 col-gap-16 lg:col-gap-8 mb-28">
           <div>
-            <h3 className="text-5xl leading-tight">
+            <h3 className="text-4xl lg:text-5xl leading-tight">
               Learn how to pre-render pages using Static Generation using
               Next.js
             </h3>
@@ -65,10 +65,10 @@ export default () => {
         <div className="mb-8 text-6xl font-bold tracking-tighter leading-tight">
           More Stories
         </div>
-        <div className="grid grid-cols-2 col-gap-32 row-gap-32 mb-32">
+        <div className="grid grid-cols-2 col-gap-16 lg:col-gap-32 row-gap-32 mb-32">
           <div>
             <img src="/images/image.jpg" className="mb-5" />
-            <h3 className="text-3xl mb-3">
+            <h3 className="text-3xl mb-3 leading-snug">
               Preview Mode for Static Generation
             </h3>
             <p className="text-lg mb-4">
@@ -86,7 +86,7 @@ export default () => {
           </div>
           <div>
             <img src="/images/image.jpg" className="mb-5" />
-            <h3 className="text-3xl mb-3">
+            <h3 className="text-3xl mb-3 leading-snug">
               Dynamic Routing and Static Generation
             </h3>
             <p className="text-lg mb-4">
@@ -104,7 +104,7 @@ export default () => {
           </div>
           <div>
             <img src="/images/image.jpg" className="mb-5" />
-            <h3 className="text-3xl mb-3">
+            <h3 className="text-3xl mb-3 leading-snug">
               Preview Mode for Static Generation
             </h3>
             <p className="text-lg mb-4">
@@ -122,7 +122,7 @@ export default () => {
           </div>
           <div>
             <img src="/images/image.jpg" className="mb-5" />
-            <h3 className="text-3xl mb-3">
+            <h3 className="text-3xl mb-3 leading-snug">
               Preview Mode for Static Generation
             </h3>
             <p className="text-lg mb-4">
@@ -143,10 +143,10 @@ export default () => {
       <div className="bg-accent-1 border-t border-accent-2">
         <div className="container mx-auto px-5 py-28">
           <div className="flex items-center">
-            <h3 className="text-4xl font-bold tracking-tighter leading-tight mr-4">
-              Statically Generated using Next.js.
+            <h3 className="text-3xl lg:text-4xl font-bold tracking-tighter leading-tight pr-4 w-1/2">
+              Statically Generated with Next.js.
             </h3>
-            <div className="flex-1 flex justify-center items-center">
+            <div className="flex justify-center items-center pl-4 w-1/2">
               <a
                 href="https://nextjs.org/docs/basic-features/pages"
                 className="mx-3 bg-black hover:bg-white hover:text-black border border-black text-white font-bold py-3 px-10 duration-200 transition-colors"
