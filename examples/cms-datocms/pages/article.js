@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Alert from '../components/alert'
 import Footer from '../components/footer'
-import Avatar from '../components/Avatar'
+import Avatar from '../components/avatar'
 import Date from '../components/date'
 import Container from '../components/container'
 
