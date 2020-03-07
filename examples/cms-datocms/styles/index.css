@@ -4,6 +4,6 @@
 /* purgecss end ignore */
 @tailwind utilities;
 
-p {
-  @apply my-6;
+.grayscale {
+  filter: grayscale(1);
 }
