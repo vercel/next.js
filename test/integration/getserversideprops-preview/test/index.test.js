@@ -156,6 +156,12 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
 
+  it('should throw error when setting too large of preview data', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/preview?tooBig=true')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('too big')
+  })
+
   /** @type import('next-webdriver').Chain */
   let browser
   it('should start the client-side browser', async () => {

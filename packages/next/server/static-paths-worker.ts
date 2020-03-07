@@ -1,8 +1,8 @@
-import { join } from 'path'
 import { buildStaticPaths } from '../build/utils'
-import { getPagePath } from '../next-server/server/require'
 import { loadComponents } from '../next-server/server/load-components'
-import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../next-server/lib/constants'
+
+// store initial require modules so we don't clear them below
+const initialCache = new Set(Object.keys(require.cache))
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
@@ -16,10 +16,11 @@ export async function loadStaticPaths(
   // we need to clear any modules manually here since the
   // require-cache-hot-loader doesn't affect require cache here
   // since we're in a separate process
-  delete require.cache[join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)]
-
-  const pagePath = await getPagePath(pathname, distDir, serverless, true)
-  delete require.cache[pagePath]
+  Object.keys(require.cache).forEach(mod => {
+    if (!initialCache.has(mod)) {
+      delete require.cache[mod]
+    }
+  })
 
   const components = await loadComponents(
     distDir,

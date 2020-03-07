@@ -91,6 +91,7 @@ export type ServerConstructor = {
    */
   conf?: NextConfig
   dev?: boolean
+  customServer?: boolean
 }
 
 export default class Server {
@@ -116,6 +117,7 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
+    customServer?: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -136,6 +138,7 @@ export default class Server {
     quiet = false,
     conf = null,
     dev = false,
+    customServer = true,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
@@ -167,6 +170,7 @@ export default class Server {
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),
+      customServer: customServer === true ? true : undefined,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

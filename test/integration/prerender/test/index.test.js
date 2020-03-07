@@ -377,10 +377,10 @@ const runTests = (dev = false, looseMode = false) => {
 
   it('should reload page on failed data request', async () => {
     const browser = await webdriver(appPort, '/')
-    await browser.eval('window.beforeClick = true')
+    await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
     await waitFor(1000)
-    expect(await browser.eval('window.beforeClick')).not.toBe('true')
+    expect(await browser.eval('window.beforeClick')).not.toBe('abc')
   })
 
   // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -388,10 +388,10 @@ const runTests = (dev = false, looseMode = false) => {
   if (!dev) {
     it('should reload page on failed data request, and retry', async () => {
       const browser = await webdriver(appPort, '/')
-      await browser.eval('window.beforeClick = true')
+      await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-at-first-post').click()
       await waitFor(3000)
-      expect(await browser.eval('window.beforeClick')).not.toBe('true')
+      expect(await browser.eval('window.beforeClick')).not.toBe('abc')
 
       const text = await browser.elementByCss('#params').text()
       expect(text).toMatch(/post.*?post-999/)
@@ -981,6 +981,46 @@ describe('SSG Prerender', () => {
     afterAll(() => killApp(app))
 
     runTests(true)
+  })
+
+  describe('dev mode getStaticPaths', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        // we set cpus to 1 so that we make sure the requests
+        // aren't being cached at the jest-worker level
+        `module.exports = { experimental: { cpus: 1 } }`,
+        'utf8'
+      )
+      await fs.remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await fs.remove(nextConfig)
+      await killApp(app)
+    })
+
+    it('should not cache getStaticPaths errors', async () => {
+      const errMsg = /The `fallback` key must be returned from getStaticPaths/
+      await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+
+      const blogPage = join(appDir, 'pages/blog/[post]/index.js')
+      const origContent = await fs.readFile(blogPage, 'utf8')
+      await fs.writeFile(
+        blogPage,
+        origContent.replace('fallback: true,', '/* fallback: true, */')
+      )
+
+      try {
+        await check(() => renderViaHTTP(appPort, '/blog/post-1'), errMsg)
+
+        await fs.writeFile(blogPage, origContent)
+        await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+      } finally {
+        await fs.writeFile(blogPage, origContent)
+      }
+    })
   })
 
   describe('serverless mode', () => {
