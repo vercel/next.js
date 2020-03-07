@@ -46,7 +46,9 @@ export default () => {
                 Learn How to Pre-render Pages Using Static Generation with
                 Next.js
               </h3>
-              <div className="text-lg mb-4 md:mb-0">March 10, 2020</div>
+              <div className="text-lg mb-4 md:mb-0 text-accent-5">
+                March 10, 2020
+              </div>
             </div>
             <div>
               <p className="text-lg leading-relaxed mb-5">
@@ -76,7 +78,7 @@ export default () => {
               <h3 className="text-3xl mb-3 leading-snug">
                 Preview Mode for Static Generation
               </h3>
-              <div className="text-lg mb-4">March 10, 2020</div>
+              <div className="text-lg mb-4 text-accent-5">March 10, 2020</div>
               <p className="text-lg mb-4">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
                 eiusmod tempor incididunt ut labore et dolore magna aliqua.
@@ -99,7 +101,7 @@ export default () => {
               <h3 className="text-3xl mb-3 leading-snug">
                 Dynamic Routing and Static Generation
               </h3>
-              <div className="text-lg mb-4">March 10, 2020</div>
+              <div className="text-lg mb-4 text-accent-5">March 10, 2020</div>
               <p className="text-lg mb-4">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
                 eiusmod tempor incididunt ut labore et dolore magna aliqua.
@@ -122,7 +124,7 @@ export default () => {
               <h3 className="text-3xl mb-3 leading-snug">
                 Deploying Next.js Apps
               </h3>
-              <div className="text-lg mb-4">March 10, 2020</div>
+              <div className="text-lg mb-4 text-accent-5">March 10, 2020</div>
               <p className="text-lg mb-4">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
                 eiusmod tempor incididunt ut labore et dolore magna aliqua.
@@ -145,7 +147,7 @@ export default () => {
               <h3 className="text-3xl mb-3 leading-snug">
                 From Server-side Rendering to Static Generation
               </h3>
-              <div className="text-lg mb-4">March 10, 2020</div>
+              <div className="text-lg mb-4 text-accent-5">March 10, 2020</div>
               <p className="text-lg mb-4">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
                 eiusmod tempor incididunt ut labore et dolore magna aliqua.
