@@ -4,6 +4,7 @@ import Footer from '../components/footer'
 import Avatar from '../components/avatar'
 import Date from '../components/date'
 import Container from '../components/container'
+import P from '../components/p'
 
 export default function Article() {
   return (
@@ -34,7 +35,7 @@ export default function Article() {
               <div className="mb-6">
                 <Date />
               </div>
-              <p className="my-6 text-lg leading-relaxed">
+              <P>
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
                 eiusmod tempor incididunt ut labore et dolore magna aliqua.
                 Praesent elementum facilisis leo vel fringilla est ullamcorper
@@ -42,8 +43,8 @@ export default function Article() {
                 tempus. Praesent elementum facilisis leo vel fringilla. Congue
                 mauris rhoncus aenean vel. Egestas sed tempus urna et pharetra
                 pharetra massa massa ultricies.
-              </p>
-              <p className="my-6 text-lg leading-relaxed">
+              </P>
+              <P>
                 Venenatis cras sed felis eget velit. Consectetur libero id
                 faucibus nisl tincidunt. Gravida in fermentum et sollicitudin ac
                 orci phasellus egestas tellus. Volutpat consequat mauris nunc
@@ -55,9 +56,9 @@ export default function Article() {
                 Nibh cras pulvinar mattis nunc sed. Luctus accumsan tortor
                 posuere ac ut consequat semper viverra. Fringilla ut morbi
                 tincidunt augue interdum velit euismod.
-              </p>
+              </P>
               <h2 className="text-3xl mt-12 mb-4 leading-snug">Lorem Ipsum</h2>
-              <p className="my-6 text-lg leading-relaxed">
+              <P>
                 Tristique senectus et netus et malesuada fames ac turpis.
                 Ridiculus mus mauris vitae ultricies leo integer malesuada nunc
                 vel. In mollis nunc sed id semper. Egestas tellus rutrum tellus
@@ -69,7 +70,7 @@ export default function Article() {
                 commodo nulla. Diam vulputate ut pharetra sit amet. Ut tellus
                 elementum sagittis vitae et leo. Arcu non odio euismod lacinia
                 at quis risus sed vulputate.
-              </p>
+              </P>
             </div>
             <hr className="border-accent-2 mb-24" />
             <div className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">

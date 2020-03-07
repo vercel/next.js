@@ -3,6 +3,8 @@ import Footer from '../components/footer'
 import Avatar from '../components/avatar'
 import Date from '../components/date'
 import Container from '../components/container'
+import textStyles from '../components/text-styles.module.css'
+import cn from 'classnames'
 
 export default function Index() {
   return (
@@ -46,16 +48,14 @@ export default function Index() {
                   <Date />
                 </div>
               </div>
-              <div>
-                <p className="text-lg leading-relaxed mb-5">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                  Praesent elementum facilisis leo vel fringilla est ullamcorper
-                  eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
-                  tempus.
-                </p>
-                <Avatar />
-              </div>
+              <p className={cn(textStyles['body-text'], 'mb-4')}>
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+                eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                Praesent elementum facilisis leo vel fringilla est ullamcorper
+                eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+                tempus.
+              </p>
+              <Avatar />
             </div>
             <div className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">
               More Stories
@@ -74,7 +74,7 @@ export default function Index() {
                 <div className="text-lg mb-4 text-accent-5">
                   <Date />
                 </div>
-                <p className="text-lg mb-4">
+                <p className={cn(textStyles['body-text'], 'mb-4')}>
                   Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
                   do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                   Praesent elementum facilisis leo vel fringilla est ullamcorper
@@ -96,7 +96,7 @@ export default function Index() {
                 <div className="text-lg mb-4 text-accent-5">
                   <Date />
                 </div>
-                <p className="text-lg mb-4">
+                <p className={cn(textStyles['body-text'], 'mb-4')}>
                   Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
                   do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                   Praesent elementum facilisis leo vel fringilla est ullamcorper
@@ -118,7 +118,7 @@ export default function Index() {
                 <div className="text-lg mb-4 text-accent-5">
                   <Date />
                 </div>
-                <p className="text-lg mb-4">
+                <p className={cn(textStyles['body-text'], 'mb-4')}>
                   Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
                   do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                   Praesent elementum facilisis leo vel fringilla est ullamcorper
@@ -140,7 +140,7 @@ export default function Index() {
                 <div className="text-lg mb-4 text-accent-5">
                   <Date />
                 </div>
-                <p className="text-lg mb-4">
+                <p className={cn(textStyles['body-text'], 'mb-4')}>
                   Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
                   do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                   Praesent elementum facilisis leo vel fringilla est ullamcorper

@@ -1,0 +1,3 @@
+.body-text {
+  @apply text-lg leading-relaxed;
+}
