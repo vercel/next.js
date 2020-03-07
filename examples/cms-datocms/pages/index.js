@@ -42,8 +42,7 @@ export default () => {
         <div className="md:grid md:grid-cols-2 md:col-gap-16 lg:col-gap-8 mb-20 md:mb-28">
           <div>
             <h3 className="mb-4 text-4xl lg:text-6xl leading-tight">
-              Learn how to pre-render pages using Static Generation using
-              Next.js
+              Learn How to Pre-render Pages Using Static Generation with Next.js
             </h3>
           </div>
           <div>
@@ -111,7 +110,7 @@ export default () => {
               <img src="/images/image.jpg" className="mb-5" />
             </div>
             <h3 className="text-3xl mb-3 leading-snug">
-              Preview Mode for Static Generation
+              Deploying Next.js apps
             </h3>
             <p className="text-lg mb-4">
               Contrary to popular belief, Lorem Ipsum is not simply random text.
@@ -131,7 +130,7 @@ export default () => {
               <img src="/images/image.jpg" className="mb-5" />
             </div>
             <h3 className="text-3xl mb-3 leading-snug">
-              Preview Mode for Static Generation
+              From Server-side Rendering to Static Generation
             </h3>
             <p className="text-lg mb-4">
               Contrary to popular belief, Lorem Ipsum is not simply random text.
