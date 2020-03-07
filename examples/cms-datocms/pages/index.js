@@ -44,13 +44,15 @@ export default () => {
             <h3 className="mb-4 text-4xl lg:text-6xl leading-tight">
               Learn How to Pre-render Pages Using Static Generation with Next.js
             </h3>
+            <div className="text-lg mb-4 md:mb-0">March 10, 2020</div>
           </div>
           <div>
             <p className="text-lg leading-relaxed mb-5">
-              Lorem Ipsum is simply dummy text of the printing and typesetting
-              industry. Lorem Ipsum has been the industry's standard dummy text
-              ever since the 1500s, when an unknown printer took a galley of
-              type and scrambled it to make a type specimen book.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
@@ -67,15 +69,18 @@ export default () => {
         <div className="grid grid-cols-1 md:grid-cols-2 md:col-gap-16 lg:col-gap-32 row-gap-20 md:row-gap-32 mb-32">
           <div>
             <div className="-mx-5 sm:mx-0">
-              <img src="/images/image.jpg" className="mb-5" />
+              <img src="/images/image.jpg" className="mb-5 shadow-magical" />
             </div>
             <h3 className="text-3xl mb-3 leading-snug">
               Preview Mode for Static Generation
             </h3>
+            <div className="text-lg mb-4">March 10, 2020</div>
             <p className="text-lg mb-4">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
@@ -87,15 +92,18 @@ export default () => {
           </div>
           <div>
             <div className="-mx-5 sm:mx-0">
-              <img src="/images/image.jpg" className="mb-5" />
+              <img src="/images/image.jpg" className="mb-5 shadow-magical" />
             </div>
             <h3 className="text-3xl mb-3 leading-snug">
               Dynamic Routing and Static Generation
             </h3>
+            <div className="text-lg mb-4">March 10, 2020</div>
             <p className="text-lg mb-4">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
@@ -107,15 +115,18 @@ export default () => {
           </div>
           <div>
             <div className="-mx-5 sm:mx-0">
-              <img src="/images/image.jpg" className="mb-5" />
+              <img src="/images/image.jpg" className="mb-5 shadow-magical" />
             </div>
             <h3 className="text-3xl mb-3 leading-snug">
               Deploying Next.js apps
             </h3>
+            <div className="text-lg mb-4">March 10, 2020</div>
             <p className="text-lg mb-4">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
@@ -127,15 +138,18 @@ export default () => {
           </div>
           <div>
             <div className="-mx-5 sm:mx-0">
-              <img src="/images/image.jpg" className="mb-5" />
+              <img src="/images/image.jpg" className="mb-5 shadow-magical" />
             </div>
             <h3 className="text-3xl mb-3 leading-snug">
               From Server-side Rendering to Static Generation
             </h3>
+            <div className="text-lg mb-4">March 10, 2020</div>
             <p className="text-lg mb-4">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
