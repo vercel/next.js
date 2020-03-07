@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Nav from '../../components/nav'
 import fetchAPI from '../../lib/api'
 
-export async function unstable_getStaticProps({ preview }) {
+export async function getStaticProps({ preview }) {
   const data = await fetchAPI(
     `
   {
@@ -31,7 +31,7 @@ function BlogCard({ title, slug, excerpt, authors }) {
       <time className="text-sm text-gray-600">Thursday, February 6th 2020</time>
       <h2 className="text-2xl my-4">{title}</h2>
       <div className="flex my-4">
-        {authors.map((author, index) => {
+        {authors?.map((author, index) => {
           return (
             <img
               className={`block h-8 rounded-full ${index !== 0 ? '-ml-4' : ''}`}
@@ -55,7 +55,7 @@ export default ({ allBlogs }) => (
     <h1 className="text-4xl my-10 container mx-auto">Blog</h1>
     <hr />
     <section className="container mx-auto">
-      {allBlogs.map(blog => {
+      {allBlogs?.map(blog => {
         return <BlogCard {...blog} />
       })}
     </section>

@@ -3,7 +3,7 @@ import ErrorPage from 'next/error'
 import Nav from '../../components/nav'
 import fetchAPI from '../../lib/api'
 
-export async function unstable_getStaticProps({ params, preview }) {
+export async function getStaticProps({ params, preview }) {
   const data = await fetchAPI(
     `
   query BlogBySlug($slug: String) {
@@ -32,7 +32,7 @@ export async function unstable_getStaticProps({ params, preview }) {
   }
 }
 
-export async function unstable_getStaticPaths() {
+export async function getStaticPaths() {
   const data = await fetchAPI(`
   {
     allBlogs {
@@ -41,7 +41,8 @@ export async function unstable_getStaticPaths() {
   }
   `)
   return {
-    paths: data.allBlogs.map(blog => `/blog/${blog.slug}`),
+    paths: data.allBlogs?.map(blog => `/blog/${blog.slug}`) || [],
+    fallback: false,
   }
 }
 
@@ -84,7 +85,7 @@ export default ({ blog }) => {
             </time>
           </div>
           <div className="container mx-auto flex justify-center my-4">
-            {blog?.authors.map(author => {
+            {blog?.authors?.map(author => {
               return (
                 <AuthorCard
                   name={author.name}
