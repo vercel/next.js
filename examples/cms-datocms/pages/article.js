@@ -8,7 +8,7 @@ export default () => {
           The source code for this blog is{' '}
           <a
             href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms"
-            className="underline hover:text-success"
+            className="underline hover:text-success duration-200 transition-colors"
           >
             available on GitHub
           </a>
@@ -108,9 +108,11 @@ export default () => {
             </h3>
             <div className="text-lg mb-4">March 10, 2020</div>
             <p className="text-lg mb-4">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
@@ -129,9 +131,11 @@ export default () => {
             </h3>
             <div className="text-lg mb-4">March 10, 2020</div>
             <p className="text-lg mb-4">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              Praesent elementum facilisis leo vel fringilla est ullamcorper
+              eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
+              tempus.
             </p>
             <div className="flex items-center">
               <img
