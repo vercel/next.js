@@ -1,7 +1,8 @@
 import Alert from '../components/alert'
 import Footer from '../components/footer'
+import Avatar from '../components/avatar'
 
-export default () => {
+export default function Index() {
   return (
     <div className="min-h-screen bg-accent-1">
       <Alert />
@@ -50,13 +51,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
           </div>
           <div className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">
@@ -78,13 +73,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
             <div>
               <div className="-mx-5 sm:mx-0">
@@ -101,13 +90,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
             <div>
               <div className="-mx-5 sm:mx-0">
@@ -124,13 +107,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
             <div>
               <div className="-mx-5 sm:mx-0">
@@ -147,13 +124,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
           </div>
         </div>

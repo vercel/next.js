@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import Alert from '../components/alert'
 import Footer from '../components/footer'
+import Avatar from '../components/Avatar'
 
-export default () => {
+export default function Article() {
   return (
     <div className="min-h-screen bg-accent-1">
       <Alert />
@@ -17,23 +18,15 @@ export default () => {
           <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-tight md:leading-none mb-12 text-center md:text-left">
             Deploying Next.js Apps
           </h1>
-          <div className="hidden md:flex items-center md:mb-12">
-            <img
-              src="/images/author.jpg"
-              className="w-12 h-12 rounded-full mr-4 grayscale"
-            />
-            <div className="text-xl font-bold">Shu Uesugi</div>
+          <div className="hidden md:block md:mb-12">
+            <Avatar />
           </div>
           <div className="mb-8 md:mb-16 -mx-5 sm:mx-0">
             <img src="/images/image.jpg" className="shadow-magical" />
           </div>
           <div className="max-w-2xl mx-auto mb-28">
-            <div className="flex md:hidden items-center mb-6">
-              <img
-                src="/images/author.jpg"
-                className="w-12 h-12 rounded-full mr-4 grayscale"
-              />
-              <div className="text-xl font-bold">Shu Uesugi</div>
+            <div className="block md:hidden mb-6">
+              <Avatar />
             </div>
             <div className="text-lg mb-6 text-accent-5">March 10, 2020</div>
             <p className="my-6 text-lg leading-relaxed">
@@ -93,13 +86,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
             <div>
               <div className="-mx-5 sm:mx-0">
@@ -116,13 +103,7 @@ export default () => {
                 eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
                 tempus.
               </p>
-              <div className="flex items-center">
-                <img
-                  src="/images/author.jpg"
-                  className="w-12 h-12 rounded-full mr-4 grayscale"
-                />
-                <div className="text-xl font-bold">Shu Uesugi</div>
-              </div>
+              <Avatar />
             </div>
           </div>
         </div>
