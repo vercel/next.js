@@ -13,13 +13,13 @@ import html from 'remark-html'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 
-export default function Post({ post, morePosts }) {
+export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
   }
   return (
-    <Layout>
+    <Layout preview={preview}>
       <Container>
         <Header />
         {router.isFallback ? (
@@ -110,6 +110,7 @@ export async function getStaticProps({ params, preview }) {
 
   return {
     props: {
+      preview,
       post: {
         ...data?.post,
         content,
