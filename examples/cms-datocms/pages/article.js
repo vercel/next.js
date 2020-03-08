@@ -5,6 +5,7 @@ import Avatar from '../components/avatar'
 import Date from '../components/date'
 import Container from '../components/container'
 import P from '../components/p'
+import H2 from '../components/H2'
 import PostPreview from '../components/post-preview'
 
 export default function Article() {
@@ -58,7 +59,7 @@ export default function Article() {
                 posuere ac ut consequat semper viverra. Fringilla ut morbi
                 tincidunt augue interdum velit euismod.
               </P>
-              <h2 className="text-3xl mt-12 mb-4 leading-snug">Lorem Ipsum</h2>
+              <H2>Lorem Ipsum</H2>
               <P>
                 Tristique senectus et netus et malesuada fames ac turpis.
                 Ridiculus mus mauris vitae ultricies leo integer malesuada nunc
