@@ -20,31 +20,29 @@ export default function Post({ post, morePosts }) {
   }
   return (
     <Layout>
-      <Head>
-        <title>{post.title} | Next.js Blog Example with DatoCMS</title>
-        <meta
-          name="description"
-          content="A statically generated blog example using Next.js and DatoCMS."
-        />
-        <meta property="og:image" content={post.ogImage.url} />
-      </Head>
       <Container>
         <Header />
         {router.isFallback ? (
           <PostTitle>Loading…</PostTitle>
         ) : (
-          <article>
-            <PostHeader
-              title={post.title}
-              coverImage={post.coverImage}
-              date={post.date}
-              author={post.author}
-            />
-            <PostBody content={post.content} />
-          </article>
+          <>
+            <article>
+              <Head>
+                <title>{post.title} | Next.js Blog Example with DatoCMS</title>
+                <meta property="og:image" content={post.ogImage.url} />
+              </Head>
+              <PostHeader
+                title={post.title}
+                coverImage={post.coverImage}
+                date={post.date}
+                author={post.author}
+              />
+              <PostBody content={post.content} />
+            </article>
+            <SectionSeparator />
+            {morePosts.length > 0 && <MoreStories posts={morePosts} />}
+          </>
         )}
-        <SectionSeparator />
-        {morePosts.length > 0 && <MoreStories posts={morePosts} />}
       </Container>
     </Layout>
   )

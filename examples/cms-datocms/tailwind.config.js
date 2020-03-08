@@ -5,7 +5,6 @@ module.exports = {
         'accent-1': '#FAFAFA',
         'accent-2': '#EAEAEA',
         'accent-7': '#333',
-        'accent-5': '#666',
         success: '#0070f3',
       },
       spacing: {
