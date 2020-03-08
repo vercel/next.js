@@ -41,6 +41,24 @@ export default async function fetchAPI(query, { variables, preview } = {}) {
   return json.data
 }
 
+export async function getPreviewPostBySlug(slug) {
+  const data = await fetchAPI(
+    `
+    query PostBySlug($slug: String) {
+      post(filter: {slug: {eq: $slug}}) {
+        slug
+      }
+    }`,
+    {
+      preview: true,
+      variables: {
+        slug,
+      },
+    }
+  )
+  return data?.post
+}
+
 export async function getAllPostsWithSlug() {
   const data = fetchAPI(`
     {
@@ -49,7 +67,7 @@ export async function getAllPostsWithSlug() {
       }
     }
   `)
-  return data.allPosts
+  return data?.allPosts
 }
 
 export async function getAllPostsForHome(preview) {
@@ -79,5 +97,5 @@ export async function getAllPostsForHome(preview) {
   `,
     { preview }
   )
-  return data.allPosts
+  return data?.allPosts
 }
