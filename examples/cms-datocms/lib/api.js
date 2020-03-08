@@ -51,3 +51,33 @@ export async function getAllPostsWithSlug() {
   `)
   return data.allPosts
 }
+
+export async function getAllPostsForHome(preview) {
+  const data = await fetchAPI(
+    `
+    {
+      allPosts(orderBy: date_DESC, first: 20) {
+        title
+        slug
+        excerpt
+        date
+        coverImage {
+          responsiveImage(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 }) {
+            ...responsiveImageFragment
+          }
+        }
+        author {
+          name
+          picture {
+            url(imgixParams: {w: 100, h: 100, sat: -100})
+          }
+        }
+      }
+    }
+
+    ${responsiveImageFragment}
+  `,
+    { preview }
+  )
+  return data.allPosts
+}

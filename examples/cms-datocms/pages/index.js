@@ -3,7 +3,7 @@ import MoreStories from '../components/more-stories'
 import HeroPost from '../components/hero-post'
 import Intro from '../components/intro'
 import Layout from '../components/layout'
-import fetchAPI, { responsiveImageFragment } from '../lib/api'
+import { getAllPostsForHome } from '../lib/api'
 import Head from 'next/head'
 
 export default function Index({ allPosts }) {
@@ -35,33 +35,8 @@ export default function Index({ allPosts }) {
 }
 
 export async function getStaticProps({ preview }) {
-  const data = await fetchAPI(
-    `
-  {
-    allPosts(orderBy: date_DESC, first: 20) {
-      title
-      slug
-      excerpt
-      date
-      coverImage {
-        responsiveImage(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 }) {
-          ...responsiveImageFragment
-        }
-      }
-      author {
-        name
-        picture {
-          url(imgixParams: {w: 100, h: 100, sat: -100})
-        }
-      }
-    }
-  }
-
-  ${responsiveImageFragment}
-  `,
-    { preview }
-  )
+  const allPosts = await getAllPostsForHome(preview)
   return {
-    props: data,
+    props: { allPosts },
   }
 }
