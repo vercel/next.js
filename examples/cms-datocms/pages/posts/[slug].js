@@ -11,6 +11,7 @@ import fetchAPI, { responsiveImageFragment } from '../../lib/api'
 import remark from 'remark'
 import html from 'remark-html'
 import PostTitle from '../../components/post-title'
+import Head from 'next/head'
 
 export default function Post({ post, morePosts }) {
   const router = useRouter()
@@ -19,6 +20,14 @@ export default function Post({ post, morePosts }) {
   }
   return (
     <Layout>
+      <Head>
+        <title>{post.title} | Next.js Blog Example with DatoCMS</title>
+        <meta
+          name="description"
+          content="A statically generated blog example using Next.js and DatoCMS."
+        />
+        <meta property="og:image" content={post.ogImage.url} />
+      </Head>
       <Container>
         <Header />
         {router.isFallback ? (
@@ -50,6 +59,9 @@ export async function getStaticProps({ params, preview }) {
       slug
       content
       date
+      ogImage: coverImage{
+        url(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 })
+      }
       coverImage {
         responsiveImage(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 }) {
           ...responsiveImageFragment
