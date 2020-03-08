@@ -5,7 +5,7 @@ import Date from '../components/date'
 import Container from '../components/container'
 import textStyles from '../components/text-styles.module.css'
 import cn from 'classnames'
-import PostPreview from '../components/post-preview'
+import MoreStories from '../components/more-stories'
 
 export default function Index() {
   return (
@@ -60,15 +60,22 @@ export default function Index() {
                 <Avatar />
               </div>
             </div>
-            <div className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">
-              More Stories
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 md:col-gap-16 lg:col-gap-32 row-gap-20 md:row-gap-32 mb-32">
-              <PostPreview title="Preview Mode for Static Generation" />
-              <PostPreview title="Dynamic Routing and Static Generation" />
-              <PostPreview title="Deploying Next.js Apps" />
-              <PostPreview title="From Server-side Rendering to Static Generation" />
-            </div>
+            <MoreStories
+              posts={[
+                {
+                  title: 'Preview Mode for Static Generation',
+                },
+                {
+                  title: 'Dynamic Routing and Static Generation',
+                },
+                {
+                  title: 'Deploying Next.js Apps',
+                },
+                {
+                  title: 'From Server-side Rendering to Static Generation',
+                },
+              ]}
+            />
           </Container>
         </div>
       </div>
