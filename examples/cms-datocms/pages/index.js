@@ -14,7 +14,7 @@ export default function Index({ allPosts }) {
         <Container>
           <Intro />
           {heroPost && <HeroPost {...allPosts[0]} />}
-          {morePosts && <MoreStories posts={morePosts} />}
+          {morePosts.length > 0 && <MoreStories posts={morePosts} />}
         </Container>
       </Layout>
     </>
@@ -25,7 +25,7 @@ export async function getStaticProps({ preview }) {
   const data = await fetchAPI(
     `
   {
-    allPosts(orderBy: date_DESC) {
+    allPosts(orderBy: date_DESC, first: 20) {
       title
       slug
       excerpt
