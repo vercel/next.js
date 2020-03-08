@@ -5,6 +5,7 @@ import Avatar from '../components/avatar'
 import Date from '../components/date'
 import Container from '../components/container'
 import P from '../components/p'
+import PostPreview from '../components/post-preview'
 
 export default function Article() {
   return (
@@ -77,50 +78,8 @@ export default function Article() {
               More Stories
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 md:col-gap-16 lg:col-gap-32 row-gap-20 md:row-gap-32 mb-32">
-              <div>
-                <div className="-mx-5 sm:mx-0">
-                  <img
-                    src="/images/image.jpg"
-                    className="mb-5 shadow-magical"
-                  />
-                </div>
-                <h3 className="text-3xl mb-3 leading-snug">
-                  Preview Mode for Static Generation
-                </h3>
-                <div className="mb-4">
-                  <Date />
-                </div>
-                <p className="text-lg mb-4">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                  Praesent elementum facilisis leo vel fringilla est ullamcorper
-                  eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
-                  tempus.
-                </p>
-                <Avatar />
-              </div>
-              <div>
-                <div className="-mx-5 sm:mx-0">
-                  <img
-                    src="/images/image.jpg"
-                    className="mb-5 shadow-magical"
-                  />
-                </div>
-                <h3 className="text-3xl mb-3 leading-snug">
-                  Dynamic Routing and Static Generation
-                </h3>
-                <div className="mb-4">
-                  <Date />
-                </div>
-                <p className="text-lg mb-4">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                  Praesent elementum facilisis leo vel fringilla est ullamcorper
-                  eget. At imperdiet dui accumsan sit amet nulla facilisi morbi
-                  tempus.
-                </p>
-                <Avatar />
-              </div>
+              <PostPreview title="Preview Mode for Static Generation" />
+              <PostPreview title="Dynamic Routing and Static Generation" />
             </div>
           </Container>
         </div>
