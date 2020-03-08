@@ -1,3 +1,5 @@
+import { useRouter } from 'next/router'
+import ErrorPage from 'next/error'
 import Container from '../../components/container'
 import PostBody from '../../components/post-body'
 import MoreStories from '../../components/more-stories'
@@ -8,21 +10,30 @@ import Layout from '../../components/layout'
 import fetchAPI, { responsiveImageFragment } from '../../lib/api'
 import remark from 'remark'
 import html from 'remark-html'
+import PostTitle from '../../components/post-title'
 
 export default function Post({ post, morePosts }) {
+  const router = useRouter()
+  if (!router.isFallback && !post?.slug) {
+    return <ErrorPage statusCode={404} />
+  }
   return (
     <Layout>
       <Container>
         <Header />
-        <article>
-          <PostHeader
-            title={post.title}
-            coverImage={post.coverImage}
-            date={post.date}
-            author={post.author}
-          />
-          <PostBody content={post.content} />
-        </article>
+        {router.isFallback ? (
+          <PostTitle>Loading…</PostTitle>
+        ) : (
+          <article>
+            <PostHeader
+              title={post.title}
+              coverImage={post.coverImage}
+              date={post.date}
+              author={post.author}
+            />
+            <PostBody content={post.content} />
+          </article>
+        )}
         <SectionSeparator />
         {morePosts.length > 0 && <MoreStories posts={morePosts} />}
       </Container>
@@ -84,16 +95,16 @@ export async function getStaticProps({ params, preview }) {
   const content = (
     await remark()
       .use(html)
-      .processSync(data.post.content)
+      .processSync(data?.post?.content || '')
   ).toString()
 
   return {
     props: {
       post: {
-        ...data.post,
+        ...data?.post,
         content,
       },
-      morePosts: data.morePosts,
+      morePosts: data?.morePosts,
     },
   }
 }
@@ -108,6 +119,6 @@ export async function getStaticPaths() {
   `)
   return {
     paths: data.allPosts?.map(post => `/posts/${post.slug}`) || [],
-    fallback: false,
+    fallback: true,
   }
 }

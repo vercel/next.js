@@ -1,13 +1,12 @@
 import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from '../components/cover-image'
+import PostTitle from '../components/post-title'
 
 export default function PostHeader({ title, coverImage, date, author }) {
   return (
     <>
-      <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-tight md:leading-none mb-12 text-center md:text-left">
-        {title}
-      </h1>
+      <PostTitle>{title}</PostTitle>
       <div className="hidden md:block md:mb-12">
         <Avatar name={author.name} picture={author.picture} />
       </div>
