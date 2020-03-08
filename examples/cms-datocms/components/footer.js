@@ -13,7 +13,7 @@ export default function Footer() {
               href="https://nextjs.org/docs/basic-features/pages"
               className="mx-3 bg-black hover:bg-white hover:text-black border border-black text-white font-bold py-3 px-24 md:px-10 duration-200 transition-colors mb-6 md:mb-0"
             >
-              Learn More
+              Read Documentation
             </a>
             <a
               href="https://github.com/zeit/next.js/tree/canary/examples/cms-datocms"
