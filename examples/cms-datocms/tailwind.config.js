@@ -24,8 +24,8 @@ module.exports = {
         '8xl': '6.25rem',
       },
       boxShadow: {
-        magical:
-          '0px 30px 30px rgba(0, 0, 0, 0.02), 0px 0px 8px rgba(0, 0, 0, 0.03), 0px 1px 0px rgba(0, 0, 0, 0.05);',
+        small: '0 5px 10px rgba(0, 0, 0, 0.12)',
+        medium: '0 8px 30px rgba(0, 0, 0, 0.12)',
       },
     },
   },

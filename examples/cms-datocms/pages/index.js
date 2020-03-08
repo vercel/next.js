@@ -19,7 +19,8 @@ export default function Index({ allPosts }) {
               coverImage={heroPost.coverImage}
               date={heroPost.date}
               author={heroPost.author}
-              {...allPosts[0]}
+              slug={heroPost.slug}
+              excerpt={heroPost.excerpt}
             />
           )}
           {morePosts.length > 0 && <MoreStories posts={morePosts} />}
