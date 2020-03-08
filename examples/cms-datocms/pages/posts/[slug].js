@@ -7,10 +7,7 @@ import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
-import fetchAPI, {
-  getAllPostsWithSlug,
-  responsiveImageFragment,
-} from '../../lib/api'
+import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import remark from 'remark'
 import html from 'remark-html'
 import PostTitle from '../../components/post-title'
@@ -52,58 +49,7 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview }) {
-  const data = await fetchAPI(
-    `
-  query PostBySlug($slug: String) {
-    post(filter: {slug: {eq: $slug}}) {
-      title
-      slug
-      content
-      date
-      ogImage: coverImage{
-        url(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 })
-      }
-      coverImage {
-        responsiveImage(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 }) {
-          ...responsiveImageFragment
-        }
-      }
-      author {
-        name
-        picture {
-          url(imgixParams: {w: 100, h: 100, sat: -100})
-        }
-      }
-    }
-
-    morePosts: allPosts(orderBy: date_DESC, first: 2, filter: {slug: {neq: $slug}}) {
-      title
-      slug
-      excerpt
-      date
-      coverImage {
-        responsiveImage(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 }) {
-          ...responsiveImageFragment
-        }
-      }
-      author {
-        name
-        picture {
-          url(imgixParams: {w: 100, h: 100, sat: -100})
-        }
-      }
-    }
-  }
-
-  ${responsiveImageFragment}
-  `,
-    {
-      preview,
-      variables: {
-        slug: params.slug,
-      },
-    }
-  )
+  const data = await getPostAndMorePosts(params.slug, preview)
 
   const content = (
     await remark()
