@@ -1,0 +1,10 @@
+{
+  "env": {
+    "NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN": "@next_example_cms_datocms_api_token"
+  },
+  "build": {
+    "env": {
+      "NEXT_EXAMPLE_CMS_DATOCMS_API_TOKEN": "@next_example_cms_datocms_api_token"
+    }
+  }
+}

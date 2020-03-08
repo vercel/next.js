@@ -19,7 +19,7 @@ export default function PostHeader() {
           <Avatar />
         </div>
         <div className="mb-6">
-          <Date />
+          <Date dateString="2020-03-04" />
         </div>
       </div>
     </>
