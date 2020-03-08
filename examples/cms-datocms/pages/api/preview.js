@@ -5,14 +5,14 @@ export default async (req, res) => {
   // This secret should only be know to this API route and the CMS
   if (
     req.query.secret !== process.env.NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET ||
-    !res.query.slug
+    !req.query.slug
   ) {
     return res.status(401).json({ message: 'Invalid token' })
   }
 
   // Fetch the headless CMS to check if the provided `slug` exists
   // getPostBySlug would implement the required fetching logic to the headless CMS
-  const post = await fetchAPI(
+  const data = await fetchAPI(
     `
   query PostBySlug($slug: String) {
     post(filter: {slug: {eq: $slug}}) {
@@ -22,13 +22,13 @@ export default async (req, res) => {
     {
       preview: true,
       variables: {
-        slug: res.query.slug,
+        slug: req.query.slug,
       },
     }
   )
 
   // If the slug doesn't exist prevent preview mode from being enabled
-  if (!post) {
+  if (!data.post) {
     return res.status(401).json({ message: 'Invalid slug' })
   }
 
@@ -37,6 +37,6 @@ export default async (req, res) => {
 
   // Redirect to the path from the fetched post
   // We don't redirect to req.query.slug as that might lead to open redirect vulnerabilities
-  res.writeHead(307, { Location: `/post/${post.slug}` })
+  res.writeHead(307, { Location: `/posts/${data.post.slug}` })
   res.end()
 }
