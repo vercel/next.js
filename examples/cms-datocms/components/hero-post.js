@@ -1,5 +1,3 @@
-import textStyles from '../components/text-styles.module.css'
-import cn from 'classnames'
 import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from '../components/cover-image'
@@ -21,7 +19,7 @@ export default function HeroPost({ title, coverImage, date, excerpt, author }) {
           </div>
         </div>
         <div>
-          <p className={cn(textStyles['body-text'], 'mb-4')}>{excerpt}</p>
+          <p className="text-lg leading-relaxed">{excerpt}</p>
           <Avatar name={author.name} picture={author.picture} />
         </div>
       </div>

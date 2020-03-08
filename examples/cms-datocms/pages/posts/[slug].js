@@ -6,6 +6,8 @@ import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
 import fetchAPI, { responsiveImageFragment } from '../../lib/api'
+import remark from 'remark'
+import html from 'remark-html'
 
 export default function Post({ post, morePosts }) {
   return (
@@ -19,7 +21,7 @@ export default function Post({ post, morePosts }) {
             date={post.date}
             author={post.author}
           />
-          <PostBody />
+          <PostBody content={post.content} />
         </article>
         <SectionSeparator />
         {morePosts.length > 0 && <MoreStories posts={morePosts} />}
@@ -78,8 +80,21 @@ export async function getStaticProps({ params, preview }) {
       },
     }
   )
+
+  const content = (
+    await remark()
+      .use(html)
+      .processSync(data.post.content)
+  ).toString()
+
   return {
-    props: data,
+    props: {
+      post: {
+        ...data.post,
+        content,
+      },
+      morePosts: data.morePosts,
+    },
   }
 }
 

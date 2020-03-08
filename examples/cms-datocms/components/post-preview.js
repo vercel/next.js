@@ -1,8 +1,6 @@
-import textStyles from '../components/text-styles.module.css'
 import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from './cover-image'
-import cn from 'classnames'
 import fetchAPI from '../lib/api'
 
 export default function PostPreview({
@@ -24,7 +22,7 @@ export default function PostPreview({
       <div className="text-lg mb-4 text-accent-5">
         <Date dateString={date} />
       </div>
-      <p className={cn(textStyles['body-text'], 'mb-4')}>{excerpt}</p>
+      <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
       <Avatar name={author.name} picture={author.picture} />
     </div>
   )

@@ -1,0 +1,7 @@
+.markdown p {
+  @apply text-lg leading-relaxed my-6;
+}
+
+.markdown h2 {
+  @apply text-3xl mt-12 mb-4 leading-snug;
+}
