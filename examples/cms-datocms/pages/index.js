@@ -3,7 +3,7 @@ import MoreStories from '../components/more-stories'
 import HeroPost from '../components/hero-post'
 import Intro from '../components/intro'
 import Layout from '../components/layout'
-import fetchAPI from '../lib/api'
+import fetchAPI, { responsiveImageFragment } from '../lib/api'
 
 export default function Index({ allPosts }) {
   const heroPost = allPosts[0]
@@ -13,7 +13,15 @@ export default function Index({ allPosts }) {
       <Layout>
         <Container>
           <Intro />
-          {heroPost && <HeroPost {...allPosts[0]} />}
+          {heroPost && (
+            <HeroPost
+              title={heroPost.title}
+              coverImage={heroPost.coverImage}
+              date={heroPost.date}
+              author={heroPost.author}
+              {...allPosts[0]}
+            />
+          )}
           {morePosts.length > 0 && <MoreStories posts={morePosts} />}
         </Container>
       </Layout>
@@ -29,20 +37,12 @@ export async function getStaticProps({ preview }) {
       title
       slug
       excerpt
+      date
       coverImage {
         responsiveImage(imgixParams: {fm: jpg, fit: crop, w: 2000, h: 1000 }) {
-          srcSet
-          webpSrcSet
-          sizes
-          src
-          width
-          height
-          aspectRatio
-          bgColor
-          base64
+          ...responsiveImageFragment
         }
       }
-      date
       author {
         name
         picture {
@@ -51,6 +51,8 @@ export async function getStaticProps({ preview }) {
       }
     }
   }
+
+  ${responsiveImageFragment}
   `,
     { preview }
   )

@@ -3,6 +3,7 @@ import Avatar from '../components/avatar'
 import Date from '../components/date'
 import CoverImage from './cover-image'
 import cn from 'classnames'
+import fetchAPI from '../lib/api'
 
 export default function PostPreview({
   title,
@@ -27,4 +28,18 @@ export default function PostPreview({
       <Avatar name={author.name} picture={author.picture} />
     </div>
   )
+}
+
+export async function getStaticPaths() {
+  const data = await fetchAPI(`
+  {
+    allPosts {
+      slug
+    }
+  }
+  `)
+  return {
+    paths: data.allPosts?.map(post => `/posts/${post.slug}`) || [],
+    fallback: false,
+  }
 }
