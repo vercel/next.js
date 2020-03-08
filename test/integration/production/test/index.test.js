@@ -239,6 +239,14 @@ describe('Production Usage', () => {
         expect(html).toMatch(/404/)
       }
     })
+
+    it('should not contain customServer in NEXT_DATA', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      expect('customServer' in JSON.parse($('#__NEXT_DATA__').text())).toBe(
+        false
+      )
+    })
   })
 
   describe('API routes', () => {

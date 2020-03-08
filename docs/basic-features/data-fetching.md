@@ -1,5 +1,5 @@
 ---
-description: Next.js can handle data fetching in multiple ways for server-rendered and static pages. Learn how it works here.
+description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-side rendering. Learn how they work here.'
 ---
 
 # Data fetching
@@ -30,7 +30,9 @@ export async function getStaticProps(context) {
 
 The `context` parameter is an object containing the following keys:
 
-- `params`: `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
+- `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
+- `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ### Simple Example
 
@@ -80,6 +82,18 @@ You should use `getStaticProps` if:
 - The data can be publicly cached (not user-specific).
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
 
+### TypeScript: Use `GetStaticProps`
+
+For TypeScript, you can use the `GetStaticProps` type from `next`:
+
+```ts
+import { GetStaticProps } from 'next'
+
+export const getStaticProps: GetStaticProps = async context => {
+  // ...
+}
+```
+
 ### Technical details
 
 #### Only runs at build time
@@ -107,6 +121,12 @@ Also, you must use `export async function getStaticProps() {}` — it will **not
 #### Runs on every request in development
 
 In development (`next dev`), `getStaticProps` will be called on every request.
+
+#### Preview Mode
+
+In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
+
+This use case is supported by Next.js by the feature called **Preview Mode**. Learn more on the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ## `getStaticPaths` (Static Generation)
 
@@ -265,6 +285,18 @@ This ensures that users always have a fast experience while preserving fast buil
 
 You should use `getStaticPaths` if you’re statically pre-rendering pages that use dynamic routes.
 
+### TypeScript: Use `GetStaticPaths`
+
+For TypeScript, you can use the `GetStaticPaths` type from `next`:
+
+```ts
+import { GetStaticPaths } from 'next'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  // ...
+}
+```
+
 ### Technical details
 
 #### Use together with `getStaticProps`
@@ -305,6 +337,8 @@ The `context` parameter is an object containing the following keys:
 - `req`: [The HTTP request object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: The query string.
+- `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ### Simple example
 
@@ -333,6 +367,18 @@ export default Page
 You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra .
 
 If you don’t need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
+
+### TypeScript: Use `GetServerSideProps`
+
+For TypeScript, you can use the `GetServerSideProps` type from `next`:
+
+```ts
+import { GetServerSideProps } from 'next'
+
+export const getServerSideProps: GetServerSideProps = async context => {
+  // ...
+}
+```
 
 ### Technical details
 
@@ -379,6 +425,13 @@ function Profile() {
 ## Learn more
 
 We recommend you to read the following sections next:
+
+<div class="card">
+  <a href="/docs/advanced-features/preview-mode.md">
+    <b>Preview Mode:</b>
+    <small>Learn more about the preview mode in Next.js.</small>
+  </a>
+</div>
 
 <div class="card">
   <a href="/docs/routing/introduction.md">
