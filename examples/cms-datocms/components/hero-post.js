@@ -5,7 +5,7 @@ import Date from '../components/date'
 
 export default function HeroPost() {
   return (
-    <>
+    <section>
       <div className="mb-8 md:mb-16 -mx-5 sm:mx-0">
         <img src="/images/image.jpg" className="shadow-magical" />
       </div>
@@ -28,6 +28,6 @@ export default function HeroPost() {
           <Avatar />
         </div>
       </div>
-    </>
+    </section>
   )
 }
