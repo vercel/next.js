@@ -785,6 +785,14 @@ const runTests = (dev = false, looseMode = false) => {
         },
         {
           dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/non\\-json\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/non-json/[p]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
           ),
           page: '/something',
@@ -837,6 +845,14 @@ const runTests = (dev = false, looseMode = false) => {
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
+        },
+        '/non-json/[p]': {
+          dataRoute: `/_next/data/${escapedBuildId}/non-json/[p].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/non-json/[p].html',
+          routeRegex: normalizeRegEx('^\\/non\\-json\\/([^\\/]+?)(?:\\/)?$'),
         },
         '/user/[user]/profile': {
           fallback: '/user/[user]/profile.html',
