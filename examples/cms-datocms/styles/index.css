@@ -3,7 +3,3 @@
 @tailwind components;
 /* purgecss end ignore */
 @tailwind utilities;
-
-.grayscale {
-  filter: grayscale(1);
-}

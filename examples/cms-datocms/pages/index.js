@@ -51,7 +51,7 @@ export async function getStaticProps({ preview }) {
       author {
         name
         picture {
-          url(imgixParams: {w: 100, h: 100})
+          url(imgixParams: {w: 100, h: 100, sat: -100})
         }
       }
     }
