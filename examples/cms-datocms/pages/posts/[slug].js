@@ -7,7 +7,10 @@ import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
-import fetchAPI, { responsiveImageFragment } from '../../lib/api'
+import fetchAPI, {
+  getAllPostsWithSlug,
+  responsiveImageFragment,
+} from '../../lib/api'
 import remark from 'remark'
 import html from 'remark-html'
 import PostTitle from '../../components/post-title'
@@ -121,15 +124,9 @@ export async function getStaticProps({ params, preview }) {
 }
 
 export async function getStaticPaths() {
-  const data = await fetchAPI(`
-  {
-    allPosts {
-      slug
-    }
-  }
-  `)
+  const allPosts = await getAllPostsWithSlug()
   return {
-    paths: data.allPosts?.map(post => `/posts/${post.slug}`) || [],
+    paths: allPosts?.map(post => `/posts/${post.slug}`) || [],
     fallback: true,
   }
 }

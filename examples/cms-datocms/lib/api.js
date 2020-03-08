@@ -40,3 +40,14 @@ export default async function fetchAPI(query, { variables, preview } = {}) {
   }
   return json.data
 }
+
+export async function getAllPostsWithSlug() {
+  const data = fetchAPI(`
+    {
+      allPosts {
+        slug
+      }
+    }
+  `)
+  return data.allPosts
+}
