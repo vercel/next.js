@@ -1,5 +1,5 @@
 {
-  "name": "cms-datocms",
+  "name": "cms-prismic",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -14,10 +14,7 @@
     "prismic-javascript": "2.2.0",
     "prismic-reactjs": "1.2.0",
     "react": "^16.13.0",
-    "react-datocms": "1.1.0",
-    "react-dom": "^16.13.0",
-    "remark": "11.0.2",
-    "remark-html": "10.0.0"
+    "react-dom": "^16.13.0"
   },
   "devDependencies": {
     "@fullhuman/postcss-purgecss": "^2.1.0",
