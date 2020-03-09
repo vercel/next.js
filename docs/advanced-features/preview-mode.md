@@ -149,6 +149,12 @@ That’s it! If you access the preview API route (with `secret` and `slug`) from
 https://<your-site>/api/preview?secret=<token>&slug=<path>
 ```
 
+## More Examples
+
+Take a look at the following examples to learn more:
+
+- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms)
+
 ## More Details
 
 ### Clear the preview mode cookies
