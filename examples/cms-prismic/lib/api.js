@@ -7,7 +7,9 @@ const GRAPHQL_API_URL = `https://${REPOSITORY}.cdn.prismic.io/graphql`
 // export const API_URL = 'https://your-repo-name.cdn.prismic.io/api/v2'
 export const API_TOKEN = process.env.NEXT_EXAMPLE_CMS_PRISMIC_API_TOKEN
 
-const PrismicClient = Prismic.client(REF_API_URL, { accessToken: API_TOKEN })
+export const PrismicClient = Prismic.client(REF_API_URL, {
+  accessToken: API_TOKEN,
+})
 
 async function fetchAPI(query, { preview, variables } = {}) {
   const prismicAPI = await PrismicClient.getApi()
