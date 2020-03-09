@@ -330,6 +330,7 @@ export async function renderToHTML(
   delete query.__nextFallback
 
   const isSSG = !!getStaticProps
+  const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
 
@@ -509,7 +510,10 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if (dev && !isSerializableProps(pathname, 'getStaticProps', data.props)) {
+      if (
+        (dev || isBuildTimeSSG) &&
+        !isSerializableProps(pathname, 'getStaticProps', data.props)
+      ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
           'invariant: getStaticProps did not return valid props. Please report this.'
@@ -576,7 +580,7 @@ export async function renderToHTML(
       }
 
       if (
-        dev &&
+        (dev || isBuildTimeSSG) &&
         !isSerializableProps(pathname, 'getServerSideProps', data.props)
       ) {
         // this fn should throw an error instead of ever returning `false`

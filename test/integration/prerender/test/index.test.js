@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import {
   check,
   fetchViaHTTP,
+  File,
   findPort,
   getBrowserBodyText,
   getReactErrorOverlayContent,
@@ -1145,6 +1146,23 @@ describe('SSG Prerender', () => {
       expect(stderr).not.toContain(
         'You can not use getInitialProps with getStaticProps'
       )
+    })
+
+    it('should show serialization error during build', async () => {
+      await fs.remove(join(appDir, '.next'))
+
+      const nonJsonPage = join(appDir, 'pages/non-json/[p].js')
+      const f = new File(nonJsonPage)
+      try {
+        f.replace('paths: []', `paths: [{ params: { p: 'testing' } }]`)
+
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        expect(stderr).toContain(
+          'Error serializing `.time` returned from `getStaticProps` in "/non-json/[p]".'
+        )
+      } finally {
+        f.restore()
+      }
     })
   })
 
