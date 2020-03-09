@@ -85,7 +85,7 @@ Reason: Props must be returned as a plain object from test: \`{ props: { ... } }
     ).toBe(true)
   })
 
-  it('diallows top-level non-serializable types', () => {
+  it('disallows top-level non-serializable types', () => {
     expect(() => isSerializableProps('/', 'test', { toplevel: new Date() }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
