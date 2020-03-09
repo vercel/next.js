@@ -23,22 +23,26 @@ export function isSerializableProps(
     )
   }
 
-  const visited = new WeakSet()
-
-  function visit(value: any, path: string) {
+  function visit(visited: Map<any, string>, value: any, path: string) {
     if (visited.has(value)) {
       throw new SerializableError(
         page,
         method,
         path,
-        'Circular references cannot be expressed in JSON.'
+        `Circular references cannot be expressed in JSON (references: \`${visited.get(
+          value
+        ) || '(self)'}\`).`
       )
     }
 
-    visited.add(value)
+    visited.set(value, path)
   }
 
-  function isSerializable(value: any, path: string): true {
+  function isSerializable(
+    refs: Map<any, string>,
+    value: any,
+    path: string
+  ): true {
     const type = typeof value
     if (
       // `null` can be serialized, but not `undefined`.
@@ -65,7 +69,7 @@ export function isSerializableProps(
     }
 
     if (isPlainObject(value)) {
-      visit(value, path)
+      visit(refs, value, path)
 
       if (
         Object.entries(value).every(([key, value]) => {
@@ -73,8 +77,10 @@ export function isSerializableProps(
             ? `${path}.${key}`
             : `${path}[${JSON.stringify(key)}]`
 
+          const newRefs = new Map(refs)
           return (
-            isSerializable(key, nextPath) && isSerializable(value, nextPath)
+            isSerializable(newRefs, key, nextPath) &&
+            isSerializable(newRefs, value, nextPath)
           )
         })
       ) {
@@ -90,11 +96,12 @@ export function isSerializableProps(
     }
 
     if (Array.isArray(value)) {
-      visit(value, path)
+      visit(refs, value, path)
 
+      const newRefs = new Map(refs)
       if (
         value.every((value, index) =>
-          isSerializable(value, `${path}[${index}]`)
+          isSerializable(newRefs, value, `${path}[${index}]`)
         )
       ) {
         return true
@@ -124,7 +131,7 @@ export function isSerializableProps(
     )
   }
 
-  return isSerializable(input, '')
+  return isSerializable(new Map(), input, '')
 }
 
 export class SerializableError extends Error {
