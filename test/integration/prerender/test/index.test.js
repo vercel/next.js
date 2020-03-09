@@ -7,6 +7,7 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getBrowserBodyText,
   getReactErrorOverlayContent,
   initNextServerScript,
   killApp,
@@ -725,6 +726,18 @@ const runTests = (dev = false, looseMode = false) => {
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
+      })
+
+      it('should not show error for invalid JSON returned from getStaticProps on SSR', async () => {
+        const browser = await webdriver(appPort, '/non-json/direct')
+
+        await check(() => getBrowserBodyText(browser), /hello /)
+      })
+
+      it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+        const browser = await webdriver(appPort, '/')
+        await browser.elementByCss('#non-json').click()
+        await check(() => getBrowserBodyText(browser), /hello /)
       })
     }
 
