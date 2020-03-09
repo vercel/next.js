@@ -1,10 +1,9 @@
-import { Image } from 'react-datocms'
 import cn from 'classnames'
 import Link from 'next/link'
 
 export default function CoverImage({ title, src, slug }) {
   const image = (
-    <Image
+    <img
       data={{
         src,
         alt: `Cover Image for ${title}`,
