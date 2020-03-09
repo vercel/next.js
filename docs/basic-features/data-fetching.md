@@ -424,6 +424,12 @@ function Profile() {
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
 
+## More Examples
+
+Take a look at the following examples to learn more:
+
+- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms)
+
 ## Learn more
 
 We recommend you to read the following sections next:
