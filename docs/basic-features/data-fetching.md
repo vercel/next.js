@@ -191,7 +191,9 @@ export async function getStaticPaths() {
   const posts = await res.json()
 
   // Get the paths we want to pre-render based on posts
-  const paths = posts.map(post => `/posts/${post.id}`)
+  const paths = posts.map(post => ({
+    params: { id: post.id },
+  }))
 
   // We'll pre-render only these paths at build time.
   // { fallback: false } means other routes should 404.
@@ -421,6 +423,12 @@ function Profile() {
 ```
 
 [Check out the SWR documentation to learn more](https://swr.now.sh/).
+
+## More Examples
+
+Take a look at the following examples to learn more:
+
+- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
 
 ## Learn more
 
