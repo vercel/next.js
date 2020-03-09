@@ -25,8 +25,14 @@ export default async (req, res) => {
     ref, // pass the ref to pages so that they can fetch the draft ref
   })
 
-  // Redirect to the path from the fetched post
-  // We don't redirect to req.query.slug as that might lead to open redirect vulnerabilities
-  res.writeHead(307, { Location: url })
+  // Redirect the user to the share endpoint from same origin. This is
+  // necessary due to a Chrome bug:
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=696204
+  res.write(
+    `<!DOCTYPE html><html><head><meta http-equiv="Refresh" content="0; url=${url}" />
+    <script>window.location.href = '${url}'</script>
+    </head>`
+  )
+
   res.end()
 }

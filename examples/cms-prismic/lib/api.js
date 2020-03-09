@@ -11,13 +11,13 @@ export const PrismicClient = Prismic.client(REF_API_URL, {
   accessToken: API_TOKEN,
 })
 
-async function fetchAPI(query, { preview, variables } = {}) {
+async function fetchAPI(query, { previewData, variables } = {}) {
   const prismicAPI = await PrismicClient.getApi()
   const res = await fetch(
     `${GRAPHQL_API_URL}?query=${query}&variables=${JSON.stringify(variables)}`,
     {
       headers: {
-        'Prismic-Ref': prismicAPI.masterRef.ref,
+        'Prismic-Ref': previewData?.ref || prismicAPI.masterRef.ref,
         'Content-Type': 'application/json',
         Authorization: `Token ${API_TOKEN}`,
       },
@@ -74,7 +74,7 @@ export async function getAllPostsWithSlug() {
   return data?.allPosts?.edges
 }
 
-export async function getAllPostsForHome(preview) {
+export async function getAllPostsForHome(previewData) {
   const data = await fetchAPI(
     `
     query {
@@ -93,13 +93,13 @@ export async function getAllPostsForHome(preview) {
       }
     }
   `,
-    { preview }
+    { previewData }
   )
 
   return data.allPosts.edges
 }
 
-export async function getPostAndMorePosts(slug, preview) {
+export async function getPostAndMorePosts(slug, previewData) {
   const data = await fetchAPI(
     `
   query PostBySlug($slug: String!) {
@@ -115,7 +115,7 @@ export async function getPostAndMorePosts(slug, preview) {
   }
   `,
     {
-      preview,
+      previewData,
       variables: {
         slug,
       },
