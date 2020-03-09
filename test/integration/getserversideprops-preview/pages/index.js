@@ -1,5 +1,11 @@
 export function getServerSideProps({ preview, previewData }) {
-  return { props: { hasProps: true, preview, previewData } }
+  return {
+    props: {
+      hasProps: true,
+      preview: !!preview,
+      previewData: previewData || null,
+    },
+  }
 }
 
 export default function({ hasProps, preview, previewData }) {

@@ -925,7 +925,7 @@ export default class Server {
           const renderResult = await (components.Component as any).renderReqToHTML(
             req,
             res,
-            true
+            'passthrough'
           )
 
           sendPayload(
@@ -1028,7 +1028,7 @@ export default class Server {
         renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
-          true
+          'passthrough'
         )
 
         html = renderResult.html
