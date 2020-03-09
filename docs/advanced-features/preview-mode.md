@@ -75,7 +75,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 export default async (req, res) => {
   // Check the secret and next parameters
   // This secret should only be know to this API route and the CMS
-  if (req.query.secret !== 'MY_SECRET_TOKEN' || !res.query.slug) {
+  if (req.query.secret !== 'MY_SECRET_TOKEN' || !req.query.slug) {
     return res.status(401).json({ message: 'Invalid token' })
   }
 
@@ -88,7 +88,7 @@ export default async (req, res) => {
     return res.status(401).json({ message: 'Invalid slug' })
   }
 
-  // Enable Preview Mode  by setting the cookies
+  // Enable Preview Mode by setting the cookies
   res.setPreviewData({})
 
   // Redirect to the path from the fetched post
