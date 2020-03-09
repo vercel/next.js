@@ -5,7 +5,7 @@ export async function getServerSideProps() {
 }
 
 const Page = ({ time }) => {
-  return <p>hello {time}</p>
+  return <p>hello {time.toString()}</p>
 }
 
 export default Page

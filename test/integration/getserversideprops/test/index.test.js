@@ -421,6 +421,18 @@ const runTests = (dev = false) => {
       )
       expect(res.headers.get('cache-control')).toContain('no-cache')
     })
+
+    it('should not show error for invalid JSON returned from getServerSideProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json')
+      expect(html).not.toContain('Error serializing')
+      expect(html).toContain('hello ')
+    })
+
+    it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#non-json').click()
+      await check(() => getBrowserBodyText(browser), /hello /)
+    })
   }
 }
 

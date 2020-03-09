@@ -509,7 +509,7 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if (!isSerializableProps(pathname, 'getStaticProps', data.props)) {
+      if (dev && !isSerializableProps(pathname, 'getStaticProps', data.props)) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
           'invariant: getStaticProps did not return valid props. Please report this.'
@@ -575,7 +575,10 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if (!isSerializableProps(pathname, 'getServerSideProps', data.props)) {
+      if (
+        dev &&
+        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+      ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
           'invariant: getServerSideProps did not return valid props. Please report this.'
