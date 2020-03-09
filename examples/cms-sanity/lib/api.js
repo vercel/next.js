@@ -11,7 +11,10 @@ async function getRefs(items) {
           item[key] = await getRefs(item[key])
         }
         if (_type === 'image') {
-          item[key] = await client.getUrl(item[key].asset._ref)
+          item[key] = await client.assets.getImageUrl(item[key].asset._ref)
+        }
+        if (_type === 'slug') {
+          item[key] = (item[key].current || '').replace(/^\//, '')
         }
       }
     }
