@@ -2,6 +2,10 @@
 
 This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [Sanity](https://www.sanity.io/) as the data source.
 
+## Demo
+
+### [https://next-blog-sanity.now.sh/](https://next-blog-sanity.now.sh/)
+
 ## How to use
 
 ### Using `create-next-app`
@@ -41,86 +45,17 @@ When going through the init phase make sure to select **Yes** to the **Use the d
 
 After initializing get the `projectId` and `dataset` values from the `sanity.json` file that was generated and add them to `lib/sanity.js` in the example.
 
-### Step 3. Create an `Author` schema
+### Step 3. Copy the schema file
 
-In your Sanity studio project open `schemas/schema.js` and add the following schema that will be used for authors inside of `schemaTypes.concat([])`
+After initializing your Sanity studio project there should be a `schemas` folder.
 
-```js
-{
-  name: 'author',
-  type: 'document',
-  title: 'Author',
-  fields: [
-    {
-      name: 'name',
-      title: 'Name',
-      type: 'string'
-    },
-    {
-      name: 'picture',
-      title: 'Picture',
-      type: 'image'
-    },
-  ]
-}
-```
-
-### Step 4. Create a `Post` schema
-
-In the same file that we edited above `schemas/schema.js` add the following schema that will be used for posts.
-
-```js
-{
-  name: 'post',
-  type: 'document',
-  title: 'Post',
-  fields: [
-    {
-      name: 'title',
-      title: 'Title',
-      type: 'string'
-    },
-    {
-      name: 'content',
-      title: 'Content',
-      type: 'array',
-      of: [{type: 'block'}]
-    },
-    {
-      name: 'excerpt',
-      title: 'Excerpt',
-      type: 'string'
-    },
-    {
-      name: 'coverImage',
-      title: 'Cover Image',
-      type: 'image',
-    },
-    {
-      name: 'date',
-      title: 'Date',
-      type: 'datetime',
-    },
-    {
-      name: 'author',
-      title: 'Author',
-      type: 'reference',
-      to: [{ type: 'author' }]
-    },
-    {
-      name: 'slug',
-      title: 'Slug',
-      type: 'slug'
-    }
-  ]
-}
-```
+To get up and running we want to copy the schema file from [`./schemas/schema.js`](./schemas/schema.js) to the studio project to use for creating/editing content.
 
 ### Step 4. Populate Content
 
-To add some content go to your Sanity studio project where we added the schema types and run `sanity start`.
+To add some content go to your Sanity studio project where we added the schema file and run `sanity start`.
 
-After the project has started and you have navigated to the provided URL, select **Author** and create a new record.
+After the project has started and you have navigated to the URL given in the terminal, select **Author** and create a new record.
 
 - You just need **1 Author record**.
 - Use dummy data for the text.
@@ -138,9 +73,7 @@ Next, select **Post** and create a new record.
 
 ### Step 5. Set up environment variables
 
-Go to the **Settings** menu at the top and click **API tokens**.
-
-Then click **Read-only API token** and copy the token.
+First, create a random preview secret.
 
 Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
 
@@ -150,14 +83,12 @@ cp .env.example .env
 
 Then set each variable on `.env`:
 
-- `NEXT_EXAMPLE_CMS_Sanity_API_TOKEN` should be the API token you just copied.
-- `NEXT_EXAMPLE_CMS_Sanity_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
+- `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
 
 Your `.env` file should look like this:
 
 ```bash
-NEXT_EXAMPLE_CMS_Sanity_API_TOKEN=...
-NEXT_EXAMPLE_CMS_Sanity_PREVIEW_SECRET=...
+NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET=...
 ```
 
 ### Step 6. Run Next.js in development mode
@@ -181,8 +112,6 @@ On Sanity, go to one of the posts you've created and:
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
 
-(If it doesn't become draft, you need to go to the model settings for `Post`, go to **Additional Settings**, and turn on **Enable draft/published system**.)
-
 Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
 To enable the Preview Mode, go to this URL:
@@ -205,8 +134,7 @@ To deploy on ZEIT Now, you need to set the environment variables with **Now Secr
 Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_Sanity_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_Sanity_PREVIEW_SECRET>` with the corresponding strings in `.env`.
 
 ```
-now secrets add next_example_cms_Sanity_api_token <NEXT_EXAMPLE_CMS_Sanity_API_TOKEN>
-now secrets add next_example_cms_Sanity_preview_secret <NEXT_EXAMPLE_CMS_Sanity_PREVIEW_SECRET>
+now secrets add next_example_cms_sanity_preview_secret <NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

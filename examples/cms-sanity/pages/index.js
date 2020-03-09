@@ -1,5 +1,5 @@
 import Container from '../components/container'
-// import MoreStories from '../components/more-stories'
+import MoreStories from '../components/more-stories'
 import HeroPost from '../components/hero-post'
 import Intro from '../components/intro'
 import Layout from '../components/layout'
@@ -9,7 +9,7 @@ import { CMS_NAME } from '../lib/constants'
 
 export default function Index({ allPosts }) {
   const heroPost = allPosts[0]
-  // const morePosts = allPosts.slice(1)
+  const morePosts = allPosts.slice(1)
   return (
     <>
       <Layout>
@@ -28,7 +28,7 @@ export default function Index({ allPosts }) {
               excerpt={heroPost.excerpt}
             />
           )}
-          {/* {morePosts.length > 0 && <MoreStories posts={morePosts} />} */}
+          {morePosts.length > 0 && <MoreStories posts={morePosts} />}
         </Container>
       </Layout>
     </>
@@ -37,7 +37,6 @@ export default function Index({ allPosts }) {
 
 export async function getStaticProps({ preview }) {
   const allPosts = await getAllPostsForHome(preview)
-  console.log(JSON.stringify(allPosts, null, 2))
   return {
     props: { allPosts },
   }

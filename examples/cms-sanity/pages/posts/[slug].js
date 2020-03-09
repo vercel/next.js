@@ -11,7 +11,6 @@ import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
-import markdownToHtml from '../../lib/markdownToHtml'
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
@@ -31,7 +30,7 @@ export default function Post({ post, morePosts, preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                <meta property="og:image" content={post.ogImage.url} />
+                {/* <meta property="og:image" content={post.ogImage.url} /> */}
               </Head>
               <PostHeader
                 title={post.title}
@@ -52,16 +51,11 @@ export default function Post({ post, morePosts, preview }) {
 
 export async function getStaticProps({ params, preview }) {
   const data = await getPostAndMorePosts(params.slug, preview)
-  const content = await markdownToHtml(data?.post?.content || '')
-
   return {
     props: {
       preview,
-      post: {
-        ...data?.post,
-        content,
-      },
-      morePosts: data?.morePosts,
+      post: data.post || null,
+      morePosts: data.morePosts || null,
     },
   }
 }
@@ -69,7 +63,12 @@ export async function getStaticProps({ params, preview }) {
 export async function getStaticPaths() {
   const allPosts = await getAllPostsWithSlug()
   return {
-    paths: allPosts?.map(post => `/posts/${post.slug}`) || [],
+    paths:
+      allPosts?.map(post => ({
+        params: {
+          slug: post.slug,
+        },
+      })) || [],
     fallback: true,
   }
 }

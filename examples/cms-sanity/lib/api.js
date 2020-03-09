@@ -1,45 +1,58 @@
-import client from './sanity'
+import client, { previewClient } from './sanity'
 
-async function getRefs(items) {
-  for (const item of Array.isArray(items) ? items : [items]) {
-    for (const key of Object.keys(item || {})) {
-      if (item[key] && typeof item[key] === 'object') {
-        const { _ref, _type } = item[key]
+const postFields = `
+  name,
+  title,
+  date,
+  excerpt,
+  'slug': slug.current,
+  'coverImage': coverImage.asset->url,
+  'author': author->{name, 'picture': picture.asset->url},
+`
 
-        if (_type === 'reference') {
-          item[key] = await client.getDocument(_ref)
-          item[key] = await getRefs(item[key])
-        }
-        if (_type === 'image') {
-          item[key] = await client.assets.getImageUrl(item[key].asset._ref)
-        }
-        if (_type === 'slug') {
-          item[key] = (item[key].current || '').replace(/^\//, '')
-        }
-      }
-    }
-  }
-  return items
-}
+const getClient = preview => (preview ? previewClient : client)
 
 export async function getPreviewPostBySlug(slug) {
-  const data = await client.fetch(`*[_type == "post" && slug == ${slug}]`)
-  console.log('got data', data)
-  return data?.post
+  const data = await getClient(true).fetch(
+    `*[_type == "post" && slug.current == $slug] | order(date desc){
+      ${postFields}
+      content
+    }`,
+    { slug }
+  )
+  return data[0]
 }
 
 export async function getAllPostsWithSlug() {
-  const data = await client.fetch()
-  console.log(data)
-  return data?.allPosts
+  const data = await client.fetch(`*[_type == "post"]{ 'slug': slug.current }`)
+  return data
 }
 
 export async function getAllPostsForHome(preview) {
-  const data = await client.fetch(`*[_type == "post"]`)
-  return getRefs(data)
+  return getClient(preview).fetch(`*[_type == "post"] | order(date desc){
+      ${postFields}
+    }`)
 }
 
 export async function getPostAndMorePosts(slug, preview) {
-  const data = client.fetch()
-  return data
+  const curClient = getClient(preview)
+  const [post, morePosts] = await Promise.all([
+    curClient
+      .fetch(
+        `*[_type == "post" && slug.current == $slug]{
+        ${postFields}
+        content,
+      }`,
+        { slug }
+      )
+      .then(res => res?.[0]),
+    curClient.fetch(
+      `*[_type == "post" && slug.current != $slug] | order(date desc){
+        ${postFields}
+        content,
+      }[0...2]`,
+      { slug }
+    ),
+  ])
+  return { post, morePosts }
 }
