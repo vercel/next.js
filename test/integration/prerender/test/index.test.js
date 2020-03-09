@@ -6,7 +6,9 @@ import fs from 'fs-extra'
 import {
   check,
   fetchViaHTTP,
+  File,
   findPort,
+  getBrowserBodyText,
   getReactErrorOverlayContent,
   initNextServerScript,
   killApp,
@@ -682,6 +684,40 @@ const runTests = (dev = false, looseMode = false) => {
       const curRandom = await browser.elementByCss('#random').text()
       expect(curRandom).toBe(initialRandom + '')
     })
+
+    it('should show fallback before invalid JSON is returned from getStaticProps', async () => {
+      const html = await renderViaHTTP(appPort, '/non-json/foobar')
+      expect(html).toContain('"isFallback":true')
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps on SSR', async () => {
+      const browser = await webdriver(appPort, '/non-json/direct')
+
+      // FIXME: enable this
+      // expect(await getReactErrorOverlayContent(browser)).toMatch(
+      //   /Error serializing `.time` returned from `getStaticProps`/
+      // )
+
+      // FIXME: disable this
+      expect(await getReactErrorOverlayContent(browser)).toMatch(
+        /Failed to load static props/
+      )
+    })
+
+    it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#non-json').click()
+
+      // FIXME: enable this
+      // expect(await getReactErrorOverlayContent(browser)).toMatch(
+      //   /Error serializing `.time` returned from `getStaticProps`/
+      // )
+
+      // FIXME: disable this
+      expect(await getReactErrorOverlayContent(browser)).toMatch(
+        /Failed to load static props/
+      )
+    })
   } else {
     if (!looseMode) {
       it('should should use correct caching headers for a no-revalidate page', async () => {
@@ -691,6 +727,18 @@ const runTests = (dev = false, looseMode = false) => {
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
+      })
+
+      it('should not show error for invalid JSON returned from getStaticProps on SSR', async () => {
+        const browser = await webdriver(appPort, '/non-json/direct')
+
+        await check(() => getBrowserBodyText(browser), /hello /)
+      })
+
+      it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
+        const browser = await webdriver(appPort, '/')
+        await browser.elementByCss('#non-json').click()
+        await check(() => getBrowserBodyText(browser), /hello /)
       })
     }
 
@@ -764,6 +812,14 @@ const runTests = (dev = false, looseMode = false) => {
         },
         {
           dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/non\\-json\\/([^\\/]+?)\\.json$`
+          ),
+          page: '/non-json/[p]',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
           ),
           page: '/something',
@@ -816,6 +872,14 @@ const runTests = (dev = false, looseMode = false) => {
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
+        },
+        '/non-json/[p]': {
+          dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/non-json/[p].html',
+          routeRegex: normalizeRegEx('^\\/non\\-json\\/([^\\/]+?)(?:\\/)?$'),
         },
         '/user/[user]/profile': {
           fallback: '/user/[user]/profile.html',
@@ -1082,6 +1146,23 @@ describe('SSG Prerender', () => {
       expect(stderr).not.toContain(
         'You can not use getInitialProps with getStaticProps'
       )
+    })
+
+    it('should show serialization error during build', async () => {
+      await fs.remove(join(appDir, '.next'))
+
+      const nonJsonPage = join(appDir, 'pages/non-json/[p].js')
+      const f = new File(nonJsonPage)
+      try {
+        f.replace('paths: []', `paths: [{ params: { p: 'testing' } }]`)
+
+        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        expect(stderr).toContain(
+          'Error serializing `.time` returned from `getStaticProps` in "/non-json/[p]".'
+        )
+      } finally {
+        f.restore()
+      }
     })
   })
 

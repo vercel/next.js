@@ -53,14 +53,14 @@ function runTests(startServer = nextStart) {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   it('should return page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   let previewCookieString
@@ -198,9 +198,7 @@ function runTests(startServer = nextStart) {
 
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toBe(
-      'undefined and undefined'
-    )
+    expect(await browser.elementById('props-pre').text()).toBe('false and null')
   })
 
   afterAll(async () => {
@@ -219,7 +217,7 @@ const startServerlessEmulator = async (dir, port) => {
   return initNextServerScript(scriptPath, /ready on/i, env)
 }
 
-describe('Prerender Preview Mode', () => {
+describe('ServerSide Props Preview Mode', () => {
   describe('Development Mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfigPath)
