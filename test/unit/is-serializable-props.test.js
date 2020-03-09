@@ -161,13 +161,13 @@ Reason: \`function\` cannot be serialized as JSON. Please only return JSON seria
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
 `)
 
     expect(() => isSerializableProps('/', 'test', { k: [obj] }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k[0].child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.k[0]\`)."
 `)
   })
 
@@ -178,13 +178,13 @@ Reason: Circular references cannot be expressed in JSON."
     expect(() => isSerializableProps('/', 'test', { arr }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.arr[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.arr\`)."
 `)
 
     expect(() => isSerializableProps('/', 'test', { k: [{ arr }] }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k[0].arr[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.k[0].arr\`)."
 `)
   })
 
@@ -195,7 +195,7 @@ Reason: Circular references cannot be expressed in JSON."
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.leve1.level2.child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
 `)
   })
 
@@ -206,7 +206,7 @@ Reason: Circular references cannot be expressed in JSON."
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
 `)
   })
 
@@ -217,7 +217,7 @@ Reason: Circular references cannot be expressed in JSON."
     expect(() => isSerializableProps('/', 'test', { k: arr }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k[3][1][2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
 `)
   })
 
@@ -228,7 +228,7 @@ Reason: Circular references cannot be expressed in JSON."
     expect(() => isSerializableProps('/', 'test', { k: arr }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k[3][1].nested[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
 `)
   })
 
