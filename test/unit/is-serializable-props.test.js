@@ -161,13 +161,13 @@ Reason: \`function\` cannot be serialized as JSON. Please only return JSON seria
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
 `)
 
     expect(() => isSerializableProps('/', 'test', { k: [obj] }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k[0].child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.k[0]\`)."
 `)
   })
 
@@ -178,13 +178,101 @@ Reason: Circular references cannot be expressed in JSON."
     expect(() => isSerializableProps('/', 'test', { arr }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.arr[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.arr\`)."
 `)
 
     expect(() => isSerializableProps('/', 'test', { k: [{ arr }] }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k[0].arr[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON."
+Reason: Circular references cannot be expressed in JSON (references: \`.k[0].arr\`)."
 `)
+  })
+
+  it('can handle deep obj circular refs', () => {
+    const obj = { foo: 'bar', test: true, leve1: { level2: {} } }
+    obj.leve1.level2.child = obj
+
+    expect(() => isSerializableProps('/', 'test', obj))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.leve1.level2.child\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
+`)
+  })
+
+  it('can handle deep obj circular refs (with arrays)', () => {
+    const obj = { foo: 'bar', test: true, leve1: { level2: {} } }
+    obj.leve1.level2.child = [{ another: [obj] }]
+
+    expect(() => isSerializableProps('/', 'test', obj))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
+`)
+  })
+
+  it('can handle deep arr circular refs', () => {
+    const arr = [1, 2, []]
+    arr[3] = [false, [null, 0, arr]]
+
+    expect(() => isSerializableProps('/', 'test', { k: arr }))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.k[3][1][2]\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
+`)
+  })
+
+  it('can handle deep arr circular refs (with objects)', () => {
+    const arr = [1, 2, []]
+    arr[3] = [false, { nested: [null, 0, arr] }]
+
+    expect(() => isSerializableProps('/', 'test', { k: arr }))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.k[3][1].nested[2]\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
+`)
+  })
+
+  it('allows multi object refs', () => {
+    const obj = { foo: 'bar', test: true }
+    expect(
+      isSerializableProps('/', 'test', {
+        obj1: obj,
+        obj2: obj,
+      })
+    ).toBe(true)
+  })
+
+  it('allows multi object refs nested', () => {
+    const obj = { foo: 'bar', test: true }
+    expect(
+      isSerializableProps('/', 'test', {
+        obj1: obj,
+        obj2: obj,
+        anArray: [obj],
+        aKey: { obj },
+      })
+    ).toBe(true)
+  })
+
+  it('allows multi array refs', () => {
+    const arr = [{ foo: 'bar' }, true]
+    expect(
+      isSerializableProps('/', 'test', {
+        arr1: arr,
+        arr2: arr,
+      })
+    ).toBe(true)
+  })
+
+  it('allows multi array refs nested', () => {
+    const arr = [{ foo: 'bar' }, true]
+    expect(
+      isSerializableProps('/', 'test', {
+        arr1: arr,
+        arr2: arr,
+        arr3: [arr],
+        arr4: [1, [2, 3, arr]],
+      })
+    ).toBe(true)
   })
 })
