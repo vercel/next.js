@@ -847,7 +847,7 @@ const runTests = (dev = false, looseMode = false) => {
           ),
         },
         '/non-json/[p]': {
-          dataRoute: `/_next/data/${escapedBuildId}/non-json/[p].json`,
+          dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
