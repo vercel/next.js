@@ -143,7 +143,7 @@
     "url": "0.11.0",
     "use-subscription": "1.1.1",
     "watchpack": "2.0.0-beta.13",
-    "webpack": "4.41.2",
+    "webpack": "4.42.0",
     "webpack-dev-middleware": "3.7.0",
     "webpack-hot-middleware": "2.25.0",
     "webpack-sources": "1.4.3"
