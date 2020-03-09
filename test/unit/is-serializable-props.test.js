@@ -242,12 +242,36 @@ Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
     ).toBe(true)
   })
 
+  it('allows multi object refs nested', () => {
+    const obj = { foo: 'bar', test: true }
+    expect(
+      isSerializableProps('/', 'test', {
+        obj1: obj,
+        obj2: obj,
+        anArray: [obj],
+        aKey: { obj },
+      })
+    ).toBe(true)
+  })
+
   it('allows multi array refs', () => {
     const arr = [{ foo: 'bar' }, true]
     expect(
       isSerializableProps('/', 'test', {
         arr1: arr,
         arr2: arr,
+      })
+    ).toBe(true)
+  })
+
+  it('allows multi array refs nested', () => {
+    const arr = [{ foo: 'bar' }, true]
+    expect(
+      isSerializableProps('/', 'test', {
+        arr1: arr,
+        arr2: arr,
+        arr3: [arr],
+        arr4: [1, [2, 3, arr]],
       })
     ).toBe(true)
   })
