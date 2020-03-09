@@ -8,11 +8,10 @@ import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
 import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
-import remark from 'remark'
-import html from 'remark-html'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
+import markdownToHtml from '../../lib/markdownToHtml'
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
@@ -53,12 +52,7 @@ export default function Post({ post, morePosts, preview }) {
 
 export async function getStaticProps({ params, preview }) {
   const data = await getPostAndMorePosts(params.slug, preview)
-
-  const content = (
-    await remark()
-      .use(html)
-      .processSync(data?.post?.content || '')
-  ).toString()
+  const content = await markdownToHtml(data?.post?.content || '')
 
   return {
     props: {
