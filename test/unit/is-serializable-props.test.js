@@ -187,4 +187,68 @@ Reason: Circular references cannot be expressed in JSON."
 Reason: Circular references cannot be expressed in JSON."
 `)
   })
+
+  it('can handle deep obj circular refs', () => {
+    const obj = { foo: 'bar', test: true, leve1: { level2: {} } }
+    obj.leve1.level2.child = obj
+
+    expect(() => isSerializableProps('/', 'test', obj))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.leve1.level2.child\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON."
+`)
+  })
+
+  it('can handle deep obj circular refs (with arrays)', () => {
+    const obj = { foo: 'bar', test: true, leve1: { level2: {} } }
+    obj.leve1.level2.child = [{ another: [obj] }]
+
+    expect(() => isSerializableProps('/', 'test', obj))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON."
+`)
+  })
+
+  it('can handle deep arr circular refs', () => {
+    const arr = [1, 2, []]
+    arr[3] = [false, [null, 0, arr]]
+
+    expect(() => isSerializableProps('/', 'test', { k: arr }))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.k[3][1][2]\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON."
+`)
+  })
+
+  it('can handle deep arr circular refs (with objects)', () => {
+    const arr = [1, 2, []]
+    arr[3] = [false, { nested: [null, 0, arr] }]
+
+    expect(() => isSerializableProps('/', 'test', { k: arr }))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing \`.k[3][1].nested[2]\` returned from \`test\` in \\"/\\".
+Reason: Circular references cannot be expressed in JSON."
+`)
+  })
+
+  it('allows multi object refs', () => {
+    const obj = { foo: 'bar', test: true }
+    expect(
+      isSerializableProps('/', 'test', {
+        obj1: obj,
+        obj2: obj,
+      })
+    ).toBe(true)
+  })
+
+  it('allows multi array refs', () => {
+    const arr = [{ foo: 'bar' }, true]
+    expect(
+      isSerializableProps('/', 'test', {
+        arr1: arr,
+        arr2: arr,
+      })
+    ).toBe(true)
+  })
 })
