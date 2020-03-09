@@ -91,6 +91,7 @@ export type ServerConstructor = {
    */
   conf?: NextConfig
   dev?: boolean
+  customServer?: boolean
 }
 
 export default class Server {
@@ -116,6 +117,7 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
+    customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
   }
   private compression?: Middleware
@@ -137,6 +139,7 @@ export default class Server {
     quiet = false,
     conf = null,
     dev = false,
+    customServer = true,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
@@ -168,6 +171,7 @@ export default class Server {
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),
+      customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
     }
 

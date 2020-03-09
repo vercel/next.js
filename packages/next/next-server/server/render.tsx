@@ -10,7 +10,11 @@ import {
 } from '../../lib/constants'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
-import { AMP_RENDER_TARGET } from '../lib/constants'
+import {
+  AMP_RENDER_TARGET,
+  STATIC_PROPS_ID,
+  SERVER_PROPS_ID,
+} from '../lib/constants'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
@@ -185,6 +189,7 @@ function renderDocument(
     headTags,
     gsp,
     gssp,
+    customServer,
   }: RenderOpts & {
     props: any
     docProps: DocumentInitialProps
@@ -207,6 +212,7 @@ function renderDocument(
     isFallback?: boolean
     gsp?: boolean
     gssp?: boolean
+    customServer?: boolean
   }
 ): string {
   return (
@@ -229,6 +235,7 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
             gsp, // whether the page is getStaticProps
             gssp, // whether the page is getServerSideProps
+            customServer, // whether the user is using a custom server
           },
           dangerousAsPath,
           canonicalBase,
@@ -473,6 +480,11 @@ export async function renderToHTML(
       router,
       ctx,
     })
+
+    if (isSSG) {
+      props[STATIC_PROPS_ID] = true
+    }
+
     let previewData: string | false | object | undefined
 
     if ((isSSG || getServerSideProps) && !isFallback) {
@@ -536,6 +548,10 @@ export async function renderToHTML(
       ;(renderOpts as any).pageData = props
     }
 
+    if (getServerSideProps) {
+      props[SERVER_PROPS_ID] = true
+    }
+
     if (getServerSideProps && !isFallback) {
       const data = await getServerSideProps({
         req,
@@ -557,7 +573,7 @@ export async function renderToHTML(
       ;(renderOpts as any).pageData = props
     }
   } catch (err) {
-    if (!dev || !err) throw err
+    if (isDataReq || !dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
     console.error(err)
