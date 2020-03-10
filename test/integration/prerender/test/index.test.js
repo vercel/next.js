@@ -315,6 +315,11 @@ const runTests = (dev = false, looseMode = false) => {
     expect(data.pageProps.params).toEqual({})
   })
 
+  it('should not error at the root with no trailing slash', async () => {
+    const html = await renderViaHTTP(appPort, '')
+    expect(html).toMatch(/hello.*?world/)
+  })
+
   it('should not supply query values to params or useRouter dynamic page SSR', async () => {
     const html = await renderViaHTTP(appPort, '/blog/post-1?hello=world')
     const $ = cheerio.load(html)

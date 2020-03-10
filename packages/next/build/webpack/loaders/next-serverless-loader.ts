@@ -262,7 +262,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
       const parsedUrl = handleRewrites(parse(req.url, true))
 
-      if (parsedUrl.pathname.match(/_next\\/data/)) {
+      if (parsedUrl.pathname && parsedUrl.pathname.match(/_next\\/data/)) {
         _nextData = true
         parsedUrl.pathname = parsedUrl.pathname
           .replace(new RegExp('/_next/data/${escapedBuildId}/'), '/')
