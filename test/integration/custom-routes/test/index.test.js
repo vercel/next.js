@@ -104,19 +104,39 @@ const runTests = (isDev = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, hash } = url.parse(res.headers.get('location'))
+    const { pathname, hash, query } = url.parse(
+      res.headers.get('location'),
+      true
+    )
     expect(res.status).toBe(301)
     expect(pathname).toBe('/docs/v2/network/status-codes')
     expect(hash).toBe('#500')
+    expect(query).toEqual({})
   })
 
   it('should redirect successfully with provided statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect2', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname, query } = url.parse(res.headers.get('location'), true)
     expect(res.status).toBe(301)
     expect(pathname).toBe('/')
+    expect(query).toEqual({})
+  })
+
+  it('should redirect successfully with catchall', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/catchall-redirect/hello/world',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/somewhere')
+    expect(query).toEqual({ path: 'hello/world' })
   })
 
   it('should server static files through a rewrite', async () => {
@@ -158,7 +178,12 @@ const runTests = (isDev = false) => {
     const { pathname, query } = url.parse(res.headers.get('location'), true)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
-    expect(query).toEqual({ first: 'hello', second: 'world' })
+    expect(query).toEqual({
+      first: 'hello',
+      second: 'world',
+      name: 'world',
+      section: 'hello',
+    })
   })
 
   it('should overwrite param values correctly', async () => {
@@ -260,7 +285,7 @@ const runTests = (isDev = false) => {
   it('should support proxying to external resource', async () => {
     const res = await fetchViaHTTP(appPort, '/proxy-me/first')
     expect(res.status).toBe(200)
-    expect([...externalServerHits]).toEqual(['/first'])
+    expect([...externalServerHits]).toEqual(['/first?path=first'])
     expect(await res.text()).toContain('hi from external')
   })
 
@@ -324,10 +349,14 @@ const runTests = (isDev = false) => {
       }
     )
 
-    const { pathname, hostname } = url.parse(res.headers.get('location') || '')
+    const { pathname, hostname, query } = url.parse(
+      res.headers.get('location') || '',
+      true
+    )
     expect(res.status).toBe(307)
     expect(pathname).toBe(encodeURI('/\\google.com/about'))
     expect(hostname).not.toBe('google.com')
+    expect(query).toEqual({})
   })
 
   it('should handle unnamed parameters with multi-match successfully', async () => {
@@ -491,6 +520,14 @@ const runTests = (isDev = false) => {
               '^\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)$'
             ),
             source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
+            statusCode: 307,
+          },
+          {
+            destination: '/somewhere',
+            regex: normalizeRegEx(
+              '^\\/catchall-redirect(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/catchall-redirect/:path*',
             statusCode: 307,
           },
         ],

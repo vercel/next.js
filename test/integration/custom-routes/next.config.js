@@ -181,6 +181,11 @@ module.exports = {
           destination: '/:first/:second',
           permanent: false,
         },
+        {
+          source: '/catchall-redirect/:path*',
+          destination: '/somewhere',
+          permanent: false,
+        },
       ]
     },
 

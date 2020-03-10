@@ -488,7 +488,8 @@ export default class Server {
           fn: async (_req, res, params, _parsedUrl) => {
             const { parsedDestination } = prepareDestination(
               route.destination,
-              params
+              params,
+              true
             )
             const updatedDestination = formatUrl(parsedDestination)
 
