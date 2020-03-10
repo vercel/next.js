@@ -83,11 +83,15 @@ describe('Legacy Next-CSS Customization', () => {
   })
 
   it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
+    const { code, stdout, stderr } = await nextBuild(appDir, [], {
       stdout: true,
+      stderr: true,
     })
     expect(code).toBe(0)
     expect(stdout).toMatch(/Compiled successfully/)
+    expect(stderr).toMatch(
+      /Built-in CSS support is being disabled due to custom CSS configuration being detected/
+    )
   })
 
   it(`should've compiled and prefixed`, async () => {
