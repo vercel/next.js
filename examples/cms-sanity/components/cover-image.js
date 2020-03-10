@@ -11,7 +11,6 @@ export default function CoverImage({ title, url, slug }) {
       className={cn('shadow-small', {
         'hover:shadow-medium transition-shadow duration-200': slug,
       })}
-      style={{ maxWidth: '100%', maxHeight: '100%' }}
       src={imageBuilder
         .image(url)
         .height(1000)
