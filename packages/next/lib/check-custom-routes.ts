@@ -1,4 +1,4 @@
-import { match as regexpMatch } from 'path-to-regexp'
+import * as pathToRegexp from 'path-to-regexp'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
@@ -150,12 +150,15 @@ export default function checkCustomRoutes(
       invalidParts.push(...result.invalidParts)
     }
 
+    let sourceTokens: pathToRegexp.Token[] | undefined
+
     if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
       try {
         // Make sure we can parse the source properly
-        regexpMatch(route.source)
+        sourceTokens = pathToRegexp.parse(route.source)
+        pathToRegexp.tokensToRegexp(sourceTokens)
       } catch (err) {
         // If there is an error show our err.sh but still show original error or a formatted one if we can
         const errMatches = err.message.match(/at (\d{0,})/)
@@ -176,6 +179,34 @@ export default function checkCustomRoutes(
           )
         }
         invalidParts.push('`source` parse failed')
+      }
+    }
+
+    // make sure no unnamed patterns are attempted to be used in the
+    // destination as this can cause confusion and is not allowed
+    if (typeof (route as Rewrite).destination === 'string') {
+      if (
+        (route as Rewrite).destination.startsWith('/') &&
+        Array.isArray(sourceTokens)
+      ) {
+        const unnamedInDest = new Set()
+
+        for (const token of sourceTokens) {
+          if (typeof token === 'object' && typeof token.name === 'number') {
+            const unnamedIndex = `:${token.name}`
+            if ((route as Rewrite).destination.includes(unnamedIndex)) {
+              unnamedInDest.add(unnamedIndex)
+            }
+          }
+        }
+
+        if (unnamedInDest.size > 0) {
+          invalidParts.push(
+            `\`destination\` has unnamed params ${[...unnamedInDest].join(
+              ', '
+            )}`
+          )
+        }
       }
     }
 
