@@ -53,14 +53,14 @@ function runTests(startServer = nextStart) {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   it('should return prerendered page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   it('should throw error when setting too large of preview data', async () => {
@@ -198,9 +198,7 @@ function runTests(startServer = nextStart) {
 
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toBe(
-      'undefined and undefined'
-    )
+    expect(await browser.elementById('props-pre').text()).toBe('false and null')
   })
 
   afterAll(async () => {
