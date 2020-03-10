@@ -1,6 +1,6 @@
 import React from 'react'
-import Link from 'next/link'
 import Head from 'next/head'
+import Link from 'next/link'
 import { Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 
@@ -19,25 +19,36 @@ const Layout: React.FunctionComponent<Props> = ({
       <title>{title}</title>
       <meta charSet="utf-8" />
       <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@thorwebdev" />
+      <meta name="twitter:title" content="TypeScript Next.js Stripe Example" />
+      <meta
+        name="twitter:description"
+        content="Full-stack TypeScript example using Next.js, react-stripe-js, and stripe-node."
+      />
+      <meta
+        name="twitter:image"
+        content="https://nextjs-typescript-react-stripe-js.now.sh/social_card.png"
+      />
     </Head>
-    <header>
-      <nav>
-        <Link href="/">
-          <a>Home</a>
-        </Link>{' '}
-        |{' '}
-        <Link href="/donate-with-checkout">
-          <a>Donate with Checkout</a>
-        </Link>{' '}
-        |{' '}
-        <Link href="/donate-with-elements">
-          <a>Donate with Elements</a>
-        </Link>
-      </nav>
-    </header>
-    {children}
-    <footer>
-      <hr />
+    <div className="container">
+      <header>
+        <div className="header-content">
+          <Link href="/">
+            <a className="logo">
+              <img src="/logo.png" />
+            </a>
+          </Link>
+          <h1>
+            <span className="light">Stripe Sample</span>
+            <br />
+            Next.js, TypeScript, and Stripe 🔒💸
+          </h1>
+        </div>
+      </header>
+      {children}
+    </div>
+    <div className="banner">
       <span>
         This is a{' '}
         <a
@@ -47,17 +58,17 @@ const Layout: React.FunctionComponent<Props> = ({
         >
           Stripe Sample
         </a>
-        .{' '}
+        .{' View code on '}
         <a
           href="https://github.com/zeit/next.js/tree/canary/examples/with-stripe-typescript"
           target="_blank"
           rel="noopener noreferrer"
         >
-          View code on GitHub
+          GitHub
         </a>
         .
       </span>
-    </footer>
+    </div>
   </Elements>
 )
 

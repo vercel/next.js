@@ -1,4 +1,6 @@
 import AmpHtmlValidator from 'amphtml-validator'
+import crypto from 'crypto'
+import findUp from 'find-up'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, relative } from 'path'
@@ -6,9 +8,9 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import { promisify } from 'util'
 import Watchpack from 'watchpack'
-import findUp from 'find-up'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import checkCustomRoutes from '../lib/check-custom-routes'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -19,15 +21,16 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import Router, { route, Params } from '../next-server/server/router'
-import { eventVersion } from '../telemetry/events'
+import Router, { Params, route } from '../next-server/server/router'
+import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
-import checkCustomRoutes from '../lib/check-custom-routes'
+import Worker from 'jest-worker'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -77,6 +80,18 @@ export default class DevServer extends Server {
     }
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
+    this.staticPathsWorker = new Worker(
+      require.resolve('./static-paths-worker'),
+      {
+        maxRetries: 0,
+        numWorkers: this.nextConfig.experimental.cpus,
+      }
+    ) as Worker & {
+      loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
+    }
+
+    this.staticPathsWorker.getStdout().pipe(process.stdout)
+    this.staticPathsWorker.getStderr().pipe(process.stderr)
   }
 
   protected currentPhase() {
@@ -138,6 +153,10 @@ export default class DevServer extends Server {
       return
     }
 
+    const regexPageExtension = new RegExp(
+      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    )
+
     let resolved = false
     return new Promise(resolve => {
       const pagesDir = this.pagesDir
@@ -161,18 +180,13 @@ export default class DevServer extends Server {
         const dynamicRoutedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
-          if (accuracy === undefined) {
+          if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
 
           let pageName =
             '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-
-          pageName = pageName.replace(
-            new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
-
+          pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
           if (!isDynamicRoute(pageName)) {
@@ -220,6 +234,7 @@ export default class DevServer extends Server {
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir!,
       config: this.nextConfig,
+      previewProps: this.getPreviewProps(),
       buildId: this.buildId,
     })
     await super.prepare()
@@ -230,7 +245,7 @@ export default class DevServer extends Server {
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
-      eventVersion({
+      eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -309,6 +324,18 @@ export default class DevServer extends Server {
   // override production loading of routes-manifest
   protected getCustomRoutes() {
     return this.customRoutes
+  }
+
+  private _devCachedPreviewProps: __ApiPreviewProps | undefined
+  protected getPreviewProps() {
+    if (this._devCachedPreviewProps) {
+      return this._devCachedPreviewProps
+    }
+    return (this._devCachedPreviewProps = {
+      previewModeId: crypto.randomBytes(16).toString('hex'),
+      previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
+      previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
+    })
   }
 
   private async loadCustomRoutes() {
@@ -421,8 +448,7 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: { [key: string]: string },
-    options = {}
+    query: { [key: string]: string }
   ) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -449,13 +475,11 @@ export default class DevServer extends Server {
       })
     } catch (err) {
       if (err.code === 'ENOENT') {
-        if (this.nextConfig.experimental.pages404) {
-          try {
-            await this.hotReloader!.ensurePage('/404')
-          } catch (err) {
-            if (err.code !== 'ENOENT') {
-              throw err
-            }
+        try {
+          await this.hotReloader!.ensurePage('/404')
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            throw err
           }
         }
 
@@ -464,7 +488,7 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-    const html = await super.renderToHTML(req, res, pathname, query, options)
+    const html = await super.renderToHTML(req, res, pathname, query)
     return html
   }
 

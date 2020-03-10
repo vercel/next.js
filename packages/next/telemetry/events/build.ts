@@ -37,6 +37,8 @@ type EventBuildOptimized = {
   durationInSeconds: number
   totalPageCount: number
   staticPageCount: number
+  staticPropsPageCount: number
+  serverPropsPageCount: number
   ssrPageCount: number
   hasDunderPages: boolean
   hasTestPages: boolean

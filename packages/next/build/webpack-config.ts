@@ -1,7 +1,6 @@
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
-// @ts-ignore: Currently missing types
 import PnpWebpackPlugin from 'pnp-webpack-plugin'
 import webpack from 'webpack'
 import {
@@ -29,7 +28,6 @@ import {
 } from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
-// @ts-ignore: JS file
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
@@ -46,6 +44,8 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
+  ReactSyncScriptsConformanceCheck,
+  DuplicatePolyfillsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -56,10 +56,7 @@ const escapePathVariables = (value: any) => {
     : value
 }
 
-function getOptimizedAliases(
-  isServer: boolean,
-  polyfillsOptimization: boolean
-): { [pkg: string]: string } {
+function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
   if (isServer) {
     return {}
   }
@@ -70,12 +67,6 @@ function getOptimizedAliases(
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return Object.assign(
     {},
-    // Polyfill: Window#fetch
-    polyfillsOptimization
-      ? undefined
-      : {
-          __next_polyfill__fetch: require.resolve('whatwg-fetch'),
-        },
     {
       unfetch$: stubWindowFetch,
       'isomorphic-unfetch$': stubWindowFetch,
@@ -86,13 +77,6 @@ function getOptimizedAliases(
         'whatwg-fetch.js'
       ),
     },
-    polyfillsOptimization
-      ? undefined
-      : {
-          // Polyfill: Object.assign
-          __next_polyfill__object_assign: require.resolve('object-assign'),
-          '@babel/runtime-corejs2/core-js/object/assign': stubObjectAssign,
-        },
     {
       'object-assign$': stubObjectAssign,
 
@@ -110,6 +94,12 @@ function getOptimizedAliases(
       url: require.resolve('native-url'),
     }
   )
+}
+
+type ClientEntries = {
+  'main.js': string[]
+} & {
+  [key: string]: string
 }
 
 export default async function getBaseWebpackConfig(
@@ -163,7 +153,6 @@ export default async function getBaseWebpackConfig(
         babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
-        polyfillsOptimization: !!config.experimental.polyfillsOptimization,
       },
     },
     // Backwards compat
@@ -196,7 +185,7 @@ export default async function getBaseWebpackConfig(
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer
-    ? {
+    ? ({
         // Backwards compatibility
         'main.js': [],
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -210,11 +199,9 @@ export default async function getBaseWebpackConfig(
           ),
         [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
           NEXT_PROJECT_ROOT_DIST_CLIENT,
-          config.experimental.polyfillsOptimization
-            ? 'polyfills-nomodule.js'
-            : 'polyfills.js'
+          'polyfills.js'
         ),
-      }
+      } as ClientEntries)
     : undefined
 
   let typeScriptPath
@@ -262,17 +249,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...getOptimizedAliases(
-        isServer,
-        !!config.experimental.polyfillsOptimization
-      ),
-
-      // Temporary to allow runtime-corejs2 to be stubbed in experimental polyfillsOptimization
-      ...(config.experimental.polyfillsOptimization
-        ? {
-            '@babel/runtime-corejs2': '@babel/runtime',
-          }
-        : undefined),
+      ...getOptimizedAliases(isServer),
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: [PnpWebpackPlugin],
@@ -450,6 +427,26 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
+  const conformanceConfig = Object.assign(
+    {
+      ReactSyncScriptsConformanceCheck: {
+        enabled: true,
+      },
+      MinificationConformanceCheck: {
+        enabled: true,
+      },
+      DuplicatePolyfillsConformanceCheck: {
+        enabled: true,
+        BlockedAPIToBePolyfilled: Object.assign(
+          [],
+          ['fetch'],
+          config.conformance?.DuplicatePolyfillsConformanceCheck
+            ?.BlockedAPIToBePolyfilled || []
+        ),
+      },
+    },
+    config.conformance
+  )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? undefined
@@ -523,11 +520,7 @@ export default async function getBaseWebpackConfig(
               !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
               (res.match(/[/\\]next[/\\]dist[/\\]/) ||
                 // This is the @babel/plugin-transform-runtime "helpers: true" option
-                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) ||
-                (!config.experimental.polyfillsOptimization &&
-                  res.match(
-                    /node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/
-                  )))
+                res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
             ) {
               return callback()
             }
@@ -586,6 +579,9 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     context: dir,
+    node: {
+      setImmediate: false,
+    },
     // Kept as function to be backwards compatible
     entry: async () => {
       return {
@@ -651,7 +647,6 @@ export default async function getBaseWebpackConfig(
       ],
       plugins: [PnpWebpackPlugin],
     },
-    // @ts-ignore this is filtered
     module: {
       rules: [
         {
@@ -723,9 +718,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
           config.experimental.modern && !dev
-        ),
-        'process.env.__NEXT_POLYFILLS_OPTIMIZATION': JSON.stringify(
-          !!config.experimental.polyfillsOptimization
         ),
         'process.env.__NEXT_GRANULAR_CHUNKS': JSON.stringify(
           config.experimental.granularChunks && !dev
@@ -874,7 +866,24 @@ export default async function getBaseWebpackConfig(
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
-          tests: [new MinificationConformanceCheck()],
+          tests: [
+            !isServer &&
+              conformanceConfig.MinificationConformanceCheck.enabled &&
+              new MinificationConformanceCheck(),
+            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
+              new ReactSyncScriptsConformanceCheck({
+                AllowedSources:
+                  conformanceConfig.ReactSyncScriptsConformanceCheck
+                    .allowedSources || [],
+              }),
+            !isServer &&
+              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
+              new DuplicatePolyfillsConformanceCheck({
+                BlockedAPIToBePolyfilled:
+                  conformanceConfig.DuplicatePolyfillsConformanceCheck
+                    .BlockedAPIToBePolyfilled,
+              }),
+          ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
@@ -901,8 +910,7 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
-    // @ts-ignore: Property 'then' does not exist on type 'Configuration'
-    if (typeof webpackConfig.then === 'function') {
+    if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
         '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config'
       )
@@ -1108,7 +1116,6 @@ export default async function getBaseWebpackConfig(
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-        // @ts-ignore TODO: investigate type error
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,
@@ -1121,8 +1128,8 @@ export default async function getBaseWebpackConfig(
   }
 
   if (!dev) {
-    // @ts-ignore entry is always a function
-    webpackConfig.entry = await webpackConfig.entry()
+    // entry is always a function
+    webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
   }
 
   return webpackConfig

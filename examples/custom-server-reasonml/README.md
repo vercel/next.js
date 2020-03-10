@@ -56,11 +56,3 @@ npm start
 # or
 yarn start
 ```
-
-### Deploy the app
-
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```

@@ -46,7 +46,7 @@ export default HomePage
 
 [Read more about how Server-Side Rendering works]().
 
-To opt-in to Server-Side Rendering, making every request render HTML on-demand you use the `getServerProps` method.
+To opt-in to Server-Side Rendering, making every request render HTML on-demand you use the `getServerSideProps` method.
 
 It allows you to fetch data before rendering starts when a request comes in.
 
@@ -56,7 +56,7 @@ Taking the same example as Static Generation, but opted into rendering the page 
 import fetch from 'isomorphic-unfetch'
 
 // Called when a request comes in.
-export async function getServerProps() {
+export async function getServerSideProps() {
   const res = await fetch('https://api.github.com/repos/zeit/next.js')
   const json = await res.json()
 

@@ -9,12 +9,6 @@ On initial page load, while on the server and inside `getInitialProps`, we invok
 Note: Do not be alarmed that you see two renders being executed. Apollo recursively traverses the React render tree looking for Apollo query components. When it has done that, it fetches all these queries and then passes the result to a cache. This cache is then used to render the data on the server side (another React render).
 https://www.apollographql.com/docs/react/api/react-ssr/#getdatafromtree
 
-## Deploy your own
-
-Deploy the example using [ZEIT Now](https://zeit.co/now):
-
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/api-routes-apollo-server-and-client-auth)
-
 ## How to use
 
 ### Using `create-next-app`
@@ -47,9 +41,3 @@ yarn dev
 ```
 
 > If you have issues installing `bcrypt`, follow this instructions: https://github.com/kelektiv/node.bcrypt.js/wiki/Installation-Instructions
-
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
-
-```bash
-now
-```

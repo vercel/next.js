@@ -23,7 +23,7 @@ body {
 }
 ```
 
-Create a [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) if not already present.
+Create a [`pages/_app.js` file](/docs/advanced-features/custom-app) if not already present.
 Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
 ```jsx
@@ -36,7 +36,7 @@ export default function MyApp({ Component, pageProps }) {
 ```
 
 These styles (`styles.css`) will apply to all pages and components in your application.
-Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](https://nextjs.org/docs/advanced-features/custom-app)**.
+Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](/docs/advanced-features/custom-app)**.
 
 In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
 
@@ -158,11 +158,23 @@ export default HelloWorld
 
 Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
-## Sass, Less and Stylus Support
+## Sass Support
 
-To support importing `.scss`, `.sass`, `.less`, or `.styl` files you can use the following plugins:
+Next.js allows you to import Sass using both the `.scss` and `.sass` extensions.
+You can use component-level Sass via CSS Modules and the `.module.scss` or `.module.sass` extension.
 
-- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
+
+```bash
+npm install sass
+```
+
+Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
+
+## Less and Stylus Support
+
+To support importing `.less` or `.styl` files you can use the following plugins:
+
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
 

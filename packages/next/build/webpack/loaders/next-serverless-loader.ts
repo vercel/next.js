@@ -1,14 +1,16 @@
-import { loader } from 'webpack'
+import devalue from 'devalue'
+import escapeRegexp from 'escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
+import { loader } from 'webpack'
+import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
-  ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
-import { API_ROUTE } from '../../../lib/constants'
-import escapeRegexp from 'escape-string-regexp'
+import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -23,6 +25,7 @@ export type ServerlessLoaderQuery = {
   canonicalBase: string
   basePath: string
   runtimeConfig: string
+  previewProps: string
 }
 
 const nextServerlessLoader: loader.Loader = function() {
@@ -39,6 +42,7 @@ const nextServerlessLoader: loader.Loader = function() {
     generateEtags,
     basePath,
     runtimeConfig,
+    previewProps,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -52,9 +56,13 @@ const nextServerlessLoader: loader.Loader = function() {
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
 
+  const encodedPreviewProps = devalue(
+    JSON.parse(previewProps) as __ApiPreviewProps
+  )
+
   const runtimeConfigImports = runtimeConfig
     ? `
-      const { setConfig } = require('next/dist/next-server/lib/runtime-config')
+      const { setConfig } = require('next/config')
     `
     : ''
 
@@ -85,6 +93,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
+    const {prepareDestination} = require('next/dist/next-server/server/router')
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -92,19 +101,14 @@ const nextServerlessLoader: loader.Loader = function() {
         const params = matcher(parsedUrl.pathname)
 
         if (params) {
-          parsedUrl.query = {
-            ...parsedUrl.query,
-            ...params
-          }
-          const parsedDest = parse(rewrite.destination)
-          const destCompiler = pathToRegexp.compile(
-            \`\${parsedDest.pathname}\${parsedDest.hash || ''}\`
+          const { parsedDestination } = prepareDestination(
+            rewrite.destination,
+            params
           )
-          const newUrl = destCompiler(params)
-          const parsedNewUrl = parse(newUrl)
+          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          delete parsedDestination.query
 
-          parsedUrl.pathname = parsedNewUrl.pathname
-          parsedUrl.hash = parsedNewUrl.hash
+          Object.assign(parsedUrl, parsedDestination)
 
           if (parsedUrl.pathname === '${page}'){
             break
@@ -162,7 +166,7 @@ const nextServerlessLoader: loader.Loader = function() {
           `
               : ''
           }
-          const parsedUrl = parse(req.url, true)
+          const parsedUrl = handleRewrites(parse(req.url, true))
 
           const params = ${
             pageIsDynamicRoute
@@ -176,6 +180,7 @@ const nextServerlessLoader: loader.Loader = function() {
             res,
             Object.assign({}, parsedUrl.query, params ),
             resolver,
+            ${encodedPreviewProps},
             onError
           )
         } catch (err) {
@@ -197,7 +202,8 @@ const nextServerlessLoader: loader.Loader = function() {
     }
     const {parse} = require('url')
     const {parse: parseQs} = require('querystring')
-    const {renderToHTML} =require('next/dist/next-server/server/render');
+    const {renderToHTML} = require('next/dist/next-server/server/render');
+    const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -211,8 +217,13 @@ const nextServerlessLoader: loader.Loader = function() {
 
     const Component = ComponentInfo.default
     export default Component
-    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
+    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
+    export const getStaticPaths = ComponentInfo['getStaticPath' + 's']
+    export const getServerSideProps = ComponentInfo['getServerSideProp' + 's']
+
+    // kept for detecting legacy exports
+    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
     export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
@@ -221,7 +232,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+    export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
+      const fromExport = renderMode === 'export' || renderMode === true;
       ${
         basePath
           ? `
@@ -235,14 +247,15 @@ const nextServerlessLoader: loader.Loader = function() {
         App,
         Document,
         buildManifest,
-        unstable_getStaticProps,
-        unstable_getServerProps,
-        unstable_getStaticPaths,
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
         reactLoadableManifest,
         canonicalBase: "${canonicalBase}",
         buildId: "${buildId}",
         assetPrefix: "${assetPrefix}",
         runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
+        previewProps: ${encodedPreviewProps},
         ..._renderOpts
       }
       let _nextData = false
@@ -268,7 +281,7 @@ const nextServerlessLoader: loader.Loader = function() {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         ${
           pageIsDynamicRoute
-            ? `const params = fromExport && !unstable_getStaticProps && !unstable_getServerProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
+            ? `const params = fromExport && !getStaticProps && !getServerSideProps ? {} : dynamicRouteMatcher(parsedUrl.pathname) || {};`
             : `const params = {};`
         }
         ${
@@ -290,7 +303,7 @@ const nextServerlessLoader: loader.Loader = function() {
                           return Object.keys(obj).reduce(
                             (prev, key) =>
                               Object.assign(prev, {
-                                [key]: encodeURIComponent(obj[key])
+                                [key]: obj[key]
                               }),
                             {}
                           );
@@ -310,32 +323,42 @@ const nextServerlessLoader: loader.Loader = function() {
 
         const isFallback = parsedUrl.query.__nextFallback
 
-        let result = await renderToHTML(req, res, "${page}", Object.assign({}, unstable_getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+        const previewData = tryGetPreviewData(req, res, options.previewProps)
+        const isPreviewMode = previewData !== false
 
-        if (_nextData && !fromExport) {
+        let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
+
+        if (_nextData && !renderMode) {
           const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
 
           res.setHeader(
             'Cache-Control',
-            unstable_getServerProps
+            isPreviewMode
+              ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
+              : getServerSideProps
               ? \`no-cache, no-store, must-revalidate\`
               : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
           )
           res.end(payload)
           return null
+        } else if (isPreviewMode) {
+          res.setHeader(
+            'Cache-Control',
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
         }
 
-        if (fromExport) return { html: result, renderOpts }
+        if (renderMode) return { html: result, renderOpts }
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            unstable_getStaticProps: undefined,
-            unstable_getStaticPaths: undefined,
-            unstable_getServerProps: undefined,
+            getStaticProps: undefined,
+            getStaticPaths: undefined,
+            getServerSideProps: undefined,
             Component: Error
           }))
           return result
@@ -343,9 +366,9 @@ const nextServerlessLoader: loader.Loader = function() {
           console.error(err)
           res.statusCode = 500
           const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
-            unstable_getStaticProps: undefined,
-            unstable_getStaticPaths: undefined,
-            unstable_getServerProps: undefined,
+            getStaticProps: undefined,
+            getStaticPaths: undefined,
+            getServerSideProps: undefined,
             Component: Error,
             err
           }))

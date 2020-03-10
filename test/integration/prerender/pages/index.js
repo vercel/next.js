@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
-// eslint-disable-next-line camelcase
-export async function unstable_getStaticProps() {
+export async function getStaticProps() {
+  // throw new Error('oops from getStaticProps')
   return {
     props: { world: 'world', time: new Date().getTime() },
     // bad-prop
@@ -12,8 +12,13 @@ export async function unstable_getStaticProps() {
 const Page = ({ world, time }) => {
   return (
     <>
+      {/* <div id='after-change'>idk</div> */}
       <p>hello {world}</p>
       <span>time: {time}</span>
+      <Link href="/non-json/[p]" as="/non-json/1">
+        <a id="non-json">to non-json</a>
+      </Link>
+      <br />
       <Link href="/another?hello=world" as="/another/?hello=world">
         <a id="another">to another</a>
       </Link>
@@ -31,6 +36,9 @@ const Page = ({ world, time }) => {
       </Link>
       <Link href="/blog/[post]" as="/blog/post-100">
         <a id="broken-post">to broken</a>
+      </Link>
+      <Link href="/blog/[post]" as="/blog/post-999" prefetch={false}>
+        <a id="broken-at-first-post">to broken at first</a>
       </Link>
       <br />
       <Link href="/blog/[post]/[comment]" as="/blog/post-1/comment-1">

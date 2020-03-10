@@ -1,4 +1,3 @@
-import React from 'react'
 import Head from 'next/head'
 
 const Home = () => (
@@ -37,7 +36,7 @@ const Home = () => (
         </a>
 
         <a
-          href="https://zeit.co/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://zeit.co/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
           className="card"
         >
           <h3>Deploy &rarr;</h3>

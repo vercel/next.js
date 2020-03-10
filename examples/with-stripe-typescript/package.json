@@ -17,7 +17,7 @@
     "next": "latest",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
-    "stripe": "^8.8.1",
+    "stripe": "^8.15.0",
     "swr": "^0.1.16"
   },
   "devDependencies": {
