@@ -322,6 +322,11 @@ function runTests(dev = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
+  it('should work with child_process correctly', async () => {
+    const data = await renderViaHTTP(appPort, '/api/child-process')
+    expect(data).toBe('hi')
+  })
+
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/')

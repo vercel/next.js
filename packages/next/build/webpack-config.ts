@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
@@ -44,6 +45,8 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import WebpackConformancePlugin, {
   MinificationConformanceCheck,
+  ReactSyncScriptsConformanceCheck,
+  DuplicatePolyfillsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -425,6 +428,26 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
+  const conformanceConfig = Object.assign(
+    {
+      ReactSyncScriptsConformanceCheck: {
+        enabled: true,
+      },
+      MinificationConformanceCheck: {
+        enabled: true,
+      },
+      DuplicatePolyfillsConformanceCheck: {
+        enabled: true,
+        BlockedAPIToBePolyfilled: Object.assign(
+          [],
+          ['fetch'],
+          config.conformance?.DuplicatePolyfillsConformanceCheck
+            ?.BlockedAPIToBePolyfilled || []
+        ),
+      },
+    },
+    config.conformance
+  )
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? undefined
@@ -844,7 +867,24 @@ export default async function getBaseWebpackConfig(
       config.experimental.conformance &&
         !dev &&
         new WebpackConformancePlugin({
-          tests: [new MinificationConformanceCheck()],
+          tests: [
+            !isServer &&
+              conformanceConfig.MinificationConformanceCheck.enabled &&
+              new MinificationConformanceCheck(),
+            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
+              new ReactSyncScriptsConformanceCheck({
+                AllowedSources:
+                  conformanceConfig.ReactSyncScriptsConformanceCheck
+                    .allowedSources || [],
+              }),
+            !isServer &&
+              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
+              new DuplicatePolyfillsConformanceCheck({
+                BlockedAPIToBePolyfilled:
+                  conformanceConfig.DuplicatePolyfillsConformanceCheck
+                    .BlockedAPIToBePolyfilled,
+              }),
+          ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
@@ -924,6 +964,17 @@ export default async function getBaseWebpackConfig(
       ) ?? false
 
     if (hasUserCssConfig) {
+      // only show warning for one build
+      if (isServer) {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            chalk.bold(
+              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+            ) +
+            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+        )
+      }
+
       if (webpackConfig.module?.rules.length) {
         // Remove default CSS Loader
         webpackConfig.module.rules = webpackConfig.module.rules.filter(

@@ -451,8 +451,7 @@ export default class DevServer extends Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: { [key: string]: string },
-    options = {}
+    query: { [key: string]: string }
   ) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
@@ -492,7 +491,7 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-    const html = await super.renderToHTML(req, res, pathname, query, options)
+    const html = await super.renderToHTML(req, res, pathname, query)
     return html
   }
 

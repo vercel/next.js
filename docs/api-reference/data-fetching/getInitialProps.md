@@ -4,6 +4,14 @@ description: Enable Server-Side Rendering in a page and do initial data populati
 
 # getInitialProps
 
+## Recommended: Use `getStaticProps` or `getServerSideProps` instead
+
+If you're using Next.js 9.3 or newer, you should use `getStaticProps` or `getServerSideProps` instead of `getInitialProps`.
+
+Learn more on the [Pages documentation](/docs/basic-features/pages.md) and the [Data fetching documentation](/docs/basic-features/data-fetching.md):
+
+## `getInitialProps` (for older versions of Next.js)
+
 <details>
   <summary><b>Examples</b></summary>
   <ul>
@@ -75,6 +83,52 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 - `getInitialProps` can **not** be used in children components, only in the default export of every page
 - If you are using server-side only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
+
+## TypeScript
+
+If you're using TypeScript, you can use the `NextPage` type for functional components:
+
+```jsx
+import { NextPage } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+const Page: NextPage<Props> = ({ userAgent }) => (
+  <main>Your user agent: {userAgent}</main>
+)
+
+Page.getInitialProps = async ({ req }) => {
+  const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  return { userAgent }
+}
+
+export default Page
+```
+
+And for `React.Component`, you can use `NextPageContext`:
+
+```jsx
+import React from 'react'
+import { NextPageContext } from 'next'
+
+interface Props {
+  userAgent?: string;
+}
+
+export default class Page extends React.Component<Props> {
+  static async getInitialProps({ req }: NextPageContext) {
+    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+    return { userAgent }
+  }
+
+  render() {
+    const { userAgent } = this.props
+    return <main>Your user agent: {userAgent}</main>
+  }
+}
+```
 
 ## Related
 
