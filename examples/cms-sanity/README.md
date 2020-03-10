@@ -13,9 +13,9 @@ This example showcases Next.js's [Static Generation](/docs/basic-features/pages.
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example cms-Sanity cms-Sanity-app
+npm init next-app --example cms-sanity cms-sanity-app
 # or
-yarn create next-app --example cms-Sanity cms-Sanity-app
+yarn create next-app --example cms-sanity cms-sanity-app
 ```
 
 ### Download manually
@@ -43,15 +43,35 @@ This will be where we manage our data.
 
 When going through the init phase make sure to select **Yes** to the **Use the default dataset configuration** step and select **Clean project with no predefined schemas** for the **Select project template** step.
 
-After initializing get the `projectId` and `dataset` values from the `sanity.json` file that was generated and add them to `lib/sanity.js` in the example.
+After initializing, get the `projectId` value from the `sanity.json` file that was generated for the next step.
 
-### Step 3. Copy the schema file
+### Step 3. Set up environment variables
+
+First, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+
+```bash
+cp .env.example .env
+```
+
+Then set each variable on `.env`:
+
+- `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
+- `SANITY_PROJECT_ID` the `projectId` from the previous step
+
+Your `.env` file should look like this:
+
+```bash
+NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET=...
+SANITY_PROJECT_ID=...
+```
+
+### Step 4. Copy the schema file
 
 After initializing your Sanity studio project there should be a `schemas` folder.
 
 To get up and running we want to copy the schema file from [`./schemas/schema.js`](./schemas/schema.js) to the studio project to use for creating/editing content.
 
-### Step 4. Populate Content
+### Step 5. Populate Content
 
 To add some content go to your Sanity studio project where we added the schema file and run `sanity start`.
 
@@ -70,26 +90,6 @@ Next, select **Post** and create a new record.
 - Pick the **Author** you created earlier.
 
 **Important:** For each post record, you need to click **Publish** after saving. If not, the post will be in the draft state.
-
-### Step 5. Set up environment variables
-
-First, create a random preview secret.
-
-Next, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
-
-```bash
-cp .env.example .env
-```
-
-Then set each variable on `.env`:
-
-- `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
-
-Your `.env` file should look like this:
-
-```bash
-NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET=...
-```
 
 ### Step 6. Run Next.js in development mode
 
@@ -110,7 +110,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 On Sanity, go to one of the posts you've created and:
 
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
-- Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
+- As you edit the document it will be saved as a draft, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
 
 Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 

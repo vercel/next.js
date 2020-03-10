@@ -4,7 +4,7 @@ export default async (req, res) => {
   // Check the secret and next parameters
   // This secret should only be know to this API route and the CMS
   if (
-    req.query.secret !== process.env.NEXT_EXAMPLE_CMS_DATOCMS_PREVIEW_SECRET ||
+    req.query.secret !== process.env.NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET ||
     !req.query.slug
   ) {
     return res.status(401).json({ message: 'Invalid token' })

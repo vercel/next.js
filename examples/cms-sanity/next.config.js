@@ -1,5 +1,7 @@
 require('dotenv').config()
 
 module.exports = {
-  env: {},
+  env: {
+    SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID,
+  },
 }
