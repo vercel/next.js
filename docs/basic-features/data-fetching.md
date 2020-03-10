@@ -229,7 +229,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 In the “fallback” version of a page:
 
 - The page’s props will be empty.
-- Using the [router](/docs/api-reference/next/router.md)), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
+- Using the [router](/docs/api-reference/next/router.md), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
 
 Here’s an example that uses `isFallback`:
 
