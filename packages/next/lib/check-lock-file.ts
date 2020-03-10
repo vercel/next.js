@@ -10,7 +10,7 @@ export default function checkLockFile(distDir: string) {
     }
   }
 
-  const locked = lock.checkSync(distDir)
+  const locked = lock.checkSync(distDir, { stale: 5000 })
 
   if (locked) {
     throw new Error(

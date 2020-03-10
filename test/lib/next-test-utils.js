@@ -5,13 +5,7 @@ import express from 'express'
 import path from 'path'
 import getPort from 'get-port'
 import spawn from 'cross-spawn'
-import {
-  readFileSync,
-  writeFileSync,
-  existsSync,
-  unlinkSync,
-  rmdirSync,
-} from 'fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import treeKill from 'tree-kill'
 
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -31,7 +25,6 @@ export function initNextServerScript(
 ) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
-    instance.dir = path.dirname(scriptPath)
 
     function handleStdout(data) {
       const message = data.toString()
@@ -150,7 +143,6 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
-    instance.dir = argv.find(arg => arg !== 'dev')
     let didResolve = false
 
     function handleStdout(data) {
@@ -252,15 +244,15 @@ export function buildTS(args = [], cwd, env = {}) {
 
 // Kill a launched app
 export async function killApp(instance) {
+  const pid = instance.pid
+
+  // use SIGINT initially to allow processes to clean up
+  await new Promise(resolve => {
+    treeKill(pid, 'SIGINT', () => resolve())
+  })
+
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, err => {
-      if (instance.dir) {
-        // since we force kill the dev processes we need to clean up the lock
-        // file so it doesn't break following tests
-        try {
-          rmdirSync(path.join(instance.dir, '.next.lock'))
-        } catch (_) {}
-      }
+    treeKill(pid, 'SIGKILL', err => {
       if (err) {
         if (
           process.platform === 'win32' &&
