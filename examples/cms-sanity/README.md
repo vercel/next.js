@@ -23,7 +23,7 @@ yarn create next-app --example cms-Sanity cms-Sanity-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-Sanity
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-sanity
 cd cms-sanity
 ```
 
@@ -120,7 +120,7 @@ To enable the Preview Mode, go to this URL:
 http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
 ```
 
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_Sanity_PREVIEW_SECRET`.
+- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET`.
 - `<slug>` should be the post's `slug` attribute (you can check on Sanity).
 
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
@@ -131,7 +131,7 @@ You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filt
 
 To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_Sanity_API_TOKEN>` and `<NEXT_EXAMPLE_CMS_Sanity_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>` with the corresponding strings in `.env`.
 
 ```
 now secrets add next_example_cms_sanity_preview_secret <NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>
