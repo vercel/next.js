@@ -15,6 +15,7 @@ import {
   normalizeRegEx,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
+import escapeRegex from 'escape-string-regexp'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -61,6 +62,12 @@ function runTests(dev) {
     expect(html).toMatch(/blog post.*321.*comment.*123/i)
   })
 
+  it('should not error when requesting dynamic page with /api', async () => {
+    const res = await fetchViaHTTP(appPort, '/api')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toMatch(/this is.*?api/i)
+  })
+
   it('should render dynamic route with query', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-post-1-with-query').click()
@@ -81,6 +88,12 @@ function runTests(dev) {
     } finally {
       if (browser) await browser.close()
     }
+  })
+
+  it('should allow calling Router.push on mount successfully', async () => {
+    const browser = await webdriver(appPort, '/post-1/on-mount-redir')
+    waitFor(2000)
+    expect(await browser.elementByCss('h3').text()).toBe('My blog')
   })
 
   // it('should navigate optional dynamic page', async () => {
@@ -227,48 +240,76 @@ function runTests(dev) {
     }
   })
 
-  it('[ssg: catch all] should pass param in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
-  })
-
-  it('[ssg: catch all] should pass params in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/all-ssg/test1/test2')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
-  })
-
-  it('[predefined ssg: catch all] should pass param in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/test1')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1"]}')
-  })
-
-  it('[predefined ssg: catch all] should pass params in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(
+  it('[ssg: catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
       appPort,
-      '/p1/p2/predefined-ssg/test1/test2'
+      `/_next/data/${buildId}/p1/p2/all-ssg/test1.json`
     )
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["test1","test2"]}')
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
   })
 
-  it('[predefined ssg: prerendered catch all] should pass param in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(appPort, '/p1/p2/predefined-ssg/one-level')
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe('{"rest":["one-level"]}')
-  })
-
-  it('[predefined ssg: prerendered catch all] should pass params in getInitialProps during SSR', async () => {
-    const html = await renderViaHTTP(
+  it('[ssg: catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
       appPort,
-      '/p1/p2/predefined-ssg/1st-level/2nd-level'
+      `/_next/data/${buildId}/p1/p2/all-ssg/test1/test2.json`
     )
-    const $ = cheerio.load(html)
-    expect($('#all-ssg-content').text()).toBe(
-      '{"rest":["1st-level","2nd-level"]}'
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['test1', 'test2'],
+    })
+  })
+
+  it('[nested ssg: catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/nested-all-ssg/test1.json`
     )
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
+  })
+
+  it('[nested ssg: catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/nested-all-ssg/test1/test2.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['test1', 'test2'],
+    })
+  })
+
+  it('[predefined ssg: catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/test1.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['test1'] })
+  })
+
+  it('[predefined ssg: catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/test1/test2.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['test1', 'test2'],
+    })
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass param in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/one-level.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({ rest: ['one-level'] })
+  })
+
+  it('[predefined ssg: prerendered catch all] should pass params in getStaticProps during SSR', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/p1/p2/predefined-ssg/1st-level/2nd-level.json`
+    )
+    expect(JSON.parse(data).pageProps.params).toEqual({
+      rest: ['1st-level', '2nd-level'],
+    })
   })
 
   it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
@@ -293,6 +334,34 @@ function runTests(dev) {
       await browser.waitForElementByCss('#all-ssg-content')
 
       const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[nested ssg: catch-all] should pass params in getStaticProps during client navigation (single)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#nested-ssg-catch-all-single').click()
+      await browser.waitForElementByCss('#nested-all-ssg-content')
+
+      const text = await browser.elementByCss('#nested-all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[nested ssg: catch-all] should pass params in getStaticProps during client navigation (multi)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#nested-ssg-catch-all-multi').click()
+      await browser.waitForElementByCss('#nested-all-ssg-content')
+
+      const text = await browser.elementByCss('#nested-all-ssg-content').text()
       expect(text).toBe('{"rest":["hello1","hello2"]}')
     } finally {
       if (browser) await browser.close()
@@ -417,12 +486,43 @@ function runTests(dev) {
         route.regex = normalizeRegEx(route.regex)
       }
 
+      for (const route of manifest.dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+      }
+
       expect(manifest).toEqual({
         version: 1,
+        pages404: true,
         basePath: '',
         headers: [],
         rewrites: [],
         redirects: [],
+        dataRoutes: [
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
+            ),
+            page: '/p1/p2/all-ssg/[...rest]',
+          },
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
+            ),
+            page: '/p1/p2/nested-all-ssg/[...rest]',
+          },
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
+            ),
+            page: '/p1/p2/predefined-ssg/[...rest]',
+          },
+        ],
         dynamicRoutes: [
           {
             page: '/blog/[name]/comment/[id]',
@@ -443,6 +543,12 @@ function runTests(dev) {
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
           },
           {
+            page: '/p1/p2/nested-all-ssg/[...rest]',
+            regex: normalizeRegEx(
+              '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
+            ),
+          },
+          {
             page: '/p1/p2/predefined-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
@@ -455,6 +561,12 @@ function runTests(dev) {
           {
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
+          },
+          {
+            page: '/[name]/on-mount-redir',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
+            ),
           },
           {
             page: '/[name]/[comment]',
@@ -473,6 +585,7 @@ describe('Dynamic Routing', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
+      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -507,7 +620,10 @@ describe('Dynamic Routing', () => {
   })
 
   describe('serverless mode', () => {
+    let origNextConfig
+
     beforeAll(async () => {
+      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
@@ -526,7 +642,10 @@ describe('Dynamic Routing', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origNextConfig)
+      await killApp(app)
+    })
     runTests()
   })
 })

@@ -4,11 +4,7 @@ import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'strip-ansi'
-import {
-  Redirect,
-  Rewrite,
-  getRedirectStatus,
-} from '../lib/check-custom-routes'
+import { Redirect, Rewrite, Header } from '../lib/check-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -19,6 +15,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
+import { GetStaticPaths } from 'next/types'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -45,6 +42,7 @@ export interface PageInfo {
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
+  hasSsgFallback: boolean
   serverBundle: string
 }
 
@@ -204,7 +202,7 @@ export async function printTreeView(
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
-          )} or ${chalk.cyan('getServerProps')})`,
+          )} or ${chalk.cyan('getServerSideProps')})`,
         ],
         [
           '○',
@@ -232,43 +230,62 @@ export async function printTreeView(
 export function printCustomRoutes({
   redirects,
   rewrites,
+  headers,
 }: {
   redirects: Redirect[]
   rewrites: Rewrite[]
+  headers: Header[]
 }) {
   const printRoutes = (
-    routes: Redirect[] | Rewrite[],
-    type: 'Redirects' | 'Rewrites'
+    routes: Redirect[] | Rewrite[] | Header[],
+    type: 'Redirects' | 'Rewrites' | 'Headers'
   ) => {
     const isRedirects = type === 'Redirects'
+    const isHeaders = type === 'Headers'
     console.log(chalk.underline(type))
     console.log()
 
-    console.log(
-      textTable(
-        [
-          [
-            'Source',
-            'Destination',
-            ...(isRedirects ? ['statusCode'] : []),
-          ].map(str => chalk.bold(str)),
-          ...Object.entries(routes).map(([key, route]) => {
-            return [
-              route.source,
-              route.destination,
-              ...(isRedirects
-                ? [getRedirectStatus(route as Redirect) + '']
-                : []),
-            ]
-          }),
-        ],
-        {
-          align: ['l', 'l', 'l'],
-          stringLength: str => stripAnsi(str).length,
+    /*
+        ┌ source
+        ├ permanent/statusCode
+        └ destination
+     */
+    const routesStr = (routes as any[])
+      .map((route: { source: string }) => {
+        let routeStr = `┌ source: ${route.source}\n`
+
+        if (!isHeaders) {
+          const r = route as Rewrite
+          routeStr += `${isRedirects ? '├' : '└'} destination: ${
+            r.destination
+          }\n`
         }
-      )
-    )
-    console.log()
+        if (isRedirects) {
+          const r = route as Redirect
+          routeStr += `└ ${
+            r.statusCode
+              ? `status: ${r.statusCode}`
+              : `permanent: ${r.permanent}`
+          }\n`
+        }
+
+        if (isHeaders) {
+          const r = route as Header
+          routeStr += `└ headers:\n`
+
+          for (let i = 0; i < r.headers.length; i++) {
+            const header = r.headers[i]
+            const last = i === headers.length - 1
+
+            routeStr += `  ${last ? '└' : '├'} ${header.key}: ${header.value}\n`
+          }
+        }
+
+        return routeStr
+      })
+      .join('\n')
+
+    console.log(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -276,6 +293,9 @@ export function printCustomRoutes({
   }
   if (rewrites.length) {
     printRoutes(rewrites, 'Rewrites')
+  }
+  if (headers.length) {
+    printRoutes(headers, 'Headers')
   }
 }
 
@@ -478,6 +498,120 @@ export async function getPageSizeInKb(
   return [-1, -1]
 }
 
+export async function buildStaticPaths(
+  page: string,
+  getStaticPaths: GetStaticPaths
+): Promise<{ paths: string[]; fallback: boolean }> {
+  const prerenderPaths = new Set<string>()
+  const _routeRegex = getRouteRegex(page)
+  const _routeMatcher = getRouteMatcher(_routeRegex)
+
+  // Get the default list of allowed params.
+  const _validParamKeys = Object.keys(_routeMatcher(page))
+
+  const staticPathsResult = await getStaticPaths()
+
+  const expectedReturnVal =
+    `Expected: { paths: [], fallback: boolean }\n` +
+    `See here for more info: https://err.sh/zeit/next.js/invalid-getstaticpaths-value`
+
+  if (
+    !staticPathsResult ||
+    typeof staticPathsResult !== 'object' ||
+    Array.isArray(staticPathsResult)
+  ) {
+    throw new Error(
+      `Invalid value returned from getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
+    )
+  }
+
+  const invalidStaticPathKeys = Object.keys(staticPathsResult).filter(
+    key => !(key === 'paths' || key === 'fallback')
+  )
+
+  if (invalidStaticPathKeys.length > 0) {
+    throw new Error(
+      `Extra keys returned from getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+        ', '
+      )}) ${expectedReturnVal}`
+    )
+  }
+
+  if (typeof staticPathsResult.fallback !== 'boolean') {
+    throw new Error(
+      `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
+        expectedReturnVal
+    )
+  }
+
+  const toPrerender = staticPathsResult.paths
+
+  if (!Array.isArray(toPrerender)) {
+    throw new Error(
+      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+        `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
+    )
+  }
+
+  toPrerender.forEach(entry => {
+    // For a string-provided path, we must make sure it matches the dynamic
+    // route.
+    if (typeof entry === 'string') {
+      const result = _routeMatcher(entry)
+      if (!result) {
+        throw new Error(
+          `The provided path \`${entry}\` does not match the page: \`${page}\`.`
+        )
+      }
+
+      prerenderPaths?.add(entry)
+    }
+    // For the object-provided path, we must make sure it specifies all
+    // required keys.
+    else {
+      const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
+      if (invalidKeys.length) {
+        throw new Error(
+          `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
+            `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
+            `\n\n\treturn { params: { ${_validParamKeys
+              .map(k => `${k}: ...`)
+              .join(', ')} } }` +
+            `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
+        )
+      }
+
+      const { params = {} } = entry
+      let builtPage = page
+      _validParamKeys.forEach(validParamKey => {
+        const { repeat } = _routeRegex.groups[validParamKey]
+        const paramValue = params[validParamKey]
+        if (
+          (repeat && !Array.isArray(paramValue)) ||
+          (!repeat && typeof paramValue !== 'string')
+        ) {
+          throw new Error(
+            `A required parameter (${validParamKey}) was not provided as ${
+              repeat ? 'an array' : 'a string'
+            } in getStaticPaths for ${page}`
+          )
+        }
+
+        builtPage = builtPage.replace(
+          `[${repeat ? '...' : ''}${validParamKey}]`,
+          repeat
+            ? (paramValue as string[]).map(encodeURIComponent).join('/')
+            : encodeURIComponent(paramValue as string)
+        )
+      })
+
+      prerenderPaths?.add(builtPage)
+    }
+  })
+
+  return { paths: [...prerenderPaths], fallback: staticPathsResult.fallback }
+}
+
 export async function isPageStatic(
   page: string,
   serverBundle: string,
@@ -488,6 +622,7 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
+  prerenderFallback?: boolean | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -499,14 +634,35 @@ export async function isPageStatic(
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.unstable_getStaticProps
-    const hasStaticPaths = !!mod.unstable_getStaticPaths
-    const hasServerProps = !!mod.unstable_getServerProps
+    const hasStaticProps = !!mod.getStaticProps
+    const hasStaticPaths = !!mod.getStaticPaths
+    const hasServerProps = !!mod.getServerSideProps
+    const hasLegacyServerProps = !!mod.unstable_getServerProps
+    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
+    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
     const hasLegacyStaticParams = !!mod.unstable_getStaticParams
 
     if (hasLegacyStaticParams) {
       throw new Error(
-        `unstable_getStaticParams was replaced with unstable_getStaticPaths. Please update your code.`
+        `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticPaths) {
+      throw new Error(
+        `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
+      )
+    }
+
+    if (hasLegacyStaticProps) {
+      throw new Error(
+        `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
+      )
+    }
+
+    if (hasLegacyServerProps) {
+      throw new Error(
+        `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
       )
     }
 
@@ -524,92 +680,37 @@ export async function isPageStatic(
       throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
+    const pageIsDynamic = isDynamicRoute(page)
     // A page cannot have static parameters if it is not a dynamic page.
-    if (hasStaticProps && hasStaticPaths && !isDynamicRoute(page)) {
+    if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
       throw new Error(
-        `unstable_getStaticPaths can only be used with dynamic pages. https://nextjs.org/docs#dynamic-routing`
+        `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+          `\nLearn more: https://nextjs.org/docs#dynamic-routing`
       )
     }
 
-    let prerenderPaths: string[] | undefined
+    if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
+      throw new Error(
+        `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+          `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+      )
+    }
+
+    let prerenderRoutes: Array<string> | undefined
+    let prerenderFallback: boolean | undefined
     if (hasStaticProps && hasStaticPaths) {
-      prerenderPaths = [] as string[]
-
-      const _routeRegex = getRouteRegex(page)
-      const _routeMatcher = getRouteMatcher(_routeRegex)
-
-      // Get the default list of allowed params.
-      const _validParamKeys = Object.keys(_routeMatcher(page))
-
-      const toPrerender: Array<
-        { params?: { [key: string]: string } } | string
-      > = await mod.unstable_getStaticPaths()
-      toPrerender.forEach(entry => {
-        // For a string-provided path, we must make sure it matches the dynamic
-        // route.
-        if (typeof entry === 'string') {
-          const result = _routeMatcher(entry)
-          if (!result) {
-            throw new Error(
-              `The provided path \`${entry}\` does not match the page: \`${page}\`.`
-            )
-          }
-
-          prerenderPaths!.push(entry)
-        }
-        // For the object-provided path, we must make sure it specifies all
-        // required keys.
-        else {
-          const invalidKeys = Object.keys(entry).filter(key => key !== 'params')
-          if (invalidKeys.length) {
-            throw new Error(
-              `Additional keys were returned from \`unstable_getStaticPaths\` in page "${page}". ` +
-                `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
-                `\n\n\treturn { params: { ${_validParamKeys
-                  .map(k => `${k}: ...`)
-                  .join(', ')} } }` +
-                `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`
-            )
-          }
-
-          const { params = {} } = entry
-          let builtPage = page
-          _validParamKeys.forEach(validParamKey => {
-            const { repeat } = _routeRegex.groups[validParamKey]
-            const paramValue: string | string[] = params[validParamKey] as
-              | string
-              | string[]
-            if (
-              (repeat && !Array.isArray(paramValue)) ||
-              (!repeat && typeof paramValue !== 'string')
-            ) {
-              throw new Error(
-                `A required parameter (${validParamKey}) was not provided as ${
-                  repeat ? 'an array' : 'a string'
-                }.`
-              )
-            }
-
-            builtPage = builtPage.replace(
-              `[${repeat ? '...' : ''}${validParamKey}]`,
-              encodeURIComponent(
-                repeat
-                  ? (paramValue as string[]).join('/')
-                  : (paramValue as string)
-              )
-            )
-          })
-
-          prerenderPaths!.push(builtPage)
-        }
-      })
+      ;({
+        paths: prerenderRoutes,
+        fallback: prerenderFallback,
+      } = await buildStaticPaths(page, mod.getStaticPaths))
     }
 
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
       isHybridAmp: config.amp === 'hybrid',
-      prerenderRoutes: prerenderPaths,
+      prerenderRoutes,
+      prerenderFallback,
       hasStaticProps,
       hasServerProps,
     }

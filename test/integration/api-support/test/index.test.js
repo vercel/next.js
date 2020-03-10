@@ -322,6 +322,11 @@ function runTests(dev = false) {
     expect(data).toEqual({ post: 'post-1', id: '1' })
   })
 
+  it('should work with child_process correctly', async () => {
+    const data = await renderViaHTTP(appPort, '/api/child-process')
+    expect(data).toBe('hi')
+  })
+
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/')
@@ -361,6 +366,14 @@ function runTests(dev = false) {
       }).catch(() => {})
       expect(stderr).toContain(
         `API resolved without sending a response for /api/test-no-end, this may result in stalled requests.`
+      )
+    })
+
+    it('should not show warning when the API resolves and the response is piped', async () => {
+      const startIdx = stderr.length > 0 ? stderr.length - 1 : stderr.length
+      await fetchViaHTTP(appPort, `/api/test-res-pipe`, { port: appPort })
+      expect(stderr.substr(startIdx)).not.toContain(
+        `API resolved without sending a response for /api/test-res-pipe`
       )
     })
   } else {

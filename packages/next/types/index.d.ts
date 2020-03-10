@@ -3,12 +3,15 @@
 /// <reference types="react-dom" />
 
 import React from 'react'
+import { ParsedUrlQuery } from 'querystring'
+import { IncomingMessage, ServerResponse } from 'http'
 
 import {
   NextPageContext,
   NextComponentType,
   NextApiResponse,
   NextApiRequest,
+  NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
@@ -53,6 +56,35 @@ export type PageConfig = {
   }
 }
 
-export { NextPageContext, NextComponentType, NextApiResponse, NextApiRequest }
+export {
+  NextPageContext,
+  NextComponentType,
+  NextApiResponse,
+  NextApiRequest,
+  NextApiHandler,
+}
+
+export type GetStaticProps = (ctx: {
+  params?: ParsedUrlQuery
+  preview?: boolean
+  previewData?: any
+}) => Promise<{
+  props: { [key: string]: any }
+  revalidate?: number | boolean
+}>
+
+export type GetStaticPaths = () => Promise<{
+  paths: Array<string | { params: ParsedUrlQuery }>
+  fallback: boolean
+}>
+
+export type GetServerSideProps = (context: {
+  req: IncomingMessage
+  res: ServerResponse
+  params?: ParsedUrlQuery
+  query: ParsedUrlQuery
+  preview?: boolean
+  previewData?: any
+}) => Promise<{ [key: string]: any }>
 
 export default next

@@ -49,8 +49,7 @@ function decodeParam(param: string) {
   try {
     return decodeURIComponent(param)
   } catch (_) {
-    const err = new Error('failed to decode param')
-    // @ts-ignore DECODE_FAILED is handled
+    const err: Error & { code?: string } = new Error('failed to decode param')
     err.code = 'DECODE_FAILED'
     throw err
   }

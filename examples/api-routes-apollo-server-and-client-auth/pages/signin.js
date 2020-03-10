@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { withApollo } from '../apollo/client'
 import gql from 'graphql-tag'
-import { useMutation } from '@apollo/react-hooks'
+import { useMutation, useApolloClient } from '@apollo/react-hooks'
 import Field from '../components/field'
 import { getErrorMessage } from '../lib/form'
 import { useRouter } from 'next/router'
@@ -19,6 +19,7 @@ const SignInMutation = gql`
 `
 
 function SignIn() {
+  const client = useApolloClient()
   const [signIn] = useMutation(SignInMutation)
   const [errorMsg, setErrorMsg] = React.useState()
   const router = useRouter()
@@ -30,6 +31,7 @@ function SignIn() {
     const passwordElement = event.currentTarget.elements.password
 
     try {
+      await client.resetStore()
       const { data } = await signIn({
         variables: {
           email: emailElement.value,
@@ -37,7 +39,7 @@ function SignIn() {
         },
       })
       if (data.signIn.user) {
-        router.push('/')
+        await router.push('/')
       }
     } catch (error) {
       setErrorMsg(getErrorMessage(error))

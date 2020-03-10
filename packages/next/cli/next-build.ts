@@ -45,7 +45,7 @@ const nextBuild: cliCommand = argv => {
   build(dir)
     .then(() => process.exit(0))
     .catch(err => {
-      // tslint:disable-next-line
+      console.error('')
       console.error('> Build error occurred')
       printAndExit(err)
     })
