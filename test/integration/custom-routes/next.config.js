@@ -73,7 +73,11 @@ module.exports = {
         },
         {
           source: '/api-hello-param/:name',
-          destination: '/api/hello?name=:name',
+          destination: '/api/hello?hello=:name',
+        },
+        {
+          source: '/api-dynamic-param/:name',
+          destination: '/api/dynamic/:name?hello=:name',
         },
         {
           source: '/:path/post-321',
@@ -87,6 +91,11 @@ module.exports = {
     },
     async redirects() {
       return [
+        {
+          source: '/redirect/me/to-about/:lang',
+          destination: '/:lang/about',
+          permanent: false,
+        },
         {
           source: '/docs/router-status/:code',
           destination: '/docs/v2/network/status-codes#:code',

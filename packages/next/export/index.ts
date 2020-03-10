@@ -31,7 +31,7 @@ import {
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
-import { eventVersion } from '../telemetry/events'
+import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 
@@ -105,7 +105,7 @@ export default async function(
 
   if (telemetry) {
     telemetry.record(
-      eventVersion({
+      eventCliSession(PHASE_EXPORT, distDir, {
         cliCommand: 'export',
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),

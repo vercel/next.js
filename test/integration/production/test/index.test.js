@@ -239,6 +239,14 @@ describe('Production Usage', () => {
         expect(html).toMatch(/404/)
       }
     })
+
+    it('should not contain customServer in NEXT_DATA', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      expect('customServer' in JSON.parse($('#__NEXT_DATA__').text())).toBe(
+        false
+      )
+    })
   })
 
   describe('API routes', () => {
@@ -295,6 +303,23 @@ describe('Production Usage', () => {
 
   it('should navigate to external site and back', async () => {
     const browser = await webdriver(appPort, '/external-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -477,7 +502,7 @@ describe('Production Usage', () => {
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
         // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(13)
+        expect(elements.length).toBe(11)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)

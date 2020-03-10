@@ -62,7 +62,8 @@ export const prepareDestination = (destination: string, params: Params) => {
   })
 
   try {
-    newUrl = destinationCompiler(params)
+    newUrl = encodeURI(destinationCompiler(params))
+
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`

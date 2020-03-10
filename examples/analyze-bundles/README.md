@@ -6,7 +6,7 @@ This example shows how to analyze the output bundles using [@next/bundle-analyze
 
 Deploy the example using [ZEIT Now](https://zeit.co/now):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/analyze-bundles)
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/analyze-bundles)
 
 ## How to use
 

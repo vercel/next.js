@@ -11,7 +11,8 @@ import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'recast'
 
 export { MinificationConformanceCheck } from './checks/minification-conformance-check'
-// export { ReactSyncScriptsConformanceTest } from './tests/react-sync-scripts-conformance';
+export { ReactSyncScriptsConformanceCheck } from './checks/react-sync-scripts-conformance-check'
+export { DuplicatePolyfillsConformanceCheck } from './checks/duplicate-polyfills-conformance-check'
 
 export interface IWebpackConformancePluginOptions {
   tests: IWebpackConformanceTest[]
@@ -88,7 +89,7 @@ export default class WebpackConformancePlugin {
   private parserHandler = (factory: compilation.NormalModuleFactory): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     const collectedVisitors: Map<string, [NodeInspector?]> = new Map()
-    // Collect all intereseted visitors from all tests.
+    // Collect all interested visitors from all tests.
     this.tests.forEach(test => {
       if (test.getAstNode) {
         const getAstNodeCallbacks: IGetAstNodeResult[] = test.getAstNode()
@@ -96,8 +97,9 @@ export default class WebpackConformancePlugin {
           if (!collectedVisitors.has(result.visitor)) {
             collectedVisitors.set(result.visitor, [])
           }
-          // @ts-ignore
-          collectedVisitors.get(result.visitor).push(result.inspectNode)
+          ;(collectedVisitors.get(result.visitor) as NodeInspector[]).push(
+            result.inspectNode
+          )
         })
       }
     })

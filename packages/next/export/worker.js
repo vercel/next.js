@@ -118,10 +118,8 @@ export default async function({
     let curRenderOpts = {}
     let renderMethod = renderToHTML
 
-    // eslint-disable-next-line camelcase
-    const renderedDuringBuild = unstable_getStaticProps => {
-      // eslint-disable-next-line camelcase
-      return !buildExport && unstable_getStaticProps && !isDynamicRoute(path)
+    const renderedDuringBuild = getStaticProps => {
+      return !buildExport && getStaticProps && !isDynamicRoute(path)
     }
 
     if (serverless) {
@@ -147,16 +145,22 @@ export default async function({
       } else {
         // for non-dynamic SSG pages we should have already
         // prerendered the file
-        if (renderedDuringBuild(mod.unstable_getStaticProps)) return results
+        if (renderedDuringBuild(mod.getStaticProps)) return results
 
-        if (mod.unstable_getStaticProps && !htmlFilepath.endsWith('.html')) {
+        if (mod.getStaticProps && !htmlFilepath.endsWith('.html')) {
           // make sure it ends with .html if the name contains a dot
           htmlFilename += '.html'
           htmlFilepath += '.html'
         }
 
         renderMethod = mod.renderReqToHTML
-        const result = await renderMethod(req, res, true, { ampPath }, params)
+        const result = await renderMethod(
+          req,
+          res,
+          'export',
+          { ampPath },
+          params
+        )
         curRenderOpts = result.renderOpts || {}
         html = result.html
       }
@@ -174,15 +178,12 @@ export default async function({
 
       // for non-dynamic SSG pages we should have already
       // prerendered the file
-      if (renderedDuringBuild(components.unstable_getStaticProps)) {
+      if (renderedDuringBuild(components.getStaticProps)) {
         return results
       }
 
       // TODO: de-dupe the logic here between serverless and server mode
-      if (
-        components.unstable_getStaticProps &&
-        !htmlFilepath.endsWith('.html')
-      ) {
+      if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
         // make sure it ends with .html if the name contains a dot
         htmlFilepath += '.html'
         htmlFilename += '.html'
@@ -232,7 +233,7 @@ export default async function({
         let ampHtml
         if (serverless) {
           req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
-          ampHtml = (await renderMethod(req, res, true)).html
+          ampHtml = (await renderMethod(req, res, 'export')).html
         } else {
           ampHtml = await renderMethod(
             req,
@@ -264,8 +265,8 @@ export default async function({
     return results
   } catch (error) {
     console.error(
-      `\nError occurred prerendering page "${path}" https://err.sh/zeit/next.js/prerender-error:`,
-      error
+      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error:\n` +
+        error
     )
     return { ...results, error: true }
   }

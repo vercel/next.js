@@ -44,10 +44,6 @@ function getOptionalModernScriptVariant(path: string) {
   return path
 }
 
-function isLowPriority(file: string) {
-  return file.includes('_buildManifest')
-}
-
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -186,6 +182,7 @@ export class Head extends Component<
 
   getCssLinks(): JSX.Element[] | null {
     const { assetPrefix, files } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
     const cssFiles =
       files && files.length ? files.filter(f => /\.css$/.test(f)) : []
 
@@ -196,7 +193,9 @@ export class Head extends Component<
           key={`${file}-preload`}
           nonce={this.props.nonce}
           rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
           as="style"
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />,
@@ -204,7 +203,9 @@ export class Head extends Component<
           key={file}
           nonce={this.props.nonce}
           rel="stylesheet"
-          href={`${assetPrefix}/_next/${encodeURI(file)}`}
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${_devOnlyInvalidateCacheQueryString}`}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
       )
@@ -255,13 +256,7 @@ export class Head extends Component<
             // `dynamicImports` will contain both `.js` and `.module.js` when
             // the feature is enabled. This clause will filter down to the
             // modern variants only.
-            //
-            // Also filter out low priority files because they should not be
-            // preloaded for performance reasons.
-            return (
-              file.endsWith(getOptionalModernScriptVariant('.js')) &&
-              !isLowPriority(file)
-            )
+            return file.endsWith(getOptionalModernScriptVariant('.js'))
           })
         : []
 
@@ -584,17 +579,12 @@ export class NextScript extends Component<OriginProps> {
   }
 
   getScripts() {
-    const { assetPrefix, files } = this.context._documentProps
-    if (!files || files.length === 0) {
-      return null
-    }
+    const { assetPrefix, files, lowPriorityFiles } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    const normalScripts = files.filter(
-      file => file.endsWith('.js') && !isLowPriority(file)
-    )
-    const lowPriorityScripts = files.filter(
-      file => file.endsWith('.js') && isLowPriority(file)
+    const normalScripts = files?.filter(file => file.endsWith('.js'))
+    const lowPriorityScripts = lowPriorityFiles?.filter(file =>
+      file.endsWith('.js')
     )
 
     return [...normalScripts, ...lowPriorityScripts].map(file => {
