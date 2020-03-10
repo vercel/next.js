@@ -91,6 +91,7 @@ export type ServerConstructor = {
    */
   conf?: NextConfig
   dev?: boolean
+  customServer?: boolean
 }
 
 export default class Server {
@@ -116,6 +117,7 @@ export default class Server {
     hasCssMode: boolean
     dev?: boolean
     previewProps: __ApiPreviewProps
+    customServer?: boolean
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -136,6 +138,7 @@ export default class Server {
     quiet = false,
     conf = null,
     dev = false,
+    customServer = true,
   }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
@@ -167,6 +170,7 @@ export default class Server {
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),
+      customServer: customServer === true ? true : undefined,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -905,6 +909,14 @@ export default class Server {
       })
     }
 
+    let previewData: string | false | object | undefined
+    let isPreviewMode = false
+
+    if (isServerProps || isSSG) {
+      previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
+      isPreviewMode = previewData !== false
+    }
+
     // non-spr requests should render like normal
     if (!isSSG) {
       // handle serverless
@@ -913,7 +925,7 @@ export default class Server {
           const renderResult = await (components.Component as any).renderReqToHTML(
             req,
             res,
-            true
+            'passthrough'
           )
 
           sendPayload(
@@ -923,7 +935,7 @@ export default class Server {
             !this.renderOpts.dev
               ? {
                   revalidate: -1,
-                  private: false, // Leave to user-land caching
+                  private: isPreviewMode, // Leave to user-land caching
                 }
               : undefined
           )
@@ -946,25 +958,27 @@ export default class Server {
           !this.renderOpts.dev
             ? {
                 revalidate: -1,
-                private: false, // Leave to user-land caching
+                private: isPreviewMode, // Leave to user-land caching
               }
             : undefined
         )
         return null
       }
 
-      return renderToHTML(req, res, pathname, query, {
+      const html = await renderToHTML(req, res, pathname, query, {
         ...components,
         ...opts,
       })
-    }
 
-    const previewData = tryGetPreviewData(
-      req,
-      res,
-      this.renderOpts.previewProps
-    )
-    const isPreviewMode = previewData !== false
+      if (html && isServerProps && isPreviewMode) {
+        sendPayload(res, html, 'text/html; charset=utf-8', {
+          revalidate: -1,
+          private: isPreviewMode,
+        })
+      }
+
+      return html
+    }
 
     // Compute the SPR cache key
     const urlPathname = parseUrl(req.url || '').pathname!
@@ -1014,7 +1028,7 @@ export default class Server {
         renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
-          true
+          'passthrough'
         )
 
         html = renderResult.html

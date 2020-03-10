@@ -232,7 +232,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+    export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
+      const fromExport = renderMode === 'export' || renderMode === true;
       ${
         basePath
           ? `
@@ -327,7 +328,7 @@ const nextServerlessLoader: loader.Loader = function() {
 
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
-        if (_nextData && !fromExport) {
+        if (_nextData && !renderMode) {
           const payload = JSON.stringify(renderOpts.pageData)
           res.setHeader('Content-Type', 'application/json')
           res.setHeader('Content-Length', Buffer.byteLength(payload))
@@ -349,7 +350,7 @@ const nextServerlessLoader: loader.Loader = function() {
           )
         }
 
-        if (fromExport) return { html: result, renderOpts }
+        if (renderMode) return { html: result, renderOpts }
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
