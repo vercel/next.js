@@ -288,6 +288,12 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('somefirst')).toBe('hi')
   })
 
+  it('should support named pattern for header key/values', async () => {
+    const res = await fetchViaHTTP(appPort, '/named-pattern/hello')
+    expect(res.headers.get('x-something')).toBe('value=hello')
+    expect(res.headers.get('path-hello')).toBe('end')
+  })
+
   it('should support proxying to external resource', async () => {
     const res = await fetchViaHTTP(appPort, '/proxy-me/first')
     expect(res.status).toBe(200)
@@ -591,6 +597,20 @@ const runTests = (isDev = false) => {
               '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/:path*',
+          },
+          {
+            headers: [
+              {
+                key: 'x-something',
+                value: 'value=:path',
+              },
+              {
+                key: 'path-:path',
+                value: 'end',
+              },
+            ],
+            regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))$'),
+            source: '/named-pattern/:path(.*)',
           },
         ],
         rewrites: [

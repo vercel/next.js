@@ -239,6 +239,19 @@ module.exports = {
             },
           ],
         },
+        {
+          source: '/named-pattern/:path(.*)',
+          headers: [
+            {
+              key: 'x-something',
+              value: 'value=:path',
+            },
+            {
+              key: 'path-:path',
+              value: 'end',
+            },
+          ],
+        },
       ]
     },
   },

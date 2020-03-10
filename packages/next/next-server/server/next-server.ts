@@ -473,12 +473,13 @@ export default class Server {
           fn: async (_req, res, params, _parsedUrl) => {
             for (const header of (route as Header).headers) {
               let { key, value } = header
-              // TODO: update compiling based on https://github.com/zeit/next.js/pull/10291
               if (key.includes(':')) {
-                key = compilePathToRegex(key)(params)
+                // see `prepareDestination` util for explanation for
+                // `validate: false` being used
+                key = compilePathToRegex(key, { validate: false })(params)
               }
               if (value.includes(':')) {
-                value = compilePathToRegex(value)(params)
+                value = compilePathToRegex(value, { validate: false })(params)
               }
               res.setHeader(key, value)
             }
