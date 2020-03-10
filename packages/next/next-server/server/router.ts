@@ -1,7 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { compile as compilePathToRegex } from 'path-to-regexp'
-import { stringify as stringifyQs } from 'querystring'
 import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
@@ -34,24 +33,53 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 
-export const prepareDestination = (destination: string, params: Params) => {
+export const prepareDestination = (
+  destination: string,
+  params: Params,
+  isRedirect?: boolean
+) => {
   const parsedDestination = parseUrl(destination, true)
   const destQuery = parsedDestination.query
   let destinationCompiler = compilePathToRegex(
-    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
+    // we don't validate while compiling the destination since we should
+    // have already validated before we got to this point and validating
+    // breaks compiling destinations with named pattern params from the source
+    // e.g. /something:hello(.*) -> /another/:hello is broken with validation
+    // since compile validation is meant for reversing and not for inserting
+    // params from a separate path-regex into another
+    { validate: false }
   )
   let newUrl
 
-  Object.keys(destQuery).forEach(key => {
-    const val = destQuery[key]
-    if (
-      typeof val === 'string' &&
-      val.startsWith(':') &&
-      params[val.substr(1)]
-    ) {
-      destQuery[key] = params[val.substr(1)]
+  // update any params in query values
+  for (const [key, strOrArray] of Object.entries(destQuery)) {
+    let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
+    if (value) {
+      const queryCompiler = compilePathToRegex(value, { validate: false })
+      value = queryCompiler(params)
     }
-  })
+    destQuery[key] = value
+  }
+
+  // add params to query
+  for (const [name, value] of Object.entries(params)) {
+    if (
+      isRedirect &&
+      new RegExp(`:${name}(?!\\w)`).test(
+        parsedDestination.pathname + (parsedDestination.hash || '')
+      )
+    ) {
+      // Don't add segment to query if used in destination
+      // and it's a redirect so that we don't pollute the query
+      // with unwanted values
+      continue
+    }
+
+    if (!(name in destQuery)) {
+      destQuery[name] = Array.isArray(value) ? value.join('/') : value
+    }
+  }
 
   try {
     newUrl = encodeURI(destinationCompiler(params))
@@ -59,8 +87,8 @@ export const prepareDestination = (destination: string, params: Params) => {
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    parsedDestination.search = stringifyQs(parsedDestination.query)
     parsedDestination.path = `${pathname}${parsedDestination.search}`
+    delete parsedDestination.search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
