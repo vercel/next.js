@@ -149,9 +149,7 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    expect(stderr).toContain(
-      `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/zeit/next.js/404-get-initial-props`
-    )
+    expect(stderr).toMatch(gip404Err)
     expect(code).toBe(1)
   })
 
@@ -162,6 +160,100 @@ describe('404 Page Support', () => {
       `
       const page = () => 'custom 404 page'
       page.getInitialProps = () => ({ a: 'b' })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/abc')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).toMatch(gip404Err)
+  })
+
+  it('shows error with getStaticProps in pages/404 build', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).toMatch(gip404Err)
+    expect(code).toBe(1)
+  })
+
+  it('shows error with getStaticProps in pages/404 dev', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/abc')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).toMatch(gip404Err)
+  })
+
+  it('shows error with getServerSideProps in pages/404 build', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).toMatch(gip404Err)
+    expect(code).toBe(1)
+  })
+
+  it('shows error with getServerSideProps in pages/404 dev', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
       export default page
     `
     )
