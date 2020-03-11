@@ -1,4 +1,6 @@
-export const getStaticProps = () => ({ props: { hello: 'world' } })
+export const getStaticProps = () => ({
+  props: { hello: 'world', random: Math.random() },
+})
 
-const page = () => `custom 404 page ${Math.random()}`
+const page = ({ random }) => `custom 404 page ${random}`
 export default page
