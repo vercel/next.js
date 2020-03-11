@@ -6,9 +6,10 @@ const BlogPosts = props => {
   return (
     <div>
       <h1>Blog posts</h1>
-      {props.viewer.allBlogPosts.edges.map(({ node }) => (
-        <BlogPostPreview key={node.id} post={node} />
-      ))}
+      {props.viewer.allBlogPosts &&
+        props.viewer.allBlogPosts.edges.map(({ node }) => (
+          <BlogPostPreview key={node.id} post={node} />
+        ))}
     </div>
   )
 }
