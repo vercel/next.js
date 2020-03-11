@@ -15,6 +15,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { quote as shellQuote } from 'shell-quote'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
@@ -32,7 +33,7 @@ describe('SCSS Support', () => {
 
     it('should be a friendly error successfully', async () => {
       const { code, stderr } = await nextBuild(appDir, [], {
-        env: { NODE_OPTIONS: `--require ${mockFile}` },
+        env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
         stderr: true,
       })
       expect(code).toBe(1)
