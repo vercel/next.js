@@ -35,7 +35,7 @@ export default class App extends NextApp {
     const environment = createEnvironment(
       relayData,
       JSON.stringify({
-        queryID: Component.query ? Component.query().params.name : undefined,
+        queryID: Component.query ? Component.query.params.name : undefined,
         variables,
       })
     )
