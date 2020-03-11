@@ -55,6 +55,18 @@ describe('Production Usage', () => {
       expect(html).toMatch(/Hello World/)
     })
 
+    if (browserName === 'internet explorer') {
+      it('should handle bad Promise polyfill', async () => {
+        const browser = await webdriver(appPort, '/bad-promise')
+        expect(await browser.eval('window.didRender')).toBe(true)
+      })
+
+      it('should polyfill RegExp successfully', async () => {
+        const browser = await webdriver(appPort, '/regexp-polyfill')
+        expect(await browser.eval('window.didRender')).toBe(true)
+      })
+    }
+
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
       const etag = (await fetch(url)).headers.get('ETag')

@@ -2,3 +2,4 @@ node_modules
 **/.next/**
 **/_next/**
 **/dist/**
+test/integration/production/public/**/*
