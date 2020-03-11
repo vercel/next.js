@@ -60,6 +60,11 @@ describe('Production Usage', () => {
         const browser = await webdriver(appPort, '/bad-promise')
         expect(await browser.eval('window.didRender')).toBe(true)
       })
+
+      it('should polyfill RegExp successfully', async () => {
+        const browser = await webdriver(appPort, '/regexp-polyfill')
+        expect(await browser.eval('window.didRender')).toBe(true)
+      })
     }
 
     it('should allow etag header support', async () => {
