@@ -152,8 +152,8 @@ The `paths` key determines which paths will be pre-rendered. For example, suppos
 ```js
 return {
   paths: [
-    { params: { id: 1 } },
-    { params: { id: 2 } }
+    { params: { id: '1' } },
+    { params: { id: '2' } }
   ],
   fallback: ...
 }
