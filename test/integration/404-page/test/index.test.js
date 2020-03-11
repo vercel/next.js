@@ -19,6 +19,7 @@ const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
 const appPage = join(appDir, 'pages/_app.js')
 const nextConfig = join(appDir, 'next.config.js')
+const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
 let buildId
@@ -180,51 +181,87 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    const error = `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/zeit/next.js/404-get-initial-props`
-
-    expect(stderr).toContain(error)
+    expect(stderr).toMatch(gip404Err)
   })
 
   describe('_app with getInitialProps', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
+    beforeAll(() =>
+      fs.writeFile(
         appPage,
         `
-        import NextApp from 'next/app'
-        const App = ({ Component, pageProps }) => <Component {...pageProps} />
-        App.getInitialProps = NextApp.getInitialProps
-        export default App
-      `
+      import NextApp from 'next/app'
+      const App = ({ Component, pageProps }) => <Component {...pageProps} />
+      App.getInitialProps = NextApp.getInitialProps
+      export default App
+    `
       )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await fs.remove(appPage)
-      await killApp(app)
-    })
+    )
+    afterAll(() => fs.remove(appPage))
 
-    it('should not output static 404 if _app has getInitialProps', async () => {
-      expect(
-        await fs.exists(
-          join(appDir, '.next/server/static', buildId, 'pages/404.html')
+    describe('production mode', () => {
+      afterAll(() => killApp(app))
+
+      it('should build successfully', async () => {
+        const { code, stderr, stdout } = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+
+        expect(code).toBe(0)
+        expect(stderr).not.toMatch(gip404Err)
+        expect(stdout).not.toMatch(gip404Err)
+
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+
+      it('should not output static 404 if _app has getInitialProps', async () => {
+        expect(
+          await fs.exists(
+            join(appDir, '.next/server/static', buildId, 'pages/404.html')
+          )
+        ).toBe(false)
+      })
+
+      it('specify to use the 404 page still in the routes-manifest', async () => {
+        const manifest = await fs.readJSON(
+          join(appDir, '.next/routes-manifest.json')
         )
-      ).toBe(false)
+        expect(manifest.pages404).toBe(true)
+      })
+
+      it('should still use 404 page', async () => {
+        const res = await fetchViaHTTP(appPort, '/abc')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('custom 404 page')
+      })
     })
 
-    it('specify to use the 404 page still in the routes-manifest', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
-      )
-      expect(manifest.pages404).toBe(true)
-    })
+    describe('dev mode', () => {
+      let stderr = ''
+      let stdout = ''
 
-    it('should still use 404 page', async () => {
-      const res = await fetchViaHTTP(appPort, '/abc')
-      expect(res.status).toBe(404)
-      expect(await res.text()).toContain('custom 404 page')
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            stderr += msg
+          },
+          onStdout(msg) {
+            stdout += msg
+          },
+        })
+      })
+      afterAll(() => killApp(app))
+
+      it('should not show pages/404 GIP error if _app has GIP', async () => {
+        const res = await fetchViaHTTP(appPort, '/abc')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('custom 404 page')
+        expect(stderr).not.toMatch(gip404Err)
+        expect(stdout).not.toMatch(gip404Err)
+      })
     })
   })
 })
