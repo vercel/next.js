@@ -5,6 +5,7 @@ import NextApp from 'next/app'
 import { initEnvironment, createEnvironment } from '../lib/createEnvironment'
 
 export default class App extends NextApp {
+
   static getInitialProps = async ({ Component, router, ctx }) => {
     const { variables } = Component.getInitialProps
       ? await Component.getInitialProps(ctx)
@@ -35,7 +36,7 @@ export default class App extends NextApp {
     const environment = createEnvironment(
       relayData,
       JSON.stringify({
-        queryID: Component.query ? Component.query().params.name : undefined,
+        queryID: Component.query ? Component.query.params.name : undefined,
         variables,
       })
     )
