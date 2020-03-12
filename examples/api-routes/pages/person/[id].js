@@ -1,4 +1,4 @@
-import fetch from 'isomorphic-unfetch'
+import fetch from 'node-fetch'
 
 const Person = ({ data, status }) =>
   status === 200 ? (
@@ -30,11 +30,29 @@ const Person = ({ data, status }) =>
     <p>{data.message}</p>
   )
 
-Person.getInitialProps = async ({ query }) => {
-  const response = await fetch(`http://localhost:3000/api/people/${query.id}`)
-
+export async function getStaticPaths() {
+  const response = await fetch('http://localhost:3000/api/people')
   const data = await response.json()
-  return { data, status: response.status }
+
+  const paths = data.map(person => ({
+    params: {
+      id: person.id,
+    },
+  }))
+
+  return { paths, fallback: false }
+}
+
+export async function getStaticProps({ params }) {
+  const response = await fetch(`http://localhost:3000/api/people/${params.id}`)
+  const data = await response.json()
+
+  return {
+    props: {
+      data,
+      status: response.status,
+    },
+  }
 }
 
 export default Person
