@@ -331,7 +331,6 @@ const nextServerlessLoader: loader.Loader = function() {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            const payload = JSON.stringify(renderOpts.pageData)
             sendPayload(res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', {
               private: isPreviewMode,
               stateful: !!getServerSideProps,
