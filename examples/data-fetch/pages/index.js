@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import fetch from 'node-fetch'
 
-function Index({stars}) {
+function Index({ stars }) {
   return (
     <div>
       <p>Next.js has {stars} ⭐️</p>
@@ -18,8 +18,8 @@ export async function getServerSideProps() {
   const json = await res.json() // better use it inside try .. catch
   return {
     props: {
-      stars: json.stargazers_count
-    }
+      stars: json.stargazers_count,
+    },
   }
 }
 
