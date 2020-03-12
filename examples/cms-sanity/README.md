@@ -45,7 +45,26 @@ When going through the init phase make sure to select **Yes** to the **Use the d
 
 After initializing, get the `projectId` value from the `sanity.json` file that was generated for the next step.
 
-### Step 3. Set up environment variables
+### Step 3. Prepare project for previewing
+
+Go to https://www.sanity.io/docs/preview-content-on-site and follow the steps.
+
+When you get to the step to create a function called `resolveProductionUrl` add the below contents instead replacing the `YOUR_PREVIEW_SECRET` and `YOUR_DEPLOYMENT_URL` values:
+
+```js
+const previewSecret = YOUR_PREVIEW_SECRET // 'asdafasdfsdaf'
+const projectUrl = YOUR_DEPLOYMENT_URL // 'example.com'
+
+export default function resolveProductionUrl(document) {
+  return `https://${projectUrl}/api/preview?secret=${previewSecret}&slug=${document.slug.current}`
+}
+```
+
+After that, generate an API token for your project by going to the dashboard at https://sanity.io and selecting your project
+
+Under settings -> API, generate a new read API token to use for previewing drafts
+
+### Step 4. Set up environment variables
 
 First, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
 
@@ -56,13 +75,15 @@ cp .env.example .env
 Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
-- `SANITY_PROJECT_ID` the `projectId` from the previous step
+- `NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID` the `projectId` from the previous step
+- `NEXT_EXAMPLE_CMS_SANITY_API_TOKEN` the API token generated from Sanity.io
 
 Your `.env` file should look like this:
 
 ```bash
 NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET=...
-SANITY_PROJECT_ID=...
+NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID=...
+NEXT_EXAMPLE_CMS_SANITY_API_TOKEN=...
 ```
 
 ### Step 4. Copy the schema file
@@ -135,6 +156,8 @@ Install [Now CLI](https://zeit.co/download), log in to your account from the CLI
 
 ```
 now secrets add next_example_cms_sanity_preview_secret <NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>
+now secrets add next_example_cms_sanity_api_token <NEXT_EXAMPLE_CMS_SANITY_API_TOKEN>
+now secrets add next_example_cms_sanity_project_id <NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID>
 ```
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

@@ -11,4 +11,8 @@ const options = {
 }
 
 export default sanityClient(options)
-export const previewClient = sanityClient({ ...options, useCdn: false })
+export const previewClient = sanityClient({
+  ...options,
+  useCdn: false,
+  token: process.env.NEXT_EXAMPLE_CMS_SANITY_API_TOKEN,
+})
