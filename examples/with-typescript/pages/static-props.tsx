@@ -1,4 +1,4 @@
-import { NextPage } from 'next'
+import { NextPage, GetStaticProps } from 'next'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import List from '../components/List'
@@ -10,10 +10,9 @@ type Props = {
   pathname: string
 }
 
-const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
+const WithStaticProps: NextPage<Props> = ({ items }) => (
   <Layout title="List Example (as Functional Component) | Next.js + TypeScript Example">
     <h1>List Example (as Function Component)</h1>
-    <p>You are currently on: {pathname}</p>
     <List items={items} />
     <p>
       <Link href="/">
@@ -23,13 +22,13 @@ const WithInitialProps: NextPage<Props> = ({ items, pathname }) => (
   </Layout>
 )
 
-WithInitialProps.getInitialProps = async ({ pathname }) => {
-  // Example for including initial props in a Next.js function compnent page.
-  // Don't forget to include the respective types for any props passed into
+// Fetch data at build time.
+export const getStaticProp: GetStaticProps = async () => {
+  // Example for including getStaticProps in a Next.js function component page.
   // the component.
   const items: User[] = await findAll()
 
-  return { items, pathname }
+  return { props: { items } }
 }
 
-export default WithInitialProps
+export default WithStaticProps

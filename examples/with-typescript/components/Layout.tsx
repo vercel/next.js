@@ -6,7 +6,7 @@ type Props = {
   title?: string
 }
 
-const Layout: React.FunctionComponent<Props> = ({
+const Layout: React.FC<Props> = ({
   children,
   title = 'This is the default title',
 }) => (
@@ -27,7 +27,7 @@ const Layout: React.FunctionComponent<Props> = ({
         </Link>{' '}
         |{' '}
         <Link href="/initial-props">
-          <a>With Initial Props</a>
+          <a>With Static Props</a>
         </Link>
       </nav>
     </header>

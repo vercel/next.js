@@ -6,7 +6,7 @@ type ListDetailProps = {
   item: User
 }
 
-const ListDetail: React.FunctionComponent<ListDetailProps> = ({
+const ListDetail: React.FC<ListDetailProps> = ({
   item: user,
 }) => (
   <div>
