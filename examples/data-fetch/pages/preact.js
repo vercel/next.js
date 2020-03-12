@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import fetch from 'isomorphic-unfetch'
+import fetch from 'node-fetch'
 
 function Preact({stars}) {
   return (
@@ -13,7 +13,7 @@ function Preact({stars}) {
   )
 }
 
-export async function getStaticProps() {
+export async function getServerSideProps() {
   const res = await fetch('https://api.github.com/repos/developit/preact')
   const json = await res.json() // better use it inside try .. catch
   return {
