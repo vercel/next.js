@@ -89,6 +89,6 @@ export type GetServerSideProps<
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
-}) => Promise<P>
+}) => Promise<{ props: P }>
 
 export default next
