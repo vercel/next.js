@@ -18,13 +18,11 @@ export default class Index extends React.Component {
   }
 }
 
-export async function getServerSideProps({req}) {
-  if (req) {
-      // Runs only in the server
-      const faker = require('faker')
-      const name = faker.name.findName()
-      return { props : { name } }
-    }
+export async function getStaticProps() {
+    // Runs only in the server
+    const faker = require('faker')
+    const name = faker.name.findName()
+    return { props : { name } }
 
     // Runs only in the client
     return { name: 'Arunoda' }
