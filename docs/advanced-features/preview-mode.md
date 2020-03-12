@@ -75,7 +75,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 export default async (req, res) => {
   // Check the secret and next parameters
   // This secret should only be know to this API route and the CMS
-  if (req.query.secret !== 'MY_SECRET_TOKEN' || !res.query.slug) {
+  if (req.query.secret !== 'MY_SECRET_TOKEN' || !req.query.slug) {
     return res.status(401).json({ message: 'Invalid token' })
   }
 
@@ -88,7 +88,7 @@ export default async (req, res) => {
     return res.status(401).json({ message: 'Invalid slug' })
   }
 
-  // Enable Preview Mode  by setting the cookies
+  // Enable Preview Mode by setting the cookies
   res.setPreviewData({})
 
   // Redirect to the path from the fetched post
@@ -148,6 +148,12 @@ That’s it! If you access the preview API route (with `secret` and `slug`) from
 # and you should be able to see the preview.
 https://<your-site>/api/preview?secret=<token>&slug=<path>
 ```
+
+## More Examples
+
+Take a look at the following examples to learn more:
+
+- [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
 
 ## More Details
 
