@@ -13,7 +13,7 @@ function Preact({ stars }) {
   )
 }
 
-export async function getServerSideProps() {
+export async function getStaticProps() {
   const res = await fetch('https://api.github.com/repos/developit/preact')
   const json = await res.json() // better use it inside try .. catch
   return {
