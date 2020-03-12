@@ -13,7 +13,7 @@ const Index = ({ users }) => (
   </ul>
 )
 
-Index.getInitialProps = async () => {
+Index.getStaticProps = async () => {
   const response = await fetch('http://localhost:3000/api/users')
   const users = await response.json()
 

@@ -8,7 +8,7 @@ const Index = ({ users }) => (
   </div>
 )
 
-Index.getInitialProps = async () => {
+Index.getStaticProps = async () => {
   const response = await fetch('http://localhost:3000/api/graphql', {
     method: 'POST',
     headers: {

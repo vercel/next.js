@@ -20,7 +20,7 @@ function Profile({ user }) {
   )
 }
 
-Profile.getInitialProps = async ({ req, res }) => {
+Profile.getServerSideProps = async ({ req, res }) => {
   // On the server-side you can check authentication status directly
   // However in general you might want to call API Routes to fetch data
   // An example of directly checking authentication:

@@ -25,7 +25,7 @@ export default class extends React.Component {
      once it does, params.query could be used directly here, but also inside the constructor
      to initialize the searchState.
   */
-  static async getInitialProps(params) {
+  static async getStaticProps(params) {
     const searchState = qs.parse(
       params.asPath.substring(params.asPath.indexOf('?') + 1)
     )

@@ -30,7 +30,7 @@ const Person = ({ data, status }) =>
     <p>{data.message}</p>
   )
 
-Person.getInitialProps = async ({ query }) => {
+Person.getStaticProps = async ({ query }) => {
   const response = await fetch(`http://localhost:3000/api/people/${query.id}`)
 
   const data = await response.json()

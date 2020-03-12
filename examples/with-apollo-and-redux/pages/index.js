@@ -33,7 +33,7 @@ const IndexPage = () => {
   )
 }
 
-IndexPage.getInitialProps = ({ reduxStore }) => {
+IndexPage.getStaticProps = ({ reduxStore }) => {
   // Tick the time once, so we'll have a
   // valid time before first render
   const { dispatch } = reduxStore

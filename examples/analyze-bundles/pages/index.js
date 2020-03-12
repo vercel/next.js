@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 export default class Index extends React.Component {
-  static getInitialProps({ req }) {
+  static getStaticProps({ req }) {
     if (req) {
       // Runs only in the server
       const faker = require('faker')

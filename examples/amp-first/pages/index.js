@@ -234,7 +234,7 @@ const Home = props => (
 )
 
 // amp-script requires absolute URLs, so we create a property `host` which we can use to calculate the script URL.
-Home.getInitialProps = async ({ req }) => {
+Home.getStaticProps = async ({ req }) => {
   // WARNING: This is a generally unsafe application unless you're deploying to a managed platform like ZEIT Now.
   // Be sure your load balancer is configured to not allow spoofed host headers.
   return { host: `${getProtocol(req)}://${req.headers.host}` }

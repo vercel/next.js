@@ -74,7 +74,7 @@ const Blog = ({ router, page = 1 }) => {
   )
 }
 
-Blog.getInitialProps = async ({ query }) => {
+Blog.getStaticProps = async ({ query }) => {
   return query ? { page: query.page } : {}
 }
 

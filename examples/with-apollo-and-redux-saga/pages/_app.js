@@ -7,11 +7,11 @@ import withReduxSaga from 'next-redux-saga'
 import createStore from '../lib/store'
 
 class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
+  static async getStaticProps({ Component, ctx }) {
     let pageProps = {}
 
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps({ ctx })
+    if (Component.getStaticProps) {
+      pageProps = await Component.getStaticProps({ ctx })
     }
 
     return { pageProps }

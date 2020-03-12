@@ -13,7 +13,7 @@ function Preact(props) {
   )
 }
 
-Preact.getInitialProps = async () => {
+Preact.getStaticProps = async () => {
   const res = await fetch('https://api.github.com/repos/developit/preact')
   const json = await res.json() // better use it inside try .. catch
   return { stars: json.stargazers_count }

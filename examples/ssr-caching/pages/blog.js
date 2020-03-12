@@ -1,7 +1,7 @@
 import React from 'react'
 
 export default class extends React.Component {
-  static getInitialProps({ query: { id } }) {
+  static getStaticProps({ query: { id } }) {
     return { id }
   }
 

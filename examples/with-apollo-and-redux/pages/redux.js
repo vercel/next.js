@@ -24,7 +24,7 @@ const ReduxPage = () => {
   )
 }
 
-ReduxPage.getInitialProps = ({ reduxStore }) => {
+ReduxPage.getStaticProps = ({ reduxStore }) => {
   // Tick the time once, so we'll have a
   // valid time before first render
   const { dispatch } = reduxStore

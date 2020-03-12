@@ -11,7 +11,7 @@ import Header from '../components/Header'
 import Page from '../components/Page'
 
 class PageIndex extends React.Component {
-  static async getInitialProps({ ctx: { store } }) {
+  static async getStaticProps({ ctx: { store } }) {
     store.dispatch(countIncrease())
     if (!store.getState().placeholder.data) {
       store.dispatch(loadData())
