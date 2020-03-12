@@ -418,10 +418,7 @@ export async function renderToHTML(
       renderOpts.nextExport = true
     }
 
-    if (
-      pathname === '/404' &&
-      (hasPageGetInitialProps || getServerSideProps || isSSG)
-    ) {
+    if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
       throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
     }
   }

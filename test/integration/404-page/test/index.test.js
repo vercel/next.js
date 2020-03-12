@@ -182,7 +182,7 @@ describe('404 Page Support', () => {
     expect(stderr).toMatch(gip404Err)
   })
 
-  it('shows error with getStaticProps in pages/404 build', async () => {
+  it('does not show error with getStaticProps in pages/404 build', async () => {
     await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
       pages404,
@@ -196,11 +196,11 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    expect(stderr).toMatch(gip404Err)
-    expect(code).toBe(1)
+    expect(stderr).not.toMatch(gip404Err)
+    expect(code).toBe(0)
   })
 
-  it('shows error with getStaticProps in pages/404 dev', async () => {
+  it('does not show error with getStaticProps in pages/404 dev', async () => {
     await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
       pages404,
@@ -226,7 +226,7 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    expect(stderr).toMatch(gip404Err)
+    expect(stderr).not.toMatch(gip404Err)
   })
 
   it('shows error with getServerSideProps in pages/404 build', async () => {
