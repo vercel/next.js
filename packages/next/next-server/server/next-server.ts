@@ -541,6 +541,7 @@ export default class Server {
               }
             }
             ;(req as any)._nextDidRewrite = true
+            ;(req as any)._nextRewroteUrl = newUrl
 
             return {
               finished: false,
@@ -981,8 +982,13 @@ export default class Server {
       return html
     }
 
-    // Compute the SPR cache key
-    const urlPathname = parseUrl(req.url || '').pathname!
+    // Compute the SPR cache key. We use the rewroteUrl since
+    // pages with fallback: false are allowed to be rewritten to
+    // and we need to look up the path by the rewritten path
+    const urlPathname = (req as any)._nextRewroteUrl
+      ? (req as any)._nextRewroteUrl
+      : parseUrl(req.url || '').pathname!
+
     const ssgCacheKey = isPreviewMode
       ? `__` + nanoid() // Preview mode uses a throw away key to not coalesce preview invokes
       : urlPathname

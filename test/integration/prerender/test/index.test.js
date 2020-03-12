@@ -35,6 +35,7 @@ let buildId
 let distPagesDir
 let exportDir
 let stderr
+let origConfig
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -128,6 +129,26 @@ const expectedManifestRoutes = () => ({
     dataRoute: `/_next/data/${buildId}/default-revalidate.json`,
     initialRevalidateSeconds: false,
     srcRoute: null,
+  },
+  '/lang/de/about': {
+    dataRoute: `/_next/data/${buildId}/lang/de/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/en/about': {
+    dataRoute: `/_next/data/${buildId}/lang/en/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/es/about': {
+    dataRoute: `/_next/data/${buildId}/lang/es/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
+  },
+  '/lang/fr/about': {
+    dataRoute: `/_next/data/${buildId}/lang/fr/about.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/lang/[lang]/about',
   },
   '/something': {
     dataRoute: `/_next/data/${buildId}/something.json`,
@@ -493,6 +514,11 @@ const runTests = (dev = false, looseMode = false) => {
       const html = await res.text()
       expect(html).toMatch(/This page could not be found/)
     })
+
+    it('should allow rewriting to SSG page with fallback: false', async () => {
+      const html = await renderViaHTTP(appPort, '/about')
+      expect(html).toMatch(/About:.*?en/)
+    })
   }
 
   if (dev) {
@@ -814,6 +840,14 @@ const runTests = (dev = false, looseMode = false) => {
           dataRouteRegex: normalizeRegEx(
             `^\\/_next\\/data\\/${escapeRegex(
               buildId
+            )}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          page: '/lang/[lang]/about',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
             )}\\/non\\-json\\/([^\\/]+?)\\.json$`
           ),
           page: '/non-json/[p]',
@@ -872,6 +906,14 @@ const runTests = (dev = false, looseMode = false) => {
           routeRegex: normalizeRegEx(
             '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
           ),
+        },
+        '/lang/[lang]/about': {
+          dataRoute: `/_next/data/${buildId}/lang/[lang]/about.json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/lang\\/([^\\/]+?)\\/about\\.json$`
+          ),
+          fallback: false,
+          routeRegex: normalizeRegEx('^\\/lang\\/([^\\/]+?)\\/about(?:\\/)?$'),
         },
         '/non-json/[p]': {
           dataRoute: `/_next/data/${buildId}/non-json/[p].json`,
@@ -1013,10 +1055,9 @@ const runTests = (dev = false, looseMode = false) => {
 }
 
 describe('SSG Prerender', () => {
-  afterAll(() => fs.remove(nextConfig))
-
   describe('dev mode', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `
@@ -1027,6 +1068,10 @@ describe('SSG Prerender', () => {
                 {
                   source: "/some-rewrite/:item",
                   destination: "/blog/post-:item"
+                },
+                {
+                  source: '/about',
+                  destination: '/lang/en/about'
                 }
               ]
             }
@@ -1042,13 +1087,17 @@ describe('SSG Prerender', () => {
       })
       buildId = 'development'
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(true)
   })
 
   describe('dev mode getStaticPaths', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         // we set cpus to 1 so that we make sure the requests
@@ -1061,7 +1110,7 @@ describe('SSG Prerender', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.remove(nextConfig)
+      await fs.writeFile(nextConfig, origConfig)
       await killApp(app)
     })
 
@@ -1089,9 +1138,22 @@ describe('SSG Prerender', () => {
 
   describe('serverless mode', () => {
     beforeAll(async () => {
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless' }`,
+        `module.exports = {
+          target: 'serverless',
+          experimental: {
+            rewrites() {
+              return [
+                {
+                  source: '/about',
+                  destination: '/lang/en/about'
+                }
+              ]
+            }
+          }
+        }`,
         'utf8'
       )
       await fs.remove(join(appDir, '.next'))
@@ -1106,7 +1168,10 @@ describe('SSG Prerender', () => {
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     it('renders data correctly', async () => {
       const port = await findPort()
@@ -1178,6 +1243,7 @@ describe('SSG Prerender', () => {
         return initNextServerScript(scriptPath, /ready on/i, env)
       }
 
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = { target: 'experimental-serverless-trace' }`,
@@ -1193,7 +1259,10 @@ describe('SSG Prerender', () => {
       appPort = await findPort()
       app = await startServerlessEmulator(appDir, appPort, buildId)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
+      await killApp(app)
+    })
 
     runTests(false, true)
   })
@@ -1201,7 +1270,6 @@ describe('SSG Prerender', () => {
   describe('production mode', () => {
     let buildOutput = ''
     beforeAll(async () => {
-      await fs.remove(nextConfig)
       await fs.remove(join(appDir, '.next'))
       const { stdout } = await nextBuild(appDir, [], { stdout: true })
       buildOutput = stdout
@@ -1230,6 +1298,7 @@ describe('SSG Prerender', () => {
   describe('export mode', () => {
     beforeAll(async () => {
       exportDir = join(appDir, 'out')
+      origConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
         `module.exports = {
@@ -1250,8 +1319,8 @@ describe('SSG Prerender', () => {
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
+      await fs.writeFile(nextConfig, origConfig)
       await stopApp(app)
-      await fs.remove(nextConfig)
     })
 
     it('should copy prerender files and honor exportTrailingSlash', async () => {
