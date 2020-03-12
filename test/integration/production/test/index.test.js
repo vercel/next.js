@@ -64,6 +64,12 @@ describe('Production Usage', () => {
       it('should polyfill RegExp successfully', async () => {
         const browser = await webdriver(appPort, '/regexp-polyfill')
         expect(await browser.eval('window.didRender')).toBe(true)
+        // wait a second for the script to be loaded
+        await waitFor(1000)
+
+        expect(await browser.eval('window.isSticky')).toBe(true)
+        expect(await browser.eval('window.isMatch1')).toBe(true)
+        expect(await browser.eval('window.isMatch2')).toBe(false)
       })
     }
 
