@@ -549,12 +549,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
           }
 
           if (hasPages404 && page === '/404') {
-            if (!result.isStatic) {
+            if (!result.isStatic && !result.hasStaticProps) {
               throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
             }
             // we need to ensure the 404 lambda is present since we use
             // it when _app has getInitialProps
-            if (customAppGetInitialProps) {
+            if (customAppGetInitialProps && !result.hasStaticProps) {
               staticPages.delete(page)
             }
           }

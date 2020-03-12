@@ -152,8 +152,8 @@ The `paths` key determines which paths will be pre-rendered. For example, suppos
 ```js
 return {
   paths: [
-    { params: { id: 1 } },
-    { params: { id: 2 } }
+    { params: { id: '1' } },
+    { params: { id: '2' } }
   ],
   fallback: ...
 }
@@ -229,7 +229,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 In the “fallback” version of a page:
 
 - The page’s props will be empty.
-- Using the [router](/docs/api-reference/next/router.md)), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
+- Using the [router](/docs/api-reference/next/router.md), you can detect if the fallback is being rendered, `router.isFallback` will be `true`.
 
 Here’s an example that uses `isFallback`:
 
@@ -366,7 +366,7 @@ export default Page
 
 ### When should I use `getServerSideProps`?
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra .
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than `getStaticProps` because the server must compute the result on every request, and the result cannot be cached by a CDN without extra configuration.
 
 If you don’t need to pre-render the data, then you should consider fetching data on the client side. [Click here to learn more](#fetching-data-on-the-client-side).
 
@@ -389,7 +389,7 @@ export const getServerSideProps: GetServerSideProps = async context => {
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps` , then:
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
-- When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)), Next.js sends an API request to server, which runs `getServerSideProps`. It’ll return a JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
+- When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
 #### Only allowed in a page
 
