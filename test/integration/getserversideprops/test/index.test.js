@@ -68,6 +68,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/custom-cache.json$`
+    ),
+    page: '/custom-cache',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
     ),
     page: '/default-revalidate',
