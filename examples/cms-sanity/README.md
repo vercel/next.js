@@ -135,14 +135,7 @@ On Sanity, go to one of the posts you've created and:
 
 Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
-To enable the Preview Mode, go to this URL:
-
-```
-http://localhost:3000/api/preview?secret=<secret>&slug=<slug>
-```
-
-- `<secret>` should be the string you entered for `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET`.
-- `<slug>` should be the post's `slug` attribute (you can check on Sanity).
+To view the preview, go to your sanity project where you edited the item and click the three dots above the document and select open preview.
 
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
