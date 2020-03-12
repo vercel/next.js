@@ -69,11 +69,11 @@ SANITY_PROJECT_ID=...
 
 After initializing your Sanity studio project there should be a `schemas` folder.
 
-To get up and running we want to copy the schema file from [`./schemas/schema.js`](./schemas/schema.js) to the studio project to use for creating/editing content.
+Replace the contents of `schema.js` in the Sanity studio project directory with [`./schemas/schema.js`](./schemas/schema.js) in this example directory. This will set up the schema we’ll use this for this example.
 
 ### Step 5. Populate Content
 
-To add some content go to your Sanity studio project where we added the schema file and run `sanity start`.
+To add some content go to your Sanity studio project directory and run `sanity start`.
 
 After the project has started and you have navigated to the URL given in the terminal, select **Author** and create a new record.
 
