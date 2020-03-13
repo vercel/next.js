@@ -14,7 +14,7 @@ export default () => (
       </Link>
     </li>
     <li>
-      <Link href={{ pathname: '/posts', query: { id: '2' } }} as="/posts/2">
+      <Link href="posts">
         <a>post #2</a>
       </Link>
     </li>
