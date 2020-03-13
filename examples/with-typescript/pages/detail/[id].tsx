@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { GetServerSideProps } from 'next'
-import Layout from '../components/Layout'
-import { User } from '../interfaces'
-import { findData } from '../utils/sample-api'
-import ListDetail from '../components/ListDetail'
+import { GetStaticPaths, GetStaticProps } from 'next'
+import Layout from '../../components/Layout'
+import { User } from '../../interfaces'
+import { findData } from '../../utils/sample-api'
+import ListDetail from '../../components/ListDetail'
 
 type Props = {
   item?: User
@@ -32,10 +32,22 @@ export default function(props: Props) {
   )
 }
 
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [
+      { params: { id: '101' } },
+      { params: { id: '102' } },
+      { params: { id: '103' } },
+      { params: { id: '104' } },
+    ],
+    fallback: false,
+  }
+}
+
 // Fetch data on each request.
-export const getServerSideProps: GetServerSideProps = async ({ query }) => {
+export const getStaticProps: GetStaticProps = async ({ params }) => {
   try {
-    const { id } = query
+    const { id } = params!
     const item = await findData(Array.isArray(id) ? id[0] : id)
     return { props: { item } }
   } catch (err) {

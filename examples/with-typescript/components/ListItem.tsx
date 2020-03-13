@@ -8,7 +8,7 @@ type Props = {
 }
 
 const ListItem: React.FC<Props> = ({ data }) => (
-  <Link href={`/detail?id=${data.id}`}>
+  <Link href={`/detail/${data.id}`}>
     <a>
       {data.id}: {data.name}
     </a>

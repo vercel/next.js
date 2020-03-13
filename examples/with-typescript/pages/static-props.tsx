@@ -23,7 +23,7 @@ const WithStaticProps: NextPage<Props> = ({ items }) => (
 )
 
 // Fetch data at build time.
-export const getStaticProp: GetStaticProps = async () => {
+export const getStaticProps: GetStaticProps = async () => {
   // Example for including getStaticProps in a Next.js function component page.
   // the component.
   const items: User[] = await findAll()
