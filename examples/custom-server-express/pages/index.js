@@ -13,10 +13,5 @@ export default () => (
         <a>b</a>
       </Link>
     </li>
-    <li>
-      <Link href="posts">
-        <a>post #2</a>
-      </Link>
-    </li>
   </ul>
 )
