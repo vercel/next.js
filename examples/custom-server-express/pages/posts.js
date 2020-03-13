@@ -12,6 +12,6 @@ export default function(props) {
   )
 }
 
-export async function getServerSideProps({ query: { id } }) {
-  return { props: { id } }
+export async function getStaticProps() {
+  return { props: { id: 2 } }
 }
