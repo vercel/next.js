@@ -12,6 +12,17 @@ export default function(props) {
   )
 }
 
-export async function getServerSideProps({ query: { id } }) {
+export async function getStaticProps({ params: { id } }) {
   return { props: { id } }
+}
+
+export async function getStaticPaths() {
+  return {
+    paths: [
+      { params: { id: 'first' } },
+      { params: { id: 'second' } },
+      { params: { id: 'last' } },
+    ],
+    fallback: true,
+  }
 }
