@@ -30,4 +30,4 @@ export const SERVER_PROPS_GET_INIT_PROPS_CONFLICT = `You can not use getInitialP
 
 export const SERVER_PROPS_SSG_CONFLICT = `You can not use getStaticProps with getServerSideProps. To use SSG, please remove getServerSideProps`
 
-export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have getInitialProps/getServerSideProps/getStaticProps, https://err.sh/zeit/next.js/404-get-initial-props`
+export const PAGES_404_GET_INITIAL_PROPS_ERROR = `\`pages/404\` can not have getInitialProps/getServerSideProps, https://err.sh/zeit/next.js/404-get-initial-props`
