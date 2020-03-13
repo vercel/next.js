@@ -1,6 +1,6 @@
 # Example app with next-sass
 
-This example demonstrates how to use Next.js' built-in SASS(SCSS) imports and SASS(SCSS) modules support.
+This example demonstrates how to use Next.js' built-in Global Sass/Scss imports and Component-Level Sass/Scss modules support.
 
 ## Deploy your own
 
