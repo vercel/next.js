@@ -9,7 +9,7 @@ const Index = ({ people }) => (
   </ul>
 )
 
-export async function getStaticProps() {
+export async function getServerSideProps() {
   const response = await fetch('http://localhost:3000/api/people')
   const people = await response.json()
 
