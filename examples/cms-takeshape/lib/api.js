@@ -1,0 +1,136 @@
+import fetch from 'isomorphic-unfetch'
+
+const API_URL = `https://api.takeshape.io/project/${process.env.NEXT_EXAMPLE_CMS_TAKESHAPE_PROJECT_ID}/graphql`
+const API_KEY = process.env.NEXT_EXAMPLE_CMS_TAKESHAPE_API_KEY
+
+async function fetchAPI(query, { variables } = {}) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  })
+
+  const json = await res.json()
+  if (json.errors) {
+    console.error(json.errors)
+    throw new Error('Failed to fetch API')
+  }
+  return json.data
+}
+
+export async function getPreviewPostBySlug(slug) {
+  const data = await fetchAPI(
+    `
+    query PostBySlug($slug: String) {
+      post: getPostList(filter: {term: {slug: $slug}}, size: 1) {
+        items {
+          slug
+        }
+      }
+    }`,
+    {
+      preview: true,
+      variables: {
+        slug,
+      },
+    }
+  )
+  return (data?.post?.items || [])[0]
+}
+
+export async function getAllPostsWithSlug() {
+  const data = await fetchAPI(`
+    {
+      allPosts: getPostList {
+        items {
+          slug
+        }
+      }
+    }
+  `)
+  return data?.allPosts?.items
+}
+
+export async function getAllPostsForHome(preview) {
+  const data = await fetchAPI(
+    `
+    {
+      allPosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 20) {
+        items {
+          slug
+          title
+          excerpt
+          date
+          coverImage {
+            path
+          }
+          author {
+            name
+            picture {
+              path
+            }
+          }
+        }
+      }
+    }
+  `,
+    { preview }
+  )
+  return data?.allPosts?.items
+}
+
+export async function getPostAndMorePosts(slug, preview) {
+  const data = await fetchAPI(
+    `
+  query PostBySlug($slug: String) {
+    post: getPostList(filter: {term: {slug: $slug}}, size: 1) {
+      items {
+        title
+        slug
+        content
+        date
+        coverImage {
+          path
+        }
+        author {
+          name
+          picture {
+            path
+          }
+        }
+      }
+    }
+    morePosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 3) {
+      items {
+        title
+        slug
+        excerpt
+        date
+        coverImage {
+          path
+        }
+        author {
+          name
+          picture {
+            path
+          }
+        }
+      }
+    }
+  }
+  `,
+    {
+      preview,
+      variables: {
+        slug,
+      },
+    }
+  )
+  return data
+}

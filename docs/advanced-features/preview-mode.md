@@ -154,6 +154,7 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 Take a look at the following examples to learn more:
 
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms)
+- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape)
 
 ## More Details
 

@@ -429,6 +429,7 @@ function Profile() {
 Take a look at the following examples to learn more:
 
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms)
+- [TakeShape Example](https://github.com/zeit/next.js/tree/canary/examples/cms-takeshape)
 
 ## Learn more
 
