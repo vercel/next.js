@@ -247,7 +247,7 @@ useEffect(() => {
     console.log('App is changing to: ', url)
   }
 
-  Router.events.on('routeChangeStart', handleRouteChange)
+  Router.events.on('routeChangeComplete', handleRouteChange)
   return () => {
     Router.events.off('routeChangeStart', handleRouteChange)
   }
