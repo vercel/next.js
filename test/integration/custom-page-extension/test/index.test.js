@@ -8,8 +8,7 @@ import {
   launchApp,
   killApp,
   renderViaHTTP,
-  killAll,
-  File
+  File,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
@@ -46,7 +45,7 @@ describe('Custom page extension', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killAll(app))
+    afterAll(() => killApp(app))
     runTests()
   })
 

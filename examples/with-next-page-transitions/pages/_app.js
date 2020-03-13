@@ -7,7 +7,7 @@ import Loader from '../components/Loader'
 const TIMEOUT = 400
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -17,20 +17,20 @@ export default class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return (
       <>
         <PageTransition
           timeout={TIMEOUT}
-          classNames='page-transition'
+          classNames="page-transition"
           loadingComponent={<Loader />}
           loadingDelay={500}
           loadingTimeout={{
             enter: TIMEOUT,
-            exit: 0
+            exit: 0,
           }}
-          loadingClassNames='loading-indicator'
+          loadingClassNames="loading-indicator"
         >
           <Component {...pageProps} />
         </PageTransition>

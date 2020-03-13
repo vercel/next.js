@@ -3,9 +3,9 @@ import getConfig from 'next/config'
 const { publicRuntimeConfig, serverRuntimeConfig } = getConfig()
 
 const About = ({ bar }) => (
-  <div id='about-page'>
+  <div id="about-page">
     <div>
-      <Link href='/'>
+      <Link href="/">
         <a>Go Back</a>
       </Link>
     </div>

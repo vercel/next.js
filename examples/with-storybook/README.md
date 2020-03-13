@@ -1,13 +1,15 @@
 # Example app with Storybook
 
+This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-storybook with-storybook-app
+npm init next-app --example with-storybook with-storybook-app
 # or
 yarn create next-app --example with-storybook with-storybook-app
 ```
@@ -47,17 +49,4 @@ npm run build-storybook
 yarn build-storybook
 ```
 
-Deploy Storybook to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-npm run build-storybook
-# or
-yarn build-storybook
-# then
-cd storybook-static
-now
-```
-
-## The idea behind the example
-
-This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.
+You can use [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.

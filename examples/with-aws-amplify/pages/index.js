@@ -7,7 +7,7 @@ import config from '../src/aws-exports'
 import {
   createTodo,
   deleteTodo,
-  createTodoList
+  createTodoList,
 } from '../src/graphql/mutations'
 import { getTodoList } from '../src/graphql/queries'
 
@@ -38,6 +38,9 @@ const reducer = (state, action) => {
         draft.currentName = action.payload
       })
     }
+    default: {
+      return state
+    }
   }
 }
 
@@ -48,7 +51,7 @@ const createToDo = async (dispatch, currentToDo) => {
     createdAt: `${Date.now()}`,
     completed: false,
     todoTodoListId: 'global',
-    userId: MY_ID
+    userId: MY_ID,
   }
   dispatch({ type: 'add-todo', payload: todo })
   dispatch({ type: 'reset-current' })
@@ -64,7 +67,7 @@ const deleteToDo = async (dispatch, id) => {
   try {
     await API.graphql({
       ...graphqlOperation(deleteTodo),
-      variables: { input: { id } }
+      variables: { input: { id } },
     })
   } catch (err) {
     console.warn('Error deleting to do ', err)
@@ -73,7 +76,7 @@ const deleteToDo = async (dispatch, id) => {
 const App = props => {
   const [state, dispatch] = React.useReducer(reducer, {
     todos: props.todos,
-    currentName: ''
+    currentName: '',
   })
   return (
     <div>
@@ -90,7 +93,7 @@ const App = props => {
             dispatch({ type: 'set-current', payload: e.target.value })
           }}
         />
-        <button type='submit'>Create Todo</button>
+        <button type="submit">Create Todo</button>
       </form>
       <h3>Todos List</h3>
       {state.todos.map((todo, index) => (
@@ -125,8 +128,8 @@ App.getInitialProps = async () => {
       graphqlOperation(createTodoList, {
         input: {
           id: 'global',
-          createdAt: `${Date.now()}`
-        }
+          createdAt: `${Date.now()}`,
+        },
       })
     )
   } catch (err) {

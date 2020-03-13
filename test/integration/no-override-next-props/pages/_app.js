@@ -2,7 +2,7 @@ import React from 'react'
 import App from 'next/app'
 
 class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -12,7 +12,7 @@ class MyApp extends App {
     return { pageProps, router: () => {} }
   }
 
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return <Component {...pageProps} />
   }

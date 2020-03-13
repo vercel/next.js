@@ -1,5 +1,5 @@
 export default () => (
-  <div className='hello'>
+  <div className="hello">
     <p>
       Hello World! Here's a secret shared with the client using Next env:{' '}
       <strong>{process.env.SECRET}</strong>, the secret is shared at build time,

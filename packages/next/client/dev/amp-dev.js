@@ -3,6 +3,7 @@ import fetch from 'unfetch'
 import EventSourcePolyfill from './event-source-polyfill'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 import { setupPing } from './on-demand-entries-utils'
+import { displayContent } from './fouc'
 
 if (!window.EventSource) {
   window.EventSource = EventSourcePolyfill
@@ -18,7 +19,7 @@ const hotUpdatePath =
   assetPrefix + (assetPrefix.endsWith('/') ? '' : '/') + '_next/static/webpack/'
 
 // Is there a newer version of this code available?
-function isUpdateAvailable () {
+function isUpdateAvailable() {
   // __webpack_hash__ is the hash of the current compilation.
   // It's a global variable injected by Webpack.
   /* eslint-disable-next-line */
@@ -26,13 +27,13 @@ function isUpdateAvailable () {
 }
 
 // Webpack disallows updates in other states.
-function canApplyUpdates () {
+function canApplyUpdates() {
   return module.hot.status() === 'idle'
 }
 
 // This function reads code updates on the fly and hard
 // reloads the page when it has changed.
-async function tryApplyUpdates () {
+async function tryApplyUpdates() {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     return
   }
@@ -65,7 +66,7 @@ async function tryApplyUpdates () {
 }
 
 getEventSourceWrapper({
-  path: `${assetPrefix}/_next/webpack-hmr`
+  path: `${assetPrefix}/_next/webpack-hmr`,
 }).addMessageListener(event => {
   if (event.data === '\uD83D\uDC93') {
     return
@@ -89,3 +90,4 @@ getEventSourceWrapper({
 })
 
 setupPing(assetPrefix, () => page)
+displayContent()

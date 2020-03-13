@@ -1,13 +1,22 @@
 # Refnux example
 
+This example, just like `with-redux` and `with-mobx` examples, shows how to manage a global state in your web-application.
+In this case we are using [refnux](https://github.com/algesten/refnux) which is an alternative, simpler, purely functional store state manager.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-refnux)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-refnux with-refnux-app
+npm init next-app --example with-refnux with-refnux-app
 # or
 yarn create next-app --example with-refnux with-refnux-app
 ```
@@ -31,16 +40,9 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-```bash
-now
-```
-
-## The idea behind the example
-
-This example, just like `with-redux` and `with-mobx` examples, shows how to manage a global state in your web-application.
-In this case we are using [refnux](https://github.com/algesten/refnux) which is an alternative, simpler, purely functional store state manager.
+## Notes
 
 We have two very similar pages (page1.js, page2.js). They both
 

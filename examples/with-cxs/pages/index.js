@@ -21,8 +21,8 @@ const cx = {
     height: 60,
     background: 'white',
     ':hover': {
-      background: 'black'
-    }
+      background: 'black',
+    },
   }),
 
   title: cxs({
@@ -30,7 +30,7 @@ const cx = {
     color: 'black',
     fontSize: 22,
     ':hover': {
-      color: 'white'
-    }
-  })
+      color: 'white',
+    },
+  }),
 }

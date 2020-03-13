@@ -11,9 +11,9 @@ const Profile = props => {
 
   return (
     <Layout>
-      <img src={avatarUrl} alt='Avatar' />
+      <img src={avatarUrl} alt="Avatar" />
       <h1>{name}</h1>
-      <p className='lead'>{login}</p>
+      <p className="lead">{login}</p>
       <p>{bio}</p>
 
       <style jsx>{`
@@ -54,8 +54,8 @@ Profile.getInitialProps = async ctx => {
     const response = await fetch(apiUrl, {
       credentials: 'include',
       headers: {
-        Authorization: JSON.stringify({ token })
-      }
+        Authorization: JSON.stringify({ token }),
+      },
     })
 
     if (response.ok) {

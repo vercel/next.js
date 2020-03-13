@@ -1,0 +1,6 @@
+node_modules
+**/.next/**
+**/_next/**
+**/dist/**
+examples/with-ioc/**
+examples/with-kea/**

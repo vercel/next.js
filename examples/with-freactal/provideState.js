@@ -5,7 +5,7 @@ export default serverState =>
   provideState({
     initialState: () => ({
       ...serverState,
-      ajaxStatus: false
+      ajaxStatus: false,
     }),
 
     effects: {
@@ -21,8 +21,8 @@ export default serverState =>
             githubReposList: {
               username,
               page,
-              repos: state.githubReposList.repos.concat(repos)
-            }
-          }))
-    }
+              repos: state.githubReposList.repos.concat(repos),
+            },
+          })),
+    },
   })

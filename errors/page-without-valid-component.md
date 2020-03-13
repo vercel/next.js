@@ -2,8 +2,15 @@
 
 #### Why This Error Occurred
 
-While auto exporting a page a valid React Component wasn't found. This could mean you have a file in `pages` that exports something that is not a React Component.
+A page that does not export a valid React Component was found while analyzing the build output.
+
+This is a hard error because the page would error when rendered, and causes poor build performance.
 
 #### Possible Ways to Fix It
 
-Move any non-page files that don't export a React Component as the default export to a different folder like `components` or `lib`.
+Investigate the list of page(s) specified in the error message.
+For each, you'll want to check if the file is meant to be a page.
+
+If the file is not meant to be a page, and instead, is a shared component or file, move the file to a different folder like `components` or `lib`.
+
+If the file is meant to be a page, double check you have an `export default` with the React Component instead of an `export`. If you're already using `export default`, make sure the returned valid is a valid React Component.

@@ -17,7 +17,7 @@ describe('recursiveReadDir', () => {
       /^[\\/]nav[\\/]index\.js/,
       /^[\\/]nested[\\/]index\.js/,
       /^[\\/]prefered[\\/]index\.js/,
-      /^[\\/]nav[\\/]products[\\/]product\.js/
+      /^[\\/]nav[\\/]products[\\/]product\.js/,
     ]
     expect(
       result.filter(item => {

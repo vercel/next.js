@@ -1,5 +1,4 @@
-import { PluginObj } from '@babel/core'
-import { NodePath } from '@babel/traverse'
+import { NodePath, PluginObj } from '@babel/core'
 import * as BabelTypes from '@babel/types'
 
 export default function({

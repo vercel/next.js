@@ -3,7 +3,7 @@ const posts = require('./posts')
 
 const sitemap = sm.createSitemap({
   hostname: 'https://sitemap-robots.now.sh',
-  cacheTime: 600000 // 600 sec - cache purge period
+  cacheTime: 600000, // 600 sec - cache purge period
 })
 
 const setup = ({ server }) => {
@@ -13,20 +13,20 @@ const setup = ({ server }) => {
     sitemap.add({
       url: `/posts/${post.slug}`,
       changefreq: 'daily',
-      priority: 0.9
+      priority: 0.9,
     })
   }
 
   sitemap.add({
     url: '/a',
     changefreq: 'daily',
-    priority: 1
+    priority: 1,
   })
 
   sitemap.add({
     url: '/b',
     changefreq: 'daily',
-    priority: 1
+    priority: 1,
   })
 
   server.get('/sitemap.xml', (req, res) => {

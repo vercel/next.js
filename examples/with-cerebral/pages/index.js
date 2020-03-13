@@ -6,7 +6,7 @@ import Page from '../components/Page'
 import clock from '../modules/clock'
 
 export default class Counter extends React.Component {
-  static getInitialProps ({ req }) {
+  static getInitialProps({ req }) {
     const isServer = Boolean(req)
 
     // On the server we prepare the state of the application. Since
@@ -22,7 +22,7 @@ export default class Counter extends React.Component {
 
     return {}
   }
-  constructor (props) {
+  constructor(props) {
     super(props)
     // The controller will be instantiated for every page change and we only
     // add the devtools if we indeed are running in the browser
@@ -32,13 +32,13 @@ export default class Counter extends React.Component {
           ? null
           : Devtools({ host: 'localhost:8787' }),
       modules: { clock },
-      stateChanges: props.stateChanges
+      stateChanges: props.stateChanges,
     })
   }
-  render () {
+  render() {
     return (
       <Container controller={this.controller}>
-        <Page title='Index Page' linkTo='/other' />
+        <Page title="Index Page" linkTo="/other" />
       </Container>
     )
   }

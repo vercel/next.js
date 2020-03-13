@@ -1,7 +1,7 @@
 import React from 'react'
 import { css, withStyles } from '../withStyles'
 
-function Home ({ styles }) {
+function Home({ styles }) {
   return (
     <div>
       <h1 {...css(styles.title)}>My page</h1>
@@ -11,6 +11,6 @@ function Home ({ styles }) {
 
 export default withStyles(({ color }) => ({
   title: {
-    color: color.primary
-  }
+    color: color.primary,
+  },
 }))(Home)

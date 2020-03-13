@@ -6,18 +6,22 @@ import cheerio from 'cheerio'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import {
   killApp,
+  waitFor,
   findPort,
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
+import qs from 'querystring'
+import path from 'path'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 const serverlessDir = join(appDir, '.next/serverless/pages')
 const chunksDir = join(appDir, '.next/static/chunks')
 const buildIdFile = join(appDir, '.next/BUILD_ID')
+let stderr = ''
 let appPort
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -26,7 +30,11 @@ describe('Serverless', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, {
+      onStderr: msg => {
+        stderr += msg || ''
+      },
+    })
   })
   afterAll(() => killApp(app))
 
@@ -56,6 +64,20 @@ describe('Serverless', () => {
   it('should serve file from public folder', async () => {
     const content = await renderViaHTTP(appPort, '/hello.txt')
     expect(content.trim()).toBe('hello world')
+
+    const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
+    expect(legacy).toMatch(`new static folder`)
+  })
+
+  it('should not infinity loop on a 404 static file', async () => {
+    expect.assertions(2)
+
+    // ensure top-level static does not exist (important for test)
+    // we expect /public/static, though.
+    expect(existsSync(path.join(appDir, 'static'))).toBe(false)
+
+    const res = await fetchViaHTTP(appPort, '/static/404')
+    expect(res.status).toBe(404)
   })
 
   it('should render the page with dynamic import', async () => {
@@ -87,11 +109,16 @@ describe('Serverless', () => {
   it('should have correct amphtml rel link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp')
     expect(html).toMatch(/Hi Im an AMP page/)
-    expect(html).toMatch(/rel="amphtml" href="\/some-amp\?amp=1"/)
+    expect(html).toMatch(/rel="amphtml" href="\/some-amp\.amp"/)
   })
 
   it('should have correct canonical link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
+    expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
+  })
+
+  it('should have correct canonical link (auto-export link)', async () => {
+    const html = await renderViaHTTP(appPort, '/some-amp.amp')
     expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
   })
 
@@ -107,9 +134,33 @@ describe('Serverless', () => {
     const browser = await webdriver(appPort, '/')
     try {
       const text = await browser
-        .elementByCss('a')
+        .elementByCss('#fetchlink')
         .click()
         .waitForElementByCss('.fetch-page')
+        .elementByCss('#text')
+        .text()
+
+      expect(text).toMatch(/fetch page/)
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should render correctly when importing isomorphic-unfetch CJS', async () => {
+    const url = `http://localhost:${appPort}/fetch-cjs`
+    const res = await fetch(url)
+    expect(res.status).toBe(200)
+    const text = await res.text()
+    expect(text.includes('failed')).toBe(false)
+  })
+
+  it('should render correctly when importing isomorphic-unfetch CJS on the client side', async () => {
+    const browser = await webdriver(appPort, '/')
+    try {
+      const text = await browser
+        .elementByCss('#fetchcjslink')
+        .click()
+        .waitForElementByCss('.fetch-cjs-page')
         .elementByCss('#text')
         .text()
 
@@ -187,6 +238,54 @@ describe('Serverless', () => {
   it('should 404 on API request with trailing slash', async () => {
     const res = await fetchViaHTTP(appPort, '/api/hello/')
     expect(res.status).toBe(404)
+  })
+
+  it('should have the correct query string for a dynamic route', async () => {
+    const paramRaw = 'test % 123'
+    const param = encodeURIComponent(paramRaw)
+
+    const html = await renderViaHTTP(appPort, `/dr/${param}`)
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should have the correct query string for a now route', async () => {
+    const paramRaw = 'test % 123'
+    const html = await fetchViaHTTP(appPort, `/dr/[slug]`, '', {
+      headers: {
+        'x-now-route-matches': qs.stringify({
+          1: encodeURIComponent(paramRaw),
+        }),
+      },
+    }).then(res => res.text())
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should have the correct query string for a catch all now route', async () => {
+    const paramRaw = ['nested % 1', 'nested/2']
+
+    const html = await fetchViaHTTP(appPort, `/catchall/[...slug]`, '', {
+      headers: {
+        'x-now-route-matches': qs.stringify({
+          1: paramRaw.map(e => encodeURIComponent(e)).join('/'),
+        }),
+      },
+    }).then(res => res.text())
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#__NEXT_DATA__').html())
+
+    expect(data.query).toEqual({ slug: paramRaw })
+  })
+
+  it('should log error in API route correctly', async () => {
+    await renderViaHTTP(appPort, '/api/top-level-error')
+    await waitFor(1000)
+    expect(stderr).toContain('top-level-oops')
   })
 
   describe('With basic usage', () => {

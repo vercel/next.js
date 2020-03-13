@@ -6,5 +6,5 @@ module.exports = {
   projectId: '',
   storageBucket: '',
   messagingSenderId: '',
-  appId: ''
+  appId: '',
 }

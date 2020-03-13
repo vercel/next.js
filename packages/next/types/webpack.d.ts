@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // Type definitions for webpack 4.39
 // Project: https://github.com/webpack/webpack
 // Definitions by: Qubo <https://github.com/tkqubo>
@@ -54,6 +55,10 @@ declare module 'webpack' {
     handler: webpack.MultiCompiler.Handler
   ): webpack.MultiWatching | webpack.MultiCompiler
   function webpack(options: webpack.Configuration[]): webpack.MultiCompiler
+
+  function webpack(
+    options: webpack.Configuration | webpack.Configuration[]
+  ): webpack.Compiler | webpack.MultiCompiler
 
   namespace webpack {
     /** Webpack package version. */

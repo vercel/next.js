@@ -1,29 +1,24 @@
-import React from 'react'
-import Link from 'next/link'
+import React from 'react';
+import Link from 'next/link';
+import faker from 'faker';
 
-export default class Index extends React.Component {
-  render () {
-    const { name } = this.props
-    return (
-      <div>
+export default function({ name }) {
+  return (
+    <div>
+      <Link href="/about">
         <h1>Home Page</h1>
         <p>Welcome, {name}</p>
-        <div>
-          <Link href='/about'>
-            <a>About Page</a>
-          </Link>
-        </div>
-      </div>
-    )
-  }
+        <a>About Page</a>
+      </Link>
+    </div>
+  );
 }
 
 export async function getStaticProps() {
-    // Runs only in the server
-    const faker = require('faker')
-    const name = faker.name.findName()
-    return { props : { name } }
+  // The name will be generated at build time only
+  const name = faker.name.findName();
 
-    // Runs only in the client
-    return { name: 'Arunoda' }
+  return {
+    props: { name },
+  };
 }

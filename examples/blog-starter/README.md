@@ -1,14 +1,27 @@
 # Blog starter example
 
+This is an example of a blog built with Next.js. [Read more about the motivation and how it is built](https://jolvera.dev/posts/rebuilding-my-blog-with-nextjs).
+
+The blog is still barebones and need more improvements and styling, but this should be enough to get you started.
+
+[Demo deployed in Now](https://nextjs-blog-starter.now.sh/)
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/blog-starter)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example blog-starter
+```bash
+npm init next-app --example blog-starter blog-starter-app
+# or
+yarn create next-app --example blog-starter blog-starter-app
 ```
 
 ### Download manually
@@ -31,16 +44,4 @@ now dev
 
 ### Deploy
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-This is an example of a blog built with Next.js. [Read more about the motivation and how it is built](https://jolvera.dev/posts/rebuilding-my-blog-with-nextjs).
-
-The blog is still barebones and need more improvements and styling, but this should be enough to get you started.
-
-[Demo deployed in Now](https://nextjs-blog-starter.now.sh/)
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

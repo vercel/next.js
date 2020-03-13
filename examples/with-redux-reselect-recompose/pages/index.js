@@ -8,15 +8,15 @@ const Counter = compose(
   setDisplayName('IndexPage'),
   withProps({
     title: 'Index page',
-    linkTo: '/other'
+    linkTo: '/other',
   }),
   lifecycle({
-    componentDidMount () {
+    componentDidMount() {
       this.timer = this.props.startClock()
     },
-    componentWillUnmount () {
+    componentWillUnmount() {
       clearInterval(this.timer)
-    }
+    },
   }),
   pure
 )(Page)

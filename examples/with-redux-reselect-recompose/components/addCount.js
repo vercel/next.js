@@ -19,7 +19,7 @@ export default compose(
   setDisplayName('AddCount'),
   setPropTypes({
     count: PropTypes.number,
-    addCount: PropTypes.func
+    addCount: PropTypes.func,
   }),
   pure
 )(AddCount)

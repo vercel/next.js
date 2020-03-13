@@ -1,13 +1,19 @@
 import fs from 'fs'
-import path from 'path'
 import LRUCache from 'lru-cache'
+import mkdirpOrig from 'mkdirp'
+import path from 'path'
 import { promisify } from 'util'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
+const mkdirp = promisify(mkdirpOrig)
 const readFile = promisify(fs.readFile)
 const writeFile = promisify(fs.writeFile)
+
+function toRoute(pathname: string): string {
+  return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
+}
 
 type SprCacheValue = {
   html: string
@@ -32,10 +38,12 @@ const getSeedPath = (pathname: string, ext: string): string => {
 }
 
 export const calculateRevalidate = (pathname: string): number | false => {
+  pathname = toRoute(pathname)
+
   // in development we don't have a prerender-manifest
   // and default to always revalidating to allow easier debugging
   const curTime = new Date().getTime()
-  if (!sprOptions.dev) return curTime
+  if (sprOptions.dev) return curTime - 1000
 
   const { initialRevalidateSeconds } = prerenderManifest.routes[pathname] || {
     initialRevalidateSeconds: 1,
@@ -70,14 +78,17 @@ export function initializeSprCache({
       !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
   }
 
-  try {
-    prerenderManifest = dev
-      ? { routes: {}, dynamicRoutes: [] }
-      : JSON.parse(
-          fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
-        )
-  } catch (_) {
-    prerenderManifest = { version: 1, routes: {}, dynamicRoutes: {} }
+  if (dev) {
+    prerenderManifest = {
+      version: -1 as any, // letting us know this doesn't conform to spec
+      routes: {},
+      dynamicRoutes: {},
+      preview: null as any, // `preview` is special case read in next-dev-server
+    }
+  } else {
+    prerenderManifest = JSON.parse(
+      fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST), 'utf8')
+    )
   }
 
   cache = new LRUCache({
@@ -88,6 +99,11 @@ export function initializeSprCache({
       return val.html.length + JSON.stringify(val.pageData).length
     },
   })
+}
+
+export async function getFallback(page: string): Promise<string> {
+  page = normalizePagePath(page)
+  return readFile(getSeedPath(page, 'html'), 'utf8')
 }
 
 // get data from SPR cache if available
@@ -144,12 +160,12 @@ export async function setSprCache(
 ) {
   if (sprOptions.dev) return
   if (typeof revalidateSeconds !== 'undefined') {
-    // TODO: This is really bad. We shouldn't be mutating the manifest from the
+    // TODO: Update this to not mutate the manifest from the
     // build.
     prerenderManifest.routes[pathname] = {
       dataRoute: path.posix.join(
         '/_next/data',
-        `${pathname === '/' ? '/index' : pathname}.json`
+        `${normalizePagePath(pathname)}.json`
       ),
       srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
       initialRevalidateSeconds: revalidateSeconds,
@@ -166,7 +182,9 @@ export async function setSprCache(
   // `next build` output's manifest.
   if (sprOptions.flushToDisk) {
     try {
-      await writeFile(getSeedPath(pathname, 'html'), data.html, 'utf8')
+      const seedPath = getSeedPath(pathname, 'html')
+      await mkdirp(path.dirname(seedPath))
+      await writeFile(seedPath, data.html, 'utf8')
       await writeFile(
         getSeedPath(pathname, 'json'),
         JSON.stringify(data.pageData),

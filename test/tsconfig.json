@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es6",
+    "allowJs": true,
+    "baseUrl": "./lib",
+    "noEmit": true
+  },
+  "include": ["./**/*"]
+}

@@ -5,7 +5,7 @@ import { waitFor, check } from 'next-test-utils'
 
 // These tests are similar to ../../basic/test/dynamic.js
 export default (context, render) => {
-  async function get$ (path, query) {
+  async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }

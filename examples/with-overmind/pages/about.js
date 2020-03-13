@@ -4,7 +4,7 @@ import { createOvermindSSR } from 'overmind'
 import { config } from '../overmind'
 
 class Index extends React.Component {
-  static async getInitialProps () {
+  static async getInitialProps() {
     // If we want to produce some mutations we do so by instantiating
     // an Overmind SSR instance, do whatever datafetching is needed and
     // change the state directly. We return the mutations performed with
@@ -14,10 +14,10 @@ class Index extends React.Component {
     overmind.state.page = 'About'
 
     return {
-      mutations: overmind.hydrate()
+      mutations: overmind.hydrate(),
     }
   }
-  render () {
+  render() {
     return (
       <div>
         <Header />

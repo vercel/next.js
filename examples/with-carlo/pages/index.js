@@ -4,7 +4,7 @@ export default () => (
   <div>
     <p>Hello World</p>
 
-    <Link href='/about'>
+    <Link href="/about">
       <a>About</a>
     </Link>
   </div>

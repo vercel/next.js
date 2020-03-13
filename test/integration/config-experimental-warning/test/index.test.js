@@ -39,7 +39,7 @@ describe('Promise in next config', () => {
       module.exports = {
         target: 'server',
         experimental: {
-          publicDirectory: true
+          something: true
         }
       }
     `)
@@ -52,7 +52,7 @@ describe('Promise in next config', () => {
       module.exports = (phase) => ({
         target: 'server',
         experimental: {
-          publicDirectory: true
+          something: true
         }
       })
     `)

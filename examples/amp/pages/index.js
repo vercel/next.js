@@ -4,7 +4,7 @@ import Layout from '../components/Layout'
 import Byline from '../components/Byline'
 
 export const config = {
-  amp: true
+  amp: true,
 }
 
 export default () => {
@@ -16,8 +16,24 @@ export default () => {
         <title>The Cat</title>
       </Head>
       <h1>The Cat (AMP-first Page)</h1>
-      <Byline author='Dan Zajdband' />
-      <p className='caption'>Meowwwwwwww</p>
+      <Byline author="Dan Zajdband" />
+      <p className="caption">Meowwwwwwww</p>
+      <amp-img
+        alt="Mountains"
+        width="550"
+        height="368"
+        layout="responsive"
+        src="https://amp.dev/static/inline-examples/images/mountains.webp"
+      >
+        <amp-img
+          alt="Mountains"
+          fallback=""
+          width="550"
+          height="368"
+          layout="responsive"
+          src="https://amp.dev/static/inline-examples/images/mountains.jpg"
+        ></amp-img>
+      </amp-img>
       <p>
         Cat ipsum dolor <a href={isAmp ? '/dog?amp=1' : '/dog'}>sit amet</a>,
         eat grass, throw it back up but refuse to leave cardboard box or groom

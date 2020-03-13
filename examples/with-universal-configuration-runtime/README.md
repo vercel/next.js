@@ -1,13 +1,17 @@
 # With universal runtime configuration
 
+This example show how to set custom environment variables for your application at runtime using the `publicRuntimeConfig` key in `next.config.js`
+
+For documentation see: https://github.com/zeit/next.js#exposing-configuration-to-the-server--client-side
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-universal-configuration-runtime with-universal-configuration-runtime-app
+npm init next-app --example with-universal-configuration-runtime with-universal-configuration-runtime-app
 # or
 yarn create next-app --example with-universal-configuration-runtime with-universal-configuration-runtime-app
 ```
@@ -31,14 +35,4 @@ yarn
 API_URL='https://example.com' yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-This example show how to set custom environment variables for your application at runtime using the `publicRuntimeConfig` key in `next.config.js`
-
-For documentation see: https://github.com/zeit/next.js#exposing-configuration-to-the-server--client-side
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

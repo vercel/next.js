@@ -1,6 +1,6 @@
 const {
   PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD
+  PHASE_PRODUCTION_BUILD,
 } = require('next/constants')
 
 // This uses phases as outlined here: https://nextjs.org/docs/#custom-configuration
@@ -28,11 +28,11 @@ module.exports = phase => {
       if (isProd) return 'https://www.siliconvalley-codecamp.com/rest/sessions'
       if (isStaging) return 'http://localhost:11639'
       return 'RESTURL_SESSIONS:not (isDev,isProd && !isStaging,isProd && isStaging)'
-    })()
+    })(),
   }
 
   // next.config.js object
   return {
-    env
+    env,
   }
 }

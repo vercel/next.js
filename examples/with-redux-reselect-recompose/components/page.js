@@ -25,7 +25,7 @@ export default compose(
     light: PropTypes.bool,
     lastUpdate: PropTypes.number,
     count: PropTypes.number,
-    addCount: PropTypes.func
+    addCount: PropTypes.func,
   }),
   pure
 )(Page)

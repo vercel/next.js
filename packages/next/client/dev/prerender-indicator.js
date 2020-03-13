@@ -1,6 +1,6 @@
 import Router from '../router'
 
-export default function initializeBuildWatcher () {
+export default function initializeBuildWatcher() {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-prerender-indicator'
   // Make sure container is fixed and on a high zIndex so it shows
@@ -45,7 +45,7 @@ export default function initializeBuildWatcher () {
 
   let isVisible = !dismissed && window.__NEXT_DATA__.nextExport
 
-  function updateContainer () {
+  function updateContainer() {
     if (isVisible) {
       container.classList.add(`${prefix}visible`)
     } else {
@@ -87,14 +87,14 @@ export default function initializeBuildWatcher () {
   updateContainer()
 }
 
-function createContainer (prefix) {
+function createContainer(prefix) {
   const container = document.createElement('div')
   container.id = `${prefix}container`
   container.innerHTML = `
     <button id="${prefix}close" title="Hide indicator for session">
       <span>×</span>
     </button>
-    <a href="https://nextjs.org/docs#automatic-static-optimization-indicator" target="_blank">
+    <a href="https://nextjs.org/docs#automatic-static-optimization-indicator" target="_blank" rel="noreferrer">
       <div id="${prefix}icon-wrapper">
           <svg width="15" height="20" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M36 3L30.74 41H8L36 3Z" fill="black"/>
@@ -108,7 +108,7 @@ function createContainer (prefix) {
   return container
 }
 
-function createCss (prefix) {
+function createCss(prefix) {
   const css = document.createElement('style')
   css.textContent = `
     #${prefix}container {

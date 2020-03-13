@@ -5,7 +5,7 @@ let relayEnvironment = null
 
 // Define a function that fetches the results of an operation (query/mutation/etc)
 // and returns its results as a Promise:
-function fetchQuery (operation, variables, cacheConfig, uploadables) {
+function fetchQuery(operation, variables, cacheConfig, uploadables) {
   // Because we implement the graphql server, the client must to point to the same host
   const relayServer =
     typeof window !== 'undefined' ? '' : process.env.RELAY_SERVER
@@ -13,16 +13,16 @@ function fetchQuery (operation, variables, cacheConfig, uploadables) {
     method: 'POST',
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     }, // Add authentication and other headers here
     body: JSON.stringify({
       query: operation.text, // GraphQL text from input
-      variables
-    })
+      variables,
+    }),
   }).then(response => response.json())
 }
 
-export default function initEnvironment ({ records = {} } = {}) {
+export default function initEnvironment({ records = {} } = {}) {
   // Create a network layer from the fetch function
   const network = Network.create(fetchQuery)
   const store = new Store(new RecordSource(records))
@@ -32,7 +32,7 @@ export default function initEnvironment ({ records = {} } = {}) {
   if (typeof window === 'undefined') {
     return new Environment({
       network,
-      store
+      store,
     })
   }
 
@@ -40,7 +40,7 @@ export default function initEnvironment ({ records = {} } = {}) {
   if (!relayEnvironment) {
     relayEnvironment = new Environment({
       network,
-      store
+      store,
     })
   }
 

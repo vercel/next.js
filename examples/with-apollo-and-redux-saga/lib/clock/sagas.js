@@ -6,7 +6,7 @@ import { actionTypes, tickClock } from './actions'
 
 polyfill()
 
-function * runClockSaga () {
+function* runClockSaga() {
   yield take(actionTypes.START_CLOCK)
   while (true) {
     yield put(tickClock(false))

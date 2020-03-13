@@ -4,7 +4,7 @@ import Head from './head'
 import Nav from './nav'
 import Title from './title'
 
-function Header ({ path, pageTitle, ogImage }) {
+function Header({ path, pageTitle, ogImage }) {
   return (
     <>
       <Head title={pageTitle} ogImage={ogImage} />
@@ -138,7 +138,7 @@ function Header ({ path, pageTitle, ogImage }) {
 Header.propTypes = {
   path: PropTypes.string,
   pageTitle: PropTypes.string,
-  ogImage: PropTypes.string
+  ogImage: PropTypes.string,
 }
 
 export default Header

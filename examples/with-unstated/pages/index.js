@@ -5,17 +5,17 @@ import { ClockContainer, CounterContainer } from '../containers'
 import { Clock, Counter } from '../components'
 
 class Index extends React.Component {
-  componentWillUnmount () {
+  componentWillUnmount() {
     clearInterval(this.timer)
   }
-  render () {
+  render() {
     return (
       <Subscribe to={[ClockContainer, CounterContainer]}>
         {(clock, counter) => {
           this.timer = clock.interval
           return (
             <div>
-              <Link href='/about'>
+              <Link href="/about">
                 <button>go to About</button>
               </Link>
               <div>

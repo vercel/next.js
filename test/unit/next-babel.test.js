@@ -23,8 +23,8 @@ const babel = (code, esm = false, presetOptions = {}) =>
     compact: true,
     caller: {
       name: 'tests',
-      supportsStaticESM: esm
-    }
+      supportsStaticESM: esm,
+    },
   }).code
 
 describe('next/babel', () => {
@@ -69,7 +69,7 @@ describe('next/babel', () => {
       expect(output).toMatch(`__jsx("a",{href:"/"`)
 
       expect(babel(`const a = ()=><a href="/">home</a>`)).toMatchInlineSnapshot(
-        `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime-corejs2/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+        `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
       )
     })
 
@@ -145,11 +145,11 @@ describe('next/babel', () => {
       const output = babel(code, true, {
         'preset-env': {
           targets: {
-            esmodules: true
-          }
+            esmodules: true,
+          },
         },
         // our modern preset is no preset at all
-        'experimental-modern-preset': () => ({})
+        'experimental-modern-preset': () => ({}),
       })
 
       expect(output).toMatch(trim`

@@ -1,5 +1,3 @@
-'use strict'
-
 // Note that to use the websocket server, you also need the web server enabled
 
 exports['default'] = {
@@ -36,7 +34,7 @@ exports['default'] = {
 
         // websocket Client Options:
         client: {
-          apiPath: '/api' // the api base endpoint on your actionhero server
+          apiPath: '/api', // the api base endpoint on your actionhero server
           // reconnect:        {},
           // timeout:          10000,
           // ping:             25000,
@@ -47,16 +45,16 @@ exports['default'] = {
           // network:          true,
           // transport:        {},
           // queueSize:        Infinity,
-        }
+        },
       }
-    }
-  }
+    },
+  },
 }
 
 exports['test'] = {
   servers: {
     websocket: api => {
       return { clientUrl: null }
-    }
-  }
+    },
+  },
 }

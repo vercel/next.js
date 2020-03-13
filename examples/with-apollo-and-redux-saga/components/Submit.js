@@ -2,8 +2,8 @@ import { graphql } from 'react-apollo'
 import gql from 'graphql-tag'
 import { allPosts, allPostsQueryVars } from './PostList'
 
-function Submit ({ createPost }) {
-  function handleSubmit (event) {
+function Submit({ createPost }) {
+  function handleSubmit(event) {
     event.preventDefault()
 
     const form = event.target
@@ -17,9 +17,9 @@ function Submit ({ createPost }) {
   return (
     <form onSubmit={handleSubmit}>
       <h1>Submit</h1>
-      <input placeholder='title' name='title' type='text' required />
-      <input placeholder='url' name='url' type='url' required />
-      <button type='submit'>Submit</button>
+      <input placeholder="title" name="title" type="text" required />
+      <input placeholder="url" name="url" type="url" required />
+      <button type="submit">Submit</button>
       <style jsx>{`
         form {
           border-bottom: 1px solid #ececec;
@@ -55,17 +55,17 @@ export default graphql(createPost, {
         update: (proxy, { data: { createPost } }) => {
           const data = proxy.readQuery({
             query: allPosts,
-            variables: allPostsQueryVars
+            variables: allPostsQueryVars,
           })
           proxy.writeQuery({
             query: allPosts,
             data: {
               ...data,
-              allPosts: [createPost, ...data.allPosts]
+              allPosts: [createPost, ...data.allPosts],
             },
-            variables: allPostsQueryVars
+            variables: allPostsQueryVars,
           })
-        }
-      })
-  })
+        },
+      }),
+  }),
 })(Submit)

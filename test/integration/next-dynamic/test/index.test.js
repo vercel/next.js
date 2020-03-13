@@ -7,11 +7,10 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
   runNextCommand,
   nextServer,
   startApp,
-  stopApp
+  stopApp,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -21,7 +20,7 @@ let appPort
 let server
 const appDir = join(__dirname, '../')
 
-function runTests () {
+function runTests() {
   it('should render server value', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/the-server-value/i)
@@ -29,7 +28,6 @@ function runTests () {
 
   it('should render dynamic server rendered values on client mount', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(5000)
     const text = await browser.elementByCss('#first-render').text()
 
     // Failure case is 'Index<!-- -->3<!-- --><!-- -->'
@@ -55,7 +53,7 @@ describe('next/dynamic', () => {
       app = nextServer({
         dir: appDir,
         dev: false,
-        quiet: true
+        quiet: true,
       })
 
       server = await startApp(app)

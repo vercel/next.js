@@ -20,7 +20,7 @@ const run = (...args) => execa('node', [cli, ...args], { cwd })
 
 describe('create next app', () => {
   beforeAll(async () => {
-    jest.setTimeout(1000 * 30)
+    jest.setTimeout(1000 * 60)
     await mkdirp(cwd)
   })
 
@@ -75,6 +75,83 @@ describe('create next app', () => {
     ).toBeTruthy()
     expect(
       fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+    ).toBeTruthy()
+    // check we copied default `.gitignore`
+    expect(
+      fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+    ).toBeTruthy()
+  })
+
+  it('should allow example with GitHub URL', async () => {
+    const projectName = 'github-app'
+    const res = await run(
+      projectName,
+      '--example',
+      'https://github.com/zeit/next-learn-demo/tree/master/1-navigate-between-pages'
+    )
+
+    expect(res.exitCode).toBe(0)
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'package.json'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+    ).toBeTruthy()
+  })
+
+  it('should allow example with GitHub URL and example-path', async () => {
+    const projectName = 'github-example-path'
+    const res = await run(
+      projectName,
+      '--example',
+      'https://github.com/zeit/next-learn-demo/tree/master',
+      '--example-path',
+      '1-navigate-between-pages'
+    )
+
+    expect(res.exitCode).toBe(0)
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'package.json'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+    ).toBeTruthy()
+  })
+
+  it('should use --example-path over the file path in the GitHub URL', async () => {
+    const projectName = 'github-example-path-2'
+    const res = await run(
+      projectName,
+      '--example',
+      'https://github.com/zeit/next-learn-demo/tree/master/1-navigate-between-pages',
+      '--example-path',
+      '1-navigate-between-pages'
+    )
+
+    expect(res.exitCode).toBe(0)
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'package.json'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
+    ).toBeTruthy()
+    expect(
+      fs.existsSync(path.join(cwd, projectName, '.gitignore'))
     ).toBeTruthy()
   })
 })

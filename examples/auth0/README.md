@@ -2,12 +2,14 @@
 
 This example shows how you can use `@auth0/nextjs-auth` to easily add authentication support to your Next.js application.
 
+Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
+
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://www.npmjs.com/package/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example auth0 auth0
+npm init next-app --example auth0 auth0
 # or
 yarn create next-app --example auth0 auth0
 ```
@@ -92,7 +94,7 @@ This sample tries to cover a few topics:
 
 - Signing in
 - Signing out
-- Loading the user on the server side and adding it as part of SSR (`/pages/advanced/srr-profile.js`)
+- Loading the user on the server side and adding it as part of SSR (`/pages/advanced/ssr-profile.js`)
 - Loading the user on the client side and using fast/cached SSR pages (`/pages/index.js`)
 - API Routes which can load the current user (`/pages/api/me.js`)
 - Using hooks to make the user available throughout the application (`/lib/user.js`)

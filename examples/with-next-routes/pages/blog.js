@@ -2,11 +2,11 @@ import React from 'react'
 
 const posts = [
   { slug: 'hello-world', title: 'Hello world' },
-  { slug: 'another-blog-post', title: 'Another blog post' }
+  { slug: 'another-blog-post', title: 'Another blog post' },
 ]
 
 export default class extends React.Component {
-  static async getInitialProps ({ query, res }) {
+  static async getInitialProps({ query, res }) {
     const post = posts.find(post => post.slug === query.slug)
 
     if (!post && res) {
@@ -16,7 +16,7 @@ export default class extends React.Component {
     return { post }
   }
 
-  render () {
+  render() {
     const { post } = this.props
 
     if (!post) return <h1>Post not found</h1>

@@ -8,16 +8,16 @@ const PageWrapper = Comp =>
      * Need to use args.ctx
      * See https://github.com/zeit/next.js#custom-document
      */
-    static async getInitialProps (args) {
+    static async getInitialProps(args) {
       return {
         ua: args.ctx.req
           ? args.ctx.req.headers['user-agent']
           : navigator.userAgent,
-        ...(Comp.getInitialProps ? await Comp.getInitialProps(args) : null)
+        ...(Comp.getInitialProps ? await Comp.getInitialProps(args) : null),
       }
     }
 
-    render () {
+    render() {
       const { ua, ...props } = this.props
       return (
         <UserAgentProvider ua={ua}>
@@ -28,7 +28,7 @@ const PageWrapper = Comp =>
   }
 
 class MyApp extends App {
-  render () {
+  render() {
     const { Component, pageProps } = this.props
     return <Component {...pageProps} />
   }

@@ -6,7 +6,7 @@ import { makeStore } from '../store'
 import { fromJS } from 'immutable'
 
 class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps({ Component, ctx }) {
     const pageProps = Component.getInitialProps
       ? await Component.getInitialProps(ctx)
       : {}
@@ -14,7 +14,7 @@ class MyApp extends App {
     return { pageProps }
   }
 
-  render () {
+  render() {
     const { Component, pageProps, store } = this.props
     return (
       <Provider store={store}>
@@ -26,5 +26,5 @@ class MyApp extends App {
 
 export default withRedux(makeStore, {
   serializeState: state => state.toJS(),
-  deserializeState: state => fromJS(state)
+  deserializeState: state => fromJS(state),
 })(MyApp)

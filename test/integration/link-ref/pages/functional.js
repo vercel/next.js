@@ -8,7 +8,7 @@ const MyLink = React.forwardRef((props, ref) => (
 ))
 
 export default () => (
-  <Link href='/' passHref>
+  <Link href="/" passHref>
     <MyLink />
   </Link>
 )

@@ -8,7 +8,7 @@ import {
   startApp,
   nextBuild,
   nextServer,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60
@@ -23,7 +23,7 @@ describe('AMP Fragment Styles', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)

@@ -8,7 +8,7 @@ import {
   killApp,
   nextStart,
   nextBuild,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -33,10 +33,9 @@ const noError = async pathname => {
   await browser.close()
 }
 
-const didPreload = async pathname => {
+const didPrefetch = async pathname => {
   const browser = await webdriver(appPort, pathname)
-  await waitFor(500)
-  const links = await browser.elementsByCss('link[rel=preload]')
+  const links = await browser.elementsByCss('link[rel=prefetch]')
   let found = false
 
   for (const link of links) {
@@ -84,15 +83,15 @@ describe('Invalid hrefs', () => {
     afterAll(() => killApp(app))
 
     it('should preload with forwardRef', async () => {
-      await didPreload('/functional')
+      await didPrefetch('/functional')
     })
 
     it('should preload with child ref with React.createRef', async () => {
-      await didPreload('/child-ref')
+      await didPrefetch('/child-ref')
     })
 
     it('should preload with child ref with function', async () => {
-      await didPreload('/child-ref-func')
+      await didPrefetch('/child-ref-func')
     })
   })
 })

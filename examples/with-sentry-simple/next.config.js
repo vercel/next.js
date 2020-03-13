@@ -21,5 +21,5 @@ module.exports = withSourceMaps({
     }
 
     return config
-  }
+  },
 })

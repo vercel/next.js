@@ -1,6 +1,6 @@
 // Without CSS Modules
 import '../style.less'
-export default () => <div className='example'>Hello Less!</div>
+export default () => <div className="example">Hello Less!</div>
 
 // With CSS Modules
 /*

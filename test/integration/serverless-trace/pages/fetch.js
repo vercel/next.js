@@ -2,7 +2,7 @@ import fetch from 'isomorphic-unfetch'
 import React from 'react'
 
 export default class extends React.Component {
-  static async getInitialProps () {
+  static async getInitialProps() {
     try {
       const res = await fetch('')
       const text = await res.text()
@@ -16,13 +16,13 @@ export default class extends React.Component {
       return { error: err.toString() }
     }
   }
-  render () {
+  render() {
     const { failed, error, text } = this.props
     return (
-      <div className='fetch-page'>
+      <div className="fetch-page">
         {failed ? 'failed' : ''}
         {error}
-        <div id='text'>{text}</div>
+        <div id="text">{text}</div>
       </div>
     )
   }

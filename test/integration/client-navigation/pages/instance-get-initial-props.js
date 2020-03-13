@@ -1,16 +1,16 @@
 import React from 'react'
 
 export default class InstanceInitialPropsPage extends React.Component {
-  async getInitialProps () {
+  async getInitialProps() {
     return fetchData()
   }
 
-  render () {
+  render() {
     return <p>{this.props.name}</p>
   }
 }
 
-function fetchData () {
+function fetchData() {
   const p = new Promise(resolve => {
     setTimeout(() => resolve({ name: 'Anderson Leite' }), 10)
   })

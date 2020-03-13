@@ -20,7 +20,7 @@ TodoPage.getInitialProps = async context => {
   try {
     const todo = await API.graphql({
       ...graphqlOperation(getTodo),
-      variables: { id }
+      variables: { id },
     })
     if (todo.errors) {
       console.log('Failed to fetch todo. ', todo.errors)

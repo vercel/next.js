@@ -20,9 +20,9 @@ export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 let lastStore: OutputState = {} as any
 function hasStoreChanged(nextStore: OutputState) {
   if (
-    [...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)])].every(
-      key => Object.is((lastStore as any)[key], (nextStore as any)[key])
-    )
+    [
+      ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
+    ].every(key => Object.is((lastStore as any)[key], (nextStore as any)[key]))
   ) {
     return false
   }
@@ -78,7 +78,7 @@ store.subscribe(state => {
   }
 
   if (state.typeChecking) {
-    Log.info('bundled successfully, waiting for typecheck results ...')
+    Log.info('bundled successfully, waiting for typecheck results...')
     return
   }
 

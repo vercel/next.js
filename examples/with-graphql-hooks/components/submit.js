@@ -12,15 +12,15 @@ mutation createPost($title: String!, $url: String!) {
   }
 }`
 
-export default function Submit ({ onSubmission }) {
+export default function Submit({ onSubmission }) {
   const [createPost, state] = useMutation(CREATE_POST)
 
   return (
     <form onSubmit={event => handleSubmit(event, onSubmission, createPost)}>
       <h1>Submit</h1>
-      <input placeholder='title' name='title' type='text' required />
-      <input placeholder='url' name='url' type='url' required />
-      <button type='submit'>{state.loading ? 'Loading...' : 'Submit'}</button>
+      <input placeholder="title" name="title" type="text" required />
+      <input placeholder="url" name="url" type="url" required />
+      <button type="submit">{state.loading ? 'Loading...' : 'Submit'}</button>
       <style jsx>{`
         form {
           border-bottom: 1px solid #ececec;
@@ -39,7 +39,7 @@ export default function Submit ({ onSubmission }) {
   )
 }
 
-async function handleSubmit (event, onSubmission, createPost) {
+async function handleSubmit(event, onSubmission, createPost) {
   event.preventDefault()
   const form = event.target
   const formData = new window.FormData(form)
@@ -49,8 +49,8 @@ async function handleSubmit (event, onSubmission, createPost) {
   const result = await createPost({
     variables: {
       title,
-      url
-    }
+      url,
+    },
   })
   onSubmission && onSubmission(result)
 }

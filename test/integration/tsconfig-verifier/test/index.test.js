@@ -7,7 +7,7 @@ import {
   readFile,
   readJSON,
   writeJSON,
-  createFile
+  createFile,
 } from 'fs-extra'
 
 import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'

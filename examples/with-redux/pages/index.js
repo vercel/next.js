@@ -12,7 +12,7 @@ const IndexPage = () => {
     dispatch({
       type: 'TICK',
       light: true,
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
     })
   }, 1000)
   return (
@@ -30,7 +30,7 @@ IndexPage.getInitialProps = ({ reduxStore }) => {
   dispatch({
     type: 'TICK',
     light: typeof window === 'object',
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
   })
 
   return {}

@@ -26,6 +26,7 @@ const Layout: React.FC<Props> = ({
           <a>About</a>
         </Link>{' '}
         |{' '}
+
         <Link href="/static-props">
           <a>With Static Props</a>
         </Link>

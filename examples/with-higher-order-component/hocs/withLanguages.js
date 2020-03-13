@@ -12,7 +12,7 @@ export const withLanguages = Page => {
 
     return {
       ...(Page.getInitialProps ? await Page.getInitialProps(context) : {}),
-      languages
+      languages,
     }
   }
 

@@ -1,13 +1,24 @@
 # Data fetch example
 
+Next.js was conceived to make it easy to create universal apps. That's why fetching data
+on the server and the client when necessary is so easy with Next.
+
+Using `getStaticProps` fetches data at built time from a page, Next.js will pre-render this page at build time.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/data-fetch)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example data-fetch data-fetch-app
+npm init next-app --example data-fetch data-fetch-app
 # or
 yarn create next-app --example data-fetch data-fetch-app
 ```
@@ -31,6 +42,7 @@ yarn
 yarn dev
 ```
 
+
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
@@ -43,3 +55,6 @@ Next.js was conceived to make it easy to create universal apps. That's why fetch
 on the server and the client when necessary is so easy with Next.
 
 Using `getStaticProps` fetches data at build time.
+
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+

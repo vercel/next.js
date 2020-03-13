@@ -1,31 +1,40 @@
-// We borrow this code from https://github.com/pillarjs/path-match
-// That's because, ^^^ package comes with very old version of path-to-regexp
-// So, it'll give us issues when the app has used a newer version of path-to-regexp
-// (When webpack resolving packages)
-const pathToRegexp = require('path-to-regexp')
+import * as pathToRegexp from 'path-to-regexp'
 
-export default () => {
+export { pathToRegexp }
+
+export default (customRoute = false) => {
   return (path: string) => {
-    const keys: any[] = []
-    const re = pathToRegexp(path, keys, {})
+    const keys: pathToRegexp.Key[] = []
+    const matcherOptions = {
+      sensitive: false,
+      delimiter: '/',
+      ...(customRoute ? { strict: true } : undefined),
+      decode: decodeParam,
+    }
+    const matcherRegex = pathToRegexp.pathToRegexp(path, keys, matcherOptions)
+    const matcher = pathToRegexp.regexpToFunction(
+      matcherRegex,
+      keys,
+      matcherOptions
+    )
 
-    return (pathname: string | undefined, params?: any) => {
-      const m = re.exec(pathname)
-      if (!m) return false
-
-      params = params || {}
-
-      let key
-      let param
-      for (let i = 0; i < keys.length; i++) {
-        key = keys[i]
-        param = m[i + 1]
-        if (!param) continue
-        params[key.name] = decodeParam(param)
-        if (key.repeat) params[key.name] = params[key.name].split(key.delimiter)
+    return (pathname: string | null | undefined, params?: any) => {
+      const res = pathname == null ? false : matcher(pathname)
+      if (!res) {
+        return false
       }
 
-      return params
+      if (customRoute) {
+        for (const key of keys) {
+          // unnamed params should be removed as they
+          // are not allowed to be used in the destination
+          if (typeof key.name === 'number') {
+            delete (res.params as any)[key.name]
+          }
+        }
+      }
+
+      return { ...params, ...res.params }
     }
   }
 }
@@ -34,8 +43,7 @@ function decodeParam(param: string) {
   try {
     return decodeURIComponent(param)
   } catch (_) {
-    const err = new Error('failed to decode param')
-    // @ts-ignore DECODE_FAILED is handled
+    const err: Error & { code?: string } = new Error('failed to decode param')
     err.code = 'DECODE_FAILED'
     throw err
   }

@@ -12,22 +12,22 @@ const normalizeNextElements = `
 `
 
 export default class MyDocument extends Document {
-  static async getInitialProps ({ renderPage }) {
+  static async getInitialProps({ renderPage }) {
     AppRegistry.registerComponent(config.name, () => Main)
     const { getStyleElement } = AppRegistry.getApplication(config.name)
     const page = renderPage()
     const styles = [
       <style dangerouslySetInnerHTML={{ __html: normalizeNextElements }} />,
-      getStyleElement()
+      getStyleElement(),
     ]
     return { ...page, styles: React.Children.toArray(styles) }
   }
 
-  render () {
+  render() {
     return (
       <html style={{ height: '100%' }}>
         <Head>
-          <meta name='viewport' content='width=device-width, initial-scale=1' />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
         </Head>
         <body style={{ height: '100%', overflow: 'hidden' }}>
           <Main />

@@ -13,13 +13,13 @@ const UnexpectedNestedA = () => {
 const FakeA = UnexpectedNestedA()
 
 export default () => (
-  <div className='nav-pass-href-prop'>
-    <Link href='/nav' passHref>
-      <FakeA id='with-href'>Will redirect as an `a` tag</FakeA>
+  <div className="nav-pass-href-prop">
+    <Link href="/nav" passHref>
+      <FakeA id="with-href">Will redirect as an `a` tag</FakeA>
     </Link>
 
-    <Link href='/nav'>
-      <FakeA id='without-href'>Will not redirect as an `a` tag</FakeA>
+    <Link href="/nav">
+      <FakeA id="without-href">Will not redirect as an `a` tag</FakeA>
     </Link>
 
     <p>This is the passHref prop page.</p>

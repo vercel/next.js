@@ -1,7 +1,7 @@
 /* eslint-disable-next-line */
 import Router from 'next/router'
 
-function routerDirect (props) {
+function routerDirect(props) {
   return <div>I import the router directly</div>
 }
 

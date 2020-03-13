@@ -1,26 +1,27 @@
 /* eslint-env jest */
 /* global jasmine, browserName */
-import webdriver from 'next-webdriver'
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import cheerio from 'cheerio'
+import { existsSync, readFileSync } from 'fs'
 import {
   nextServer,
+  renderViaHTTP,
   runNextCommand,
   startApp,
   stopApp,
-  renderViaHTTP,
-  waitFor
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import {
+  BUILD_MANIFEST,
+  PAGES_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from 'next/constants'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
+import { join } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {
-  BUILD_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
-  PAGES_MANIFEST
-} from 'next/constants'
-import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let serverDir
 let appPort
@@ -37,7 +38,7 @@ describe('Production Usage', () => {
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
-      quiet: true
+      quiet: true,
     })
 
     server = await startApp(app)
@@ -53,6 +54,24 @@ describe('Production Usage', () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
+
+    if (browserName === 'internet explorer') {
+      it('should handle bad Promise polyfill', async () => {
+        const browser = await webdriver(appPort, '/bad-promise')
+        expect(await browser.eval('window.didRender')).toBe(true)
+      })
+
+      it('should polyfill RegExp successfully', async () => {
+        const browser = await webdriver(appPort, '/regexp-polyfill')
+        expect(await browser.eval('window.didRender')).toBe(true)
+        // wait a second for the script to be loaded
+        await waitFor(1000)
+
+        expect(await browser.eval('window.isSticky')).toBe(true)
+        expect(await browser.eval('window.isMatch1')).toBe(true)
+        expect(await browser.eval('window.isMatch2')).toBe(false)
+      })
+    }
 
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
@@ -87,14 +106,14 @@ describe('Production Usage', () => {
 
     it('should render 200 for POST on page', async () => {
       const res = await fetch(`http://localhost:${appPort}/about`, {
-        method: 'POST'
+        method: 'POST',
       })
       expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
       const res = await fetch(`http://localhost:${appPort}/fake-page`, {
-        method: 'POST'
+        method: 'POST',
       })
       expect(res.status).toBe(404)
     })
@@ -124,7 +143,7 @@ describe('Production Usage', () => {
       const res = await fetch(
         `http://localhost:${appPort}/static/data/item.txt`,
         {
-          method: 'POST'
+          method: 'POST',
         }
       )
       expect(res.headers.get('allow').includes('GET')).toBe(true)
@@ -138,7 +157,7 @@ describe('Production Usage', () => {
         `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
         {
           method: 'GET',
-          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' }
+          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
         }
       )
       expect(res.status).toBe(412)
@@ -151,7 +170,7 @@ describe('Production Usage', () => {
         `http://localhost:${appPort}/_next/static/${buildId}/pages/index.js`,
         {
           method: 'GET',
-          headers: { 'if-unmodified-since': 'nextjs' }
+          headers: { 'if-unmodified-since': 'nextjs' },
         }
       )
       expect(res.status).toBe(200)
@@ -172,23 +191,39 @@ describe('Production Usage', () => {
       ))
       const url = `http://localhost:${appPort}/_next/`
 
-      const resources = []
+      const resources = new Set()
 
       // test a regular page
-      resources.push(`${url}static/${buildId}/pages/index.js`)
+      resources.add(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(
+      resources.add(
         url + reactLoadableManifest['../../components/hello1'][0].publicPath
       )
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
-        resources.push(url + item)
+        resources.add(url + item)
       }
 
+      const cssStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.css$/
+      )
+      expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      const mediaStaticAssets = await recursiveReadDir(
+        join(__dirname, '..', '.next', 'static'),
+        /\.svg$/
+      )
+      expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
+      expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      ;[...cssStaticAssets, ...mediaStaticAssets].forEach(asset => {
+        resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
+      })
+
       const responses = await Promise.all(
-        resources.map(resource => fetch(resource))
+        [...resources].map(resource => fetch(resource))
       )
 
       responses.forEach(res => {
@@ -221,6 +256,14 @@ describe('Production Usage', () => {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
       }
+    })
+
+    it('should not contain customServer in NEXT_DATA', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      expect('customServer' in JSON.parse($('#__NEXT_DATA__').text())).toBe(
+        false
+      )
     })
   })
 
@@ -278,6 +321,23 @@ describe('Production Usage', () => {
 
   it('should navigate to external site and back', async () => {
     const browser = await webdriver(appPort, '/external-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
+  it('should navigate to external site and back (with query)', async () => {
+    const browser = await webdriver(appPort, '/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -352,9 +412,9 @@ describe('Production Usage', () => {
     it('should handle already finished responses', async () => {
       const res = {
         finished: false,
-        end () {
+        end() {
           this.finished = true
-        }
+        },
       }
       const html = await app.renderToHTML(
         { method: 'GET' },
@@ -377,8 +437,10 @@ describe('Production Usage', () => {
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
       const file = await renderViaHTTP(appPort, '/file')
+      const legacy = await renderViaHTTP(appPort, '/static/legacy.txt')
       expect(data).toBe('data')
       expect(file).toBe('test')
+      expect(legacy).toMatch(`new static folder`)
     })
 
     it('should reload the page on page script error', async () => {
@@ -439,45 +501,60 @@ describe('Production Usage', () => {
       }
     })
 
-    if (browserName === 'chrome') {
-      it('should add preload tags when Link prefetch prop is used', async () => {
-        const browser = await webdriver(appPort, '/prefetch')
-        await waitFor(2000)
+    it('should add prefetch tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+
+      if (browserName === 'internet explorer') {
+        // IntersectionObserver isn't present so we need to trigger manually
+        await waitFor(1000)
+        await browser.eval(`(function() {
+          window.next.router.prefetch('/')
+          window.next.router.prefetch('/process-env')
+          window.next.router.prefetch('/counter')
+          window.next.router.prefetch('/about')
+        })()`)
+      }
+
+      await waitFor(2000)
+
+      if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
+        // 4 page preloads and 5 existing preloads for _app, commons, main, etc
+        expect(elements.length).toBe(11)
+      } else {
+        const elements = await browser.elementsByCss('link[rel=prefetch]')
+        expect(elements.length).toBe(4)
 
-        expect(elements.length).toBe(9)
-        await Promise.all(
-          elements.map(async element => {
-            const rel = await element.getAttribute('rel')
-            const as = await element.getAttribute('as')
-            expect(rel).toBe('preload')
-            expect(as).toBe('script')
-          })
-        )
-        await browser.close()
-      })
+        for (const element of elements) {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('prefetch')
+          expect(as).toBe('script')
+        }
+      }
+      await browser.close()
+    })
 
-      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      it('It does not add a timestamp to link tags with preload attribute', async () => {
-        const browser = await webdriver(appPort, '/prefetch')
-        const links = await browser.elementsByCss('link[rel=preload]')
-        await Promise.all(
-          links.map(async element => {
-            const href = await element.getAttribute('href')
-            expect(href).not.toMatch(/\?ts=/)
-          })
-        )
-        const scripts = await browser.elementsByCss('script[src]')
-        await Promise.all(
-          scripts.map(async element => {
-            const src = await element.getAttribute('src')
-            expect(src).not.toMatch(/\?ts=/)
-          })
-        )
-        await browser.close()
-      })
+    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('It does not add a timestamp to link tags with prefetch attribute', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
 
+      for (const element of links) {
+        const href = await element.getAttribute('href')
+        expect(href).not.toMatch(/\?ts=/)
+      }
+      const scripts = await browser.elementsByCss('script[src]')
+
+      for (const element of scripts) {
+        const src = await element.getAttribute('src')
+        expect(src).not.toMatch(/\?ts=/)
+      }
+      await browser.close()
+    })
+
+    if (browserName === 'chrome') {
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
         if (global.browserName !== 'chrome') return
@@ -574,7 +651,6 @@ describe('Production Usage', () => {
 
   it('should handle AMP correctly in IE', async () => {
     const browser = await webdriver(appPort, '/some-amp')
-    await waitFor(1000)
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('Not AMP')
   })
@@ -628,7 +704,7 @@ describe('Production Usage', () => {
         'beforeRender',
         'afterHydrate',
         'afterRender',
-        'routeChange'
+        'routeChange',
       ]
 
       allPerfMarks.forEach(name =>
@@ -661,8 +737,29 @@ describe('Production Usage', () => {
     }
   })
 
+  it('should have async on all script tags', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    let missing = false
+
+    for (const script of $('script').toArray()) {
+      // application/json doesn't need async
+      if (
+        script.attribs.type === 'application/json' ||
+        script.attribs.src.includes('polyfills')
+      ) {
+        continue
+      }
+
+      if (script.attribs.defer === '' || script.attribs.async !== '') {
+        missing = true
+      }
+    }
+    expect(missing).toBe(false)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
-  if (browserName === 'chrome') security(context)
+  if (browserName !== 'safari') security(context)
 })

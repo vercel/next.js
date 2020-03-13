@@ -1,6 +1,6 @@
 import loaderUtils from 'loader-utils'
 
-module.exports = function (content, sourceMap) {
+module.exports = function(content, sourceMap) {
   this.cacheable()
   const callback = this.async()
   const resourcePath = this.resourcePath
@@ -35,7 +35,7 @@ module.exports = function (content, sourceMap) {
     const transformed = query.transform({
       content,
       sourceMap,
-      interpolatedName
+      interpolatedName,
     })
     return emit(transformed.content, transformed.sourceMap)
   }

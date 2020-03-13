@@ -9,7 +9,7 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  renderViaHTTP
+  renderViaHTTP,
 } from 'next-test-utils'
 import fetch from 'node-fetch'
 
@@ -68,11 +68,16 @@ describe('Serverless Trace', () => {
   it('should have correct amphtml rel link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp')
     expect(html).toMatch(/Hi Im an AMP page/)
-    expect(html).toMatch(/rel="amphtml" href="\/some-amp\?amp=1"/)
+    expect(html).toMatch(/rel="amphtml" href="\/some-amp\.amp"/)
   })
 
   it('should have correct canonical link', async () => {
     const html = await renderViaHTTP(appPort, '/some-amp?amp=1')
+    expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
+  })
+
+  it('should have correct canonical link (auto-export link)', async () => {
+    const html = await renderViaHTTP(appPort, '/some-amp.amp')
     expect(html).toMatch(/rel="canonical" href="\/some-amp"/)
   })
 

@@ -27,7 +27,7 @@ export const fetchCharacterEpic = (action$, state$) =>
     ofType(types.FETCH_CHARACTER),
     mergeMap(action =>
       request({
-        url: `https://swapi.co/api/people/${state$.value.nextCharacterId}`
+        url: `https://swapi.co/api/people/${state$.value.nextCharacterId}`,
       }).pipe(
         map(response =>
           actions.fetchCharacterSuccess(

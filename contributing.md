@@ -3,20 +3,41 @@
 Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
-2. Install yarn: `npm install -g yarn`
-3. Install the dependencies: `yarn`
-4. Run `yarn dev` to build and watch for code changes
-5. In a new terminal, run `yarn types` to compile declaration files from TypeScript
-6. The development branch is `canary`. On a release, the relevant parts of the changes in the `canary` branch are rebased into `master`.
+2. Create a new branch `git checkout -b MY_BRANCH_NAME`
+3. Install yarn: `npm install -g yarn`
+4. Install the dependencies: `yarn`
+5. Run `yarn dev` to build and watch for code changes
+6. In a new terminal, run `yarn types` to compile declaration files from TypeScript
+7. The development branch is `canary` (this is the branch pull requests should be made against). On a release, the relevant parts of the changes in the `canary` branch are rebased into `master`.
 
 > You may need to run `yarn types` again if your types get outdated.
 
+To contribute to [our examples](examples), take a look at the [“Adding examples” section](#adding-examples).
+
 ## To run tests
+
+Make sure you have `chromedriver` installed for your Chrome version. You can install it with
+
+- `brew cask install chromedriver` on Mac OS X
+- `chocolatey install chromedriver` on Windows
+- Or manually downloading it from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and adding the binary to `<next-repo>/node_modules/.bin`
 
 Running all tests:
 
 ```sh
 yarn testonly
+```
+
+If you would like to run the tests in headless mode (with the browser windows hidden) you can do
+
+```sh
+yarn testheadless
+```
+
+If you would like to use a specific Chrome/Chromium binary to run tests you can specify it with
+
+```sh
+CHROME_BIN='path/to/chrome/bin' yarn testonly
 ```
 
 Running a specific test suite inside of the `test/integration` directory:
@@ -33,18 +54,12 @@ yarn testonly --testPathPattern "production" -t "should allow etag header suppor
 
 ## Running the integration apps
 
-The correct path to the compiled `next` binary can be discovered by running:
-
-```sh
-find . -name next -perm -u=x -type f
-```
-
 Running examples can be done with:
 
 ```sh
-./packages/next/dist/bin/next ./test/integration/basic
+yarn next ./test/integration/basic
 # OR
-./packages/next/dist/bin/next ./examples/basic-css/
+yarn next ./examples/basic-css/
 ```
 
 To figure out which pages are available for the given example, you can run:
@@ -99,3 +114,58 @@ EXAMPLE=./test/integration/basic
    ```sh
    yarn install --force
    ```
+
+## Adding examples
+
+When you add an example to the [examples](examples) directory, don’t forget to add a `README.md` file with the following format:
+
+- Replace `DIRECTORY_NAME` with the directory name you’re adding.
+- Fill in `Example Name` and `Description`.
+- To add additional installation instructions, please add it where appropriate.
+- To add additional notes, add `## Notes` section at the end.
+- Remove the `Deploy your own` section if your example can’t be immediately deployed to ZEIT Now.
+
+````markdown
+# Example Name
+
+Description
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/DIRECTORY_NAME)
+
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
+```bash
+npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
+# or
+yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/DIRECTORY_NAME
+cd DIRECTORY_NAME
+```
+
+Install it and run:
+
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
+
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+````

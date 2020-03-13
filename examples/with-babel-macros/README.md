@@ -1,13 +1,21 @@
 # Example app with [babel-macros](https://github.com/kentcdodds/babel-macros)
 
+This example features how to configure and use [`babel-macros`](https://github.com/kentcdodds/babel-macros) which allows you to easily add babel plugins which export themselves as a macro without needing to configure them.
+
+## Deploy your own
+
+Deploy the example using [ZEIT Now](https://zeit.co/now):
+
+[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-babel-macros)
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-babel-macros with-babel-macros-app
+npm init next-app --example with-babel-macros with-babel-macros-app
 # or
 yarn create next-app --example with-babel-macros with-babel-macros-app
 ```
@@ -31,17 +39,9 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-```bash
-now
-```
-
-## The idea behind the example
-
-This example features how to configure and use [`babel-macros`](https://github.com/kentcdodds/babel-macros) which allows you
-to easily add babel plugins which export themselves as a macro without needing
-to configure them.
+## Note
 
 You'll notice the configuration in `.babelrc` includes the `babel-macros`
 plugin, then we can use the `preval.macro` in `pages/index.js` to pre-evaluate

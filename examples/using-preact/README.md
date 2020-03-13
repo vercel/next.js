@@ -1,13 +1,20 @@
-# Hello World example
+# Preact example
+
+This example uses [Preact](https://github.com/preactjs/preact) instead of React. It's a React like UI framework which is fast and small. Here we've customized Next.js to use Preact instead of React.
+
+Here's how we did it:
+
+- Use `next.config.js` to customize our webpack config by aliasing React to `preact/compat`
+- Use `server.js` to make our server use Preact by aliasing React to `preact/compat`
 
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example using-preact using-preact-app
+npm init next-app --example using-preact using-preact-app
 # or
 yarn create next-app --example using-preact using-preact-app
 ```
@@ -31,16 +38,4 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-This example uses [Preact](https://github.com/developit/preact) instead of React. It's a React like UI framework which is fast and small. Here we've customized Next.js to use Preact instead of React.
-
-Here's how we did it:
-
-- Use `next.config.js` to customize our webpack config to support [preact-compat](https://github.com/developit/preact-compat)
+Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
