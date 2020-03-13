@@ -30,20 +30,7 @@ const Person = ({ data, status }) =>
     <p>{data.message}</p>
   )
 
-export async function getStaticPaths() {
-  const response = await fetch('http://localhost:3000/api/people')
-  const data = await response.json()
-
-  const paths = data.map(person => ({
-    params: {
-      id: person.id,
-    },
-  }))
-
-  return { paths, fallback: false }
-}
-
-export async function getStaticProps({ params }) {
+export async function getServerSideProps({ params }) {
   const response = await fetch(`http://localhost:3000/api/people/${params.id}`)
   const data = await response.json()
 
