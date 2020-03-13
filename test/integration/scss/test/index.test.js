@@ -37,16 +37,16 @@ describe('SCSS Support', () => {
         stderr: true,
       })
       expect(code).toBe(1)
-      expect(stderr.split('Require stack:')[0]).toMatchInlineSnapshot(`
-        "Failed to compile.
-
-        ./styles/global.scss
-        To use Next.js' built-in Sass support, you first need to install \`sass\`.
-        Run \`npm i sass\` or \`yarn add sass\` inside your workspace.
-
-        Learn more: https://err.sh/next.js/install-sass
-        "
-      `)
+      expect(stderr).toContain('Failed to compile.')
+      expect(stderr).toContain(
+        "To use Next.js' built-in Sass support, you first need to install `sass`."
+      )
+      expect(stderr).toContain(
+        'Run `npm i sass` or `yarn add sass` inside your workspace.'
+      )
+      expect(stderr).toContain(
+        'Learn more: https://err.sh/next.js/install-sass'
+      )
     })
   })
 
