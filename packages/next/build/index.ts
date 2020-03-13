@@ -463,7 +463,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   hasNonStaticErrorPage =
-    !hasCustomErrorPage ||
+    hasCustomErrorPage &&
     (await hasCustomGetInitialProps(
       path.join(
         distDir,
