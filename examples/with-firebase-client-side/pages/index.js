@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { useEffect } from 'react'
 import { useFirebase } from '../context/firebaseContext'
-import firebase from 'firebase'
+import firebase from 'firebase/app'
 
 export default () => {
   // Our custom hook to get context values
