@@ -10,7 +10,7 @@
     "classnames": "2.2.6",
     "date-fns": "2.10.0",
     "isomorphic-unfetch": "3.0.0",
-    "next": "9.2.3-canary.26",
+    "next": "9.3.0",
     "react": "^16.13.0",
     "react-datocms": "1.1.0",
     "react-dom": "^16.13.0",
