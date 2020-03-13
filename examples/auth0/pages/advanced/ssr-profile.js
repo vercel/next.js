@@ -55,21 +55,7 @@ export async function getServerSideProps({ req, res }) {
   // Exmaple:
   /*
     const cookie = req && req.headers.cookie
-    const user = await fetchUser(cookie)
-
-    // A redirect is needed to authenticate to Auth0
-    if (!user) {
-      if (typeof window === 'undefined') {
-        res.writeHead(302, {
-          Location: '/api/login',
-        })
-        return res.end()
-      }
-
-      window.location.href = '/api/login'
-    }
-
-    return { props: { user } } 
+    const response = await fetchSomeAPIRoute(cookie)
   */
 }
 

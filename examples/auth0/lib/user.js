@@ -2,17 +2,31 @@ import { useState, useEffect } from 'react'
 import fetch from 'isomorphic-unfetch'
 
 export async function fetchUser(cookie = '') {
+  if (typeof window !== 'undefined' && window.__user) {
+    return window.__user
+  }
   const response = await fetch('/api/me', cookie ? { headers: { cookie } } : {})
   if (!response.ok) {
+    delete window.__user
     return null
   }
   const userData = await response.json()
+  if (typeof window !== 'undefined') {
+    window.__user = userData
+  }
   return userData
 }
 
 export function useFetchUser({ required = false } = {}) {
-  const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(
+    () => !(typeof window !== 'undefined' && window.__user)
+  )
+  const [user, setUser] = useState(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+    return window.__user || null
+  })
 
   useEffect(
     () => {
