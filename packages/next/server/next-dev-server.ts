@@ -85,6 +85,16 @@ export default class DevServer extends Server {
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
+        forkOptions: {
+          env: {
+            ...process.env,
+            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+            // is the main Next.js one
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          },
+        },
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
