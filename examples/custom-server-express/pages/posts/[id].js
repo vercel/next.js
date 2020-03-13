@@ -1,19 +1,23 @@
-import React, { Component } from 'react'
+import React from 'react'
 
-export default class extends Component {
-  static getInitialProps({ query: { id } }) {
-    return { postId: id }
-  }
-
-  render() {
-    return (
-      <div>
-        <h1>My blog post #{this.props.postId}</h1>
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-          eiusmod tempor incididunt ut labore et dolore magna aliqua.
-        </p>
-      </div>
-    )
-  }
+function Post({ postId }) {
+  return (
+    <div>
+      <h1>My blog post #{postId}</h1>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+        tempor incididunt ut labore et dolore magna aliqua.
+      </p>
+    </div>
+  )
 }
+
+export function getStaticProps({ params: { id } }) {
+  return { props: { postId: id } }
+}
+
+export function getStaticPaths() {
+  return { paths: [], fallback: true }
+}
+
+export default Post
