@@ -13,6 +13,7 @@ export async function build(
     hasSupportCss,
     hasSupportScss,
     assetPrefix,
+    scssIncludePaths,
   }: {
     rootDirectory: string
     customAppFile: string | null
@@ -21,6 +22,7 @@ export async function build(
     hasSupportCss: boolean
     hasSupportScss: boolean
     assetPrefix: string
+    scssIncludePaths: string[]
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -35,6 +37,7 @@ export async function build(
         ? assetPrefix.slice(0, -1)
         : assetPrefix
       : '',
+    scssIncludePaths,
   }
 
   const fn = pipe(base(ctx), css(hasSupportCss, hasSupportScss, ctx))
