@@ -74,8 +74,8 @@ const Blog = ({ router, page = 1 }) => {
   )
 }
 
-Blog.getInitialProps = async ({ query }) => {
-  return query ? { page: query.page } : {}
+export async function getServerSideProps({ query }) {
+  return { props: query ? { page: query.page } : {} }
 }
 
 export default withRouter(Blog)
