@@ -52,6 +52,7 @@ import Router, {
   Route,
 } from './router'
 import { sendHTML } from './send-html'
+import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import {
   getFallback,
@@ -932,11 +933,11 @@ export default class Server {
           sendPayload(
             res,
             JSON.stringify(renderResult?.renderOpts?.pageData),
-            'application/json',
+            'json',
             !this.renderOpts.dev
               ? {
-                  revalidate: -1,
-                  private: isPreviewMode, // Leave to user-land caching
+                  private: isPreviewMode,
+                  stateful: true, // non-SSG data request
                 }
               : undefined
           )
@@ -955,11 +956,11 @@ export default class Server {
         sendPayload(
           res,
           JSON.stringify(props),
-          'application/json',
+          'json',
           !this.renderOpts.dev
             ? {
-                revalidate: -1,
-                private: isPreviewMode, // Leave to user-land caching
+                private: isPreviewMode,
+                stateful: true, // GSSP data request
               }
             : undefined
         )
@@ -971,11 +972,12 @@ export default class Server {
         ...opts,
       })
 
-      if (html && isServerProps && isPreviewMode) {
-        sendPayload(res, html, 'text/html; charset=utf-8', {
-          revalidate: -1,
+      if (html && isServerProps) {
+        sendPayload(res, html, 'html', {
           private: isPreviewMode,
+          stateful: true, // GSSP request
         })
+        return null
       }
 
       return html
@@ -1000,9 +1002,16 @@ export default class Server {
       sendPayload(
         res,
         data,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
-        cachedData.curRevalidate !== undefined && !this.renderOpts.dev
-          ? { revalidate: cachedData.curRevalidate, private: isPreviewMode }
+        isDataReq ? 'json' : 'html',
+        !this.renderOpts.dev
+          ? {
+              private: isPreviewMode,
+              stateful: false, // GSP response
+              revalidate:
+                cachedData.curRevalidate !== undefined
+                  ? cachedData.curRevalidate
+                  : /* default to minimum revalidate (this should be an invariant) */ 1,
+            }
           : undefined
       )
 
@@ -1105,7 +1114,12 @@ export default class Server {
         query.__nextFallback = 'true'
         if (isLikeServerless) {
           prepareServerlessUrl(req, query)
-          html = await (components.Component as any).renderReqToHTML(req, res)
+          const renderResult = await (components.Component as any).renderReqToHTML(
+            req,
+            res,
+            'passthrough'
+          )
+          html = renderResult.html
         } else {
           html = (await renderToHTML(req, res, pathname, query, {
             ...components,
@@ -1114,7 +1128,7 @@ export default class Server {
         }
       }
 
-      sendPayload(res, html, 'text/html; charset=utf-8')
+      sendPayload(res, html, 'html')
     }
 
     const {
@@ -1125,9 +1139,13 @@ export default class Server {
       sendPayload(
         res,
         isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'application/json' : 'text/html; charset=utf-8',
+        isDataReq ? 'json' : 'html',
         !this.renderOpts.dev
-          ? { revalidate: sprRevalidate, private: isPreviewMode }
+          ? {
+              private: isPreviewMode,
+              stateful: false, // GSP response
+              revalidate: sprRevalidate,
+            }
           : undefined
       )
     }
@@ -1346,38 +1364,6 @@ export default class Server {
   private get _isLikeServerless(): boolean {
     return isTargetLikeServerless(this.nextConfig.target)
   }
-}
-
-function sendPayload(
-  res: ServerResponse,
-  payload: any,
-  type: string,
-  options?: { revalidate: number | false; private: boolean }
-) {
-  // TODO: ETag? Cache-Control headers? Next-specific headers?
-  res.setHeader('Content-Type', type)
-  res.setHeader('Content-Length', Buffer.byteLength(payload))
-  if (options != null) {
-    if (options?.private) {
-      res.setHeader(
-        'Cache-Control',
-        `private, no-cache, no-store, max-age=0, must-revalidate`
-      )
-    } else if (options?.revalidate) {
-      res.setHeader(
-        'Cache-Control',
-        options.revalidate < 0
-          ? `no-cache, no-store, must-revalidate`
-          : `s-maxage=${options.revalidate}, stale-while-revalidate`
-      )
-    } else if (options?.revalidate === false) {
-      res.setHeader(
-        'Cache-Control',
-        `s-maxage=31536000, stale-while-revalidate`
-      )
-    }
-  }
-  res.end(payload)
 }
 
 function prepareServerlessUrl(req: IncomingMessage, query: ParsedUrlQuery) {

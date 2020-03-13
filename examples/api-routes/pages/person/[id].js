@@ -1,4 +1,4 @@
-import fetch from 'isomorphic-unfetch'
+import fetch from 'node-fetch'
 
 const Person = ({ data, status }) =>
   status === 200 ? (
@@ -30,11 +30,16 @@ const Person = ({ data, status }) =>
     <p>{data.message}</p>
   )
 
-Person.getInitialProps = async ({ query }) => {
-  const response = await fetch(`http://localhost:3000/api/people/${query.id}`)
-
+export async function getServerSideProps({ params }) {
+  const response = await fetch(`http://localhost:3000/api/people/${params.id}`)
   const data = await response.json()
-  return { data, status: response.status }
+
+  return {
+    props: {
+      data,
+      status: response.status,
+    },
+  }
 }
 
 export default Person
