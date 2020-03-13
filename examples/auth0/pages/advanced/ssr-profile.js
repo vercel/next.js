@@ -1,60 +1,76 @@
-import React from 'react'
-
-// This import is only needed when checking authentication status directly from getInitialProps
+// This import is only needed when checking authentication status directly from getServerSideProps
 import auth0 from '../../lib/auth0'
-import { fetchUser } from '../../lib/user'
-import Layout from '../../components/layout'
+import ProfileCard from '../../components/profile-card'
+import Header from '../../components/header'
+import Head from 'next/head'
 
-function Profile({ user }) {
+function SSRProfile({ user }) {
   return (
-    <Layout user={user}>
-      <h1>Profile</h1>
+    <>
+      <Head>
+        <title>Next.js with Auth0</title>
+      </Head>
+      <Header SSRUser={user} />
+      <main>
+        <div className="container">
+          <h1>Profile (server rendered)</h1>
+          <ProfileCard SSRUser={user} />
+        </div>
+      </main>
+      <style jsx global>
+        {`
+          body {
+            margin: 0;
+            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+              Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue',
+              sans-serif;
+          }
 
-      <div>
-        <h3>Profile (server rendered)</h3>
-        <img src={user.picture} alt="user picture" />
-        <p>nickname: {user.nickname}</p>
-        <p>name: {user.name}</p>
-      </div>
-    </Layout>
+          .container {
+            max-width: 42rem;
+            margin: 1.5rem auto;
+          }
+        `}
+      </style>
+    </>
   )
 }
 
-Profile.getInitialProps = async ({ req, res }) => {
+export async function getServerSideProps({ req, res }) {
   // On the server-side you can check authentication status directly
   // However in general you might want to call API Routes to fetch data
   // An example of directly checking authentication:
-  if (typeof window === 'undefined') {
-    const { user } = await auth0.getSession(req)
-    if (!user) {
-      res.writeHead(302, {
-        Location: '/api/login',
-      })
-      res.end()
-      return
-    }
-    return { user }
+  const session = await auth0.getSession(req)
+  if (!session || !session.user) {
+    res.writeHead(302, { Location: '/api/login' })
+    res.end()
+    return
   }
+  return { props: { user: session.user } }
 
   // To do fetches to API routes you can pass the cookie coming from the incoming request on to the fetch
   // so that a request to the API is done on behalf of the user
   // keep in mind that server-side fetches need a full URL, meaning that the full url has to be provided to the application
-  const cookie = req && req.headers.cookie
-  const user = await fetchUser(cookie)
+  // Exmaple:
+  /*
+    const cookie = req && req.headers.cookie
+    const user = await fetchUser(cookie)
 
-  // A redirect is needed to authenticate to Auth0
-  if (!user) {
-    if (typeof window === 'undefined') {
-      res.writeHead(302, {
-        Location: '/api/login',
-      })
-      return res.end()
+    // A redirect is needed to authenticate to Auth0
+    if (!user) {
+      if (typeof window === 'undefined') {
+        res.writeHead(302, {
+          Location: '/api/login',
+        })
+        return res.end()
+      }
+
+      window.location.href = '/api/login'
     }
 
-    window.location.href = '/api/login'
-  }
-
-  return { user }
+    return { props: { user } } 
+  */
 }
 
-export default Profile
+export default SSRProfile

@@ -1,46 +1,58 @@
 import Link from 'next/link'
+import { AuthContext } from '../lib/authProvider'
+import { useContext } from 'react'
 
-function Header({ user, loading }) {
+function Header({ SSRUser }) {
+  let { user } = useContext(AuthContext)
+  if (SSRUser) {
+    user = SSRUser
+  }
+
+  const authHeader = () => (
+    <>
+      <li>
+        <Link href="/profile">
+          <a>Client-rendered profile</a>
+        </Link>
+      </li>
+      <li>
+        <Link href="/advanced/ssr-profile">
+          <a>Server rendered profile (advanced)</a>
+        </Link>
+      </li>
+      <li>
+        <a href="/api/logout">Logout</a>
+      </li>
+    </>
+  )
+
+  const unAuthHeader = () => (
+    <>
+      <>
+        <li>
+          <Link href="/">
+            <a>Home</a>
+          </Link>
+        </li>
+        <li>
+          <Link href="/about">
+            <a>About</a>
+          </Link>
+        </li>
+      </>
+      <li>
+        <a href="/api/login">Login</a>
+      </li>
+    </>
+  )
+
   return (
     <header>
       <nav>
-        <ul>
-          <li>
-            <Link href="/">
-              <a>Home</a>
-            </Link>
-          </li>
-          <li>
-            <Link href="/about">
-              <a>About</a>
-            </Link>
-          </li>
-          {!loading &&
-            (user ? (
-              <>
-                <li>
-                  <Link href="/profile">
-                    <a>Client-rendered profile</a>
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/advanced/ssr-profile">
-                    <a>Server rendered profile (advanced)</a>
-                  </Link>
-                </li>
-                <li>
-                  <a href="/api/logout">Logout</a>
-                </li>
-              </>
-            ) : (
-              <li>
-                <a href="/api/login">Login</a>
-              </li>
-            ))}
-        </ul>
+        <ul>{user ? authHeader() : unAuthHeader()}</ul>
       </nav>
 
-      <style jsx>{`
+      <style jsx global>{`
         header {
           padding: 0.2rem;
           color: #fff;
