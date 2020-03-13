@@ -6,6 +6,7 @@ const dev = process.env.NODE_ENV !== 'production'
 
 fastify.register((fastify, opts, next) => {
   const app = Next({ dev })
+  const handle = app.getRequestHandler()
   app
     .prepare()
     .then(() => {
@@ -30,7 +31,7 @@ fastify.register((fastify, opts, next) => {
       })
 
       fastify.all('/*', (req, reply) => {
-        return app.handleRequest(req.req, reply.res).then(() => {
+        return handle(req.req, reply.res).then(() => {
           reply.sent = true
         })
       })
