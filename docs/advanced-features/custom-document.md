@@ -11,11 +11,11 @@ A custom `Document` can also include `getInitialProps` for expressing asynchrono
 To override the default `Document`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
 
 ```jsx
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import NextDocument, { Html, Head, Main, NextScript } from 'next/document'
 
-class MyDocument extends Document {
+class Document extends NextDocument {
   static async getInitialProps(ctx) {
-    const initialProps = await Document.getInitialProps(ctx)
+    const initialProps = await NextDocument.getInitialProps(ctx)
     return { ...initialProps }
   }
 
@@ -32,7 +32,7 @@ class MyDocument extends Document {
   }
 }
 
-export default MyDocument
+export default Document
 ```
 
 `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.

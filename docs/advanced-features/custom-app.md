@@ -15,9 +15,9 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 To override the default `App`, create the file `./pages/_app.js` as shown below:
 
 ```jsx
-// import App from 'next/app'
+// import NextApp from 'next/app'
 
-function MyApp({ Component, pageProps }) {
+function App({ Component, pageProps }) {
   return <Component {...pageProps} />
 }
 
@@ -26,14 +26,14 @@ function MyApp({ Component, pageProps }) {
 // perform automatic static optimization, causing every page in your app to
 // be server-side rendered.
 //
-// MyApp.getInitialProps = async (appContext) => {
+// App.getInitialProps = async (appContext) => {
 //   // calls page's `getInitialProps` and fills `appProps.pageProps`
-//   const appProps = await App.getInitialProps(appContext);
+//   const appProps = await NextApp.getInitialProps(appContext);
 //
 //   return { ...appProps }
 // }
 
-export default MyApp
+export default App
 ```
 
 The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
