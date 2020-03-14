@@ -17,12 +17,14 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
-let lastStore: OutputState = {} as any
+let lastStore: OutputState = { appUrl: null, bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
-    [
+    ([
       ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-    ].every(key => Object.is((lastStore as any)[key], (nextStore as any)[key]))
+    ] as Array<keyof OutputState>).every(key =>
+      Object.is(lastStore[key], nextStore[key])
+    )
   ) {
     return false
   }
