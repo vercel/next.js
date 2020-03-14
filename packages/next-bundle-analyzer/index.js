@@ -1,13 +1,15 @@
-module.exports = ({ enabled = true, ...bundleAnalyzerOptions } = {}) => (nextConfig = {}) => {
+module.exports = ({ enabled = true, ...bundleAnalyzerOptions } = {}) => (
+  nextConfig = {}
+) => {
   return Object.assign({}, nextConfig, {
     webpack(config, options) {
       if (enabled) {
         // compatible with 'next-bundle-analyzer options
         const { analyzeServer, analyzeBrowser } = bundleAnalyzerOptions
         const {
-          bundleAnalyzerConfig: { browser = {}, server = {} } = {}
+          bundleAnalyzerConfig: { browser = {}, server = {} } = {},
         } = bundleAnalyzerOptions
-        
+
         const { isServer } = options
 
         if ((isServer && analyzeServer) || (!isServer && analyzeBrowser)) {
@@ -19,7 +21,9 @@ module.exports = ({ enabled = true, ...bundleAnalyzerOptions } = {}) => (nextCon
                 {
                   analyzerMode: 'server',
                   analyzerPort: isServer ? 8888 : 8889,
-                  openAnalyzer: isServer ? server.openAnalyzer : browser.openAnalyzer
+                  openAnalyzer: isServer
+                    ? server.openAnalyzer
+                    : browser.openAnalyzer,
                 },
                 isServer ? server : browser
               )
