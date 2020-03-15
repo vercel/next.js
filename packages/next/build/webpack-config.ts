@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import crypto from 'crypto'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import path from 'path'
@@ -963,6 +964,17 @@ export default async function getBaseWebpackConfig(
       ) ?? false
 
     if (hasUserCssConfig) {
+      // only show warning for one build
+      if (isServer) {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            chalk.bold(
+              'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
+            ) +
+            'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+        )
+      }
+
       if (webpackConfig.module?.rules.length) {
         // Remove default CSS Loader
         webpackConfig.module.rules = webpackConfig.module.rules.filter(

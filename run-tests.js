@@ -1,5 +1,6 @@
 const path = require('path')
 const _glob = require('glob')
+const fs = require('fs').promises
 const fetch = require('node-fetch')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
@@ -8,9 +9,11 @@ const { spawn, exec: execOrig } = require('child_process')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+const timings = []
 const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
-const timings = []
+const RESULTS_EXT = `.results.json`
+const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
 ;(async () => {
@@ -117,15 +120,24 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
       const start = new Date().getTime()
       const child = spawn(
         'node',
-        [jestPath, '--runInBand', '--forceExit', '--verbose', test],
+        [
+          jestPath,
+          '--runInBand',
+          '--forceExit',
+          '--verbose',
+          ...(isTestJob
+            ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
+            : []),
+          test,
+        ],
         {
           stdio: 'inherit',
           env: {
             ...process.env,
             ...(usePolling
               ? {
-                  // Events can be finicky in CI. This switches to a more reliable
-                  // polling method.
+                  // Events can be finicky in CI. This switches to a more
+                  // reliable polling method.
                   CHOKIDAR_USEPOLLING: 'true',
                   CHOKIDAR_INTERVAL: 500,
                 }
@@ -169,6 +181,22 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
       if (!passed) {
         console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
         children.forEach(child => child.kill())
+
+        if (isTestJob) {
+          try {
+            const testsOutput = await fs.readFile(
+              `${test}${RESULTS_EXT}`,
+              'utf8'
+            )
+            console.log(
+              `--test output start--`,
+              testsOutput,
+              `--test output end--`
+            )
+          } catch (err) {
+            console.log(`Failed to load test output`, err)
+          }
+        }
         process.exit(1)
       }
       sema.release()

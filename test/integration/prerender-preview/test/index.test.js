@@ -53,14 +53,20 @@ function runTests(startServer = nextStart) {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
   })
 
   it('should return prerendered page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const { nextData, pre } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
-    expect(pre).toBe('undefined and undefined')
+    expect(pre).toBe('false and null')
+  })
+
+  it('should throw error when setting too large of preview data', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/preview?tooBig=true')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('too big')
   })
 
   let previewCookieString
@@ -165,11 +171,23 @@ function runTests(startServer = nextStart) {
     )
   })
 
-  it('should fetch preview data', async () => {
+  it('should fetch preview data on SSR', async () => {
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
     // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
     // await new Promise(resolve => setTimeout(resolve, 2000))
+    expect(await browser.elementById('props-pre').text()).toBe(
+      'true and {"client":"mode"}'
+    )
+  })
+
+  it('should fetch preview data on CST', async () => {
+    await browser.get(`http://localhost:${appPort}/to-index`)
+    await browser.waitForElementByCss('#to-index')
+    await browser.eval('window.itdidnotrefresh = "hello"')
+    await browser.elementById('to-index').click()
+    await browser.waitForElementByCss('#props-pre')
+    expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
     expect(await browser.elementById('props-pre').text()).toBe(
       'true and {"client":"mode"}'
     )
@@ -180,9 +198,7 @@ function runTests(startServer = nextStart) {
 
     await browser.get(`http://localhost:${appPort}/`)
     await browser.waitForElementByCss('#props-pre')
-    expect(await browser.elementById('props-pre').text()).toBe(
-      'undefined and undefined'
-    )
+    expect(await browser.elementById('props-pre').text()).toBe('false and null')
   })
 
   afterAll(async () => {

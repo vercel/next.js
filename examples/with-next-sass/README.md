@@ -1,6 +1,6 @@
 # Example app with next-sass
 
-This example uses next-sass without css-modules. The config can be found in `next.config.js`, change `withSass()` to `withSass({cssModules: true})` if you use css-modules. Then in the code, you import the stylesheet as `import style from '../styles/style.scss'` and use it like `<div className={style.example}>`. [Learn more](https://github.com/zeit/next-plugins/tree/master/packages/next-sass).
+This example demonstrates how to use Next.js' built-in Global Sass/Scss imports and Component-Level Sass/Scss modules support.
 
 ## Deploy your own
 

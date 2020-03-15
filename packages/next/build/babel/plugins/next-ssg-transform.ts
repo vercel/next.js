@@ -6,8 +6,6 @@ import {
   SERVER_PROPS_ID,
 } from '../../../next-server/lib/constants'
 
-const pageComponentVar = '__NEXT_COMP'
-
 export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
 export const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps'
@@ -37,64 +35,42 @@ function decorateSsgExport(
   path: NodePath<BabelTypes.Program>,
   state: PluginState
 ) {
-  path.traverse({
-    ExportDefaultDeclaration(path) {
-      if (state.done) {
-        return
-      }
-      state.done = true
+  const gsspName = state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID
+  const gsspId = t.identifier(gsspName)
 
-      const prev = path.node.declaration
-      if (prev.type.endsWith('Declaration')) {
-        prev.type = prev.type.replace(/Declaration$/, 'Expression') as any
-      }
+  const addGsspExport = (
+    path: NodePath<
+      BabelTypes.ExportDefaultDeclaration | BabelTypes.ExportNamedDeclaration
+    >
+  ) => {
+    if (state.done) {
+      return
+    }
+    state.done = true
 
-      // @ts-ignore invalid return type
-      const [pageCompPath] = path.replaceWithMultiple([
+    // @ts-ignore invalid return type
+    const [pageCompPath] = path.replaceWithMultiple([
+      t.exportNamedDeclaration(
         t.variableDeclaration(
           // We use 'var' instead of 'let' or 'const' for ES5 support. Since
           // this runs in `Program#exit`, no ES2015 transforms (preset env)
           // will be ran against this code.
           'var',
-          [t.variableDeclarator(t.identifier(pageComponentVar), prev as any)]
+          [t.variableDeclarator(gsspId, t.booleanLiteral(true))]
         ),
-        t.assignmentExpression(
-          '=',
-          t.memberExpression(
-            t.identifier(pageComponentVar),
-            t.identifier(state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID)
-          ),
-          t.booleanLiteral(true)
-        ),
-        t.exportDefaultDeclaration(t.identifier(pageComponentVar)),
-      ])
-      path.scope.registerDeclaration(pageCompPath)
+        [t.exportSpecifier(gsspId, gsspId)]
+      ),
+      path.node,
+    ])
+    path.scope.registerDeclaration(pageCompPath)
+  }
+
+  path.traverse({
+    ExportDefaultDeclaration(path) {
+      addGsspExport(path)
     },
     ExportNamedDeclaration(path) {
-      if (state.done) {
-        return
-      }
-
-      // Look for a `export { _ as default }` specifier
-      const defaultSpecifier = path.node.specifiers.find(s => {
-        return s.exported.name === 'default'
-      })
-      if (!defaultSpecifier) {
-        return
-      }
-      state.done = true
-
-      path.replaceWithMultiple([
-        t.assignmentExpression(
-          '=',
-          t.memberExpression(
-            t.identifier((defaultSpecifier as any).local.name),
-            t.identifier(state.isPrerender ? STATIC_PROPS_ID : SERVER_PROPS_ID)
-          ),
-          t.booleanLiteral(true)
-        ),
-        path.node,
-      ])
+      addGsspExport(path)
     },
   })
 }
