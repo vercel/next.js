@@ -31,6 +31,7 @@ import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import Worker from 'jest-worker'
+import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
