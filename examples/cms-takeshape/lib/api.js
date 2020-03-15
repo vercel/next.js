@@ -28,14 +28,13 @@ export async function getPreviewPostBySlug(slug) {
   const data = await fetchAPI(
     `
     query PostBySlug($slug: String) {
-      post: getPostList(filter: {term: {slug: $slug}}, size: 1) {
+      post: getPostList(filter: {term: {slug: $slug}}, size: 1, onlyEnabled: false) {
         items {
           slug
         }
       }
     }`,
     {
-      preview: true,
       variables: {
         slug,
       },
@@ -60,8 +59,8 @@ export async function getAllPostsWithSlug() {
 export async function getAllPostsForHome(preview) {
   const data = await fetchAPI(
     `
-    {
-      allPosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 20) {
+    query AllPosts($onlyEnabled: Boolean) {
+      allPosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 20, onlyEnabled: $onlyEnabled) {
         items {
           slug
           title
@@ -80,7 +79,12 @@ export async function getAllPostsForHome(preview) {
       }
     }
   `,
-    { preview }
+    {
+      variables: {
+        onlyEnabled: !preview,
+        preview,
+      },
+    }
   )
   return data?.allPosts?.items
 }
@@ -88,8 +92,8 @@ export async function getAllPostsForHome(preview) {
 export async function getPostAndMorePosts(slug, preview) {
   const data = await fetchAPI(
     `
-  query PostBySlug($slug: String) {
-    post: getPostList(filter: {term: {slug: $slug}}, size: 1) {
+  query PostBySlug($slug: String, $onlyEnabled: Boolean) {
+    post: getPostList(filter: {term: {slug: $slug}}, size: 1, onlyEnabled: $onlyEnabled) {
       items {
         title
         slug
@@ -106,7 +110,7 @@ export async function getPostAndMorePosts(slug, preview) {
         }
       }
     }
-    morePosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 3) {
+    morePosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 3, onlyEnabled: $onlyEnabled) {
       items {
         title
         slug
@@ -126,9 +130,9 @@ export async function getPostAndMorePosts(slug, preview) {
   }
   `,
     {
-      preview,
       variables: {
         slug,
+        onlyEnabled: !preview,
       },
     }
   )
