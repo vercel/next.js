@@ -17,9 +17,9 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-relay-modern with-relay-modern-app
+npm init next-app --example with-relay-modern-typescript with-relay-modern-typescript-app
 # or
-yarn create next-app --example with-relay-modern with-relay-modern-app
+yarn create next-app --example with-relay-modern-typescript with-relay-modern-typescript-app
 ```
 
 ### Download manually
