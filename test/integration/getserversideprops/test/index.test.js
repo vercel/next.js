@@ -68,6 +68,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/custom-cache.json$`
+    ),
+    page: '/custom-cache',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/default-revalidate.json$`
     ),
     page: '/default-revalidate',
@@ -414,12 +420,30 @@ const runTests = (dev = false) => {
       expect(dataRoutes).toEqual(expectedManifestRoutes())
     })
 
-    it('should set no-cache, no-store, must-revalidate header', async () => {
-      const res = await fetchViaHTTP(
+    it('should set default caching header', async () => {
+      const resPage = await fetchViaHTTP(appPort, `/something`)
+      expect(resPage.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+
+      const resData = await fetchViaHTTP(
         appPort,
         `/_next/data/${buildId}/something.json`
       )
-      expect(res.headers.get('cache-control')).toContain('no-cache')
+      expect(resData.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    })
+
+    it('should respect custom caching header', async () => {
+      const resPage = await fetchViaHTTP(appPort, `/custom-cache`)
+      expect(resPage.headers.get('cache-control')).toBe('public, max-age=3600')
+
+      const resData = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${buildId}/custom-cache.json`
+      )
+      expect(resData.headers.get('cache-control')).toBe('public, max-age=3600')
     })
 
     it('should not show error for invalid JSON returned from getServerSideProps', async () => {

@@ -57,6 +57,7 @@ export async function printTreeView(
     pageExtensions,
     buildManifest,
     isModern,
+    useStatic404,
   }: {
     distPath: string
     buildId: string
@@ -64,6 +65,7 @@ export async function printTreeView(
     pageExtensions: string[]
     buildManifest: BuildManifestShape
     isModern: boolean
+    useStatic404: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
@@ -86,6 +88,14 @@ export async function printTreeView(
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
   const hasCustomError = await findPageFile(pagesDir, '/_error', pageExtensions)
+
+  if (useStatic404) {
+    pageInfos.set('/404', {
+      ...(pageInfos.get('/404') || pageInfos.get('/_error')),
+      static: true,
+    } as any)
+    list = [...list, '/404']
+  }
 
   const pageList = list
     .slice()
@@ -720,14 +730,14 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomAppGetInitialProps(
-  _appBundle: string,
+export function hasCustomGetInitialProps(
+  bundle: string,
   runtimeEnvConfig: any
 ): boolean {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(_appBundle)
+  let mod = require(bundle)
 
-  if (_appBundle.endsWith('_app.js')) {
+  if (bundle.endsWith('_app.js') || bundle.endsWith('_error.js')) {
     mod = mod.default || mod
   } else {
     // since we don't output _app in serverless mode get it from a page
