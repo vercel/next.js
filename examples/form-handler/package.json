@@ -5,14 +5,13 @@
   "main": "index.js",
   "scripts": {
     "start": "next start",
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.16.4",
     "next": "latest",
     "next-redux-wrapper": "^2.1.0",
     "react": "^16.8.4",
