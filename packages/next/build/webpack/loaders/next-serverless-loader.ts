@@ -205,6 +205,7 @@ const nextServerlessLoader: loader.Loader = function() {
     const {renderToHTML} = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
     const {sendHTML} = require('next/dist/next-server/server/send-html');
+    const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
@@ -232,7 +233,8 @@ const nextServerlessLoader: loader.Loader = function() {
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
-    export async function renderReqToHTML(req, res, fromExport, _renderOpts, _params) {
+    export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
+      const fromExport = renderMode === 'export' || renderMode === true;
       ${
         basePath
           ? `
@@ -327,21 +329,15 @@ const nextServerlessLoader: loader.Loader = function() {
 
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? {} : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
 
-        if (_nextData && !fromExport) {
-          const payload = JSON.stringify(renderOpts.pageData)
-          res.setHeader('Content-Type', 'application/json')
-          res.setHeader('Content-Length', Buffer.byteLength(payload))
-
-          res.setHeader(
-            'Cache-Control',
-            isPreviewMode
-              ? \`private, no-cache, no-store, max-age=0, must-revalidate\`
-              : getServerSideProps
-              ? \`no-cache, no-store, must-revalidate\`
-              : \`s-maxage=\${renderOpts.revalidate}, stale-while-revalidate\`
-          )
-          res.end(payload)
-          return null
+        if (!renderMode) {
+          if (_nextData || getStaticProps || getServerSideProps) {
+            sendPayload(res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', {
+              private: isPreviewMode,
+              stateful: !!getServerSideProps,
+              revalidate: renderOpts.revalidate,
+            })
+            return null
+          }
         } else if (isPreviewMode) {
           res.setHeader(
             'Cache-Control',
@@ -349,7 +345,7 @@ const nextServerlessLoader: loader.Loader = function() {
           )
         }
 
-        if (fromExport) return { html: result, renderOpts }
+        if (renderMode) return { html: result, renderOpts }
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
