@@ -12,7 +12,7 @@ export type ConfigurationContext = {
 
   assetPrefix: string
 
-  scssIncludePaths: string[]
+  sassOptions: any
 }
 
 export type ConfigurationFn = (

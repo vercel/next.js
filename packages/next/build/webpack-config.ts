@@ -897,7 +897,7 @@ export default async function getBaseWebpackConfig(
     hasSupportCss: !!config.experimental.css,
     hasSupportScss: !!config.experimental.scss,
     assetPrefix: config.assetPrefix || '',
-    scssIncludePaths: config.experimental.scssIncludePaths,
+    sassOptions: config.experimental.sassOptions,
   })
 
   if (typeof config.webpack === 'function') {

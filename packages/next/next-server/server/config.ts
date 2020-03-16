@@ -52,7 +52,7 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     basePath: '',
-    scssIncludePaths: [],
+    sassOptions: {},
   },
   future: {
     excludeDefaultMomentLocales: false,
