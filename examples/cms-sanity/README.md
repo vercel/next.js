@@ -43,30 +43,13 @@ This will be where we manage our data.
 
 When going through the init phase make sure to select **Yes** to the **Use the default dataset configuration** step and select **Clean project with no predefined schemas** for the **Select project template** step.
 
-After initializing, get the `projectId` value from the `sanity.json` file that was generated for the next step.
+### Step 3. Generate an API token
 
-### Step 3. Prepare project for previewing
-
-Go to https://www.sanity.io/docs/preview-content-on-site and follow the steps.
-
-When you get to the step to create a function called `resolveProductionUrl` add the below contents instead replacing the `YOUR_PREVIEW_SECRET` and `YOUR_DEPLOYMENT_URL` values:
-
-```js
-const previewSecret = YOUR_PREVIEW_SECRET // 'asdafasdfsdaf'
-const projectUrl = YOUR_DEPLOYMENT_URL // 'example.com'
-
-export default function resolveProductionUrl(document) {
-  return `https://${projectUrl}/api/preview?secret=${previewSecret}&slug=${document.slug.current}`
-}
-```
-
-After that, generate an API token for your project by going to the dashboard at https://sanity.io and selecting your project
-
-Under settings -> API, generate a new read API token to use for previewing drafts
+Log into https://manage.sanity.io/ and choose the project you just created. Then from **Settings**, click **Add New Token** and create a token with the **Read** permission.
 
 ### Step 4. Set up environment variables
 
-First, copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
+Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git):
 
 ```bash
 cp .env.example .env
@@ -75,8 +58,8 @@ cp .env.example .env
 Then set each variable on `.env`:
 
 - `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
-- `NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID` the `projectId` from the previous step
-- `NEXT_EXAMPLE_CMS_SANITY_API_TOKEN` the API token generated from Sanity.io
+- `NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID`: Get the `projectId` value from the `sanity.json` file created in step 2.
+- `NEXT_EXAMPLE_CMS_SANITY_API_TOKEN`: Copy the API token generated in the previous step.
 
 Your `.env` file should look like this:
 
@@ -86,13 +69,28 @@ NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID=...
 NEXT_EXAMPLE_CMS_SANITY_API_TOKEN=...
 ```
 
-### Step 4. Copy the schema file
+### Step 5. Prepare project for previewing
+
+Go to https://www.sanity.io/docs/preview-content-on-site and follow the steps.
+
+When you get to the step to create a function called `resolveProductionUrl`, copy the following instead:
+
+```js
+const previewSecret = 'MY_SECRET' // Copy the string you used for NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET
+const projectUrl = 'localhost:3000'
+
+export default function resolveProductionUrl(document) {
+  return `https://${projectUrl}/api/preview?secret=${previewSecret}&slug=${document.slug.current}`
+}
+```
+
+### Step 6. Copy the schema file
 
 After initializing your Sanity studio project there should be a `schemas` folder.
 
 Replace the contents of `schema.js` in the Sanity studio project directory with [`./schemas/schema.js`](./schemas/schema.js) in this example directory. This will set up the schema we’ll use this for this example.
 
-### Step 5. Populate Content
+### Step 7. Populate Content
 
 To add some content go to your Sanity studio project directory and run `sanity start`.
 
@@ -112,7 +110,7 @@ Next, select **Post** and create a new record.
 
 **Important:** For each post record, you need to click **Publish** after saving. If not, the post will be in the draft state.
 
-### Step 6. Run Next.js in development mode
+### Step 8. Run Next.js in development mode
 
 ```bash
 npm install
@@ -126,7 +124,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
-### Step 7. Try preview mode
+### Step 9. Try preview mode
 
 On Sanity, go to one of the posts you've created and:
 
@@ -135,17 +133,17 @@ On Sanity, go to one of the posts you've created and:
 
 Now, if you go to the post page on localhost, you won't see the updated title. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
 
-To view the preview, go to your sanity project where you edited the item and click the three dots above the document and select open preview.
+To view the preview, go to the post edit page on Sanity, click the three dots above the document and select **Open preview** ([see the instruction here](https://www.sanity.io/docs/preview-content-on-site))
 
 You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-### Step 8. Deploy on ZEIT Now
+### Step 10. Deploy on ZEIT Now
 
 You can deploy this app to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 To deploy on ZEIT Now, you need to set the environment variables with **Now Secrets** using [Now CLI](https://zeit.co/download) ([Documentation](https://zeit.co/docs/now-cli#commands/secrets)).
 
-Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace `<NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>` with the corresponding strings in `.env`.
+Install [Now CLI](https://zeit.co/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace each variable with the corresponding strings in `.env`.
 
 ```
 now secrets add next_example_cms_sanity_preview_secret <NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET>
