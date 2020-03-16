@@ -11,7 +11,6 @@ description: With minimal config, and without leaving React, you can start addin
   </ul>
 </details>
 
-AMP means "_Accelerated Mobile Pages_", and it's, in short words: A faster HTML.
 
 With Next.js you can turn any React page into an AMP page, with minimal config, and without leaving React.
 
