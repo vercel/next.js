@@ -43,6 +43,7 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
+        sassOptions: ctx.sassOptions,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead
