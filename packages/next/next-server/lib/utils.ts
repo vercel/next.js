@@ -20,6 +20,7 @@ export type NextComponentType<
    * @param ctx Context of `page`
    */
   getInitialProps?(context: C): IP | Promise<IP>
+  Layout?: () => React.ReactElement
 }
 
 export type DocumentType = NextComponentType<
