@@ -11,7 +11,6 @@ description: With minimal config, and without leaving React, you can start addin
   </ul>
 </details>
 
-
 With Next.js you can turn any React page into an AMP page, with minimal config, and without leaving React.
 
 You can read more about AMP in the official [amp.dev](https://amp.dev/) site.
