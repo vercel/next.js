@@ -48,32 +48,51 @@ export const config = {
 }
 ```
 
-## Micro support
+## Connect/Express middleware support
 
-As an added bonus, you can also use any [Micro](https://github.com/zeit/micro) compatible middleware.
+You can also use [Connect](https://github.com/senchalabs/connect) compatible middleware.
 
-For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging [micro-cors](https://github.com/possibilities/micro-cors).
+For example, [configuring CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) for your API endpoint can be done leveraging the [cors](https://www.npmjs.com/package/cors) package.
 
-First, install `micro-cors`:
+First, install `cors`:
 
 ```bash
-npm i micro-cors
+npm i cors
 # or
-yarn add micro-cors
+yarn add cors
 ```
 
-Now, let's add `micro-cors` to the API route:
+Now, let's add `cors` to the API route:
 
 ```js
-import Cors from 'micro-cors'
+import Cors from 'cors'
 
+// Initializing the cors middleware
 const cors = Cors({
-  allowMethods: ['GET', 'HEAD'],
+  methods: ['GET', 'HEAD'],
 })
 
-function handler(req, res) {
+// Helper method to wait for a middleware to execute before continuing
+// And to throw an error when an error happens in a middleware
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, result => {
+      if (result instanceof Error) {
+        return reject(result)
+      }
+
+      return resolve(result)
+    })
+  })
+}
+
+async function handler(req, res) {
+  // Run the middleware
+  await runMiddleware(req, res, cors)
+
+  // Rest of the API logic
   res.json({ message: 'Hello Everyone!' })
 }
 
-export default cors(handler)
+export default handler
 ```
