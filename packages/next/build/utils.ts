@@ -341,6 +341,9 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach(key => {
+    // prevent duplicate '/' and '/index'
+    if (key === '/index') return
+
     if (key === '/_polyfills') {
       return
     }
@@ -357,8 +360,6 @@ async function computeFromManifest(
     ++expected
     manifest.pages[key].forEach(file => {
       if (
-        // Filter out CSS
-        !file.endsWith('.js') ||
         // Select Modern or Legacy scripts
         file.endsWith('.module.js') !== isModern
       ) {
