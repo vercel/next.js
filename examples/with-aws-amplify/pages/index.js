@@ -111,7 +111,7 @@ const App = props => {
     </div>
   )
 }
-App.getInitialProps = async () => {
+App.getStaticProps = async () => {
   let result = await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
   )
