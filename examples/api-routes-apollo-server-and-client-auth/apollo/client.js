@@ -36,8 +36,8 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
     WithApollo.displayName = `withApollo(${displayName})`
   }
 
-  if (ssr || PageComponent.getInitialProps) {
-    WithApollo.getInitialProps = async ctx => {
+  if (ssr || PageComponent.getStaticProps) {
+    WithApollo.getStaticProps = async ctx => {
       const { AppTree } = ctx
 
       // Initialize ApolloClient, add it to the ctx object so
@@ -47,10 +47,10 @@ export function withApollo(PageComponent, { ssr = true } = {}) {
         req: ctx.req,
       }))
 
-      // Run wrapped getInitialProps methods
+      // Run wrapped getStaticProps methods
       let pageProps = {}
-      if (PageComponent.getInitialProps) {
-        pageProps = await PageComponent.getInitialProps(ctx)
+      if (PageComponent.getStaticProps) {
+        pageProps = await PageComponent.getStaticProps(ctx)
       }
 
       // Only on the server:
