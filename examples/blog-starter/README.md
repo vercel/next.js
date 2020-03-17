@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Markdown
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using markdown files as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using markdown files as the data source.
 
 The blog posts are stored in `/_posts` as markdown files with front matter support. Adding a new markdown file in there will create a new blog post.
 
@@ -8,7 +8,7 @@ To create the blog posts we use [`remark`](https://github.com/gnab/remark) and [
 
 ## Demo
 
-[https://next-blog-datocms.now.sh/](https://next-blog-datocms.now.sh/)
+[https://next-blog-starter.now.sh/](https://next-blog-starter.now.sh/)
 
 ### Related examples
 
