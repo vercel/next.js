@@ -5,10 +5,11 @@ import {
 import RelaySSR from 'react-relay-network-modern-ssr/node8/server'
 import { Network, Environment, RecordSource, Store } from 'relay-runtime'
 
+const source = new RecordSource()
+const store = new Store(source)
+
 export default {
   initEnvironment: () => {
-    const source = new RecordSource()
-    const store = new Store(source)
     const relaySSR = new RelaySSR()
 
     return {
@@ -25,9 +26,6 @@ export default {
     }
   },
   createEnvironment: (relayData, key) => {
-    const source = new RecordSource()
-    const store = new Store(source)
-
     return new Environment({
       store,
       network: Network.create(
