@@ -9,6 +9,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 ### Related examples
 
 - [Blog Starter](/examples/blog-starter)
+- [Sanity](/examples/cms-sanity)
 
 ## How to use
 

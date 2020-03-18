@@ -248,6 +248,7 @@ Take a look at the following examples to learn more:
 
 - [Blog Starter using markdown files](https://github.com/zeit/next.js/tree/canary/examples/blog-starter) ([Demo](https://next-blog-starter.now.sh/))
 - [DatoCMS Example](https://github.com/zeit/next.js/tree/canary/examples/cms-datocms) ([Demo](https://next-blog-datocms.now.sh/))
+- [Sanity Example](https://github.com/zeit/next.js/tree/canary/examples/cms-sanity) ([Demo](https://next-blog-sanity.now.sh/))
 
 ## Learn more
 
