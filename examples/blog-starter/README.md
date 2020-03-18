@@ -13,6 +13,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 ### Related examples
 
 - [DatoCMS](/examples/cms-datocms)
+- [Sanity](/examples/cms-sanity)
 
 ## How to use
 
