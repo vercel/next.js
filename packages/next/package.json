@@ -57,7 +57,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.0.0",
+    "@ampproject/toolbox-optimizer": "2.0.1",
     "@babel/core": "7.7.2",
     "@babel/plugin-proposal-class-properties": "7.7.0",
     "@babel/plugin-proposal-nullish-coalescing-operator": "7.7.4",
