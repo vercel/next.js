@@ -29,7 +29,7 @@ const nextBuild: cliCommand = argv => {
 
       <dir> represents where the compiled dist folder should go.
       If no directory is provided, the dist folder will be created in the current directory.
-      You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
+      You can set a custom folder in config https://nextjs.org/docs/api-reference/next.config.js/setting-a-custom-build-directory, otherwise it will be created inside '.next'
     `,
       0
     )
