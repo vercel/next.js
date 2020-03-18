@@ -8,7 +8,6 @@ You attempted to export a page with `getServerSideProps` which is not allowed. `
 
 If you would like the page be static you can leverage the `getStaticProps` method instead.
 
-
 ### Useful Links
 
 - [`getStaticProps` documentation](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation)
