@@ -1,6 +1,6 @@
 # A statically generated blog example using Next.js and Sanity
 
-This example showcases Next.js's [Static Generation](/docs/basic-features/pages.md) feature using [Sanity](https://www.sanity.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Sanity](https://www.sanity.io/) as the data source.
 
 ## Demo
 
@@ -45,7 +45,7 @@ When going through the init phase make sure to select **Yes** to the **Use the d
 
 ### Step 3. Generate an API token
 
-Log into https://manage.sanity.io/ and choose the project you just created. Then from **Settings**, click **Add New Token** and create a token with the **Read** permission.
+Log into https://manage.sanity.io/ and choose the project you just created. Then from **Settings**, select **API**, then click **Add New Token** and create a token with the **Read** permission.
 
 ### Step 4. Set up environment variables
 
@@ -71,9 +71,9 @@ NEXT_EXAMPLE_CMS_SANITY_API_TOKEN=...
 
 ### Step 5. Prepare project for previewing
 
-Go to https://www.sanity.io/docs/preview-content-on-site and follow the steps.
+Go to https://www.sanity.io/docs/preview-content-on-site and follow the three steps on that page. It should be done inside the studio project generated in Step 2.
 
-When you get to the step to create a function called `resolveProductionUrl`, copy the following instead:
+When you get to the second step about creating a file called `resolveProductionUrl.js`, copy the following instead:
 
 ```js
 const previewSecret = 'MY_SECRET' // Copy the string you used for NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET
