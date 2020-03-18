@@ -1,16 +1,16 @@
-import { NextPage, GetStaticProps } from 'next'
+import { GetStaticProps } from 'next'
 import Link from 'next/link'
 
+import { User } from '../../interfaces'
+import { sampleUserData } from '../../utils/sample-data'
 import Layout from '../../components/Layout'
 import List from '../../components/List'
-import { User } from '../../interfaces'
-import { sampleFetchWrapper } from '../../utils/sample-api'
 
 type Props = {
   items: User[]
 }
 
-const WithStaticProps: NextPage<Props> = ({ items }) => (
+const WithStaticProps = ({ items }: Props) => (
   <Layout title="Users List | Next.js + TypeScript Example">
     <h1>Users List</h1>
     <p>
@@ -30,11 +30,7 @@ export const getStaticProps: GetStaticProps = async () => {
   // Example for including static props in a Next.js function component page.
   // Don't forget to include the respective types for any props passed into
   // the component.
-
-  const items: User[] = await sampleFetchWrapper(
-    'http://localhost:3000/api/users'
-  )
-
+  const items: User[] = sampleUserData
   return { props: { items } }
 }
 
