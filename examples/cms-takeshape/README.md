@@ -58,7 +58,7 @@ Next, add these fields (you don't have to modify the settings unless specified):
 - **Asset** widget: Set the title as **Cover Image**.
 - **Date** widget: Set the title as **Date**.
 - **Single Line** widget: Set the title as **Slug**.
-- **Relationship** widget: Set the title as **Author**.
+- **Relationship** widget: Set the title as **Author**, then set **Relationship Type** to `Single` and check the `Author` checkbox under **Allowed Content Types**.
 
 When you’re done, click "Create Content Type".
 
