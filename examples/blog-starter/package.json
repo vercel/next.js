@@ -1,30 +1,26 @@
 {
-  "name": "nextjs-blog-starter",
+  "name": "blog-starter",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "build:rss": "node ./.next/serverless/posts/rss-feed.js",
-    "now-build": "next build && yarn build:rss"
+    "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-mdx": "^1.2.0",
-    "babel-plugin-macros": "^2.5.0",
-    "babel-plugin-preval": "^3.0.1",
-    "date-fns": "^1.30.1",
-    "human-date": "^1.4.0",
-    "isomorphic-unfetch": "^3.0.0",
-    "lodash.range": "^3.2.0",
-    "mdx-prism": "^0.3.1",
-    "micro": "^9.3.3",
-    "next": "latest",
-    "pagination": "^0.4.6",
-    "prop-types": "^15.7.2",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "classnames": "2.2.6",
+    "date-fns": "2.10.0",
+    "gray-matter": "4.0.2",
+    "isomorphic-unfetch": "3.0.0",
+    "next": "9.3.0",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0",
+    "remark": "11.0.2",
+    "remark-html": "10.0.0"
   },
   "devDependencies": {
-    "@svgr/webpack": "^4.2.0",
-    "prettier": "^1.16.4",
-    "rehype": "^8.0.0"
+    "@fullhuman/postcss-purgecss": "^2.1.0",
+    "dotenv": "8.2.0",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.2.0"
   }
 }

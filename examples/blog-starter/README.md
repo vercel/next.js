@@ -1,16 +1,18 @@
-# Blog starter example
+# A statically generated blog example using Next.js and Markdown
 
-This is an example of a blog built with Next.js. [Read more about the motivation and how it is built](https://jolvera.dev/posts/rebuilding-my-blog-with-nextjs).
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using markdown files as the data source.
 
-The blog is still barebones and need more improvements and styling, but this should be enough to get you started.
+The blog posts are stored in `/_posts` as markdown files with front matter support. Adding a new markdown file in there will create a new blog post.
 
-[Demo deployed in Now](https://nextjs-blog-starter.now.sh/)
+To create the blog posts we use [`remark`](https://github.com/gnab/remark) and [`remark-html`](https://github.com/remarkjs/remark-html) to convert the markdown files into an HTML string, and then send it down as a prop to the page. The metadata of every post is handled by [`gray-matter`](https://github.com/jonschlinkert/gray-matter) and also sent in props to the page.
 
-## Deploy your own
+## Demo
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+[https://next-blog-starter.now.sh/](https://next-blog-starter.now.sh/)
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/blog-starter)
+### Related examples
+
+- [DatoCMS](/examples/cms-datocms)
 
 ## How to use
 
@@ -26,22 +28,25 @@ yarn create next-app --example blog-starter blog-starter-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/blog-starter
 cd blog-starter
 ```
 
-### Run locally
-
-Install and run the development server:
+Install dependencies and run the example:
 
 ```bash
+npm install
+npm run dev
+
+# or
+
 yarn install
-now dev
+yarn dev
 ```
 
-### Deploy
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
 
 Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
