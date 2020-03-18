@@ -1,8 +1,8 @@
-import FirebaseProvider from '../context/firebaseContext'
+import UserProvider from '../context/userContext'
 
 // Custom App to wrap it with context provider
 export default ({ Component, pageProps }) => (
-  <FirebaseProvider>
+  <UserProvider>
     <Component {...pageProps} />
-  </FirebaseProvider>
+  </UserProvider>
 )

@@ -1,23 +1,20 @@
 import Head from 'next/head'
 import { useEffect } from 'react'
-import { useFirebase } from '../context/firebaseContext'
-import firebase from 'firebase/app'
+import { useUser } from '../context/userContext'
+import firebase from '../firebase/clientApp'
 
 export default () => {
   // Our custom hook to get context values
-  const { isInitialized, loadingUser, user } = useFirebase()
+  const { loadingUser, user } = useUser()
 
   useEffect(() => {
-    if (isInitialized) {
-      // You can use your firebase app here
-      // firebase.firestore().doc('whatever').get()
-      console.log(firebase)
-      if (!loadingUser) {
-        // You can know that the user is loaded: either logged in or out!
-        console.log(user)
-      }
+    if (!loadingUser) {
+      // You know that the user is loaded: either logged in or out!
+      console.log(user)
     }
-  }, [isInitialized, loadingUser, user])
+    // You also have your firebase app initialized
+    console.log(firebase)
+  }, [loadingUser, user])
 
   return (
     <div className="container">

@@ -1,6 +1,8 @@
 # With Firebase Client-Side
 
-This is a simple set up for Firebase on the client side. It uses React Context to store some data about the state of your Firebase app. It's all client side, so no custom server.
+This is a simple set up for Firebase on the client side. All client side, so no custom server.
+
+The firebase app is initialized in `firebase/clientApp.js`. You'll need to `import firebase from '<path>/firebase/clientApp'` to use the initialized app. It also uses React Context API to provide user state.
 
 ## Deploy your own
 
@@ -9,6 +11,8 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 [![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/import/project?template=https://github.com/zeit/next.js/tree/canary/examples/with-firebase-client-side)
 
 ## How to use
+
+First of all, you'll need to [create a Firebase project](https://console.firebase.google.com/u/0/).
 
 ### Using `create-next-app`
 
@@ -38,11 +42,5 @@ npm run dev
 yarn
 yarn dev
 ```
-
-### Setting up Firebase
-
-- Create a [Firebase project](https://console.firebase.google.com/u/0/).
-- Fill in your credentials at `/credentials/client`
-- Done!
 
 Deploy it to the cloud with [ZEIT Now](https://zeit.co/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
