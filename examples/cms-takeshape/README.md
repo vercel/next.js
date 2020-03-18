@@ -27,7 +27,7 @@ cd cms-takeshape
 
 ### Step 1. Create an account and a project on TakeShape
 
-First, [create an account on TakeShape](https://wwww.takeshape.io).
+First, [create an account on TakeShape](https://www.takeshape.io/).
 
 After creating an account, create a **new project** from the dashboard. You can select a **Blank Project**.
 
