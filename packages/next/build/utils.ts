@@ -78,6 +78,15 @@ export async function printTreeView(
     return chalk.red.bold(size)
   }
 
+  const getCleanName = (fileName: string) =>
+    fileName
+      // Trim off `static/`
+      .replace(/^static\//, '')
+      // Re-add `static/` for root files
+      .replace(/^<buildId>/, 'static')
+      // Remove file hash
+      .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+
   const messages: [string, string, string][] = [
     ['Page', 'Size', 'First Load'].map(entry => chalk.underline(entry)) as [
       string,
@@ -96,6 +105,14 @@ export async function printTreeView(
     } as any)
     list = [...list, '/404']
   }
+
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    buildId,
+    isModern,
+    pageInfos
+  )
 
   const pageList = list
     .slice()
@@ -147,6 +164,24 @@ export async function printTreeView(
         : '',
     ])
 
+    const uniqueCssFiles =
+      buildManifest.pages[item]?.filter(
+        file => file.endsWith('.css') && sizeData.uniqueFiles.includes(file)
+      ) || []
+
+    if (uniqueCssFiles.length > 0) {
+      const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+      uniqueCssFiles.forEach((file, index, { length }) => {
+        const innerSymbol = index === length - 1 ? '└' : '├'
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
+          prettyBytes(sizeData.sizeUniqueFiles[file]),
+          '',
+        ])
+      })
+    }
+
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
       const previewPages = totalRoutes === 4 ? 4 : 3
@@ -165,33 +200,22 @@ export async function printTreeView(
     }
   })
 
-  const sharedData = await getSharedSizes(
-    distPath,
-    buildManifest,
-    buildId,
-    isModern,
-    pageInfos
-  )
+  const sharedFilesSize = sizeData.sizeCommonFiles
+  const sharedFiles = sizeData.sizeCommonFile
 
-  messages.push(['+ shared by all', getPrettySize(sharedData.total), ''])
-  Object.keys(sharedData.files)
+  messages.push(['+ shared by all', getPrettySize(sharedFilesSize), ''])
+  Object.keys(sharedFiles)
     .map(e => e.replace(buildId, '<buildId>'))
     .sort()
     .forEach((fileName, index, { length }) => {
       const innerSymbol = index === length - 1 ? '└' : '├'
 
       const originalName = fileName.replace('<buildId>', buildId)
-      const cleanName = fileName
-        // Trim off `static/`
-        .replace(/^static\//, '')
-        // Re-add `static/` for root files
-        .replace(/^<buildId>/, 'static')
-        // Remove file hash
-        .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+      const cleanName = getCleanName(originalName)
 
       messages.push([
         `  ${innerSymbol} ${cleanName}`,
-        prettyBytes(sharedData.files[originalName]),
+        prettyBytes(sharedFiles[originalName]),
         '',
       ])
     })
@@ -313,6 +337,7 @@ type BuildManifestShape = { pages: { [k: string]: string[] } }
 type ComputeManifestShape = {
   commonFiles: string[]
   uniqueFiles: string[]
+  sizeUniqueFiles: { [file: string]: number }
   sizeCommonFile: { [file: string]: number }
   sizeCommonFiles: number
 }
@@ -341,6 +366,9 @@ async function computeFromManifest(
   let expected = 0
   const files = new Map<string, number>()
   Object.keys(manifest.pages).forEach(key => {
+    // prevent duplicate '/' and '/index'
+    if (key === '/index') return
+
     if (key === '/_polyfills') {
       return
     }
@@ -357,8 +385,6 @@ async function computeFromManifest(
     ++expected
     manifest.pages[key].forEach(file => {
       if (
-        // Filter out CSS
-        !file.endsWith('.js') ||
         // Select Modern or Legacy scripts
         file.endsWith('.module.js') !== isModern
       ) {
@@ -403,9 +429,25 @@ async function computeFromManifest(
     stats = []
   }
 
+  let uniqueStats: [string, number][]
+  try {
+    uniqueStats = await Promise.all(
+      uniqueFiles.map(
+        async f =>
+          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+      )
+    )
+  } catch (_) {
+    uniqueStats = []
+  }
+
   lastCompute = {
     commonFiles,
     uniqueFiles,
+    sizeUniqueFiles: uniqueStats.reduce(
+      (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
+      {}
+    ),
     sizeCommonFile: stats.reduce(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
@@ -435,23 +477,6 @@ function sum(a: number[]): number {
   return a.reduce((size, stat) => size + stat, 0)
 }
 
-export async function getSharedSizes(
-  distPath: string,
-  buildManifest: BuildManifestShape,
-  buildId: string,
-  isModern: boolean,
-  pageInfos: Map<string, PageInfo>
-): Promise<{ total: number; files: { [page: string]: number } }> {
-  const data = await computeFromManifest(
-    buildManifest,
-    distPath,
-    buildId,
-    isModern,
-    pageInfos
-  )
-  return { total: data.sizeCommonFiles, files: data.sizeCommonFile }
-}
-
 export async function getPageSizeInKb(
   page: string,
   distPath: string,
@@ -467,7 +492,8 @@ export async function getPageSizeInKb(
   )
 
   const fnFilterModern = (entry: string) =>
-    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
+    (entry.endsWith('.js') && entry.endsWith('.module.js') === isModern) ||
+    entry.endsWith('.css')
 
   const pageFiles = (buildManifest.pages[page] || []).filter(fnFilterModern)
   const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
