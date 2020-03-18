@@ -6,6 +6,11 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ### [https://next-blog-sanity.now.sh/](https://next-blog-sanity.now.sh/)
 
+### Related examples
+
+- [Blog Starter](/examples/blog-starter)
+- [DatoCMS](/examples/cms-datocms)
+
 ## How to use
 
 ### Using `create-next-app`
