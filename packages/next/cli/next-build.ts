@@ -27,9 +27,8 @@ const nextBuild: cliCommand = argv => {
       Usage
         $ next build <dir>
 
-      <dir> represents where the compiled dist folder should go.
-      If no directory is provided, the dist folder will be created in the current directory.
-      You can set a custom folder in config https://nextjs.org/docs/api-reference/next.config.js/setting-a-custom-build-directory, otherwise it will be created inside '.next'
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
     `,
       0
     )
