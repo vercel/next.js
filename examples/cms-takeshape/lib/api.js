@@ -93,7 +93,9 @@ export async function getPostAndMorePosts(slug, preview) {
   const data = await fetchAPI(
     `
   query PostBySlug($slug: String, $onlyEnabled: Boolean) {
-    post: getPostList(filter: {term: {slug: $slug}}, size: 1, onlyEnabled: $onlyEnabled) {
+    post: getPostList(filter: { term: {slug: $slug}}, ${
+      preview ? '' : 'where: { _status: { eq: "enabled" } },'
+    } size: 1, onlyEnabled: $onlyEnabled) {
       items {
         title
         slug
