@@ -819,6 +819,7 @@ describe('CSS Support', () => {
       })
       expect(code).toBe(0)
       expect(stdout).toMatch(/Compiled successfully/)
+      expect(stdout).toContain('.css')
     })
 
     it(`should've compiled and prefixed`, async () => {
