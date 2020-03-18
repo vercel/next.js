@@ -7,14 +7,11 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "module-alias": "2.2.2",
-    "next": "latest",
-    "preact": "10.2.1",
-    "preact-render-to-string": "5.1.4"
-  },
-  "license": "ISC",
-  "devDependencies": {
-    "react": "16.10.2",
-    "react-dom": "16.10.2"
+    "next": "^9.2.3-canary.21",
+    "preact": "^10.2.1",
+    "preact-render-to-string": "^5.1.4",
+    "react": "github:preact-compat/react#1.0.0",
+    "react-dom": "github:preact-compat/react-dom#1.0.0",
+    "react-ssr-prepass": "npm:preact-ssr-prepass@^1.0.1"
   }
 }
