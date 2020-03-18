@@ -42,7 +42,7 @@ export async function getPostAndMorePosts(slug, preview) {
   const [post, morePosts] = await Promise.all([
     curClient
       .fetch(
-        `*[_type == "post" && slug.current == $slug]{
+        `*[_type == "post" && slug.current == $slug] | order(_updatedAt desc) {
         ${postFields}
         content,
       }`,
