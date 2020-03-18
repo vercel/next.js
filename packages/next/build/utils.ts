@@ -204,9 +204,21 @@ export async function printTreeView(
   const sharedFiles = sizeData.sizeCommonFile
 
   messages.push(['+ shared by all', getPrettySize(sharedFilesSize), ''])
-  Object.keys(sharedFiles)
+  const sharedFileKeys = Object.keys(sharedFiles)
+  const sharedCssFiles: string[] = []
+  ;[
+    ...sharedFileKeys
+      .filter(file => {
+        if (file.endsWith('.css')) {
+          sharedCssFiles.push(file)
+          return false
+        }
+        return true
+      })
+      .sort(),
+    ...sharedCssFiles.sort(),
+  ]
     .map(e => e.replace(buildId, '<buildId>'))
-    .sort()
     .forEach((fileName, index, { length }) => {
       const innerSymbol = index === length - 1 ? '└' : '├'
 
