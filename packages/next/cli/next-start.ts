@@ -34,7 +34,7 @@ const nextStart: cliCommand = argv => {
       <dir> is the directory that contains the compiled dist folder
       created by running \`next build\`.
       If no directory is provided, the current directory will be assumed.
-      You can set a custom dist folder in config https://github.com/zeit/next.js#custom-configuration
+      You can set a custom dist folder in config https://nextjs.org/docs/api-reference/next.config.js/setting-a-custom-build-directory
 
       Options
         --port, -p      A port number on which to start the application

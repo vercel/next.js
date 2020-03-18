@@ -35,7 +35,7 @@ const nextDev: cliCommand = argv => {
 
       <dir> represents where the compiled folder should go.
       If no directory is provided, the folder will be created in the current directory.
-      You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
+      You can set a custom folder in config https://nextjs.org/docs/api-reference/next.config.js/setting-a-custom-build-directory
 
       Options
         --port, -p      A port number on which to start the application
