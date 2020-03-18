@@ -112,7 +112,11 @@ export async function getPostAndMorePosts(slug, preview) {
         }
       }
     }
-    morePosts: getPostList(sort: { field: "_createdAt", order: "desc" }, size: 3, onlyEnabled: $onlyEnabled) {
+    morePosts: getPostList(
+      filter: { bool: { must_not: { term: {slug: $slug}}}}, , ${
+        preview ? '' : 'where: { _status: { eq: "enabled" } },'
+      }
+      sort: { field: "_createdAt", order: "desc" }, size: 3, onlyEnabled: $onlyEnabled) {
       items {
         title
         slug

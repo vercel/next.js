@@ -72,9 +72,7 @@ export async function getStaticProps({ params, preview = null }) {
         ...(data?.post?.items || [])[0],
         content,
       },
-      morePosts: data?.morePosts.items
-        .filter(post => post.slug !== params.slug)
-        .slice(0, 2),
+      morePosts: data?.morePosts.items,
     },
   }
 }
