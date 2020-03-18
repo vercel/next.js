@@ -135,7 +135,7 @@ Now, if you go to the post page on localhost, you won't see the updated title. H
 
 To view the preview, go to the post edit page on Sanity, click the three dots above the document and select **Open preview** ([see the instruction here](https://www.sanity.io/docs/preview-content-on-site))
 
-You should now be able to see the updated title. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
+You should now be able to see the updated title. To exit the preview mode, you can click on _"Click here to exit preview mode"_ at the top.
 
 ### Step 10. Deploy on ZEIT Now
 
