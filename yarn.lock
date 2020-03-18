@@ -9,10 +9,10 @@
   dependencies:
     cross-fetch "3.0.4"
 
-"@ampproject/toolbox-optimizer@2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-optimizer/-/toolbox-optimizer-2.0.0.tgz#96ea3d26bc7a9f19718a27c721e021a121003601"
-  integrity sha512-ZYRi7vB4ALC8DnTHQLchAeHMGsFml/Zr4fNWBlTiMGfvWGL0XTV9YyP4s24IDwAlunEgynmz0FTrGMJdRpNf2Q==
+"@ampproject/toolbox-optimizer@2.0.1":
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/@ampproject/toolbox-optimizer/-/toolbox-optimizer-2.0.1.tgz#943681faf24443044aa66f0b55eefb13cdcc068c"
+  integrity sha512-zroXqrV7mY77+/6hV7kaaWxp4LA85V0B/2vg7WdF+FrwiO9Wior/lIW8UbpRek6INjw0VOp1ED73MmGJkwaDhA==
   dependencies:
     "@ampproject/toolbox-core" "^2.0.0"
     "@ampproject/toolbox-runtime-version" "^2.0.0"
@@ -21,9 +21,9 @@
     css "2.2.4"
     domhandler "3.0.0"
     domutils "2.0.0"
-    htmlparser2 "4.0.0"
+    htmlparser2 "4.1.0"
     normalize-html-whitespace "1.0.0"
-    terser "4.6.3"
+    terser "4.6.7"
 
 "@ampproject/toolbox-runtime-version@^2.0.0":
   version "2.0.0"
@@ -8110,10 +8110,10 @@ html-entities@^1.2.0:
   resolved "https://registry.yarnpkg.com/html-entities/-/html-entities-1.2.1.tgz#0df29351f0721163515dfb9e5543e5f6eed5162f"
   integrity sha1-DfKTUfByEWNRXfueVUPl9u7VFi8=
 
-htmlparser2@4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/htmlparser2/-/htmlparser2-4.0.0.tgz#6034658db65b7713a572a9ebf79f650832dceec8"
-  integrity sha512-cChwXn5Vam57fyXajDtPXL1wTYc8JtLbr2TN76FYu05itVVVealxLowe2B3IEznJG4p9HAYn/0tJaRlGuEglFQ==
+htmlparser2@4.1.0:
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/htmlparser2/-/htmlparser2-4.1.0.tgz#9a4ef161f2e4625ebf7dfbe6c0a2f52d18a59e78"
+  integrity sha512-4zDq1a1zhE4gQso/c5LP1OtrhYTncXNSpvJYtWJBtXAETPlMfi3IFNjGuQbYLuVY4ZR0QMqRVvo4Pdy9KLyP8Q==
   dependencies:
     domelementtype "^2.0.1"
     domhandler "^3.0.0"
@@ -15876,10 +15876,10 @@ terser@4.4.2:
     source-map "~0.6.1"
     source-map-support "~0.5.12"
 
-terser@4.6.3:
-  version "4.6.3"
-  resolved "https://registry.yarnpkg.com/terser/-/terser-4.6.3.tgz#e33aa42461ced5238d352d2df2a67f21921f8d87"
-  integrity sha512-Lw+ieAXmY69d09IIc/yqeBqXpEQIpDGZqT34ui1QWXIUpR2RjbqEkT8X7Lgex19hslSqcWM5iMN2kM11eMsESQ==
+terser@4.6.7:
+  version "4.6.7"
+  resolved "https://registry.yarnpkg.com/terser/-/terser-4.6.7.tgz#478d7f9394ec1907f0e488c5f6a6a9a2bad55e72"
+  integrity sha512-fmr7M1f7DBly5cX2+rFDvmGBAaaZyPrHYK4mMdHEDAdNTqXSZgSOfqsfGq2HqPGT/1V0foZZuCZFx8CHKgAk3g==
   dependencies:
     commander "^2.20.0"
     source-map "~0.6.1"
