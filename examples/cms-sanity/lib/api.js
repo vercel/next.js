@@ -1,6 +1,18 @@
 import client, { previewClient } from './sanity'
 import sanityImage from '@sanity/image-url'
 
+const getUniquePosts = posts => {
+  const slugs = new Set()
+  return posts.filter(post => {
+    if (slugs.has(post.slug)) {
+      return false
+    } else {
+      slugs.add(post.slug)
+      return true
+    }
+  })
+}
+
 const postFields = `
   name,
   title,
@@ -32,9 +44,11 @@ export async function getAllPostsWithSlug() {
 }
 
 export async function getAllPostsForHome(preview) {
-  return getClient(preview).fetch(`*[_type == "post"] | order(date desc){
+  const results = await getClient(preview)
+    .fetch(`*[_type == "post"] | order(date desc, _updatedAt desc){
       ${postFields}
     }`)
+  return getUniquePosts(results)
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -50,12 +64,12 @@ export async function getPostAndMorePosts(slug, preview) {
       )
       .then(res => res?.[0]),
     curClient.fetch(
-      `*[_type == "post" && slug.current != $slug] | order(date desc){
+      `*[_type == "post" && slug.current != $slug] | order(date desc, _updatedAt desc){
         ${postFields}
         content,
       }[0...2]`,
       { slug }
     ),
   ])
-  return { post, morePosts }
+  return { post, morePosts: getUniquePosts(morePosts) }
 }
