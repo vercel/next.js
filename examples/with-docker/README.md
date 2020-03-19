@@ -47,14 +47,7 @@ Run the docker image:
 ```bash
 docker run --rm -it \
   -p 3000:3000 \
-  -e "API_URL=https://example.com" \
   next-app
 ```
 
 or use `yarn build-docker-multistage`
-
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now --docker -e API_URL="https://example.com"
-```
