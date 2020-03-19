@@ -204,21 +204,32 @@ export async function printTreeView(
   const sharedFiles = sizeData.sizeCommonFile
 
   messages.push(['+ shared by all', getPrettySize(sharedFilesSize), ''])
-  Object.keys(sharedFiles)
-    .map(e => e.replace(buildId, '<buildId>'))
-    .sort()
-    .forEach((fileName, index, { length }) => {
-      const innerSymbol = index === length - 1 ? '└' : '├'
+  const sharedFileKeys = Object.keys(sharedFiles)
+  const sharedCssFiles: string[] = []
+  ;[
+    ...sharedFileKeys
+      .filter(file => {
+        if (file.endsWith('.css')) {
+          sharedCssFiles.push(file)
+          return false
+        }
+        return true
+      })
+      .map(e => e.replace(buildId, '<buildId>'))
+      .sort(),
+    ...sharedCssFiles.map(e => e.replace(buildId, '<buildId>')).sort(),
+  ].forEach((fileName, index, { length }) => {
+    const innerSymbol = index === length - 1 ? '└' : '├'
 
-      const originalName = fileName.replace('<buildId>', buildId)
-      const cleanName = getCleanName(originalName)
+    const originalName = fileName.replace('<buildId>', buildId)
+    const cleanName = getCleanName(fileName)
 
-      messages.push([
-        `  ${innerSymbol} ${cleanName}`,
-        prettyBytes(sharedFiles[originalName]),
-        '',
-      ])
-    })
+    messages.push([
+      `  ${innerSymbol} ${cleanName}`,
+      prettyBytes(sharedFiles[originalName]),
+      '',
+    ])
+  })
 
   console.log(
     textTable(messages, {
