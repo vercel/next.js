@@ -255,7 +255,7 @@ export default async function getBaseWebpackConfig(
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
-    ].filter(Boolean),
+    ],
     alias: {
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
