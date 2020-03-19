@@ -217,6 +217,22 @@ export default async function getBaseWebpackConfig(
     ? config.typescript?.ignoreDevErrors
     : config.typescript?.ignoreBuildErrors
 
+  const jsConfigPath = path.join(dir, 'jsconfig.json')
+  let jsConfig
+  // jsconfig is a subset of tsconfig
+  if (useTypeScript) {
+    jsConfig = require(tsConfigPath)
+  }
+
+  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+    jsConfig = require(jsConfigPath)
+  }
+
+  let resolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
@@ -239,7 +255,7 @@ export default async function getBaseWebpackConfig(
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
-    ],
+    ].filter(Boolean),
     alias: {
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
@@ -887,6 +903,11 @@ export default async function getBaseWebpackConfig(
           ].filter(Boolean),
         }),
     ].filter((Boolean as any) as ExcludesFalse),
+  }
+
+  // Support tsconfig and jsconfig baseUrl
+  if (resolvedBaseUrl) {
+    webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
