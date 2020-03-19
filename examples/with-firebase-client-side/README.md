@@ -12,8 +12,6 @@ Deploy the example using [ZEIT Now](https://zeit.co/now):
 
 ## How to use
 
-First of all, you'll need to [create a Firebase project](https://console.firebase.google.com/u/0/).
-
 ### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
@@ -32,6 +30,13 @@ Download the example:
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-client-side
 cd with-firebase-client-side
 ```
+
+### Configuration
+
+1. [Create a Firebase project](https://console.firebase.google.com/u/0/) and an app inside of it.
+2. Copy the `.env.example` file in this directory to `.env` (which will be ignored by Git).
+3. Create a `.env` file and copy the contents of `.env.example` into it. You can safely delete the `.env.example` file.
+4. Set each variable on `.env` with your Firebase Configuration (found in "Project settings").
 
 Install it and run:
 
