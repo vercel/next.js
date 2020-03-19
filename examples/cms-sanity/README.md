@@ -10,6 +10,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 - [Blog Starter](/examples/blog-starter)
 - [DatoCMS](/examples/cms-datocms)
+- [TakeShape](/examples/cms-takeshape)
 
 ## How to use
 
@@ -62,7 +63,7 @@ cp .env.example .env
 
 Then set each variable on `.env`:
 
-- `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](/docs/advanced-features/preview-mode.md).
+- `NEXT_EXAMPLE_CMS_SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - `NEXT_EXAMPLE_CMS_SANITY_PROJECT_ID`: Get the `projectId` value from the `sanity.json` file created in step 2.
 - `NEXT_EXAMPLE_CMS_SANITY_API_TOKEN`: Copy the API token generated in the previous step.
 
